@@ -2,8 +2,10 @@
 #include "ctool_host.h"
 #include "cupidc_emit.h"
 #include "cupidc_frontend.h"
+#include "cupidc_ir.h"
 #include "cupidc_pp.h"
 #include "elf32.h"
+#include "x86.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -251,6 +253,241 @@ static int symbol_matches(const ctool_elf32_symbol_t *symbol,
                  symbol->placement == placement &&
                  symbol->section_file_index == section_file_index &&
                  symbol->value == value && symbol->size == size
+             ? 1
+             : 0;
+}
+
+static int decode_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    const ctool_x86_mnemonic_t *expected, ctool_u32 expected_count,
+    const ctool_u8 *expected_bytes, ctool_u32 expected_size,
+    const ctool_u32 *expected_branch_targets,
+    ctool_u32 expected_branch_count,
+    const char *context) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 branch_index = 0u;
+  ctool_u32 index;
+  if (text == NULL || symbol == NULL || symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    (void)fprintf(stderr, "%s: function range differs\n", context);
+    return 0;
+  }
+  if (symbol->size != expected_size ||
+      (expected_size != 0u &&
+       memcmp(text->contents.data + symbol->value, expected_bytes,
+              (size_t)expected_size) != 0)) {
+    (void)fprintf(stderr, "%s: exact machine bytes differ\n", context);
+    return 0;
+  }
+  for (index = 0u; index < expected_count; index++) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining;
+    ctool_status_t status;
+    if (cursor >= symbol->size) {
+      (void)fprintf(stderr, "%s: instruction stream ended early\n", context);
+      return 0;
+    }
+    remaining = ctool_bytes(text->contents.data + symbol->value + cursor,
+                            symbol->size - cursor);
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.instruction.mnemonic != expected[index]) {
+      (void)fprintf(stderr,
+                    "%s: instruction %u at %u differs: expected %s, got %s; "
+                    "bytes %02x %02x %02x %02x\n",
+                    context, index, cursor,
+                    ctool_x86_mnemonic_name(expected[index]).data,
+                    status == CTOOL_OK &&
+                            decoded.kind == CTOOL_X86_DECODE_KNOWN
+                        ? ctool_x86_mnemonic_name(
+                              decoded.instruction.mnemonic)
+                              .data
+                        : "invalid",
+                    remaining.size > 0u ? remaining.data[0] : 0u,
+                    remaining.size > 1u ? remaining.data[1] : 0u,
+                    remaining.size > 2u ? remaining.data[2] : 0u,
+                    remaining.size > 3u ? remaining.data[3] : 0u);
+      return 0;
+    }
+    if (expected[index] == CTOOL_X86_MN_JE ||
+        expected[index] == CTOOL_X86_MN_JMP) {
+      int64_t target;
+      int32_t displacement;
+      if (branch_index >= expected_branch_count ||
+          expected_branch_targets == NULL ||
+          decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_RELATIVE ||
+          decoded.instruction.operands[0].as.value.kind !=
+              CTOOL_X86_VALUE_CONSTANT ||
+          decoded.encoding.field_count != 1u ||
+          decoded.encoding.fields[0].kind != CTOOL_X86_FIELD_RELATIVE ||
+          decoded.encoding.fields[0].byte_width != 4u) {
+        (void)fprintf(stderr, "%s: branch %u shape differs\n", context,
+                      branch_index);
+        return 0;
+      }
+      displacement =
+          (int32_t)decoded.instruction.operands[0].as.value.bits;
+      target = (int64_t)cursor + (int64_t)decoded.consumed +
+               (int64_t)displacement;
+      if (target != (int64_t)expected_branch_targets[branch_index] ||
+          decoded.encoding.fields[0].encoded_addend != displacement) {
+        (void)fprintf(stderr,
+                      "%s: branch %u target differs: expected %u, got %lld\n",
+                      context, branch_index,
+                      expected_branch_targets[branch_index],
+                      (long long)target);
+        return 0;
+      }
+      branch_index++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size || branch_index != expected_branch_count) {
+    (void)fprintf(stderr, "%s: trailing function bytes differ\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_function_object(ctool_job_t *job,
+                                    const ctool_elf32_object_t *object) {
+  static const ctool_u8 implemented_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x2au, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 helper_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0xffu,
+      0xffu, 0xffu, 0xffu, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
+      0x97u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u,
+      0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_u8 signed_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9fu, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 idle_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xc9u, 0xc3u};
+  static const ctool_u32 helper_branch_targets[] = {65u, 70u};
+  static const ctool_x86_mnemonic_t implemented_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t helper_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETA,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t idle_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t signed_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETG,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *implemented =
+      find_symbol(object, "implemented");
+  const ctool_elf32_symbol_t *helper =
+      find_symbol(object, "cemit_add_overflows");
+  const ctool_elf32_symbol_t *signed_greater =
+      find_symbol(object, "signed_greater");
+  const ctool_elf32_symbol_t *idle = find_symbol(object, "idle");
+  const ctool_elf32_symbol_t *function_data =
+      find_symbol(object, "function_data");
+  if (text == NULL || text->type != CTOOL_ELF32_SHT_PROGBITS ||
+      text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
+      text->alignment != 1u || text->contents.size == 0u ||
+      rel_text != NULL || object->relocation_count != 0u ||
+      data == NULL || data->contents.size != 4u ||
+      implemented == NULL || helper == NULL || idle == NULL ||
+      signed_greater == NULL || function_data == NULL ||
+      !symbol_matches(implemented, implemented->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      implemented->size) ||
+      !symbol_matches(helper, helper->file_index, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      implemented->size, helper->size) ||
+      !symbol_matches(signed_greater, signed_greater->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      implemented->size + helper->size,
+                      signed_greater->size) ||
+      !symbol_matches(idle, idle->file_index, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      implemented->size + helper->size +
+                          signed_greater->size,
+                      idle->size) ||
+      !symbol_matches(function_data, function_data->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
+      data->contents.data[0] != 7u || data->contents.data[1] != 0u ||
+      data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
+      implemented->size == 0u || helper->size == 0u ||
+      signed_greater->size == 0u || idle->size == 0u ||
+      implemented->size + helper->size + signed_greater->size + idle->size !=
+          text->contents.size) {
+    (void)fprintf(stderr, "function object structure differs\n");
+    return 0;
+  }
+  return decode_function(
+             job, text, implemented, implemented_instructions,
+             (ctool_u32)(sizeof(implemented_instructions) /
+                         sizeof(implemented_instructions[0])),
+             implemented_bytes, (ctool_u32)sizeof(implemented_bytes),
+             (const ctool_u32 *)0, 0u,
+             "implemented") &&
+                 decode_function(
+                     job, text, helper, helper_instructions,
+                     (ctool_u32)(sizeof(helper_instructions) /
+                                 sizeof(helper_instructions[0])),
+                     helper_bytes, (ctool_u32)sizeof(helper_bytes),
+                     helper_branch_targets,
+                     (ctool_u32)(sizeof(helper_branch_targets) /
+                                 sizeof(helper_branch_targets[0])),
+                     "cemit_add_overflows") &&
+                 decode_function(
+                     job, text, signed_greater, signed_instructions,
+                     (ctool_u32)(sizeof(signed_instructions) /
+                                 sizeof(signed_instructions[0])),
+                     signed_bytes, (ctool_u32)sizeof(signed_bytes),
+                     (const ctool_u32 *)0, 0u,
+                     "signed_greater") &&
+                 decode_function(
+                     job, text, idle, idle_instructions,
+                     (ctool_u32)(sizeof(idle_instructions) /
+                                 sizeof(idle_instructions[0])),
+                     idle_bytes, (ctool_u32)sizeof(idle_bytes),
+                     (const ctool_u32 *)0, 0u,
+                     "idle")
              ? 1
              : 0;
 }
@@ -614,7 +851,22 @@ static int run_static_data(const char *host_root) {
       "int *imported_pointer = &imported;\n"
       "void (*hook)(void) = callback;\n";
   static const char function_text[] =
-      "int implemented(void) { return 0; }\n";
+      "typedef unsigned int ctool_u32;\n"
+      "typedef int ctool_bool;\n"
+      "#define CTOOL_FALSE 0\n"
+      "#define CTOOL_TRUE 1\n"
+      "int function_data = 7;\n"
+      "int implemented(void) { return 42; }\n"
+      "static ctool_bool cemit_add_overflows(ctool_u32 left, "
+      "ctool_u32 right) {\n"
+      "  return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;\n"
+      "}\n"
+      "int signed_greater(int left, int right) { return left > right; }\n"
+      "static void idle(void) {}\n";
+  static const char unsupported_function_text[] =
+      "int unsupported(int value) { return value + 1; }\n";
+  static const char external_inline_text[] =
+      "inline int external_inline(void) { return 1; }\n";
   static const char layout_text[] =
       "typedef struct {\n"
       "  unsigned char tag;\n"
@@ -646,6 +898,8 @@ static int run_static_data(const char *host_root) {
   ctool_buffer_t *limited = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t function_unit;
+  ctool_c_translation_unit_t unsupported_function_unit;
+  ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_object_definition_t *invalid_definitions = NULL;
@@ -662,6 +916,8 @@ static int run_static_data(const char *host_root) {
   ctool_arena_mark_t mark;
   ctool_bytes_t bytes;
   ctool_bytes_t layout_bytes;
+  ctool_u8 *function_object = NULL;
+  ctool_u32 function_object_size = 0u;
   ctool_status_t status;
   size_t invalid_binding_bytes;
   size_t invalid_definition_bytes;
@@ -680,6 +936,7 @@ static int run_static_data(const char *host_root) {
 
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&function_unit, 0, sizeof(function_unit));
+  (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
@@ -954,24 +1211,74 @@ static int run_static_data(const char *host_root) {
 
   if (!parse_source(job, "/function-definition.c", function_text,
                     &function_unit) ||
-      function_unit.function_definition_count != 1u) {
-    (void)fprintf(stderr, "function boundary fixture differs\n");
+      function_unit.function_definition_count != 4u) {
+    (void)fprintf(stderr, "function object fixture differs\n");
     goto cleanup;
   }
   diagnostic_count = ctool_job_diagnostic_count(job);
   mark = ctool_arena_mark(ctool_job_arena(job));
   status = ctool_c_emit_object(job, &function_unit, second);
-  if (!check_status(status, CTOOL_ERR_UNSUPPORTED,
-                    "function definition boundary") ||
-      ctool_buffer_view(second).size != 0u ||
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first function object") ||
+      bytes.size == 0u ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
-      !expect_new_diagnostic(job, diagnostic_count,
-                             CTOOL_C_EMIT_DIAG_UNSUPPORTED,
-                             "CupidC object emission does not yet support "
-                             "function definitions",
-                             "function definition boundary") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
-    (void)fprintf(stderr, "function definition boundary differs\n");
+    (void)fprintf(stderr, "first function emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  function_object_size = bytes.size;
+  function_object = (ctool_u8 *)malloc((size_t)function_object_size);
+  if (function_object == NULL) {
+    (void)fprintf(stderr, "function object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(function_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "function output rewind failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &function_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat function object") ||
+      bytes.size != function_object_size ||
+      memcmp(bytes.data, function_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "function emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/function-definition.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read function object") ||
+      !validate_function_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/unsupported-function.c",
+                    unsupported_function_text,
+                    &unsupported_function_unit) ||
+      !expect_object_failure(
+          job, &unsupported_function_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "unsupported function expression") ||
+      !parse_source(job, "/external-inline.c", external_inline_text,
+                    &external_inline_unit) ||
+      !expect_object_failure(
+          job, &external_inline_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_EXTERNAL_INLINE,
+          "CupidC IR lowering requires external-inline finalization before "
+          "lowering this definition",
+          "external inline object") ||
+      !expect_object_failure(job, &function_unit, limited, CTOOL_ERR_LIMIT,
+                             CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+                             "limited function object")) {
     goto cleanup;
   }
 
@@ -1243,6 +1550,7 @@ cleanup:
   free(invalid_initializers);
   free(invalid_definitions);
   free(expected_object);
+  free(function_object);
   dispose_unit_snapshot(&layout_snapshot);
   dispose_unit_snapshot(&snapshot);
   if (limited != (ctool_buffer_t *)0) {

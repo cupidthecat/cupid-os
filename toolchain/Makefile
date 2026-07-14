@@ -23,6 +23,7 @@ CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
 CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
 CUPIDC_TYPE_CONTRACT := $(BUILD_DIR)/cupidc-type-contract$(EXE)
 CUPIDC_FRONTEND_CONTRACT := $(BUILD_DIR)/cupidc-frontend-contract$(EXE)
+CUPIDC_IR_CONTRACT := $(BUILD_DIR)/cupidc-ir-contract$(EXE)
 CUPIDC_OBJECT_CONTRACT := $(BUILD_DIR)/cupidc-object-contract$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
@@ -57,12 +58,21 @@ CUPIDC_FRONTEND_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                     $(BUILD_DIR)/cupidc_type.o \
                                     $(BUILD_DIR)/cupidc_frontend.o \
                                     $(BUILD_DIR)/cupidc_frontend_contract.o
+CUPIDC_IR_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
+                              $(BUILD_DIR)/ctool_host.o \
+                              $(BUILD_DIR)/cupidc_pp.o \
+                              $(BUILD_DIR)/cupidc_type.o \
+                              $(BUILD_DIR)/cupidc_frontend.o \
+                              $(BUILD_DIR)/cupidc_ir.o \
+                              $(BUILD_DIR)/cupidc_ir_contract.o
 CUPIDC_OBJECT_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                   $(BUILD_DIR)/ctool_host.o \
                                   $(BUILD_DIR)/cupidc_pp.o \
                                   $(BUILD_DIR)/cupidc_type.o \
                                   $(BUILD_DIR)/cupidc_frontend.o \
+                                  $(BUILD_DIR)/cupidc_ir.o \
                                   $(BUILD_DIR)/elf32.o \
+                                  $(BUILD_DIR)/x86.o \
                                   $(BUILD_DIR)/cupidc_emit.o \
                                   $(BUILD_DIR)/cupidc_object_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -107,7 +117,7 @@ CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/cupidld_main.o
 BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
                        $(CUPIDC_TYPE_CONTRACT) $(CUPIDC_FRONTEND_CONTRACT) \
-                       $(CUPIDC_OBJECT_CONTRACT) \
+                       $(CUPIDC_IR_CONTRACT) $(CUPIDC_OBJECT_CONTRACT) \
                        $(ELF32_CONTRACT) $(X86_CONTRACT) \
                        $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
                        $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
@@ -143,8 +153,13 @@ $(BUILD_DIR)/cupidc_frontend.o: cupidc_frontend.c cupidc_frontend.h \
                                 cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/cupidc_ir.o: cupidc_ir.c cupidc_ir.h cupidc_frontend.h \
+                          cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/cupidc_emit.o: cupidc_emit.c cupidc_emit.h cupidc_frontend.h \
-                            cupidc_type.h cupidc_pp.h elf32.h ctool.h | $(BUILD_DIR)
+                            cupidc_ir.h cupidc_type.h cupidc_pp.h elf32.h \
+                            x86.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32.o: elf32.c elf32.h ctool.h | $(BUILD_DIR)
@@ -199,9 +214,14 @@ $(BUILD_DIR)/cupidc_frontend_contract.o: \
     cupidc_frontend.h cupidc_type.h cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.c \
-    cupidc_emit.h cupidc_frontend.h cupidc_type.h cupidc_pp.h elf32.h \
+$(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.c \
+    cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
     ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.c \
+    cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
+    elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
@@ -239,6 +259,9 @@ $(CUPIDC_TYPE_CONTRACT): $(CUPIDC_TYPE_CONTRACT_OBJECTS)
 
 $(CUPIDC_FRONTEND_CONTRACT): $(CUPIDC_FRONTEND_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_FRONTEND_CONTRACT_OBJECTS) -o $@
+
+$(CUPIDC_IR_CONTRACT): $(CUPIDC_IR_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_IR_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECT_CONTRACT_OBJECTS) -o $@
@@ -280,7 +303,8 @@ $(CUPIDLD): $(CUPIDLD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@
 
 test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
-      $(CUPIDC_FRONTEND_CONTRACT) $(CUPIDC_OBJECT_CONTRACT) \
+      $(CUPIDC_FRONTEND_CONTRACT) $(CUPIDC_IR_CONTRACT) \
+      $(CUPIDC_OBJECT_CONTRACT) \
       $(ELF32_CONTRACT) $(X86_CONTRACT) \
       $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
@@ -371,6 +395,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) depth-declarator ..
 	$(CUPIDC_FRONTEND_CONTRACT) depth-constant ..
 	$(CUPIDC_FRONTEND_CONTRACT) depth-record ..
+	$(CUPIDC_IR_CONTRACT) active-leaf ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model

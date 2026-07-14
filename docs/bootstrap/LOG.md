@@ -2569,3 +2569,51 @@ Independent comparison against `HEAD` caught and corrected four ADR rewrites tha
 One WSL audit attempt produced Linux-specific executable suffix and dependency-order churn in the generated JSON. It was discarded, and the Windows rerun restored the canonical record before verification. The first full-suite attempt was stopped by a two-minute command timeout rather than a test failure; the longer rerun above is the accepted result. The first bounded QEMU wrapper reached the desktop but printed a shell-condition error after its planned timeout. The shorter rerun removed that wrapper error and supplies the boot evidence above.
 
 No C, assembly, toolchain implementation, build rule, generated audit record, or `TempleOS/` reference changed. The embedded text changes kernel image bytes but transfer no compiler, assembler, linker, object, or disassembler ownership. No GitHub issue is ready to close from this documentation-only step; issue #25 remains open.
+
+## 2026-07-14: CupidC linear IR lowers leaf integer functions
+
+### Decision and active-source requirement
+
+The shared CupidC path now has a public typed linear IR between the declaration frontend and object emission. `ctool_c_lower_ir` borrows a frozen translation unit and publishes immutable function and instruction arrays in the Toolchain job arena. Its address and value stack preserves lvalue identity, records exact maximum depth, and requires matching stack shapes at control-flow joins. Parameter references keep their absolute frontend identities, while branch targets are relative to their function.
+
+The unchanged `cemit_add_overflows` helper in `toolchain/cupidc_emit.c` sets the first source-driven boundary. Its two 32-bit parameters, unsigned subtraction and comparison, conditional expression, and scalar return lower to a pinned 12-instruction IR sequence. The first ABI slice accepts fixed, nonvariadic cdecl functions with 32-bit integer parameters and either a 32-bit integer or `void` result. It supports parameter addresses and loads, 32-bit constants, represented implicit conversions that preserve the 32-bit value representation, subtraction, signed and unsigned greater-than comparison, conditional selection, and value or void returns. Static inline definitions and non-inline definitions after inline declarations can lower. Plain and `extern` external-inline definitions stop at a dedicated diagnostic until translation-unit finalization owns their C11 emission policy.
+
+Object emission now places source-ordered `STT_FUNC` symbols in `.text` alongside the existing static data sections. The shared x86 encoder writes an EBP-based cdecl frame, reads parameters at their stack offsets, returns scalar values in EAX, uses `SETG` or `SETA` according to the comparison type, and patches fixed-width relative branches within each function. Function alignment uses x86 NOP bytes.
+
+Lowering counts records before it allocates and fills them. A failure clears the public result, rewinds allocations made during the operation, and leaves a structured diagnostic in the job. The diagnostic separates invalid frozen input, unsupported types, statements, expressions, conversions, external-inline definitions, and ABI shapes from resource limits and internal failures.
+
+Direct AST-to-x86 emission was rejected because it would couple machine code to frontend representation again. An x86-shaped IR would put register and encoding details on the wrong side of the existing encoder boundary. Block parameters or SSA may help later optimization, but active source does not yet justify that graph machinery. Rewriting `cemit_add_overflows` into weaker source was not an option.
+
+### Red-to-green sequence
+
+- The new IR test first failed because `toolchain/cupidc_ir.c` did not exist. The completed contract now checks the exact active helper sequence, a constant return, an empty `void` return, a signed-to-unsigned implicit conversion, a static inline definition, a non-inline definition after an inline declaration, source locations, parameter identities, branch targets, stack depth, rollback, and same-job recovery.
+- The object test first stopped at the former rule that rejected every function definition. Its final fixture emits four leaf functions with static data and reads the result back through the shared ELF reader and x86 decoder.
+- One decoder assertion initially passed a virtual `.text` offset into a section slice. The decoder correctly rejected it. The test now starts its slice-relative cursor at zero and still verifies exact instruction streams, function sizes, internal branch fields, and repeat output.
+- The first graph audit expected 11 hosted Toolchain roots and found 13. Review showed that the IR implementation is an active hosted root while its external-runtime contract remains a deliberate deferral. The final inventory records 12 hosted roots and 19 hosted deferrals.
+- The Toolchain suite then exposed one remaining manifest assertion with the old profile and deferral counts. Updating that exact contract made the complete suite green.
+- Clang could not prove that array and output pointers were guarded on every path. Explicit translation-unit shape checks, binding-table checks, initialized child outputs, and a branch-encoding size check now make those invariants local and leave all analyzers silent.
+- The Standards and Spec reviews found that the first object oracle checked mnemonics but not operands or resolved targets. The final contract pins every function byte, including the EBP frame, EAX result, constants, parameter displacements 8 and 12, subtraction and comparison operand order, and both conditional branch destinations.
+- Spec review also found that external-inline definitions could reach unconditional symbol placement before C11 inline finalization existed. Plain and `extern` inline definitions now fail transactionally, while static inline and a non-inline definition after an inline declaration remain positive cases. A same-width explicit cast now proves the unsupported-conversion diagnostic instead of being grouped under a generic expression failure.
+
+The IR negative cases cover a malformed body, an unsupported `if`, unsupported addition, an explicit cast, two external-inline forms, a 64-bit ABI, and a constrained arena. The object contract covers mixed code and data, local and global function symbols, both comparison kinds, exact machine bytes and branch targets, malformed input, external-inline and unsupported-body rollback, constrained output, and recovery. The final self-parse inventories are 28 definitions, 490 statements, 4,015 expressions, 51 block bindings, and 12 initializers for `cupidc_ir.c`; and 48 definitions, 1,081 statements, 8,034 expressions, 151 block bindings, and 68 initializers for `cupidc_emit.c`.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 498 transforms, and 39 unreachable files. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The 295 host-C transforms comprise 245 root or user objects, 32 hosted objects, and 18 hosted executables. The audit tracks 359 preprocessing roots, including 12 hosted Toolchain roots and 19 hosted external-runtime deferrals. It finds 2,343 includes across 658 files, with 2,132 quoted and 211 angle includes. The lexical inventory includes 503 `goto`, 23,351 `if`, 14,213 `return`, and 2,064 `sizeof` occurrences. The active-source digest is `43b3fdca5320879fd42e2869b9e37c9fca31db2ec3361da8b1b15f78c0592954`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC suites | PASS | Final-tree frontend, IR, and object suites pass all 44 tests in 22.593 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the strict Clang suite, including every frontend, IR, object, ELF, x86, CupidDis, CupidASM, CupidObj, and CupidLD contract. |
+| Build graph contracts | PASS | The final `make test` run includes all 49 build graph tests. `make bootstrap-audit` and `make check-bootstrap-audit` reproduce the checked records. |
+| WSL cross-host contracts | PASS | Fresh isolated strict builds and normal contract runs pass under GCC 13.3 and Clang 18.1 for both the IR and object fixtures. |
+| Sanitizers | PASS | Fresh GCC and Clang runs of both contracts pass with address and undefined-behavior sanitizers, leak detection, and halt-on-error behavior enabled. |
+| Static analysis | PASS AFTER INVARIANT HARDENING | Windows GCC 15.2 and Clang 22.1, plus WSL GCC 13.3 and Clang 18.1, report no diagnostics for the final IR and emitter sources. |
+| Formal two-axis review | PASS AFTER POLICY AND ORACLE FIXES | Standards review found a weak machine-code oracle. Spec review found the external-inline policy gap and unclear conversion boundary. Exact byte and branch checks, transactional external-inline rejection, a dedicated explicit-cast diagnostic, and corrected documentation closed the findings. Final Standards and Spec reviews report no remaining findings. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 445.875 seconds with one expected skip and returns from Make in 481.177 seconds. |
+| Patch hygiene | PASS | `git diff --check` passes with line-ending notices, and the new prose contains no em or en dashes. |
+| Boot gate | NOT RUN | The new path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or current ABI owner. |
+
+GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and their contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. No production source cohort, linked artifact, or host dependency changes ownership here, and no kernel, application, assembly, or `TempleOS/` reference source changed.
+
+Issue #25 remains open. External-inline finalization, calls, and `R_386_PC32` are the next useful leaf-function gates, followed by local objects, stack allocation, broader statement bodies, pointers, wider and aggregate values, production integration, and staged self-hosting. No issue is ready to close from this step.

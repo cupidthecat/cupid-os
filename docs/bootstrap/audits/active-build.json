@@ -8502,13 +8502,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 207,
-      "direct_quoted_occurrences": 2121,
-      "include_occurrences": 2328,
+      "direct_angle_occurrences": 211,
+      "direct_quoted_occurrences": 2132,
+      "include_occurrences": 2343,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2328,
+      "ordinary_marker_occurrences": 2343,
       "pp_token_operand_occurrences": 0,
-      "source_files": 655,
+      "source_files": 658,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -8521,7 +8521,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 655,
+      "source_files": 658,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -8599,9 +8599,9 @@
       "unmatched_pack_pushes": 0
     },
     "c_preprocessor_translation_units": {
-      "deferred_external_header_units": 18,
+      "deferred_external_header_units": 19,
       "deferred_hermetic_units": 0,
-      "deferred_hosted_translation_units": 18,
+      "deferred_hosted_translation_units": 19,
       "delivered_non_root_headers": 2,
       "generated_translation_units": 4,
       "include_only_fragments": 22,
@@ -9046,7 +9046,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_TOOLCHAIN_64",
-          "tracked_translation_units": 11
+          "tracked_translation_units": 12
         },
         {
           "forced_includes": [],
@@ -9075,8 +9075,8 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 362,
-      "tracked_translation_units": 358
+      "total_translation_units": 363,
+      "tracked_translation_units": 359
     }
   },
   "features": [
@@ -13526,6 +13526,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -13548,7 +13549,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 3375
+      "occurrences": 3382
     },
     {
       "category": "control",
@@ -13787,6 +13788,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -13800,6 +13802,7 @@
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -13810,7 +13813,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2882
+      "occurrences": 2895
     },
     {
       "category": "control",
@@ -13852,12 +13855,13 @@
         "toolchain/elf32.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
         "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.goto",
-      "occurrences": 483
+      "occurrences": 503
     },
     {
       "category": "control",
@@ -14213,6 +14217,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -14227,6 +14232,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -14240,7 +14246,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 23139
+      "occurrences": 23351
     },
     {
       "category": "control",
@@ -14567,6 +14573,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -14581,6 +14588,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -14593,7 +14601,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 14013
+      "occurrences": 14213
     },
     {
       "category": "control",
@@ -14937,6 +14945,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -14955,7 +14964,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.while",
-      "occurrences": 2489
+      "occurrences": 2490
     },
     {
       "category": "declaration",
@@ -15201,6 +15210,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -15212,7 +15222,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 800
+      "occurrences": 821
     },
     {
       "category": "declarator",
@@ -15444,6 +15454,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -15458,6 +15469,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -15470,7 +15482,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 2007
+      "occurrences": 2064
     },
     {
       "category": "extension",
@@ -16676,6 +16688,8 @@
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.c",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.c",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.c",
@@ -16701,7 +16715,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2748
+      "occurrences": 2751
     },
     {
       "category": "preprocessor",
@@ -17084,6 +17098,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.h",
         "toolchain/cupiddis.h",
@@ -17096,7 +17111,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 477
+      "occurrences": 478
     },
     {
       "category": "preprocessor",
@@ -17589,6 +17604,7 @@
         "toolchain/cupidasm.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.h",
         "toolchain/cupiddis.h",
@@ -17599,7 +17615,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 279
+      "occurrences": 280
     },
     {
       "category": "preprocessor",
@@ -18070,6 +18086,8 @@
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.c",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.c",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.c",
@@ -18090,6 +18108,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -18105,7 +18124,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2328
+      "occurrences": 2343
     },
     {
       "category": "preprocessor",
@@ -18605,6 +18624,8 @@
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.c",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.c",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.c",
@@ -18625,6 +18646,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -18640,7 +18662,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 6879
+      "occurrences": 7041
     },
     {
       "category": "qualifier",
@@ -19119,6 +19141,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -19133,6 +19156,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -19146,7 +19170,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 4937
+      "occurrences": 5024
     },
     {
       "category": "type",
@@ -19508,6 +19532,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -19522,6 +19547,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -19536,7 +19562,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 6268
+      "occurrences": 6303
     },
     {
       "category": "type",
@@ -19669,6 +19695,8 @@
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.c",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.c",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.c",
@@ -19685,7 +19713,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 199
+      "occurrences": 202
     },
     {
       "category": "type",
@@ -20226,6 +20254,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -20240,7 +20269,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18693
+      "occurrences": 18713
     },
     {
       "category": "type",
@@ -20280,10 +20309,11 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_object_contract.c",
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 116
+      "occurrences": 118
     },
     {
       "category": "type",
@@ -20311,10 +20341,11 @@
         "kernel/doom/doom_libc_stubs.c",
         "toolchain/ctool.c",
         "toolchain/ctool.h",
-        "toolchain/tests/cupidc_frontend_contract.c"
+        "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_object_contract.c"
       ],
       "id": "c.type.long_long",
-      "occurrences": 37
+      "occurrences": 38
     },
     {
       "category": "type",
@@ -20619,6 +20650,8 @@
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.c",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.c",
@@ -20647,7 +20680,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 756
+      "occurrences": 761
     },
     {
       "category": "type",
@@ -20869,6 +20902,8 @@
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.c",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.c",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_pp.h",
         "toolchain/cupidc_type.c",
@@ -20897,7 +20932,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 807
+      "occurrences": 815
     },
     {
       "category": "type",
@@ -21067,12 +21102,13 @@
         "toolchain/tests/cupidasm_contract.c",
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/x86_contract.c",
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 700
+      "occurrences": 704
     },
     {
       "category": "type",
@@ -21621,6 +21657,7 @@
         "toolchain/cupidasm_main.c",
         "toolchain/cupidc_emit.c",
         "toolchain/cupidc_frontend.c",
+        "toolchain/cupidc_ir.c",
         "toolchain/cupidc_pp.c",
         "toolchain/cupidc_type.c",
         "toolchain/cupiddis.c",
@@ -21635,6 +21672,7 @@
         "toolchain/tests/cupidasm_demos_contract.c",
         "toolchain/tests/cupidasm_kernel_elf_contract.c",
         "toolchain/tests/cupidc_frontend_contract.c",
+        "toolchain/tests/cupidc_ir_contract.c",
         "toolchain/tests/cupidc_object_contract.c",
         "toolchain/tests/cupidc_pp_contract.c",
         "toolchain/tests/cupidc_type_contract.c",
@@ -21651,7 +21689,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 9287
+      "occurrences": 9359
     },
     {
       "category": "declaration",
@@ -22262,7 +22300,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "ce2717f76cb53aa2892107d96c36480280963bedefa1688ebde42d57216453a4",
+    "active_source_digest": "43b3fdca5320879fd42e2869b9e37c9fca31db2ec3361da8b1b15f78c0592954",
     "control_files": [
       {
         "path": "Makefile",
@@ -22274,12 +22312,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "bc2adf9a9d0a9b3e8916bc60fbf67e4a5f2b124dc39bde863d1a9350bb6cb754"
+        "sha256": "d40a5ce55da9c726aa322fcc2e3c59cb85273aaf982f1da2696488cd5adea813"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "6a35fedf7a5639017759180cedc39684daf792ea3f8a6543d7b2c6b93d2ba9c4"
+      "sha256": "49996097cae38c9416068d83f244fab134aed1be296455d8c90b9982927e0f90"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -22313,7 +22351,7 @@
           "kernel/lang/cupidc_parse.c",
           "kernel/lang/cupidc_string.c"
         ],
-        "source_count": 56,
+        "source_count": 59,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -22661,7 +22699,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 525,
+        "source_count": 528,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -22706,7 +22744,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 628,
+        "source_count": 631,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -22847,7 +22885,7 @@
           "kernel/lang/cupidc_parse.c",
           "kernel/lang/cupidc_string.c"
         ],
-        "source_count": 56
+        "source_count": 59
       },
       {
         "cohorts": [
@@ -45252,15 +45290,17 @@
       ],
       "includes": [
         "toolchain/cupidc_emit.h",
-        "toolchain/elf32.h"
+        "toolchain/cupidc_ir.h",
+        "toolchain/elf32.h",
+        "toolchain/x86.h"
       ],
       "language": "c",
-      "lines": 1077,
+      "lines": 1651,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "6eafd42aa0787cf402baef35468a354943ce0ef15e75ae1f7a20801f1a217768"
+      "sha256": "b126b4aea0331dbabf77fab04f7fda3be50f79d81c3a437250bea792f78ebeb7"
     },
     {
       "build_owners": [
@@ -45283,12 +45323,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c_header",
-      "lines": 28,
+      "lines": 29,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "7d57e2c05e5028a57259536de6626935d78f7e09089f3ebd14160e436f881fa7"
+      "sha256": "dda7af910558a2891dd35190f5e2121d6d70f8df67572f95f641c3f82dc125d9"
     },
     {
       "build_owners": [
@@ -45363,6 +45403,71 @@
       "reachability": "direct_build_input",
       "runtime_owner": null,
       "sha256": "c874d0d6262aec1c908f979c5489ccb5b6d1b9356e08e509ce1760bca1d9c5ae"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.enum",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidc_ir.h"
+      ],
+      "language": "c",
+      "lines": 842,
+      "origin": "tracked",
+      "path": "toolchain/cupidc_ir.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "b32dd6951a500ef961731dffc3cd6a940ca10c4bf0901b77868f3bd0243127d0"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.enum",
+        "c.type.struct",
+        "c.type.typedef"
+      ],
+      "includes": [
+        "toolchain/cupidc_frontend.h"
+      ],
+      "language": "c_header",
+      "lines": 80,
+      "origin": "tracked",
+      "path": "toolchain/cupidc_ir.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "ebd1f064aa79fdd9e296bc7ffb3748bc1080e6248fb780bf2c864969fbd8256e"
     },
     {
       "build_owners": [
@@ -46149,12 +46254,50 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c",
-      "lines": 19045,
+      "lines": 19047,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "2b672f360ac0e806e1b7b95ca31c43a3830152c7692c15d9d61dce28e76b4a44"
+      "sha256": "734ae61e0871871bad2f450e4f588528f83f459438fccef17bac00295c0c7575"
+    },
+    {
+      "build_owners": [
+        "host_c_compiler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/ctool.h",
+        "toolchain/ctool_host.h",
+        "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.h",
+        "toolchain/cupidc_pp.h"
+      ],
+      "language": "c",
+      "lines": 681,
+      "origin": "tracked",
+      "path": "toolchain/tests/cupidc_ir_contract.c",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "e4168dfb9fcc0eae69d6b9b06886b94e6b25f304bfcadf6a19dd519e43987fe0"
     },
     {
       "build_owners": [
@@ -46178,6 +46321,8 @@
         "c.storage.static",
         "c.type.char",
         "c.type.int",
+        "c.type.long",
+        "c.type.long_long",
         "c.type.struct",
         "c.type.typedef",
         "c.type.void"
@@ -46187,16 +46332,18 @@
         "toolchain/ctool_host.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
+        "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.h",
-        "toolchain/elf32.h"
+        "toolchain/elf32.h",
+        "toolchain/x86.h"
       ],
       "language": "c",
-      "lines": 1274,
+      "lines": 1582,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "674936d147c08ed15d9f7b7027ef81673a3e9a07d478f88c205cd9a1f4b1699c"
+      "sha256": "03459b5b80b286f5940ffccc8fe725b6c57a415d893465ff18fcd30727ee149c"
     },
     {
       "build_owners": [
@@ -46243,7 +46390,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "0cc9e434a4eb6aca5dcf7e84baea2dbfd01e5e49c6981378395f4da624534169"
+      "sha256": "9120be1f34710cbc6a7bfe7b9a8ad71c3f64f6d9395c99b88d0393a3459b35f7"
     },
     {
       "build_owners": [
@@ -46680,9 +46827,9 @@
     }
   ],
   "summary": {
-    "active_sources": 685,
+    "active_sources": 688,
     "features": 251,
-    "transforms": 495,
+    "transforms": 498,
     "unreachable_sources": 39
   },
   "supplemental_builds": [
@@ -47106,7 +47253,28 @@
             "toolchain/build/cupidc_pp.o",
             "toolchain/build/cupidc_type.o",
             "toolchain/build/cupidc_frontend.o",
+            "toolchain/build/cupidc_ir.o",
+            "toolchain/build/cupidc_ir_contract.o"
+          ],
+          "operation": "compile_and_link_host_executable",
+          "output": "toolchain/build/cupidc-ir-contract.exe",
+          "recipe": [
+            "$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_IR_CONTRACT_OBJECTS) -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/build/ctool.o",
+            "toolchain/build/ctool_host.o",
+            "toolchain/build/cupidc_pp.o",
+            "toolchain/build/cupidc_type.o",
+            "toolchain/build/cupidc_frontend.o",
+            "toolchain/build/cupidc_ir.o",
             "toolchain/build/elf32.o",
+            "toolchain/build/x86.o",
             "toolchain/build/cupidc_emit.o",
             "toolchain/build/cupidc_object_contract.o"
           ],
@@ -47156,9 +47324,11 @@
             "toolchain/cupidc_emit.c",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
+            "toolchain/cupidc_ir.h",
             "toolchain/cupidc_type.h",
             "toolchain/cupidc_pp.h",
             "toolchain/elf32.h",
+            "toolchain/x86.h",
             "toolchain/ctool.h",
             "toolchain/build"
           ],
@@ -47211,12 +47381,53 @@
         },
         {
           "inputs": [
+            "toolchain/cupidc_ir.c",
+            "toolchain/cupidc_ir.h",
+            "toolchain/cupidc_frontend.h",
+            "toolchain/cupidc_type.h",
+            "toolchain/cupidc_pp.h",
+            "toolchain/ctool.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/cupidc_ir.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
+            "toolchain/tests/cupidc_ir_contract.c",
+            "toolchain/cupidc_ir.h",
+            "toolchain/cupidc_frontend.h",
+            "toolchain/cupidc_type.h",
+            "toolchain/cupidc_pp.h",
+            "toolchain/ctool.h",
+            "toolchain/ctool_host.h",
+            "toolchain/build"
+          ],
+          "operation": "compile_c_to_host_object",
+          "output": "toolchain/build/cupidc_ir_contract.o",
+          "recipe": [
+            "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
+          ],
+          "tools": [
+            "host_c_compiler"
+          ]
+        },
+        {
+          "inputs": [
             "toolchain/tests/cupidc_object_contract.c",
             "toolchain/cupidc_emit.h",
+            "toolchain/cupidc_ir.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_type.h",
             "toolchain/cupidc_pp.h",
             "toolchain/elf32.h",
+            "toolchain/x86.h",
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",
             "toolchain/build"

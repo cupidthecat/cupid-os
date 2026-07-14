@@ -39,3 +39,7 @@ Active source sets the requirements. The declaration contract parses bounded pre
 Direct object-symbol relocations intentionally differ from the section-symbol optimization used by current Clang and GCC for some local references. Both encodings have the same i386 link meaning. The Cupid form is easier to trace back to the typed binding and is deterministic across bootstrap hosts.
 
 CupidC owns these static object bytes. Code generation and the production build remain outside this decision. Member addresses, explicit address casts, other deferred static address forms, attributes that affect section or binding policy, function lowering, and full translation-unit emission stay explicit later work.
+
+## Extension
+
+ADR 0016 extends the object boundary without replacing this static-data policy. `ctool_c_emit_object` now accepts its represented 32-bit leaf-function subset, emits executable `.text`, and defines source-ordered `STT_FUNC` symbols. This ADR still governs static section placement, initializer bytes, and `R_386_32` relocations.

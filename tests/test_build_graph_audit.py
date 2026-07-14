@@ -1364,7 +1364,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 655)
+            self.assertEqual(contract["source_files"], 658)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1385,7 +1385,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 655 source files; max conditional depth 0",
+                "0 numeric markers; 658 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2273,10 +2273,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 655)
-            self.assertEqual(contract["include_occurrences"], 2328)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2121)
-            self.assertEqual(contract["direct_angle_occurrences"], 207)
+            self.assertEqual(contract["source_files"], 658)
+            self.assertEqual(contract["include_occurrences"], 2343)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2132)
+            self.assertEqual(contract["direct_angle_occurrences"], 211)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -2837,11 +2837,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
                 "CUPID_RUNTIME": 105,
-                "HOSTED_TOOLCHAIN_64": 11,
+                "HOSTED_TOOLCHAIN_64": 12,
                 "HOSTED_KERNEL_BRIDGE_64": 1,
             },
         )
-        self.assertEqual(len(active), 358)
+        self.assertEqual(len(active), 359)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.c"),
             ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
@@ -2851,6 +2851,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("CUPID_RUNTIME", "/bin/browser.cc"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/ctool.c"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_emit.c"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_ir.c"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/x86.c"),
             ("HOSTED_KERNEL_BRIDGE_64", "/kernel/lang/as_elf.c"),
         ):
@@ -3281,7 +3282,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             [path for path, _ in non_roots],
             ["/bin/fat16.h", "/bin/shell.h"],
         )
-        self.assertEqual(len(deferred), 18)
+        self.assertEqual(len(deferred), 19)
         self.assertEqual(
             {path for path, _ in deferred},
             {
@@ -3295,6 +3296,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain/tests/cupidasm_demos_contract.c",
                 "/toolchain/tests/cupidasm_kernel_elf_contract.c",
                 "/toolchain/tests/cupidc_frontend_contract.c",
+                "/toolchain/tests/cupidc_ir_contract.c",
                 "/toolchain/tests/cupidc_object_contract.c",
                 "/toolchain/tests/cupidc_pp_contract.c",
                 "/toolchain/tests/cupidc_type_contract.c",
@@ -3417,13 +3419,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 358,
+                    "tracked_translation_units": 359,
                     "generated_translation_units": 4,
-                    "total_translation_units": 362,
+                    "total_translation_units": 363,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
-                    "deferred_hosted_translation_units": 18,
-                    "deferred_external_header_units": 18,
+                    "deferred_hosted_translation_units": 19,
+                    "deferred_external_header_units": 19,
                     "deferred_hermetic_units": 0,
                 },
             )
@@ -3442,16 +3444,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
                     ("CUPID_RUNTIME", 105, 0),
-                    ("HOSTED_TOOLCHAIN_64", 11, 0),
+                    ("HOSTED_TOOLCHAIN_64", 12, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 1, 0),
                 ],
             )
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 685,
+                    "active_sources": 688,
                     "features": 251,
-                    "transforms": 495,
+                    "transforms": 498,
                     "unreachable_sources": 39,
                 },
             )
@@ -3460,7 +3462,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (22, 4),
-                "c.expression.sizeof": (2007, 163),
+                "c.expression.sizeof": (2064, 165),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -3510,7 +3512,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 56)
+            self.assertEqual(toolchain_cohort["source_count"], 59)
 
             source_by_path = {
                 source["path"]: source for source in audit_payload["sources"]
@@ -3520,7 +3522,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/cupidc_emit.h": "toolchain_core",
                 "toolchain/cupidc_frontend.c": "toolchain_core",
                 "toolchain/cupidc_frontend.h": "toolchain_core",
+                "toolchain/cupidc_ir.c": "toolchain_core",
+                "toolchain/cupidc_ir.h": "toolchain_core",
                 "toolchain/tests/cupidc_frontend_contract.c":
+                    "toolchain_contract",
+                "toolchain/tests/cupidc_ir_contract.c":
                     "toolchain_contract",
                 "toolchain/tests/cupidc_object_contract.c":
                     "toolchain_contract",
@@ -3539,7 +3545,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for build in audit_payload["supplemental_builds"]
                 if build["directory"] == "toolchain"
             )
-            self.assertEqual(len(toolchain_build["transforms"]), 48)
+            self.assertEqual(len(toolchain_build["transforms"]), 51)
             toolchain_transform_by_output = {
                 transform["output"]: transform
                 for transform in toolchain_build["transforms"]
@@ -3551,8 +3557,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "compile_c_to_host_object",
                 "toolchain/build/cupidc_frontend_contract.o":
                     "compile_c_to_host_object",
+                "toolchain/build/cupidc_ir.o":
+                    "compile_c_to_host_object",
+                "toolchain/build/cupidc_ir_contract.o":
+                    "compile_c_to_host_object",
                 "toolchain/build/cupidc_object_contract.o":
                     "compile_c_to_host_object",
+                "toolchain/build/cupidc-ir-contract"
+                + (".exe" if sys.platform == "win32" else ""):
+                    "compile_and_link_host_executable",
                 "toolchain/build/cupidc-object-contract"
                 + (".exe" if sys.platform == "win32" else ""):
                     "compile_and_link_host_executable",
@@ -3567,7 +3580,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertEqual(transform["tools"], ["host_c_compiler"])
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "358 tracked + 4 generated",
+                "359 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
