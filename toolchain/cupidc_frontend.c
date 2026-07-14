@@ -70,6 +70,12 @@ typedef enum {
   CFRONT_STORAGE_REGISTER
 } cfront_storage_t;
 
+typedef enum {
+  CFRONT_INITIALIZER_DOMAIN_NONE = 0,
+  CFRONT_INITIALIZER_DOMAIN_AUTOMATIC,
+  CFRONT_INITIALIZER_DOMAIN_STATIC
+} cfront_initializer_domain_t;
+
 static ctool_c_storage_class_t cfront_public_storage(
     cfront_storage_t storage) {
   switch (storage) {
@@ -9550,8 +9556,53 @@ static ctool_bool cfront_body_starts_gnu_assembly(
              : CTOOL_FALSE;
 }
 
-static ctool_status_t cfront_parse_block_initializer(
+static ctool_bool cfront_character_type_kind(ctool_c_type_kind_t kind);
+
+static ctool_status_t cfront_inspect_initializer_target(
+    cfront_context_t *context, ctool_u32 type, ctool_u32 *base_out,
+    ctool_c_type_node_t *target_out, ctool_c_type_node_t *element_out,
+    ctool_u32 *element_qualifiers_out);
+
+static ctool_status_t cfront_parse_string_initializer(
+    cfront_context_t *context, ctool_u32 *object_type_io,
+    const ctool_c_pp_token_t *value_token, ctool_bool static_storage,
+    ctool_u32 *initializer_out);
+
+static ctool_status_t cfront_parse_aggregate_initializer(
+    cfront_context_t *context, ctool_u32 *object_type_io,
+    const ctool_c_pp_token_t *origin, ctool_bool explicit_braces,
+    ctool_bool static_storage,
+    const cfront_expression_value_t *prepared_value,
+    const ctool_c_pp_token_t *prepared_token,
+    ctool_u32 *initializer_out);
+
+static ctool_status_t cfront_publish_block_expression_initializer(
     cfront_context_t *context, ctool_u32 object_type,
+    const ctool_c_pp_token_t *value_token,
+    cfront_expression_value_t *value, ctool_u32 *initializer_out) {
+  ctool_u32 value_type = CTOOL_C_TYPE_NONE;
+  ctool_status_t status = cfront_unqualified_type_preserving_alignments(
+      context, object_type, &value_type);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  status = cfront_apply_assignment_conversion(
+      context, value_type, value_token,
+      "initializer expression is not convertible to block object type",
+      value);
+  if (status == CTOOL_OK) {
+    ctool_c_initializer_t initializer;
+    cfront_initializer_init(&initializer, CTOOL_C_INITIALIZER_EXPRESSION,
+                            object_type, value_token);
+    initializer.expression = value->expression;
+    status = cfront_append_initializer(context, &initializer,
+                                       initializer_out);
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_block_initializer(
+    cfront_context_t *context, ctool_u32 *object_type_io,
     const ctool_c_pp_token_t *initializer_token,
     ctool_u32 *initializer_out) {
   cfront_expression_value_t value;
@@ -9559,41 +9610,66 @@ static ctool_status_t cfront_parse_block_initializer(
   ctool_c_type_node_t node;
   ctool_u32 base;
   ctool_u32 qualifiers;
-  ctool_u32 value_type = CTOOL_C_TYPE_NONE;
   const ctool_c_pp_token_t *value_token;
   ctool_bool is_integer = CTOOL_FALSE;
   ctool_bool is_floating = CTOOL_FALSE;
   ctool_bool is_aggregate = CTOOL_FALSE;
   ctool_status_t status = cfront_underlying_type(
-      context, object_type, &base, &qualifiers, &node);
+      context, *object_type_io, &base, &qualifiers, &node);
   (void)base;
   (void)qualifiers;
   if (status == CTOOL_OK) {
-    status = cfront_integer_type(context, object_type, &integer,
+    status = cfront_integer_type(context, *object_type_io, &integer,
                                  &is_integer);
   }
   (void)integer;
   if (status == CTOOL_OK) {
-    status = cfront_floating_type(context, object_type, &is_floating);
+    status = cfront_floating_type(context, *object_type_io, &is_floating);
   }
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
-  is_aggregate = node.kind == CTOOL_C_TYPE_RECORD ? CTOOL_TRUE
-                                                   : CTOOL_FALSE;
+  is_aggregate =
+      node.kind == CTOOL_C_TYPE_ARRAY || node.kind == CTOOL_C_TYPE_RECORD
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (is_integer == CTOOL_FALSE && is_floating == CTOOL_FALSE &&
       node.kind != CTOOL_C_TYPE_POINTER && is_aggregate == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         initializer_token,
-        "aggregate block object initializers are outside this body slice");
+        "block object initializer type is outside this body slice");
   }
   if (is_aggregate == CTOOL_TRUE &&
       cfront_peek_is(context, "{") == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-        cfront_peek(context),
-        "aggregate initializer lists are outside this body slice");
+    ctool_c_type_node_t element;
+    ctool_u32 target_base;
+    ctool_u32 element_qualifiers;
+    const ctool_c_pp_token_t *nested_value =
+        cfront_token(context, context->position + 1u);
+    ctool_bool character_string = CTOOL_FALSE;
+    status = cfront_inspect_initializer_target(
+        context, *object_type_io, &target_base, &node, &element,
+        &element_qualifiers);
+    (void)target_base;
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    character_string =
+        node.kind == CTOOL_C_TYPE_ARRAY &&
+                cfront_character_type_kind(element.kind) == CTOOL_TRUE &&
+                (element_qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u &&
+                nested_value != (const ctool_c_pp_token_t *)0 &&
+                nested_value->kind == CTOOL_C_PP_TOKEN_STRING
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if (character_string == CTOOL_FALSE) {
+      const ctool_c_pp_token_t *open = cfront_advance(context);
+      return cfront_parse_aggregate_initializer(
+          context, object_type_io, open, CTOOL_TRUE, CTOOL_FALSE,
+          (const cfront_expression_value_t *)0,
+          (const ctool_c_pp_token_t *)0, initializer_out);
+    }
   }
   if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
     const ctool_c_pp_token_t *open = cfront_advance(context);
@@ -9610,7 +9686,7 @@ static ctool_status_t cfront_parse_block_initializer(
     }
     if (status == CTOOL_OK) {
       status = cfront_parse_block_initializer(
-          context, object_type, open, &nested);
+          context, object_type_io, open, &nested);
     }
     if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
       (void)cfront_advance(context);
@@ -9630,6 +9706,19 @@ static ctool_status_t cfront_parse_block_initializer(
     }
     return status;
   }
+  if (node.kind == CTOOL_C_TYPE_ARRAY) {
+    value_token = cfront_peek(context);
+    if (value_token != (const ctool_c_pp_token_t *)0 &&
+        value_token->kind == CTOOL_C_PP_TOKEN_STRING) {
+      return cfront_parse_string_initializer(
+          context, object_type_io, value_token, CTOOL_FALSE,
+          initializer_out);
+    }
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        value_token,
+        "automatic aggregate initializer requires a brace-enclosed list");
+  }
   if (cfront_peek(context) == (const ctool_c_pp_token_t *)0 ||
       cfront_peek_is(context, ";") == CTOOL_TRUE ||
       cfront_peek_is(context, ",") == CTOOL_TRUE ||
@@ -9638,27 +9727,12 @@ static ctool_status_t cfront_parse_block_initializer(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         cfront_peek(context), "scalar initializer requires an expression");
   }
-  status = cfront_unqualified_type_preserving_alignments(
-      context, object_type, &value_type);
-  if (status != CTOOL_OK) {
-    return cfront_storage_failure(context, status);
-  }
   cfront_zero(&value, (ctool_u32)sizeof(value));
   value_token = cfront_peek(context);
   status = cfront_parse_body_expression(context, &value);
   if (status == CTOOL_OK) {
-    status = cfront_apply_assignment_conversion(
-        context, value_type, value_token,
-        "initializer expression is not convertible to block object type",
-        &value);
-  }
-  if (status == CTOOL_OK) {
-    ctool_c_initializer_t initializer;
-    cfront_initializer_init(&initializer, CTOOL_C_INITIALIZER_EXPRESSION,
-                            object_type, value_token);
-    initializer.expression = value.expression;
-    status = cfront_append_initializer(context, &initializer,
-                                       initializer_out);
+    status = cfront_publish_block_expression_initializer(
+        context, *object_type_io, value_token, &value, initializer_out);
   }
   return status;
 }
@@ -9670,7 +9744,7 @@ static ctool_bool cfront_character_type_kind(ctool_c_type_kind_t kind) {
              : CTOOL_FALSE;
 }
 
-static ctool_status_t cfront_inspect_static_target(
+static ctool_status_t cfront_inspect_initializer_target(
     cfront_context_t *context, ctool_u32 type, ctool_u32 *base_out,
     ctool_c_type_node_t *target_out, ctool_c_type_node_t *element_out,
     ctool_u32 *element_qualifiers_out) {
@@ -9713,9 +9787,10 @@ static ctool_status_t cfront_static_string_pointer_compatible(
   return status;
 }
 
-static ctool_status_t cfront_parse_static_string_initializer(
+static ctool_status_t cfront_parse_string_initializer(
     cfront_context_t *context, ctool_u32 *object_type_io,
     const ctool_c_pp_token_t *value_token,
+    ctool_bool static_storage,
     ctool_u32 *initializer_out) {
   ctool_bytes_t decoded = ctool_bytes((const void *)0, 0u);
   ctool_c_type_node_t array;
@@ -9724,13 +9799,18 @@ static ctool_status_t cfront_parse_static_string_initializer(
   ctool_u32 copy_size;
   ctool_u32 element_qualifiers;
   ctool_bool compatible_pointer = CTOOL_FALSE;
+  ctool_u32 initializer_diagnostic =
+      static_storage == CTOOL_TRUE
+          ? (ctool_u32)CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION
+          : (ctool_u32)CTOOL_C_PARSE_DIAG_STATEMENT;
   ctool_status_t status;
   if (cfront_ordinary_narrow_string_token(value_token) == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        value_token, "only ordinary narrow string literals are supported in bodies");
+        value_token,
+        "only ordinary narrow string literals are supported in bodies");
   }
-  status = cfront_inspect_static_target(
+  status = cfront_inspect_initializer_target(
       context, *object_type_io, &array_base, &array, &element,
       &element_qualifiers);
   if (status != CTOOL_OK) {
@@ -9785,16 +9865,16 @@ static ctool_status_t cfront_parse_static_string_initializer(
   if (array.kind == CTOOL_C_TYPE_ARRAY &&
       element.kind == CTOOL_C_TYPE_POINTER) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
-        "static aggregate initializer requires a brace-enclosed list");
+        context, CTOOL_ERR_INPUT, initializer_diagnostic, value_token,
+        static_storage == CTOOL_TRUE
+            ? "static aggregate initializer requires a brace-enclosed list"
+            : "automatic aggregate initializer requires a brace-enclosed list");
   }
   if (array.kind != CTOOL_C_TYPE_ARRAY ||
       cfront_character_type_kind(element.kind) == CTOOL_FALSE ||
       (element_qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+        context, CTOOL_ERR_INPUT, initializer_diagnostic, value_token,
         (element_qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u
             ? "string initializer cannot initialize an atomic character array"
             : "string initializer requires a character array");
@@ -9806,10 +9886,12 @@ static ctool_status_t cfront_parse_static_string_initializer(
   if (array.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
     if (array_base != *object_type_io) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
-          "wrapped incomplete character-array initialization is outside "
-          "this constant-data slice");
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, value_token,
+          static_storage == CTOOL_TRUE
+              ? "wrapped incomplete character-array initialization is outside "
+                "this constant-data slice"
+              : "wrapped incomplete character-array initialization awaits "
+                "local type completion");
     }
     array.array_bound_kind = CTOOL_C_ARRAY_FIXED;
     array.element_count = decoded.size;
@@ -9819,20 +9901,20 @@ static ctool_status_t cfront_parse_static_string_initializer(
     }
   } else if (array.array_bound_kind != CTOOL_C_ARRAY_FIXED) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
-        "variable character-array initialization is outside this "
-        "constant-data slice");
+        context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, value_token,
+        static_storage == CTOOL_TRUE
+            ? "variable character-array initialization is outside this "
+              "constant-data slice"
+            : "variable character-array initialization is outside this "
+              "automatic-data slice");
   } else if (array.element_count == 0u) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+        context, CTOOL_ERR_INPUT, initializer_diagnostic, value_token,
         "character array initializer requires a nonzero bound");
   } else if (decoded.size == 0u ||
              array.element_count < decoded.size - 1u) {
     return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+        context, CTOOL_ERR_INPUT, initializer_diagnostic, value_token,
         "string initializer is too long for character array");
   }
   copy_size = array.element_count < decoded.size ? array.element_count
@@ -9852,7 +9934,7 @@ static ctool_status_t cfront_parse_static_initializer(
     cfront_context_t *context, ctool_u32 *object_type_io,
     ctool_u32 *initializer_out);
 
-static ctool_status_t cfront_next_static_record_initializer_member(
+static ctool_status_t cfront_next_record_initializer_member(
     cfront_context_t *context, const ctool_c_type_node_t *record,
     ctool_u32 *member_cursor_io, ctool_u32 *member_index_out,
     ctool_c_record_member_t *member_out, ctool_bool *found_out) {
@@ -9900,9 +9982,44 @@ static ctool_status_t cfront_next_static_record_initializer_member(
   return CTOOL_OK;
 }
 
-static ctool_status_t cfront_parse_static_aggregate_initializer(
+static ctool_status_t cfront_automatic_record_expression_compatible(
+    cfront_context_t *context, ctool_u32 target_type,
+    ctool_u32 source_type, ctool_bool *compatible_out) {
+  ctool_c_type_node_t target;
+  ctool_c_type_node_t source;
+  ctool_u32 target_base;
+  ctool_u32 source_base;
+  ctool_u32 target_qualifiers;
+  ctool_u32 source_qualifiers;
+  ctool_status_t status;
+  *compatible_out = CTOOL_FALSE;
+  status = cfront_underlying_type(
+      context, target_type, &target_base, &target_qualifiers, &target);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, source_type, &source_base, &source_qualifiers, &source);
+  }
+  (void)target_qualifiers;
+  (void)source_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (target.kind != CTOOL_C_TYPE_RECORD ||
+      source.kind != CTOOL_C_TYPE_RECORD) {
+    return CTOOL_OK;
+  }
+  status = cfront_types_compatible(
+      context, target_base, source_base, compatible_out);
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
+static ctool_status_t cfront_parse_aggregate_initializer(
     cfront_context_t *context, ctool_u32 *object_type_io,
     const ctool_c_pp_token_t *origin, ctool_bool explicit_braces,
+    ctool_bool static_storage,
+    const cfront_expression_value_t *prepared_value,
+    const ctool_c_pp_token_t *prepared_token,
     ctool_u32 *initializer_out) {
   ctool_c_type_node_t aggregate;
   ctool_u32 aggregate_base;
@@ -9912,6 +10029,22 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
   ctool_u32 subobject_count = 0u;
   ctool_u32 record_member_cursor = 0u;
   ctool_bool aggregate_full = CTOOL_FALSE;
+  ctool_bool prepared_available =
+      prepared_value != (const cfront_expression_value_t *)0
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_u32 initializer_diagnostic =
+      static_storage == CTOOL_TRUE
+          ? (ctool_u32)CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION
+          : (ctool_u32)CTOOL_C_PARSE_DIAG_STATEMENT;
+  const char *array_excess_message =
+      static_storage == CTOOL_TRUE
+          ? "static array initializer list has excess elements"
+          : "automatic array initializer list has excess elements";
+  const char *structure_excess_message =
+      static_storage == CTOOL_TRUE
+          ? "static structure initializer list has excess elements"
+          : "automatic structure initializer list has excess elements";
   ctool_status_t status = cfront_underlying_type(
       context, *object_type_io, &aggregate_base, &aggregate_qualifiers,
       &aggregate);
@@ -9922,27 +10055,30 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
   if (aggregate.kind == CTOOL_C_TYPE_ARRAY) {
     if (aggregate.array_bound_kind == CTOOL_C_ARRAY_VARIABLE) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, origin,
-          "variable array initialization is outside this constant-data slice");
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, origin,
+          static_storage == CTOOL_TRUE
+              ? "variable array initialization is outside this "
+                "constant-data slice"
+              : "variable automatic array initialization is outside this "
+                "semantic slice");
     }
     if (aggregate.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED &&
         aggregate_base != *object_type_io) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, origin,
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, origin,
           "wrapped incomplete array initialization awaits local type completion");
     }
   } else if (aggregate.kind == CTOOL_C_TYPE_RECORD) {
     if (aggregate.record_complete == CTOOL_FALSE) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
-          origin, "static initializer requires a complete record type");
+          context, CTOOL_ERR_INPUT, initializer_diagnostic, origin,
+          static_storage == CTOOL_TRUE
+              ? "static initializer requires a complete record type"
+              : "automatic initializer requires a complete record type");
     }
     if (aggregate.record_kind != CTOOL_C_RECORD_STRUCT) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, origin,
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, origin,
           "union and class initializer lists await active-member semantics");
     }
   } else {
@@ -9958,10 +10094,15 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
       cfront_peek_is(context, "}") == CTOOL_TRUE) {
     cfront_leave_syntax(context);
     return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
-        cfront_peek(context), "static initializer list requires one value");
+        context, CTOOL_ERR_INPUT, initializer_diagnostic,
+        cfront_peek(context),
+        static_storage == CTOOL_TRUE
+            ? "static initializer list requires one value"
+            : "automatic initializer list requires one value");
   }
-  while (status == CTOOL_OK && cfront_peek_is(context, "}") == CTOOL_FALSE &&
+  while (status == CTOOL_OK &&
+         (prepared_available == CTOOL_TRUE ||
+          cfront_peek_is(context, "}") == CTOOL_FALSE) &&
          (aggregate.kind != CTOOL_C_TYPE_ARRAY ||
           aggregate.array_bound_kind != CTOOL_C_ARRAY_FIXED ||
           subobject_count < aggregate.element_count)) {
@@ -9972,18 +10113,21 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
     if (cfront_peek_is(context, ".") == CTOOL_TRUE ||
         cfront_peek_is(context, "[") == CTOOL_TRUE) {
       status = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cfront_peek(context),
-          "designated static initializers are outside this semantic slice");
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
+          cfront_peek(context),
+          static_storage == CTOOL_TRUE
+              ? "designated static initializers are outside this semantic "
+                "slice"
+              : "designated automatic initializers are outside this "
+                "semantic slice");
       break;
     }
     if (aggregate.kind == CTOOL_C_TYPE_ARRAY) {
       if (aggregate.array_bound_kind == CTOOL_C_ARRAY_FIXED &&
           subobject_count >= aggregate.element_count) {
         status = cfront_emit_failure(
-            context, CTOOL_ERR_INPUT,
-            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cfront_peek(context),
-            "static array initializer list has excess elements");
+            context, CTOOL_ERR_INPUT, initializer_diagnostic,
+            cfront_peek(context), array_excess_message);
         break;
       }
       edge.subobject = subobject_count;
@@ -9991,7 +10135,7 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
     } else {
       ctool_c_record_member_t member;
       ctool_bool found = CTOOL_FALSE;
-      status = cfront_next_static_record_initializer_member(
+      status = cfront_next_record_initializer_member(
           context, &aggregate, &record_member_cursor, &edge.subobject,
           &member, &found);
       if (status != CTOOL_OK) {
@@ -10014,7 +10158,7 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
       ctool_u32 element_qualifiers;
       ctool_bool character_string = CTOOL_FALSE;
       const ctool_c_pp_token_t *value_token = cfront_peek(context);
-      status = cfront_inspect_static_target(
+      status = cfront_inspect_initializer_target(
           context, child_type, &child_base, &child, &element,
           &element_qualifiers);
       (void)child_base;
@@ -10028,23 +10172,77 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
                 ? CTOOL_TRUE
                 : CTOOL_FALSE;
       }
-      if (status == CTOOL_OK &&
-          (child.kind == CTOOL_C_TYPE_ARRAY ||
-           child.kind == CTOOL_C_TYPE_RECORD) &&
-          character_string == CTOOL_FALSE &&
-          cfront_peek_is(context, "{") == CTOOL_FALSE) {
-        status = cfront_parse_static_aggregate_initializer(
-            context, &child_type, value_token, CTOOL_FALSE,
-            &child_initializer);
-      } else if (status == CTOOL_OK) {
-        status = cfront_parse_static_initializer(
-            context, &child_type, &child_initializer);
+      {
+        cfront_expression_value_t clause_value;
+        const ctool_c_pp_token_t *clause_token = value_token;
+        ctool_bool clause_prepared = CTOOL_FALSE;
+        ctool_bool record_expression = CTOOL_FALSE;
+        cfront_zero(&clause_value, (ctool_u32)sizeof(clause_value));
+        /* Parse one record-position clause once. If it is not a compatible
+         * record value, carry that same AST down the brace-elision path. */
+        if (status == CTOOL_OK && prepared_available == CTOOL_TRUE) {
+          clause_value = *prepared_value;
+          clause_token = prepared_token != (const ctool_c_pp_token_t *)0
+                             ? prepared_token
+                             : value_token;
+          clause_prepared = CTOOL_TRUE;
+          prepared_available = CTOOL_FALSE;
+        } else if (status == CTOOL_OK && static_storage == CTOOL_FALSE &&
+                   child.kind == CTOOL_C_TYPE_RECORD &&
+                   cfront_peek_is(context, "{") == CTOOL_FALSE &&
+                   (value_token == (const ctool_c_pp_token_t *)0 ||
+                    value_token->kind != CTOOL_C_PP_TOKEN_STRING)) {
+          status = cfront_parse_body_expression(context, &clause_value);
+          if (status == CTOOL_OK) {
+            clause_prepared = CTOOL_TRUE;
+          }
+        }
+        if (status == CTOOL_OK && clause_prepared == CTOOL_TRUE &&
+            child.kind == CTOOL_C_TYPE_RECORD) {
+          status = cfront_automatic_record_expression_compatible(
+              context, child_type, clause_value.type, &record_expression);
+        }
+        if (status == CTOOL_OK && record_expression == CTOOL_TRUE) {
+          status = cfront_publish_block_expression_initializer(
+              context, child_type, clause_token, &clause_value,
+              &child_initializer);
+        }
+        if (status == CTOOL_OK &&
+            (child.kind == CTOOL_C_TYPE_ARRAY ||
+             child.kind == CTOOL_C_TYPE_RECORD) &&
+            character_string == CTOOL_FALSE &&
+            cfront_peek_is(context, "{") == CTOOL_FALSE &&
+            record_expression == CTOOL_FALSE) {
+          status = cfront_parse_aggregate_initializer(
+              context, &child_type,
+              clause_prepared == CTOOL_TRUE ? clause_token : value_token,
+              CTOOL_FALSE,
+              static_storage,
+              clause_prepared == CTOOL_TRUE
+                  ? &clause_value
+                  : (const cfront_expression_value_t *)0,
+              clause_prepared == CTOOL_TRUE
+                  ? clause_token
+                  : (const ctool_c_pp_token_t *)0,
+              &child_initializer);
+        } else if (status == CTOOL_OK && clause_prepared == CTOOL_TRUE &&
+                   record_expression == CTOOL_FALSE) {
+          status = cfront_publish_block_expression_initializer(
+              context, child_type, clause_token, &clause_value,
+              &child_initializer);
+        } else if (status == CTOOL_OK && record_expression == CTOOL_FALSE &&
+                   static_storage == CTOOL_TRUE) {
+          status = cfront_parse_static_initializer(
+              context, &child_type, &child_initializer);
+        } else if (status == CTOOL_OK && record_expression == CTOOL_FALSE) {
+          status = cfront_parse_block_initializer(
+              context, &child_type, value_token, &child_initializer);
+        }
       }
     }
     if (status == CTOOL_OK && child_type != declared_child_type) {
       status = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, origin,
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, origin,
           "nested incomplete array completion awaits parent type rebuilding");
     }
     if (status == CTOOL_OK) {
@@ -10066,7 +10264,7 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
       ctool_u32 next_member_index;
       ctool_c_record_member_t next_member;
       ctool_bool found = CTOOL_FALSE;
-      status = cfront_next_static_record_initializer_member(
+      status = cfront_next_record_initializer_member(
           context, &aggregate, &probe, &next_member_index, &next_member,
           &found);
       (void)next_member_index;
@@ -10092,25 +10290,41 @@ static ctool_status_t cfront_parse_static_aggregate_initializer(
     }
   }
   if (status == CTOOL_OK && explicit_braces == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *after_comma =
+        cfront_token(context, context->position + 1u);
     if (aggregate_full == CTOOL_TRUE &&
+        cfront_peek_is(context, ",") == CTOOL_TRUE &&
+        (cfront_token_is(after_comma, ".") == CTOOL_TRUE ||
+         cfront_token_is(after_comma, "[") == CTOOL_TRUE)) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic,
+          after_comma,
+          static_storage == CTOOL_TRUE
+              ? "designated static initializers are outside this semantic "
+                "slice"
+              : "designated automatic initializers are outside this semantic "
+                "slice");
+    }
+    if (aggregate_full == CTOOL_TRUE &&
+        status == CTOOL_OK &&
         cfront_peek_is(context, ",") == CTOOL_FALSE &&
         cfront_peek_is(context, "}") == CTOOL_FALSE) {
       status = cfront_emit_failure(
-          context, CTOOL_ERR_INPUT,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cfront_peek(context),
+          context, CTOOL_ERR_INPUT, initializer_diagnostic,
+          cfront_peek(context),
           aggregate.kind == CTOOL_C_TYPE_ARRAY
-              ? "static array initializer list has excess elements"
-              : "static structure initializer list has excess elements");
+              ? array_excess_message
+              : structure_excess_message);
     }
-    if (cfront_peek_is(context, ",") == CTOOL_TRUE) {
+    if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
       (void)cfront_advance(context);
       if (cfront_peek_is(context, "}") == CTOOL_FALSE) {
         status = cfront_emit_failure(
-            context, CTOOL_ERR_INPUT,
-            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, cfront_peek(context),
+            context, CTOOL_ERR_INPUT, initializer_diagnostic,
+            cfront_peek(context),
             aggregate.kind == CTOOL_C_TYPE_ARRAY
-                ? "static array initializer list has excess elements"
-                : "static structure initializer list has excess elements");
+                ? array_excess_message
+                : structure_excess_message);
       }
     }
     if (status == CTOOL_OK) {
@@ -10166,7 +10380,7 @@ static ctool_status_t cfront_parse_static_initializer(
     const ctool_c_pp_token_t *nested_value =
         cfront_token(context, context->position + 1u);
     ctool_bool character_string = CTOOL_FALSE;
-    status = cfront_inspect_static_target(
+    status = cfront_inspect_initializer_target(
         context, *object_type_io, &target_base, &target, &element,
         &element_qualifiers);
     (void)target_base;
@@ -10186,8 +10400,10 @@ static ctool_status_t cfront_parse_static_initializer(
     if (character_string == CTOOL_FALSE &&
         (target.kind == CTOOL_C_TYPE_ARRAY ||
          target.kind == CTOOL_C_TYPE_RECORD)) {
-      status = cfront_parse_static_aggregate_initializer(
-          context, object_type_io, open, CTOOL_TRUE, &nested);
+      status = cfront_parse_aggregate_initializer(
+          context, object_type_io, open, CTOOL_TRUE, CTOOL_TRUE,
+          (const cfront_expression_value_t *)0,
+          (const ctool_c_pp_token_t *)0, &nested);
       if (status == CTOOL_OK) {
         *initializer_out = nested;
       }
@@ -10227,8 +10443,8 @@ static ctool_status_t cfront_parse_static_initializer(
   }
   if (value_token != (const ctool_c_pp_token_t *)0 &&
       value_token->kind == CTOOL_C_PP_TOKEN_STRING) {
-    return cfront_parse_static_string_initializer(
-        context, object_type_io, value_token, initializer_out);
+    return cfront_parse_string_initializer(
+        context, object_type_io, value_token, CTOOL_TRUE, initializer_out);
   }
   status = cfront_integer_type(
       context, *object_type_io, &target_integer, &is_integer);
@@ -10417,19 +10633,9 @@ static ctool_status_t cfront_parse_block_declaration(
           name_token, "block object completeness is unavailable");
     }
     if (complete == CTOOL_FALSE) {
-      if (has_initializer == CTOOL_TRUE &&
-          node.kind == CTOOL_C_TYPE_ARRAY &&
-          node.array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED &&
-          specifiers.storage != CFRONT_STORAGE_STATIC) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PARSE_DIAG_STATEMENT, cfront_peek(context),
-            "aggregate block object initializers are outside this body slice");
-      }
       if (has_initializer == CTOOL_FALSE ||
           node.kind != CTOOL_C_TYPE_ARRAY ||
-          node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED ||
-          specifiers.storage != CFRONT_STORAGE_STATIC) {
+          node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
             name_token, "block object requires a complete object type");
@@ -10451,8 +10657,8 @@ static ctool_status_t cfront_parse_block_declaration(
                    ? cfront_parse_static_initializer(
                          context, &type, &block_binding.initializer)
                    : cfront_parse_block_initializer(
-                         context, type, initializer_token,
-                         &block_binding.initializer);
+                          context, &type, initializer_token,
+                          &block_binding.initializer);
       cfront_clear_pending_block_binding(context);
       if (status != CTOOL_OK) {
         return status;
@@ -12942,7 +13148,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       ctool_c_type_node_t element;
       ctool_u32 array_base;
       ctool_u32 element_qualifiers;
-      status = cfront_inspect_static_target(
+      status = cfront_inspect_initializer_target(
           context, initializer->type, &array_base, &array, &element,
           &element_qualifiers);
       (void)array_base;
@@ -13038,7 +13244,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           ctool_c_record_member_t member;
           ctool_u32 expected_member = CTOOL_C_AST_NONE;
           ctool_bool found = CTOOL_FALSE;
-          status = cfront_next_static_record_initializer_member(
+          status = cfront_next_record_initializer_member(
               context, &aggregate, &record_member_cursor, &expected_member,
               &member, &found);
           valid = status == CTOOL_OK && found == CTOOL_TRUE &&
@@ -13052,8 +13258,6 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         if (valid == CTOOL_TRUE &&
             (edge->initializer >= index ||
              initializers[edge->initializer].type != child_type ||
-             initializers[edge->initializer].kind ==
-                 CTOOL_C_INITIALIZER_EXPRESSION ||
              initializers[edge->initializer].kind ==
                  CTOOL_C_INITIALIZER_ZERO)) {
           valid = CTOOL_FALSE;
@@ -13098,7 +13302,9 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           (binding->storage == CTOOL_C_STORAGE_STATIC &&
            initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION) ||
           (binding->storage != CTOOL_C_STORAGE_STATIC &&
-           initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION)))) {
+           initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION &&
+           initializer->kind != CTOOL_C_INITIALIZER_LIST &&
+           initializer->kind != CTOOL_C_INITIALIZER_STRING)))) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "frozen block binding is invalid");
@@ -13108,11 +13314,18 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     ctool_arena_t *arena = ctool_job_arena(context->job);
     ctool_arena_mark_t ownership_mark = ctool_arena_mark(arena);
     ctool_u32 *owners = (ctool_u32 *)0;
+    cfront_initializer_domain_t *storage_domains =
+        (cfront_initializer_domain_t *)0;
     ctool_bool ownership_valid = CTOOL_TRUE;
     ctool_status_t rewind_status;
     status = cfront_alloc_array(context, context->initializers.count,
                                 (ctool_u32)sizeof(*owners),
                                 (void **)&owners);
+    if (status == CTOOL_OK) {
+      status = cfront_alloc_array(context, context->initializers.count,
+                                  (ctool_u32)sizeof(*storage_domains),
+                                  (void **)&storage_domains);
+    }
     for (index = 0u;
          status == CTOOL_OK && ownership_valid == CTOOL_TRUE &&
          index < context->initializers.count;
@@ -13147,6 +13360,49 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         break;
       }
       owners[root] = 1u;
+      storage_domains[root] =
+          block_bindings[index].storage == CTOOL_C_STORAGE_STATIC
+              ? CFRONT_INITIALIZER_DOMAIN_STATIC
+              : CFRONT_INITIALIZER_DOMAIN_AUTOMATIC;
+    }
+    for (index = context->initializers.count;
+         status == CTOOL_OK && ownership_valid == CTOOL_TRUE && index != 0u;) {
+      const ctool_c_initializer_t *initializer;
+      ctool_u32 child_offset;
+      index--;
+      initializer = &initializers[index];
+      if (storage_domains[index] == CFRONT_INITIALIZER_DOMAIN_NONE) {
+        ownership_valid = CTOOL_FALSE;
+        break;
+      }
+      if ((storage_domains[index] == CFRONT_INITIALIZER_DOMAIN_AUTOMATIC &&
+           initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION &&
+           initializer->kind != CTOOL_C_INITIALIZER_LIST &&
+           initializer->kind != CTOOL_C_INITIALIZER_STRING) ||
+          (storage_domains[index] == CFRONT_INITIALIZER_DOMAIN_STATIC &&
+           initializer->kind != CTOOL_C_INITIALIZER_ZERO &&
+           initializer->kind != CTOOL_C_INITIALIZER_INTEGER &&
+           initializer->kind != CTOOL_C_INITIALIZER_STRING &&
+           initializer->kind != CTOOL_C_INITIALIZER_ADDRESS &&
+           initializer->kind != CTOOL_C_INITIALIZER_LIST)) {
+        ownership_valid = CTOOL_FALSE;
+        break;
+      }
+      if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
+        continue;
+      }
+      for (child_offset = 0u; child_offset < initializer->element_count;
+           child_offset++) {
+        ctool_u32 child = initializer_elements[
+                              initializer->first_element + child_offset]
+                              .initializer;
+        if (child >= index ||
+            storage_domains[child] != CFRONT_INITIALIZER_DOMAIN_NONE) {
+          ownership_valid = CTOOL_FALSE;
+          break;
+        }
+        storage_domains[child] = storage_domains[index];
+      }
     }
     for (index = 0u;
          status == CTOOL_OK && ownership_valid == CTOOL_TRUE &&
@@ -13168,7 +13424,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     if (ownership_valid == CTOOL_FALSE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-          cfront_peek(context), "frozen initializers do not form an owned forest");
+          cfront_peek(context),
+          "frozen initializers do not form an owned forest");
     }
   }
   for (index = 0u; index < context->statements.count; index++) {

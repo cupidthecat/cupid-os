@@ -92,9 +92,10 @@ typedef struct {
   /* Block-scope declarations retain their source storage spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
-  /* Index into translation_unit.initializers. An uninitialized automatic
-   * object uses AST_NONE; a static object always retains its semantic
-   * initializer, including implicit zero initialization. */
+  /* Root in translation_unit.initializers. An uninitialized automatic object
+   * uses AST_NONE. An initialized automatic object may own an EXPRESSION,
+   * STRING, or LIST forest; a static object always owns its semantic forest,
+   * including implicit zero initialization. */
   ctool_u32 initializer;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
@@ -133,8 +134,8 @@ typedef struct {
    * for implicit zero initialization. */
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
-  /* EXPRESSION: converted runtime expression root. Other kinds use
-   * AST_NONE. */
+  /* EXPRESSION: converted runtime expression root. It may be an automatic
+   * object's root or a leaf in an automatic LIST. Other kinds use AST_NONE. */
   ctool_u32 expression;
   /* INTEGER: target-width converted value bits. */
   ctool_u64 integer_bits;
@@ -360,8 +361,9 @@ typedef struct {
   /* Source-ordered block bindings survive after their lexical scopes close. */
   const ctool_c_block_binding_t *block_bindings;
   ctool_u32 block_binding_count;
-  /* Semantic object initializers. Block-binding initializer indices refer to
-   * this immutable table rather than directly to expression roots. */
+  /* Semantic object initializer forests. Storage duration comes from the
+   * owning block binding. LIST nodes may contain runtime EXPRESSION leaves
+   * only when that binding has automatic storage duration. */
   const ctool_c_initializer_t *initializers;
   ctool_u32 initializer_count;
   /* Direct LIST edges. Nested lists retain independent slices, and those
@@ -442,13 +444,16 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * `switch`, `case`, `default`, `break`, and `continue` statements;
  * function-scope identifier labels and direct `goto` statements through one
  * canonical label table per definition;
- * automatic/register block-object bindings with optional converted
- * expression initializer records; block-scope static objects with implicit
- * zero, target-converted integer constants, narrow character-array strings,
- * direct narrow-string address constants, and recursive nondesignated array
- * or structure lists. Static lists retain explicit subobjects in postorder,
- * apply brace elision, leave omitted tails implicitly zero initialized, and
- * complete direct unknown-bound arrays without mutating shared typedefs;
+ * automatic/register block-object bindings with converted scalar or
+ * whole-object record expressions, narrow character-array strings, and
+ * recursive nondesignated array or structure lists whose leaves retain
+ * runtime scalar or compatible record-valued assignment expressions;
+ * block-scope static objects with implicit zero,
+ * target-converted integer constants, narrow character-array strings,
+ * direct narrow-string address constants, and matching recursive lists.
+ * Lists retain explicit subobjects in postorder, apply brace elision, leave
+ * omitted tails implicitly zero initialized, and complete direct
+ * unknown-bound arrays without mutating shared typedefs;
  * file/block/parameter references, target-typed integer and ordinary narrow
  * character constants, decoded ordinary narrow strings, typed scalar/void
  * casts, address/dereference, direct/promoted record-member expressions,
@@ -481,8 +486,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Block typedefs, extern objects, function
- * declarations, block tag specifiers, attributes, automatic aggregate
- * initializer lists, and static assertions remain explicit body boundaries.
+ * declarations, block tag specifiers, attributes, designated initializer
+ * lists, union or Cupid class lists, and static assertions remain explicit
+ * body boundaries.
  * File-scope object initializers, designated and union lists, address
  * constants other than direct narrow strings, floating constants,
  * static-data allocation, and relocation lowering remain pending. Comma

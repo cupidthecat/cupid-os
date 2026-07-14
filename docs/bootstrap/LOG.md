@@ -2236,3 +2236,49 @@ Adding this active Cupid program changes the checked inventory without transferr
 | Formal two-axis review | PASS | Standards and Spec reviews report zero findings against fixed point `a44560f`. |
 
 This increment corrects production CupidC code generation but does not change the build owner of the compiler or retire a host dependency. GCC or Clang still compiles the private compiler into the kernel. The active regression is embedded by CupidObj and compiled on demand by CupidC, just like the other `bin/*.cc` programs. Issue #25 remains open for the nested switch/loop `continue` limitation, automatic aggregate initializer lists, remaining C and ABI semantics, object lowering, kernel integration, and staged self-hosting. The next source-driven shared frontend slice is automatic aggregate initializer lists; the first known unchanged blocker is `toolchain/cupidc_frontend.c:838`. No issue is ready to close from this increment.
+
+## 2026-07-13: automatic CupidC aggregate initializer forests
+
+### Decision and representation
+
+Automatic arrays and structures now use the same postorder initializer forest shape as block-static aggregates, but the two storage domains keep different leaves. Automatic lists retain converted runtime `EXPRESSION` leaves and narrow character-array `STRING` records. Static lists retain only their existing zero, integer, string, address, and list records. Freeze starts from each binding, carries its storage duration through the forest, and rejects a record kind that belongs to the other domain. No public enum, structure field, or ABI changed.
+
+The aggregate walker now handles explicit and elided braces, trailing commas, omitted zero-initialized tails, nested character-array strings, flexible-member omission, and direct unknown-bound arrays. Array completion creates a private object type and leaves a shared incomplete typedef unchanged. Initializer edges still name direct subobjects, and each child precedes its parent. Runtime expression indices stay in source order without claiming an evaluation order that C does not provide.
+
+Record-valued clauses needed a design correction during review. The first implementation recognized only a bare compatible identifier followed by `,` or `}`. That avoided speculative parsing, but it rejected valid calls, member access, parenthesized values, conditionals, and dereferenced records. The replacement parses one unbraced non-string assignment-expression clause once. If its value is compatible with the record child, that expression becomes the child initializer. Otherwise, the same AST value is carried down brace elision to the first scalar leaf. This avoids both speculative rollback and duplicate AST publication. String tokens descend before expression parsing so nested character arrays keep string-initializer semantics. Compatible whole-union expressions work through this path; positional union and Cupid class lists remain unsupported.
+
+No user question was needed. C11 fixes positional initialization, brace elision, incomplete-array completion, string bounds, and omitted-subobject zero initialization. ADRs 0003, 0013, and 0014 already fix the indexed AST, type graph, target layout, immutable ownership, and transactional failure model.
+
+### Red-to-green sequence and corrections
+
+- The focused contract first stopped at `/automatic-aggregate-initializers.c:11:25` with `CTOOL_ERR_UNSUPPORTED` and `aggregate initializer lists are outside this body slice`. The first broader record-clause case then failed at a parenthesized record value with the scalar-conversion diagnostic. Both are green through the shared aggregate walker.
+- The positive oracle now publishes 19 block bindings, 63 initializers, and 44 direct edges. It covers runtime scalar leaves, explicit and elided nesting, compatible record identifiers, calls, member access, parentheses, conditionals, whole-union expressions, a carried final clause, exact deep-list locations, strings reached through brace elision, independent typedef-array completions, updates, a trailing comma, a flexible member, and omitted pointer tails.
+- Exact negatives cover early and late designators, positional union lists, empty and excess lists, a flexible-member value, incompatible and floating leaves, explicit null-pointer conversion, string excess, incomplete array elements, and point-of-declaration visibility. The late-designator case corrected an `INPUT` excess diagnostic to the established `UNSUPPORTED` designator boundary.
+- The initial `{0}` expectation was corrected against C11. It initializes the first scalar leaf and leaves later subobjects zero. When that first leaf is a pointer, the expression still needs null-pointer conversion, which this frontend has not implemented.
+- The original record-copy fixture was also corrected because a record expression cannot initialize a scalar first member. `char[3] = "abc"` remains valid because C permits the terminating null to be omitted when the array bound matches the non-null bytes. Arrays with incomplete element types fail at the declarator before initialization.
+- A prepared clause that had already advanced to `}` originally skipped the recursive aggregate loop. The loop now processes that carried value once before honoring the close token. A three-level location oracle also caught a delimiter being used as the nested-list origin; every carried list now points back to the expression token.
+- Type compatibility in the record-clause path now maps scratch allocation failure through the public storage-limit diagnostic. The constrained-output case uses 256 direct record clauses and proves one limit diagnostic, zero failed output, exact arena and tape rollback, survival of an earlier result, and same-job recovery.
+- `make -C toolchain test` initially omitted the new contract mode even though the Python suite invoked it. The Toolchain recipe now runs `automatic-aggregate-initializers` on every strict host suite.
+
+### Hosted-source progress and audit
+
+Five unchanged Toolchain sources remain complete. The sixth exact gate parses `toolchain/cupidc_frontend.c` through its automatic aggregate initializers and stops at `12914:38`. The next token is the first `{0}` pointer leaf that requires integer null-pointer conversion. This advances an unchanged active source without rewriting it around a compiler limitation.
+
+The regenerated graph remains 682 active sources, 251 feature IDs, 492 transforms, 39 accounted unreachable sources, 432 declared artifacts, and 425 final-link objects. It records 399 lexical `goto` occurrences in 22 files, 60 `do`, 202 `switch`, 1,515 `case`, 133 `default`, 2,486 `while`, 22,705 `if`, 3,325 `else`, 2,827 `for`, 13,750 `return`, and 1,934 `sizeof` occurrences. The SHA-256 digest of `active-build.json` is `b9fb4bc6e9e59cf31e74d34dde092ccf293a15ce506b48f13aae57d49ae4bfca`.
+
+### Verification and migration boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused red cases | EXPECTED FAIL | The old frontend rejects the first automatic list at `11:25`; the identifier-only draft rejects a parenthesized record clause at `20:32`. |
+| Focused frontend suite | PASS | Final-tree `python -m unittest tests.test_toolchain_cupidc_frontend` passes all 40 tests in 9.546 seconds. |
+| Active-source audit | PASS | Final regeneration completes in 34.8 seconds. `make check-bootstrap-audit` reproduces it in 38.9 seconds, and the direct manifest drift test passes in 106.121 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang rebuild and complete suite pass in 25.1 seconds. The final formatted tree reruns in 15.6 seconds and invokes the new mode directly. |
+| WSL cross-host Toolchain | PASS | Fresh isolated GCC and Clang strict suites both pass; the parallel wall time is 63.0 seconds and Clang reports 59.72 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang suites pass with address, undefined-behavior, leak, frame-pointer, and halt-on-error checks enabled. Their wall times are 143.8 and 171.0 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` is silent for the frontend and contract in 232.8 and 47.2 seconds. Clang analysis is silent in 55.9 and 51.6 seconds. |
+| Full repository gate | PASS | Final-tree `make test` runs 282 tests in 454.223 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 492.6 seconds. |
+| Formal two-axis review | PASS | Standards and Spec reviews report zero findings against fixed point `4136116`. |
+| Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
+
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, null-pointer and floating semantics, non-string address constants, file-scope initialization, static-data and relocation lowering, complete IR and code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.

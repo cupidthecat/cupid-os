@@ -4531,7 +4531,11 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidobj.c", CTOOL_OK, 0u, 0u, 0u, "", 14u, 289u,
        1984u, 39u, 21u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
-       5487u, 85u, 43u, 0u}};
+       5487u, 85u, 43u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_ERR_UNSUPPORTED, 12914u, 38u,
+       CTOOL_C_PARSE_DIAG_EXPRESSION,
+       "integer null pointer conversion is outside this expression slice",
+       0u, 0u, 0u, 0u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -5015,17 +5019,6 @@ static int run_scalar_initializers(const char *host_root) {
       "  word trailing = {{ 1u },};\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"aggregate automatic initializer",
-         "typedef struct { int member; } item_t;\n"
-         "void bad(void) { item_t item = { 1 }; }\n",
-         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-        2u, 32u,
-        "aggregate initializer lists are outside this body slice"},
-      {{"unknown-bound array initializer boundary",
-         "void bad(void) { int values[] = { 1 }; }\n",
-         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-        1u, 31u,
-        "aggregate block object initializers are outside this body slice"},
       {{"incompatible scalar initializer",
          "void bad(void) { int value = \"text\"; }\n",
          CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -6048,6 +6041,1067 @@ aggregate_cleanup:
   }
   if (failed == 0) {
     (void)printf("aggregate-initializers: ok\n");
+  }
+  return failed;
+}
+
+static ctool_u32 automatic_aggregate_parameter_index(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->parameter_count; index++) {
+    if (string_equal(unit->parameters[index].name, name) != 0) {
+      return index;
+    }
+  }
+  return CTOOL_C_AST_NONE;
+}
+
+static ctool_u32 automatic_aggregate_block_index(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    if (string_equal(unit->block_bindings[index].name, name) != 0) {
+      return index;
+    }
+  }
+  return CTOOL_C_AST_NONE;
+}
+
+static const ctool_c_initializer_t *automatic_aggregate_root(
+    const ctool_c_translation_unit_t *unit, const char *name,
+    const ctool_c_block_binding_t **binding_out) {
+  const ctool_c_block_binding_t *binding = find_block_binding(unit, name);
+  if (binding_out != NULL) {
+    *binding_out = binding;
+  }
+  return binding == NULL ? NULL
+                         : initializer_node(unit, binding->initializer);
+}
+
+static const ctool_c_expression_t *automatic_aggregate_expression_leaf(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer, ctool_u32 expected_type) {
+  if (initializer == NULL ||
+      initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      initializer->type != expected_type ||
+      initializer->expression >= unit->expression_count) {
+    return NULL;
+  }
+  return &unit->expressions[initializer->expression];
+}
+
+static int automatic_aggregate_pair_leaves(
+    const ctool_c_translation_unit_t *unit, const char *name,
+    const ctool_c_block_binding_t **binding_out,
+    const ctool_c_expression_t **left_out,
+    const ctool_c_expression_t **right_out) {
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_initializer_t *root =
+      automatic_aggregate_root(unit, name, &binding);
+  const ctool_c_type_node_t *record =
+      binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  const ctool_c_initializer_t *left;
+  const ctool_c_initializer_t *right;
+  if (record == NULL || record->kind != CTOOL_C_TYPE_RECORD ||
+      record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      record->member_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->type != binding->type || root->element_count != 2u ||
+      record->first_member > unit->graph.member_count ||
+      record->member_count >
+          unit->graph.member_count - record->first_member) {
+    return 1;
+  }
+  left = initializer_list_child(unit, root, 0u, record->first_member);
+  right = initializer_list_child(unit, root, 1u,
+                                 record->first_member + 1u);
+  *left_out = automatic_aggregate_expression_leaf(
+      unit, left, unit->graph.members[record->first_member].type);
+  *right_out = automatic_aggregate_expression_leaf(
+      unit, right, unit->graph.members[record->first_member + 1u].type);
+  if (*left_out == NULL || *right_out == NULL) {
+    return 1;
+  }
+  *binding_out = binding;
+  return 0;
+}
+
+static int automatic_aggregate_nested_shape(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_initializer_t *root =
+      automatic_aggregate_root(unit, name, &binding);
+  const ctool_c_type_node_t *record =
+      binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  const ctool_c_initializer_t *pair_list;
+  const ctool_c_initializer_t *array_list;
+  const ctool_c_type_node_t *pair;
+  const ctool_c_type_node_t *array;
+  ctool_u32 index;
+  if (record == NULL || record->kind != CTOOL_C_TYPE_RECORD ||
+      record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      record->member_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->type != binding->type || root->element_count != 2u ||
+      record->first_member > unit->graph.member_count ||
+      record->member_count >
+          unit->graph.member_count - record->first_member) {
+    return 1;
+  }
+  pair_list = initializer_list_child(unit, root, 0u, record->first_member);
+  array_list = initializer_list_child(unit, root, 1u,
+                                      record->first_member + 1u);
+  pair = unwrapped_type_node(
+      unit, unit->graph.members[record->first_member].type);
+  array = unwrapped_type_node(
+      unit, unit->graph.members[record->first_member + 1u].type);
+  if (pair == NULL || pair->kind != CTOOL_C_TYPE_RECORD ||
+      pair->record_kind != CTOOL_C_RECORD_STRUCT ||
+      pair->member_count != 2u || pair_list == NULL ||
+      pair_list->kind != CTOOL_C_INITIALIZER_LIST ||
+      pair_list->type != unit->graph.members[record->first_member].type ||
+      pair_list->element_count != 2u || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 2u || array_list == NULL ||
+      array_list->kind != CTOOL_C_INITIALIZER_LIST ||
+      array_list->type !=
+          unit->graph.members[record->first_member + 1u].type ||
+      array_list->element_count != 2u ||
+      pair->first_member > unit->graph.member_count ||
+      pair->member_count > unit->graph.member_count - pair->first_member) {
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    const ctool_c_initializer_t *pair_child = initializer_list_child(
+        unit, pair_list, index, pair->first_member + index);
+    const ctool_c_initializer_t *array_child =
+        initializer_list_child(unit, array_list, index, index);
+    if (automatic_aggregate_expression_leaf(
+            unit, pair_child,
+            unit->graph.members[pair->first_member + index].type) == NULL ||
+        automatic_aggregate_expression_leaf(
+            unit, array_child, array->referenced_type) == NULL) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_automatic_aggregate_initializer_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_block_binding_t *runtime_binding;
+  const ctool_c_initializer_t *root;
+  const ctool_c_initializer_t *child;
+  const ctool_c_initializer_t *outer_child;
+  const ctool_c_expression_t *left;
+  const ctool_c_expression_t *right;
+  const ctool_c_expression_t *terminal;
+  const ctool_c_type_node_t *array;
+  const ctool_c_type_node_t *record;
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_binding_t *incomplete_row =
+      find_binding(unit, "incomplete_row_t");
+  const ctool_c_block_binding_t *first_row =
+      find_block_binding(unit, "first_row");
+  const ctool_c_block_binding_t *second_row =
+      find_block_binding(unit, "second_row");
+  ctool_u32 incoming_parameter =
+      automatic_aggregate_parameter_index(unit, "incoming");
+  ctool_u32 runtime_binding_index =
+      automatic_aggregate_block_index(unit, "runtime_pair");
+  ctool_u32 touch_binding = find_binding_index(unit, "touch");
+  ctool_u32 pass_pair_binding = find_binding_index(unit, "pass_pair");
+  ctool_u32 expression_initializers = 0u;
+  ctool_u32 string_initializers = 0u;
+  ctool_u32 list_initializers = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 update_count = 0u;
+  ctool_bool saw_prefix_increment = CTOOL_FALSE;
+  ctool_bool saw_postfix_increment = CTOOL_FALSE;
+  ctool_u32 index;
+
+  if (unit->block_binding_count != 19u || unit->initializer_count != 63u ||
+      unit->initializer_element_count != 44u ||
+      unit->function_definition_count != 3u ||
+      incoming_parameter == CTOOL_C_AST_NONE ||
+      runtime_binding_index == CTOOL_C_AST_NONE ||
+      touch_binding == CTOOL_C_AST_NONE ||
+      pass_pair_binding == CTOOL_C_AST_NONE || incomplete_row == NULL ||
+      incomplete_row->kind != CTOOL_C_BINDING_TYPEDEF || first_row == NULL ||
+      second_row == NULL) {
+    (void)fprintf(
+        stderr,
+        "automatic-aggregate-initializers: public inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    const ctool_c_initializer_t *initializer = &unit->initializers[index];
+    if (initializer->type >= unit->graph.type_count) {
+      (void)fprintf(stderr,
+                    "automatic-aggregate-initializers: initializer type "
+                    "differs\n");
+      return 1;
+    }
+    if (initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION) {
+      expression_initializers++;
+      if (initializer->expression >= unit->expression_count ||
+          initializer->first_element != CTOOL_C_AST_NONE ||
+          initializer->element_count != 0u) {
+        (void)fprintf(stderr,
+                      "automatic-aggregate-initializers: expression leaf "
+                      "differs\n");
+        return 1;
+      }
+    } else if (initializer->kind == CTOOL_C_INITIALIZER_STRING) {
+      string_initializers++;
+      if (initializer->expression != CTOOL_C_AST_NONE ||
+          initializer->first_element != CTOOL_C_AST_NONE ||
+          initializer->element_count != 0u ||
+          initializer->string_bytes.data == NULL) {
+        (void)fprintf(stderr,
+                      "automatic-aggregate-initializers: string leaf "
+                      "differs\n");
+        return 1;
+      }
+    } else if (initializer->kind == CTOOL_C_INITIALIZER_LIST) {
+      ctool_u32 edge_index;
+      list_initializers++;
+      if (initializer->expression != CTOOL_C_AST_NONE ||
+          initializer->first_element > unit->initializer_element_count ||
+          initializer->element_count >
+              unit->initializer_element_count - initializer->first_element) {
+        (void)fprintf(stderr,
+                      "automatic-aggregate-initializers: list slice "
+                      "differs\n");
+        return 1;
+      }
+      for (edge_index = 0u; edge_index < initializer->element_count;
+           edge_index++) {
+        const ctool_c_initializer_element_t *edge =
+            &unit->initializer_elements[initializer->first_element +
+                                        edge_index];
+        if (edge->initializer >= index) {
+          (void)fprintf(stderr,
+                        "automatic-aggregate-initializers: initializer "
+                        "postorder differs\n");
+          return 1;
+        }
+      }
+    } else {
+      (void)fprintf(stderr,
+                    "automatic-aggregate-initializers: initializer kind "
+                    "differs\n");
+      return 1;
+    }
+  }
+  if (expression_initializers != 35u || string_initializers != 4u ||
+      list_initializers != 24u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: initializer forest "
+                  "differs\n");
+    return 1;
+  }
+
+  if (automatic_aggregate_pair_leaves(
+          unit, "runtime_pair", &runtime_binding, &left, &right) != 0 ||
+      runtime_binding->storage != CTOOL_C_STORAGE_NONE) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: runtime pair differs\n");
+    return 1;
+  }
+  terminal = expression_terminal(unit, left);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_BINARY ||
+      terminal->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: runtime expression "
+                  "differs\n");
+    return 1;
+  }
+  if (automatic_aggregate_nested_shape(unit, "explicit_nested") != 0 ||
+      automatic_aggregate_nested_shape(unit, "elided_nested") != 0) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: nested list shape "
+                  "differs\n");
+    return 1;
+  }
+  root = automatic_aggregate_root(unit, "nested_last", &binding);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, root, 0u,
+                                       record->first_member);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_LIST ||
+      child->element_count != 1u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: carried final clause "
+                  "differs\n");
+    return 1;
+  }
+  record = unwrapped_type_node(
+      unit, unit->graph.members[record->first_member].type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, child, 0u,
+                                       record->first_member);
+  if (record == NULL ||
+      automatic_aggregate_expression_leaf(
+          unit, child, unit->graph.members[record->first_member].type) ==
+          NULL) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: carried final leaf "
+                  "differs\n");
+    return 1;
+  }
+  root = automatic_aggregate_root(unit, "nested_deep", &binding);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, root, 0u,
+                                       record->first_member);
+  if (child == NULL || child->kind != CTOOL_C_INITIALIZER_LIST) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: deep carried root "
+                  "differs\n");
+    return 1;
+  }
+  outer_child = child;
+  record = unwrapped_type_node(
+      unit, unit->graph.members[record->first_member].type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, child, 0u,
+                                       record->first_member);
+  if (record == NULL || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_LIST ||
+      child->location.line != outer_child->location.line ||
+      child->location.column != outer_child->location.column) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: deep carried location "
+                  "differs\n");
+    return 1;
+  }
+
+  root = automatic_aggregate_root(unit, "inferred", &binding);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->type != binding->type || root->element_count != 3u ||
+      array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 3u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: inferred array "
+                  "completion differs\n");
+    return 1;
+  }
+  for (index = 0u; index < 3u; index++) {
+    child = initializer_list_child(unit, root, index, index);
+    if (automatic_aggregate_expression_leaf(
+            unit, child, array->referenced_type) == NULL) {
+      (void)fprintf(stderr,
+                    "automatic-aggregate-initializers: inferred array leaf "
+                    "%u differs\n",
+                    (unsigned int)index);
+      return 1;
+    }
+  }
+  array = unwrapped_type_node(unit, incomplete_row->type);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: incomplete typedef "
+                  "changed\n");
+    return 1;
+  }
+  array = unwrapped_type_node(unit, first_row->type);
+  root = initializer_node(unit, first_row->initializer);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->type != first_row->type || root->element_count != 2u ||
+      first_row->type == incomplete_row->type) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: first typedef "
+                  "completion differs\n");
+    return 1;
+  }
+  array = unwrapped_type_node(unit, second_row->type);
+  root = initializer_node(unit, second_row->initializer);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 1u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->type != second_row->type || root->element_count != 1u ||
+      second_row->type == incomplete_row->type ||
+      second_row->type == first_row->type) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: second typedef "
+                  "completion differs\n");
+    return 1;
+  }
+
+  root = automatic_aggregate_root(unit, "copied", &binding);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->type != binding->type || root->element_count != 5u ||
+      array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 5u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: record array differs\n");
+    return 1;
+  }
+  child = initializer_list_child(unit, root, 0u, 0u);
+  left = automatic_aggregate_expression_leaf(
+      unit, child, array->referenced_type);
+  child = initializer_list_child(unit, root, 1u, 1u);
+  right = automatic_aggregate_expression_leaf(
+      unit, child, array->referenced_type);
+  terminal = left == NULL ? NULL : expression_terminal(unit, left);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+      terminal->reference != incoming_parameter) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: parameter record "
+                  "child differs\n");
+    return 1;
+  }
+  terminal = right == NULL ? NULL : expression_terminal(unit, right);
+  if (terminal == NULL ||
+      terminal->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
+      terminal->reference != runtime_binding_index) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: local record child "
+                  "differs\n");
+    return 1;
+  }
+  child = initializer_list_child(unit, root, 2u, 2u);
+  terminal = automatic_aggregate_expression_leaf(
+      unit, child, array->referenced_type);
+  terminal = terminal == NULL ? NULL : expression_terminal(unit, terminal);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_MEMBER) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: member record child "
+                  "differs\n");
+    return 1;
+  }
+  child = initializer_list_child(unit, root, 3u, 3u);
+  terminal = automatic_aggregate_expression_leaf(
+      unit, child, array->referenced_type);
+  terminal = terminal == NULL ? NULL : expression_terminal(unit, terminal);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_CONDITIONAL) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: conditional record "
+                  "child differs\n");
+    return 1;
+  }
+  child = initializer_list_child(unit, root, 4u, 4u);
+  terminal = automatic_aggregate_expression_leaf(
+      unit, child, array->referenced_type);
+  terminal = terminal == NULL ? NULL : expression_terminal(unit, terminal);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_CALL) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: call record child "
+                  "differs\n");
+    return 1;
+  }
+  root = automatic_aggregate_root(unit, "choices", &binding);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 2u || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY || array->element_count != 2u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: union expression "
+                  "array differs\n");
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    child = initializer_list_child(unit, root, index, index);
+    if (automatic_aggregate_expression_leaf(
+            unit, child, array->referenced_type) == NULL) {
+      (void)fprintf(stderr,
+                    "automatic-aggregate-initializers: union expression "
+                    "child differs\n");
+      return 1;
+    }
+  }
+
+  if (automatic_aggregate_pair_leaves(unit, "self", &binding, &left,
+                                      &right) != 0 ||
+      binding->storage != CTOOL_C_STORAGE_REGISTER) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: pending binding "
+                  "differs\n");
+    return 1;
+  }
+  layout = type_layout(unit, binding->type);
+  terminal = expression_terminal(unit, left);
+  if (layout == NULL || terminal == NULL ||
+      terminal->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      terminal->integer_bits != layout->size) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: point of declaration "
+                  "differs\n");
+    return 1;
+  }
+
+  root = automatic_aggregate_root(unit, "text", &binding);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_STRING ||
+      root->type != binding->type || root->string_bytes.size != 3u ||
+      root->string_bytes.data == NULL ||
+      memcmp(root->string_bytes.data, "ok\0", 3u) != 0 || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 3u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: character string "
+                  "completion differs\n");
+    return 1;
+  }
+  root = automatic_aggregate_root(unit, "rows", &binding);
+  array = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 2u || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY || array->element_count != 2u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: character rows "
+                  "differ\n");
+    return 1;
+  }
+  for (index = 0u; index < 2u; index++) {
+    static const char expected[][3] = {{'a', '\0', '\0'},
+                                       {'b', 'c', '\0'}};
+    static const ctool_u32 sizes[] = {2u, 3u};
+    child = initializer_list_child(unit, root, index, index);
+    if (child == NULL || child->kind != CTOOL_C_INITIALIZER_STRING ||
+        child->type != array->referenced_type ||
+        child->string_bytes.size != sizes[index] ||
+        child->string_bytes.data == NULL ||
+        memcmp(child->string_bytes.data, expected[index], sizes[index]) !=
+            0) {
+      (void)fprintf(stderr,
+                    "automatic-aggregate-initializers: character row %u "
+                    "differs\n",
+                    (unsigned int)index);
+      return 1;
+    }
+  }
+  root = automatic_aggregate_root(unit, "text_box", &binding);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, root, 0u,
+                                       record->first_member);
+  if (record == NULL || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 2u ||
+      child == NULL || child->kind != CTOOL_C_INITIALIZER_STRING ||
+      child->string_bytes.size != 3u || child->string_bytes.data == NULL ||
+      memcmp(child->string_bytes.data, "ok\0", 3u) != 0) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: deep string brace "
+                  "elision differs\n");
+    return 1;
+  }
+
+  if (automatic_aggregate_pair_leaves(unit, "effects", &binding, &left,
+                                      &right) != 0) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: update list differs\n");
+    return 1;
+  }
+
+  terminal = expression_terminal(unit, left);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      terminal->operation != CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: postfix update "
+                  "differs\n");
+    return 1;
+  }
+  terminal = expression_terminal(unit, right);
+  if (terminal == NULL || terminal->kind != CTOOL_C_EXPRESSION_UPDATE ||
+      terminal->operation != CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: prefix update differs\n");
+    return 1;
+  }
+  if (automatic_aggregate_pair_leaves(unit, "trailing", &binding, &left,
+                                      &right) != 0) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: trailing comma "
+                  "differs\n");
+    return 1;
+  }
+
+  root = automatic_aggregate_root(unit, "flexible", &binding);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, root, 0u,
+                                       record->first_member);
+  if (record == NULL || record->kind != CTOOL_C_TYPE_RECORD ||
+      record->member_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 1u ||
+      automatic_aggregate_expression_leaf(
+          unit, child, unit->graph.members[record->first_member].type) ==
+          NULL) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: omitted flexible "
+                  "member differs\n");
+    return 1;
+  }
+  root = automatic_aggregate_root(unit, "omitted_pointer", &binding);
+  record = binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+  child = record == NULL
+              ? NULL
+              : initializer_list_child(unit, root, 0u,
+                                       record->first_member);
+  terminal = automatic_aggregate_expression_leaf(
+                 unit, child,
+                 record == NULL
+                     ? CTOOL_C_TYPE_NONE
+                     : unit->graph.members[record->first_member].type);
+  terminal = terminal == NULL ? NULL : expression_terminal(unit, terminal);
+  if (record == NULL || record->kind != CTOOL_C_TYPE_RECORD ||
+      record->member_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 1u ||
+      terminal == NULL ||
+      terminal->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      terminal->integer_bits != 0ull) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: omitted pointer "
+                  "member differs\n");
+    return 1;
+  }
+
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+      const ctool_c_expression_t *callee;
+      ctool_u32 callee_index;
+      call_count++;
+      if (expression->first_child >= unit->expression_child_count) {
+        (void)fprintf(stderr,
+                      "automatic-aggregate-initializers: call shape "
+                      "differs\n");
+        return 1;
+      }
+      callee_index = unit->expression_children[expression->first_child];
+      callee = callee_index < unit->expression_count
+                   ? expression_terminal(unit,
+                                         &unit->expressions[callee_index])
+                   : NULL;
+      if (callee == NULL || callee->kind != CTOOL_C_EXPRESSION_IDENTIFIER ||
+          (callee->reference != touch_binding &&
+           callee->reference != pass_pair_binding) ||
+          (callee->reference == touch_binding &&
+           expression->child_count != 3u) ||
+          (callee->reference == pass_pair_binding &&
+           expression->child_count != 2u)) {
+        (void)fprintf(stderr,
+                      "automatic-aggregate-initializers: call target "
+                      "differs\n");
+        return 1;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UPDATE) {
+      update_count++;
+      if (expression->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT) {
+        saw_prefix_increment = CTOOL_TRUE;
+      } else if (expression->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT) {
+        saw_postfix_increment = CTOOL_TRUE;
+      }
+    }
+  }
+  if (call_count != 7u || update_count != 2u ||
+      saw_prefix_increment != CTOOL_TRUE ||
+      saw_postfix_increment != CTOOL_TRUE) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: single evaluation "
+                  "inventory differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static char *build_automatic_aggregate_initializer_limit_source(
+    ctool_bool initialized) {
+  const size_t capacity = 32768u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                         "typedef struct { int value; } limit_item_t;\n"
+                         "int automatic_aggregate_limit(int seed) {\n"
+                         "  limit_item_t item = {seed};\n"
+                         "  limit_item_t values[256]") != 0) {
+    free(source);
+    return NULL;
+  }
+  if (initialized == CTOOL_TRUE) {
+    if (append_scale_text(source, capacity, &used, " = {") != 0) {
+      free(source);
+      return NULL;
+    }
+    for (index = 0u; index < 256u; index++) {
+      char value[16];
+      int written = snprintf(value, sizeof(value),
+                             index == 0u ? "item" : ", item");
+      if (written <= 0 || (size_t)written >= sizeof(value) ||
+          append_scale_text(source, capacity, &used, value) != 0) {
+        free(source);
+        return NULL;
+      }
+    }
+    if (append_scale_text(source, capacity, &used, "}") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used,
+                         ";\n  return values[0].value;\n}\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_automatic_aggregate_initializer_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root) {
+  char *control_source =
+      build_automatic_aggregate_initializer_limit_source(CTOOL_FALSE);
+  char *aggregate_source =
+      build_automatic_aggregate_initializer_limit_source(CTOOL_TRUE);
+  ctool_c_translation_unit_t control_oracle;
+  ctool_c_translation_unit_t aggregate_oracle;
+  ctool_c_translation_unit_t control;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_c_pp_result_t control_tape;
+  ctool_c_pp_result_t aggregate_tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u32 output_limit;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || aggregate_source == NULL ||
+      parse_valid_fixture(fixture, "/automatic-aggregate-limit-control.c",
+                          control_source, &control_oracle) != 0 ||
+      parse_valid_fixture(fixture, "/automatic-aggregate-limit-success.c",
+                          aggregate_source, &aggregate_oracle) != 0 ||
+      control_oracle.block_binding_count != 2u ||
+      control_oracle.initializer_count != 2u ||
+      control_oracle.initializer_element_count != 1u ||
+      aggregate_oracle.block_binding_count != 2u ||
+      aggregate_oracle.initializer_count != 259u ||
+      aggregate_oracle.initializer_element_count != 257u ||
+      aggregate_oracle.expression_count <= control_oracle.expression_count ||
+      preprocess_fixture(fixture, "/automatic-aggregate-limit-control.c",
+                         control_source, &control_tape) != 0 ||
+      preprocess_fixture(fixture, "/automatic-aggregate-limit.c",
+                         aggregate_source, &aggregate_tape) != 0) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: storage limit "
+                  "controls differ\n");
+    goto cleanup;
+  }
+  output_limit = scalar_initializer_unit_max_bytes(&control_oracle);
+  if (output_limit == 0u || output_limit > 0xffffffffu / 4u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: storage limit "
+                  "measurement differs\n");
+    goto cleanup;
+  }
+  output_limit *= 4u;
+  if ((ctool_u64)aggregate_oracle.initializer_count *
+              sizeof(ctool_c_initializer_t) <=
+          output_limit &&
+      (ctool_u64)aggregate_oracle.initializer_element_count *
+              sizeof(ctool_c_initializer_element_t) <=
+          output_limit &&
+      (ctool_u64)aggregate_oracle.expression_count *
+              sizeof(ctool_c_expression_t) <=
+          output_limit) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: storage limit misses "
+                  "the new forest\n");
+    goto cleanup;
+  }
+  token_bytes = (size_t)aggregate_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, aggregate_tape.tokens, token_bytes);
+  limits.output_bytes = output_limit;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&control, 0xa5, sizeof(control));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &control);
+  if (status != CTOOL_OK || control.block_binding_count != 2u ||
+      control.initializer_count != 2u ||
+      control.initializer_element_count != 1u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: limited control "
+                  "failed: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &aggregate_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/automatic-aggregate-limit.c") ||
+      diagnostic->line == 0u || diagnostic->column == 0u ||
+      !string_equal(diagnostic->message,
+                    "declaration frontend storage limit exceeded") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, aggregate_tape.tokens, token_bytes) != 0 ||
+      control.block_binding_count != 2u || control.initializer_count != 2u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: limited rollback "
+                  "differs: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &recovered);
+  if (status != CTOOL_OK || recovered.block_binding_count != 2u ||
+      recovered.initializer_count != 2u ||
+      recovered.initializer_element_count != 1u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr,
+                  "automatic-aggregate-initializers: limited recovery "
+                  "differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(aggregate_source);
+  free(control_source);
+  return failed;
+}
+
+static int run_automatic_aggregate_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef struct { int left; unsigned right; } pair_t;\n"
+      "typedef struct { pair_t child; int values[2]; } nested_t;\n"
+      "typedef struct { int count; int values[]; } flexible_t;\n"
+      "typedef struct { int value; int *pointer; } pointer_tail_t;\n"
+      "typedef struct { char text[4]; int tail; } text_box_t;\n"
+      "typedef struct { int value; } one_t;\n"
+      "typedef struct { one_t child; } one_box_t;\n"
+      "typedef struct { one_box_t child; } two_box_t;\n"
+      "typedef union { int integer; unsigned bits; } choice_t;\n"
+      "typedef int incomplete_row_t[];\n"
+      "int touch(int *counter, int value) {\n"
+      "  *counter += 1;\n"
+      "  return value;\n"
+      "}\n"
+      "pair_t pass_pair(pair_t value) { return value; }\n"
+      "int aggregate_runtime(pair_t incoming, choice_t incoming_choice,\n"
+      "                      int runtime) {\n"
+      "  int calls = 0;\n"
+      "  pair_t runtime_pair = {runtime + 1, (unsigned)touch(&calls, 2)};\n"
+      "  nested_t explicit_nested = {{touch(&calls, 3), 4u},\n"
+      "                                {5, touch(&calls, 6)}};\n"
+      "  nested_t elided_nested = {touch(&calls, 7), 8u, 9,\n"
+      "                            touch(&calls, 10)};\n"
+      "  one_box_t nested_last = {runtime};\n"
+      "  two_box_t nested_deep = {runtime};\n"
+      "  int inferred[] = {runtime, touch(&calls, 11), 12};\n"
+      "  incomplete_row_t first_row = {runtime, 16};\n"
+      "  incomplete_row_t second_row = {17};\n"
+      "  pair_t copied[] = {incoming, (runtime_pair),\n"
+      "                     explicit_nested.child,\n"
+      "                     runtime ? incoming : runtime_pair,\n"
+      "                     pass_pair(incoming)};\n"
+      "  choice_t choices[2] = {incoming_choice, (incoming_choice)};\n"
+      "  register pair_t self = {sizeof self, 13u};\n"
+      "  char text[] = {\"ok\"};\n"
+      "  char rows[2][4] = {\"a\", \"bc\"};\n"
+      "  text_box_t text_box = {\"ok\", 1};\n"
+      "  pair_t effects = {calls++, ++calls};\n"
+      "  pair_t trailing = {14, 15u,};\n"
+      "  flexible_t flexible = {runtime};\n"
+      "  pointer_tail_t omitted_pointer = {0};\n"
+      "  return calls;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"structure designator boundary",
+        "typedef struct { int left; int right; } pair_t;\n"
+        "void bad(void) {\n"
+        "  pair_t value = {.right = 1};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 19u,
+       "designated automatic initializers are outside this semantic slice"},
+      {{"array designator boundary",
+        "void bad(void) {\n"
+        "  int values[2] = {[1] = 2};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        2u, 20u,
+        "designated automatic initializers are outside this semantic slice"},
+      {{"late array designator boundary",
+        "void bad(void) {\n"
+        "  int values[1] = {1, [0] = 2};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 23u,
+       "designated automatic initializers are outside this semantic slice"},
+      {{"union list boundary",
+        "typedef union { int integer; unsigned bits; } choice_t;\n"
+        "void bad(void) {\n"
+        "  choice_t value = {1};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 20u,
+       "union and class initializer lists await active-member semantics"},
+      {{"empty automatic list",
+        "void bad(void) {\n"
+        "  int values[1] = {};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 20u, "automatic initializer list requires one value"},
+      {{"automatic array excess",
+        "void bad(void) {\n"
+        "  int values[1] = {1, 2};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 23u, "automatic array initializer list has excess elements"},
+      {{"automatic structure excess",
+        "typedef struct { int value; } one_t;\n"
+        "void bad(void) {\n"
+        "  one_t value = {1, 2};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 21u,
+       "automatic structure initializer list has excess elements"},
+      {{"flexible member value",
+        "typedef struct { int count; int values[]; } flexible_t;\n"
+        "void bad(void) {\n"
+        "  flexible_t value = {1, 2};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 26u,
+       "automatic structure initializer list has excess elements"},
+      {{"incompatible expression leaf",
+        "typedef struct { int value; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t value = {\"text\"};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 19u,
+       "initializer expression is not convertible to block object type"},
+      {{"floating expression leaf",
+        "typedef struct { double value; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t value = {1.0};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 19u, "floating constants are outside this expression slice"},
+      {{"character array string excess",
+        "void bad(void) {\n"
+        "  char text[2] = \"abc\";\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 18u, "string initializer is too long for character array"},
+      {{"explicit null pointer leaf",
+        "typedef struct { int *pointer; int tail; } pointer_t;\n"
+        "void bad(void) {\n"
+        "  pointer_t value = {0};\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 22u,
+       "integer null pointer conversion is outside this expression slice"},
+      {{"nested incomplete array element",
+        "typedef int row_t[];\n"
+        "void bad(void) {\n"
+        "  row_t rows[] = {{1}, {2}};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       3u, 16u, "array element requires a complete object type"},
+      {{"later aggregate declarator is not visible",
+        "typedef struct { int value; } item_t;\n"
+        "void bad(void) {\n"
+        "  item_t first = {later.value}, later = {1};\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 19u, "expression identifier is not declared"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "automatic-aggregate-initializers",
+                             host_root, 16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/automatic-aggregate-initializers.c",
+                          source, &unit) != 0 ||
+      validate_automatic_aggregate_initializer_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/automatic-aggregate-initializer-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_automatic_aggregate_initializer_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (validate_automatic_aggregate_initializer_storage_limit(
+          &fixture, host_root) != 0 ||
+      validate_automatic_aggregate_initializer_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("automatic-aggregate-initializers: ok\n");
   }
   return failed;
 }
@@ -15775,12 +16829,12 @@ static int run_aggregate_values(const char *host_root) {
         "void bad(locked_flexible_t *left, locked_flexible_t *right) { *left = *right; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        2u, 69u, "assignment requires a modifiable lvalue"},
-      {{"aggregate initializer list remains deferred",
+      {{"record expression cannot initialize scalar child",
         "typedef struct { int value; } pair_t;\n"
         "void bad(pair_t source) { pair_t value = { source }; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       2u, 42u,
-       "aggregate initializer lists are outside this body slice"},
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 44u,
+       "initializer expression is not convertible to block object type"},
       {{"aggregate assignment result is not an lvalue",
         "typedef struct { int value; } pair_t;\n"
         "void bad(pair_t *left, pair_t right) { (*left = right) = right; }\n",
@@ -16120,6 +17174,7 @@ int main(int argc, char **argv) {
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|block-bindings|scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
+                   "automatic-aggregate-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "for-statements|"
                    "if-statements|while-statements|do-statements|"
@@ -16160,6 +17215,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializers(argv[2]);
+  }
+  if (strcmp(argv[1], "automatic-aggregate-initializers") == 0) {
+    return run_automatic_aggregate_initializers(argv[2]);
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);
