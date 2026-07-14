@@ -122,7 +122,8 @@ typedef enum {
 
 typedef enum {
   CTOOL_C_INITIALIZER_ADDRESS_NONE = 0,
-  CTOOL_C_INITIALIZER_ADDRESS_STRING
+  CTOOL_C_INITIALIZER_ADDRESS_STRING,
+  CTOOL_C_INITIALIZER_ADDRESS_BINDING
 } ctool_c_initializer_address_kind_t;
 
 typedef struct {
@@ -147,8 +148,8 @@ typedef struct {
   /* ADDRESS: semantic base and target-byte addend. The destination pointer
    * type above retains the initializer conversion. */
   ctool_c_initializer_address_kind_t address_kind;
-  /* STRING bases use AST_NONE. Later object and function bases may use a
-   * stable binding index without changing the list seam. */
+  /* STRING bases use AST_NONE. BINDING bases use a stable file-binding
+   * index. */
   ctool_u32 address_reference;
   ctool_i32 address_addend;
   /* LIST: slice in translation_unit.initializer_elements. Edges name direct,
@@ -349,6 +350,25 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
 } ctool_c_function_definition_t;
 
+typedef enum {
+  CTOOL_C_OBJECT_DEFINITION_EXPLICIT = 1,
+  CTOOL_C_OBJECT_DEFINITION_TENTATIVE
+} ctool_c_object_definition_kind_t;
+
+typedef struct {
+  /* Canonical file-scope object entity in translation_unit.bindings. */
+  ctool_u32 binding;
+  /* Definition-local type and storage spelling. A finalized tentative
+   * definition uses the canonical composite type at translation-unit end. */
+  ctool_u32 declared_type;
+  ctool_c_storage_class_t storage;
+  ctool_c_object_definition_kind_t kind;
+  /* Root of one static-duration semantic initializer forest. */
+  ctool_u32 initializer;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_object_definition_t;
+
 typedef struct {
   ctool_c_layout_request_t graph;
   ctool_c_layout_result_t layout;
@@ -360,12 +380,16 @@ typedef struct {
    * parameter metadata also retains the definition-local object type. */
   const ctool_c_parameter_t *parameters;
   ctool_u32 parameter_count;
+  /* One finalized record for each file-scope object definition. Explicit and
+   * tentative definitions own static-duration initializer forests. */
+  const ctool_c_object_definition_t *object_definitions;
+  ctool_u32 object_definition_count;
   /* Source-ordered block bindings survive after their lexical scopes close. */
   const ctool_c_block_binding_t *block_bindings;
   ctool_u32 block_binding_count;
   /* Semantic object initializer forests. Storage duration comes from the
-   * owning block binding. LIST nodes may contain runtime EXPRESSION leaves
-   * only when that binding has automatic storage duration. */
+   * owning file-object definition or block binding. LIST nodes may contain
+   * runtime EXPRESSION leaves only under an automatic block binding. */
   const ctool_c_initializer_t *initializers;
   ctool_u32 initializer_count;
   /* Direct LIST edges. Nested lists retain independent slices, and those
@@ -448,11 +472,14 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * canonical label table per definition;
  * automatic/register block-object bindings with converted scalar or
  * whole-object record expressions, narrow character-array strings, and
- * recursive nondesignated array or structure lists whose leaves retain
- * runtime scalar or compatible record-valued assignment expressions;
+ * recursive array or structure lists with direct designators whose leaves
+ * retain runtime scalar or compatible record-valued assignment expressions;
  * block-scope static objects with implicit or explicit pointer zero,
  * target-converted integer constants, narrow character-array strings,
- * direct narrow-string address constants, and matching recursive lists.
+ * direct narrow-string addresses or addresses of linked file objects and
+ * functions, and matching recursive lists; file-scope object definitions
+ * with exact declaration storage and type, explicit or finalized tentative
+ * ownership, and the same semantic static initializer forest.
  * Lists retain explicit subobjects in postorder, apply brace elision, leave
  * omitted tails implicitly zero initialized, and complete direct
  * unknown-bound arrays without mutating shared typedefs;
@@ -488,17 +515,15 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
  * rather than fixed frontend tables. Block typedefs, extern objects, function
- * declarations, block tag specifiers, attributes, designated initializer
- * lists, union or Cupid class lists, and static assertions remain explicit
- * body boundaries.
- * File-scope object initializers, designated and union lists, address
- * constants other than direct narrow strings, floating constants,
- * static-data allocation, and relocation lowering remain pending. Comma
+ * declarations, block tag specifiers, attributes, union or Cupid class lists,
+ * and static assertions remain explicit body boundaries.
+ * Chained, promoted, or overriding designators, union lists, arithmetic and
+ * casts on static addresses, floating constants, static-data allocation, and
+ * relocation lowering remain pending. Comma
  * expressions, floating arithmetic and non-void conversions,
  * universal-character/non-ordinary literals, calls without
  * prototypes, variadic arguments, code generation, object emission, and Cupid
  * #exe execution remain later frontend work and are diagnosed rather than
- * skipped. Tentative-definition state/finalization is not yet published, so
- * incomplete array declarations retain their parsed bounds in this slice. */
+ * skipped. */
 
 #endif

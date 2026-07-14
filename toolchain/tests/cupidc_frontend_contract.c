@@ -255,6 +255,8 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
                  unit->binding_count == 0u && unit->tags == NULL &&
                  unit->tag_count == 0u && unit->parameters == NULL &&
                  unit->parameter_count == 0u &&
+                 unit->object_definitions == NULL &&
+                 unit->object_definition_count == 0u &&
                  unit->block_bindings == NULL &&
                  unit->block_binding_count == 0u &&
                   unit->initializers == NULL &&
@@ -369,6 +371,37 @@ static ctool_u32 find_binding_index(const ctool_c_translation_unit_t *unit,
     }
   }
   return CTOOL_C_AST_NONE;
+}
+
+static const ctool_c_object_definition_t *find_object_definition(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 binding = find_binding_index(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE) {
+    return NULL;
+  }
+  for (index = 0u; index < unit->object_definition_count; index++) {
+    if (unit->object_definitions[index].binding == binding) {
+      return &unit->object_definitions[index];
+    }
+  }
+  return NULL;
+}
+
+static int initializer_is_binding_address(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer, const char *name) {
+  ctool_u32 binding = find_binding_index(unit, name);
+  return initializer != NULL && binding != CTOOL_C_AST_NONE &&
+                 initializer->kind == CTOOL_C_INITIALIZER_ADDRESS &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_BINDING &&
+                 initializer->address_reference == binding &&
+                 initializer->address_addend == 0 &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u
+             ? 1
+             : 0;
 }
 
 static const ctool_c_block_binding_t *find_block_binding(
@@ -4519,21 +4552,22 @@ static int validate_toolchain_frontier(const char *host_root) {
     ctool_u32 expressions;
     ctool_u32 block_bindings;
     ctool_u32 initializers;
+    ctool_u32 object_definitions;
     ctool_u32 labels;
   } toolchain_frontier_case_t;
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
-       5981u, 133u, 33u, 0u},
+       5981u, 133u, 33u, 0u, 0u},
       {"/toolchain/cupiddis.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1470u,
-       9607u, 149u, 114u, 0u},
+       9607u, 149u, 114u, 0u, 0u},
       {"/toolchain/cupidld.c", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
-       13347u, 267u, 146u, 1u},
+       13347u, 267u, 146u, 0u, 1u},
       {"/toolchain/cupidobj.c", CTOOL_OK, 0u, 0u, 0u, "", 14u, 289u,
-       1984u, 39u, 21u, 0u},
+       1984u, 39u, 21u, 0u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
-       5487u, 85u, 43u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 276u,
-       10330u, 65628u, 1520u, 1082u, 0u}};
+       5487u, 85u, 43u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 282u,
+       10649u, 67901u, 1565u, 1108u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -4613,6 +4647,7 @@ static int validate_toolchain_frontier(const char *host_root) {
             unit.expression_count == test_case->expressions &&
             unit.block_binding_count == test_case->block_bindings &&
             unit.initializer_count == test_case->initializers &&
+            unit.object_definition_count == test_case->object_definitions &&
             unit.label_count == test_case->labels &&
             static_string_valid != 0 &&
             memcmp(snapshot, tape.tokens, token_bytes) == 0) {
@@ -4637,11 +4672,13 @@ static int validate_toolchain_frontier(const char *host_root) {
       (void)fprintf(stderr,
                     "toolchain-frontier: %s differs: %s "
                     "definitions=%u statements=%u expressions=%u "
-                    "block-bindings=%u initializers=%u labels=%u\n",
+                    "block-bindings=%u initializers=%u "
+                    "object-definitions=%u labels=%u\n",
                     test_case->path, ctool_status_name(status),
                     unit.function_definition_count, unit.statement_count,
                     unit.expression_count, unit.block_binding_count,
-                    unit.initializer_count, unit.label_count);
+                    unit.initializer_count, unit.object_definition_count,
+                    unit.label_count);
       (void)ctool_job_render_diagnostics(job);
     }
     free(snapshot);
@@ -4704,6 +4741,8 @@ static ctool_u32 scalar_initializer_unit_max_bytes(
   INITIALIZER_MAX_BYTES(unit->parameter_count, ctool_c_parameter_t);
   INITIALIZER_MAX_BYTES(unit->binding_count, ctool_c_binding_t);
   INITIALIZER_MAX_BYTES(unit->tag_count, ctool_c_tag_t);
+  INITIALIZER_MAX_BYTES(unit->object_definition_count,
+                        ctool_c_object_definition_t);
   INITIALIZER_MAX_BYTES(unit->block_binding_count, ctool_c_block_binding_t);
   INITIALIZER_MAX_BYTES(unit->initializer_count, ctool_c_initializer_t);
   INITIALIZER_MAX_BYTES(unit->initializer_element_count,
@@ -5370,13 +5409,15 @@ static int run_static_initializers(const char *host_root) {
         "  static int *pointer = (int *)0;\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 25u, "static pointer initialization awaits address constants"},
+       2u, 25u,
+       "static pointer initialization requires a supported address constant"},
       {{"void static address constant boundary",
         "void bad(void) {\n"
         "  static int *pointer = (void *)1;\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 25u, "static pointer initialization awaits address constants"},
+       2u, 25u,
+       "static pointer initialization requires a supported address constant"},
       {{"call prevents static null constant",
         "int make(void);\n"
         "void bad(void) {\n"
@@ -5390,7 +5431,8 @@ static int run_static_initializers(const char *host_root) {
         "  static int *pointer = (void * _Atomic)0;\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 25u, "static pointer initialization awaits address constants"},
+       2u, 25u,
+       "static pointer initialization requires a supported address constant"},
       {{"missing static initializer value",
         "void bad(void) {\n"
         "  static int value = ;\n"
@@ -6539,6 +6581,853 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("designated-initializers: ok\n");
+  }
+  return failed;
+}
+
+static char *build_file_object_limit_source(ctool_bool tentative) {
+  const size_t capacity = 32768u;
+  char *source = (char *)malloc(capacity);
+  size_t used = 0u;
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(source, capacity, &used,
+                        "void initializer_pad(void) {\n"
+                        "  static int pad[64] = {") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < 64u; index++) {
+    if (append_scale_text(source, capacity, &used,
+                          index == 0u ? "1" : ", 1") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, "};\n}\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < 128u; index++) {
+    char declaration[64];
+    int written = snprintf(
+        declaration, sizeof(declaration),
+        tentative == CTOOL_TRUE ? "int limited_%03u;\n"
+                                : "extern int limited_%03u;\n",
+        (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(declaration) ||
+        append_scale_text(source, capacity, &used, declaration) != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  return source;
+}
+
+static int validate_file_object_finalization_storage_limit(
+    frontend_fixture_t *fixture, const char *host_root) {
+  char *control_source = build_file_object_limit_source(CTOOL_FALSE);
+  char *tentative_source = build_file_object_limit_source(CTOOL_TRUE);
+  ctool_c_translation_unit_t control_oracle;
+  ctool_c_translation_unit_t tentative_oracle;
+  ctool_c_translation_unit_t control;
+  ctool_c_translation_unit_t failed_unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_c_pp_result_t control_tape;
+  ctool_c_pp_result_t tentative_tape;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  ctool_u64 initializer_bytes;
+  ctool_u64 binding_bytes;
+  ctool_u64 private_definition_bytes;
+  ctool_u32 output_limit;
+  size_t token_bytes;
+  int failed = 1;
+
+  if (control_source == NULL || tentative_source == NULL ||
+      parse_valid_fixture(fixture, "/file-object-limit-control.c",
+                          control_source, &control_oracle) != 0 ||
+      parse_valid_fixture(fixture, "/file-object-limit-success.c",
+                          tentative_source, &tentative_oracle) != 0 ||
+      control_oracle.binding_count != 129u ||
+      control_oracle.object_definition_count != 0u ||
+      control_oracle.initializer_count != 65u ||
+      tentative_oracle.binding_count != 129u ||
+      tentative_oracle.object_definition_count != 128u ||
+      tentative_oracle.initializer_count != 193u ||
+      preprocess_fixture(fixture, "/file-object-limit-control.c",
+                         control_source, &control_tape) != 0 ||
+      preprocess_fixture(fixture, "/file-object-limit.c", tentative_source,
+                         &tentative_tape) != 0) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: finalization limit controls differ\n");
+    goto cleanup;
+  }
+  initializer_bytes =
+      (ctool_u64)tentative_oracle.initializer_count *
+      (ctool_u64)sizeof(ctool_c_initializer_t);
+  binding_bytes = (ctool_u64)tentative_oracle.binding_count *
+                  (ctool_u64)sizeof(ctool_c_binding_t);
+  private_definition_bytes =
+      (ctool_u64)tentative_oracle.object_definition_count *
+      ((ctool_u64)sizeof(ctool_c_object_definition_t) +
+       (ctool_u64)sizeof(void *));
+  if (initializer_bytes == 0ull || initializer_bytes > 0xffffffffull ||
+      initializer_bytes <= binding_bytes ||
+      initializer_bytes <= private_definition_bytes) {
+    (void)fprintf(
+        stderr,
+        "file-scope-initializers: finalization limit measurement differs "
+        "(initializer=%llu binding=%llu definition=%llu)\n",
+        (unsigned long long)initializer_bytes,
+        (unsigned long long)binding_bytes,
+        (unsigned long long)private_definition_bytes);
+    goto cleanup;
+  }
+  output_limit = (ctool_u32)initializer_bytes - 1u;
+  if (scalar_initializer_unit_max_bytes(&control_oracle) > output_limit) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: finalization control exceeds limit\n");
+    goto cleanup;
+  }
+  token_bytes = (size_t)tentative_tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(snapshot, tentative_tape.tokens, token_bytes);
+  limits.output_bytes = output_limit;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+  (void)memset(&control, 0xa5, sizeof(control));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &control);
+  if (status != CTOOL_OK || control.binding_count != 129u ||
+      control.object_definition_count != 0u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: limited control failed: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&failed_unit, 0xa5, sizeof(failed_unit));
+  status = ctool_c_parse(job, &tentative_tape, &fixture->parse_request,
+                         &failed_unit);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_LIMIT || unit_is_zero(&failed_unit) == 0 ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PARSE_DIAG_LIMIT ||
+      !string_equal(diagnostic->path, "/file-object-limit.c") ||
+      diagnostic->line != 131u || diagnostic->column == 0u ||
+      !string_equal(diagnostic->message,
+                    "declaration frontend storage limit exceeded") ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      memcmp(snapshot, tentative_tape.tokens, token_bytes) != 0 ||
+      control.binding_count != 129u ||
+      control.object_definition_count != 0u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: finalization rollback differs: %s/%u\n",
+                  ctool_status_name(status), (unsigned int)output_limit);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status = ctool_c_parse(job, &control_tape, &fixture->parse_request,
+                         &recovered);
+  if (status != CTOOL_OK || recovered.binding_count != 129u ||
+      recovered.object_definition_count != 0u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: finalization recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  free(snapshot);
+  free(tentative_source);
+  free(control_source);
+  return failed;
+}
+
+static int run_file_scope_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char byte;\n"
+      "typedef struct { int first; int second; } pair_t;\n"
+      "typedef void callback_t(void);\n"
+      "typedef struct { const char *name; callback_t *start; int *data; } ops_t;\n"
+      "extern int declared_only;\n"
+      "extern int counter;\n"
+      "int counter = 7;\n"
+      "static int pending;\n"
+      "static const byte sparse[] = {[4] = 9, [1] = 2};\n"
+      "const pair_t theme = {.second = 2, .first = 1};\n"
+      "static char label[] = \"ok\";\n"
+      "static const char *caption = \"Cupid\";\n"
+      "int external_pending[];\n"
+      "extern int composed[];\n"
+      "int composed[3];\n"
+      "extern int external_value = 3;\n"
+      "static int target;\n"
+      "static int numbers[2] = {1, 2};\n"
+      "static void callback(void) {}\n"
+      "static int *target_pointer = &target;\n"
+      "static int *array_pointer = numbers;\n"
+      "static const int *qualified_pointer = numbers;\n"
+      "static void *void_pointer = numbers;\n"
+      "static void (*callback_pointer)(void) = callback;\n"
+      "static const ops_t ops = {.name = \"ops\", .start = callback, .data = numbers};\n"
+      "extern int imported;\n"
+      "void imported_callback(void);\n"
+      "static int *import_pointer = &imported;\n"
+      "static callback_t *import_callback_pointer = imported_callback;\n"
+      "void retain_target(void) { static int *local_pointer = &target; }\n"
+      "int repeated_tentative;\n"
+      "int repeated_tentative;\n"
+      "int tentative_then_explicit;\n"
+      "int tentative_then_explicit = 5;\n"
+      "int explicit_then_tentative = 6;\n"
+      "int explicit_then_tentative;\n"
+      "int completed_tentative[];\n"
+      "int completed_tentative[4];\n";
+  static const char completed_internal_source[] =
+      "static int values[2];\n"
+      "static int values[];\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"duplicate object definition",
+        "int value = 1;\n"
+        "int value = 2;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       2u, 5u, "file-scope object already has a definition"},
+      {{"typedef initializer",
+        "typedef int value = 1;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 19u, "file-scope initializer requires an object declarator"},
+      {{"function initializer",
+        "int function(void) = 1;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 20u, "file-scope initializer requires an object declarator"},
+      {{"internal incomplete tentative definition",
+        "static int values[];\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       1u, 12u,
+       "internal tentative definition requires a complete object type"},
+      {{"later-completed internal tentative definition",
+        "static int values[];\n"
+        "static int values[2];\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       1u, 12u,
+       "internal tentative definition requires a complete object type"},
+      {{"incomplete record tentative definition",
+        "struct item;\n"
+        "struct item value;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       2u, 13u, "tentative definition requires a complete object type"},
+      {{"runtime file initializer",
+        "int make(void);\n"
+        "int value = make();\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 13u, "integer constant expression operand is unsupported"},
+      {{"initializer completed bound conflicts",
+        "extern int values[3];\n"
+        "int values[] = {1, 2};\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       2u, 5u,
+       "file-scope object definition conflicts with its declarations"},
+      {{"automatic object address",
+        "void function(void) {\n"
+        "  int local;\n"
+        "  static int *saved = &local;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 23u,
+       "static pointer initialization requires a supported address constant"},
+      {{"incompatible object address",
+        "static int target;\n"
+        "static char *pointer = &target;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 24u, "static pointer initializer has incompatible type"},
+      {{"scalar object value",
+        "static int target;\n"
+        "static int *pointer = target;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 23u,
+       "static pointer initializer requires a null pointer constant"},
+      {{"stored pointer value",
+        "static int target;\n"
+        "static int *source = &target;\n"
+        "static int *copy = source;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 20u,
+       "static pointer initialization requires a supported address constant"},
+      {{"address arithmetic",
+        "static int values[2];\n"
+        "static int *pointer = values + 1;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 23u,
+       "static pointer initialization requires a supported address constant"},
+      {{"record member address",
+        "struct item { int value; };\n"
+        "static struct item item;\n"
+        "static int *pointer = &item.value;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 23u,
+       "static pointer initialization requires a supported address constant"},
+      {{"array element address",
+        "static int values[2];\n"
+        "static int *pointer = &values[0];\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 23u,
+       "static pointer initialization requires a supported address constant"},
+      {{"cast address",
+        "static int target;\n"
+        "static int *pointer = (int *)&target;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 23u,
+       "static pointer initialization requires a supported address constant"},
+      {{"block static address",
+        "void function(void) {\n"
+        "  static int local;\n"
+        "  static int *pointer = &local;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 25u,
+       "static pointer initialization requires a supported address constant"}};
+  static const char *const active_theme_names[] = {
+      "UI_THEME_WINDOWS95",      "UI_THEME_PASTEL_DREAM",
+      "UI_THEME_DARK_MODE",      "UI_THEME_HIGH_CONTRAST",
+      "UI_THEME_RETRO_AMBER",    "UI_THEME_TEMPLE",
+      "UI_THEME_VAPORWAVE"};
+  static const struct {
+    const char *member;
+    const char *binding;
+  } active_ramfs_callbacks[] = {
+      {"mount", "ramfs_mount"},       {"unmount", "ramfs_unmount"},
+      {"open", "ramfs_open"},         {"close", "ramfs_close"},
+      {"read", "ramfs_read"},         {"write", "ramfs_write"},
+      {"seek", "ramfs_seek"},         {"stat", "ramfs_stat"},
+      {"readdir", "ramfs_readdir"},   {"mkdir", "ramfs_mkdir_op"},
+      {"unlink", "ramfs_unlink"}};
+  frontend_fixture_t fixture;
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t completed_internal_unit;
+  ctool_c_translation_unit_t active_unit;
+  ctool_c_translation_unit_t ramfs_unit;
+  const ctool_c_object_definition_t *counter_definition;
+  const ctool_c_object_definition_t *pending_definition;
+  const ctool_c_object_definition_t *sparse_definition;
+  const ctool_c_object_definition_t *theme_definition;
+  const ctool_c_object_definition_t *label_definition;
+  const ctool_c_object_definition_t *caption_definition;
+  const ctool_c_object_definition_t *external_pending_definition;
+  const ctool_c_object_definition_t *composed_definition;
+  const ctool_c_object_definition_t *external_value_definition;
+  const ctool_c_object_definition_t *target_definition;
+  const ctool_c_object_definition_t *numbers_definition;
+  const ctool_c_object_definition_t *target_pointer_definition;
+  const ctool_c_object_definition_t *array_pointer_definition;
+  const ctool_c_object_definition_t *qualified_pointer_definition;
+  const ctool_c_object_definition_t *void_pointer_definition;
+  const ctool_c_object_definition_t *callback_pointer_definition;
+  const ctool_c_object_definition_t *ops_definition;
+  const ctool_c_object_definition_t *import_pointer_definition;
+  const ctool_c_object_definition_t *import_callback_pointer_definition;
+  const ctool_c_object_definition_t *repeated_tentative_definition;
+  const ctool_c_object_definition_t *tentative_then_explicit_definition;
+  const ctool_c_object_definition_t *explicit_then_tentative_definition;
+  const ctool_c_object_definition_t *completed_tentative_definition;
+  const ctool_c_object_definition_t *completed_internal_definition;
+  const ctool_c_object_definition_t *active_style_definition;
+  const ctool_c_block_binding_t *local_pointer_binding;
+  const ctool_c_initializer_t *counter_initializer;
+  const ctool_c_initializer_t *pending_initializer;
+  const ctool_c_binding_t *counter_binding;
+  const ctool_c_binding_t *completed_internal_binding;
+  const ctool_c_initializer_t *root;
+  const ctool_c_initializer_t *child;
+  const ctool_c_type_node_t *type;
+  const ctool_c_record_member_t *member;
+  ctool_u32 member_index;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "file-scope-initializers", host_root,
+                             64u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/file-scope-initializers.c", source,
+                          &unit) != 0) {
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/completed-internal-tentative.c",
+                          completed_internal_source,
+                          &completed_internal_unit) != 0) {
+    goto cleanup;
+  }
+  completed_internal_binding = find_binding(&completed_internal_unit, "values");
+  completed_internal_definition =
+      find_object_definition(&completed_internal_unit, "values");
+  type = completed_internal_definition == NULL
+             ? NULL
+             : unwrapped_type_node(
+                   &completed_internal_unit,
+                   completed_internal_definition->declared_type);
+  root = completed_internal_definition == NULL
+             ? NULL
+             : initializer_node(&completed_internal_unit,
+                                completed_internal_definition->initializer);
+  if (completed_internal_unit.binding_count != 1u ||
+      completed_internal_unit.object_definition_count != 1u ||
+      completed_internal_unit.initializer_count != 1u ||
+      completed_internal_binding == NULL ||
+      completed_internal_definition == NULL ||
+      completed_internal_binding->storage != CTOOL_C_STORAGE_STATIC ||
+      completed_internal_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      completed_internal_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      completed_internal_definition->declared_type !=
+          completed_internal_binding->type ||
+      !dual_location_matches(&completed_internal_binding->location,
+                             &completed_internal_binding->physical_location,
+                             "/completed-internal-tentative.c", 1u) ||
+      !dual_location_matches(&completed_internal_definition->location,
+                             &completed_internal_definition->physical_location,
+                             "/completed-internal-tentative.c", 2u) ||
+      type == NULL || type->kind != CTOOL_C_TYPE_ARRAY ||
+      type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      type->element_count != 2u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_ZERO) {
+    (void)fprintf(
+        stderr,
+        "file-scope-initializers: completed internal redeclaration differs\n");
+    goto cleanup;
+  }
+  counter_definition = find_object_definition(&unit, "counter");
+  pending_definition = find_object_definition(&unit, "pending");
+  sparse_definition = find_object_definition(&unit, "sparse");
+  theme_definition = find_object_definition(&unit, "theme");
+  label_definition = find_object_definition(&unit, "label");
+  caption_definition = find_object_definition(&unit, "caption");
+  external_pending_definition =
+      find_object_definition(&unit, "external_pending");
+  composed_definition = find_object_definition(&unit, "composed");
+  external_value_definition =
+      find_object_definition(&unit, "external_value");
+  target_definition = find_object_definition(&unit, "target");
+  numbers_definition = find_object_definition(&unit, "numbers");
+  target_pointer_definition =
+      find_object_definition(&unit, "target_pointer");
+  array_pointer_definition =
+      find_object_definition(&unit, "array_pointer");
+  qualified_pointer_definition =
+      find_object_definition(&unit, "qualified_pointer");
+  void_pointer_definition =
+      find_object_definition(&unit, "void_pointer");
+  callback_pointer_definition =
+      find_object_definition(&unit, "callback_pointer");
+  ops_definition = find_object_definition(&unit, "ops");
+  import_pointer_definition =
+      find_object_definition(&unit, "import_pointer");
+  import_callback_pointer_definition =
+      find_object_definition(&unit, "import_callback_pointer");
+  repeated_tentative_definition =
+      find_object_definition(&unit, "repeated_tentative");
+  tentative_then_explicit_definition =
+      find_object_definition(&unit, "tentative_then_explicit");
+  explicit_then_tentative_definition =
+      find_object_definition(&unit, "explicit_then_tentative");
+  completed_tentative_definition =
+      find_object_definition(&unit, "completed_tentative");
+  local_pointer_binding = find_block_binding(&unit, "local_pointer");
+  if (unit.object_definition_count != 23u ||
+      unit.initializer_count != 33u ||
+      unit.initializer_element_count != 9u ||
+      find_object_definition(&unit, "declared_only") != NULL ||
+      counter_definition == NULL || pending_definition == NULL ||
+      sparse_definition == NULL || theme_definition == NULL ||
+      label_definition == NULL || caption_definition == NULL ||
+      external_pending_definition == NULL || composed_definition == NULL ||
+      external_value_definition == NULL || target_definition == NULL ||
+      numbers_definition == NULL || target_pointer_definition == NULL ||
+      array_pointer_definition == NULL ||
+      qualified_pointer_definition == NULL ||
+      void_pointer_definition == NULL ||
+      callback_pointer_definition == NULL || ops_definition == NULL ||
+      repeated_tentative_definition == NULL ||
+      tentative_then_explicit_definition == NULL ||
+      explicit_then_tentative_definition == NULL ||
+      completed_tentative_definition == NULL) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: public inventory differs\n");
+    goto cleanup;
+  }
+  counter_initializer = initializer_node(
+      &unit, counter_definition->initializer);
+  pending_initializer = initializer_node(
+      &unit, pending_definition->initializer);
+  counter_binding = find_binding(&unit, "counter");
+  if (counter_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      counter_definition->storage != CTOOL_C_STORAGE_NONE ||
+      counter_binding == NULL ||
+      counter_binding->storage != CTOOL_C_STORAGE_EXTERN ||
+      !dual_location_matches(&counter_binding->location,
+                             &counter_binding->physical_location,
+                             "/file-scope-initializers.c", 6u) ||
+      !dual_location_matches(&counter_definition->location,
+                             &counter_definition->physical_location,
+                             "/file-scope-initializers.c", 7u) ||
+      counter_initializer == NULL ||
+      counter_initializer->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      counter_initializer->type != counter_definition->declared_type ||
+      counter_initializer->integer_bits != 7u ||
+      pending_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      pending_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      !dual_location_matches(&pending_definition->location,
+                             &pending_definition->physical_location,
+                             "/file-scope-initializers.c", 8u) ||
+      pending_initializer == NULL ||
+      pending_initializer->kind != CTOOL_C_INITIALIZER_ZERO ||
+      pending_initializer->type != pending_definition->declared_type) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: object definitions differ\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, sparse_definition->initializer);
+  type = unwrapped_type_node(&unit, sparse_definition->declared_type);
+  child = initializer_list_child(&unit, root, 0u, 4u);
+  if (sparse_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      sparse_definition->storage != CTOOL_C_STORAGE_STATIC || type == NULL ||
+      type->kind != CTOOL_C_TYPE_ARRAY || type->element_count != 5u ||
+      root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 2u || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      child->integer_bits != 9u ||
+      initializer_list_child(&unit, root, 1u, 1u) == NULL ||
+      initializer_list_child(&unit, root, 1u, 1u)->integer_bits != 2u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: sparse array differs\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, theme_definition->initializer);
+  type = unwrapped_type_node(&unit, theme_definition->declared_type);
+  member = type == NULL ? NULL
+                        : find_record_member(&unit, type, "second",
+                                             &member_index);
+  child = member == NULL ? NULL
+                         : initializer_list_child(&unit, root, 0u,
+                                                  member_index);
+  if (type == NULL || type->kind != CTOOL_C_TYPE_RECORD || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->element_count != 2u ||
+      child == NULL || child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      child->integer_bits != 2u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: structure differs\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, label_definition->initializer);
+  type = unwrapped_type_node(&unit, label_definition->declared_type);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_STRING ||
+      root->string_bytes.size != 3u || root->string_bytes.data == NULL ||
+      memcmp(root->string_bytes.data, "ok", 3u) != 0 || type == NULL ||
+      type->kind != CTOOL_C_TYPE_ARRAY || type->element_count != 3u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: character array differs\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, caption_definition->initializer);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      root->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
+      root->string_bytes.size != 6u || root->string_bytes.data == NULL ||
+      memcmp(root->string_bytes.data, "Cupid", 6u) != 0) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: string address differs\n");
+    goto cleanup;
+  }
+  type = unwrapped_type_node(
+      &unit, external_pending_definition->declared_type);
+  root = initializer_node(&unit, external_pending_definition->initializer);
+  if (external_pending_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      type == NULL || type->kind != CTOOL_C_TYPE_ARRAY ||
+      type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      type->element_count != 1u || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_ZERO) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: incomplete tentative differs\n");
+    goto cleanup;
+  }
+  type = unwrapped_type_node(&unit, composed_definition->declared_type);
+  root = initializer_node(&unit, external_value_definition->initializer);
+  if (composed_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      type == NULL || type->kind != CTOOL_C_TYPE_ARRAY ||
+      type->element_count != 3u ||
+      external_value_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      external_value_definition->storage != CTOOL_C_STORAGE_EXTERN ||
+      root == NULL || root->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      root->integer_bits != 3u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: linkage definitions differ\n");
+    goto cleanup;
+  }
+  root = initializer_node(
+      &unit, repeated_tentative_definition->initializer);
+  child = initializer_node(
+      &unit, tentative_then_explicit_definition->initializer);
+  counter_initializer = initializer_node(
+      &unit, explicit_then_tentative_definition->initializer);
+  pending_initializer = initializer_node(
+      &unit, completed_tentative_definition->initializer);
+  type = unwrapped_type_node(
+      &unit, completed_tentative_definition->declared_type);
+  if (repeated_tentative_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      root == NULL || root->kind != CTOOL_C_INITIALIZER_ZERO ||
+      tentative_then_explicit_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      child == NULL || child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      child->integer_bits != 5u ||
+      explicit_then_tentative_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      counter_initializer == NULL ||
+      counter_initializer->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      counter_initializer->integer_bits != 6u ||
+      completed_tentative_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      type == NULL || type->kind != CTOOL_C_TYPE_ARRAY ||
+      type->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      type->element_count != 4u ||
+      pending_initializer == NULL ||
+      pending_initializer->kind != CTOOL_C_INITIALIZER_ZERO) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: definition transitions differ\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, numbers_definition->initializer);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 2u ||
+      initializer_list_child(&unit, root, 0u, 0u) == NULL ||
+      initializer_list_child(&unit, root, 0u, 0u)->integer_bits != 1u ||
+      initializer_list_child(&unit, root, 1u, 1u) == NULL ||
+      initializer_list_child(&unit, root, 1u, 1u)->integer_bits != 2u ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, target_pointer_definition->initializer),
+          "target") == 0 ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, array_pointer_definition->initializer),
+          "numbers") == 0 ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit,
+                           qualified_pointer_definition->initializer),
+          "numbers") == 0 ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, void_pointer_definition->initializer),
+          "numbers") == 0 ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, callback_pointer_definition->initializer),
+          "callback") == 0 || import_pointer_definition == NULL ||
+      import_callback_pointer_definition == NULL ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, import_pointer_definition->initializer),
+          "imported") == 0 ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(
+              &unit, import_callback_pointer_definition->initializer),
+          "imported_callback") == 0 || local_pointer_binding == NULL ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, local_pointer_binding->initializer),
+          "target") == 0) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: binding addresses differ\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, ops_definition->initializer);
+  type = unwrapped_type_node(&unit, ops_definition->declared_type);
+  member = type == NULL
+               ? NULL
+               : find_record_member(&unit, type, "name", &member_index);
+  child = member == NULL
+              ? NULL
+              : initializer_list_child(&unit, root, 0u, member_index);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 3u || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      child->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: operation name differs\n");
+    goto cleanup;
+  }
+  member = find_record_member(&unit, type, "start", &member_index);
+  child = member == NULL
+              ? NULL
+              : initializer_list_child(&unit, root, 1u, member_index);
+  if (initializer_is_binding_address(&unit, child, "callback") == 0) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: operation callback differs\n");
+    goto cleanup;
+  }
+  member = find_record_member(&unit, type, "data", &member_index);
+  child = member == NULL
+              ? NULL
+              : initializer_list_child(&unit, root, 2u, member_index);
+  if (initializer_is_binding_address(&unit, child, "numbers") == 0) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: operation data differs\n");
+    goto cleanup;
+  }
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0 ||
+      parse_loaded_fixture(&fixture, "/kernel/gui/gui_themes.c",
+                           "gui_themes_init", 0u, &active_unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(active_theme_names); index++) {
+    const ctool_c_object_definition_t *definition =
+        find_object_definition(&active_unit, active_theme_names[index]);
+    root = definition == NULL
+               ? NULL
+               : initializer_node(&active_unit, definition->initializer);
+    if (definition == NULL ||
+        definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+        root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+        root->element_count != 35u) {
+      (void)fprintf(stderr,
+                    "file-scope-initializers: active theme %s differs\n",
+                    active_theme_names[index]);
+      goto cleanup;
+    }
+  }
+  pending_definition = find_object_definition(&active_unit, "g_active_theme");
+  active_style_definition =
+      find_object_definition(&active_unit, "g_active_style");
+  root = pending_definition == NULL
+             ? NULL
+             : initializer_node(&active_unit, pending_definition->initializer);
+  child = active_style_definition == NULL
+              ? NULL
+              : initializer_node(&active_unit,
+                                 active_style_definition->initializer);
+  if (pending_definition == NULL ||
+      pending_definition->kind != CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      root == NULL || root->kind != CTOOL_C_INITIALIZER_ZERO ||
+      active_style_definition == NULL ||
+      active_style_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_TENTATIVE ||
+      child == NULL || child->kind != CTOOL_C_INITIALIZER_ZERO) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: active tentative state differs\n");
+    goto cleanup;
+  }
+  if (parse_loaded_fixture(&fixture, "/kernel/fs/ramfs.c",
+                           "ramfs_get_ops", 0u, &ramfs_unit) != 0) {
+    goto cleanup;
+  }
+  pending_definition = find_object_definition(&ramfs_unit, "ramfs_ops");
+  root = pending_definition == NULL
+             ? NULL
+             : initializer_node(&ramfs_unit,
+                                pending_definition->initializer);
+  type = pending_definition == NULL
+             ? NULL
+             : unwrapped_type_node(&ramfs_unit,
+                                   pending_definition->declared_type);
+  member = type == NULL
+               ? NULL
+               : find_record_member(&ramfs_unit, type, "name",
+                                    &member_index);
+  child = member == NULL
+              ? NULL
+              : initializer_list_child(&ramfs_unit, root, 0u,
+                                       member_index);
+  if (pending_definition == NULL ||
+      pending_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      pending_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 12u || child == NULL ||
+      child->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      child->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
+      child->string_bytes.size != 6u || child->string_bytes.data == NULL ||
+      memcmp(child->string_bytes.data, "ramfs", 6u) != 0) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: active ramfs table differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(active_ramfs_callbacks); index++) {
+    member = find_record_member(
+        &ramfs_unit, type, active_ramfs_callbacks[index].member,
+        &member_index);
+    child = member == NULL
+                ? NULL
+                : initializer_list_child(&ramfs_unit, root, index + 1u,
+                                         member_index);
+    if (initializer_is_binding_address(
+            &ramfs_unit, child, active_ramfs_callbacks[index].binding) == 0) {
+      (void)fprintf(stderr,
+                    "file-scope-initializers: active ramfs callback %s "
+                    "differs\n",
+                    active_ramfs_callbacks[index].member);
+      goto cleanup;
+    }
+  }
+  if (validate_file_object_finalization_storage_limit(&fixture, host_root) !=
+          0 ||
+      find_object_definition(&unit, "theme") != theme_definition) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/file-scope-initializer-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        find_object_definition(&unit, "theme") != theme_definition) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("file-scope-initializers: ok\n");
   }
   return failed;
 }
@@ -14287,6 +15176,13 @@ static void destroy_borrowed_tape(ctool_c_pp_token_t *tokens,
 
 static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
   const ctool_c_binding_t *binding = find_binding(unit, "owned_function");
+  const ctool_c_binding_t *file_binding = find_binding(unit, "owned_file");
+  const ctool_c_object_definition_t *file_definition =
+      find_object_definition(unit, "owned_file");
+  const ctool_c_initializer_t *file_initializer =
+      file_definition == NULL
+          ? NULL
+          : initializer_node(unit, file_definition->initializer);
   const ctool_c_tag_t *tag = find_tag(unit, "OwnedTag");
   const ctool_c_type_node_t *record =
       tag == NULL ? NULL : type_node(unit, tag->type);
@@ -14362,9 +15258,10 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       }
     }
   }
-  if (unit->binding_count != 2u || unit->tag_count != 1u ||
+  if (unit->binding_count != 3u || unit->tag_count != 1u ||
       unit->graph.member_count != 1u || unit->parameter_count != 2u ||
-      unit->block_binding_count != 4u || unit->initializer_count != 4u ||
+      unit->object_definition_count != 1u ||
+      unit->block_binding_count != 4u || unit->initializer_count != 5u ||
       unit->label_count != 1u || unit->function_definition_count != 1u ||
       unit->statement_count != 16u || unit->statement_child_count != 10u ||
       unit->expression_count != 13u ||
@@ -14372,6 +15269,25 @@ static int validate_owned_unit(const ctool_c_translation_unit_t *unit) {
       binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
       !dual_location_matches(&binding->location,
                              &binding->physical_location, "/borrowed.c", 3u) ||
+      file_binding == NULL ||
+      file_binding->storage != CTOOL_C_STORAGE_EXTERN ||
+      !dual_location_matches(&file_binding->location,
+                             &file_binding->physical_location,
+                             "/borrowed.c", 16u) ||
+      file_definition == NULL ||
+      file_definition->binding != find_binding_index(unit, "owned_file") ||
+      file_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      file_definition->storage != CTOOL_C_STORAGE_NONE ||
+      !dual_location_matches(&file_definition->location,
+                             &file_definition->physical_location,
+                             "/borrowed.c", 17u) ||
+      file_initializer == NULL ||
+      file_initializer->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      file_initializer->type != file_definition->declared_type ||
+      file_initializer->integer_bits != 9u ||
+      !dual_location_matches(&file_initializer->location,
+                             &file_initializer->physical_location,
+                             "/borrowed.c", 17u) ||
       definition == NULL ||
       definition->binding != find_binding_index(unit, "owned_function") ||
       definition->storage != CTOOL_C_STORAGE_STATIC ||
@@ -14548,7 +15464,9 @@ static int parse_owned_tape(frontend_fixture_t *fixture,
       "  if (owned_local) ; else ;\n"
       "  while (owned_local) ;\n"
       "  return;\n"
-      "}\n";
+      "}\n"
+      "extern int owned_file;\n"
+      "int owned_file = 9;\n";
   ctool_c_pp_result_t original;
   ctool_c_pp_result_t borrowed;
   ctool_c_pp_token_t *tokens = NULL;
@@ -14957,8 +15875,9 @@ cleanup:
 
 static int run_boundaries(const char *host_root) {
   static const frontend_failure_case_t initializer = {
-      "object initializer boundary", "int boundary_object = 1;\n",
-      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_UNSUPPORTED};
+      "floating object initializer boundary",
+      "double boundary_object = 1.0;\n", CTOOL_ERR_UNSUPPORTED,
+      CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION};
   static const frontend_failure_case_t body = {
       "block assertion boundary",
       "int boundary_function(void) { _Static_assert(1, \"\"); }\n",
@@ -15054,7 +15973,7 @@ static int run_boundaries(const char *host_root) {
     }
   }
   if (expect_frontend_failure_at(&fixture, &initializer,
-                                 "/unsupported-initializer.c", 1u, 21u) !=
+                                 "/unsupported-initializer.c", 1u, 26u) !=
           0 ||
       expect_frontend_failure_at(&fixture, &body, "/unsupported-body.c", 1u,
                                  31u) != 0 ||
@@ -17937,7 +18856,7 @@ int main(int argc, char **argv) {
                    "function-bodies|block-bindings|scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
-                   "designated-initializers|"
+                   "designated-initializers|file-scope-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "for-statements|"
                    "if-statements|while-statements|do-statements|"
@@ -17984,6 +18903,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "designated-initializers") == 0) {
     return run_designated_initializers(argv[2]);
+  }
+  if (strcmp(argv[1], "file-scope-initializers") == 0) {
+    return run_file_scope_initializers(argv[2]);
   }
   if (strcmp(argv[1], "scalar-returns") == 0) {
     return run_scalar_returns(argv[2]);
