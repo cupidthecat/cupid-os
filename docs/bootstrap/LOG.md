@@ -2721,3 +2721,62 @@ The regenerated graph still records 688 active sources, 251 feature IDs, 498 rea
 GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. This increment transfers no production source cohort, linked artifact, or host dependency. It changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source because it adds no production or user-facing behavior.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic local storage and stack allocation are the next source-driven lowering gate, followed by broader statements and expressions, remaining ABI work, production integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-14: CupidC lowers automatic 32-bit integer locals
+
+### Decision and source requirement
+
+The shared CupidC path now carries a narrow class of automatic objects from the typed frontend through linear IR and into deterministic i386 stack frames. The source requirement is this unchanged declaration in `drivers/vga.c`:
+
+```c
+uint32_t now = timer_get_uptime_ms();
+```
+
+The complete `vga_flip_ready` function is not yet supported. After the declaration, lowering still stops at the file-object load for `last_flip_ms`, before the greater-than-or-equal operation. The focused tracer keeps the declaration intact and uses already supported parameter loading, addition, and return to isolate local storage without rewriting the OS source around a compiler limit.
+
+The public IR adds `LOCAL_ADDRESS` and `STORE`. A local address keeps the frontend's absolute block-binding index, while machine-frame offsets remain private to the emitter. A store consumes a destination address and a value, then writes the represented four-byte integer without producing a result. This preserves the IR's address and value distinction and leaves room for later target emitters to choose another frame layout.
+
+The supported body is an outer compound statement with a declaration prefix and one trailing return. A declaration may name a complete four-byte integer with alignment no greater than four and none, `auto`, or `register` storage. An expression initializer emits the local address, the existing expression sequence, and a store. An uninitialized declaration emits no initializer sequence. Empty `void` bodies, single returns, and one void expression statement keep their earlier behavior.
+
+Lowering consumes block bindings in source order during both the count and fill passes. A binding becomes visible before its initializer, matching C's point-of-declaration rule. The function's owned range and current visible end reject a later local, another function's local, duplicate ownership, and unowned block-binding records. Qualified and aligned wrappers may preserve the same integer value identity, but an unconverted signed and unsigned root is rejected.
+
+The emitter scans each function before writing its prologue. Referenced local bindings receive fixed four-byte slots in ascending absolute binding order, beginning at `[EBP-4]`. One `SUB ESP, frame_size` reserves the frame. Unused uninitialized declarations need no slot, and the abstract expression-stack depth remains separate from fixed storage. The same stack representation is valid for a `register` object because the frontend already prevents source code from taking its address.
+
+Runtime expression initializers remain valid while object emission indexes the shared initializer table. A file object that names an expression still reaches the existing unsupported static-data diagnostic during encoding. Expression records must otherwise keep their canonical empty integer, string, address, and list payloads. This separates automatic initialization from static encoding without accepting malformed frozen units.
+
+No user question was needed. The frontend's block bindings fix source identity and point of declaration, ADR 0016 fixes the address/value IR seam, and the existing i386 EBP frame fixes the first target representation. ADR 0018 records the decision, rejected alternatives, exact boundary, and ownership status.
+
+### Red-to-green sequence and corrections
+
+- The first IR contract failed because the local expression kind had no lowering path. The completed source-driven fixture has 13 exact instructions for two initialized locals and one unused uninitialized local. It checks `LOCAL_ADDRESS`, initializer calls and loads, both stores, later local loads, addition, return, absolute binding identities, source locations, and a maximum abstract-stack depth of two.
+- Separate positive coverage lowers a self-initializer. Mutating that reference to the following binding fails, as does a second function that refers to the first function's local. These cases pin point-of-declaration visibility and per-function ownership rather than merely assuming source order is enough.
+- The object contract pins a 63-byte two-slot VGA tracer, a 64-byte initializer call with two arguments above its saved destination, and a 17-byte read of a referenced but uninitialized `auto` object. The combined `.text` is 460 bytes with 20 symbols and seven call relocations. No local name appears in the symbol table, and repeat output is byte-identical.
+- Useful negative cases reject a missing block-binding table, malformed binding kind or storage values, invalid initializer payloads and roots, a void initializer result, an unconverted signed or unsigned root, invalid or unsupported layouts, narrow and wide integers, aggregates, block-static storage, forward and cross-function references, duplicate ownership, constrained output, and failed-operation residue.
+- Adversarial review found that expression initializers accepted dangling list metadata even though the public record requires an empty list slice. Validation in both IR lowering and object indexing now rejects the malformed record. The IR contract mutates a local record, while the object contract also drives a structurally valid static expression record far enough to test the emitter's own check.
+- Final Standards review found that a caller-mutated unit could point two block bindings at one initializer root. The first owner map counted every raw list-edge record, which let a dangling edge disguise an unowned initializer. The revised owner walk derives children only from validated, concatenated `LIST` slices, requires child-before-parent order, counts file and block roots, and then requires exactly one owner for every record. Focused IR and object mutations pin the duplicate root, dangling edge, and missing block-binding, object-definition, initializer, and initializer-element table boundaries.
+- Spec review asked for a source-valid over-alignment boundary instead of relying only on a malformed zero-alignment mutation. A GNU aligned typedef now gives a four-byte integer local eight-byte alignment and reaches the documented unsupported-type diagnostic.
+- The first object-side mutation copied records before its allocation and exited without a diagnostic. Moving the allocation ahead of every mutation exposed the intended failure. A second boundary test initially inherited an integer payload after changing the record kind to expression; the stricter validator correctly rejected it as malformed. Clearing the stale payload restored the distinct, existing unsupported-static-expression result.
+- The complete Toolchain suite caught the self-parse changes from the final hardening. `cupidc_ir.c` now publishes 34 definitions, 821 statements, 7,116 expressions, 94 block bindings, and 28 initializers. `cupidc_emit.c` publishes 58 definitions, 1,325 statements, 10,285 expressions, 183 block bindings, and 84 initializers.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 604 direct designated initializers across 15 files, 555 `goto`, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,490 `while`, 23,541 `if`, 3,387 `else`, 2,921 `for`, 14,330 `return`, and 2,159 `sizeof` occurrences. The active-source digest is `046e1bfe672b1e4d76c7418ed895ec0b223aeee74ab547b5b7ed3c8e81e3f83f`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | The first IR contract stopped at the unsupported block-binding expression before local lowering was implemented. The object contract then stopped before it could emit the source-driven local function. |
+| Focused CupidC contracts | PASS | The final-tree frontend, IR, and object Python modules pass all 44 tests in 20.349 seconds. The direct `active-leaf`, `static-data`, and `aggregate-values` selectors also report `ok`. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the strict Clang suite in 14.161 seconds, including every frontend, IR, object, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contract and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh temporary builds pass both focused contracts under GCC 13.3.0 and Clang 18.1.3 in 14 seconds each. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass both contracts with address and undefined-behavior sanitizers, leak detection, and halt-on-error enabled in 26 seconds each. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` reports no diagnostics across all five changed C translation units in 38.849 seconds. Clang 18.1 analyzes the same files with no stderr or plist diagnostics in 68.266 seconds. |
+| Standards review | PASS AFTER FIXES | Review found initializer ownership and malformed-table gaps. The final owner walk and focused negative cases close them, and the follow-up review reports no actionable standards findings. |
+| Spec review | PASS AFTER FIXES | Review requested valid over-alignment coverage and direct missing-initializer-table regressions. Both are present, and the follow-up review reports no further implementation or spec findings. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the checked graph in 36.4 seconds. `make check-bootstrap-audit` reproduces it in 48.204 seconds, and the exact JSON/Markdown drift regression passes. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 502.001 seconds with one expected skip and returns from Make in 538.48 seconds. |
+| Patch hygiene | PASS | `git diff --check` passes, and the changed prose contains no em or en dashes. |
+| Boot gate | NOT RUN | This path is hosted only. It changes no kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still builds every normal OS C object. No kernel object, disk image, boot path, runtime behavior, production source cohort, ABI owner, or host dependency changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. File-object loads, greater-than-or-equal and other expressions, source assignments, nested blocks and general statements, other local types and storage durations, call-site alignment, broader ABI work, production integration, and staged self-hosting remain there. No issue is ready to close from this increment.

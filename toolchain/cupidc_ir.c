@@ -23,6 +23,10 @@ typedef struct {
   ctool_u32 function_first_instruction;
   ctool_u32 function_first_parameter;
   ctool_u32 function_parameter_count;
+  ctool_u32 function_first_block_binding;
+  ctool_u32 function_block_binding_count;
+  ctool_u32 visible_block_binding_end;
+  ctool_u32 block_binding_cursor;
   ctool_u32 function_result_type;
   cir_stack_entry_t stack[CIR_STACK_LIMIT];
   ctool_u32 stack_depth;
@@ -104,6 +108,13 @@ static ctool_status_t cir_unsupported_conversion(
       "CupidC IR lowering does not yet support this conversion");
 }
 
+static ctool_status_t cir_unsupported_type(
+    cir_context_t *context, const ctool_c_pp_location_t *location) {
+  return cir_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+      location, "CupidC IR lowering does not yet support this value type");
+}
+
 static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
   const ctool_c_translation_unit_t *unit = context->unit;
   if ((unit->graph.type_count != 0u &&
@@ -120,6 +131,16 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
        unit->layout.members == (const ctool_c_member_layout_t *)0) ||
       (unit->binding_count != 0u &&
        unit->bindings == (const ctool_c_binding_t *)0) ||
+      (unit->object_definition_count != 0u &&
+       unit->object_definitions ==
+           (const ctool_c_object_definition_t *)0) ||
+      (unit->block_binding_count != 0u &&
+       unit->block_bindings == (const ctool_c_block_binding_t *)0) ||
+      (unit->initializer_count != 0u &&
+       unit->initializers == (const ctool_c_initializer_t *)0) ||
+      (unit->initializer_element_count != 0u &&
+       unit->initializer_elements ==
+           (const ctool_c_initializer_element_t *)0) ||
       unit->parameter_count != unit->graph.parameter_type_count ||
       (unit->parameter_count != 0u &&
        unit->parameters == (const ctool_c_parameter_t *)0) ||
@@ -179,6 +200,27 @@ static ctool_bool cir_type_is_i32_integer(const cir_context_t *context,
                  context->unit->layout.types[type].size == 4u
              ? CTOOL_TRUE
              : CTOOL_FALSE;
+}
+
+static ctool_bool cir_integer_value_types_match(
+    const cir_context_t *context, ctool_u32 object_type,
+    ctool_u32 value_type) {
+  const ctool_c_type_node_t *object_node;
+  const ctool_c_type_node_t *value_node;
+  if (object_type == value_type) {
+    return CTOOL_TRUE;
+  }
+  object_node = cir_unwrapped_type(context, object_type);
+  value_node = cir_unwrapped_type(context, value_type);
+  if (object_node == (const ctool_c_type_node_t *)0 ||
+      value_node == (const ctool_c_type_node_t *)0 ||
+      object_node->kind != value_node->kind) {
+    return CTOOL_FALSE;
+  }
+  if (object_node->kind == CTOOL_C_TYPE_ENUM && object_node != value_node) {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
 }
 
 static ctool_status_t cir_push(cir_context_t *context,
@@ -638,6 +680,41 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     }
     return cir_push(context, CIR_STACK_ADDRESS, expression->type);
   }
+  if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING) {
+    const ctool_c_block_binding_t *binding;
+    ctool_u32 binding_end;
+    if (expression->child_count != 0u ||
+        context->function_first_block_binding == CTOOL_C_AST_NONE ||
+        cir_add_overflows(context->function_first_block_binding,
+                          context->function_block_binding_count) ==
+            CTOOL_TRUE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    binding_end = context->function_first_block_binding +
+                  context->function_block_binding_count;
+    if (expression->reference < context->function_first_block_binding ||
+        expression->reference >= binding_end ||
+        expression->reference >= context->visible_block_binding_end ||
+        expression->reference >= context->unit->block_binding_count) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    binding = &context->unit->block_bindings[expression->reference];
+    if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+        binding->type != expression->type ||
+        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, expression->type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, expression->reference, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_push(context, CIR_STACK_ADDRESS, expression->type);
+  }
   if (expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT) {
     if (expression->child_count != 0u ||
         cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE ||
@@ -690,76 +767,131 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   return cir_unsupported_expression(context, &expression->location);
 }
 
-static ctool_status_t cir_lower_body(
-    cir_context_t *context, const ctool_c_function_definition_t *definition) {
-  const ctool_c_statement_t *body;
-  const ctool_c_statement_t *statement;
-  cir_stack_entry_t result;
-  ctool_u32 statement_index;
-  ctool_status_t status;
-  if (definition->body >= context->unit->statement_count) {
-    return cir_invalid_unit(context, &definition->location);
-  }
-  body = &context->unit->statements[definition->body];
-  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
-      body->first_child > context->unit->statement_child_count ||
-      body->child_count >
-          context->unit->statement_child_count - body->first_child) {
-    return cir_invalid_unit(context, &body->location);
-  }
-  if (body->child_count == 0u) {
-    if (cir_type_is_void(context, context->function_result_type) ==
-        CTOOL_FALSE) {
-      return cir_unsupported_statement(context, &body->location);
-    }
-    return cir_append_instruction(
-        context, CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
-        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
-        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
-        &body->physical_location, (ctool_u32 *)0);
-  }
-  if (body->child_count != 1u) {
-    return cir_unsupported_statement(context, &body->location);
-  }
-  statement_index = context->unit->statement_children[body->first_child];
-  if (statement_index >= definition->body ||
-      statement_index >= context->unit->statement_count) {
-    return cir_invalid_unit(context, &body->location);
-  }
-  statement = &context->unit->statements[statement_index];
-  if (statement->kind == CTOOL_C_STATEMENT_EXPRESSION) {
-    if (cir_type_is_void(context, context->function_result_type) ==
-            CTOOL_FALSE ||
-        statement->expression == CTOOL_C_AST_NONE) {
-      return cir_unsupported_statement(context, &statement->location);
-    }
-    if (statement->expression >= context->unit->expression_count) {
+static ctool_status_t cir_lower_declaration(
+    cir_context_t *context, const ctool_c_statement_t *statement) {
+  ctool_u32 binding_offset;
+  for (binding_offset = 0u;
+       binding_offset < statement->block_binding_count; binding_offset++) {
+    const ctool_c_block_binding_t *binding;
+    const ctool_c_type_layout_t *layout;
+    const ctool_c_initializer_t *initializer;
+    cir_stack_entry_t address;
+    cir_stack_entry_t value;
+    ctool_u32 initializer_base_depth;
+    ctool_u32 binding_index =
+        statement->first_block_binding + binding_offset;
+    ctool_status_t status;
+    if (binding_index >= context->unit->block_binding_count ||
+        binding_index != context->block_binding_cursor) {
       return cir_invalid_unit(context, &statement->location);
     }
-    if (cir_type_is_void(
-            context,
-            context->unit->expressions[statement->expression].type) ==
-        CTOOL_FALSE) {
-      return cir_unsupported_statement(context, &statement->location);
+    binding = &context->unit->block_bindings[binding_index];
+    if (binding->kind < CTOOL_C_BINDING_TYPEDEF ||
+        binding->kind > CTOOL_C_BINDING_ENUMERATOR ||
+        binding->storage < CTOOL_C_STORAGE_NONE ||
+        binding->storage > CTOOL_C_STORAGE_REGISTER) {
+      return cir_invalid_unit(context, &binding->location);
     }
-    status = cir_lower_expression(context, statement->expression, 0u);
+    if (binding->kind != CTOOL_C_BINDING_OBJECT) {
+      return cir_unsupported_statement(context, &binding->location);
+    }
+    if (binding->storage != CTOOL_C_STORAGE_NONE &&
+        binding->storage != CTOOL_C_STORAGE_AUTO &&
+        binding->storage != CTOOL_C_STORAGE_REGISTER) {
+      return cir_unsupported_statement(context, &binding->location);
+    }
+    if (binding->type >= context->unit->layout.type_count) {
+      return cir_invalid_unit(context, &binding->location);
+    }
+    layout = &context->unit->layout.types[binding->type];
+    if (layout->is_complete_object == CTOOL_FALSE ||
+        layout->is_object == CTOOL_FALSE || layout->alignment == 0u ||
+        (layout->alignment & (layout->alignment - 1u)) != 0u) {
+      return cir_invalid_unit(context, &binding->location);
+    }
+    if (layout->is_integer == CTOOL_FALSE || layout->size != 4u ||
+        layout->alignment > 4u) {
+      return cir_unsupported_type(context, &binding->location);
+    }
+    context->block_binding_cursor++;
+    context->visible_block_binding_end = context->block_binding_cursor;
+    if (binding->initializer == CTOOL_C_AST_NONE) {
+      continue;
+    }
+    if (binding->initializer >= context->unit->initializer_count) {
+      return cir_invalid_unit(context, &binding->location);
+    }
+    initializer = &context->unit->initializers[binding->initializer];
+    if (initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+        initializer->type != binding->type ||
+        initializer->expression >= context->unit->expression_count ||
+        initializer->integer_bits != 0u ||
+        initializer->string_bytes.data != (const ctool_u8 *)0 ||
+        initializer->string_bytes.size != 0u ||
+        initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+        initializer->address_reference != CTOOL_C_AST_NONE ||
+        initializer->address_addend != 0 ||
+        initializer->first_element != CTOOL_C_AST_NONE ||
+        initializer->element_count != 0u ||
+        cir_integer_value_types_match(
+            context, initializer->type,
+            context->unit->expressions[initializer->expression].type) ==
+            CTOOL_FALSE) {
+      return cir_invalid_unit(context, &initializer->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, binding->type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, binding_index, 0u, &binding->location,
+        &binding->physical_location, (ctool_u32 *)0);
+    if (status == CTOOL_OK) {
+      status = cir_push(context, CIR_STACK_ADDRESS, binding->type);
+    }
+    initializer_base_depth = context->stack_depth;
+    if (status == CTOOL_OK) {
+      status = cir_lower_expression(context, initializer->expression, 0u);
+    }
+    if (status == CTOOL_OK &&
+        (cir_add_overflows(initializer_base_depth, 1u) == CTOOL_TRUE ||
+         context->stack_depth != initializer_base_depth + 1u)) {
+      return cir_invalid_unit(context, &initializer->location);
+    }
+    if (status == CTOOL_OK) {
+      status = cir_pop(context, &value);
+    }
+    if (status == CTOOL_OK) {
+      status = cir_pop(context, &address);
+    }
     if (status != CTOOL_OK) {
       return status;
     }
-    if (context->stack_depth != 0u) {
-      return cir_invalid_unit(context, &statement->location);
+    if (value.kind != CIR_STACK_VALUE ||
+        address.kind != CIR_STACK_ADDRESS || address.type != binding->type ||
+        cir_type_is_i32_integer(context, value.type) == CTOOL_FALSE ||
+        cir_integer_value_types_match(context, binding->type, value.type) ==
+            CTOOL_FALSE) {
+      return cir_invalid_unit(context, &initializer->location);
     }
-    return cir_append_instruction(
-        context, CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
-        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
-        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
-        &body->physical_location, (ctool_u32 *)0);
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_STORE, binding->type, value.type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        CTOOL_C_AST_NONE, 0u, &initializer->location,
+        &initializer->physical_location, (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_lower_return(
+    cir_context_t *context, const ctool_c_statement_t *statement) {
+  cir_stack_entry_t result;
+  ctool_status_t status;
   if (statement->kind != CTOOL_C_STATEMENT_RETURN) {
     return cir_unsupported_statement(context, &statement->location);
   }
-  if (cir_type_is_void(context, context->function_result_type) ==
-      CTOOL_TRUE) {
+  if (cir_type_is_void(context, context->function_result_type) == CTOOL_TRUE) {
     if (statement->expression != CTOOL_C_AST_NONE) {
       return cir_invalid_unit(context, &statement->location);
     }
@@ -791,6 +923,135 @@ static ctool_status_t cir_lower_body(
       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
       CTOOL_C_AST_NONE, 0u, &statement->location,
       &statement->physical_location, (ctool_u32 *)0);
+}
+
+static ctool_status_t cir_lower_body(
+    cir_context_t *context, const ctool_c_function_definition_t *definition) {
+  const ctool_c_statement_t *body;
+  const ctool_c_statement_t *statement;
+  ctool_u32 declaration_count = 0u;
+  ctool_u32 child_offset;
+  ctool_u32 statement_index;
+  ctool_status_t status;
+  if (definition->body >= context->unit->statement_count) {
+    return cir_invalid_unit(context, &definition->location);
+  }
+  body = &context->unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->first_child > context->unit->statement_child_count ||
+      body->child_count >
+          context->unit->statement_child_count - body->first_child) {
+    return cir_invalid_unit(context, &body->location);
+  }
+  context->function_first_block_binding = context->block_binding_cursor;
+  context->function_block_binding_count = 0u;
+  context->visible_block_binding_end = context->block_binding_cursor;
+  if (body->child_count == 0u) {
+    if (cir_type_is_void(context, context->function_result_type) ==
+        CTOOL_FALSE) {
+      return cir_unsupported_statement(context, &body->location);
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
+        &body->physical_location, (ctool_u32 *)0);
+  }
+  for (child_offset = 0u; child_offset < body->child_count; child_offset++) {
+    statement_index =
+        context->unit->statement_children[body->first_child + child_offset];
+    if (statement_index >= definition->body ||
+        statement_index >= context->unit->statement_count) {
+      return cir_invalid_unit(context, &body->location);
+    }
+    statement = &context->unit->statements[statement_index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      break;
+    }
+    if (statement->first_block_binding == CTOOL_C_AST_NONE ||
+        statement->first_block_binding > context->unit->block_binding_count ||
+        statement->block_binding_count == 0u ||
+        statement->block_binding_count >
+            context->unit->block_binding_count -
+                statement->first_block_binding) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (cir_add_overflows(context->function_first_block_binding,
+                          context->function_block_binding_count) ==
+            CTOOL_TRUE ||
+        (declaration_count == 0u &&
+         statement->first_block_binding != context->block_binding_cursor) ||
+        (declaration_count != 0u &&
+         statement->first_block_binding !=
+               context->function_first_block_binding +
+                   context->function_block_binding_count)) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (cir_add_overflows(context->function_block_binding_count,
+                          statement->block_binding_count) == CTOOL_TRUE) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    context->function_block_binding_count += statement->block_binding_count;
+    declaration_count++;
+  }
+  if (declaration_count != 0u &&
+      (cir_add_overflows(context->function_first_block_binding,
+                         context->function_block_binding_count) ==
+           CTOOL_TRUE ||
+       context->function_first_block_binding +
+               context->function_block_binding_count >
+           context->unit->block_binding_count)) {
+    return cir_invalid_unit(context, &body->location);
+  }
+  if (body->child_count - declaration_count != 1u) {
+    return cir_unsupported_statement(context, &body->location);
+  }
+  for (child_offset = 0u; child_offset < declaration_count; child_offset++) {
+    statement_index =
+        context->unit->statement_children[body->first_child + child_offset];
+    status = cir_lower_declaration(
+        context, &context->unit->statements[statement_index]);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  statement_index = context->unit->statement_children
+      [body->first_child + declaration_count];
+  if (statement_index >= definition->body ||
+      statement_index >= context->unit->statement_count) {
+    return cir_invalid_unit(context, &body->location);
+  }
+  statement = &context->unit->statements[statement_index];
+  if (statement->kind == CTOOL_C_STATEMENT_EXPRESSION) {
+    if (declaration_count != 0u ||
+        cir_type_is_void(context, context->function_result_type) ==
+            CTOOL_FALSE ||
+        statement->expression == CTOOL_C_AST_NONE) {
+      return cir_unsupported_statement(context, &statement->location);
+    }
+    if (statement->expression >= context->unit->expression_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (cir_type_is_void(
+            context,
+            context->unit->expressions[statement->expression].type) ==
+        CTOOL_FALSE) {
+      return cir_unsupported_statement(context, &statement->location);
+    }
+    status = cir_lower_expression(context, statement->expression, 0u);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (context->stack_depth != 0u) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
+        &body->physical_location, (ctool_u32 *)0);
+  }
+  return cir_lower_return(context, statement);
 }
 
 static ctool_status_t cir_lower_function(
@@ -889,11 +1150,16 @@ static ctool_status_t cir_lower_functions(cir_context_t *context) {
   ctool_u32 function;
   ctool_status_t status = CTOOL_OK;
   context->instruction_count = 0u;
+  context->block_binding_cursor = 0u;
   for (function = 0u;
        status == CTOOL_OK &&
        function < context->unit->function_definition_count;
        function++) {
     status = cir_lower_function(context, function);
+  }
+  if (status == CTOOL_OK &&
+      context->block_binding_cursor != context->unit->block_binding_count) {
+    status = cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
   }
   return status;
 }
@@ -908,6 +1174,115 @@ static ctool_status_t cir_alloc_array(cir_context_t *context,
   }
   return ctool_arena_alloc_zero(context->arena, count, element_size,
                                 (ctool_u32)sizeof(void *), array_out);
+}
+
+static ctool_status_t cir_validate_initializer_ownership(
+    cir_context_t *context) {
+  ctool_arena_mark_t mark = ctool_arena_mark(context->arena);
+  ctool_u32 *owners = (ctool_u32 *)0;
+  const ctool_c_pp_location_t *invalid_location =
+      (const ctool_c_pp_location_t *)0;
+  ctool_bool valid = CTOOL_TRUE;
+  ctool_status_t status = cir_alloc_array(
+      context, context->unit->initializer_count,
+      (ctool_u32)sizeof(*owners), (void **)&owners);
+  ctool_status_t rewind_status;
+  ctool_u32 element_cursor = 0u;
+  ctool_u32 index;
+  for (index = 0u;
+       status == CTOOL_OK && valid == CTOOL_TRUE &&
+       index < context->unit->initializer_count;
+       index++) {
+    const ctool_c_initializer_t *initializer =
+        &context->unit->initializers[index];
+    ctool_u32 child_offset;
+    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
+      continue;
+    }
+    if (initializer->element_count == 0u ||
+        initializer->first_element != element_cursor ||
+        initializer->first_element >
+            context->unit->initializer_element_count ||
+        initializer->element_count >
+            context->unit->initializer_element_count -
+                initializer->first_element) {
+      invalid_location = &initializer->location;
+      valid = CTOOL_FALSE;
+      break;
+    }
+    for (child_offset = 0u;
+         valid == CTOOL_TRUE &&
+         child_offset < initializer->element_count;
+         child_offset++) {
+      ctool_u32 child = context->unit->initializer_elements
+                            [initializer->first_element + child_offset]
+                                .initializer;
+      if (child >= index || owners[child] != 0u) {
+        invalid_location = &initializer->location;
+        if (child < context->unit->initializer_count) {
+          invalid_location = &context->unit->initializers[child].location;
+        }
+        valid = CTOOL_FALSE;
+      } else {
+        owners[child] = 1u;
+      }
+    }
+    element_cursor += initializer->element_count;
+  }
+  if (status == CTOOL_OK && valid == CTOOL_TRUE &&
+      element_cursor != context->unit->initializer_element_count) {
+    valid = CTOOL_FALSE;
+  }
+  for (index = 0u;
+       status == CTOOL_OK && valid == CTOOL_TRUE &&
+       index < context->unit->object_definition_count;
+       index++) {
+    const ctool_c_object_definition_t *definition =
+        &context->unit->object_definitions[index];
+    ctool_u32 root = definition->initializer;
+    if (root >= context->unit->initializer_count || owners[root] != 0u) {
+      invalid_location = &definition->location;
+      valid = CTOOL_FALSE;
+    } else {
+      owners[root] = 1u;
+    }
+  }
+  for (index = 0u;
+       status == CTOOL_OK && valid == CTOOL_TRUE &&
+       index < context->unit->block_binding_count;
+       index++) {
+    const ctool_c_block_binding_t *binding =
+        &context->unit->block_bindings[index];
+    ctool_u32 root = binding->initializer;
+    if (root == CTOOL_C_AST_NONE) {
+      continue;
+    }
+    if (root >= context->unit->initializer_count || owners[root] != 0u) {
+      invalid_location = &binding->location;
+      valid = CTOOL_FALSE;
+    } else {
+      owners[root] = 1u;
+    }
+  }
+  for (index = 0u;
+       status == CTOOL_OK && valid == CTOOL_TRUE &&
+       index < context->unit->initializer_count;
+       index++) {
+    if (owners[index] != 1u) {
+      invalid_location = &context->unit->initializers[index].location;
+      valid = CTOOL_FALSE;
+    }
+  }
+  rewind_status = ctool_arena_rewind(context->arena, mark);
+  if (rewind_status != CTOOL_OK) {
+    return rewind_status;
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return valid == CTOOL_TRUE
+             ? CTOOL_OK
+             : cir_invalid_unit(context, invalid_location);
 }
 
 ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
@@ -937,6 +1312,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
         "CupidC IR lowering requires a typed translation unit");
   } else {
     status = cir_validate_unit_shape(&context);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_validate_initializer_ownership(&context);
   }
   if (status == CTOOL_OK) {
     status = cir_lower_functions(&context);

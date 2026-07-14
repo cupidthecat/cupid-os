@@ -22,8 +22,8 @@ ctool_status_t ctool_c_emit_object(
  * must be empty. Success writes one deterministic i386 ELF relocatable
  * object. A failure after argument validation restores the output, rewinds
  * allocations made during the operation, and retains a structured
- * diagnostic. The emitter lowers represented leaf functions through CupidC
- * linear IR and the shared x86 model, then writes them beside static
- * definitions in the same object. */
+ * diagnostic. The emitter lowers represented functions, including fixed
+ * local frames, through CupidC linear IR and the shared x86 model, then
+ * writes them beside static definitions in the same object. */
 
 #endif

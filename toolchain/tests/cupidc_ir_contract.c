@@ -22,6 +22,22 @@ static const char active_addition[] =
     "    return x + y;\n"
     "}\n";
 
+static const char active_local[] =
+    "  uint32_t now = timer_get_uptime_ms();";
+static const char active_local_signature[] = "bool vga_flip_ready(void) {";
+static const char active_local_return[] =
+    "  return (now - last_flip_ms) >= 16u;";
+
+static const char local_fixture[] =
+    "typedef unsigned int uint32_t;\n"
+    "uint32_t timer_get_uptime_ms(void);\n"
+    "uint32_t vga_flip_time_probe(uint32_t prior_value) {\n"
+    "  uint32_t now = timer_get_uptime_ms();\n"
+    "  register uint32_t prior = prior_value;\n"
+    "  auto uint32_t unused;\n"
+    "  return now + prior;\n"
+    "}\n";
+
 static int check_status(ctool_status_t actual, ctool_status_t expected,
                         const char *context) {
   if (actual == expected) {
@@ -46,6 +62,17 @@ static ctool_u32 find_binding(const ctool_c_translation_unit_t *unit,
   ctool_u32 index;
   for (index = 0u; index < unit->binding_count; index++) {
     if (string_equal(unit->bindings[index].name, name) != 0) {
+      return index;
+    }
+  }
+  return CTOOL_C_AST_NONE;
+}
+
+static ctool_u32 find_block_binding(const ctool_c_translation_unit_t *unit,
+                                     const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    if (string_equal(unit->block_bindings[index].name, name) != 0) {
       return index;
     }
   }
@@ -87,8 +114,10 @@ static int open_limited_job(const char *host_root,
   return check_status(status, CTOOL_OK, "limited job open");
 }
 
-static int parse_source(ctool_job_t *job, const char *path, const char *text,
-                        ctool_c_translation_unit_t *unit_out) {
+static int parse_source_mode(ctool_job_t *job, const char *path,
+                             const char *text,
+                             ctool_bool gnu_extensions,
+                             ctool_c_translation_unit_t *unit_out) {
   ctool_source_t source;
   ctool_c_pp_request_t pp_request;
   ctool_c_pp_result_t tape;
@@ -105,7 +134,7 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
   source.contents = ctool_bytes(text, (ctool_u32)text_size);
   (void)memset(&pp_request, 0, sizeof(pp_request));
   pp_request.mode = CTOOL_C_PP_MODE_C11;
-  pp_request.gnu_extensions = CTOOL_FALSE;
+  pp_request.gnu_extensions = gnu_extensions;
   pp_request.hosted_environment = CTOOL_FALSE;
   (void)memset(&tape, 0xa5, sizeof(tape));
   status = ctool_c_preprocess(job, &source, &pp_request, &tape);
@@ -119,7 +148,7 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
 
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
-  parse_request.gnu_extensions = CTOOL_FALSE;
+  parse_request.gnu_extensions = gnu_extensions;
   (void)memset(unit_out, 0xa5, sizeof(*unit_out));
   status = ctool_c_parse(job, &tape, &parse_request, unit_out);
   if (status != CTOOL_OK ||
@@ -130,6 +159,11 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
     return 0;
   }
   return 1;
+}
+
+static int parse_source(ctool_job_t *job, const char *path, const char *text,
+                        ctool_c_translation_unit_t *unit_out) {
+  return parse_source_mode(job, path, text, CTOOL_FALSE, unit_out);
 }
 
 static int active_source_is_unchanged(ctool_job_t *job) {
@@ -165,6 +199,19 @@ static int active_source_is_unchanged(ctool_job_t *job) {
               "    return x + y;\r\n"
               "}\r\n") == NULL)) {
     (void)fprintf(stderr, "the active add2 function changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/drivers/vga.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active VGA source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_local_signature) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_local) == NULL ||
+      strstr((const char *)source.contents.data, active_local_return) ==
+          NULL) {
+    (void)fprintf(stderr, "the active VGA local declaration changed\n");
     return 0;
   }
   return 1;
@@ -226,10 +273,34 @@ static uint64_t hash_bytes(uint64_t hash, const void *data, size_t size) {
 static uint64_t unit_fingerprint(const ctool_c_translation_unit_t *unit) {
   uint64_t hash = UINT64_C(1469598103934665603);
   hash = hash_bytes(hash, unit, sizeof(*unit));
+  hash = hash_bytes(hash, unit->graph.types,
+                    (size_t)unit->graph.type_count *
+                        sizeof(*unit->graph.types));
+  hash = hash_bytes(hash, unit->graph.members,
+                    (size_t)unit->graph.member_count *
+                        sizeof(*unit->graph.members));
+  hash = hash_bytes(hash, unit->graph.parameter_types,
+                    (size_t)unit->graph.parameter_type_count *
+                        sizeof(*unit->graph.parameter_types));
+  hash = hash_bytes(hash, unit->layout.types,
+                    (size_t)unit->layout.type_count *
+                        sizeof(*unit->layout.types));
+  hash = hash_bytes(hash, unit->layout.members,
+                    (size_t)unit->layout.member_count *
+                        sizeof(*unit->layout.members));
   hash = hash_bytes(hash, unit->bindings,
                     (size_t)unit->binding_count * sizeof(*unit->bindings));
   hash = hash_bytes(hash, unit->parameters,
                     (size_t)unit->parameter_count * sizeof(*unit->parameters));
+  hash = hash_bytes(hash, unit->block_bindings,
+                    (size_t)unit->block_binding_count *
+                        sizeof(*unit->block_bindings));
+  hash = hash_bytes(hash, unit->initializers,
+                    (size_t)unit->initializer_count *
+                        sizeof(*unit->initializers));
+  hash = hash_bytes(hash, unit->initializer_elements,
+                    (size_t)unit->initializer_element_count *
+                        sizeof(*unit->initializer_elements));
   hash = hash_bytes(hash, unit->function_definitions,
                     (size_t)unit->function_definition_count *
                         sizeof(*unit->function_definitions));
@@ -552,6 +623,156 @@ static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_local_ir(const ctool_c_translation_unit_t *unit,
+                             const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_initializer_t *initializer;
+  ctool_u32 local = find_block_binding(unit, "now");
+  ctool_u32 prior = find_block_binding(unit, "prior");
+  ctool_u32 unused = find_block_binding(unit, "unused");
+  ctool_u32 timer = find_binding(unit, "timer_get_uptime_ms");
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 13u || ir->functions == NULL ||
+      ir->instructions == NULL || local == CTOOL_C_AST_NONE ||
+      prior == CTOOL_C_AST_NONE || unused == CTOOL_C_AST_NONE ||
+      timer == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "local IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  function = &ir->functions[0];
+  binding = &unit->block_bindings[local];
+  if (binding->initializer >= unit->initializer_count) {
+    return 0;
+  }
+  initializer = &unit->initializers[binding->initializer];
+  instructions = ir->instructions + function->first_instruction;
+  if (initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      initializer->type != binding->type ||
+      initializer->expression >= unit->expression_count ||
+      unit->block_bindings[prior].storage != CTOOL_C_STORAGE_REGISTER ||
+      unit->block_bindings[unused].storage != CTOOL_C_STORAGE_AUTO ||
+      unit->block_bindings[unused].initializer != CTOOL_C_AST_NONE ||
+      function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 13u ||
+      function->maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[0].type != binding->type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[0].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[0].reference != local ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      instructions[1].type != binding->type ||
+      instructions[1].input_type != unit->bindings[timer].type ||
+      instructions[1].reference != timer ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      instructions[2].type != binding->type ||
+      instructions[2].input_type != binding->type ||
+      instructions[2].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[2].reference != CTOOL_C_AST_NONE ||
+      instructions[2].integer_bits != 0u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[3].type != unit->block_bindings[prior].type ||
+      instructions[3].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[3].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[3].reference != prior ||
+      instructions[3].integer_bits != 0u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[4].type != unit->parameters[0].type ||
+      instructions[4].reference != 0u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[5].type != unit->parameters[0].type ||
+      instructions[5].input_type != unit->parameters[0].type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      instructions[6].type != unit->block_bindings[prior].type ||
+      instructions[6].input_type != unit->parameters[0].type ||
+      instructions[6].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[6].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[6].reference != CTOOL_C_AST_NONE ||
+      instructions[6].integer_bits != 0u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[7].type != binding->type ||
+      instructions[7].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[7].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[7].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[7].reference != local ||
+      instructions[7].integer_bits != 0u ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[8].type != binding->type ||
+      instructions[8].input_type != binding->type ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[9].type != unit->block_bindings[prior].type ||
+      instructions[9].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[9].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[9].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[9].reference != prior ||
+      instructions[9].integer_bits != 0u ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[10].type != unit->block_bindings[prior].type ||
+      instructions[10].input_type != unit->block_bindings[prior].type ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[11].type != binding->type ||
+      instructions[11].input_type != binding->type ||
+      instructions[11].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[12].type != binding->type ||
+      instructions[12].input_type != binding->type ||
+      !string_equal(instructions[0].location.path,
+                    "/active-vga-local.c") ||
+      !string_equal(instructions[2].physical_location.path,
+                    "/active-vga-local.c")) {
+    (void)fprintf(stderr, "local IR instruction stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_point_of_declaration_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 first = find_block_binding(unit, "first");
+  ctool_u32 second = find_block_binding(unit, "second");
+  if (unit->function_definition_count != 1u || unit->block_binding_count != 2u ||
+      first == CTOOL_C_AST_NONE || second == CTOOL_C_AST_NONE ||
+      ir->function_count != 1u || ir->instruction_count != 10u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 10u ||
+      ir->functions[0].maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "point-of-declaration IR inventory differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[0].reference != first ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[1].reference != first ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[4].reference != second ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[5].integer_bits != 1u ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[7].reference != second ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "point-of-declaration IR stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_inline_ir(const ctool_c_translation_unit_t *unit,
                               const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *local;
@@ -842,6 +1063,46 @@ static int run_active_leaf(const char *host_root) {
       "int call_variadic(void) { return variadic_target(1); }\n";
   static const char value_statement_source[] =
       "void discard_value(void) { 1; }\n";
+  static const char wide_local_source[] =
+      "int wide_local(void) { long long value = 1; return 0; }\n";
+  static const char short_local_source[] =
+      "int short_local(void) { short value = 1; return 0; }\n";
+  static const char overaligned_local_source[] =
+      "typedef int aligned_int __attribute__((aligned(8)));\n"
+      "int overaligned_local(void) {\n"
+      "  aligned_int value = 1;\n"
+      "  return value;\n"
+      "}\n";
+  static const char array_local_source[] =
+      "int array_local(void) { int values[1]; return 0; }\n";
+  static const char static_local_source[] =
+      "int static_local(void) { static int value = 1; return value; }\n";
+  static const char ownership_source[] =
+      "int first_local(void) { int one = 1; return one; }\n"
+      "int second_local(void) { int two = 2; return two; }\n";
+  static const char point_of_declaration_source[] =
+      "int point_of_declaration(void) {\n"
+      "  int first = first;\n"
+      "  int second = 1;\n"
+      "  return second;\n"
+      "}\n";
+  static const char void_initializer_source[] =
+      "void sink(void);\n"
+      "int malformed_initializer(void) { int value = 1; return value; }\n"
+      "void call_sink(void) { sink(); }\n"
+      "unsigned int unsigned_value(void) { return 1u; }\n"
+      "int qualified_local(int input) {\n"
+      "  const int result = input;\n"
+      "  return result;\n"
+      "}\n";
+  static const char global_frontier_source[] =
+      "typedef unsigned int uint32_t;\n"
+      "uint32_t timer_get_uptime_ms(void);\n"
+      "static uint32_t last_flip_ms;\n"
+      "uint32_t local_frontier(void) {\n"
+      "  uint32_t now = timer_get_uptime_ms();\n"
+      "  return now - last_flip_ms;\n"
+      "}\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -849,6 +1110,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_job_t *limited_job = NULL;
   ctool_c_translation_unit_t active_unit;
   ctool_c_translation_unit_t addition_unit;
+  ctool_c_translation_unit_t local_unit;
   ctool_c_translation_unit_t simple_unit;
   ctool_c_translation_unit_t statement_unit;
   ctool_c_translation_unit_t expression_unit;
@@ -862,18 +1124,37 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_call_unit;
   ctool_c_translation_unit_t variadic_call_unit;
   ctool_c_translation_unit_t value_statement_unit;
+  ctool_c_translation_unit_t wide_local_unit;
+  ctool_c_translation_unit_t short_local_unit;
+  ctool_c_translation_unit_t overaligned_local_unit;
+  ctool_c_translation_unit_t array_local_unit;
+  ctool_c_translation_unit_t static_local_unit;
+  ctool_c_translation_unit_t ownership_unit;
+  ctool_c_translation_unit_t point_of_declaration_unit;
+  ctool_c_translation_unit_t void_initializer_unit;
+  ctool_c_translation_unit_t global_frontier_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_function_definition_t invalid_definition;
+  ctool_c_initializer_element_t dangling_initializer_element;
+  ctool_c_statement_t *invalid_statements = NULL;
+  ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_initializer_t *void_initializers = NULL;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *ownership_expressions = NULL;
+  ctool_c_type_layout_t *invalid_layouts = NULL;
+  ctool_c_block_binding_t *invalid_block_bindings = NULL;
   ctool_c_ir_unit_t ir;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   uint64_t fingerprint;
   char *fixture = NULL;
   char *call_fixture = NULL;
+  ctool_u32 index;
   int passed = 0;
 
   (void)memset(&active_unit, 0, sizeof(active_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
+  (void)memset(&local_unit, 0, sizeof(local_unit));
   (void)memset(&simple_unit, 0, sizeof(simple_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job)) {
@@ -890,6 +1171,299 @@ static int run_active_leaf(const char *host_root) {
   if (!parse_source(job, "/active-cupidc-add2.c", active_addition,
                     &addition_unit)) {
     (void)fprintf(stderr, "active addition setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/active-vga-local.c", local_fixture,
+                    &local_unit)) {
+    (void)fprintf(stderr, "active VGA local setup failed\n");
+    goto cleanup;
+  }
+
+  invalid_unit = local_unit;
+  invalid_unit.block_bindings = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing local binding table")) {
+    goto cleanup;
+  }
+  invalid_unit = local_unit;
+  invalid_unit.object_definition_count = 1u;
+  invalid_unit.object_definitions = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing object definition table")) {
+    goto cleanup;
+  }
+  invalid_unit = local_unit;
+  invalid_unit.initializers = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing initializer table")) {
+    goto cleanup;
+  }
+  invalid_unit = local_unit;
+  invalid_unit.initializer_element_count = 1u;
+  invalid_unit.initializer_elements = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing initializer element table")) {
+    goto cleanup;
+  }
+  invalid_block_bindings = (ctool_c_block_binding_t *)malloc(
+      (size_t)local_unit.block_binding_count *
+      sizeof(*invalid_block_bindings));
+  if (invalid_block_bindings == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, local_unit.block_bindings,
+               (size_t)local_unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  invalid_block_bindings[0].kind = (ctool_c_binding_kind_t)0;
+  invalid_unit = local_unit;
+  invalid_unit.block_bindings = invalid_block_bindings;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid local binding kind")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, local_unit.block_bindings,
+               (size_t)local_unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  invalid_block_bindings[0].storage = (ctool_c_storage_class_t)99;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid local storage class")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, local_unit.block_bindings,
+               (size_t)local_unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  if (local_unit.block_binding_count < 2u ||
+      invalid_block_bindings[0].initializer == CTOOL_C_AST_NONE ||
+      invalid_block_bindings[1].initializer == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  invalid_block_bindings[1].initializer =
+      invalid_block_bindings[0].initializer;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "duplicate local initializer owner")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, local_unit.block_bindings,
+               (size_t)local_unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  dangling_initializer_element.subobject = 0u;
+  dangling_initializer_element.initializer =
+      invalid_block_bindings[1].initializer;
+  invalid_block_bindings[1].initializer = CTOOL_C_AST_NONE;
+  invalid_unit = local_unit;
+  invalid_unit.block_bindings = invalid_block_bindings;
+  invalid_unit.initializer_elements = &dangling_initializer_element;
+  invalid_unit.initializer_element_count = 1u;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "dangling initializer owner")) {
+    goto cleanup;
+  }
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)local_unit.initializer_count *
+      sizeof(*invalid_initializers));
+  if (invalid_initializers == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, local_unit.initializers,
+               (size_t)local_unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[local_unit.block_bindings[0].initializer].expression =
+      local_unit.expression_count;
+  invalid_unit = local_unit;
+  invalid_unit.initializers = invalid_initializers;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid local initializer expression")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, local_unit.initializers,
+               (size_t)local_unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[local_unit.block_bindings[0].initializer]
+      .first_element = 0u;
+  invalid_initializers[local_unit.block_bindings[0].initializer]
+      .element_count = 1u;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid expression initializer payload")) {
+    goto cleanup;
+  }
+  invalid_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)local_unit.layout.type_count * sizeof(*invalid_layouts));
+  if (invalid_layouts == NULL ||
+      local_unit.block_bindings[0].type >= local_unit.layout.type_count) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_layouts, local_unit.layout.types,
+               (size_t)local_unit.layout.type_count *
+                   sizeof(*invalid_layouts));
+  invalid_layouts[local_unit.block_bindings[0].type].alignment = 0u;
+  invalid_unit = local_unit;
+  invalid_unit.layout.types = invalid_layouts;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid local layout")) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&local_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &local_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active VGA local lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&local_unit) != fingerprint ||
+      !validate_local_ir(&local_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/point-of-declaration.c",
+                    point_of_declaration_source,
+                    &point_of_declaration_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&point_of_declaration_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &point_of_declaration_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "point-of-declaration lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&point_of_declaration_unit) != fingerprint ||
+      !validate_point_of_declaration_ir(&point_of_declaration_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)point_of_declaration_unit.expression_count *
+      sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, point_of_declaration_unit.expressions,
+               (size_t)point_of_declaration_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  for (index = 0u; index < point_of_declaration_unit.expression_count;
+       index++) {
+    if (invalid_expressions[index].kind ==
+            CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        invalid_expressions[index].reference ==
+            find_block_binding(&point_of_declaration_unit, "first")) {
+      invalid_expressions[index].reference =
+          find_block_binding(&point_of_declaration_unit, "second");
+      break;
+    }
+  }
+  invalid_unit = point_of_declaration_unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (index == point_of_declaration_unit.expression_count ||
+      !expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "forward local reference")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/void-initializer.c", void_initializer_source,
+                    &void_initializer_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&void_initializer_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &void_initializer_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "qualified local lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&void_initializer_unit) != fingerprint ||
+      ir.function_count != 4u) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  void_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)void_initializer_unit.initializer_count *
+      sizeof(*void_initializers));
+  if (void_initializers == NULL ||
+      void_initializer_unit.block_binding_count != 2u ||
+      void_initializer_unit.block_bindings[0].initializer >=
+          void_initializer_unit.initializer_count) {
+    goto cleanup;
+  }
+  (void)memcpy(void_initializers, void_initializer_unit.initializers,
+               (size_t)void_initializer_unit.initializer_count *
+                   sizeof(*void_initializers));
+  for (index = 0u; index < void_initializer_unit.expression_count; index++) {
+    if (void_initializer_unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_CALL) {
+      break;
+    }
+  }
+  if (index == void_initializer_unit.expression_count) {
+    goto cleanup;
+  }
+  void_initializers[void_initializer_unit.block_bindings[0].initializer]
+      .expression = index;
+  invalid_unit = void_initializer_unit;
+  invalid_unit.initializers = void_initializers;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "void expression local initializer")) {
+    goto cleanup;
+  }
+  (void)memcpy(void_initializers, void_initializer_unit.initializers,
+               (size_t)void_initializer_unit.initializer_count *
+                   sizeof(*void_initializers));
+  for (index = 0u; index < void_initializer_unit.expression_count; index++) {
+    if (void_initializer_unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+        void_initializer_unit.expressions[index].type !=
+            void_initializers[void_initializer_unit.block_bindings[0]
+                                  .initializer]
+                .type) {
+      break;
+    }
+  }
+  if (index == void_initializer_unit.expression_count) {
+    goto cleanup;
+  }
+  void_initializers[void_initializer_unit.block_bindings[0].initializer]
+      .expression = index;
+  invalid_unit.initializers = void_initializers;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unconverted local initializer")) {
     goto cleanup;
   }
   fingerprint = unit_fingerprint(&addition_unit);
@@ -1002,6 +1576,111 @@ static int run_active_leaf(const char *host_root) {
           "unsupported statement")) {
     goto cleanup;
   }
+  if (!parse_source(job, "/wide-local.c", wide_local_source,
+                    &wide_local_unit) ||
+      !expect_ir_failure(
+          job, &wide_local_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+           "CupidC IR lowering does not yet support this value type",
+           "wide automatic local") ||
+      !parse_source(job, "/short-local.c", short_local_source,
+                    &short_local_unit) ||
+      !expect_ir_failure(
+          job, &short_local_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow automatic local") ||
+      !parse_source_mode(job, "/overaligned-local.c",
+                         overaligned_local_source, CTOOL_TRUE,
+                         &overaligned_local_unit) ||
+      !expect_ir_failure(
+          job, &overaligned_local_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "over-aligned automatic local") ||
+      !parse_source(job, "/array-local.c", array_local_source,
+                    &array_local_unit) ||
+      !expect_ir_failure(
+          job, &array_local_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "aggregate automatic local") ||
+      !parse_source(job, "/static-local.c", static_local_source,
+                    &static_local_unit) ||
+      !expect_ir_failure(
+          job, &static_local_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "static block local")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/local-ownership.c", ownership_source,
+                    &ownership_unit)) {
+    goto cleanup;
+  }
+  invalid_statements = (ctool_c_statement_t *)malloc(
+      (size_t)ownership_unit.statement_count * sizeof(*invalid_statements));
+  if (invalid_statements == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_statements, ownership_unit.statements,
+               (size_t)ownership_unit.statement_count *
+                   sizeof(*invalid_statements));
+  for (index = 0u; index < ownership_unit.statement_count; index++) {
+    if (invalid_statements[index].kind == CTOOL_C_STATEMENT_DECLARATION &&
+        invalid_statements[index].first_block_binding == 1u) {
+      invalid_statements[index].first_block_binding = 0u;
+      break;
+    }
+  }
+  invalid_unit = ownership_unit;
+  invalid_unit.statements = invalid_statements;
+  if (index == ownership_unit.statement_count ||
+      !expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "duplicate local ownership")) {
+    goto cleanup;
+  }
+  ownership_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)ownership_unit.expression_count *
+      sizeof(*ownership_expressions));
+  if (ownership_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(ownership_expressions, ownership_unit.expressions,
+               (size_t)ownership_unit.expression_count *
+                   sizeof(*ownership_expressions));
+  for (index = 0u; index < ownership_unit.expression_count; index++) {
+    if (ownership_expressions[index].kind ==
+            CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        ownership_expressions[index].reference ==
+            find_block_binding(&ownership_unit, "two")) {
+      ownership_expressions[index].reference =
+          find_block_binding(&ownership_unit, "one");
+      break;
+    }
+  }
+  invalid_unit = ownership_unit;
+  invalid_unit.expressions = ownership_expressions;
+  if (index == ownership_unit.expression_count ||
+      !expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "cross-function local reference")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/local-global-frontier.c",
+                    global_frontier_source, &global_frontier_unit) ||
+      !expect_ir_failure(
+          job, &global_frontier_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "file-object load after automatic local")) {
+    goto cleanup;
+  }
   if (!parse_source(job, "/unsupported-expression.c", expression_source,
                     &expression_unit) ||
       !expect_ir_failure(
@@ -1099,6 +1778,13 @@ cleanup:
   }
   free(fixture);
   free(call_fixture);
+  free(invalid_statements);
+  free(invalid_initializers);
+  free(void_initializers);
+  free(invalid_expressions);
+  free(ownership_expressions);
+  free(invalid_layouts);
+  free(invalid_block_bindings);
   if (passed != 0) {
     (void)puts("active-leaf: ok");
     return 0;

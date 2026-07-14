@@ -16,7 +16,14 @@ typedef struct {
   ctool_c_translation_unit_t unit;
   ctool_c_binding_t *bindings;
   ctool_c_object_definition_t *object_definitions;
+  ctool_c_block_binding_t *block_bindings;
   ctool_c_initializer_t *initializers;
+  ctool_c_initializer_element_t *initializer_elements;
+  ctool_c_function_definition_t *function_definitions;
+  ctool_c_statement_t *statements;
+  ctool_u32 *statement_children;
+  ctool_c_expression_t *expressions;
+  ctool_u32 *expression_children;
 } unit_snapshot_t;
 
 static int check_status(ctool_status_t actual, ctool_status_t expected,
@@ -151,16 +158,49 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
                               unit_snapshot_t *snapshot) {
   void *bindings = NULL;
   void *object_definitions = NULL;
+  void *block_bindings = NULL;
   void *initializers = NULL;
+  void *initializer_elements = NULL;
+  void *function_definitions = NULL;
+  void *statements = NULL;
+  void *statement_children = NULL;
+  void *expressions = NULL;
+  void *expression_children = NULL;
   (void)memset(snapshot, 0, sizeof(*snapshot));
   snapshot->unit = *unit;
   if (copy_array(unit->bindings, unit->binding_count,
                  sizeof(*unit->bindings), &bindings) == 0 ||
       copy_array(unit->object_definitions, unit->object_definition_count,
-                 sizeof(*unit->object_definitions), &object_definitions) == 0 ||
+                  sizeof(*unit->object_definitions), &object_definitions) == 0 ||
+      copy_array(unit->block_bindings, unit->block_binding_count,
+                 sizeof(*unit->block_bindings), &block_bindings) == 0 ||
       copy_array(unit->initializers, unit->initializer_count,
-                 sizeof(*unit->initializers), &initializers) == 0) {
+                  sizeof(*unit->initializers), &initializers) == 0 ||
+      copy_array(unit->initializer_elements, unit->initializer_element_count,
+                 sizeof(*unit->initializer_elements),
+                 &initializer_elements) == 0 ||
+      copy_array(unit->function_definitions,
+                 unit->function_definition_count,
+                 sizeof(*unit->function_definitions),
+                 &function_definitions) == 0 ||
+      copy_array(unit->statements, unit->statement_count,
+                 sizeof(*unit->statements), &statements) == 0 ||
+      copy_array(unit->statement_children, unit->statement_child_count,
+                 sizeof(*unit->statement_children),
+                 &statement_children) == 0 ||
+      copy_array(unit->expressions, unit->expression_count,
+                 sizeof(*unit->expressions), &expressions) == 0 ||
+      copy_array(unit->expression_children, unit->expression_child_count,
+                 sizeof(*unit->expression_children),
+                 &expression_children) == 0) {
+    free(expression_children);
+    free(expressions);
+    free(statement_children);
+    free(statements);
+    free(function_definitions);
+    free(initializer_elements);
     free(initializers);
+    free(block_bindings);
     free(object_definitions);
     free(bindings);
     (void)memset(snapshot, 0, sizeof(*snapshot));
@@ -169,7 +209,16 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
   snapshot->bindings = (ctool_c_binding_t *)bindings;
   snapshot->object_definitions =
       (ctool_c_object_definition_t *)object_definitions;
+  snapshot->block_bindings = (ctool_c_block_binding_t *)block_bindings;
   snapshot->initializers = (ctool_c_initializer_t *)initializers;
+  snapshot->initializer_elements =
+      (ctool_c_initializer_element_t *)initializer_elements;
+  snapshot->function_definitions =
+      (ctool_c_function_definition_t *)function_definitions;
+  snapshot->statements = (ctool_c_statement_t *)statements;
+  snapshot->statement_children = (ctool_u32 *)statement_children;
+  snapshot->expressions = (ctool_c_expression_t *)expressions;
+  snapshot->expression_children = (ctool_u32 *)expression_children;
   return 1;
 }
 
@@ -184,17 +233,56 @@ static int unit_snapshot_matches(const unit_snapshot_t *snapshot,
                   memcmp(snapshot->object_definitions,
                          unit->object_definitions,
                          (size_t)unit->object_definition_count *
-                             sizeof(*unit->object_definitions)) == 0) &&
+                              sizeof(*unit->object_definitions)) == 0) &&
+                 (unit->block_binding_count == 0u ||
+                  memcmp(snapshot->block_bindings, unit->block_bindings,
+                         (size_t)unit->block_binding_count *
+                             sizeof(*unit->block_bindings)) == 0) &&
                  (unit->initializer_count == 0u ||
                   memcmp(snapshot->initializers, unit->initializers,
-                         (size_t)unit->initializer_count *
-                             sizeof(*unit->initializers)) == 0)
+                          (size_t)unit->initializer_count *
+                              sizeof(*unit->initializers)) == 0) &&
+                 (unit->initializer_element_count == 0u ||
+                  memcmp(snapshot->initializer_elements,
+                         unit->initializer_elements,
+                         (size_t)unit->initializer_element_count *
+                             sizeof(*unit->initializer_elements)) == 0) &&
+                 (unit->function_definition_count == 0u ||
+                  memcmp(snapshot->function_definitions,
+                         unit->function_definitions,
+                         (size_t)unit->function_definition_count *
+                             sizeof(*unit->function_definitions)) == 0) &&
+                 (unit->statement_count == 0u ||
+                  memcmp(snapshot->statements, unit->statements,
+                         (size_t)unit->statement_count *
+                             sizeof(*unit->statements)) == 0) &&
+                 (unit->statement_child_count == 0u ||
+                  memcmp(snapshot->statement_children,
+                         unit->statement_children,
+                         (size_t)unit->statement_child_count *
+                             sizeof(*unit->statement_children)) == 0) &&
+                 (unit->expression_count == 0u ||
+                  memcmp(snapshot->expressions, unit->expressions,
+                         (size_t)unit->expression_count *
+                             sizeof(*unit->expressions)) == 0) &&
+                 (unit->expression_child_count == 0u ||
+                  memcmp(snapshot->expression_children,
+                         unit->expression_children,
+                         (size_t)unit->expression_child_count *
+                             sizeof(*unit->expression_children)) == 0)
              ? 1
              : 0;
 }
 
 static void dispose_unit_snapshot(unit_snapshot_t *snapshot) {
+  free(snapshot->expression_children);
+  free(snapshot->expressions);
+  free(snapshot->statement_children);
+  free(snapshot->statements);
+  free(snapshot->function_definitions);
+  free(snapshot->initializer_elements);
   free(snapshot->initializers);
+  free(snapshot->block_bindings);
   free(snapshot->object_definitions);
   free(snapshot->bindings);
   (void)memset(snapshot, 0, sizeof(*snapshot));
@@ -412,6 +500,27 @@ static int validate_function_object(ctool_job_t *job,
       0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
       0x50u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
       0xc3u};
+  static const ctool_u8 local_round_trip_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
+      0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du,
+      0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
+      0x45u, 0xf8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
+      0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 local_call_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x02u, 0x00u,
+      0x00u, 0x00u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u,
+      0x24u, 0x89u, 0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u,
+      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 uninitialized_local_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u, 0xfcu,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u32 helper_branch_targets[] = {65u, 70u};
   static const ctool_x86_mnemonic_t implemented_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
@@ -469,6 +578,36 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t local_round_trip_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t local_call_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t uninitialized_local_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_LEA, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t signed_instructions[] = {
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
@@ -496,27 +635,45 @@ static int validate_function_object(ctool_job_t *job,
       find_symbol(object, "call_nested");
   const ctool_elf32_symbol_t *call_void = find_symbol(object, "call_void");
   const ctool_elf32_symbol_t *add2 = find_symbol(object, "add2");
+  const ctool_elf32_symbol_t *local_round_trip =
+      find_symbol(object, "vga_flip_time_probe");
+  const ctool_elf32_symbol_t *local_call =
+      find_symbol(object, "local_call_probe");
+  const ctool_elf32_symbol_t *uninitialized_local =
+      find_symbol(object, "uninitialized_local_probe");
   const ctool_elf32_symbol_t *external_sum =
       find_symbol(object, "external_sum");
   const ctool_elf32_symbol_t *external_three =
       find_symbol(object, "external_three");
   const ctool_elf32_symbol_t *external_sink =
       find_symbol(object, "external_sink");
+  const ctool_elf32_symbol_t *timer_get_uptime_ms =
+      find_symbol(object, "timer_get_uptime_ms");
+  const ctool_elf32_symbol_t *initializer_sum =
+      find_symbol(object, "initializer_sum");
   const ctool_elf32_symbol_t *function_data =
       find_symbol(object, "function_data");
+  const ctool_elf32_symbol_t *now = find_symbol(object, "now");
+  const ctool_elf32_symbol_t *prior = find_symbol(object, "prior");
+  const ctool_elf32_symbol_t *unused = find_symbol(object, "unused");
+  const ctool_elf32_symbol_t *value = find_symbol(object, "value");
   if (text == NULL || text->type != CTOOL_ELF32_SHT_PROGBITS ||
       text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
       text->alignment != 1u || text->contents.size == 0u ||
       rel_text == NULL || text->relocation_first != 0u ||
-      text->relocation_count != 5u || object->relocation_count != 5u ||
+      text->relocation_count != 7u || object->relocation_count != 7u ||
+      object->symbol_count != 20u ||
       data == NULL || data->contents.size != 4u ||
       implemented == NULL || helper == NULL || idle == NULL ||
       signed_greater == NULL || local_target == NULL || call_local == NULL ||
       call_external == NULL || call_nested == NULL || call_void == NULL ||
-      add2 == NULL ||
+      add2 == NULL || local_round_trip == NULL || local_call == NULL ||
+      uninitialized_local == NULL ||
       external_sum == NULL || external_three == NULL ||
-      external_sink == NULL ||
-      function_data == NULL ||
+      external_sink == NULL || timer_get_uptime_ms == NULL ||
+      initializer_sum == NULL ||
+      function_data == NULL || now != NULL || prior != NULL ||
+      unused != NULL || value != NULL ||
       !symbol_matches(implemented, implemented->file_index,
                       CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
@@ -560,8 +717,21 @@ static int validate_function_object(ctool_job_t *job,
                       24u) ||
       !symbol_matches(add2, add2->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 283u,
-                      33u) ||
+                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 283u,
+                       33u) ||
+      !symbol_matches(local_round_trip, local_round_trip->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 316u,
+                       63u) ||
+      !symbol_matches(local_call, local_call->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 379u,
+                      64u) ||
+      !symbol_matches(uninitialized_local, uninitialized_local->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 443u,
+                      17u) ||
       !symbol_matches(external_sum, external_sum->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
@@ -573,6 +743,15 @@ static int validate_function_object(ctool_job_t *job,
       !symbol_matches(external_sink, external_sink->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                       0u, 0u) ||
+      !symbol_matches(timer_get_uptime_ms, timer_get_uptime_ms->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                       0u, 0u) ||
+      !symbol_matches(initializer_sum, initializer_sum->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
                       0u, 0u) ||
       !symbol_matches(function_data, function_data->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_OBJECT,
@@ -581,7 +760,7 @@ static int validate_function_object(ctool_job_t *job,
       data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
       implemented->size == 0u || helper->size == 0u ||
       signed_greater->size == 0u || idle->size == 0u ||
-      text->contents.size != 316u ||
+      text->contents.size != 460u ||
       object->relocations[0].relocation_section_file_index !=
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
@@ -626,7 +805,26 @@ static int validate_function_object(ctool_job_t *job,
       object->relocations[4].symbol_file_index != external_sink->file_index ||
       object->relocations[4].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[4].addend_known != CTOOL_TRUE ||
-      object->relocations[4].addend != -4) {
+      object->relocations[4].addend != -4 ||
+      object->relocations[5].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[5].entry_index != 5u ||
+      object->relocations[5].target_section_file_index != text->file_index ||
+      object->relocations[5].offset != 327u ||
+      object->relocations[5].symbol_file_index !=
+          timer_get_uptime_ms->file_index ||
+      object->relocations[5].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[5].addend_known != CTOOL_TRUE ||
+      object->relocations[5].addend != -4 ||
+      object->relocations[6].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[6].entry_index != 6u ||
+      object->relocations[6].target_section_file_index != text->file_index ||
+      object->relocations[6].offset != 420u ||
+      object->relocations[6].symbol_file_index != initializer_sum->file_index ||
+      object->relocations[6].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[6].addend_known != CTOOL_TRUE ||
+      object->relocations[6].addend != -4) {
     (void)fprintf(stderr, "function object structure differs\n");
     (void)fprintf(stderr,
                   "sections=%lu symbols=%lu relocations=%lu text=%lu "
@@ -757,7 +955,30 @@ static int validate_function_object(ctool_job_t *job,
                      (ctool_u32)(sizeof(add2_instructions) /
                                  sizeof(add2_instructions[0])),
                      add2_bytes, (ctool_u32)sizeof(add2_bytes),
-                     (const ctool_u32 *)0, 0u, "add2")
+                     (const ctool_u32 *)0, 0u, "add2") &&
+                  decode_function(
+                      job, text, local_round_trip,
+                     local_round_trip_instructions,
+                     (ctool_u32)(sizeof(local_round_trip_instructions) /
+                                 sizeof(local_round_trip_instructions[0])),
+                      local_round_trip_bytes,
+                      (ctool_u32)sizeof(local_round_trip_bytes),
+                      (const ctool_u32 *)0, 0u, "vga_flip_time_probe") &&
+                  decode_function(
+                      job, text, local_call, local_call_instructions,
+                      (ctool_u32)(sizeof(local_call_instructions) /
+                                  sizeof(local_call_instructions[0])),
+                      local_call_bytes, (ctool_u32)sizeof(local_call_bytes),
+                      (const ctool_u32 *)0, 0u, "local_call_probe") &&
+                  decode_function(
+                      job, text, uninitialized_local,
+                      uninitialized_local_instructions,
+                      (ctool_u32)(sizeof(uninitialized_local_instructions) /
+                                  sizeof(uninitialized_local_instructions[0])),
+                      uninitialized_local_bytes,
+                      (ctool_u32)sizeof(uninitialized_local_bytes),
+                      (const ctool_u32 *)0, 0u,
+                      "uninitialized_local_probe")
              ? 1
              : 0;
 }
@@ -1147,6 +1368,23 @@ static int run_static_data(const char *host_root) {
       "void call_void(int value) { external_sink(value); }\n"
       "int add2(int x, int y) {\n"
       "    return x + y;\n"
+      "}\n"
+      "typedef unsigned int uint32_t;\n"
+      "extern uint32_t timer_get_uptime_ms(void);\n"
+      "uint32_t vga_flip_time_probe(uint32_t prior_value) {\n"
+      "  uint32_t now = timer_get_uptime_ms();\n"
+      "  register uint32_t prior = prior_value;\n"
+      "  auto uint32_t unused;\n"
+      "  return now + prior;\n"
+      "}\n"
+      "extern int initializer_sum(int left, int right);\n"
+      "int local_call_probe(int prior_value) {\n"
+      "  int value = initializer_sum(prior_value, 2);\n"
+      "  return value;\n"
+      "}\n"
+      "int uninitialized_local_probe(void) {\n"
+      "  auto int value;\n"
+      "  return value;\n"
       "}\n";
   static const char unsupported_function_text[] =
       "int unsupported(int value) { return value * 1; }\n";
@@ -1189,10 +1427,13 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_object_definition_t *invalid_definitions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_block_binding_t *invalid_block_bindings = NULL;
   ctool_c_binding_t *invalid_bindings = NULL;
   ctool_c_initializer_t *invalid_layout_initializers = NULL;
   ctool_c_initializer_element_t *invalid_elements = NULL;
+  ctool_c_expression_t invalid_expression;
   unit_snapshot_t snapshot;
+  unit_snapshot_t function_snapshot;
   unit_snapshot_t layout_snapshot;
   ctool_u8 *expected_object = NULL;
   ctool_u32 expected_object_size = 0u;
@@ -1224,7 +1465,9 @@ static int run_static_data(const char *host_root) {
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memset(&function_snapshot, 0, sizeof(function_snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
+  (void)memset(&invalid_expression, 0, sizeof(invalid_expression));
   if (!open_job(host_root, &adapter, &config, &job)) {
     goto cleanup;
   }
@@ -1365,8 +1608,8 @@ static int run_static_data(const char *host_root) {
   invalid_unit.object_definitions = invalid_definitions;
   if (!expect_object_failure(
           job, &invalid_unit, second, CTOOL_ERR_INPUT,
-          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
-          "CupidC object emission received an invalid translation unit",
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
           "invalid initializer root") ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
     goto cleanup;
@@ -1381,6 +1624,53 @@ static int run_static_data(const char *host_root) {
     (void)fprintf(stderr, "invalid-initializer fixture allocation failed\n");
     goto cleanup;
   }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               invalid_initializer_bytes);
+  invalid_initializers[0].kind = CTOOL_C_INITIALIZER_EXPRESSION;
+  invalid_initializers[0].expression = 0u;
+  invalid_initializers[0].integer_bits = 0u;
+  invalid_initializers[0].string_bytes.data = (const ctool_u8 *)0;
+  invalid_initializers[0].string_bytes.size = 0u;
+  invalid_initializers[0].address_kind =
+      CTOOL_C_INITIALIZER_ADDRESS_NONE;
+  invalid_initializers[0].address_reference = CTOOL_C_AST_NONE;
+  invalid_initializers[0].address_addend = 0;
+  invalid_initializers[0].first_element = 0u;
+  invalid_initializers[0].element_count = 1u;
+  invalid_expression.kind = CTOOL_C_EXPRESSION_INTEGER_CONSTANT;
+  invalid_expression.type = invalid_initializers[0].type;
+  invalid_unit = unit;
+  invalid_unit.initializers = invalid_initializers;
+  invalid_unit.expressions = &invalid_expression;
+  invalid_unit.expression_count = 1u;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid static expression initializer payload") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_initializers, unit.initializers,
+               invalid_initializer_bytes);
+  invalid_initializers[0].kind = CTOOL_C_INITIALIZER_EXPRESSION;
+  invalid_initializers[0].expression = 0u;
+  invalid_expression.kind = CTOOL_C_EXPRESSION_INTEGER_CONSTANT;
+  invalid_expression.type = unit.graph.type_count;
+  invalid_unit = unit;
+  invalid_unit.initializers = invalid_initializers;
+  invalid_unit.expressions = &invalid_expression;
+  invalid_unit.expression_count = 1u;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid runtime initializer expression type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
   (void)memcpy(invalid_initializers, unit.initializers,
                invalid_initializer_bytes);
   invalid_initializers[0].type = unit.graph.type_count;
@@ -1400,10 +1690,10 @@ static int run_static_data(const char *host_root) {
   invalid_initializers[0].kind = CTOOL_C_INITIALIZER_EXPRESSION;
   invalid_initializers[0].expression = 0u;
   if (!expect_object_failure(
-          job, &invalid_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_EMIT_DIAG_INITIALIZER,
-          "CupidC object emission requires static initializer values",
-          "runtime initializer boundary") ||
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "invalid runtime initializer reference") ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
     goto cleanup;
   }
@@ -1496,8 +1786,115 @@ static int run_static_data(const char *host_root) {
 
   if (!parse_source(job, "/function-definition.c", function_text,
                     &function_unit) ||
-      function_unit.function_definition_count != 10u) {
+      function_unit.function_definition_count != 13u ||
+      function_unit.object_definition_count == 0u ||
+      function_unit.block_binding_count == 0u ||
+      !take_unit_snapshot(&function_unit, &function_snapshot)) {
     (void)fprintf(stderr, "function object fixture differs\n");
+    goto cleanup;
+  }
+  free(invalid_initializers);
+  invalid_initializers = NULL;
+  invalid_block_bindings = (ctool_c_block_binding_t *)malloc(
+      (size_t)function_unit.block_binding_count *
+      sizeof(*invalid_block_bindings));
+  if (invalid_block_bindings == NULL ||
+      function_unit.block_binding_count < 2u ||
+      function_unit.block_bindings[0].initializer == CTOOL_C_AST_NONE ||
+      function_unit.block_bindings[1].initializer == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, function_unit.block_bindings,
+               (size_t)function_unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  invalid_block_bindings[1].initializer =
+      invalid_block_bindings[0].initializer;
+  invalid_unit = function_unit;
+  invalid_unit.block_bindings = invalid_block_bindings;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "duplicate local initializer owner") ||
+      unit_snapshot_matches(&function_snapshot, &function_unit) == 0) {
+    goto cleanup;
+  }
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)function_unit.initializer_count *
+      sizeof(*invalid_initializers));
+  if (invalid_initializers == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, function_unit.initializers,
+               (size_t)function_unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  initializer_index = function_unit.object_definitions[0].initializer;
+  definition_index = function_unit.block_bindings[0].initializer;
+  if (initializer_index >= function_unit.initializer_count ||
+      definition_index >= function_unit.initializer_count ||
+      function_unit.initializers[definition_index].kind !=
+          CTOOL_C_INITIALIZER_EXPRESSION) {
+    goto cleanup;
+  }
+  invalid_initializers[definition_index].first_element = 0u;
+  invalid_initializers[definition_index].element_count = 1u;
+  invalid_unit = function_unit;
+  invalid_unit.initializers = invalid_initializers;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid expression initializer payload") ||
+      unit_snapshot_matches(&function_snapshot, &function_unit) == 0) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, function_unit.initializers,
+               (size_t)function_unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  for (definition_index = 0u;
+       definition_index < function_unit.block_binding_count;
+       definition_index++) {
+    ctool_u32 candidate =
+        function_unit.block_bindings[definition_index].initializer;
+    if (candidate < function_unit.initializer_count &&
+        function_unit.initializers[candidate].kind ==
+            CTOOL_C_INITIALIZER_EXPRESSION &&
+        function_unit.initializers[candidate].type ==
+            invalid_initializers[initializer_index].type) {
+      break;
+    }
+  }
+  if (definition_index == function_unit.block_binding_count) {
+    (void)fprintf(stderr,
+                  "matching runtime initializer fixture is absent\n");
+    goto cleanup;
+  }
+  definition_index =
+      function_unit.block_bindings[definition_index].initializer;
+  invalid_initializers[initializer_index].kind =
+      CTOOL_C_INITIALIZER_EXPRESSION;
+  invalid_initializers[initializer_index].expression =
+      function_unit.initializers[definition_index].expression;
+  invalid_initializers[initializer_index].integer_bits = 0u;
+  invalid_initializers[initializer_index].string_bytes.data =
+      (const ctool_u8 *)0;
+  invalid_initializers[initializer_index].string_bytes.size = 0u;
+  invalid_initializers[initializer_index].address_kind =
+      CTOOL_C_INITIALIZER_ADDRESS_NONE;
+  invalid_initializers[initializer_index].address_reference =
+      CTOOL_C_AST_NONE;
+  invalid_initializers[initializer_index].address_addend = 0;
+  invalid_initializers[initializer_index].first_element =
+      CTOOL_C_AST_NONE;
+  invalid_initializers[initializer_index].element_count = 0u;
+  invalid_unit = function_unit;
+  invalid_unit.initializers = invalid_initializers;
+  if (!expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_INITIALIZER,
+          "CupidC object emission requires static initializer values",
+          "static runtime initializer boundary") ||
+      unit_snapshot_matches(&function_snapshot, &function_unit) == 0) {
     goto cleanup;
   }
   diagnostic_count = ctool_job_diagnostic_count(job);
@@ -1508,7 +1905,8 @@ static int run_static_data(const char *host_root) {
       bytes.size == 0u ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
       ctool_job_diagnostic_count(job) != diagnostic_count ||
-      unit_snapshot_matches(&snapshot, &unit) == 0) {
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      unit_snapshot_matches(&function_snapshot, &function_unit) == 0) {
     (void)fprintf(stderr, "first function emission differs\n");
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
@@ -1531,7 +1929,8 @@ static int run_static_data(const char *host_root) {
       bytes.size != function_object_size ||
       memcmp(bytes.data, function_object, (size_t)bytes.size) != 0 ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
-      ctool_job_diagnostic_count(job) != diagnostic_count) {
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&function_snapshot, &function_unit) == 0) {
     (void)fprintf(stderr, "function emission is not deterministic\n");
     goto cleanup;
   }
@@ -1670,8 +2069,8 @@ static int run_static_data(const char *host_root) {
   invalid_unit.initializers = invalid_layout_initializers;
   if (!expect_object_failure(
           job, &invalid_unit, second, CTOOL_ERR_INPUT,
-          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
-          "CupidC object emission received an invalid translation unit",
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
           "invalid initializer list slice") ||
       unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
     goto cleanup;
@@ -1710,8 +2109,8 @@ static int run_static_data(const char *host_root) {
   invalid_unit.initializer_elements = invalid_elements;
   if (!expect_object_failure(
           job, &invalid_unit, second, CTOOL_ERR_INPUT,
-          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
-          "CupidC object emission received an invalid translation unit",
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
           "invalid initializer child") ||
       unit_snapshot_matches(&layout_snapshot, &layout_unit) == 0) {
     goto cleanup;
@@ -1832,11 +2231,13 @@ cleanup:
   free(invalid_elements);
   free(invalid_layout_initializers);
   free(invalid_bindings);
+  free(invalid_block_bindings);
   free(invalid_initializers);
   free(invalid_definitions);
   free(expected_object);
   free(function_object);
   dispose_unit_snapshot(&layout_snapshot);
+  dispose_unit_snapshot(&function_snapshot);
   dispose_unit_snapshot(&snapshot);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);

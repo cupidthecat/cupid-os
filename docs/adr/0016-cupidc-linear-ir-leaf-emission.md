@@ -30,10 +30,12 @@ The object contract emits static data and represented functions in one object. I
 
 This transfers no production build ownership. GCC or Clang still builds the hosted modules and contracts, and the private in-kernel CupidC frontend and backend still produce every normal OS C object. No OS artifact or runtime ABI changed, so this increment has no boot claim.
 
-External-inline finalization, explicit casts, calls and `R_386_PC32`, local objects and stack allocation, assignments, general blocks and control statements, labels, pointers, 64-bit integers, floating and aggregate values, broader ABI work, production integration, and self-hosting remain open. Issue #25 stays open until those parts can carry unchanged active Toolchain functions and then normal OS C cohorts.
+This first decision left external-inline finalization, explicit casts, calls and `R_386_PC32`, local objects and stack allocation, assignments, general blocks and control statements, labels, pointers, 64-bit integers, floating and aggregate values, broader ABI work, production integration, and self-hosting open. Later extensions close only the parts they name. Issue #25 stays open until the remaining work can carry unchanged active Toolchain functions and then normal OS C cohorts.
 
 ## Extension
 
 ADR 0017 extends this interface with fixed direct calls, source-order argument evaluation, cdecl stack-slot placement, and local or external `R_386_PC32` relocations. The open call work above records the boundary when this first leaf decision was made. Indirect and variadic calls, 16-byte call-site alignment, and wider, floating, or aggregate call forms remain open.
 
 The active `add2` function later extended the existing `BINARY` instruction and emitter path with 32-bit integer addition. No public record changed. The emitter pops the right operand into ECX and the left operand into EAX, emits `ADD EAX, ECX` through the shared x86 encoder, and pushes the result for the following return. Multiplication remains a tested unsupported boundary.
+
+ADR 0018 adds absolute block-binding identities, automatic-local addresses, initializer stores, and deterministic fixed EBP slots. It does not make the wider statement, assignment, pointer, or ABI surface complete.
