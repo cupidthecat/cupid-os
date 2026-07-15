@@ -23,7 +23,9 @@ ctool_status_t ctool_c_emit_object(
  * object. A failure after argument validation restores the output, rewinds
  * allocations made during the operation, and retains a structured
  * diagnostic. The emitter lowers represented functions, including fixed
- * local frames, through CupidC linear IR and the shared x86 model, then
- * writes them beside static definitions in the same object. */
+ * local frames and linked 32-bit file-object loads, through CupidC linear IR
+ * and the shared x86 model. Direct object addresses use text `R_386_32`
+ * relocations, while direct calls use `R_386_PC32`. The emitter writes those
+ * functions beside static definitions in the same object. */
 
 #endif

@@ -12869,7 +12869,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.break",
-      "occurrences": 1656
+      "occurrences": 1658
     },
     {
       "category": "control",
@@ -13552,7 +13552,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 3387
+      "occurrences": 3388
     },
     {
       "category": "control",
@@ -13816,7 +13816,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 2921
+      "occurrences": 2923
     },
     {
       "category": "control",
@@ -13864,7 +13864,7 @@
         "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.goto",
-      "occurrences": 555
+      "occurrences": 570
     },
     {
       "category": "control",
@@ -14249,7 +14249,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 23541
+      "occurrences": 23582
     },
     {
       "category": "control",
@@ -14604,7 +14604,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 14330
+      "occurrences": 14357
     },
     {
       "category": "control",
@@ -15225,7 +15225,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 860
+      "occurrences": 873
     },
     {
       "category": "declarator",
@@ -15485,7 +15485,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 2159
+      "occurrences": 2181
     },
     {
       "category": "extension",
@@ -18666,7 +18666,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 7204
+      "occurrences": 7243
     },
     {
       "category": "qualifier",
@@ -19174,7 +19174,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 5088
+      "occurrences": 5106
     },
     {
       "category": "type",
@@ -19566,7 +19566,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 6338
+      "occurrences": 6345
     },
     {
       "category": "type",
@@ -20273,7 +20273,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 18719
+      "occurrences": 18722
     },
     {
       "category": "type",
@@ -21695,7 +21695,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 9428
+      "occurrences": 9450
     },
     {
       "category": "declaration",
@@ -22306,7 +22306,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "046e1bfe672b1e4d76c7418ed895ec0b223aeee74ab547b5b7ed3c8e81e3f83f",
+    "active_source_digest": "9b650457dc9497e12e7049c70e43b3a9eb4d01ec29d7041f66dbf30b19e4d087",
     "control_files": [
       {
         "path": "Makefile",
@@ -45301,12 +45301,12 @@
         "toolchain/x86.h"
       ],
       "language": "c",
-      "lines": 2061,
+      "lines": 2138,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "51eff01b6dc55ba84d2e64dffb00cb9398963e34f72a76904b374e1187746968"
+      "sha256": "ab6fd57c55852988e5eb80554c2ef4b5bb9da618d67b7753eaa7046f4c2ad90e"
     },
     {
       "build_owners": [
@@ -45329,12 +45329,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c_header",
-      "lines": 29,
+      "lines": 31,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "1160a99862cf728b28d36ddc40a979b534a49674663acf1c8f7219ae6dd3088d"
+      "sha256": "dab6da93e40f42506e55eb8e838ecad0939c381d698f81dae2054d330a7ab83b"
     },
     {
       "build_owners": [
@@ -45441,12 +45441,12 @@
         "toolchain/cupidc_ir.h"
       ],
       "language": "c",
-      "lines": 1368,
+      "lines": 1421,
       "origin": "tracked",
       "path": "toolchain/cupidc_ir.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "9472d0159fe54a13a6857c5e55dd5a85895c86a3466e6caeeaaa57846e8ce7f9"
+      "sha256": "62f66e2a32193abeb655f49fa2930b21eb90215c0aec209ff22d76638fd9f2b2"
     },
     {
       "build_owners": [
@@ -45470,12 +45470,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c_header",
-      "lines": 91,
+      "lines": 93,
       "origin": "tracked",
       "path": "toolchain/cupidc_ir.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "079f4c30c737bf832215e13d50b17d3e8c12228a94d58b193be8f7ef9f837483"
+      "sha256": "8dfed134b55482e0fa93969bfd68a4acb9ee0e019bf16949ba155a8d6955d9d4"
     },
     {
       "build_owners": [
@@ -46267,7 +46267,7 @@
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "1e090d603dc2e25e6f0467c1b6637afb2c69329cb60d528214ab18d9a4144269"
+      "sha256": "2e276ebd722c2fd5038e6dbb52be0e322aa0b047221edbe25fb024df1ab13721"
     },
     {
       "build_owners": [
@@ -46303,12 +46303,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 1802,
+      "lines": 2095,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_ir_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "439fca624b1c03ef0e8578e7dba484b96019d5219415d4db4427f31f9bea5424"
+      "sha256": "e76d189ea3d99af89be439600c6fb8486026724390952361b252f260e5847c3b"
     },
     {
       "build_owners": [
@@ -46350,12 +46350,12 @@
         "toolchain/x86.h"
       ],
       "language": "c",
-      "lines": 2268,
+      "lines": 2496,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "335cf83df3b27db9b5b377768085a94f68b3fb2bad1a980df7ccc43827d967e2"
+      "sha256": "f0ba1d11b32db02696a96175c48f637754924ce8be3fbe817d8b665938a6f013"
     },
     {
       "build_owners": [

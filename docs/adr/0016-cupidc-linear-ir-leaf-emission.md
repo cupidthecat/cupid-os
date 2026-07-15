@@ -39,3 +39,5 @@ ADR 0017 extends this interface with fixed direct calls, source-order argument e
 The active `add2` function later extended the existing `BINARY` instruction and emitter path with 32-bit integer addition. No public record changed. The emitter pops the right operand into ECX and the left operand into EAX, emits `ADD EAX, ECX` through the shared x86 encoder, and pushes the result for the following return. Multiplication remains a tested unsupported boundary.
 
 ADR 0018 adds absolute block-binding identities, automatic-local addresses, initializer stores, and deterministic fixed EBP slots. It does not make the wider statement, assignment, pointer, or ABI surface complete.
+
+ADR 0019 adds absolute linked file-binding identities through `FILE_ADDRESS`, reuses `LOAD` for four-byte integer objects, and extends `BINARY` with signed or unsigned greater-than-or-equal. The emitter maps direct object addresses to text `R_386_32` relocations without exposing x86 or ELF details in the IR.

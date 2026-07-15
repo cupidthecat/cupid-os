@@ -430,7 +430,8 @@ static ctool_status_t cir_lower_binary(
   }
   if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
-      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER) {
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL) {
     return cir_unsupported_expression(context, &expression->location);
   }
   status = cir_append_instruction(
@@ -671,6 +672,58 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     }
     status = cir_append_instruction(
         context, CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, expression->type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, expression->reference, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_push(context, CIR_STACK_ADDRESS, expression->type);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
+    const ctool_c_binding_t *binding;
+    ctool_u32 definition;
+    if (expression->child_count != 0u ||
+        expression->first_child != CTOOL_C_AST_NONE ||
+        expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        expression->conversion != CTOOL_C_CONVERSION_NONE ||
+        expression->computation_type != CTOOL_C_TYPE_NONE ||
+        expression->reference >= context->unit->binding_count) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    binding = &context->unit->bindings[expression->reference];
+    if (binding->type != expression->type ||
+        expression->type >= context->unit->graph.type_count) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (binding->kind == CTOOL_C_BINDING_FUNCTION ||
+        binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      return cir_unsupported_expression(context, &expression->location);
+    }
+    if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+        (binding->linkage != CTOOL_C_LINKAGE_INTERNAL &&
+         binding->linkage != CTOOL_C_LINKAGE_EXTERNAL)) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (binding->linkage == CTOOL_C_LINKAGE_INTERNAL) {
+      for (definition = 0u;
+           definition < context->unit->object_definition_count;
+           definition++) {
+        if (context->unit->object_definitions[definition].binding ==
+            expression->reference) {
+          break;
+        }
+      }
+      if (definition == context->unit->object_definition_count) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+    }
+    if (cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+      return cir_unsupported_type(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, expression->type,
         CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
         CTOOL_C_CONVERSION_NONE, expression->reference, 0u,
         &expression->location, &expression->physical_location,

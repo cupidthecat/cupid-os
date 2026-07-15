@@ -2780,3 +2780,69 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still builds every normal OS C object. No kernel object, disk image, boot path, runtime behavior, production source cohort, ABI owner, or host dependency changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. File-object loads, greater-than-or-equal and other expressions, source assignments, nested blocks and general statements, other local types and storage durations, call-site alignment, broader ABI work, production integration, and staged self-hosting remain there. No issue is ready to close from this increment.
+
+## 2026-07-14: CupidC lowers linked file-object loads
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers and emits the complete unchanged `vga_flip_ready` function from `drivers/vga.c`:
+
+```c
+static uint32_t last_flip_ms = 0;
+
+bool vga_flip_ready(void) {
+    uint32_t now = timer_get_uptime_ms();
+    return (now - last_flip_ms) >= 16u;
+}
+```
+
+The frontend already preserved the correct object binding, lvalue conversion, unsigned arithmetic, and conversion to `bool`. Linear IR stopped at the file-scope identifier and did not accept greater-than-or-equal. The public IR now uses `FILE_ADDRESS` for the absolute frontend file-binding identity. It pushes the linked object's address, and the existing `LOAD` instruction consumes that address to produce the value. Machine addresses and relocation details remain private to the target emitter.
+
+This slice accepts internal-linkage and external-linkage file objects whose represented value is a four-byte integer. An internal reference must have a definition in the frozen unit. An unresolved external object remains valid. Identifier payloads, binding kind, binding type, linkage, and reference bounds are checked before lowering. Narrow, wide, pointer, floating, and aggregate values remain explicit unsupported-type boundaries. Function and enumerator identifiers remain unsupported expressions at this seam.
+
+The existing typed `BINARY` instruction also accepts greater-than-or-equal for represented 32-bit integers. Signed inputs emit `SETGE`; unsigned inputs emit `SETAE`. The comparison still produces the frontend's target `int`, and the existing conversion instruction handles the result's conversion to `bool`.
+
+The object emitter encodes an object address as `PUSH imm32` through the shared x86 encoder. Its four-byte absolute field receives a `.rel.text` `R_386_32` relocation against the direct object symbol with addend zero. Calls keep `R_386_PC32` with addend `-4`. Symbol discovery and relocation-capacity counting share one instruction classifier, so both passes recognize the same relocatable IR kinds.
+
+Hard-coding a link address was rejected because an `ET_REL` object does not know that address. Replacing the direct binding with a section-symbol reference would have discarded stable frontend identity. Adding x86 relocation fields to public IR would have crossed the target boundary. Rewriting `vga_flip_ready` to avoid `last_flip_ms` or `>=` would have weakened active source to fit the compiler, which is outside the bootstrap policy.
+
+No user question was needed. The frontend binding model, ADR 0016's address/value distinction, and the shared x86 and ELF32 seams already fixed the relevant design constraints. ADR 0019 records the new instruction contract, relocation form, supported boundary, and ownership status.
+
+### Red-to-green sequence and review corrections
+
+- The first public IR contract did not compile because `FILE_ADDRESS` did not exist. After adding the instruction identity, the unchanged VGA body stopped at unsupported greater-than-or-equal. The first object contract then stopped because the emitter did not recognize the address instruction. These failures located the missing work before the implementation changed.
+- The completed IR fixture pins the whole function instead of a source rewrite. It verifies a 12-instruction stream and a maximum abstract-stack depth of two. The stream contains the automatic initializer call and store, the local load, `FILE_ADDRESS` plus `LOAD` for `last_flip_ms`, subtraction, the unsigned constant 16, greater-than-or-equal, conversion to `bool`, and return.
+- The active-source guard pins the `last_flip_ms` definition, the contiguous function body, and the exact `bool` typedef from `kernel/core/types.h`. It accepts LF or CRLF checkout bytes without relaxing the source text.
+- A standalone unresolved `external_clock` contract has no static initializer and no call. Its one object relocation proves that file-address capacity does not depend on another relocation source or an in-unit definition.
+- Review found that malformed identifier payloads and unresolved internal bindings needed direct negative coverage. Both now fail with the invalid-unit diagnostic. The IR fixture also checks slice bounds before it examines individual instructions.
+- Review also asked for a useful boundary around the new comparison operation. A `long long` greater-than-or-equal expression reaches the documented unsupported-type diagnostic, while separate signed and unsigned 32-bit fixtures pin `SETGE` and `SETAE`.
+- The first implementation repeated the call-or-object relocation decision in symbol discovery and capacity counting. One shared predicate now owns that classification. This removes a small drift risk without changing the public IR or object format.
+- A wording pass separated unsupported function and enumerator expressions from malformed object references. This keeps the documented semantic boundary consistent with the diagnostics.
+
+### Exact object and audit evidence
+
+The active VGA function emits 61 bytes and begins at `.text` offset 460 in the mixed fixture. Its call relocation field is at offset 471 with `R_386_PC32` and addend `-4`. The `last_flip_ms` field is at offset 489 with `R_386_32` and addend zero. `last_flip_ms` remains a four-byte local `STT_OBJECT` in `.bss`. The complete mixed object has 575 text bytes, 10 relocations, 25 symbols, and 16 functions.
+
+The standalone external-object function emits 15 bytes, one global undefined `STT_OBJECT`, and one `R_386_32` relocation with addend zero. The signed comparison fixture emits 39 bytes and decodes `SETGE`; the VGA fixture decodes unsigned `SETAE`. Negative cases cover out-of-range and mismatched references, malformed identifier payloads, unresolved internal objects, narrow object values, enumerators, and wide comparisons. Repeated object emission remains byte-identical.
+
+The regenerated audit still records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. The lexical inventory contains 604 direct designated initializers across 15 files, 570 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,490 `while`, 23,582 `if`, 3,388 `else`, 2,923 `for`, 14,357 `return`, and 2,181 `sizeof` occurrences. The active-source digest is `9b650457dc9497e12e7049c70e43b3a9eb4d01ec29d7041f66dbf30b19e4d087`.
+
+The hosted source gates publish 34 definitions, 857 statements, 7,473 expressions, 96 block bindings, and 28 initializers for `cupidc_ir.c`. The emitter publishes 60 definitions, 1,363 statements, 10,757 expressions, 190 block bindings, and 85 initializers.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | The contracts first failed at the missing public instruction, then at unsupported greater-than-or-equal, then at unknown object-address emission. |
+| Focused CupidC contracts | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 17.546 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes all 130 selector invocations in 11.295 seconds, including the group that checks all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the frontend `aggregate-values`, IR `active-leaf`, and object `static-data` selectors. Builds take 14.62 and 13.03 seconds respectively. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass the same selectors with address and undefined-behavior sanitizers, integrated leak detection, and halt-on-error settings. No finding is reported. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` is clean across the two implementation files and three affected contracts in 49.19 seconds. Clang 18.1 analyzes the same files without a diagnostic in 67.72 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. Final-tree `make check-bootstrap-audit` reproduces them in 33.863 seconds. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 510.832 seconds with one expected skip and returns from Make in 547.585 seconds. |
+| Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+Three cross-host harness mistakes were excluded from evidence: one shell-quoting error, one missing temporary analyzer directory, and one symbol probe that combined `grep -q` with `pipefail` and produced a false negative. Corrected fresh runs produced the results above. None was a compiler or product failure.
+
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, source cohort, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Source assignments to file objects, member and subscript loads, pointer values, other widths and aggregates, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

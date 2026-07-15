@@ -43,3 +43,5 @@ CupidC owns these static object bytes. Code generation and the production build 
 ## Extension
 
 ADR 0016 extends the object boundary without replacing this static-data policy. `ctool_c_emit_object` now accepts its represented 32-bit leaf-function subset, emits executable `.text`, and defines source-ordered `STT_FUNC` symbols. This ADR still governs static section placement, initializer bytes, and `R_386_32` relocations.
+
+ADR 0019 reuses the same direct object-symbol policy for linked four-byte file-object addresses in `.text`. Those instruction fields carry `R_386_32` relocations with addend zero. Static initializer addresses and their checked nonzero addends remain governed by this ADR.
