@@ -14,6 +14,12 @@ static const char active_helper[] =
     "  return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_power_of_two[] =
+    "static ctool_bool cemit_power_of_two(ctool_u32 value) {\n"
+    "  return value != 0u && (value & (value - 1u)) == 0u ? CTOOL_TRUE\n"
+    "                                                     : CTOOL_FALSE;\n"
+    "}\n";
+
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
@@ -232,8 +238,10 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active emitter source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data, active_helper) == NULL) {
-    (void)fprintf(stderr, "the active overflow helper changed\n");
+      strstr((const char *)source.contents.data, active_helper) == NULL ||
+      strstr((const char *)source.contents.data, active_power_of_two) ==
+          NULL) {
+    (void)fprintf(stderr, "an active emitter helper changed\n");
     return 0;
   }
   path.text = ctool_string("/kernel/core/syscall.c");
@@ -384,6 +392,22 @@ static char *make_active_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_helper,
                  sizeof(active_helper));
+  }
+  return text;
+}
+
+static char *make_logic_fixture(void) {
+  static const char prefix[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef int ctool_bool;\n"
+      "#define CTOOL_FALSE 0\n"
+      "#define CTOOL_TRUE 1\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_power_of_two);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    (void)memcpy(text, prefix, sizeof(prefix) - 1u);
+    (void)memcpy(text + sizeof(prefix) - 1u, active_power_of_two,
+                 sizeof(active_power_of_two));
   }
   return text;
 }
@@ -644,6 +668,167 @@ static int validate_active_ir(const ctool_c_translation_unit_t *unit,
     if (instructions[index].location.line == 0u ||
         instructions[index].physical_location.line == 0u) {
       (void)fprintf(stderr, "active IR lost source locations\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int logic_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_u32 reference, ctool_u64 integer_bits) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == integer_bits &&
+                 string_equal(instruction->location.path,
+                              "/active-cemit-power-of-two.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/active-cemit-power-of-two.c") != 0
+             ? 1
+             : 0;
+}
+
+static int validate_logic_ir(const ctool_c_translation_unit_t *unit,
+                             const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 parameter;
+  ctool_u32 unsigned_type;
+  ctool_u32 result_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instruction_count != 23u ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "logic IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "logic function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  unsigned_type = unit->parameters[parameter].type;
+  result_type = function_type->referenced_type;
+  function = &ir->functions[0];
+  instructions = ir->instructions + function->first_instruction;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 23u ||
+      function->maximum_stack_depth != 3u ||
+      !logic_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, parameter, 0u) ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != unsigned_type ||
+      instructions[1].input_type != unsigned_type ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      !logic_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_INTEGER, unsigned_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_BINARY, result_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
+          CTOOL_C_TYPE_NONE, result_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          17u, 0u) ||
+      !logic_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, parameter, 0u) ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[6].type != unsigned_type ||
+      instructions[6].input_type != unsigned_type ||
+      instructions[6].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      !logic_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, parameter, 0u) ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[8].type != unsigned_type ||
+      instructions[8].input_type != unsigned_type ||
+      instructions[8].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      !logic_instruction_matches(
+          &instructions[9], CTOOL_C_IR_INSTRUCTION_INTEGER, unsigned_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 1u) ||
+      !logic_instruction_matches(
+          &instructions[10], CTOOL_C_IR_INSTRUCTION_BINARY, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[11], CTOOL_C_IR_INSTRUCTION_BINARY, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[12], CTOOL_C_IR_INSTRUCTION_INTEGER, unsigned_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[13], CTOOL_C_IR_INSTRUCTION_BINARY, result_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[14], CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
+          CTOOL_C_TYPE_NONE, result_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          17u, 0u) ||
+      !logic_instruction_matches(
+          &instructions[15], CTOOL_C_IR_INSTRUCTION_INTEGER, result_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 1u) ||
+      !logic_instruction_matches(
+          &instructions[16], CTOOL_C_IR_INSTRUCTION_JUMP,
+          CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, 18u, 0u) ||
+      !logic_instruction_matches(
+          &instructions[17], CTOOL_C_IR_INSTRUCTION_INTEGER, result_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[18], CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
+          CTOOL_C_TYPE_NONE, result_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          21u, 0u) ||
+      !logic_instruction_matches(
+          &instructions[19], CTOOL_C_IR_INSTRUCTION_INTEGER, result_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 1u) ||
+      !logic_instruction_matches(
+          &instructions[20], CTOOL_C_IR_INSTRUCTION_JUMP,
+          CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, 22u, 0u) ||
+      !logic_instruction_matches(
+          &instructions[21], CTOOL_C_IR_INSTRUCTION_INTEGER, result_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 0u) ||
+      !logic_instruction_matches(
+          &instructions[22], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          result_type, result_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "logic IR instruction stream differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    if (instructions[index].location.line == 0u ||
+        instructions[index].physical_location.line == 0u) {
+      (void)fprintf(stderr, "logic IR lost source locations\n");
       return 0;
     }
   }
@@ -2071,6 +2256,10 @@ static int run_active_leaf(const char *host_root) {
       "int call_wide(void) { return wide_target(1); }\n";
   static const char wide_comparison_source[] =
       "int wide_greater_equal(void) { return 1LL >= 0LL; }\n";
+  static const char logical_or_source[] =
+      "int unsupported_logic(int left, int right) {\n"
+      "  return left || right;\n"
+      "}\n";
   static const char wide_multiplication_source[] =
       "int wide_multiply(void) { return 2LL * 3LL; }\n";
   static const char variadic_call_source[] =
@@ -2134,6 +2323,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_job_t *limited_job = NULL;
   ctool_c_translation_unit_t active_unit;
+  ctool_c_translation_unit_t logic_unit;
   ctool_c_translation_unit_t addition_unit;
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
@@ -2162,6 +2352,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t indirect_call_unit;
   ctool_c_translation_unit_t wide_call_unit;
   ctool_c_translation_unit_t wide_comparison_unit;
+  ctool_c_translation_unit_t logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
   ctool_c_translation_unit_t variadic_call_unit;
   ctool_c_translation_unit_t value_statement_unit;
@@ -2201,11 +2392,13 @@ static int run_active_leaf(const char *host_root) {
   ctool_u32 file_binding;
   uint64_t fingerprint;
   char *fixture = NULL;
+  char *logic_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 index;
   int passed = 0;
 
   (void)memset(&active_unit, 0, sizeof(active_unit));
+  (void)memset(&logic_unit, 0, sizeof(logic_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -2242,6 +2435,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-cemit-add-overflows.c", fixture,
                     &active_unit)) {
     (void)fprintf(stderr, "active helper setup failed\n");
+    goto cleanup;
+  }
+  logic_fixture = make_logic_fixture();
+  if (logic_fixture == NULL ||
+      !parse_source(job, "/active-cemit-power-of-two.c", logic_fixture,
+                    &logic_unit)) {
+    (void)fprintf(stderr, "active logic helper setup failed\n");
     goto cleanup;
   }
 
@@ -2939,6 +3139,17 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&logic_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &logic_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active logic helper lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&logic_unit) != fingerprint ||
+      !validate_logic_ir(&logic_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
 
   if (!parse_source(job, "/simple-leaves.c", simple_source, &simple_unit)) {
     goto cleanup;
@@ -3240,6 +3451,15 @@ static int run_active_leaf(const char *host_root) {
           "wide greater-than-or-equal expression")) {
     goto cleanup;
   }
+  if (!parse_source(job, "/logical-or.c", logical_or_source,
+                    &logical_or_unit) ||
+      !expect_ir_failure(
+          job, &logical_or_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "logical-or boundary")) {
+    goto cleanup;
+  }
   if (!parse_source(job, "/wide-multiplication.c",
                     wide_multiplication_source,
                     &wide_multiplication_unit) ||
@@ -3343,6 +3563,7 @@ cleanup:
     ctool_job_close(job);
   }
   free(fixture);
+  free(logic_fixture);
   free(call_fixture);
   free(invalid_statements);
   free(invalid_initializers);

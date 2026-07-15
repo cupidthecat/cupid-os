@@ -1054,7 +1054,28 @@ static int validate_function_object(ctool_job_t *job,
       0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
       0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9du, 0xc0u,
       0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 power_of_two_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
+      0x95u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x48u, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x59u,
+      0x58u, 0x21u, 0xc8u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u32 helper_branch_targets[] = {65u, 70u};
+  static const ctool_u32 power_of_two_branch_targets[] = {
+      111u, 111u, 116u, 135u, 140u};
   static const ctool_x86_mnemonic_t implemented_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
@@ -1173,6 +1194,27 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
       CTOOL_X86_MN_SETG,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t power_of_two_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETNE,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_AND,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETE,  CTOOL_X86_MN_MOVZX,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *data = find_section(object, ".data");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
@@ -1205,6 +1247,8 @@ static int validate_function_object(ctool_job_t *job,
       find_symbol(object, "read_external_clock");
   const ctool_elf32_symbol_t *signed_greater_equal =
       find_symbol(object, "signed_greater_equal");
+  const ctool_elf32_symbol_t *power_of_two =
+      find_symbol(object, "cemit_power_of_two");
   const ctool_elf32_symbol_t *external_sum =
       find_symbol(object, "external_sum");
   const ctool_elf32_symbol_t *external_three =
@@ -1230,7 +1274,7 @@ static int validate_function_object(ctool_job_t *job,
       text->alignment != 1u || text->contents.size == 0u ||
       rel_text == NULL || text->relocation_first != 0u ||
       text->relocation_count != 10u || object->relocation_count != 10u ||
-      object->symbol_count != 25u ||
+      object->symbol_count != 26u ||
       data == NULL || data->contents.size != 4u ||
       bss == NULL || bss->type != CTOOL_ELF32_SHT_NOBITS ||
       bss->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
@@ -1241,6 +1285,7 @@ static int validate_function_object(ctool_job_t *job,
       add2 == NULL || local_round_trip == NULL || local_call == NULL ||
       uninitialized_local == NULL || vga_flip_ready == NULL ||
       read_external_clock == NULL || signed_greater_equal == NULL ||
+      power_of_two == NULL ||
       external_sum == NULL || external_three == NULL ||
       external_sink == NULL || timer_get_uptime_ms == NULL ||
       initializer_sum == NULL ||
@@ -1319,6 +1364,10 @@ static int validate_function_object(ctool_job_t *job,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 536u,
                       39u) ||
+      !symbol_matches(power_of_two, power_of_two->file_index,
+                      CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 575u,
+                      (ctool_u32)sizeof(power_of_two_bytes)) ||
       !symbol_matches(external_sum, external_sum->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
@@ -1354,7 +1403,7 @@ static int validate_function_object(ctool_job_t *job,
       data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
       implemented->size == 0u || helper->size == 0u ||
       signed_greater->size == 0u || idle->size == 0u ||
-      text->contents.size != 575u ||
+      text->contents.size != 718u ||
       object->relocations[0].relocation_section_file_index !=
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
@@ -1626,7 +1675,17 @@ static int validate_function_object(ctool_job_t *job,
                        signed_greater_equal_bytes,
                        (ctool_u32)sizeof(signed_greater_equal_bytes),
                        (const ctool_u32 *)0, 0u,
-                       "signed_greater_equal")
+                       "signed_greater_equal") &&
+                   decode_function(
+                       job, text, power_of_two, power_of_two_instructions,
+                       (ctool_u32)(sizeof(power_of_two_instructions) /
+                                   sizeof(power_of_two_instructions[0])),
+                       power_of_two_bytes,
+                       (ctool_u32)sizeof(power_of_two_bytes),
+                       power_of_two_branch_targets,
+                       (ctool_u32)(sizeof(power_of_two_branch_targets) /
+                                   sizeof(power_of_two_branch_targets[0])),
+                       "cemit_power_of_two")
              ? 1
              : 0;
 }
@@ -2044,6 +2103,10 @@ static int run_static_data(const char *host_root) {
       "uint32_t read_external_clock(void) { return external_clock; }\n"
       "int signed_greater_equal(int left, int right) {\n"
       "  return left >= right;\n"
+      "}\n"
+      "static ctool_bool cemit_power_of_two(ctool_u32 value) {\n"
+      "  return value != 0u && (value & (value - 1u)) == 0u ? CTOOL_TRUE\n"
+      "                                                     : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
       "int unsupported(int value) { return value / 1; }\n";
@@ -2553,7 +2616,7 @@ static int run_static_data(const char *host_root) {
 
   if (!parse_source(job, "/function-definition.c", function_text,
                     &function_unit) ||
-      function_unit.function_definition_count != 16u ||
+      function_unit.function_definition_count != 17u ||
       function_unit.object_definition_count == 0u ||
       function_unit.block_binding_count == 0u ||
       !take_unit_snapshot(&function_unit, &function_snapshot)) {

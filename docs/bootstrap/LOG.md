@@ -3073,3 +3073,61 @@ This increment transfers no production ownership and retires no host dependency.
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Bit-field writes and non-four-byte storage units, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, floating and aggregate values, nested and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC lowers short-circuit integer logic
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers the unchanged `cemit_power_of_two` helper from `toolchain/cupidc_emit.c`:
+
+```c
+static ctool_bool cemit_power_of_two(ctool_u32 value) {
+  return value != 0u && (value & (value - 1u)) == 0u ? CTOOL_TRUE
+                                                     : CTOOL_FALSE;
+}
+```
+
+This function is part of CupidC's own emitter, so the missing operators blocked the compiler from compiling more of itself. The source stays unchanged. Existing `BINARY` IR now carries equality, inequality, and bitwise AND over represented four-byte integers. The i386 emitter maps them to `CMP` with `SETE` or `SETNE`, and to `AND EAX, ECX`.
+
+Logical AND uses control flow rather than eager binary evaluation. Lowering evaluates the left operand first and branches to a shared false block when it is zero. The right operand is only reached from the nonzero path and has its own zero branch. The true path pushes one, the false path pushes zero, and both paths join with one normalized integer value on the abstract stack.
+
+An eager `BINARY` form for logical AND was rejected because it would run the right operand even when the left operand was false. Constant folding the helper was not applicable because its input is a runtime parameter. Logical OR was left out because this active helper does not need it; a focused negative keeps that boundary explicit.
+
+No user question was needed. The typed frontend graph and ADR 0016 branch model already fixed the sequencing and result representation. ADR 0023 records the extension and its remaining limits.
+
+### Contract evidence
+
+- The first focused IR run failed at the existing unsupported-expression diagnostic for `&&`. That red result confirmed that the test reached the missing lowering path.
+- The source guard pins the complete unchanged helper. Its function lowers to exactly 23 IR instructions with a maximum abstract-stack depth of three. Both logical operand tests branch to instruction 17, while the surrounding conditional expression branches to instruction 21 and joins at instruction 22.
+- The exact function is 143 bytes. Shared x86 decoding checks all 58 instructions and relative targets 111, 111, 116, 135, and 140. The stream includes `SETNE`, `AND`, `SETE`, three `TEST` instructions, three `JE` instructions, and two `JMP` instructions.
+- Appending the local helper grows the combined function object's text from 575 to 718 bytes and its symbol count from 25 to 26. The ten existing relocations keep their offsets because the helper follows every relocation-bearing function.
+- A valid logical OR function receives the unsupported-expression diagnostic. The failure publishes no IR and rewinds the operation's arena allocations. The later same-job recovery check still lowers the active overflow helper successfully.
+- The first complete Toolchain run stopped on stale self-parse totals. CupidC measured the changed sources as 44 definitions, 1,184 statements, 10,540 expressions, 137 block bindings, and 35 initializers for `cupidc_ir.c`; and 64 definitions, 1,477 statements, 12,259 expressions, 198 block bindings, and 89 initializers for `cupidc_emit.c`. Updating those exact oracles made the source gate green.
+
+### Failed verification wrapper
+
+The first author-guard checks invoked the installed script through WSL Bash, first with a Windows path and then with a Git Bash path. Both shells reported that the script was absent because those path forms belonged to the other shell. Running the check through Git for Windows Bash resolved the configured human author. The first commit attempt then stopped before creating a commit because the existing repository hook still named the WSL `/mnt/c` helper path. Reinstalling the hook through Git Bash changed that private hook path to `/c`. None of the failed checks or the blocked commit changed a tracked repository file.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 636 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,806 `if`, 3,392 `else`, 2,932 `for`, 14,512 `return`, and 2,299 `sizeof` occurrences. The active-source digest is `a5d0dd92ef65f77c26278024793d1ba7baf87a2379e3bab6e9410b28ac1f9abb`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | The focused IR contract stopped at unsupported logical AND before lowering or emission changed. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 17.804 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Clang suite, including both changed selectors and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the IR `active-leaf` and object `static-data` selectors. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass both focused selectors with address and undefined-behavior sanitizers, leak detection, and halt-on-error settings. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and the three changed C contracts. |
+| Two-axis review | PASS | Independent Standards and Spec reviews report no findings against repository rules, the smell baseline, issue #25, or the source-driven slice. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and `make check-bootstrap-audit` reproduces them exactly. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 409.937 seconds with one expected skip and returns from Make in 442.6 seconds. |
+| Patch hygiene | PASS | `git diff --cached --check` passes. Added prose contains no em or en dashes and no humanizer filler phrases found by the staged-diff scan. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Logical OR, the remaining bitwise and comparison operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

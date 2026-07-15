@@ -47,3 +47,5 @@ ADR 0019 adds absolute linked file-binding identities through `FILE_ADDRESS`, re
 ADR 0021 adds graph-member identities through `MEMBER_ADDRESS`. It extends `FILE_ADDRESS` to complete record address roots while keeping record values, bit fields, subscript addresses, and pointer-based addresses outside this slice.
 
 ADR 0022 adds `BIT_FIELD_LOAD` for direct bit-field reads from represented four-byte storage units. It consumes a record address and retains the graph-member identity until the i386 emitter applies the target byte offset, bit offset, width, and signedness. Bit-field writes, non-four-byte storage units, and indirect record addresses remain open.
+
+ADR 0023 extends `BINARY` with equality, inequality, and bitwise AND for represented four-byte integers. Logical AND uses the existing branches to skip its right operand and join with one normalized integer result. Logical OR and the remaining operators stay open.

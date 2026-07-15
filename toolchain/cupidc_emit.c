@@ -1804,6 +1804,16 @@ static ctool_status_t cemit_emit_ir_instruction(
     return CTOOL_OK;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY) {
+    if (cemit_ir_type_is_i32_integer(context,
+                                     ir_instruction->input_type) ==
+            CTOOL_FALSE ||
+        cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
+            CTOOL_FALSE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
     if (status == CTOOL_OK) {
@@ -1829,15 +1839,28 @@ static ctool_status_t cemit_emit_ir_instruction(
           context, CTOOL_X86_MN_SUB, CTOOL_X86_REG_GPR32, 0u,
           CTOOL_X86_REG_GPR32, 1u, 32u);
     } else if (ir_instruction->operation ==
+               CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_AND, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR32, 1u, 32u);
+    } else if (ir_instruction->operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
                ir_instruction->operation ==
-                   CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL) {
+                   CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL ||
+               ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+               ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
       ctool_x86_mnemonic_t predicate;
-      if (ir_instruction->input_type >= context->unit->layout.type_count) {
-        return CTOOL_ERR_INTERNAL;
-      }
-      if (context->unit->layout.types[ir_instruction->input_type].is_signed ==
-          CTOOL_TRUE) {
+      if (ir_instruction->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+        predicate = CTOOL_X86_MN_SETE;
+      } else if (ir_instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
+        predicate = CTOOL_X86_MN_SETNE;
+      } else if (context->unit->layout
+                     .types[ir_instruction->input_type]
+                     .is_signed == CTOOL_TRUE) {
         predicate = ir_instruction->operation ==
                             CTOOL_C_EXPRESSION_OPERATOR_GREATER
                         ? CTOOL_X86_MN_SETG
