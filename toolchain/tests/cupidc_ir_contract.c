@@ -66,6 +66,13 @@ static const char active_timer_frequency[] =
     "uint32_t timer_get_frequency(void) {\n"
     "    return timer_state.frequency;\n"
     "}\n";
+static const char active_doom_blue_member[] = "    uint32_t b:8;";
+static const char active_doom_green_member[] = "    uint32_t g:8;";
+static const char active_doom_red_member[] = "    uint32_t r:8;";
+static const char active_doom_alpha_member[] = "    uint32_t a:8;";
+static const char active_doom_red_read[] = "c.r >> 3";
+static const char active_doom_green_read[] = "c.g >> 2";
+static const char active_doom_blue_read[] = "c.b >> 3";
 
 static const char local_fixture[] =
     "typedef unsigned int uint32_t;\n"
@@ -330,6 +337,36 @@ static int active_source_is_unchanged(ctool_job_t *job) {
               "    return timer_state.frequency;\r\n"
               "}\r\n") == NULL)) {
     (void)fprintf(stderr, "the active timer state or getter changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/kernel/doom/src/i_video.h");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active Doom color type") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_doom_blue_member) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_doom_green_member) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_doom_red_member) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_doom_alpha_member) ==
+          NULL) {
+    (void)fprintf(stderr, "the active Doom color type changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/kernel/doom/src/i_video.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active Doom color reads") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_doom_red_read) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_doom_green_read) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_doom_blue_read) ==
+          NULL) {
+    (void)fprintf(stderr, "the active Doom color reads changed\n");
     return 0;
   }
   return 1;
@@ -1522,6 +1559,111 @@ static int validate_file_member_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_bit_field_ir(const ctool_c_translation_unit_t *unit,
+                                 const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 object = find_binding(unit, "state");
+  ctool_u32 member = find_member(unit, "r");
+  ctool_u32 object_type;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 3u || ir->functions == NULL ||
+      ir->instructions == NULL || object == CTOOL_C_AST_NONE ||
+      member == CTOOL_C_AST_NONE ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 3u ||
+      ir->functions[0].maximum_stack_depth != 1u) {
+    (void)fprintf(stderr, "bit-field IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  object_type = unit->bindings[object].type;
+  value_type = unit->graph.members[member].type;
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->referenced_type != value_type ||
+      object_type >= unit->layout.type_count ||
+      value_type >= unit->layout.type_count ||
+      member >= unit->layout.member_count ||
+      unit->graph.members[member].is_bit_field != CTOOL_TRUE ||
+      unit->graph.members[member].bit_width != 8u ||
+      unit->layout.types[object_type].size != 4u ||
+      unit->layout.members[member].byte_offset != 0u ||
+      unit->layout.members[member].bit_offset != 16u ||
+      unit->layout.members[member].bit_width != 8u ||
+      unit->layout.members[member].size != 4u) {
+    (void)fprintf(stderr, "bit-field type or layout differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != object_type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].reference != object ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != object_type ||
+      instructions[1].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[1].reference != member ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[2].type != value_type ||
+      instructions[2].input_type != value_type ||
+      !string_equal(instructions[1].location.path,
+                    "/bit-field-member.c") ||
+      !string_equal(instructions[1].physical_location.path,
+                    "/bit-field-member.c")) {
+    (void)fprintf(stderr, "bit-field IR stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_packed_bit_field_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 object = find_binding(unit, "state");
+  ctool_u32 member = find_member(unit, "ready");
+  ctool_u32 record_type;
+  const ctool_c_type_node_t *record;
+  const ctool_c_record_member_t *field;
+  const ctool_c_type_layout_t *record_layout;
+  const ctool_c_member_layout_t *field_layout;
+  if (object == CTOOL_C_AST_NONE || member == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "packed bit-field inventory differs\n");
+    return 0;
+  }
+  record_type = unit->bindings[object].type;
+  if (record_type >= unit->graph.type_count ||
+      record_type >= unit->layout.type_count ||
+      member >= unit->layout.member_count) {
+    return 0;
+  }
+  record = &unit->graph.types[record_type];
+  field = &unit->graph.members[member];
+  record_layout = &unit->layout.types[record_type];
+  field_layout = &unit->layout.members[member];
+  if (record->kind != CTOOL_C_TYPE_RECORD ||
+      record->record_complete != CTOOL_TRUE ||
+      record->record_packed != CTOOL_TRUE ||
+      member < record->first_member ||
+      member - record->first_member >= record->member_count ||
+      field->is_bit_field != CTOOL_TRUE || field->bit_width != 1u ||
+      record_layout->size != 1u || record_layout->alignment != 1u ||
+      field_layout->byte_offset != 0u || field_layout->bit_offset != 0u ||
+      field_layout->bit_width != 1u || field_layout->size != 4u ||
+      field_layout->alignment != 1u) {
+    (void)fprintf(stderr, "packed bit-field layout differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_point_of_declaration_ir(
     const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
   const ctool_c_ir_instruction_t *instructions;
@@ -1864,7 +2006,26 @@ static int run_active_leaf(const char *host_root) {
       "    return timer_state.frequency;\n"
       "}\n";
   static const char bit_field_member_source[] =
-      "struct flags { unsigned int ready : 1; };\n"
+      "typedef unsigned int uint32_t;\n"
+      "struct color {\n"
+      "  uint32_t b : 8;\n"
+      "  uint32_t g : 8;\n"
+      "  uint32_t r : 8;\n"
+      "  uint32_t a : 8;\n"
+      "};\n"
+      "static volatile struct color state;\n"
+      "uint32_t read_red(void) { return state.r; }\n";
+  static const char narrow_bit_field_source[] =
+      "struct flags { _Bool ready : 1; };\n"
+      "static struct flags state;\n"
+      "int read_ready(void) { return state.ready; }\n";
+  static const char atomic_bit_field_source[] =
+      "struct flags { _Atomic unsigned int ready : 1; };\n"
+      "static struct flags state;\n"
+      "unsigned int read_ready(void) { return state.ready; }\n";
+  static const char packed_bit_field_source[] =
+      "struct flags { unsigned int ready : 1; } "
+      "__attribute__((packed));\n"
       "static struct flags state;\n"
       "unsigned int read_ready(void) { return state.ready; }\n";
   static const char atomic_assignment_source[] =
@@ -1979,6 +2140,9 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_member_unit;
+  ctool_c_translation_unit_t narrow_bit_field_unit;
+  ctool_c_translation_unit_t atomic_bit_field_unit;
+  ctool_c_translation_unit_t packed_bit_field_unit;
   ctool_c_translation_unit_t atomic_assignment_unit;
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t local_parameter_assignment_unit;
@@ -2026,6 +2190,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_u32 *assignment_children = NULL;
   ctool_c_expression_t *member_expressions = NULL;
   ctool_c_member_layout_t *member_layouts = NULL;
+  ctool_c_member_layout_t *bit_field_layouts = NULL;
+  ctool_c_record_member_t *bit_field_members = NULL;
   ctool_c_binding_t *file_bindings = NULL;
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
@@ -2048,6 +2214,12 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_member_unit, 0,
                sizeof(bit_field_member_unit));
+  (void)memset(&narrow_bit_field_unit, 0,
+               sizeof(narrow_bit_field_unit));
+  (void)memset(&atomic_bit_field_unit, 0,
+               sizeof(atomic_bit_field_unit));
+  (void)memset(&packed_bit_field_unit, 0,
+               sizeof(packed_bit_field_unit));
   (void)memset(&atomic_assignment_unit, 0,
                sizeof(atomic_assignment_unit));
   (void)memset(&chained_assignment_unit, 0,
@@ -2105,12 +2277,37 @@ static int run_active_leaf(const char *host_root) {
   }
 
   if (!parse_source(job, "/bit-field-member.c", bit_field_member_source,
-                    &bit_field_member_unit) ||
+                    &bit_field_member_unit)) {
+    (void)fprintf(stderr, "bit-field member setup failed\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/narrow-bit-field.c", narrow_bit_field_source,
+                    &narrow_bit_field_unit) ||
       !expect_ir_failure(
-          job, &bit_field_member_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "bit-field member load")) {
+          job, &narrow_bit_field_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow bit-field load")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-bit-field.c", atomic_bit_field_source,
+                    &atomic_bit_field_unit) ||
+      !expect_ir_failure(
+          job, &atomic_bit_field_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic bit-field load")) {
+    goto cleanup;
+  }
+  if (!parse_source_mode(job, "/packed-bit-field.c",
+                         packed_bit_field_source, CTOOL_TRUE,
+                         &packed_bit_field_unit) ||
+      !validate_packed_bit_field_unit(&packed_bit_field_unit) ||
+      !expect_ir_failure(
+          job, &packed_bit_field_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "packed bit-field load")) {
     goto cleanup;
   }
 
@@ -2512,6 +2709,67 @@ static int run_active_leaf(const char *host_root) {
       unit_fingerprint(&file_member_unit) != fingerprint ||
       !validate_file_member_ir(&file_member_unit, &ir)) {
     (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&bit_field_member_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &bit_field_member_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "bit-field member lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&bit_field_member_unit) != fingerprint ||
+      !validate_bit_field_ir(&bit_field_member_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  index = find_member(&bit_field_member_unit, "r");
+  bit_field_layouts = (ctool_c_member_layout_t *)malloc(
+      (size_t)bit_field_member_unit.layout.member_count *
+      sizeof(*bit_field_layouts));
+  bit_field_members = (ctool_c_record_member_t *)malloc(
+      (size_t)bit_field_member_unit.graph.member_count *
+      sizeof(*bit_field_members));
+  if (index == CTOOL_C_AST_NONE || bit_field_layouts == NULL ||
+      bit_field_members == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(bit_field_layouts, bit_field_member_unit.layout.members,
+               (size_t)bit_field_member_unit.layout.member_count *
+                   sizeof(*bit_field_layouts));
+  bit_field_layouts[index].bit_offset = 31u;
+  invalid_unit = bit_field_member_unit;
+  invalid_unit.layout.members = bit_field_layouts;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "bit-field range outside storage unit")) {
+    goto cleanup;
+  }
+  (void)memcpy(bit_field_layouts, bit_field_member_unit.layout.members,
+               (size_t)bit_field_member_unit.layout.member_count *
+                   sizeof(*bit_field_layouts));
+  bit_field_layouts[index].byte_offset = 0xffffffffu;
+  invalid_unit.layout.members = bit_field_layouts;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "bit-field storage outside record")) {
+    goto cleanup;
+  }
+  (void)memcpy(bit_field_members, bit_field_member_unit.graph.members,
+               (size_t)bit_field_member_unit.graph.member_count *
+                   sizeof(*bit_field_members));
+  bit_field_members[index].bit_width++;
+  invalid_unit = bit_field_member_unit;
+  invalid_unit.graph.members = bit_field_members;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "bit-field graph and layout width mismatch")) {
     goto cleanup;
   }
   for (index = 0u; index < file_member_unit.expression_count; index++) {
@@ -3096,6 +3354,8 @@ cleanup:
   free(assignment_children);
   free(member_expressions);
   free(member_layouts);
+  free(bit_field_layouts);
+  free(bit_field_members);
   free(file_bindings);
   free(invalid_layouts);
   free(invalid_block_bindings);

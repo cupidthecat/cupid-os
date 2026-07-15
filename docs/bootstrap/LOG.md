@@ -3018,3 +3018,58 @@ This increment transfers no production ownership and retires no host dependency.
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Bit-field extraction, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, floating and aggregate values, nested and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC lowers four-byte bit-field reads
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers direct reads from four-byte integer bit fields. Doom supplies the active requirement. `kernel/doom/src/i_video.h` stores blue, green, red, and alpha as four eight-bit `uint32_t` fields, and `kernel/doom/src/i_video.c` reads the red, green, and blue channels while converting pixels. The contract guards both unchanged files so the fixture cannot drift away from the source that needs the capability.
+
+Linear IR adds `BIT_FIELD_LOAD`. It consumes a complete record address, keeps the direct graph-member identity and record operand type, and pushes the extracted integer value. The frontend member remains a designator rather than an invented address. Lowering checks record ownership, propagated qualification, graph and layout agreement, the field's bit range, and the storage unit's byte range within the record.
+
+The current slice accepts fields stored in a complete four-byte integer unit that fits inside the record object and produces a four-byte integer value. Widths from one through 32 are represented. The i386 emitter adds the storage-unit byte offset, loads the unit, shifts the field to the high end of EAX, and then uses `SHR` for unsigned extraction or `SAR` for signed extraction. A full-width field needs no shifts. The file object keeps its direct-symbol `R_386_32` relocation with addend zero.
+
+Treating the field as an ordinary `MEMBER_ADDRESS` was rejected because C bit fields have no address. Publishing target offsets in IR was rejected because the graph member and i386 layout already own them. Narrow byte loads were rejected for this slice because the layout names a four-byte storage unit and volatile access must use that unit consistently.
+
+No user question was needed. ADRs 0013, 0016, 0019, and 0021 already fixed the type layout, address/value stack, file binding, and ordinary member seams. ADR 0022 records this extension and its current boundary.
+
+### Contract evidence
+
+- The first IR expectation failed with the existing unsupported-expression diagnostic. After `BIT_FIELD_LOAD` lowering was present, the object contract failed at the unknown instruction. These red stages located the public IR and target emitter gaps separately.
+- The focused IR fixture uses a volatile file-scope color. `state.r` lowers to exactly `FILE_ADDRESS`, `BIT_FIELD_LOAD`, and `RETURN_VALUE`, with maximum abstract-stack depth one. The field is retained at bit offset 16 with width 8.
+- The exact object covers three fields. The Doom-shaped unsigned read emits `SHL 8` and `SHR 24`. A signed five-bit field at storage byte offset 4 emits `SHL 24` and `SAR 27`. A 32-bit field at byte offset 8 emits no shifts.
+- The three functions occupy 63 text bytes. Their object has 16 BSS bytes, six symbols, and three `R_386_32` relocations at text offsets 4, 25, and 49. Every addend remains zero, and repeated emission is byte-identical.
+- Narrow `_Bool` and `_Atomic unsigned int` fields receive the unsupported-type diagnostic. A GNU packed fixture pins a valid one-byte record whose one-bit field retains a four-byte declared storage unit. That access is unsupported because a complete unit load would cross the object boundary. Mutated units reject an out-of-range bit span, a byte offset outside the record, and mismatched graph and layout widths. Failures publish no partial IR and preserve the frozen unit and job arena.
+- The first Spec review caught two boundary errors. Atomic fields were reaching an ordinary `MOV`, and the valid packed fixture was being called malformed. Test-first corrections now reject both with the unsupported-type diagnostic. Standards review also found duplicate member validation in lowering and emission. Shared private validators now own graph identity, qualification, layout, and byte-range checks for ordinary members and bit fields.
+- The first post-refactor Clang analyzer run could not prove that a successful status meant the shared member descriptor was initialized. The descriptor is now cleared before validation and checked through one completeness predicate before either caller uses it. The exact analyzer command then completed without a diagnostic.
+- Follow-up Spec review caught a one-expression drift after the final atomic-designator correction. The self-parse contract and bootstrap prose now record 9,883 expressions for `cupidc_ir.c`, and the final generated audit reproduces the corrected digest. Both follow-up reviewers report no remaining actionable finding.
+- Source additions moved the checked frontend inventory. The gate now records 43/1,101/9,883/128/35 for `cupidc_ir.c` and 64/1,468/12,146/198/89 for `cupidc_emit.c`.
+
+### Failed verification wrappers
+
+The first WSL build wrapper let PowerShell expand a Bash build-directory variable and attempted to redirect to `/run.log`. It failed before compilation and changed no repository file. Fixed absolute `/tmp` paths produced the strict compiler results below.
+
+The first sanitizer wrapper also lost its quoted flag list at the Windows-to-WSL boundary. It produced ordinary builds, which passed but were not counted as sanitizer evidence. PowerShell's stop-parsing form preserved the complete flag list on the rerun. A review-time sanitizer command briefly repeated the same mistake with Bash directory and flag variables inside a PowerShell double-quoted argument. It failed before compilation and changed no repository file; fixed paths passed under both compilers. A looped analyzer wrapper lost its source variable through the same boundary and failed before analysis; five explicit commands then completed cleanly.
+
+### Audit and verification
+
+The regenerated graph still records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 605 direct designated initializers across 16 files, 633 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,772 `if`, 3,389 `else`, 2,931 `for`, 14,493 `return`, and 2,286 `sizeof` occurrences. The active-source digest is `f4f552a7b9882cfcdc3d6f83d27a28b95ffd55c5fba76e3b00dfcf217eabf3ac`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR first stopped at the unsupported bit-field expression. Object emission then stopped at the unknown IR instruction. Nonzero-offset and full-width source additions each failed the exact object oracle before its expected bytes, symbols, sizes, and relocations were added. |
+| Focused CupidC contracts | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 19.542 seconds. |
+| Windows hosted Toolchain | PASS | A fresh `make -C toolchain BUILD_DIR=build/bit-field-final3 test` passes the strict Clang suite in 23.897 seconds, including every Toolchain contract and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in 61.65 and 60.60 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass `active-leaf` and `static-data` with address and undefined-behavior sanitizers, leak detection, strict string checks, and halt-on-error settings. Dynamic or linked sanitizer symbols were verified in both binaries. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and the three affected C contracts. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and `make check-bootstrap-audit` reproduces them exactly. |
+| Formal two-axis review | PASS AFTER FIXES | Standards review requested shared member validation. Spec review found ordinary atomic emission and a malformed classification for valid packed source. Follow-up review caught one stale self-parse count. Shared validators, exact atomic and packed negatives, corrected evidence, and the final qualified-designator check close every finding. Both follow-up reviews are clean. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 472.622 seconds with one expected skip and returns from Make in 509.688 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Bit-field writes and non-four-byte storage units, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, floating and aggregate values, nested and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

@@ -18,7 +18,7 @@ Linear IR adds `MEMBER_ADDRESS`. Its `reference` is the absolute index of the di
 
 `FILE_ADDRESS` may now push the address of a complete file-scope record as well as a represented four-byte integer object. This does not make record values loadable. A following `MEMBER_ADDRESS` must select a complete ordinary member, and the existing `LOAD` still limits represented values to four-byte integers.
 
-Lowering checks that the member belongs to the operand's complete structure or union, that record qualification reached the published member type, and that the member and result layouts agree. It also checks the member byte range against the record size. A direct bit-field read remains unsupported because a bit field has no address and needs an IR operation that carries its storage unit, bit offset, width, promotion, and access rules.
+Lowering checks that the member belongs to the operand's complete structure or union, that record qualification reached the published member type, and that the member and result layouts agree. It also checks the member byte range against the record size. A bit field remains outside `MEMBER_ADDRESS` because it has no C address. ADR 0022 adds the separate `BIT_FIELD_LOAD` value operation for represented four-byte fields.
 
 The i386 emitter keeps the graph-member identity until target emission. It pops the record address into EAX, adds the member's i386 layout offset through the shared x86 encoder, and pushes the adjusted address. An offset of zero omits the `ADD`. The base `FILE_ADDRESS` still emits one direct-symbol `R_386_32` relocation with addend zero, so the member offset does not change ELF symbol identity or relocation ownership.
 
@@ -30,8 +30,8 @@ The source-driven IR contract guards the unchanged `timer_get_frequency` body. I
 
 The exact object function is 20 bytes. It contains `ADD EAX, 8`, defines the 20-byte zero-initialized `timer_state` object in `.bss`, and carries one `R_386_32` relocation at text offset 4 against that object with addend zero. Reading the object through the shared ELF32 module and decoding the function through the shared x86 module verifies every byte, symbol, relocation, and instruction.
 
-A valid bit-field read receives the unsupported-expression diagnostic. Caller-mutated member identity and an out-of-record member layout both receive the invalid-unit diagnostic without publishing partial IR. The existing constrained-output, repeat-emission, rollback, and same-job recovery contracts continue to apply.
+Caller-mutated member identity and an out-of-record member layout receive the invalid-unit diagnostic without publishing partial IR. The existing constrained-output, repeat-emission, rollback, and same-job recovery contracts continue to apply. ADR 0022 records the later bit-field read contract and its separate negative cases.
 
 This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
-Issue #25 remains open. Subscript and pointer-based addresses, bit-field extraction, compound and update lowering, atomic ordering, other value widths, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.
+Issue #25 remains open. Bit-field writes and non-four-byte storage units, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.

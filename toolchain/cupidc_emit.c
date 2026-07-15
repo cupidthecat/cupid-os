@@ -139,6 +139,76 @@ static const ctool_c_type_node_t *cemit_unwrapped_type(
   return node;
 }
 
+typedef struct {
+  const ctool_c_type_node_t *record;
+  const ctool_c_type_node_t *member_type;
+  const ctool_c_type_node_t *result_type;
+  const ctool_c_record_member_t *member;
+  const ctool_c_type_layout_t *record_layout;
+  const ctool_c_type_layout_t *member_type_layout;
+  const ctool_c_type_layout_t *result_layout;
+  const ctool_c_member_layout_t *member_layout;
+} cemit_member_info_t;
+
+static ctool_status_t cemit_validate_member_instruction(
+    const cemit_context_t *context,
+    const ctool_c_ir_instruction_t *ir_instruction,
+    ctool_c_conversion_kind_t expected_conversion,
+    cemit_member_info_t *info) {
+  if (ir_instruction->input_type >= context->unit->graph.type_count ||
+      ir_instruction->input_type >= context->unit->layout.type_count ||
+      ir_instruction->type >= context->unit->graph.type_count ||
+      ir_instruction->type >= context->unit->layout.type_count ||
+      ir_instruction->reference >= context->unit->graph.member_count ||
+      ir_instruction->reference >= context->unit->layout.member_count ||
+      ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      ir_instruction->conversion != expected_conversion ||
+      ir_instruction->integer_bits != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  info->record =
+      cemit_unwrapped_type(context, ir_instruction->input_type);
+  info->member =
+      &context->unit->graph.members[ir_instruction->reference];
+  if (info->member->type >= context->unit->graph.type_count ||
+      info->member->type >= context->unit->layout.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  info->member_type = cemit_unwrapped_type(context, info->member->type);
+  info->result_type =
+      cemit_unwrapped_type(context, ir_instruction->type);
+  info->record_layout =
+      &context->unit->layout.types[ir_instruction->input_type];
+  info->member_type_layout =
+      &context->unit->layout.types[info->member->type];
+  info->result_layout =
+      &context->unit->layout.types[ir_instruction->type];
+  info->member_layout =
+      &context->unit->layout.members[ir_instruction->reference];
+  if (info->record == (const ctool_c_type_node_t *)0 ||
+      info->record->kind != CTOOL_C_TYPE_RECORD ||
+      info->record->record_complete == CTOOL_FALSE ||
+      ir_instruction->reference < info->record->first_member ||
+      ir_instruction->reference - info->record->first_member >=
+          info->record->member_count ||
+      info->member_type == (const ctool_c_type_node_t *)0 ||
+      info->member_type != info->result_type ||
+      info->record_layout->is_object == CTOOL_FALSE ||
+      info->record_layout->is_complete_object == CTOOL_FALSE ||
+      info->member_type_layout->is_object == CTOOL_FALSE ||
+      info->member_type_layout->is_complete_object == CTOOL_FALSE ||
+      info->result_layout->is_object == CTOOL_FALSE ||
+      info->result_layout->is_complete_object == CTOOL_FALSE ||
+      info->member_layout->size != info->member_type_layout->size ||
+      info->result_layout->size != info->member_type_layout->size ||
+      info->member_layout->byte_offset > info->record_layout->size ||
+      info->member_layout->size >
+          info->record_layout->size - info->member_layout->byte_offset) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_bool cemit_type_is_const(const cemit_context_t *context,
                                        ctool_u32 type) {
   ctool_u32 traversed = 0u;
@@ -1200,6 +1270,29 @@ static ctool_status_t cemit_x86_add_eax_constant(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_shift_eax(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 count) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, 32u);
+  if (count >= 32u ||
+      (mnemonic != CTOOL_X86_MN_SHL && mnemonic != CTOOL_X86_MN_SHR &&
+       mnemonic != CTOOL_X86_MN_SAR)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (count == 0u) {
+    return CTOOL_OK;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+  instruction.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 8u, 8u, count);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_load_stack(
     cemit_context_t *context, ctool_u8 register_index,
     ctool_u32 stack_offset) {
@@ -1550,59 +1643,76 @@ static ctool_status_t cemit_emit_ir_instruction(
     return cemit_x86_push_symbol(context, symbol);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS) {
-    const ctool_c_type_node_t *record;
-    const ctool_c_record_member_t *member;
-    const ctool_c_type_layout_t *record_layout;
-    const ctool_c_type_layout_t *member_type_layout;
-    const ctool_c_type_layout_t *result_layout;
-    const ctool_c_member_layout_t *member_layout;
-    if (ir_instruction->input_type >= context->unit->graph.type_count ||
-        ir_instruction->input_type >= context->unit->layout.type_count ||
-        ir_instruction->type >= context->unit->layout.type_count ||
-        ir_instruction->reference >= context->unit->graph.member_count ||
-        ir_instruction->reference >= context->unit->layout.member_count ||
-        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
-        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
-        ir_instruction->integer_bits != 0u) {
-      return CTOOL_ERR_INTERNAL;
+    cemit_member_info_t info;
+    status = cemit_validate_member_instruction(
+        context, ir_instruction, CTOOL_C_CONVERSION_NONE, &info);
+    if (status != CTOOL_OK) {
+      return status;
     }
-    record = cemit_unwrapped_type(context, ir_instruction->input_type);
-    member = &context->unit->graph.members[ir_instruction->reference];
-    if (member->type >= context->unit->layout.type_count) {
-      return CTOOL_ERR_INTERNAL;
-    }
-    record_layout =
-        &context->unit->layout.types[ir_instruction->input_type];
-    member_type_layout = &context->unit->layout.types[member->type];
-    result_layout = &context->unit->layout.types[ir_instruction->type];
-    member_layout =
-        &context->unit->layout.members[ir_instruction->reference];
-    if (record == (const ctool_c_type_node_t *)0 ||
-        record->kind != CTOOL_C_TYPE_RECORD ||
-        record->record_complete == CTOOL_FALSE ||
-        ir_instruction->reference < record->first_member ||
-        ir_instruction->reference - record->first_member >=
-            record->member_count ||
-        member->is_bit_field == CTOOL_TRUE ||
-        record_layout->is_object == CTOOL_FALSE ||
-        record_layout->is_complete_object == CTOOL_FALSE ||
-        member_type_layout->is_object == CTOOL_FALSE ||
-        member_type_layout->is_complete_object == CTOOL_FALSE ||
-        result_layout->is_object == CTOOL_FALSE ||
-        result_layout->is_complete_object == CTOOL_FALSE ||
-        member_layout->bit_width != 0u ||
-        member_layout->size != member_type_layout->size ||
-        result_layout->size != member_type_layout->size ||
-        member_layout->byte_offset > record_layout->size ||
-        member_layout->size >
-            record_layout->size - member_layout->byte_offset) {
+    if (info.member->is_bit_field == CTOOL_TRUE ||
+        info.member->bit_width != 0u || info.member_layout->bit_width != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
     if (status == CTOOL_OK) {
       status = cemit_x86_add_eax_constant(context,
-                                           member_layout->byte_offset);
+                                           info.member_layout->byte_offset);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
+  }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD) {
+    cemit_member_info_t info;
+    ctool_u32 left_shift;
+    ctool_u32 right_shift;
+    status = cemit_validate_member_instruction(
+        context, ir_instruction, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+        &info);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (info.member->is_bit_field != CTOOL_TRUE ||
+        info.member->bit_width == 0u ||
+        info.member_type_layout->is_integer == CTOOL_FALSE ||
+        info.member_type_layout->size != 4u ||
+        info.result_layout->is_integer == CTOOL_FALSE ||
+        info.result_layout->size != 4u ||
+        info.result_layout->is_signed !=
+            info.member_type_layout->is_signed ||
+        info.member_layout->size != 4u ||
+        info.member_layout->bit_width != info.member->bit_width ||
+        info.member_layout->bit_width == 0u ||
+        info.member_layout->bit_offset >= 32u ||
+        info.member_layout->bit_width >
+            32u - info.member_layout->bit_offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    left_shift =
+        32u - info.member_layout->bit_offset - info.member_layout->bit_width;
+    right_shift = 32u - info.member_layout->bit_width;
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_add_eax_constant(context,
+                                           info.member_layout->byte_offset);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_eax(context);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_shift_eax(context, CTOOL_X86_MN_SHL,
+                                    left_shift);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_shift_eax(
+          context,
+          info.result_layout->is_signed == CTOOL_TRUE ? CTOOL_X86_MN_SAR
+                                                       : CTOOL_X86_MN_SHR,
+          right_shift);
     }
     if (status == CTOOL_OK) {
       status = cemit_x86_one_register(

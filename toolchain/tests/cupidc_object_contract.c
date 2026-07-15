@@ -596,6 +596,135 @@ static int validate_file_member_object(
   return 1;
 }
 
+static int validate_bit_field_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 unsigned_function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0x8bu, 0x00u, 0xc1u, 0xe0u, 0x08u,
+      0xc1u, 0xe8u, 0x18u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t unsigned_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SHL,
+      CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u8 signed_function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0x83u, 0xc0u, 0x04u, 0x8bu, 0x00u,
+      0xc1u, 0xe0u, 0x18u, 0xc1u, 0xf8u, 0x1bu, 0x50u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t signed_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_ADD,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SAR,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u8 whole_function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0x83u, 0xc0u, 0x08u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t whole_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *unsigned_function =
+      find_symbol(object, "read_red");
+  const ctool_elf32_symbol_t *signed_function =
+      find_symbol(object, "read_delta");
+  const ctool_elf32_symbol_t *whole_function =
+      find_symbol(object, "read_whole");
+  const ctool_elf32_symbol_t *unsigned_state =
+      find_symbol(object, "color_state");
+  const ctool_elf32_symbol_t *signed_state =
+      find_symbol(object, "signed_state");
+  if (text == NULL || bss == NULL || rel_text == NULL ||
+      unsigned_function == NULL || signed_function == NULL ||
+      whole_function == NULL || unsigned_state == NULL ||
+      signed_state == NULL ||
+      text->contents.size != (ctool_u32)(sizeof(unsigned_function_bytes) +
+                                         sizeof(signed_function_bytes) +
+                                         sizeof(whole_function_bytes)) ||
+      text->relocation_first != 0u || text->relocation_count != 3u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 16u || bss->contents.size != 0u ||
+      object->symbol_count != 6u || object->relocation_count != 3u ||
+      object->relocations == NULL ||
+      !symbol_matches(unsigned_state, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(signed_state, 2u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 12u) ||
+      !symbol_matches(unsigned_function, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(unsigned_function_bytes)) ||
+      !symbol_matches(signed_function, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)sizeof(unsigned_function_bytes),
+                      (ctool_u32)sizeof(signed_function_bytes)) ||
+      !symbol_matches(whole_function, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(unsigned_function_bytes) +
+                                  sizeof(signed_function_bytes)),
+                      (ctool_u32)sizeof(whole_function_bytes)) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 4u ||
+      object->relocations[0].symbol_file_index != unsigned_state->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0 ||
+      object->relocations[1].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[1].entry_index != 1u ||
+      object->relocations[1].target_section_file_index != text->file_index ||
+      object->relocations[1].offset != 25u ||
+      object->relocations[1].symbol_file_index != signed_state->file_index ||
+      object->relocations[1].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[1].addend_known != CTOOL_TRUE ||
+      object->relocations[1].addend != 0 ||
+      object->relocations[2].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[2].entry_index != 2u ||
+      object->relocations[2].target_section_file_index != text->file_index ||
+      object->relocations[2].offset != 49u ||
+      object->relocations[2].symbol_file_index != signed_state->file_index ||
+      object->relocations[2].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[2].addend_known != CTOOL_TRUE ||
+      object->relocations[2].addend != 0 ||
+      !decode_function(
+          job, text, unsigned_function, unsigned_instructions,
+          (ctool_u32)(sizeof(unsigned_instructions) /
+                      sizeof(unsigned_instructions[0])),
+          unsigned_function_bytes,
+          (ctool_u32)sizeof(unsigned_function_bytes), NULL, 0u,
+          "read_red") ||
+      !decode_function(
+          job, text, signed_function, signed_instructions,
+          (ctool_u32)(sizeof(signed_instructions) /
+                      sizeof(signed_instructions[0])),
+          signed_function_bytes, (ctool_u32)sizeof(signed_function_bytes),
+          NULL, 0u, "read_delta") ||
+      !decode_function(
+          job, text, whole_function, whole_instructions,
+          (ctool_u32)(sizeof(whole_instructions) /
+                      sizeof(whole_instructions[0])),
+          whole_function_bytes, (ctool_u32)sizeof(whole_function_bytes),
+          NULL, 0u, "read_whole")) {
+    (void)fprintf(stderr, "bit-field object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_chained_assignment_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
@@ -1957,6 +2086,25 @@ static int run_static_data(const char *host_root) {
       "uint32_t timer_get_frequency(void) {\n"
       "    return timer_state.frequency;\n"
       "}\n";
+  static const char bit_field_text[] =
+      "typedef unsigned int uint32_t;\n"
+      "struct color {\n"
+      "  uint32_t b : 8;\n"
+      "  uint32_t g : 8;\n"
+      "  uint32_t r : 8;\n"
+      "  uint32_t a : 8;\n"
+      "};\n"
+      "static volatile struct color color_state;\n"
+      "struct signed_flags {\n"
+      "  unsigned int word;\n"
+      "  unsigned int prefix : 3;\n"
+      "  signed int delta : 5;\n"
+      "  unsigned int whole : 32;\n"
+      "};\n"
+      "static struct signed_flags signed_state;\n"
+      "uint32_t read_red(void) { return color_state.r; }\n"
+      "int read_delta(void) { return signed_state.delta; }\n"
+      "unsigned int read_whole(void) { return signed_state.whole; }\n";
   static const char chained_assignment_text[] =
       "int first_state;\n"
       "int second_state;\n"
@@ -2002,6 +2150,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
+  ctool_c_translation_unit_t bit_field_unit;
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
   ctool_c_translation_unit_t external_inline_unit;
@@ -2021,6 +2170,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t unsigned_multiplication_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
+  unit_snapshot_t bit_field_snapshot;
   unit_snapshot_t chained_assignment_snapshot;
   unit_snapshot_t layout_snapshot;
   ctool_u8 *expected_object = NULL;
@@ -2036,6 +2186,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 multiplication_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
   ctool_u32 file_member_object_size = 0u;
+  ctool_u8 *bit_field_object = NULL;
+  ctool_u32 bit_field_object_size = 0u;
   ctool_u8 *chained_assignment_object = NULL;
   ctool_u32 chained_assignment_object_size = 0u;
   ctool_status_t status;
@@ -2062,6 +2214,7 @@ static int run_static_data(const char *host_root) {
                sizeof(unsigned_multiplication_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
+  (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
   (void)memset(&chained_assignment_unit, 0,
                sizeof(chained_assignment_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
@@ -2077,6 +2230,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
   (void)memset(&file_member_snapshot, 0, sizeof(file_member_snapshot));
+  (void)memset(&bit_field_snapshot, 0, sizeof(bit_field_snapshot));
   (void)memset(&chained_assignment_snapshot, 0,
                sizeof(chained_assignment_snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
@@ -2760,6 +2914,59 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-doom-color.c", bit_field_text,
+                    &bit_field_unit) ||
+      !take_unit_snapshot(&bit_field_unit, &bit_field_snapshot)) {
+    (void)fprintf(stderr, "bit-field object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &bit_field_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "bit-field object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&bit_field_snapshot, &bit_field_unit) == 0) {
+    (void)fprintf(stderr, "bit-field emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-doom-color.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read bit-field object") ||
+      !validate_bit_field_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  bit_field_object_size = bytes.size;
+  bit_field_object = (ctool_u8 *)malloc((size_t)bytes.size);
+  if (bit_field_object == NULL) {
+    (void)fprintf(stderr, "bit-field object copy failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(bit_field_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "bit-field repeat rewind failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &bit_field_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeated bit-field object") ||
+      bytes.size != bit_field_object_size ||
+      memcmp(bytes.data, bit_field_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&bit_field_snapshot, &bit_field_unit) == 0) {
+    (void)fprintf(stderr, "bit-field emission is not deterministic\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/chained-assignment.c", chained_assignment_text,
                     &chained_assignment_unit) ||
       !take_unit_snapshot(&chained_assignment_unit,
@@ -3110,8 +3317,10 @@ cleanup:
   free(function_object);
   free(multiplication_object);
   free(file_member_object);
+  free(bit_field_object);
   free(chained_assignment_object);
   dispose_unit_snapshot(&layout_snapshot);
+  dispose_unit_snapshot(&bit_field_snapshot);
   dispose_unit_snapshot(&file_member_snapshot);
   dispose_unit_snapshot(&file_assignment_snapshot);
   dispose_unit_snapshot(&chained_assignment_snapshot);
