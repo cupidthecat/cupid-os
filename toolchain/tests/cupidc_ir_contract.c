@@ -45,6 +45,27 @@ static const char active_vga_function_crlf[] =
     "}\r\n";
 static const char active_bool_type[] =
     "typedef enum { false = 0, true = 1 } bool;";
+static const char active_timer_ticks_member[] =
+    "    uint64_t ticks;           // Total number of timer ticks since boot";
+static const char active_timer_frequency_member[] =
+    "    uint32_t frequency;       // Timer frequency in Hz";
+static const char active_timer_ms_member[] =
+    "    uint32_t ms_per_tick;     // Milliseconds per tick";
+static const char active_timer_calibrated_member[] =
+    "    bool is_calibrated;       // Whether timer has been calibrated";
+static const char active_timer_type_end[] = "} timer_state_t;";
+
+static const char active_timer_state[] =
+    "static timer_state_t timer_state = {\n"
+    "    .ticks = 0,\n"
+    "    .frequency = 0,\n"
+    "    .ms_per_tick = 0,\n"
+    "    .is_calibrated = false\n"
+    "};\n";
+static const char active_timer_frequency[] =
+    "uint32_t timer_get_frequency(void) {\n"
+    "    return timer_state.frequency;\n"
+    "}\n";
 
 static const char local_fixture[] =
     "typedef unsigned int uint32_t;\n"
@@ -91,6 +112,17 @@ static ctool_u32 find_block_binding(const ctool_c_translation_unit_t *unit,
   ctool_u32 index;
   for (index = 0u; index < unit->block_binding_count; index++) {
     if (string_equal(unit->block_bindings[index].name, name) != 0) {
+      return index;
+    }
+  }
+  return CTOOL_C_AST_NONE;
+}
+
+static ctool_u32 find_member(const ctool_c_translation_unit_t *unit,
+                             const char *name) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->graph.member_count; index++) {
+    if (string_equal(unit->graph.members[index].name, name) != 0) {
       return index;
     }
   }
@@ -261,10 +293,43 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   path.text = ctool_string("/kernel/core/types.h");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
-  if (!check_status(status, CTOOL_OK, "load active bool type") ||
+  if (!check_status(status, CTOOL_OK, "load active bool and timer types") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data, active_bool_type) == NULL) {
-    (void)fprintf(stderr, "the active bool type changed\n");
+      strstr((const char *)source.contents.data, active_bool_type) == NULL ||
+      strstr((const char *)source.contents.data, active_timer_ticks_member) ==
+          NULL ||
+      strstr((const char *)source.contents.data,
+             active_timer_frequency_member) == NULL ||
+      strstr((const char *)source.contents.data, active_timer_ms_member) ==
+          NULL ||
+      strstr((const char *)source.contents.data,
+             active_timer_calibrated_member) == NULL ||
+      strstr((const char *)source.contents.data, active_timer_type_end) ==
+          NULL) {
+    (void)fprintf(stderr, "the active bool or timer type changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/drivers/timer.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active timer source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data, active_timer_state) ==
+           NULL &&
+       strstr((const char *)source.contents.data,
+              "static timer_state_t timer_state = {\r\n"
+              "    .ticks = 0,\r\n"
+              "    .frequency = 0,\r\n"
+              "    .ms_per_tick = 0,\r\n"
+              "    .is_calibrated = false\r\n"
+              "};\r\n") == NULL) ||
+      (strstr((const char *)source.contents.data, active_timer_frequency) ==
+           NULL &&
+       strstr((const char *)source.contents.data,
+              "uint32_t timer_get_frequency(void) {\r\n"
+              "    return timer_state.frequency;\r\n"
+              "}\r\n") == NULL)) {
+    (void)fprintf(stderr, "the active timer state or getter changed\n");
     return 0;
   }
   return 1;
@@ -1391,6 +1456,72 @@ static int validate_external_file_object_ir(
   return 1;
 }
 
+static int validate_file_member_ir(const ctool_c_translation_unit_t *unit,
+                                   const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 object = find_binding(unit, "timer_state");
+  ctool_u32 member = find_member(unit, "frequency");
+  ctool_u32 object_type;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 4u || ir->functions == NULL ||
+      ir->instructions == NULL || object == CTOOL_C_AST_NONE ||
+      member == CTOOL_C_AST_NONE ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 4u ||
+      ir->functions[0].maximum_stack_depth != 1u) {
+    (void)fprintf(stderr, "file-member IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  object_type = unit->bindings[object].type;
+  value_type = unit->graph.members[member].type;
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->referenced_type != value_type ||
+      object_type >= unit->layout.type_count ||
+      value_type >= unit->layout.type_count ||
+      member >= unit->layout.member_count ||
+      unit->layout.types[object_type].size != 20u ||
+      unit->layout.members[member].byte_offset != 8u ||
+      unit->layout.members[member].size != 4u) {
+    (void)fprintf(stderr, "file-member type or layout differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != object_type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].reference != object ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != object_type ||
+      instructions[1].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[1].reference != member ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[2].type != value_type ||
+      instructions[2].input_type != value_type ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      !string_equal(instructions[1].location.path,
+                    "/active-timer-frequency.c") ||
+      !string_equal(instructions[1].physical_location.path,
+                    "/active-timer-frequency.c")) {
+    (void)fprintf(stderr, "file-member IR stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_point_of_declaration_ir(
     const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
   const ctool_c_ir_instruction_t *instructions;
@@ -1713,6 +1844,29 @@ static int run_active_leaf(const char *host_root) {
       "typedef enum { false = 0, true = 1 } bool;\n"
       "static bool vga_wait_vsync = false;\n"
       "void vga_set_vsync_wait(bool enabled) { vga_wait_vsync = enabled; }\n";
+  static const char file_member_source[] =
+      "typedef unsigned int uint32_t;\n"
+      "typedef unsigned long long uint64_t;\n"
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "typedef struct {\n"
+      "  uint64_t ticks;\n"
+      "  uint32_t frequency;\n"
+      "  uint32_t ms_per_tick;\n"
+      "  bool is_calibrated;\n"
+      "} timer_state_t;\n"
+      "static timer_state_t timer_state = {\n"
+      "    .ticks = 0,\n"
+      "    .frequency = 0,\n"
+      "    .ms_per_tick = 0,\n"
+      "    .is_calibrated = false\n"
+      "};\n"
+      "uint32_t timer_get_frequency(void) {\n"
+      "    return timer_state.frequency;\n"
+      "}\n";
+  static const char bit_field_member_source[] =
+      "struct flags { unsigned int ready : 1; };\n"
+      "static struct flags state;\n"
+      "unsigned int read_ready(void) { return state.ready; }\n";
   static const char atomic_assignment_source[] =
       "_Atomic int atomic_state;\n"
       "void set_atomic(void) { atomic_state = 1; }\n";
@@ -1823,6 +1977,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t file_assignment_unit;
+  ctool_c_translation_unit_t file_member_unit;
+  ctool_c_translation_unit_t bit_field_member_unit;
   ctool_c_translation_unit_t atomic_assignment_unit;
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t local_parameter_assignment_unit;
@@ -1868,6 +2024,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_expression_t *file_expressions = NULL;
   ctool_c_expression_t *assignment_expressions = NULL;
   ctool_u32 *assignment_children = NULL;
+  ctool_c_expression_t *member_expressions = NULL;
+  ctool_c_member_layout_t *member_layouts = NULL;
   ctool_c_binding_t *file_bindings = NULL;
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
@@ -1887,6 +2045,9 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&unsigned_multiplication_unit, 0,
                sizeof(unsigned_multiplication_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
+  (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
+  (void)memset(&bit_field_member_unit, 0,
+               sizeof(bit_field_member_unit));
   (void)memset(&atomic_assignment_unit, 0,
                sizeof(atomic_assignment_unit));
   (void)memset(&chained_assignment_unit, 0,
@@ -1934,6 +2095,22 @@ static int run_active_leaf(const char *host_root) {
   if (!parse_source(job, "/active-vga-file-assignment.c",
                     file_assignment_source, &file_assignment_unit)) {
     (void)fprintf(stderr, "active VGA file assignment setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/active-timer-frequency.c", file_member_source,
+                    &file_member_unit)) {
+    (void)fprintf(stderr, "active timer frequency setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/bit-field-member.c", bit_field_member_source,
+                    &bit_field_member_unit) ||
+      !expect_ir_failure(
+          job, &bit_field_member_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "bit-field member load")) {
     goto cleanup;
   }
 
@@ -2323,6 +2500,62 @@ static int run_active_leaf(const char *host_root) {
       unit_fingerprint(&file_assignment_unit) != fingerprint ||
       !validate_file_assignment_ir(&file_assignment_unit, &ir)) {
     (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&file_member_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &file_member_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active timer member lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&file_member_unit) != fingerprint ||
+      !validate_file_member_ir(&file_member_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < file_member_unit.expression_count; index++) {
+    if (file_member_unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_MEMBER) {
+      break;
+    }
+  }
+  member_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)file_member_unit.expression_count *
+      sizeof(*member_expressions));
+  member_layouts = (ctool_c_member_layout_t *)malloc(
+      (size_t)file_member_unit.layout.member_count *
+      sizeof(*member_layouts));
+  if (index == file_member_unit.expression_count ||
+      member_expressions == NULL || member_layouts == NULL ||
+      file_member_unit.layout.member_count == 0u) {
+    goto cleanup;
+  }
+  (void)memcpy(member_expressions, file_member_unit.expressions,
+               (size_t)file_member_unit.expression_count *
+                   sizeof(*member_expressions));
+  member_expressions[index].reference = file_member_unit.graph.member_count;
+  invalid_unit = file_member_unit;
+  invalid_unit.expressions = member_expressions;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "out-of-range member identity")) {
+    goto cleanup;
+  }
+  (void)memcpy(member_layouts, file_member_unit.layout.members,
+               (size_t)file_member_unit.layout.member_count *
+                   sizeof(*member_layouts));
+  member_layouts[file_member_unit.expressions[index].reference].byte_offset =
+      0xffffffffu;
+  invalid_unit = file_member_unit;
+  invalid_unit.layout.members = member_layouts;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "member layout outside its record")) {
     goto cleanup;
   }
 
@@ -2861,6 +3094,8 @@ cleanup:
   free(file_expressions);
   free(assignment_expressions);
   free(assignment_children);
+  free(member_expressions);
+  free(member_layouts);
   free(file_bindings);
   free(invalid_layouts);
   free(invalid_block_bindings);

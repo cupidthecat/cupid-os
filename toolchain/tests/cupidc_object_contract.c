@@ -543,6 +543,59 @@ static int validate_file_assignment_object(
   return 1;
 }
 
+static int validate_file_member_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0x83u, 0xc0u, 0x08u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "timer_get_frequency");
+  const ctool_elf32_symbol_t *state = find_symbol(object, "timer_state");
+  if (text == NULL || bss == NULL || rel_text == NULL || function == NULL ||
+      state == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_first != 0u || text->relocation_count != 1u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 20u || bss->contents.size != 0u ||
+      object->symbol_count != 3u || object->relocation_count != 1u ||
+      object->relocations == NULL ||
+      !symbol_matches(state, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 20u) ||
+      !symbol_matches(function, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 4u ||
+      object->relocations[0].symbol_file_index != state->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0 ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "timer_get_frequency")) {
+    (void)fprintf(stderr, "file-member object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_chained_assignment_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
@@ -1885,6 +1938,25 @@ static int run_static_data(const char *host_root) {
       "typedef enum { false = 0, true = 1 } bool;\n"
       "static bool vga_wait_vsync = false;\n"
       "void vga_set_vsync_wait(bool enabled) { vga_wait_vsync = enabled; }\n";
+  static const char file_member_text[] =
+      "typedef unsigned int uint32_t;\n"
+      "typedef unsigned long long uint64_t;\n"
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "typedef struct {\n"
+      "  uint64_t ticks;\n"
+      "  uint32_t frequency;\n"
+      "  uint32_t ms_per_tick;\n"
+      "  bool is_calibrated;\n"
+      "} timer_state_t;\n"
+      "static timer_state_t timer_state = {\n"
+      "    .ticks = 0,\n"
+      "    .frequency = 0,\n"
+      "    .ms_per_tick = 0,\n"
+      "    .is_calibrated = false\n"
+      "};\n"
+      "uint32_t timer_get_frequency(void) {\n"
+      "    return timer_state.frequency;\n"
+      "}\n";
   static const char chained_assignment_text[] =
       "int first_state;\n"
       "int second_state;\n"
@@ -1929,6 +2001,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t file_assignment_unit;
+  ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
   ctool_c_translation_unit_t external_inline_unit;
@@ -1947,6 +2020,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t multiplication_snapshot;
   unit_snapshot_t unsigned_multiplication_snapshot;
   unit_snapshot_t file_assignment_snapshot;
+  unit_snapshot_t file_member_snapshot;
   unit_snapshot_t chained_assignment_snapshot;
   unit_snapshot_t layout_snapshot;
   ctool_u8 *expected_object = NULL;
@@ -1960,6 +2034,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 function_object_size = 0u;
   ctool_u8 *multiplication_object = NULL;
   ctool_u32 multiplication_object_size = 0u;
+  ctool_u8 *file_member_object = NULL;
+  ctool_u32 file_member_object_size = 0u;
   ctool_u8 *chained_assignment_object = NULL;
   ctool_u32 chained_assignment_object_size = 0u;
   ctool_status_t status;
@@ -1985,6 +2061,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&unsigned_multiplication_unit, 0,
                sizeof(unsigned_multiplication_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
+  (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&chained_assignment_unit, 0,
                sizeof(chained_assignment_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
@@ -1999,6 +2076,7 @@ static int run_static_data(const char *host_root) {
                sizeof(unsigned_multiplication_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
+  (void)memset(&file_member_snapshot, 0, sizeof(file_member_snapshot));
   (void)memset(&chained_assignment_snapshot, 0,
                sizeof(chained_assignment_snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
@@ -2629,6 +2707,59 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-timer-frequency.c", file_member_text,
+                    &file_member_unit) ||
+      !take_unit_snapshot(&file_member_unit, &file_member_snapshot)) {
+    (void)fprintf(stderr, "file-member object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &file_member_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "file-member object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&file_member_snapshot, &file_member_unit) == 0) {
+    (void)fprintf(stderr, "file-member emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-timer-frequency.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read file-member object") ||
+      !validate_file_member_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  file_member_object_size = bytes.size;
+  file_member_object = (ctool_u8 *)malloc((size_t)bytes.size);
+  if (file_member_object == NULL) {
+    (void)fprintf(stderr, "file-member object copy failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(file_member_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "file-member repeat rewind failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &file_member_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeated file-member object") ||
+      bytes.size != file_member_object_size ||
+      memcmp(bytes.data, file_member_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&file_member_snapshot, &file_member_unit) == 0) {
+    (void)fprintf(stderr, "file-member emission is not deterministic\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/chained-assignment.c", chained_assignment_text,
                     &chained_assignment_unit) ||
       !take_unit_snapshot(&chained_assignment_unit,
@@ -2978,8 +3109,10 @@ cleanup:
   free(expected_object);
   free(function_object);
   free(multiplication_object);
+  free(file_member_object);
   free(chained_assignment_object);
   dispose_unit_snapshot(&layout_snapshot);
+  dispose_unit_snapshot(&file_member_snapshot);
   dispose_unit_snapshot(&file_assignment_snapshot);
   dispose_unit_snapshot(&chained_assignment_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);

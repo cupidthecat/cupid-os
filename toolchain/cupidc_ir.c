@@ -182,6 +182,32 @@ static const ctool_c_type_node_t *cir_unwrapped_type(
   return node;
 }
 
+static ctool_bool cir_underlying_type(
+    const cir_context_t *context, ctool_u32 type, ctool_u32 *base_out,
+    ctool_u32 *qualifiers_out, const ctool_c_type_node_t **node_out) {
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  const ctool_c_type_node_t *node;
+  for (;;) {
+    node = cir_type_node(context, type);
+    if (node == (const ctool_c_type_node_t *)0) {
+      return CTOOL_FALSE;
+    }
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      *base_out = type;
+      *qualifiers_out = qualifiers;
+      *node_out = node;
+      return CTOOL_TRUE;
+    }
+    qualifiers |= node->qualifiers;
+    type = node->referenced_type;
+    if (traversed++ >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+  }
+}
+
 static ctool_bool cir_type_has_atomic_qualification(
     const cir_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cir_type_node(context, type);
@@ -218,6 +244,20 @@ static ctool_bool cir_type_is_i32_integer(const cir_context_t *context,
   }
   return context->unit->layout.types[type].is_integer == CTOOL_TRUE &&
                  context->unit->layout.types[type].size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_is_complete_record_object(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
+  return type < context->unit->layout.type_count &&
+                 node != (const ctool_c_type_node_t *)0 &&
+                 node->kind == CTOOL_C_TYPE_RECORD &&
+                 node->record_complete == CTOOL_TRUE &&
+                 context->unit->layout.types[type].is_object == CTOOL_TRUE &&
+                 context->unit->layout.types[type].is_complete_object ==
+                     CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -554,6 +594,109 @@ static ctool_status_t cir_lower_assignment(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
+static ctool_status_t cir_lower_member(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 depth) {
+  const ctool_c_expression_t *child_expression;
+  const ctool_c_record_member_t *member;
+  const ctool_c_type_node_t *record_node;
+  const ctool_c_type_node_t *member_node;
+  const ctool_c_type_node_t *result_node;
+  const ctool_c_type_layout_t *record_layout;
+  const ctool_c_type_layout_t *member_type_layout;
+  const ctool_c_type_layout_t *result_layout;
+  const ctool_c_member_layout_t *member_layout;
+  cir_stack_entry_t address;
+  ctool_u32 child;
+  ctool_u32 record_base;
+  ctool_u32 record_qualifiers;
+  ctool_u32 member_base;
+  ctool_u32 member_qualifiers;
+  ctool_u32 result_base;
+  ctool_u32 result_qualifiers;
+  ctool_status_t status;
+  if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      expression->conversion != CTOOL_C_CONVERSION_NONE ||
+      expression->computation_type != CTOOL_C_TYPE_NONE ||
+      expression->reference >= context->unit->graph.member_count ||
+      expression->reference >= context->unit->layout.member_count) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_expression_child(context, expression_index, expression, 0u,
+                                &child);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  child_expression = &context->unit->expressions[child];
+  member = &context->unit->graph.members[expression->reference];
+  if (cir_underlying_type(context, child_expression->type, &record_base,
+                          &record_qualifiers, &record_node) == CTOOL_FALSE ||
+      cir_underlying_type(context, member->type, &member_base,
+                          &member_qualifiers, &member_node) == CTOOL_FALSE ||
+      cir_underlying_type(context, expression->type, &result_base,
+                          &result_qualifiers, &result_node) == CTOOL_FALSE ||
+      record_node->kind != CTOOL_C_TYPE_RECORD ||
+      record_node->record_complete == CTOOL_FALSE ||
+      expression->reference < record_node->first_member ||
+      expression->reference - record_node->first_member >=
+          record_node->member_count ||
+      member_base != result_base ||
+      result_qualifiers !=
+          (member_qualifiers | record_qualifiers |
+           record_node->qualifiers)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  (void)member_node;
+  (void)result_node;
+  if (member->is_bit_field == CTOOL_TRUE) {
+    return cir_unsupported_expression(context, &expression->location);
+  }
+  if (record_base >= context->unit->layout.type_count ||
+      member->type >= context->unit->layout.type_count ||
+      expression->type >= context->unit->layout.type_count) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  record_layout = &context->unit->layout.types[record_base];
+  member_type_layout = &context->unit->layout.types[member->type];
+  result_layout = &context->unit->layout.types[expression->type];
+  member_layout = &context->unit->layout.members[expression->reference];
+  if (record_layout->is_object == CTOOL_FALSE ||
+      record_layout->is_complete_object == CTOOL_FALSE ||
+      member_type_layout->is_object == CTOOL_FALSE ||
+      member_type_layout->is_complete_object == CTOOL_FALSE ||
+      result_layout->is_object == CTOOL_FALSE ||
+      result_layout->is_complete_object == CTOOL_FALSE ||
+      member_layout->bit_width != 0u ||
+      member_layout->size != member_type_layout->size ||
+      result_layout->size != member_type_layout->size ||
+      member_layout->byte_offset > record_layout->size ||
+      member_layout->size >
+          record_layout->size - member_layout->byte_offset) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_lower_expression(context, child, depth + 1u);
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (address.kind != CIR_STACK_ADDRESS ||
+      address.type != child_expression->type) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, expression->type,
+      child_expression->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, expression->reference, 0u,
+      &expression->location, &expression->physical_location,
+      (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_ADDRESS, expression->type);
+}
+
 static ctool_status_t cir_lower_conditional(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
@@ -828,7 +971,9 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         return cir_invalid_unit(context, &expression->location);
       }
     }
-    if (cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+    if (cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE &&
+        cir_type_is_complete_record_object(context, expression->type) ==
+            CTOOL_FALSE) {
       return cir_unsupported_type(context, &expression->location);
     }
     status = cir_append_instruction(
@@ -915,6 +1060,12 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     }
     return cir_lower_assignment(context, expression_index, expression,
                                 depth);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_MEMBER) {
+    if (expression->child_count != 1u) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    return cir_lower_member(context, expression_index, expression, depth);
   }
   if (expression->kind == CTOOL_C_EXPRESSION_CONDITIONAL) {
     if (expression->child_count != 3u) {

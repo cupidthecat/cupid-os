@@ -43,3 +43,5 @@ The unchanged `canvas_to_screen_x` and `canvas_to_screen_y` functions in `bin/pa
 ADR 0018 adds absolute block-binding identities, automatic-local addresses, initializer stores, and deterministic fixed EBP slots. It does not make the wider statement, assignment, pointer, or ABI surface complete.
 
 ADR 0019 adds absolute linked file-binding identities through `FILE_ADDRESS`, reuses `LOAD` for four-byte integer objects, and extends `BINARY` with signed or unsigned greater-than-or-equal. The emitter maps direct object addresses to text `R_386_32` relocations without exposing x86 or ELF details in the IR.
+
+ADR 0021 adds graph-member identities through `MEMBER_ADDRESS`. It extends `FILE_ADDRESS` to complete record address roots while keeping record values, bit fields, subscript addresses, and pointer-based addresses outside this slice.

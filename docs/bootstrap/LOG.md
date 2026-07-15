@@ -2958,3 +2958,63 @@ This increment remains hosted. GCC or Clang still builds the shared frontend, IR
 Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Member and subscript addresses, compound and update lowering, atomic ordering, pointers and other value widths, floating and aggregate values, nested and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC lowers direct record members
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers and emits this unchanged getter from `drivers/timer.c`:
+
+```c
+uint32_t timer_get_frequency(void) {
+    return timer_state.frequency;
+}
+```
+
+The contract also guards the active `timer_state_t` members in `kernel/core/types.h` and the zero-initialized `timer_state` definition in `drivers/timer.c`. The leading `uint64_t ticks` member places `frequency` at byte offset 8 in the fixed i386 layout. This keeps the fixture tied to the source layout that gave rise to the feature.
+
+Linear IR adds `MEMBER_ADDRESS`. The instruction keeps the absolute graph-member identity, the complete record operand type, and the selected member type. It consumes the record address and pushes the member address. `FILE_ADDRESS` may now carry a complete file-scope record address, although record values themselves remain outside the represented load subset.
+
+Lowering checks record ownership, complete object layouts, member and result layout agreement, propagated qualification, and the member's byte range. A bit field remains unsupported because it has no C address. Its eventual IR must describe the storage unit, bit offset, width, promotion, and access rules.
+
+The i386 emitter pops the record address into EAX, applies the layout offset through the shared x86 encoder, and pushes the adjusted address. Offset zero omits the `ADD`. The base `FILE_ADDRESS` continues to own one `R_386_32` relocation against `timer_state` with addend zero. Member selection does not change the symbol or relocation addend.
+
+Folding 8 into the relocation addend was rejected because that would discard member identity and would not generalize cleanly to local, nested, or pointer-based record addresses. Publishing a target byte offset in public IR was also rejected because the type layout and instruction selection belong to target emission. A bit-field shortcut through an ordinary address was rejected because it would claim semantics the IR cannot express.
+
+No user question was needed. The frozen frontend graph, ADR 0016 address/value stack, ADR 0019 file-binding identity, and shared i386 layout already fixed the relevant seams. ADR 0021 records the decision and its current boundary.
+
+### Contract and review evidence
+
+- The first IR contract did not compile because `CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS` was absent. After IR lowering was added, the first object contract reached the emitter and failed at the unknown instruction. These red stages located the public and target-side gaps separately.
+- The final IR stream is exactly `FILE_ADDRESS`, `MEMBER_ADDRESS`, `LOAD`, and `RETURN_VALUE`, with a maximum abstract-stack depth of one. It pins the `timer_state` binding, `frequency` graph member, 20-byte record layout, offset 8, value type, and source locations.
+- The exact function is 20 bytes and decodes as `PUSH`, `MOV`, `PUSH`, `POP`, `ADD`, `PUSH`, `POP`, `MOV`, `PUSH`, `POP`, `LEAVE`, and `RET`. Its object contains a 20-byte local BSS record and one text `R_386_32` relocation at offset 4 with addend zero.
+- A valid bit-field read receives the unsupported-expression diagnostic. Mutating the member identity out of range or moving its layout outside the record receives the invalid-unit diagnostic. Each failure leaves output empty and preserves the frozen unit and job arena.
+- Standards review found that the first active-source guard pinned the getter but not the copied record layout. The final guard also pins every active `timer_state_t` member and the `timer_state` initializer.
+- Spec review found that the capability matrix claimed byte-identical repeat emission while the new member fixture only checked one exact object. The fixture now emits the member object twice and compares every byte while checking the frozen-unit snapshot, diagnostics, and job arena.
+- The first cross-host command lost a shell build variable through PowerShell quoting and attempted to write `/ctool.o`. It failed before compiling product code and changed no repository file. Fixed absolute temporary paths produced the recorded cross-host results. An initial GCC `-fanalyzer -fsyntax-only` probe was also excluded because it did not prove compilation-time analysis had run. The final GCC analyzer pass compiled all five affected translation units with `-fanalyzer`.
+
+All eight hosted Toolchain source gates still parse completely. `cupidc_ir.c` publishes 39 definitions, 1,041 statements, 9,052 expressions, 128 block bindings, and 34 initializers. `cupidc_emit.c` publishes 62 definitions, 1,419 statements, 11,546 expressions, 199 block bindings, and 88 initializers.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. The lexical inventory contains 604 direct designated initializers across 15 files, 619 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,721 `if`, 3,389 `else`, 2,931 `for`, 14,452 `return`, and 2,253 `sizeof` occurrences. The active-source digest is `ad9d288fad4b3962c683751d7e3f71de166773192de96b3f4b8f2de9b2339c30`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR first failed at the missing public member-address instruction. Object emission then failed at the unknown instruction. The final audit drift gate caught the three review-added failure branches until their exact counts were updated. |
+| Focused CupidC contracts | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 16.752 seconds. |
+| Windows hosted Toolchain | PASS | Final-tree `make -C toolchain BUILD_DIR=build/member-final test` passes all 130 selector invocations in 20.9 seconds, including all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the IR `active-leaf` and object `static-data` selectors. The review-added repeat check was then rebuilt and passed under both compilers. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass both focused contracts with address and undefined-behavior sanitizers, leak detection, and halt-on-error settings. Final rebuilds also pass the review-added object check. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and all three affected C contracts. The final object-contract revision is clean under both analyzers. |
+| Two-axis review | PASS AFTER FIXES | Standards review added the active layout and initializer guard. Spec review added member-object repeat emission. Follow-up review found no remaining actionable mismatch with repository rules or issue #25's source-driven ABI and oracle requirements. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and final-tree `make check-bootstrap-audit` reproduces them exactly. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 400.817 seconds with one expected skip and returns from Make in 432.8 seconds. |
+| Patch hygiene | PASS | `git diff --check` passes with checkout line-ending notices. Added prose contains no em or en dashes and no humanizer filler flagged by the repository diff scan. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Bit-field extraction, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, floating and aggregate values, nested and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
