@@ -22,6 +22,11 @@ static const char active_addition[] =
     "    return x + y;\n"
     "}\n";
 
+static const char active_paint_x[] =
+    "  return CANVAS_X + (cx - view_x) * zoom_level;";
+static const char active_paint_y[] =
+    "  return CANVAS_Y + (cy - view_y) * zoom_level;";
+
 static const char active_vga_object[] =
     "static uint32_t last_flip_ms = 0;";
 static const char active_vga_function[] =
@@ -208,6 +213,28 @@ static int active_source_is_unchanged(ctool_job_t *job) {
               "    return x + y;\r\n"
               "}\r\n") == NULL)) {
     (void)fprintf(stderr, "the active add2 function changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/bin/paint.cc");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active Paint source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, "int CANVAS_X = 56;") ==
+          NULL ||
+      strstr((const char *)source.contents.data, "int CANVAS_Y = 20;") ==
+          NULL ||
+      strstr((const char *)source.contents.data, "int zoom_level = 1;") ==
+          NULL ||
+      strstr((const char *)source.contents.data, "int view_x = 0;") == NULL ||
+      strstr((const char *)source.contents.data, "int view_y = 0;") == NULL ||
+      strstr((const char *)source.contents.data,
+             "int canvas_to_screen_x(int cx) {") == NULL ||
+      strstr((const char *)source.contents.data, active_paint_x) == NULL ||
+      strstr((const char *)source.contents.data,
+             "int canvas_to_screen_y(int cy) {") == NULL ||
+      strstr((const char *)source.contents.data, active_paint_y) == NULL) {
+    (void)fprintf(stderr, "the active Paint coordinate transforms changed\n");
     return 0;
   }
   path.text = ctool_string("/drivers/vga.c");
@@ -637,6 +664,226 @@ static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
                     "/active-cupidc-add2.c")) {
     (void)fprintf(stderr, "addition IR instruction stream differs\n");
     return 0;
+  }
+  return 1;
+}
+
+static int paint_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_c_conversion_kind_t conversion, ctool_u32 reference) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == 0u &&
+                 string_equal(instruction->location.path,
+                              "/active-paint-multiplication.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/active-paint-multiplication.c") != 0
+             ? 1
+             : 0;
+}
+
+static int validate_paint_multiplication_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *function_names[] = {"canvas_to_screen_x",
+                                         "canvas_to_screen_y"};
+  static const char *canvas_names[] = {"CANVAS_X", "CANVAS_Y"};
+  static const char *view_names[] = {"view_x", "view_y"};
+  ctool_u32 zoom = find_binding(unit, "zoom_level");
+  ctool_u32 function_index;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instruction_count != 24u ||
+      ir->instructions == NULL || zoom == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "Paint multiplication IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 2u; function_index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[function_index];
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *instructions =
+        ir->instructions + function->first_instruction;
+    const ctool_c_type_node_t *function_type;
+    ctool_u32 function_binding =
+        find_binding(unit, function_names[function_index]);
+    ctool_u32 canvas = find_binding(unit, canvas_names[function_index]);
+    ctool_u32 view = find_binding(unit, view_names[function_index]);
+    ctool_u32 parameter;
+    ctool_u32 integer_type;
+    if (function_binding == CTOOL_C_AST_NONE || canvas == CTOOL_C_AST_NONE ||
+        view == CTOOL_C_AST_NONE ||
+        definition->declared_type >= unit->graph.type_count) {
+      return 0;
+    }
+    function_type = &unit->graph.types[definition->declared_type];
+    if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+        function_type->parameter_count != 1u ||
+        function_type->first_parameter >= unit->parameter_count) {
+      return 0;
+    }
+    parameter = function_type->first_parameter;
+    integer_type = unit->parameters[parameter].type;
+    if (function->binding != function_binding ||
+        definition->binding != function_binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != function_index * 12u ||
+        function->instruction_count != 12u ||
+        function->maximum_stack_depth != 3u ||
+        unit->bindings[canvas].type != integer_type ||
+        unit->bindings[view].type != integer_type ||
+        unit->bindings[zoom].type != integer_type ||
+        function_type->referenced_type != integer_type ||
+        !paint_instruction_matches(
+            &instructions[0], CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+            integer_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            canvas) ||
+        !paint_instruction_matches(
+            &instructions[1], CTOOL_C_IR_INSTRUCTION_LOAD, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[2], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+            integer_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            parameter) ||
+        !paint_instruction_matches(
+            &instructions[3], CTOOL_C_IR_INSTRUCTION_LOAD, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[4], CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+            integer_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, view) ||
+        !paint_instruction_matches(
+            &instructions[5], CTOOL_C_IR_INSTRUCTION_LOAD, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[6], CTOOL_C_IR_INSTRUCTION_BINARY, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[7], CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+            integer_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, zoom) ||
+        !paint_instruction_matches(
+            &instructions[8], CTOOL_C_IR_INSTRUCTION_LOAD, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[9], CTOOL_C_IR_INSTRUCTION_BINARY, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[10], CTOOL_C_IR_INSTRUCTION_BINARY, integer_type,
+            integer_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE) ||
+        !paint_instruction_matches(
+            &instructions[11], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+            integer_type, integer_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE)) {
+      (void)fprintf(stderr,
+                    "Paint multiplication IR differs for function %lu\n",
+                    (unsigned long)function_index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_unsigned_multiplication_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "multiply_unsigned");
+  ctool_u32 parameter;
+  ctool_u32 unsigned_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 5u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "unsigned multiplication IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  unsigned_type = unit->parameters[parameter].type;
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  if (unsigned_type >= unit->layout.type_count ||
+      unit->layout.types[unsigned_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[unsigned_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[unsigned_type].size != 4u ||
+      function_type->referenced_type != unsigned_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 5u ||
+      function->maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != unsigned_type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[0].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[0].reference != parameter ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != unsigned_type ||
+      instructions[1].input_type != unsigned_type ||
+      instructions[1].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[1].reference != CTOOL_C_AST_NONE ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[2].type != unsigned_type ||
+      instructions[2].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[2].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[2].reference != CTOOL_C_AST_NONE ||
+      instructions[2].integer_bits != 0x80000001u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[3].type != unsigned_type ||
+      instructions[3].input_type != unsigned_type ||
+      instructions[3].operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[3].reference != CTOOL_C_AST_NONE ||
+      instructions[3].integer_bits != 0u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[4].type != unsigned_type ||
+      instructions[4].input_type != unsigned_type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[4].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[4].reference != CTOOL_C_AST_NONE ||
+      instructions[4].integer_bits != 0u) {
+    (void)fprintf(stderr, "unsigned multiplication IR stream differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 5u; index++) {
+    if (!string_equal(instructions[index].location.path,
+                      "/unsigned-multiplication.c") ||
+        !string_equal(instructions[index].physical_location.path,
+                      "/unsigned-multiplication.c")) {
+      (void)fprintf(stderr,
+                    "unsigned multiplication IR source path differs\n");
+      return 0;
+    }
   }
   return 1;
 }
@@ -1191,7 +1438,23 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
-      "int multiply_one(int value) { return value * 1; }\n";
+      "int divide_one(int value) { return value / 1; }\n";
+  static const char multiplication_source[] =
+      "int CANVAS_X = 56;\n"
+      "int CANVAS_Y = 20;\n"
+      "int zoom_level = 1;\n"
+      "int view_x = 0;\n"
+      "int view_y = 0;\n"
+      "int canvas_to_screen_x(int cx) {\n"
+      "  return CANVAS_X + (cx - view_x) * zoom_level;\n"
+      "}\n"
+      "int canvas_to_screen_y(int cy) {\n"
+      "  return CANVAS_Y + (cy - view_y) * zoom_level;\n"
+      "}\n";
+  static const char unsigned_multiplication_source[] =
+      "unsigned int multiply_unsigned(unsigned int value) {\n"
+      "  return value * 0x80000001u;\n"
+      "}\n";
   static const char abi_source[] =
       "long long wide(long long value) { return value; }\n";
   static const char inline_success_source[] =
@@ -1214,6 +1477,8 @@ static int run_active_leaf(const char *host_root) {
       "int call_wide(void) { return wide_target(1); }\n";
   static const char wide_comparison_source[] =
       "int wide_greater_equal(void) { return 1LL >= 0LL; }\n";
+  static const char wide_multiplication_source[] =
+      "int wide_multiply(void) { return 2LL * 3LL; }\n";
   static const char variadic_call_source[] =
       "int variadic_target(int first, ...);\n"
       "int call_variadic(void) { return variadic_target(1); }\n";
@@ -1276,6 +1541,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_job_t *limited_job = NULL;
   ctool_c_translation_unit_t active_unit;
   ctool_c_translation_unit_t addition_unit;
+  ctool_c_translation_unit_t multiplication_unit;
+  ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t local_unit;
   ctool_c_translation_unit_t simple_unit;
   ctool_c_translation_unit_t statement_unit;
@@ -1289,6 +1556,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t indirect_call_unit;
   ctool_c_translation_unit_t wide_call_unit;
   ctool_c_translation_unit_t wide_comparison_unit;
+  ctool_c_translation_unit_t wide_multiplication_unit;
   ctool_c_translation_unit_t variadic_call_unit;
   ctool_c_translation_unit_t value_statement_unit;
   ctool_c_translation_unit_t wide_local_unit;
@@ -1327,6 +1595,9 @@ static int run_active_leaf(const char *host_root) {
 
   (void)memset(&active_unit, 0, sizeof(active_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
+  (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
+  (void)memset(&unsigned_multiplication_unit, 0,
+               sizeof(unsigned_multiplication_unit));
   (void)memset(&local_unit, 0, sizeof(local_unit));
   (void)memset(&simple_unit, 0, sizeof(simple_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
@@ -1344,6 +1615,19 @@ static int run_active_leaf(const char *host_root) {
   if (!parse_source(job, "/active-cupidc-add2.c", active_addition,
                     &addition_unit)) {
     (void)fprintf(stderr, "active addition setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/active-paint-multiplication.c",
+                    multiplication_source, &multiplication_unit)) {
+    (void)fprintf(stderr, "active Paint multiplication setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/unsigned-multiplication.c",
+                    unsigned_multiplication_source,
+                    &unsigned_multiplication_unit)) {
+    (void)fprintf(stderr, "unsigned multiplication setup failed\n");
     goto cleanup;
   }
 
@@ -1647,6 +1931,31 @@ static int run_active_leaf(const char *host_root) {
       ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_fingerprint(&addition_unit) != fingerprint ||
       !validate_addition_ir(&addition_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&multiplication_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &multiplication_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active Paint multiplication lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&multiplication_unit) != fingerprint ||
+      !validate_paint_multiplication_ir(&multiplication_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&unsigned_multiplication_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unsigned_multiplication_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "unsigned multiplication lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unsigned_multiplication_unit) != fingerprint ||
+      !validate_unsigned_multiplication_ir(&unsigned_multiplication_unit,
+                                           &ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -1979,6 +2288,16 @@ static int run_active_leaf(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide greater-than-or-equal expression")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-multiplication.c",
+                    wide_multiplication_source,
+                    &wide_multiplication_unit) ||
+      !expect_ir_failure(
+          job, &wide_multiplication_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide multiplication expression")) {
     goto cleanup;
   }
   if (!parse_source(job, "/unsupported-conversion.c", conversion_source,

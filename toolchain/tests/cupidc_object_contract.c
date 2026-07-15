@@ -487,6 +487,162 @@ static int validate_external_object_load(
   return 1;
 }
 
+static int validate_paint_multiplication_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x68u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x0fu, 0xafu, 0xc1u, 0x50u, 0x59u, 0x58u, 0x01u, 0xc8u,
+      0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 expected_data[] = {
+      0x38u, 0x00u, 0x00u, 0x00u, 0x14u, 0x00u,
+      0x00u, 0x00u, 0x01u, 0x00u, 0x00u, 0x00u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_IMUL, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 relocation_offsets[] = {
+      4u, 24u, 38u, 64u, 84u, 98u};
+  static const char *const relocation_symbols[] = {
+      "CANVAS_X", "view_x", "zoom_level",
+      "CANVAS_Y", "view_y", "zoom_level"};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *canvas_x = find_symbol(object, "CANVAS_X");
+  const ctool_elf32_symbol_t *canvas_y = find_symbol(object, "CANVAS_Y");
+  const ctool_elf32_symbol_t *zoom = find_symbol(object, "zoom_level");
+  const ctool_elf32_symbol_t *view_x = find_symbol(object, "view_x");
+  const ctool_elf32_symbol_t *view_y = find_symbol(object, "view_y");
+  const ctool_elf32_symbol_t *function_x =
+      find_symbol(object, "canvas_to_screen_x");
+  const ctool_elf32_symbol_t *function_y =
+      find_symbol(object, "canvas_to_screen_y");
+  ctool_u32 relocation;
+  if (text == NULL || data == NULL || bss == NULL || rel_text == NULL ||
+      canvas_x == NULL || canvas_y == NULL || zoom == NULL ||
+      view_x == NULL || view_y == NULL || function_x == NULL ||
+      function_y == NULL || text->contents.size != 120u ||
+      text->relocation_first != 0u || text->relocation_count != 6u ||
+      data->contents.size != (ctool_u32)sizeof(expected_data) ||
+      data->contents.data == NULL ||
+      memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 8u || bss->contents.size != 0u ||
+      object->symbol_count != 8u || object->relocation_count != 6u ||
+      object->relocations == NULL ||
+      !symbol_matches(canvas_x, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
+      !symbol_matches(canvas_y, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 4u, 4u) ||
+      !symbol_matches(zoom, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 8u, 4u) ||
+      !symbol_matches(view_x, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(view_y, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
+      !symbol_matches(function_x, 6u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u, 60u) ||
+      !symbol_matches(function_y, 7u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 60u,
+                      60u) ||
+      !decode_function(
+          job, text, function_x, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "canvas_to_screen_x") ||
+      !decode_function(
+          job, text, function_y, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "canvas_to_screen_y")) {
+    (void)fprintf(stderr, "Paint multiplication object differs\n");
+    return 0;
+  }
+  for (relocation = 0u; relocation < 6u; relocation++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, relocation_symbols[relocation]);
+    if (symbol == NULL ||
+        object->relocations[relocation].relocation_section_file_index !=
+            rel_text->file_index ||
+        object->relocations[relocation].entry_index != relocation ||
+        object->relocations[relocation].target_section_file_index !=
+            text->file_index ||
+        object->relocations[relocation].offset !=
+            relocation_offsets[relocation] ||
+        object->relocations[relocation].symbol_file_index !=
+            symbol->file_index ||
+        object->relocations[relocation].type != CTOOL_ELF32_R_386_32 ||
+        object->relocations[relocation].addend_known != CTOOL_TRUE ||
+        object->relocations[relocation].addend != 0) {
+      (void)fprintf(stderr,
+                    "Paint multiplication relocation %lu differs\n",
+                    (unsigned long)relocation);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_unsigned_multiplication_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x80u, 0x59u, 0x58u,
+      0x0fu, 0xafu, 0xc1u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_IMUL,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "multiply_unsigned");
+  if (text == NULL || rel_text != NULL || function == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_count != 0u || object->symbol_count != 2u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "multiply_unsigned")) {
+    (void)fprintf(stderr, "unsigned multiplication object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_function_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 implemented_bytes[] = {
@@ -1575,7 +1731,23 @@ static int run_static_data(const char *host_root) {
       "  return left >= right;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return value * 1; }\n";
+      "int unsupported(int value) { return value / 1; }\n";
+  static const char multiplication_text[] =
+      "int CANVAS_X = 56;\n"
+      "int CANVAS_Y = 20;\n"
+      "int zoom_level = 1;\n"
+      "int view_x = 0;\n"
+      "int view_y = 0;\n"
+      "int canvas_to_screen_x(int cx) {\n"
+      "  return CANVAS_X + (cx - view_x) * zoom_level;\n"
+      "}\n"
+      "int canvas_to_screen_y(int cy) {\n"
+      "  return CANVAS_Y + (cy - view_y) * zoom_level;\n"
+      "}\n";
+  static const char unsigned_multiplication_text[] =
+      "unsigned int multiply_unsigned(unsigned int value) {\n"
+      "  return value * 0x80000001u;\n"
+      "}\n";
   static const char external_inline_text[] =
       "inline int external_inline(void) { return 1; }\n";
   static const char external_object_text[] =
@@ -1613,6 +1785,8 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t function_unit;
   ctool_c_translation_unit_t external_object_unit;
+  ctool_c_translation_unit_t multiplication_unit;
+  ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
@@ -1627,6 +1801,8 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t snapshot;
   unit_snapshot_t function_snapshot;
   unit_snapshot_t external_object_snapshot;
+  unit_snapshot_t multiplication_snapshot;
+  unit_snapshot_t unsigned_multiplication_snapshot;
   unit_snapshot_t layout_snapshot;
   ctool_u8 *expected_object = NULL;
   ctool_u32 expected_object_size = 0u;
@@ -1637,6 +1813,8 @@ static int run_static_data(const char *host_root) {
   ctool_bytes_t layout_bytes;
   ctool_u8 *function_object = NULL;
   ctool_u32 function_object_size = 0u;
+  ctool_u8 *multiplication_object = NULL;
+  ctool_u32 multiplication_object_size = 0u;
   ctool_status_t status;
   size_t invalid_binding_bytes;
   size_t invalid_definition_bytes;
@@ -1656,12 +1834,19 @@ static int run_static_data(const char *host_root) {
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&function_unit, 0, sizeof(function_unit));
   (void)memset(&external_object_unit, 0, sizeof(external_object_unit));
+  (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
+  (void)memset(&unsigned_multiplication_unit, 0,
+               sizeof(unsigned_multiplication_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
   (void)memset(&function_snapshot, 0, sizeof(function_snapshot));
   (void)memset(&external_object_snapshot, 0,
                sizeof(external_object_snapshot));
+  (void)memset(&multiplication_snapshot, 0,
+               sizeof(multiplication_snapshot));
+  (void)memset(&unsigned_multiplication_snapshot, 0,
+               sizeof(unsigned_multiplication_snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
   (void)memset(&invalid_expression, 0, sizeof(invalid_expression));
   if (!open_job(host_root, &adapter, &config, &job)) {
@@ -2171,6 +2356,94 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-paint-multiplication.c",
+                    multiplication_text, &multiplication_unit) ||
+      !take_unit_snapshot(&multiplication_unit,
+                          &multiplication_snapshot)) {
+    (void)fprintf(stderr, "Paint multiplication object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &multiplication_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first Paint multiplication object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&multiplication_snapshot,
+                            &multiplication_unit) == 0) {
+    (void)fprintf(stderr, "first Paint multiplication emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  multiplication_object_size = bytes.size;
+  multiplication_object =
+      (ctool_u8 *)malloc((size_t)multiplication_object_size);
+  if (multiplication_object == NULL) {
+    (void)fprintf(stderr, "Paint multiplication snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(multiplication_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &multiplication_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat Paint multiplication object") ||
+      bytes.size != multiplication_object_size ||
+      memcmp(bytes.data, multiplication_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&multiplication_snapshot,
+                            &multiplication_unit) == 0) {
+    (void)fprintf(stderr,
+                  "Paint multiplication emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-paint-multiplication.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read Paint multiplication object") ||
+      !validate_paint_multiplication_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/unsigned-multiplication.c",
+                    unsigned_multiplication_text,
+                    &unsigned_multiplication_unit) ||
+      !take_unit_snapshot(&unsigned_multiplication_unit,
+                          &unsigned_multiplication_snapshot)) {
+    (void)fprintf(stderr, "unsigned multiplication object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unsigned_multiplication_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "unsigned multiplication object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&unsigned_multiplication_snapshot,
+                            &unsigned_multiplication_unit) == 0) {
+    (void)fprintf(stderr, "unsigned multiplication emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/unsigned-multiplication.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read unsigned multiplication object") ||
+      !validate_unsigned_multiplication_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/unsupported-function.c",
                     unsupported_function_text,
                     &unsupported_function_unit) ||
@@ -2463,7 +2736,10 @@ cleanup:
   free(invalid_definitions);
   free(expected_object);
   free(function_object);
+  free(multiplication_object);
   dispose_unit_snapshot(&layout_snapshot);
+  dispose_unit_snapshot(&unsigned_multiplication_snapshot);
+  dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);
   dispose_unit_snapshot(&function_snapshot);
   dispose_unit_snapshot(&snapshot);

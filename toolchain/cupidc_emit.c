@@ -1586,7 +1586,13 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (status != CTOOL_OK) {
       return status;
     }
-    if (ir_instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+    if (ir_instruction->operation ==
+        CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_IMUL, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR32, 1u, 32u);
+    } else if (ir_instruction->operation ==
+               CTOOL_C_EXPRESSION_OPERATOR_ADD) {
       status = cemit_x86_two_registers(
           context, CTOOL_X86_MN_ADD, CTOOL_X86_REG_GPR32, 0u,
           CTOOL_X86_REG_GPR32, 1u, 32u);

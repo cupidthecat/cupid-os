@@ -428,7 +428,8 @@ static ctool_status_t cir_lower_binary(
         CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
         "CupidC IR lowering does not yet support this value type");
   }
-  if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+  if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL) {

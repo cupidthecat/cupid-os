@@ -2846,3 +2846,53 @@ Three cross-host harness mistakes were excluded from evidence: one shell-quoting
 This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, source cohort, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Source assignments to file objects, member and subscript loads, pointer values, other widths and aggregates, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-14: CupidC lowers 32-bit integer multiplication
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers and emits these unchanged functions from `bin/paint.cc`:
+
+```c
+int canvas_to_screen_x(int cx) {
+  return CANVAS_X + (cx - view_x) * zoom_level;
+}
+
+int canvas_to_screen_y(int cy) {
+  return CANVAS_Y + (cy - view_y) * zoom_level;
+}
+```
+
+Parameter and linked-object loads, subtraction, addition, return, object symbols, and direct-object relocations were already represented. Multiplication was the only unsupported operation in either function, so this slice completes both coordinate transforms without changing Paint source.
+
+The existing `BINARY` instruction now accepts multiplication when its operands and result use the represented four-byte integer form. No public IR record changed. The emitter pops the right operand into ECX and the left operand into EAX, then emits `IMUL EAX, ECX` through the shared x86 encoder. The low 32 bits represent every defined signed product and unsigned multiplication modulo 2^32, so the IR does not need a signedness-specific operation.
+
+File-object assignment was the next candidate, but its correct seam is larger. C assignment produces a value, while a standalone setter must discard that value. A result-preserving store and a general discard operation belong in one separate increment so declaration initializers, chained assignment, and expression statements use the same rules. This increment did not add a side-effect-only assignment shortcut or rewrite Paint around the missing operation.
+
+### Contract and correction evidence
+
+- The first IR run stopped at each Paint `*` with the unsupported-expression diagnostic. After IR admitted multiplication, the first object run reached the emitter and failed because it did not yet encode that operation. Those failures located the two missing decisions before the implementation changed.
+- The IR contract guards both active function signatures, return expressions, and five linked integer definitions. It pins two 12-instruction slices with a maximum stack depth of three. Each slice contains linked-object and parameter loads, subtraction, multiplication, addition, and return with exact types, identities, and source paths.
+- The object contract emits the fixture twice and compares every byte. Each Paint function is 60 bytes and decodes `IMUL`. The object has 120 text bytes, 12 initialized data bytes, eight zero-initialized BSS bytes, eight symbols, and six text `R_386_32` relocations with addend zero.
+- Review found that the active Paint functions exercised only signed `int` even though the low-word encoding also implements unsigned multiplication. A separate `0x80000001u` fixture now pins an unsigned four-byte IR type and an exact 28-byte `IMUL` function with two symbols and no relocations.
+- Division remains the useful unsupported-operation negative. A separate `long long` multiplication receives the unsupported-type diagnostic, which keeps the four-byte boundary explicit.
+- The first full-function source guard assumed LF newlines and failed on the CRLF checkout. The final guard checks each exact signature and return expression without changing source line endings. Regenerating the audit also moved several lexical inventory totals, so the matching Python drift assertions were updated before the focused suite returned green.
+
+### Audit and verification
+
+The regenerated graph still records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 604 direct designated initializers across 15 files, 584 `goto`, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,490 `while`, 23,610 `if`, 3,389 `else`, 2,926 `for`, 14,375 `return`, and 2,205 `sizeof` occurrences. The active-source digest is `d40b3f14fa7f2bac8072756b1c2be9483bd8a0577039a94d61de688554a8a1c7`.
+
+The hosted source gates publish 34 definitions, 857 statements, 7,483 expressions, 96 block bindings, and 28 initializers for `cupidc_ir.c`. The emitter publishes 60 definitions, 1,366 statements, 10,785 expressions, 190 block bindings, and 85 initializers.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR first stopped at unsupported multiplication. Object emission then stopped at the missing multiplication encoding. |
+| Focused CupidC contracts | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 17.869 seconds. |
+| Windows hosted Toolchain | PASS | A fresh `make -C toolchain BUILD_DIR=build/codegen-verify test` passes all 130 selector invocations and returns in 22.2 seconds, including compilation and all 22 assembly demos. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 33.0 seconds. `make check-bootstrap-audit` reproduces them in 33.0 seconds. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 418.115 seconds with one expected skip and returns from Make in 451.7 seconds. |
+| Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production source cohort, build transform, host dependency, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. File-object assignment, member and subscript loads, pointer values, division and other expressions, wider and aggregate values, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
