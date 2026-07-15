@@ -29,6 +29,10 @@ static const char active_paint_y[] =
 
 static const char active_vga_object[] =
     "static uint32_t last_flip_ms = 0;";
+static const char active_vga_wait_object[] =
+    "static bool vga_wait_vsync = false;";
+static const char active_vga_wait_setter[] =
+    "void vga_set_vsync_wait(bool enabled) { vga_wait_vsync = enabled; }";
 static const char active_vga_function[] =
     "bool vga_flip_ready(void) {\n"
     "  uint32_t now = timer_get_uptime_ms();\n"
@@ -243,6 +247,10 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   if (!check_status(status, CTOOL_OK, "load active VGA source") ||
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_vga_object) == NULL ||
+      strstr((const char *)source.contents.data, active_vga_wait_object) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_vga_wait_setter) ==
+          NULL ||
       (strstr((const char *)source.contents.data, active_vga_function) ==
            NULL &&
        strstr((const char *)source.contents.data,
@@ -888,6 +896,252 @@ static int validate_unsigned_multiplication_ir(
   return 1;
 }
 
+static int validate_file_assignment_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "vga_set_vsync_wait");
+  ctool_u32 object_binding = find_binding(unit, "vga_wait_vsync");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 6u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      object_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "file assignment IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  if (function_type->referenced_type >= unit->graph.type_count ||
+      unit->graph.types[function_type->referenced_type].kind !=
+          CTOOL_C_TYPE_VOID ||
+      unit->bindings[object_binding].type != value_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 6u ||
+      function->maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].reference != object_binding ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[1].reference != parameter ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[2].type != value_type ||
+      instructions[2].input_type != value_type ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[4].type != CTOOL_C_TYPE_NONE ||
+      instructions[4].input_type != value_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      !string_equal(instructions[3].location.path,
+                    "/active-vga-file-assignment.c") ||
+      !string_equal(instructions[4].physical_location.path,
+                    "/active-vga-file-assignment.c")) {
+    (void)fprintf(stderr, "file assignment IR instruction stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_discard_ir(const ctool_c_translation_unit_t *unit,
+                               const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions = ir->instructions;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 3u || ir->functions == NULL ||
+      instructions == NULL || ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 3u ||
+      ir->functions[0].maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_INTEGER) {
+    (void)fprintf(stderr, "discard IR inventory differs\n");
+    return 0;
+  }
+  value_type = instructions[0].type;
+  if (instructions[0].integer_bits != 1u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[1].type != CTOOL_C_TYPE_NONE ||
+      instructions[1].input_type != value_type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "discard IR instruction stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_chained_assignment_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions = ir->instructions;
+  ctool_u32 function_binding = find_binding(unit, "set_both");
+  ctool_u32 first = find_binding(unit, "first_state");
+  ctool_u32 second = find_binding(unit, "second_state");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 7u || ir->functions == NULL ||
+      instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      first == CTOOL_C_AST_NONE || second == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "chained assignment IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  function = &ir->functions[0];
+  if (function_type->referenced_type != value_type ||
+      unit->bindings[first].type != value_type ||
+      unit->bindings[second].type != value_type ||
+      function->binding != function_binding ||
+      definition->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 7u ||
+      function->maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != first ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[1].type != value_type ||
+      instructions[1].reference != second ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != value_type ||
+      instructions[2].reference != parameter ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[4].type != value_type ||
+      instructions[4].input_type != value_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[6].type != value_type ||
+      instructions[6].input_type != value_type ||
+      !string_equal(instructions[4].location.path,
+                    "/chained-assignment.c") ||
+      !string_equal(instructions[5].physical_location.path,
+                    "/chained-assignment.c")) {
+    (void)fprintf(stderr, "chained assignment IR instruction stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_local_parameter_assignment_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *local_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions = ir->instructions;
+  ctool_u32 function_binding = find_binding(unit, "assign_local_parameter");
+  ctool_u32 local = find_block_binding(unit, "local");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 8u || ir->functions == NULL ||
+      instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      local == CTOOL_C_AST_NONE || local >= unit->block_binding_count) {
+    (void)fprintf(stderr, "local/parameter assignment IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  if (unit->block_bindings[local].type >= unit->graph.type_count) {
+    return 0;
+  }
+  local_type = &unit->graph.types[unit->block_bindings[local].type];
+  function = &ir->functions[0];
+  if (function_type->referenced_type >= unit->graph.type_count ||
+      unit->graph.types[function_type->referenced_type].kind !=
+          CTOOL_C_TYPE_VOID ||
+      local_type->kind != CTOOL_C_TYPE_QUALIFIED ||
+      (local_type->qualifiers & CTOOL_C_QUAL_VOLATILE) == 0u ||
+      local_type->referenced_type != value_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 8u ||
+      function->maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[1].type != unit->block_bindings[local].type ||
+      instructions[1].reference != local ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != value_type ||
+      instructions[2].reference != parameter ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[4].type != value_type ||
+      instructions[4].input_type != value_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[6].type != CTOOL_C_TYPE_NONE ||
+      instructions[6].input_type != value_type ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      !string_equal(instructions[4].location.path,
+                    "/local-parameter-assignment.c") ||
+      !string_equal(instructions[6].physical_location.path,
+                    "/local-parameter-assignment.c")) {
+    (void)fprintf(stderr,
+                  "local/parameter assignment IR instruction stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_local_ir(const ctool_c_translation_unit_t *unit,
                              const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *definition;
@@ -1455,6 +1709,31 @@ static int run_active_leaf(const char *host_root) {
       "unsigned int multiply_unsigned(unsigned int value) {\n"
       "  return value * 0x80000001u;\n"
       "}\n";
+  static const char file_assignment_source[] =
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "static bool vga_wait_vsync = false;\n"
+      "void vga_set_vsync_wait(bool enabled) { vga_wait_vsync = enabled; }\n";
+  static const char atomic_assignment_source[] =
+      "_Atomic int atomic_state;\n"
+      "void set_atomic(void) { atomic_state = 1; }\n";
+  static const char chained_assignment_source[] =
+      "int first_state;\n"
+      "int second_state;\n"
+      "int set_both(int value) { return first_state = second_state = value; }\n";
+  static const char local_parameter_assignment_source[] =
+      "void assign_local_parameter(int value) {\n"
+      "  volatile int local;\n"
+      "  value = local = value;\n"
+      "}\n";
+  static const char wide_assignment_source[] =
+      "long long wide_state;\n"
+      "void set_wide(void) { wide_state = 1; }\n";
+  static const char pointer_assignment_source[] =
+      "int *pointer_state;\n"
+      "void clear_pointer(void) { pointer_state = 0; }\n";
+  static const char compound_assignment_source[] =
+      "int counter;\n"
+      "void bump(void) { counter += 1; }\n";
   static const char abi_source[] =
       "long long wide(long long value) { return value; }\n";
   static const char inline_success_source[] =
@@ -1543,6 +1822,13 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t addition_unit;
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
+  ctool_c_translation_unit_t file_assignment_unit;
+  ctool_c_translation_unit_t atomic_assignment_unit;
+  ctool_c_translation_unit_t chained_assignment_unit;
+  ctool_c_translation_unit_t local_parameter_assignment_unit;
+  ctool_c_translation_unit_t wide_assignment_unit;
+  ctool_c_translation_unit_t pointer_assignment_unit;
+  ctool_c_translation_unit_t compound_assignment_unit;
   ctool_c_translation_unit_t local_unit;
   ctool_c_translation_unit_t simple_unit;
   ctool_c_translation_unit_t statement_unit;
@@ -1580,6 +1866,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_expression_t *ownership_expressions = NULL;
   ctool_c_expression_t *file_expressions = NULL;
+  ctool_c_expression_t *assignment_expressions = NULL;
+  ctool_u32 *assignment_children = NULL;
   ctool_c_binding_t *file_bindings = NULL;
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
@@ -1598,6 +1886,18 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
                sizeof(unsigned_multiplication_unit));
+  (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
+  (void)memset(&atomic_assignment_unit, 0,
+               sizeof(atomic_assignment_unit));
+  (void)memset(&chained_assignment_unit, 0,
+               sizeof(chained_assignment_unit));
+  (void)memset(&local_parameter_assignment_unit, 0,
+               sizeof(local_parameter_assignment_unit));
+  (void)memset(&wide_assignment_unit, 0, sizeof(wide_assignment_unit));
+  (void)memset(&pointer_assignment_unit, 0,
+               sizeof(pointer_assignment_unit));
+  (void)memset(&compound_assignment_unit, 0,
+               sizeof(compound_assignment_unit));
   (void)memset(&local_unit, 0, sizeof(local_unit));
   (void)memset(&simple_unit, 0, sizeof(simple_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
@@ -1628,6 +1928,60 @@ static int run_active_leaf(const char *host_root) {
                     unsigned_multiplication_source,
                     &unsigned_multiplication_unit)) {
     (void)fprintf(stderr, "unsigned multiplication setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/active-vga-file-assignment.c",
+                    file_assignment_source, &file_assignment_unit)) {
+    (void)fprintf(stderr, "active VGA file assignment setup failed\n");
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/atomic-assignment.c", atomic_assignment_source,
+                    &atomic_assignment_unit)) {
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/chained-assignment.c", chained_assignment_source,
+                    &chained_assignment_unit)) {
+    (void)fprintf(stderr, "chained assignment setup failed\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/local-parameter-assignment.c",
+                    local_parameter_assignment_source,
+                    &local_parameter_assignment_unit)) {
+    (void)fprintf(stderr, "local/parameter assignment setup failed\n");
+    goto cleanup;
+  }
+  if (!expect_ir_failure(
+          job, &atomic_assignment_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic assignment")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-assignment.c", wide_assignment_source,
+                    &wide_assignment_unit) ||
+      !expect_ir_failure(
+          job, &wide_assignment_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide assignment") ||
+      !parse_source(job, "/pointer-assignment.c", pointer_assignment_source,
+                    &pointer_assignment_unit) ||
+      !expect_ir_failure(
+          job, &pointer_assignment_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "pointer assignment") ||
+      !parse_source(job, "/compound-assignment.c",
+                    compound_assignment_source,
+                    &compound_assignment_unit) ||
+      !expect_ir_failure(
+          job, &compound_assignment_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "compound assignment")) {
     goto cleanup;
   }
 
@@ -1956,6 +2310,111 @@ static int run_active_leaf(const char *host_root) {
       unit_fingerprint(&unsigned_multiplication_unit) != fingerprint ||
       !validate_unsigned_multiplication_ir(&unsigned_multiplication_unit,
                                            &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&file_assignment_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &file_assignment_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active VGA file assignment lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&file_assignment_unit) != fingerprint ||
+      !validate_file_assignment_ir(&file_assignment_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  for (index = 0u; index < file_assignment_unit.expression_count; index++) {
+    if (file_assignment_unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_ASSIGNMENT) {
+      break;
+    }
+  }
+  assignment_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)file_assignment_unit.expression_count *
+      sizeof(*assignment_expressions));
+  assignment_children = (ctool_u32 *)malloc(
+      (size_t)file_assignment_unit.expression_child_count *
+      sizeof(*assignment_children));
+  if (index == file_assignment_unit.expression_count ||
+      assignment_expressions == NULL || assignment_children == NULL ||
+      file_assignment_unit.expressions[index].child_count != 2u ||
+      file_assignment_unit.expressions[index].first_child >
+          file_assignment_unit.expression_child_count ||
+      2u > file_assignment_unit.expression_child_count -
+               file_assignment_unit.expressions[index].first_child) {
+    goto cleanup;
+  }
+  (void)memcpy(assignment_expressions, file_assignment_unit.expressions,
+               (size_t)file_assignment_unit.expression_count *
+                   sizeof(*assignment_expressions));
+  assignment_expressions[index].computation_type =
+      file_assignment_unit.function_definitions[0].declared_type;
+  invalid_unit = file_assignment_unit;
+  invalid_unit.expressions = assignment_expressions;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "mismatched assignment computation type")) {
+    goto cleanup;
+  }
+  (void)memcpy(assignment_children,
+               file_assignment_unit.expression_children,
+               (size_t)file_assignment_unit.expression_child_count *
+                   sizeof(*assignment_children));
+  assignment_children[file_assignment_unit.expressions[index].first_child] =
+      file_assignment_unit.expression_count;
+  invalid_unit = file_assignment_unit;
+  invalid_unit.expression_children = assignment_children;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "out-of-range assignment child")) {
+    goto cleanup;
+  }
+  (void)memcpy(assignment_children,
+               file_assignment_unit.expression_children,
+               (size_t)file_assignment_unit.expression_child_count *
+                   sizeof(*assignment_children));
+  assignment_children[file_assignment_unit.expressions[index].first_child] =
+      assignment_children[file_assignment_unit.expressions[index].first_child +
+                          1u];
+  invalid_unit = file_assignment_unit;
+  invalid_unit.expression_children = assignment_children;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "value-producing assignment destination")) {
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&chained_assignment_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &chained_assignment_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "chained assignment lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&chained_assignment_unit) != fingerprint ||
+      !validate_chained_assignment_ir(&chained_assignment_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  fingerprint = unit_fingerprint(&local_parameter_assignment_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &local_parameter_assignment_unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "local/parameter assignment lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&local_parameter_assignment_unit) != fingerprint ||
+      !validate_local_parameter_assignment_ir(
+          &local_parameter_assignment_unit, &ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -2339,12 +2798,18 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/value-statement.c", value_statement_source,
-                    &value_statement_unit) ||
-      !expect_ir_failure(
-          job, &value_statement_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "nonvoid expression statement")) {
+                    &value_statement_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&value_statement_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &value_statement_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "nonvoid expression statement") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&value_statement_unit) != fingerprint ||
+      !validate_discard_ir(&value_statement_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   if (!parse_source(job, "/unsupported-abi.c", abi_source, &abi_unit) ||
@@ -2394,6 +2859,8 @@ cleanup:
   free(invalid_expressions);
   free(ownership_expressions);
   free(file_expressions);
+  free(assignment_expressions);
+  free(assignment_children);
   free(file_bindings);
   free(invalid_layouts);
   free(invalid_block_bindings);

@@ -1535,7 +1535,12 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return status;
   }
-  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE) {
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE ||
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) {
+    ctool_bool preserve_value =
+        ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if (cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
             CTOOL_FALSE ||
         cemit_ir_type_is_i32_integer(context,
@@ -1556,7 +1561,25 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (status == CTOOL_OK) {
       status = cemit_x86_store_ecx_at_eax(context);
     }
+    if (status == CTOOL_OK && preserve_value == CTOOL_TRUE) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 1u, 32u);
+    }
     return status;
+  }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD) {
+    if (ir_instruction->type != CTOOL_C_TYPE_NONE ||
+        cemit_ir_type_is_i32_integer(context,
+                                     ir_instruction->input_type) ==
+            CTOOL_FALSE ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    return cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER) {
     if (cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==

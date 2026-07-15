@@ -37,4 +37,4 @@ A separate unresolved `external_clock` fixture emits a 15-byte load function and
 
 This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
-Issue #25 remains open. Source assignments to file objects, member and subscript loads, pointer values, other value widths and aggregates, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain.
+ADR 0020 closes the plain four-byte integer file-object assignment frontier named above. Issue #25 remains open. Member and subscript addresses, atomic and compound assignment, pointer values, other value widths and aggregates, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain.

@@ -2896,3 +2896,65 @@ The hosted source gates publish 34 definitions, 857 statements, 7,483 expression
 This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production source cohort, build transform, host dependency, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. File-object assignment, member and subscript loads, pointer values, division and other expressions, wider and aggregate values, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC preserves plain assignment results
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers and emits this unchanged setter from `drivers/vga.c`:
+
+```c
+static bool vga_wait_vsync = false;
+
+void vga_set_vsync_wait(bool enabled) { vga_wait_vsync = enabled; }
+```
+
+The frontend already represented the destination as a raw designator and converted the source to the assignment result type. Linear IR stopped at the assignment expression. The existing `STORE` instruction could not represent it correctly because C assignment produces a value, even when a surrounding expression statement discards that value.
+
+The public IR adds `STORE_VALUE` and `DISCARD`. `STORE_VALUE` consumes the source value and destination address, writes the value once, and pushes the stored result. `DISCARD` consumes one nonvoid value. A void function may now have its supported declaration prefix followed by one expression statement; a nonvoid result receives `DISCARD` before the implicit `RETURN_VOID`.
+
+The emitter pops the value into ECX and the address into EAX, emits the store through the shared x86 model, and pushes ECX only for `STORE_VALUE`. `STORE` and `STORE_VALUE` share that path so their validation and machine operation cannot drift. `DISCARD` pops its value into EAX. Linked destinations keep the existing `FILE_ADDRESS` identity and direct-symbol `R_386_32` relocation with addend zero.
+
+Plain assignment accepts represented complete four-byte integer destinations, source values, and results. The destination and source are each lowered once. Right-associated assignment can therefore feed another store or a return without duplicating either designator. A volatile automatic destination keeps its qualified type on the address stack until the store. Atomic assignment remains unsupported because an ordinary x86 store would not state or prove the required C11 ordering.
+
+Changing every `STORE` to leave a value was rejected because automatic initializers use it only for a side effect. A resultless assignment shortcut was rejected because it breaks chained and returned assignment. Direct AST-to-x86 emission and hard-coded bytes were rejected because typed IR, the shared x86 encoder, and ELF32 own those seams. Treating atomic assignment as an ordinary `MOV` was rejected until the memory-order contract exists.
+
+ADR 0020 records the public contract, supported boundary, rejected shortcuts, exact object evidence, and ownership status.
+
+### Contract and review evidence
+
+- The unchanged VGA setter lowers to six instructions with maximum abstract-stack depth two: `FILE_ADDRESS`, `PARAMETER_ADDRESS`, `LOAD`, `STORE_VALUE`, `DISCARD`, and `RETURN_VOID`.
+- Its exact object has 27 text bytes, a local four-byte `vga_wait_vsync` object in `.bss`, and one `R_386_32` relocation at text offset 4 with addend zero.
+- A returned `first_state = second_state = value` fixture lowers to seven instructions with maximum depth three. Its exact 37-byte object has two global four-byte BSS objects and direct-object relocations at offsets 4 and 9. Repeated emission is byte-identical.
+- A separate void fixture declares a volatile automatic integer, then chains assignment through that local and the parameter before discarding the result. Its eight-instruction stream proves the declaration-prefix expression body, local and parameter destinations, qualified type matching, two result-preserving stores, and implicit return together.
+- A plain `1;` statement proves that `DISCARD` is a general nonvoid expression operation rather than an assignment special case.
+- Useful language boundaries reject atomic, pointer, wide integer, and compound assignment. Mutated frozen units reject a mismatched computation type, an out-of-range child, and a value-producing expression substituted for the destination address.
+- The initial IR contract did not compile because the two public instruction kinds were absent. Once lowering existed, object emission stopped at the unknown kinds. The atomic negative first exposed that a normal store was being accepted; the final lowering rejects it before emission.
+- Standards review found duplicate `STORE` and `STORE_VALUE` emitter branches. One shared branch now owns their validation, pops, and store, with a conditional result push.
+- Spec review found that the first tests did not combine declarations with an expression body or directly exercise local, parameter, volatile, and malformed address-stack cases. The added eight-instruction fixture and left-child mutation close both gaps. Follow-up Spec review reports no actionable finding.
+
+The hosted Toolchain source gates remain complete. `cupidc_ir.c` publishes 36 definitions, 950 statements, 8,180 expressions, 106 block bindings, and 31 initializers. `cupidc_emit.c` publishes 60 definitions, 1,376 statements, 10,915 expressions, 191 block bindings, and 86 initializers.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 604 direct designated initializers across 15 files, 607 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,679 `if`, 3,389 `else`, 2,928 `for`, 14,419 `return`, and 2,237 `sizeof` occurrences. The active-source digest is `5bfec2ec3d02607b96cc687382bd135f5046e569ac45821d13bdac05c083fbb8`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR first failed at the missing public instruction kinds. Object emission then failed at the unknown operations. The atomic negative also failed before atomic assignment was rejected. |
+| Focused CupidC contracts | PASS | Final-tree `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 20.559 seconds. |
+| Windows hosted Toolchain | PASS | A fresh `make -C toolchain BUILD_DIR=build/assignment-final test` passes the strict Clang suite in 25.1 seconds, including every frontend, IR, object, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contract and all 22 assembly demos. |
+| WSL strict compilers | PASS | On WSL2 Ubuntu 24.04.2, fresh GCC 13.3 and Clang 18.1 builds pass the `active-leaf` and `static-data` contracts in 8.766 and 8.370 seconds. The scoped C diff hash stays fixed through the run. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass both contracts with address and undefined-behavior sanitizers, leak detection, strict string checks, and halt-on-error behavior. No report is produced. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` are silent across both implementation files and the three affected C contracts. |
+| Formal two-axis review | PASS AFTER FIXES | Standards review found duplicate store emission and the pending log. Spec review requested combined declaration/expression, local, parameter, volatile, and malformed address-stack coverage. The shared emitter branch, new fixture, mutation, and this log close the findings. Follow-up Spec review is clean. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 32.6 seconds. Final-tree `make check-bootstrap-audit` reproduces them in 37.2 seconds. |
+| Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 415.394 seconds with one expected skip and returns from Make in 449 seconds. |
+| Patch hygiene | PASS | `git diff --check` passes with checkout line-ending notices. The changed prose contains no em or en dashes and no flagged humanizer filler phrases. |
+| Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production source cohort, build transform, ABI owner, host dependency, boot path, or runtime behavior changes here.
+
+Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Member and subscript addresses, compound and update lowering, atomic ordering, pointers and other value widths, floating and aggregate values, nested and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

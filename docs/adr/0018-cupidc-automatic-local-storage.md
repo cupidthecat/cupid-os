@@ -40,4 +40,4 @@ This is hosted bootstrap evidence. GCC or Clang still builds the shared modules 
 
 ## Extension
 
-ADR 0019 closes the file-object load and greater-than-or-equal frontier named above. The complete unchanged `vga_flip_ready` body now reaches hosted IR and deterministic ELF32 object emission. Source assignments, broader statements and object types, production integration, and the other listed work remain open.
+ADR 0019 closes the file-object load and greater-than-or-equal frontier named above. The complete unchanged `vga_flip_ready` body now reaches hosted IR and deterministic ELF32 object emission. ADR 0020 adds value-preserving plain assignment for represented four-byte integers and discarded nonvoid expression values. Broader statements, atomic and compound assignment, member and subscript destinations, other object types, production integration, and the other listed work remain open.

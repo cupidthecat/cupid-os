@@ -487,6 +487,139 @@ static int validate_external_object_load(
   return 1;
 }
 
+static int validate_file_assignment_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "vga_set_vsync_wait");
+  const ctool_elf32_symbol_t *state =
+      find_symbol(object, "vga_wait_vsync");
+  if (text == NULL || bss == NULL || rel_text == NULL || function == NULL ||
+      state == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_first != 0u || text->relocation_count != 1u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 4u || bss->contents.size != 0u ||
+      object->symbol_count != 3u || object->relocation_count != 1u ||
+      object->relocations == NULL ||
+      !symbol_matches(state, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(function, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 4u ||
+      object->relocations[0].symbol_file_index != state->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0 ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "vga_set_vsync_wait")) {
+    (void)fprintf(stderr, "file assignment object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_chained_assignment_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x51u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
+      0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 relocation_offsets[] = {4u, 9u};
+  static const char *const relocation_symbols[] = {
+      "first_state", "second_state"};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *first = find_symbol(object, "first_state");
+  const ctool_elf32_symbol_t *second = find_symbol(object, "second_state");
+  const ctool_elf32_symbol_t *function = find_symbol(object, "set_both");
+  ctool_u32 relocation;
+  if (text == NULL || bss == NULL || rel_text == NULL || first == NULL ||
+      second == NULL || function == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_first != 0u || text->relocation_count != 2u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 8u || bss->contents.size != 0u ||
+      object->symbol_count != 4u || object->relocation_count != 2u ||
+      object->relocations == NULL ||
+      !symbol_matches(first, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(second, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
+      !symbol_matches(function, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "set_both")) {
+    (void)fprintf(stderr, "chained assignment object differs\n");
+    return 0;
+  }
+  for (relocation = 0u; relocation < 2u; relocation++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, relocation_symbols[relocation]);
+    if (symbol == NULL ||
+        object->relocations[relocation].relocation_section_file_index !=
+            rel_text->file_index ||
+        object->relocations[relocation].entry_index != relocation ||
+        object->relocations[relocation].target_section_file_index !=
+            text->file_index ||
+        object->relocations[relocation].offset !=
+            relocation_offsets[relocation] ||
+        object->relocations[relocation].symbol_file_index !=
+            symbol->file_index ||
+        object->relocations[relocation].type != CTOOL_ELF32_R_386_32 ||
+        object->relocations[relocation].addend_known != CTOOL_TRUE ||
+        object->relocations[relocation].addend != 0) {
+      (void)fprintf(stderr, "chained assignment relocation differs\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int validate_paint_multiplication_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
@@ -1748,6 +1881,14 @@ static int run_static_data(const char *host_root) {
       "unsigned int multiply_unsigned(unsigned int value) {\n"
       "  return value * 0x80000001u;\n"
       "}\n";
+  static const char file_assignment_text[] =
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "static bool vga_wait_vsync = false;\n"
+      "void vga_set_vsync_wait(bool enabled) { vga_wait_vsync = enabled; }\n";
+  static const char chained_assignment_text[] =
+      "int first_state;\n"
+      "int second_state;\n"
+      "int set_both(int value) { return first_state = second_state = value; }\n";
   static const char external_inline_text[] =
       "inline int external_inline(void) { return 1; }\n";
   static const char external_object_text[] =
@@ -1787,6 +1928,8 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t external_object_unit;
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
+  ctool_c_translation_unit_t file_assignment_unit;
+  ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
@@ -1803,6 +1946,8 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t external_object_snapshot;
   unit_snapshot_t multiplication_snapshot;
   unit_snapshot_t unsigned_multiplication_snapshot;
+  unit_snapshot_t file_assignment_snapshot;
+  unit_snapshot_t chained_assignment_snapshot;
   unit_snapshot_t layout_snapshot;
   ctool_u8 *expected_object = NULL;
   ctool_u32 expected_object_size = 0u;
@@ -1815,6 +1960,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 function_object_size = 0u;
   ctool_u8 *multiplication_object = NULL;
   ctool_u32 multiplication_object_size = 0u;
+  ctool_u8 *chained_assignment_object = NULL;
+  ctool_u32 chained_assignment_object_size = 0u;
   ctool_status_t status;
   size_t invalid_binding_bytes;
   size_t invalid_definition_bytes;
@@ -1837,6 +1984,9 @@ static int run_static_data(const char *host_root) {
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
                sizeof(unsigned_multiplication_unit));
+  (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
+  (void)memset(&chained_assignment_unit, 0,
+               sizeof(chained_assignment_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
@@ -1847,6 +1997,10 @@ static int run_static_data(const char *host_root) {
                sizeof(multiplication_snapshot));
   (void)memset(&unsigned_multiplication_snapshot, 0,
                sizeof(unsigned_multiplication_snapshot));
+  (void)memset(&file_assignment_snapshot, 0,
+               sizeof(file_assignment_snapshot));
+  (void)memset(&chained_assignment_snapshot, 0,
+               sizeof(chained_assignment_snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
   (void)memset(&invalid_expression, 0, sizeof(invalid_expression));
   if (!open_job(host_root, &adapter, &config, &job)) {
@@ -2444,6 +2598,93 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-vga-file-assignment.c",
+                    file_assignment_text, &file_assignment_unit) ||
+      !take_unit_snapshot(&file_assignment_unit,
+                          &file_assignment_snapshot)) {
+    (void)fprintf(stderr, "file assignment object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &file_assignment_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "file assignment object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&file_assignment_snapshot,
+                            &file_assignment_unit) == 0) {
+    (void)fprintf(stderr, "file assignment emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-vga-file-assignment.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read file assignment object") ||
+      !validate_file_assignment_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/chained-assignment.c", chained_assignment_text,
+                    &chained_assignment_unit) ||
+      !take_unit_snapshot(&chained_assignment_unit,
+                          &chained_assignment_snapshot)) {
+    (void)fprintf(stderr, "chained assignment object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &chained_assignment_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "chained assignment object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&chained_assignment_snapshot,
+                            &chained_assignment_unit) == 0) {
+    (void)fprintf(stderr, "chained assignment emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  chained_assignment_object_size = bytes.size;
+  chained_assignment_object =
+      (ctool_u8 *)malloc((size_t)chained_assignment_object_size);
+  if (chained_assignment_object == NULL) {
+    (void)fprintf(stderr, "chained assignment snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(chained_assignment_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &chained_assignment_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat chained assignment object") ||
+      bytes.size != chained_assignment_object_size ||
+      memcmp(bytes.data, chained_assignment_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&chained_assignment_snapshot,
+                            &chained_assignment_unit) == 0) {
+    (void)fprintf(stderr,
+                  "chained assignment emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/chained-assignment.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read chained assignment object") ||
+      !validate_chained_assignment_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/unsupported-function.c",
                     unsupported_function_text,
                     &unsupported_function_unit) ||
@@ -2737,7 +2978,10 @@ cleanup:
   free(expected_object);
   free(function_object);
   free(multiplication_object);
+  free(chained_assignment_object);
   dispose_unit_snapshot(&layout_snapshot);
+  dispose_unit_snapshot(&file_assignment_snapshot);
+  dispose_unit_snapshot(&chained_assignment_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);
