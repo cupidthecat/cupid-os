@@ -713,6 +713,8 @@ static ctool_status_t cir_lower_binary(
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_REMAINDER &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_LESS &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_EQUAL &&

@@ -51,3 +51,5 @@ ADR 0022 adds `BIT_FIELD_LOAD` for direct bit-field reads from represented four-
 ADR 0023 extends `BINARY` with equality, inequality, and bitwise AND for represented four-byte integers. Logical AND and logical OR use the existing branches to skip their right operands when the left value determines the result. Both paths join with one normalized integer value. The remaining operators stay open.
 
 ADR 0024 extends `BINARY` with signed and unsigned 32-bit division and remainder. Signed emission uses `CDQ` and `IDIV`; unsigned emission clears EDX and uses `DIV`. Quotients come from EAX and remainders from EDX. Wide integer division and remainder remain open.
+
+ADR 0025 extends `BINARY` with signed and unsigned 32-bit less-than and less-than-or-equal. The emitter uses `SETL` or `SETLE` for signed inputs and `SETB` or `SETBE` for unsigned inputs. All six integer comparison operators now reach the represented four-byte object path. Pointer relations and wide integer relations remain open.

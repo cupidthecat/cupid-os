@@ -1079,6 +1079,160 @@ static int validate_division_object(ctool_job_t *job,
   return 1;
 }
 
+static int validate_branch_fit_object(ctool_job_t *job,
+                                      const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x7fu,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
+      0x96u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x33u, 0x00u, 0x00u,
+      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x80u, 0xffu, 0xffu,
+      0xffu, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x93u, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 signed_less_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9cu, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 signed_less_equal_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9eu, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 unsigned_less_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u, 0xc0u,
+      0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u32 branch_targets[] = {
+      49u, 100u, 95u, 100u, 119u, 124u};
+  static const ctool_x86_mnemonic_t branch_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETBE,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETAE, CTOOL_X86_MN_MOVZX,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t signed_less_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETL,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t signed_less_equal_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETLE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t unsigned_less_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETB,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "asm_branch_fits_i8");
+  const ctool_elf32_symbol_t *signed_less =
+      find_symbol(object, "signed_less");
+  const ctool_elf32_symbol_t *signed_less_equal =
+      find_symbol(object, "signed_less_equal");
+  const ctool_elf32_symbol_t *unsigned_less =
+      find_symbol(object, "unsigned_less");
+  ctool_u32 signed_less_offset = (ctool_u32)sizeof(function_bytes);
+  ctool_u32 signed_less_equal_offset =
+      signed_less_offset + (ctool_u32)sizeof(signed_less_bytes);
+  ctool_u32 unsigned_less_offset =
+      signed_less_equal_offset +
+      (ctool_u32)sizeof(signed_less_equal_bytes);
+  ctool_u32 total_size =
+      unsigned_less_offset + (ctool_u32)sizeof(unsigned_less_bytes);
+  if (text == NULL || rel_text != NULL || function == NULL ||
+      signed_less == NULL || signed_less_equal == NULL ||
+      unsigned_less == NULL || text->contents.size != total_size ||
+      text->relocation_count != 0u || object->symbol_count != 5u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !symbol_matches(signed_less, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      signed_less_offset,
+                      (ctool_u32)sizeof(signed_less_bytes)) ||
+      !symbol_matches(signed_less_equal, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      signed_less_equal_offset,
+                      (ctool_u32)sizeof(signed_less_equal_bytes)) ||
+      !symbol_matches(unsigned_less, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      unsigned_less_offset,
+                      (ctool_u32)sizeof(unsigned_less_bytes)) ||
+      !decode_function(
+          job, text, function, branch_instructions,
+          (ctool_u32)(sizeof(branch_instructions) /
+                      sizeof(branch_instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), branch_targets,
+          (ctool_u32)(sizeof(branch_targets) / sizeof(branch_targets[0])),
+          "asm_branch_fits_i8") ||
+      !decode_function(
+          job, text, signed_less, signed_less_instructions,
+          (ctool_u32)(sizeof(signed_less_instructions) /
+                      sizeof(signed_less_instructions[0])),
+          signed_less_bytes, (ctool_u32)sizeof(signed_less_bytes), NULL, 0u,
+          "signed_less") ||
+      !decode_function(
+          job, text, signed_less_equal, signed_less_equal_instructions,
+          (ctool_u32)(sizeof(signed_less_equal_instructions) /
+                      sizeof(signed_less_equal_instructions[0])),
+          signed_less_equal_bytes,
+          (ctool_u32)sizeof(signed_less_equal_bytes), NULL, 0u,
+          "signed_less_equal") ||
+      !decode_function(
+          job, text, unsigned_less, unsigned_less_instructions,
+          (ctool_u32)(sizeof(unsigned_less_instructions) /
+                      sizeof(unsigned_less_instructions[0])),
+          unsigned_less_bytes, (ctool_u32)sizeof(unsigned_less_bytes), NULL,
+          0u, "unsigned_less")) {
+    (void)fprintf(stderr, "branch-range object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_function_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 implemented_bytes[] = {
@@ -2314,6 +2468,20 @@ static int run_static_data(const char *host_root) {
       "unsigned int right) {\n"
       "  return left % right;\n"
       "}\n";
+  static const char branch_fit_text[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef int ctool_bool;\n"
+      "#define CTOOL_FALSE 0\n"
+      "#define CTOOL_TRUE 1\n"
+      "static ctool_bool asm_branch_fits_i8(ctool_u32 bits) {\n"
+      "  return bits <= 0x7fu || bits >= 0xffffff80u ? CTOOL_TRUE : "
+      "CTOOL_FALSE;\n"
+      "}\n"
+      "int signed_less(int left, int right) { return left < right; }\n"
+      "int signed_less_equal(int left, int right) { return left <= right; }\n"
+      "int unsigned_less(unsigned int left, unsigned int right) {\n"
+      "  return left < right;\n"
+      "}\n";
   static const char file_assignment_text[] =
       "typedef enum { false = 0, true = 1 } bool;\n"
       "static bool vga_wait_vsync = false;\n"
@@ -2400,6 +2568,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t division_unit;
+  ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_unit;
@@ -2421,6 +2590,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t multiplication_snapshot;
   unit_snapshot_t unsigned_multiplication_snapshot;
   unit_snapshot_t division_snapshot;
+  unit_snapshot_t branch_fit_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
   unit_snapshot_t bit_field_snapshot;
@@ -2439,6 +2609,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 multiplication_object_size = 0u;
   ctool_u8 *division_object = NULL;
   ctool_u32 division_object_size = 0u;
+  ctool_u8 *branch_fit_object = NULL;
+  ctool_u32 branch_fit_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
   ctool_u32 file_member_object_size = 0u;
   ctool_u8 *bit_field_object = NULL;
@@ -2468,6 +2640,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&unsigned_multiplication_unit, 0,
                sizeof(unsigned_multiplication_unit));
   (void)memset(&division_unit, 0, sizeof(division_unit));
+  (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
@@ -2484,6 +2657,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&unsigned_multiplication_snapshot, 0,
                sizeof(unsigned_multiplication_snapshot));
   (void)memset(&division_snapshot, 0, sizeof(division_snapshot));
+  (void)memset(&branch_fit_snapshot, 0, sizeof(branch_fit_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
   (void)memset(&file_member_snapshot, 0, sizeof(file_member_snapshot));
@@ -3137,6 +3311,57 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-asm-branch-fits-i8.c",
+                    branch_fit_text, &branch_fit_unit) ||
+      !take_unit_snapshot(&branch_fit_unit, &branch_fit_snapshot)) {
+    (void)fprintf(stderr, "branch-range object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &branch_fit_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first branch-range object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&branch_fit_snapshot, &branch_fit_unit) == 0) {
+    (void)fprintf(stderr, "first branch-range emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  branch_fit_object_size = bytes.size;
+  branch_fit_object = (ctool_u8 *)malloc((size_t)branch_fit_object_size);
+  if (branch_fit_object == NULL) {
+    (void)fprintf(stderr, "branch-range object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(branch_fit_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &branch_fit_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat branch-range object") ||
+      bytes.size != branch_fit_object_size ||
+      memcmp(bytes.data, branch_fit_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&branch_fit_snapshot, &branch_fit_unit) == 0) {
+    (void)fprintf(stderr, "branch-range emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-asm-branch-fits-i8.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read branch-range object") ||
+      !validate_branch_fit_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-vga-file-assignment.c",
                     file_assignment_text, &file_assignment_unit) ||
       !take_unit_snapshot(&file_assignment_unit,
@@ -3624,6 +3849,7 @@ cleanup:
   free(function_object);
   free(multiplication_object);
   free(division_object);
+  free(branch_fit_object);
   free(file_member_object);
   free(bit_field_object);
   free(chained_assignment_object);
@@ -3633,6 +3859,7 @@ cleanup:
   dispose_unit_snapshot(&file_assignment_snapshot);
   dispose_unit_snapshot(&chained_assignment_snapshot);
   dispose_unit_snapshot(&division_snapshot);
+  dispose_unit_snapshot(&branch_fit_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);

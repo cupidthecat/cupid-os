@@ -3256,3 +3256,62 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide integer operations, the remaining comparison and bitwise operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC lowers 32-bit less-than comparisons
+
+### Decision and active-source requirement
+
+The hosted CupidC path can now lower the unchanged branch-range helper in `toolchain/cupidasm.c`:
+
+```c
+static ctool_bool asm_branch_fits_i8(ctool_u32 bits) {
+  return bits <= 0x7fu || bits >= 0xffffff80u ? CTOOL_TRUE : CTOOL_FALSE;
+}
+```
+
+The helper belongs to CupidASM and checks whether an unsigned bit pattern represents an eight-bit signed displacement. CupidC could already parse and type both comparisons, but IR lowering stopped at the less-than-or-equal expression. The source remains unchanged.
+
+Existing `BINARY` IR now carries 32-bit less-than and less-than-or-equal operations. The i386 emitter chooses the predicate from the converted operand type. Signed comparisons use `SETL` and `SETLE`; unsigned comparisons use `SETB` and `SETBE`. Equality and the existing greater-than mappings share the same private predicate selector.
+
+Rewriting the helper as arithmetic or reversing its operands to reuse another comparison was rejected because the active source already states the test clearly. Adding pointer or 64-bit emission in the same slice was also rejected because those representations still need their own ABI work and contracts. The target has direct predicates for every represented relation, so the compiler should preserve the source operation.
+
+No user question was needed. The typed frontend already supplies the converted operand type, and ADR 0016 fixes the linear value-stack representation. ADR 0025 records this extension and its current four-byte integer boundary.
+
+### Contract evidence
+
+- The first IR run stopped at `/active-asm-branch-fits-i8.c:6:15` with the existing unsupported-expression diagnostic. After IR support was added, the object contract reached the new operation and stopped with the internal unknown-instruction result. Those red stages located the missing lowering and emission paths separately.
+- A source guard pins the complete unchanged helper. It lowers to exactly 20 IR instructions with a maximum abstract-stack depth of two. The contract checks both unsigned `<=` and the existing unsigned `>=` inside short-circuit logical OR and the conditional result.
+- The exact comparison object contains the active helper plus signed `<`, signed `<=`, and unsigned `<` functions. Its text is 244 bytes with five symbols and no relocations. Shared decoding checks `SETBE`, `SETAE`, `SETL`, `SETLE`, and `SETB`, along with all six branch targets in the active helper.
+- Repeated emission is byte-identical. The ELF32 reader, symbol checks, and x86 decoder all consume the generated object instead of trusting only a byte snapshot.
+- A separate 64-bit less-than-or-equal fixture receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. That negative keeps the current 32-bit boundary explicit without hiding the wider ABI work.
+- The first complete focused run found four stale lexical inventory oracles, then one stale `else` oracle. Updating them to the generated audit closed those failures. Extracting the shared comparison predicate during review changed the final inventory again, so the audit and exact expectations were regenerated from the reviewed source.
+- The final self-parse tuples are 46/1,257/11,157/148/37 for `cupidc_ir.c` and 65/1,500/12,419/199/91 for `cupidc_emit.c`.
+
+### Review and verification notes
+
+The first Standards review found the required log entry missing and noted that signed and unsigned predicate selection repeated the same operator cascade. The emitter now uses one private comparison-predicate helper. The first Spec review found only the missing log. Both findings are addressed here, and both follow-up reviews are clean.
+
+One Clang analyzer wrapper passed a carriage return as part of the final contract filename at the Windows-to-WSL boundary. The preceding analyzer commands ran, but the wrapper returned failure before completing the fifth file. Adding a harmless trailing script line kept the filename intact, and fresh GCC and Clang analyzer passes then completed without diagnostics. The failed wrapper changed no repository file.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 655 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,871 `if`, 3,391 `else`, 2,935 `for`, 14,553 `return`, and 2,383 `sizeof` occurrences. The active-source digest is `a295257db671a0a45b420f8e0654418096ff576f6f4306aa8bc24a676daff1ab`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR lowering first stopped at the unsupported less-than-or-equal expression. Object emission then stopped at the newly represented comparison until its target predicate was implemented. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 18.270 seconds. |
+| Windows hosted Toolchain | PASS | A fresh `make -C toolchain BUILD_DIR=build/less-than-final test` passes the complete strict Clang suite, including every Toolchain contract and all 22 assembly demos, in 23.2 seconds. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds pass the complete hosted Toolchain suite in 54.17 and 53.47 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass `active-leaf` and `static-data` with address and undefined-behavior sanitizers, leak detection, strict string checks, and halt-on-error settings. Sanitizer symbols are present in all four binaries. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across both implementation files and the three changed C contracts. |
+| Two-axis review | PASS AFTER FIXES | Standards requested the missing log and noted duplicated predicate mapping. Spec requested the missing log. The shared helper and this record address both reports, and both follow-up reviews are clean. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. The repository gate reproduces them exactly with `--check`. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 467.635 seconds with one expected skip and returns from Make in 502.275 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide integer comparisons, pointer comparisons in emitted code, bitwise OR and XOR, shifts, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

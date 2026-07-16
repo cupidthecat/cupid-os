@@ -191,7 +191,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 14537)
+        self.assertEqual(feature["occurrences"], 14553)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -199,7 +199,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 2934)
+        self.assertEqual(feature["occurrences"], 2935)
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -234,9 +234,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 23853)
+        self.assertEqual(features["c.control.if"]["occurrences"], 23871)
         self.assertEqual(len(features["c.control.if"]["files"]), 361)
-        self.assertEqual(features["c.control.else"]["occurrences"], 3394)
+        self.assertEqual(features["c.control.else"]["occurrences"], 3391)
         self.assertEqual(len(features["c.control.else"]["files"]), 272)
 
     def test_active_goto_inventory_is_drift_gated(self):
@@ -245,7 +245,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.goto"
         )
-        self.assertEqual(feature["occurrences"], 647)
+        self.assertEqual(feature["occurrences"], 655)
         self.assertEqual(len(feature["files"]), 24)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):

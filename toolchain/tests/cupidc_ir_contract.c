@@ -33,6 +33,11 @@ static const char active_bool_valid[] =
     "                                                      : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_branch_fits[] =
+    "static ctool_bool asm_branch_fits_i8(ctool_u32 bits) {\n"
+    "  return bits <= 0x7fu || bits >= 0xffffff80u ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
@@ -268,6 +273,15 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active bool validator changed\n");
     return 0;
   }
+  path.text = ctool_string("/toolchain/cupidasm.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active assembler source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_branch_fits) == NULL) {
+    (void)fprintf(stderr, "the active branch-range helper changed\n");
+    return 0;
+  }
   path.text = ctool_string("/kernel/core/syscall.c");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
@@ -463,6 +477,22 @@ static char *make_logical_or_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_bool_valid,
                  sizeof(active_bool_valid));
+  }
+  return text;
+}
+
+static char *make_branch_fit_fixture(void) {
+  static const char prefix[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef int ctool_bool;\n"
+      "#define CTOOL_FALSE 0\n"
+      "#define CTOOL_TRUE 1\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_branch_fits);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    (void)memcpy(text, prefix, sizeof(prefix) - 1u);
+    (void)memcpy(text + sizeof(prefix) - 1u, active_branch_fits,
+                 sizeof(active_branch_fits));
   }
   return text;
 }
@@ -1184,6 +1214,156 @@ static int validate_logical_or_ir(const ctool_c_translation_unit_t *unit,
         actual->location.line == 0u ||
         actual->physical_location.line == 0u) {
       (void)fprintf(stderr, "logical-or IR instruction %u differs\n",
+                    index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef enum {
+  BRANCH_EXPECT_NONE = 0,
+  BRANCH_EXPECT_PARAMETER,
+  BRANCH_EXPECT_RESULT
+} branch_expected_type_t;
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  branch_expected_type_t type;
+  branch_expected_type_t input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  ctool_u32 reference;
+  ctool_u64 integer_bits;
+} branch_expected_t;
+
+static int validate_branch_fit_ir(const ctool_c_translation_unit_t *unit,
+                                  const ctool_c_ir_unit_t *ir) {
+  const ctool_u32 parameter_reference = CTOOL_C_AST_NONE - 1u;
+  static const branch_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, BRANCH_EXPECT_PARAMETER,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, BRANCH_EXPECT_PARAMETER,
+       BRANCH_EXPECT_PARAMETER, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_PARAMETER,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0x7fu},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_PARAMETER, CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, BRANCH_EXPECT_NONE,
+       BRANCH_EXPECT_RESULT, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, 7u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, BRANCH_EXPECT_NONE, BRANCH_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 15u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, BRANCH_EXPECT_PARAMETER,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, BRANCH_EXPECT_PARAMETER,
+       BRANCH_EXPECT_PARAMETER, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_PARAMETER,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0xffffff80u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_PARAMETER, CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, BRANCH_EXPECT_NONE,
+       BRANCH_EXPECT_RESULT, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, 14u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, BRANCH_EXPECT_NONE, BRANCH_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 15u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, BRANCH_EXPECT_NONE,
+       BRANCH_EXPECT_RESULT, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, 18u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, BRANCH_EXPECT_NONE, BRANCH_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 19u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, BRANCH_EXPECT_RESULT,
+       BRANCH_EXPECT_RESULT, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 parameter;
+  ctool_u32 parameter_type;
+  ctool_u32 result_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0]))) {
+    (void)fprintf(stderr, "branch-range IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "branch-range function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  parameter_type = unit->parameters[parameter].type;
+  result_type = function_type->referenced_type;
+  function = &ir->functions[0];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      function->maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "branch-range IR function record differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const branch_expected_t *wanted = &expected[index];
+    const ctool_c_ir_instruction_t *actual = &ir->instructions[index];
+    ctool_u32 wanted_type = wanted->type == BRANCH_EXPECT_PARAMETER
+                                ? parameter_type
+                                : wanted->type == BRANCH_EXPECT_RESULT
+                                      ? result_type
+                                      : CTOOL_C_TYPE_NONE;
+    ctool_u32 wanted_input = wanted->input_type == BRANCH_EXPECT_PARAMETER
+                                 ? parameter_type
+                                 : wanted->input_type == BRANCH_EXPECT_RESULT
+                                       ? result_type
+                                       : CTOOL_C_TYPE_NONE;
+    ctool_u32 wanted_reference =
+        wanted->reference == parameter_reference ? parameter
+                                                  : wanted->reference;
+    if (actual->kind != wanted->kind || actual->type != wanted_type ||
+        actual->input_type != wanted_input ||
+        actual->operation != wanted->operation ||
+        actual->conversion != wanted->conversion ||
+        actual->reference != wanted_reference ||
+        actual->integer_bits != wanted->integer_bits ||
+        string_equal(actual->location.path,
+                     "/active-asm-branch-fits-i8.c") == 0 ||
+        string_equal(actual->physical_location.path,
+                     "/active-asm-branch-fits-i8.c") == 0 ||
+        actual->location.line == 0u || actual->physical_location.line == 0u) {
+      (void)fprintf(stderr, "branch-range IR instruction %u differs\n",
                     index);
       return 0;
     }
@@ -2611,7 +2791,7 @@ static int run_active_leaf(const char *host_root) {
       "int wide_target(long long value);\n"
       "int call_wide(void) { return wide_target(1); }\n";
   static const char wide_comparison_source[] =
-      "int wide_greater_equal(void) { return 1LL >= 0LL; }\n";
+      "int wide_less_equal(void) { return 1LL <= 2LL; }\n";
   static const char wide_logical_or_source[] =
       "int wide_logical_or(void) { return 1LL || 0LL; }\n";
   static const char wide_multiplication_source[] =
@@ -2712,6 +2892,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_comparison_unit;
   ctool_c_translation_unit_t division_unit;
   ctool_c_translation_unit_t logical_or_unit;
+  ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
   ctool_c_translation_unit_t wide_division_unit;
@@ -2757,6 +2938,7 @@ static int run_active_leaf(const char *host_root) {
   char *logic_fixture = NULL;
   char *division_fixture = NULL;
   char *logical_or_fixture = NULL;
+  char *branch_fit_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 index;
   int passed = 0;
@@ -2764,6 +2946,7 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&active_unit, 0, sizeof(active_unit));
   (void)memset(&logic_unit, 0, sizeof(logic_unit));
   (void)memset(&division_unit, 0, sizeof(division_unit));
+  (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -2821,6 +3004,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-cfront-bool-valid.c", logical_or_fixture,
                     &logical_or_unit)) {
     (void)fprintf(stderr, "active logical-or helper setup failed\n");
+    goto cleanup;
+  }
+  branch_fit_fixture = make_branch_fit_fixture();
+  if (branch_fit_fixture == NULL ||
+      !parse_source(job, "/active-asm-branch-fits-i8.c",
+                    branch_fit_fixture, &branch_fit_unit)) {
+    (void)fprintf(stderr, "active branch-range helper setup failed\n");
     goto cleanup;
   }
 
@@ -3551,6 +3741,18 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&branch_fit_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &branch_fit_unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "active branch-range helper lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&branch_fit_unit) != fingerprint ||
+      !validate_branch_fit_ir(&branch_fit_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
 
   if (!parse_source(job, "/simple-leaves.c", simple_source, &simple_unit)) {
     goto cleanup;
@@ -3849,7 +4051,7 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_comparison_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide greater-than-or-equal expression")) {
+          "wide less-than-or-equal expression")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-logical-or.c", wide_logical_or_source,
@@ -3983,6 +4185,7 @@ cleanup:
   free(logic_fixture);
   free(division_fixture);
   free(logical_or_fixture);
+  free(branch_fit_fixture);
   free(call_fixture);
   free(invalid_statements);
   free(invalid_initializers);

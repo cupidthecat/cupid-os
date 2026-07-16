@@ -1456,6 +1456,30 @@ static ctool_bool cemit_ir_type_is_i32_integer(
              : CTOOL_FALSE;
 }
 
+static ctool_x86_mnemonic_t cemit_comparison_predicate(
+    ctool_c_expression_operator_t operation, ctool_bool is_signed) {
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+    return CTOOL_X86_MN_SETE;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
+    return CTOOL_X86_MN_SETNE;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_LESS) {
+    return is_signed == CTOOL_TRUE ? CTOOL_X86_MN_SETL
+                                   : CTOOL_X86_MN_SETB;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL) {
+    return is_signed == CTOOL_TRUE ? CTOOL_X86_MN_SETLE
+                                   : CTOOL_X86_MN_SETBE;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER) {
+    return is_signed == CTOOL_TRUE ? CTOOL_X86_MN_SETG
+                                   : CTOOL_X86_MN_SETA;
+  }
+  return is_signed == CTOOL_TRUE ? CTOOL_X86_MN_SETGE
+                                 : CTOOL_X86_MN_SETAE;
+}
+
 static ctool_bool cemit_ir_type_is_complete_record_object(
     const cemit_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
@@ -1869,6 +1893,10 @@ static ctool_status_t cemit_emit_ir_instruction(
           context, CTOOL_X86_MN_AND, CTOOL_X86_REG_GPR32, 0u,
           CTOOL_X86_REG_GPR32, 1u, 32u);
     } else if (ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+               ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL ||
+               ir_instruction->operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
                ir_instruction->operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL ||
@@ -1876,26 +1904,10 @@ static ctool_status_t cemit_emit_ir_instruction(
                    CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
                ir_instruction->operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
-      ctool_x86_mnemonic_t predicate;
-      if (ir_instruction->operation ==
-          CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
-        predicate = CTOOL_X86_MN_SETE;
-      } else if (ir_instruction->operation ==
-                 CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
-        predicate = CTOOL_X86_MN_SETNE;
-      } else if (context->unit->layout
-                     .types[ir_instruction->input_type]
-                     .is_signed == CTOOL_TRUE) {
-        predicate = ir_instruction->operation ==
-                            CTOOL_C_EXPRESSION_OPERATOR_GREATER
-                        ? CTOOL_X86_MN_SETG
-                        : CTOOL_X86_MN_SETGE;
-      } else {
-        predicate = ir_instruction->operation ==
-                            CTOOL_C_EXPRESSION_OPERATOR_GREATER
-                        ? CTOOL_X86_MN_SETA
-                        : CTOOL_X86_MN_SETAE;
-      }
+      ctool_x86_mnemonic_t predicate = cemit_comparison_predicate(
+          ir_instruction->operation,
+          context->unit->layout.types[ir_instruction->input_type]
+              .is_signed);
       status = cemit_x86_two_registers(
           context, CTOOL_X86_MN_CMP, CTOOL_X86_REG_GPR32, 0u,
           CTOOL_X86_REG_GPR32, 1u, 32u);
