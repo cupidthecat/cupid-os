@@ -3542,3 +3542,58 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Casts, address and dereference lowering, narrow, wide, floating, and pointer unary operands, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC lowers four-byte integer casts
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers explicit casts between represented four-byte integer types. The unchanged requirement comes from `dis_signed_bits` in `toolchain/cupiddis.c`:
+
+```c
+return -(ctool_i32)((~value) + 1u);
+```
+
+The preceding increments supplied complement, addition, and negation. The cast from `ctool_u32` to `ctool_i32` was the remaining expression boundary. Each focused fixture composes its source from the guard literal that its contract checks against active source. Within each contract, the exercised expression and its source guard cannot drift apart. General selection and multiple returns still block the complete `dis_signed_bits` body.
+
+Lowering evaluates the cast operand once and records a `CONVERT` instruction. Its `input_type` is the source type, its `type` is the destination type, and its conversion tag is `CTOOL_C_CONVERSION_NONE`. That tag distinguishes an explicit source cast from the qualification, promotion, usual-arithmetic, and assignment conversions inserted by the frontend.
+
+The i386 emitter validates the same boundary and emits no target instruction. Both values already occupy one 32-bit slot, so the cast preserves all bits while changing the type used by later operations. Erasing the cast in IR was rejected because the following negation must see the signed destination. Calling it an assignment conversion was rejected because that would lose the distinction between source syntax and an implicit language conversion. Emitting truncation or extension was rejected because it would be redundant or wrong at the same width.
+
+Narrow, wide, floating, pointer, and `void` casts remain unsupported. ADR 0030 records the decision and the remaining boundary. No user question was needed because the frontend already preserves explicit `CAST` nodes, ADR 0016 fixes the typed value stack, and the target's same-width bit behavior is unambiguous.
+
+### Contract evidence and corrections
+
+- The first IR run stopped at `/integer-cast.c:4:11` with `CTD000006`, the existing unsupported-conversion diagnostic. That red result showed the fixture reached the intended boundary before implementation.
+- Two focused functions lower to exactly 12 instructions. `signed_bits_magnitude` contains the parameter load, complement, unsigned addition, explicit unsigned-to-signed conversion, signed negation, and return. `unsigned_bits` covers the reverse signed-to-unsigned direction.
+- A copied frozen unit changes the explicit cast's tag to assignment conversion. Lowering rejects it with `CTOOL_C_IR_DIAG_INVALID_UNIT` and leaves the original unit unchanged.
+- Separate casts to `signed char` and `long long` receive `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. Object emission remains transactional and leaves its output empty for both unsupported functions.
+- Standards review found that a cast of a void-returning call to `void` reached the stack-pop invariant before the unsupported cast boundary. The new IR negative first failed with an internal result, which reproduced the finding. Cast lowering now checks source and destination representations before lowering the operand. The IR and object contracts both return the public unsupported-type diagnostic and preserve their transactional state for `void discard_sink(void) { (void)sink(); }`.
+- The exact ELF32 object contains 52 text bytes. Its two functions are 35 and 17 bytes, and its symbol table contains the null symbol plus both functions. It has no relocations. Shared decoding finds `NOT`, `ADD`, and `NEG`; the casts themselves add no machine instruction. Repeated emission is byte-identical and does not change the frontend unit.
+- The complete Toolchain suite found the expected self-parse drift after the implementation and contracts grew. The final tuples are 49/1,351/12,011/157/37 for `cupidc_ir.c` and 66/1,544/13,010/201/93 for `cupidc_emit.c`.
+- The first repository-wide run reached all 286 tests and found five stale lexical inventory guards. The generated audit already held the new totals. Updating only the exact `sizeof`, `for`, `goto`, `if`, and `return` assertions made all five focused drift tests and the next full run green.
+- The review-added void-cast fixture and early type check moved the `if`, `return`, and `sizeof` totals once more. The regenerated audit supplied the final values. The complete focused suite and the post-review repository gate pass with those exact guards.
+- The first WSL timing formatter used an invalid `awk` action after both complete Make suites had passed. Direct checks confirmed the end markers in both logs and reran `active-leaf` and `static-data` from the fresh GCC and Clang binaries. Two cleanup scripts then hit a shell parsing error after those checks; fixed literal `/tmp` removals cleaned only the verification directories. These harness errors occurred after successful product checks and changed no repository file.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 704 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 24,020 `if`, 3,403 `else`, 2,944 `for`, 14,645 `return`, and 2,533 `sizeof` occurrences. The active-source digest is `4bc19c18439b992e2af50ae9d55cf132f57c3737ca04d66813c0597d5bb88984`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | IR lowering first rejected the exact active cast expression at `/integer-cast.c:4:11`. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 19.608 seconds on the reviewed tree. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang 22.1 build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 26.181 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in 57 and 58 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data` in 29.724 and 29.381 seconds. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. ASan and UBSan symbols are present in all four binaries. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and the three affected C contracts in 61.618 and 62.977 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards found the void-cast stack-pop classification bug. Spec found the missing ADR 0016 extension and imprecise guard-reuse wording. The implementation, negative contracts, ADRs, and log now address all three findings. Both follow-up reviews report no remaining findings. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. `make check-bootstrap-audit` reproduces them exactly; the final paired run takes 68.342 seconds. |
+| Inventory correction | PASS | The five exact drift guards pass in 111.689 seconds after their expected totals are updated. |
+| Full repository gate | PASS AFTER INVENTORY AND REVIEW FIXES | The first run found only the five stale guards described above. Post-review `make test` passes all 286 tests in 440.858 seconds with one expected skip and returns from Make in 475.736 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. General control flow, multiple returns, narrow, wide, floating, pointer, and `void` casts, address and dereference lowering, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

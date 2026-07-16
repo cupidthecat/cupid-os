@@ -586,6 +586,30 @@ static char *make_align_up_fixture(void) {
   return text;
 }
 
+static char *make_integer_cast_fixture(void) {
+  static const char prefix[] =
+      "typedef signed int ctool_i32;\n"
+      "typedef unsigned int ctool_u32;\n"
+      "ctool_i32 signed_bits_magnitude(ctool_u32 value) {\n";
+  static const char suffix[] =
+      "\n}\n"
+      "ctool_u32 unsigned_bits(ctool_i32 value) {\n"
+      "  return (ctool_u32)value;\n"
+      "}\n";
+  size_t size = sizeof(prefix) - 1u +
+                sizeof(active_signed_bits_negation) - 1u + sizeof(suffix);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    size_t offset = sizeof(prefix) - 1u;
+    (void)memcpy(text, prefix, offset);
+    (void)memcpy(text + offset, active_signed_bits_negation,
+                 sizeof(active_signed_bits_negation) - 1u);
+    offset += sizeof(active_signed_bits_negation) - 1u;
+    (void)memcpy(text + offset, suffix, sizeof(suffix));
+  }
+  return text;
+}
+
 static char *make_simd_cpuid_fixture(void) {
   static const char prefix[] =
       "typedef unsigned int uint32_t;\n"
@@ -1886,6 +1910,167 @@ static int validate_integer_unary_ir(const ctool_c_translation_unit_t *unit,
         return 0;
       }
     }
+  }
+  return 1;
+}
+
+static int integer_cast_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_c_conversion_kind_t conversion, ctool_u32 reference,
+    ctool_u64 integer_bits) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == integer_bits &&
+                 string_equal(instruction->location.path,
+                              "/integer-cast.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/integer-cast.c") != 0 &&
+                 instruction->location.line != 0u &&
+                 instruction->physical_location.line != 0u
+             ? 1
+             : 0;
+}
+
+static int validate_integer_cast_ir(const ctool_c_translation_unit_t *unit,
+                                    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *signed_definition;
+  const ctool_c_function_definition_t *unsigned_definition;
+  const ctool_c_type_node_t *signed_function_type;
+  const ctool_c_type_node_t *unsigned_function_type;
+  const ctool_c_ir_function_t *signed_function;
+  const ctool_c_ir_function_t *unsigned_function;
+  const ctool_c_ir_instruction_t *signed_instructions;
+  const ctool_c_ir_instruction_t *unsigned_instructions;
+  ctool_u32 unsigned_parameter;
+  ctool_u32 signed_parameter;
+  ctool_u32 unsigned_type;
+  ctool_u32 signed_type;
+
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 12u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "integer cast IR inventory differs\n");
+    return 0;
+  }
+  signed_definition = &unit->function_definitions[0];
+  unsigned_definition = &unit->function_definitions[1];
+  if (signed_definition->binding >= unit->binding_count ||
+      unsigned_definition->binding >= unit->binding_count ||
+      signed_definition->declared_type >= unit->graph.type_count ||
+      unsigned_definition->declared_type >= unit->graph.type_count ||
+      !string_equal(unit->bindings[signed_definition->binding].name,
+                    "signed_bits_magnitude") ||
+      !string_equal(unit->bindings[unsigned_definition->binding].name,
+                    "unsigned_bits")) {
+    (void)fprintf(stderr, "integer cast definitions differ\n");
+    return 0;
+  }
+  signed_function_type =
+      &unit->graph.types[signed_definition->declared_type];
+  unsigned_function_type =
+      &unit->graph.types[unsigned_definition->declared_type];
+  if (signed_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      unsigned_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      signed_function_type->parameter_count != 1u ||
+      unsigned_function_type->parameter_count != 1u ||
+      signed_function_type->first_parameter >= unit->parameter_count ||
+      unsigned_function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "integer cast function types differ\n");
+    return 0;
+  }
+  unsigned_parameter = signed_function_type->first_parameter;
+  signed_parameter = unsigned_function_type->first_parameter;
+  unsigned_type = unit->parameters[unsigned_parameter].type;
+  signed_type = unit->parameters[signed_parameter].type;
+  if (signed_function_type->referenced_type != signed_type ||
+      unsigned_function_type->referenced_type != unsigned_type ||
+      unsigned_type >= unit->layout.type_count ||
+      signed_type >= unit->layout.type_count ||
+      unit->layout.types[unsigned_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[unsigned_type].size != 4u ||
+      unit->layout.types[unsigned_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[signed_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[signed_type].size != 4u ||
+      unit->layout.types[signed_type].is_signed != CTOOL_TRUE) {
+    (void)fprintf(stderr, "integer cast value types differ\n");
+    return 0;
+  }
+  signed_function = &ir->functions[0];
+  unsigned_function = &ir->functions[1];
+  signed_instructions = &ir->instructions[0];
+  unsigned_instructions = &ir->instructions[8];
+  if (signed_function->binding != signed_definition->binding ||
+      signed_function->declared_type != signed_definition->declared_type ||
+      signed_function->first_instruction != 0u ||
+      signed_function->instruction_count != 8u ||
+      signed_function->maximum_stack_depth != 2u ||
+      unsigned_function->binding != unsigned_definition->binding ||
+      unsigned_function->declared_type != unsigned_definition->declared_type ||
+      unsigned_function->first_instruction != 8u ||
+      unsigned_function->instruction_count != 4u ||
+      unsigned_function->maximum_stack_depth != 1u) {
+    (void)fprintf(stderr, "integer cast function records differ\n");
+    return 0;
+  }
+  if (!integer_cast_instruction_matches(
+          &signed_instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          unsigned_parameter, 0u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[1], CTOOL_C_IR_INSTRUCTION_LOAD, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[2], CTOOL_C_IR_INSTRUCTION_UNARY,
+          unsigned_type, unsigned_type,
+          CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT, CTOOL_C_CONVERSION_NONE,
+          CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[3], CTOOL_C_IR_INSTRUCTION_INTEGER,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          CTOOL_C_AST_NONE, 1u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[4], CTOOL_C_IR_INSTRUCTION_BINARY,
+          unsigned_type, unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[5], CTOOL_C_IR_INSTRUCTION_CONVERT, signed_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[6], CTOOL_C_IR_INSTRUCTION_UNARY, signed_type,
+          signed_type, CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &signed_instructions[7], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          signed_type, signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &unsigned_instructions[0],
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, signed_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, signed_parameter, 0u) ||
+      !integer_cast_instruction_matches(
+          &unsigned_instructions[1], CTOOL_C_IR_INSTRUCTION_LOAD, signed_type,
+          signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &unsigned_instructions[2], CTOOL_C_IR_INSTRUCTION_CONVERT,
+          unsigned_type, signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !integer_cast_instruction_matches(
+          &unsigned_instructions[3], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          unsigned_type, unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "integer cast instruction stream differs\n");
+    return 0;
   }
   return 1;
 }
@@ -3482,10 +3667,13 @@ static int run_active_leaf(const char *host_root) {
       "inline int external_inline(void) { return 1; }\n";
   static const char extern_inline_source[] =
       "extern inline int extern_inline(void) { return 1; }\n";
-  static const char conversion_source[] =
-      "unsigned int cast_value(int value) {\n"
-      "  return (unsigned int)value;\n"
-      "}\n";
+  static const char narrow_cast_source[] =
+      "int narrow_cast(int value) { return (signed char)value; }\n";
+  static const char wide_cast_source[] =
+      "int wide_cast(int value) { return (long long)value; }\n";
+  static const char void_cast_source[] =
+      "extern void sink(void);\n"
+      "void discard_sink(void) { (void)sink(); }\n";
   static const char indirect_call_source[] =
       "int (*indirect_call)(int);\n"
       "int call_pointer(int value) { return indirect_call(value); }\n";
@@ -3604,6 +3792,9 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t extern_inline_unit;
   ctool_c_translation_unit_t conversion_unit;
+  ctool_c_translation_unit_t narrow_cast_unit;
+  ctool_c_translation_unit_t wide_cast_unit;
+  ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t call_unit;
   ctool_c_translation_unit_t indirect_call_unit;
   ctool_c_translation_unit_t wide_call_unit;
@@ -3651,6 +3842,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_expression_t *cpuid_expressions = NULL;
   ctool_c_expression_t *align_up_expressions = NULL;
   ctool_c_expression_t *integer_unary_expressions = NULL;
+  ctool_c_expression_t *cast_expressions = NULL;
   ctool_c_expression_t *ownership_expressions = NULL;
   ctool_c_expression_t *file_expressions = NULL;
   ctool_c_expression_t *assignment_expressions = NULL;
@@ -3674,11 +3866,13 @@ static int run_active_leaf(const char *host_root) {
   char *branch_fit_fixture = NULL;
   char *aes_rotw_fixture = NULL;
   char *align_up_fixture = NULL;
+  char *cast_fixture = NULL;
   char *simd_cpuid_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 xor_expression;
   ctool_u32 complement_expression;
   ctool_u32 logical_not_expression;
+  ctool_u32 cast_expression;
   ctool_u32 unsigned_unary_type;
   ctool_u32 signed_expression;
   ctool_u32 comparison_expression;
@@ -3692,6 +3886,10 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
   (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
   (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
+  (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
+  (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
+  (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
+  (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&wide_bitwise_not_unit, 0,
                sizeof(wide_bitwise_not_unit));
@@ -3783,6 +3981,13 @@ static int run_active_leaf(const char *host_root) {
   if (!parse_source(job, "/integer-unary.c", integer_unary_source,
                     &integer_unary_unit)) {
     (void)fprintf(stderr, "integer unary setup failed\n");
+    goto cleanup;
+  }
+  cast_fixture = make_integer_cast_fixture();
+  if (cast_fixture == NULL ||
+      !parse_source(job, "/integer-cast.c", cast_fixture,
+                    &conversion_unit)) {
+    (void)fprintf(stderr, "integer cast setup failed\n");
     goto cleanup;
   }
   simd_cpuid_fixture = make_simd_cpuid_fixture();
@@ -4565,6 +4770,47 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&conversion_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &conversion_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "integer cast lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&conversion_unit) != fingerprint ||
+      !validate_integer_cast_ir(&conversion_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  cast_expression = CTOOL_C_AST_NONE;
+  for (index = 0u; index < conversion_unit.expression_count; index++) {
+    if (conversion_unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_CAST) {
+      cast_expression = index;
+      break;
+    }
+  }
+  cast_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)conversion_unit.expression_count * sizeof(*cast_expressions));
+  if (cast_expression == CTOOL_C_AST_NONE || cast_expressions == NULL) {
+    (void)fprintf(stderr, "integer cast invalid-unit setup failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(cast_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*cast_expressions));
+  cast_expressions[cast_expression].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  invalid_unit = conversion_unit;
+  invalid_unit.expressions = cast_expressions;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "malformed explicit integer cast") ||
+      unit_fingerprint(&conversion_unit) != fingerprint) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&integer_unary_unit);
   logical_not_expression = CTOOL_C_AST_NONE;
   unsigned_unary_type = CTOOL_C_TYPE_NONE;
   for (index = 0u; index < integer_unary_unit.expression_count; index++) {
@@ -5087,13 +5333,27 @@ static int run_active_leaf(const char *host_root) {
           "wide remainder expression")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/unsupported-conversion.c", conversion_source,
-                    &conversion_unit) ||
+  if (!parse_source(job, "/narrow-cast.c", narrow_cast_source,
+                    &narrow_cast_unit) ||
       !expect_ir_failure(
-          job, &conversion_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "unsupported explicit conversion")) {
+          job, &narrow_cast_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow explicit integer cast") ||
+      !parse_source(job, "/wide-cast.c", wide_cast_source,
+                    &wide_cast_unit) ||
+      !expect_ir_failure(
+          job, &wide_cast_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide explicit integer cast") ||
+      !parse_source(job, "/void-cast.c", void_cast_source,
+                    &void_cast_unit) ||
+      !expect_ir_failure(
+          job, &void_cast_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "void cast of void call")) {
     goto cleanup;
   }
   if (!parse_source(job, "/indirect-call.c", indirect_call_source,
@@ -5186,6 +5446,7 @@ cleanup:
   free(branch_fit_fixture);
   free(aes_rotw_fixture);
   free(align_up_fixture);
+  free(cast_fixture);
   free(simd_cpuid_fixture);
   free(call_fixture);
   free(invalid_statements);
@@ -5195,6 +5456,7 @@ cleanup:
   free(cpuid_expressions);
   free(align_up_expressions);
   free(integer_unary_expressions);
+  free(cast_expressions);
   free(ownership_expressions);
   free(file_expressions);
   free(assignment_expressions);

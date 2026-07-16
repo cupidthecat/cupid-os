@@ -1832,7 +1832,17 @@ static ctool_status_t cemit_emit_ir_instruction(
                                      ir_instruction->input_type) ==
             CTOOL_FALSE ||
         cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
-            CTOOL_FALSE) {
+            CTOOL_FALSE ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
+         ir_instruction->conversion !=
+             CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+         ir_instruction->conversion !=
+             CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_ASSIGNMENT) ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
     return CTOOL_OK;

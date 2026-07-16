@@ -39,6 +39,8 @@ typedef struct {
    * function type. BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
+  /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
+   * an implicit conversion. */
   ctool_c_conversion_kind_t conversion;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index. FILE_ADDRESS

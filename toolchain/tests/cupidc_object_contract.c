@@ -192,6 +192,30 @@ static char *make_align_up_fixture(void) {
   return text;
 }
 
+static char *make_integer_cast_fixture(void) {
+  static const char prefix[] =
+      "typedef signed int ctool_i32;\n"
+      "typedef unsigned int ctool_u32;\n"
+      "ctool_i32 signed_bits_magnitude(ctool_u32 value) {\n";
+  static const char suffix[] =
+      "\n}\n"
+      "ctool_u32 unsigned_bits(ctool_i32 value) {\n"
+      "  return (ctool_u32)value;\n"
+      "}\n";
+  size_t size = sizeof(prefix) - 1u +
+                sizeof(active_signed_bits_negation) - 1u + sizeof(suffix);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    size_t offset = sizeof(prefix) - 1u;
+    (void)memcpy(text, prefix, offset);
+    (void)memcpy(text + offset, active_signed_bits_negation,
+                 sizeof(active_signed_bits_negation) - 1u);
+    offset += sizeof(active_signed_bits_negation) - 1u;
+    (void)memcpy(text + offset, suffix, sizeof(suffix));
+  }
+  return text;
+}
+
 static int copy_array(const void *source, ctool_u32 count, size_t item_size,
                       void **copy_out) {
   size_t bytes;
@@ -1526,6 +1550,71 @@ static int validate_integer_unary_object(
   return 1;
 }
 
+static int validate_integer_cast_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 signed_bits_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xf7u,
+      0xd0u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xf7u, 0xd8u, 0x50u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 unsigned_bits_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_x86_mnemonic_t signed_bits_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_NOT,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_NEG,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t unsigned_bits_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *signed_bits =
+      find_symbol(object, "signed_bits_magnitude");
+  const ctool_elf32_symbol_t *unsigned_bits =
+      find_symbol(object, "unsigned_bits");
+  ctool_u32 unsigned_bits_offset = (ctool_u32)sizeof(signed_bits_bytes);
+  ctool_u32 total_size =
+      unsigned_bits_offset + (ctool_u32)sizeof(unsigned_bits_bytes);
+  if (text == NULL || rel_text != NULL || signed_bits == NULL ||
+      unsigned_bits == NULL || text->contents.size != total_size ||
+      text->relocation_count != 0u || object->symbol_count != 3u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(signed_bits, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(signed_bits_bytes)) ||
+      !symbol_matches(unsigned_bits, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      unsigned_bits_offset,
+                      (ctool_u32)sizeof(unsigned_bits_bytes)) ||
+      !decode_function(
+          job, text, signed_bits, signed_bits_instructions,
+          (ctool_u32)(sizeof(signed_bits_instructions) /
+                      sizeof(signed_bits_instructions[0])),
+          signed_bits_bytes, (ctool_u32)sizeof(signed_bits_bytes), NULL, 0u,
+          "signed_bits_magnitude") ||
+      !decode_function(
+          job, text, unsigned_bits, unsigned_bits_instructions,
+          (ctool_u32)(sizeof(unsigned_bits_instructions) /
+                      sizeof(unsigned_bits_instructions[0])),
+          unsigned_bits_bytes, (ctool_u32)sizeof(unsigned_bits_bytes), NULL,
+          0u, "unsigned_bits")) {
+    (void)fprintf(stderr, "integer cast object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_simd_cpuid_object(ctool_job_t *job,
                                       const ctool_elf32_object_t *object) {
   static const ctool_u8 simd_cpuid_bytes[] = {
@@ -2790,6 +2879,13 @@ static int run_static_data(const char *host_root) {
       "int logical_not(unsigned int value) { return !value; }\n";
   static const char wide_logical_not_text[] =
       "int wide_logical_not(void) { return !1LL; }\n";
+  static const char narrow_cast_text[] =
+      "int narrow_cast(int value) { return (signed char)value; }\n";
+  static const char wide_cast_text[] =
+      "int wide_cast(int value) { return (long long)value; }\n";
+  static const char void_cast_text[] =
+      "extern void sink(void);\n"
+      "void discard_sink(void) { (void)sink(); }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2931,6 +3027,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t aes_rotw_unit;
   ctool_c_translation_unit_t align_up_unit;
   ctool_c_translation_unit_t integer_unary_unit;
+  ctool_c_translation_unit_t integer_cast_unit;
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
@@ -2938,6 +3035,9 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
+  ctool_c_translation_unit_t narrow_cast_unit;
+  ctool_c_translation_unit_t wide_cast_unit;
+  ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
   ctool_c_translation_unit_t invalid_unit;
@@ -2958,6 +3058,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t aes_rotw_snapshot;
   unit_snapshot_t align_up_snapshot;
   unit_snapshot_t integer_unary_snapshot;
+  unit_snapshot_t integer_cast_snapshot;
   unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
@@ -2985,6 +3086,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 align_up_object_size = 0u;
   ctool_u8 *integer_unary_object = NULL;
   ctool_u32 integer_unary_object_size = 0u;
+  ctool_u8 *integer_cast_object = NULL;
+  ctool_u32 integer_cast_object_size = 0u;
   ctool_u8 *simd_cpuid_object = NULL;
   ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
@@ -3008,6 +3111,7 @@ static int run_static_data(const char *host_root) {
   ctool_u32 masked_initializer = CTOOL_C_AST_NONE;
   ctool_u32 wrong_child_type = CTOOL_C_TYPE_NONE;
   char *align_up_text = NULL;
+  char *integer_cast_text = NULL;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
@@ -3021,6 +3125,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
   (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
   (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
+  (void)memset(&integer_cast_unit, 0, sizeof(integer_cast_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
@@ -3029,6 +3134,9 @@ static int run_static_data(const char *host_root) {
                sizeof(chained_assignment_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
+  (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
+  (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
+  (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
@@ -3045,6 +3153,8 @@ static int run_static_data(const char *host_root) {
   (void)memset(&align_up_snapshot, 0, sizeof(align_up_snapshot));
   (void)memset(&integer_unary_snapshot, 0,
                sizeof(integer_unary_snapshot));
+  (void)memset(&integer_cast_snapshot, 0,
+               sizeof(integer_cast_snapshot));
   (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
@@ -3910,6 +4020,60 @@ static int run_static_data(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  integer_cast_text = make_integer_cast_fixture();
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      integer_cast_text == NULL ||
+      !parse_source(job, "/integer-cast.c", integer_cast_text,
+                    &integer_cast_unit) ||
+      !take_unit_snapshot(&integer_cast_unit, &integer_cast_snapshot)) {
+    (void)fprintf(stderr, "integer cast object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &integer_cast_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first integer cast object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&integer_cast_snapshot, &integer_cast_unit) == 0) {
+    (void)fprintf(stderr, "first integer cast emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  integer_cast_object_size = bytes.size;
+  integer_cast_object =
+      (ctool_u8 *)malloc((size_t)integer_cast_object_size);
+  if (integer_cast_object == NULL) {
+    (void)fprintf(stderr, "integer cast snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(integer_cast_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &integer_cast_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat integer cast object") ||
+      bytes.size != integer_cast_object_size ||
+      memcmp(bytes.data, integer_cast_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&integer_cast_snapshot, &integer_cast_unit) == 0) {
+    (void)fprintf(stderr, "integer cast emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/integer-cast.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read integer cast object") ||
+      !validate_integer_cast_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-simd-cpuid.c", simd_cpuid_text,
                     &simd_cpuid_unit) ||
@@ -4170,6 +4334,27 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide logical-not object") ||
+      !parse_source(job, "/narrow-cast.c", narrow_cast_text,
+                    &narrow_cast_unit) ||
+      !expect_object_failure(
+          job, &narrow_cast_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow integer cast object") ||
+      !parse_source(job, "/wide-cast.c", wide_cast_text,
+                    &wide_cast_unit) ||
+      !expect_object_failure(
+          job, &wide_cast_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide integer cast object") ||
+      !parse_source(job, "/void-cast.c", void_cast_text,
+                    &void_cast_unit) ||
+      !expect_object_failure(
+          job, &void_cast_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "void cast of void call object") ||
       !parse_source(job, "/external-inline.c", external_inline_text,
                     &external_inline_unit) ||
       !expect_object_failure(
@@ -4460,6 +4645,7 @@ cleanup:
   free(aes_rotw_object);
   free(align_up_object);
   free(integer_unary_object);
+  free(integer_cast_object);
   free(simd_cpuid_object);
   free(file_member_object);
   free(bit_field_object);
@@ -4474,6 +4660,7 @@ cleanup:
   dispose_unit_snapshot(&aes_rotw_snapshot);
   dispose_unit_snapshot(&align_up_snapshot);
   dispose_unit_snapshot(&integer_unary_snapshot);
+  dispose_unit_snapshot(&integer_cast_snapshot);
   dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
@@ -4481,6 +4668,7 @@ cleanup:
   dispose_unit_snapshot(&function_snapshot);
   dispose_unit_snapshot(&snapshot);
   free(align_up_text);
+  free(integer_cast_text);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
   }
