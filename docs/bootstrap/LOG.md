@@ -3722,3 +3722,67 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Post-test `do`, `for`, `break`, `continue`, `switch`, labels, `goto`, declarations inside nested compounds, broader types and addresses, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC lowers post-test do loops
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers post-test `do` statements with represented four-byte integer conditions. The unchanged requirement comes from the inner wipe tick loop in Doom's `D_Display` function in `kernel/doom/src/d_main.c`:
+
+```c
+do
+{
+    nowtime = I_GetTime ();
+    tics = nowtime - wipestart;
+    I_Sleep(1);
+} while (tics <= 0);
+```
+
+Lowering records the function-relative instruction offset before the body. It lowers the body once, evaluates the condition, emits `BRANCH_ZERO` to the exit, and emits `JUMP` back to the body when the condition remains nonzero. The first iteration therefore reaches the body before the condition. Rewriting the source as `while` was rejected because that would change this behavior.
+
+`while` and `do` now share frozen-loop validation and the represented integer-condition helper. A terminal `do` body emits no unreachable condition instructions or backward edge, but a count-only context still validates the condition. Unsupported types and malformed references cannot hide behind an unconditional return.
+
+Clang analysis found that the condition helper's output reference was not initialized on every return path. Current diagnostic helpers make the runtime path safe, but callers should not depend on that fact to keep a local branch index defined. The helper now writes `CTOOL_C_AST_NONE` before lowering. GCC and Clang analysis can verify every `if`, `while`, and `do` caller without a diagnostic.
+
+`break` and `continue` remain unsupported. A later `continue` implementation must target the `do` condition rather than the body. `for`, `switch`, labels, `goto`, nested declarations, broader value types, and production integration also remain open. ADR 0033 records this boundary.
+
+No user question was needed. The frontend already freezes typed `do` statements, ADR 0016 fixes function-relative branch semantics, and unchanged Doom source determines the required evaluation order.
+
+### Contract evidence and corrections
+
+- The first IR run stopped at `/active-do.c:6:3` with `CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT`. That red result showed the focused function reached the intended statement boundary before implementation.
+- The object contract guards the exact Doom loop in LF and CRLF forms, then builds the focused source from the guarded LF text. The IR contract checks the same function shape independently.
+- The focused function lowers to 21 exact instructions with a maximum abstract-stack depth of three. Its body starts at instruction 0, its false exit is instruction 20, and instruction 19 jumps back to instruction 0.
+- The deterministic ELF32 object contains one 109-byte local function and 54 decoded instructions. Its false exit lands at byte offset 107, and its backward jump lands at byte offset 6 after the cdecl prologue. Calls to `I_GetTime` and `I_Sleep` use `R_386_PC32` relocations at offsets 11 and 62 with addend `-4`. Repeated emission is byte-identical and leaves the frozen frontend unit unchanged.
+- A terminal-body fixture lowers to one direct return with no condition instructions, implicit return, or backward edge. Ordinary and terminal-body `long long` conditions receive `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. The object seam rejects the ordinary wide condition transactionally.
+- The prior unsupported-loop fixture now uses `for`, which remains outside the hosted slice.
+- The first exact object pass recorded the new bytes and decoded branch targets. The finalized validator now treats those values as fixed oracles rather than printing discovery output.
+- The Clang analyzer initially reported the undefined output reference in the existing `if` and `while` callers and the new `do` caller. Initializing the helper output closed all four reports. GCC `-fanalyzer` and the corrected Clang command then reported no diagnostics across `cupidc_ir.c` and both changed contracts.
+- The post-analysis focused run found one expected self-source mismatch. Review refactoring moved the tuple once more. The final `cupidc_ir.c` tuple is 61 definitions, 1,572 statements, 13,543 expressions, 192 block bindings, and 54 initializers. Updating that exact oracle made the focused suite green.
+- Two initial WSL sanitizer wrappers lost their Bash variable at the Windows argument boundary and created no build directory. Passing each argument directly through PowerShell preserved the full flags. Fresh GCC and Clang ASan and UBSan builds then passed both affected contracts.
+- Standards review found repeated count-only validation setup in `cupidc_ir.c` and repeated active-source loading in the object contract. Shared helpers now own the validation sandbox lifecycle and exact-fragment guard. Follow-up Standards review found no remaining standards or code-smell issue.
+- Spec review found that ADR 0033 placed the branch sentinel before condition lowering while the first implementation assigned it afterward. The implementation now initializes the output immediately before lowering, matching the documented contract. Follow-up Spec review found no remaining gap or scope issue.
+- A final WSL sanitizer wrapper repeated the earlier argument-splitting failure and stopped before compilation. The direct argument form then rebuilt and ran both affected contracts under both compilers. The failed wrapper changed no repository file.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 749 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 24,145 `if`, 3,405 `else`, 2,948 `for`, 14,727 `return`, and 2,632 `sizeof` occurrences. The active-source digest is `6665ee791789092878a356f91b8466f16c96986af2064c2c0ecd6a9aaf0ecee8`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | IR lowering first rejected the focused Doom loop with the public unsupported-statement diagnostic. |
+| Focused CupidC contracts | PASS AFTER ORACLE UPDATE | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 22.333 seconds on the final reviewed tree. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang 22.1 build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 30.057 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted Toolchain suite in 68.423 and 68.098 seconds. |
+| Sanitizers | PASS AFTER HARNESS FIX | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data` in 45.428 and 52.351 seconds. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. |
+| Static analysis | PASS AFTER FIX | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across `cupidc_ir.c` and both changed C contracts in 50.403 and 14.012 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards review prompted shared validation and source-guard helpers. Spec review corrected the branch-sentinel order. Both follow-up reviews report no remaining finding. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 37.6 seconds. `make check-bootstrap-audit` reproduces them exactly in 37.884 seconds. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 471.112 seconds with one expected skip and returns from Make in 507.227 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they already describe production `do` behavior and this hosted slice changes no user-visible or production path. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. `for`, `break`, `continue`, `switch`, labels, `goto`, declarations inside nested compounds, broader types and addresses, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

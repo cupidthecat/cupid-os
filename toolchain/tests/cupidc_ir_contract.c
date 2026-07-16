@@ -2901,6 +2901,155 @@ static int validate_terminal_while_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_do_ir(const ctool_c_translation_unit_t *unit,
+                          const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "doom_wait_tick");
+  ctool_u32 time_binding = find_binding(unit, "I_GetTime");
+  ctool_u32 sleep_binding = find_binding(unit, "I_Sleep");
+  ctool_u32 nowtime_binding = find_block_binding(unit, "nowtime");
+  ctool_u32 tics_binding = find_block_binding(unit, "tics");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  ctool_u32 condition_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 21u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      time_binding == CTOOL_C_AST_NONE || sleep_binding == CTOOL_C_AST_NONE ||
+      nowtime_binding == CTOOL_C_AST_NONE ||
+      tics_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "do IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->binding != function_binding ||
+      definition->declared_type >= unit->graph.type_count ||
+      unit->bindings[time_binding].type >= unit->graph.type_count ||
+      unit->bindings[sleep_binding].type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "do IR definitions differ\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "do IR function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  if (unit->block_bindings[nowtime_binding].type != value_type ||
+      unit->block_bindings[tics_binding].type != value_type) {
+    (void)fprintf(stderr, "do IR local types differ\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  condition_type = instructions[17].type;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 21u ||
+      function->maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != nowtime_binding ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != unit->bindings[time_binding].type ||
+      instructions[1].reference != time_binding ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[2].type != value_type ||
+      instructions[2].input_type != value_type ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[3].input_type != value_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[4].type != value_type ||
+      instructions[4].reference != tics_binding ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[5].type != value_type ||
+      instructions[5].reference != nowtime_binding ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[6].type != value_type ||
+      instructions[6].input_type != value_type ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[7].type != value_type ||
+      instructions[7].reference != parameter ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[8].type != value_type ||
+      instructions[8].input_type != value_type ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[9].type != value_type ||
+      instructions[9].input_type != value_type ||
+      instructions[9].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[10].type != value_type ||
+      instructions[10].input_type != value_type ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[11].input_type != value_type ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[12].type != value_type ||
+      instructions[12].integer_bits != 1u ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      instructions[13].type != function_type->referenced_type ||
+      instructions[13].input_type != unit->bindings[sleep_binding].type ||
+      instructions[13].reference != sleep_binding ||
+      instructions[14].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[14].type != value_type ||
+      instructions[14].reference != tics_binding ||
+      instructions[15].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[15].type != value_type ||
+      instructions[15].input_type != value_type ||
+      instructions[16].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[16].type != value_type ||
+      instructions[16].integer_bits != 0u ||
+      instructions[17].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[17].operation != CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL ||
+      instructions[18].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[18].input_type != condition_type ||
+      instructions[18].reference != 20u ||
+      instructions[19].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[19].reference != 0u ||
+      instructions[20].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      !string_equal(instructions[0].location.path, "/active-do.c") ||
+      !string_equal(instructions[18].location.path, "/active-do.c") ||
+      !string_equal(instructions[19].physical_location.path,
+                    "/active-do.c")) {
+    (void)fprintf(stderr, "do IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_terminal_do_ir(const ctool_c_translation_unit_t *unit,
+                                   const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 function_binding = find_binding(unit, "do_return");
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 1u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "terminal do IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  function = &ir->functions[0];
+  if (definition->binding != function_binding ||
+      function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u || function->instruction_count != 1u ||
+      function->maximum_stack_depth != 0u ||
+      ir->instructions[0].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      !string_equal(ir->instructions[0].location.path, "/terminal-do.c")) {
+    (void)fprintf(stderr, "terminal do IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
                                  const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *definition;
@@ -4190,6 +4339,26 @@ static int run_active_leaf(const char *host_root) {
       "void loop_return(int value) {\n"
       "  while (value) return;\n"
       "}\n";
+  static const char do_source[] =
+      "int I_GetTime(void);\n"
+      "void I_Sleep(int delay);\n"
+      "static void doom_wait_tick(int wipestart) {\n"
+      "  int nowtime;\n"
+      "  int tics;\n"
+      "  do {\n"
+      "    nowtime = I_GetTime();\n"
+      "    tics = nowtime - wipestart;\n"
+      "    I_Sleep(1);\n"
+      "  } while (tics <= 0);\n"
+      "}\n";
+  static const char terminal_do_source[] =
+      "void do_return(int value) {\n"
+      "  do return; while (value);\n"
+      "}\n";
+  static const char wide_do_source[] =
+      "void do_wide(void) { do {} while (1LL); }\n";
+  static const char terminal_wide_do_source[] =
+      "void terminal_do_wide(void) { do return; while (1LL); }\n";
   static const char unreachable_declaration_source[] =
       "int unreachable_declaration(void) {\n"
       "  return 0;\n"
@@ -4197,7 +4366,7 @@ static int run_active_leaf(const char *host_root) {
       "}\n";
   static const char unsupported_statement_source[] =
       "int choose_loop(int value) {\n"
-      "  do { if (value) return 1; } while (value);\n"
+      "  for (;;) { if (value) return 1; }\n"
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
@@ -4424,6 +4593,10 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t while_unit;
   ctool_c_translation_unit_t wide_while_unit;
   ctool_c_translation_unit_t terminal_while_unit;
+  ctool_c_translation_unit_t do_unit;
+  ctool_c_translation_unit_t terminal_do_unit;
+  ctool_c_translation_unit_t wide_do_unit;
+  ctool_c_translation_unit_t terminal_wide_do_unit;
   ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t unsupported_statement_unit;
@@ -4505,6 +4678,8 @@ static int run_active_leaf(const char *host_root) {
   uint64_t fingerprint;
   uint64_t while_fingerprint;
   uint64_t terminal_while_fingerprint;
+  uint64_t do_fingerprint;
+  uint64_t terminal_do_fingerprint;
   char *fixture = NULL;
   char *logic_fixture = NULL;
   char *division_fixture = NULL;
@@ -4581,6 +4756,11 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&while_unit, 0, sizeof(while_unit));
   (void)memset(&wide_while_unit, 0, sizeof(wide_while_unit));
   (void)memset(&terminal_while_unit, 0, sizeof(terminal_while_unit));
+  (void)memset(&do_unit, 0, sizeof(do_unit));
+  (void)memset(&terminal_do_unit, 0, sizeof(terminal_do_unit));
+  (void)memset(&wide_do_unit, 0, sizeof(wide_do_unit));
+  (void)memset(&terminal_wide_do_unit, 0,
+               sizeof(terminal_wide_do_unit));
   (void)memset(&unreachable_declaration_unit, 0,
                sizeof(unreachable_declaration_unit));
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
@@ -5732,6 +5912,48 @@ static int run_active_leaf(const char *host_root) {
   }
   if (!parse_source(job, "/terminal-while.c", terminal_while_source,
                     &terminal_while_unit)) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/active-do.c", do_source, &do_unit)) {
+    goto cleanup;
+  }
+  do_fingerprint = unit_fingerprint(&do_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &do_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "do lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&do_unit) != do_fingerprint ||
+      !validate_do_ir(&do_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/terminal-do.c", terminal_do_source,
+                    &terminal_do_unit)) {
+    goto cleanup;
+  }
+  terminal_do_fingerprint = unit_fingerprint(&terminal_do_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &terminal_do_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "terminal do lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&terminal_do_unit) != terminal_do_fingerprint ||
+      !validate_terminal_do_ir(&terminal_do_unit, &ir) ||
+      !parse_source(job, "/wide-do.c", wide_do_source, &wide_do_unit) ||
+      !expect_ir_failure(
+          job, &wide_do_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide do condition") ||
+      !parse_source(job, "/terminal-wide-do.c", terminal_wide_do_source,
+                    &terminal_wide_do_unit) ||
+      !expect_ir_failure(
+          job, &terminal_wide_do_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "unreachable wide do condition")) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   terminal_while_fingerprint = unit_fingerprint(&terminal_while_unit);
