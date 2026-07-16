@@ -3195,3 +3195,64 @@ This increment transfers no production ownership and retires no host dependency.
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Remaining work includes the other comparison and bitwise operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC lowers 32-bit division and remainder
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers the unchanged `cemit_multiply_overflows` helper from `toolchain/cupidc_emit.c`:
+
+```c
+static ctool_bool cemit_multiply_overflows(ctool_u32 left,
+                                            ctool_u32 right) {
+  return left != 0u && right > 0xffffffffu / left ? CTOOL_TRUE
+                                                  : CTOOL_FALSE;
+}
+```
+
+This helper belongs to CupidC's own emitter. Its unsigned division was the next unsupported operation reached after the surrounding comparison, conditional expression, and short-circuit logical AND became available. The source remains unchanged.
+
+The existing `BINARY` IR record now carries 32-bit division and remainder. The emitter pops the divisor into ECX and the dividend into EAX. Signed operations use `CDQ` and `IDIV ECX`. Unsigned operations clear EDX and use `DIV ECX`. A quotient comes from EAX, while a remainder comes from EDX.
+
+No new public IR instruction was needed because `BINARY` already retains the semantic operator and converted operand type. Runtime helper calls were rejected because i386 provides both results directly. The emitter adds no checks for division by zero or the signed minimum divided by negative one. C leaves those cases undefined, so the target instruction's fault behavior does not need a compiler-defined replacement.
+
+No user question was needed. ADR 0016 fixes the typed address/value stack, and the frontend already supplies the signedness and represented four-byte type. ADR 0024 records the emitter decision and its limits.
+
+### Contract evidence
+
+- The source guard pins the complete unchanged helper. It lowers to exactly 21 IR instructions with a maximum abstract-stack depth of three. Instruction 10 is unsigned `DIVIDE` inside the short-circuit right path.
+- The object contract covers signed quotient, signed remainder, unsigned quotient, and unsigned remainder as separate functions. The signed functions are 34 bytes each. The unsigned functions are 35 bytes each. Their object contains 138 text bytes, five symbols, and no relocations.
+- Decoding pins `CDQ` with `IDIV` for signed operands and `XOR EDX, EDX` with `DIV` for unsigned operands. Quotient functions push EAX; remainder functions push EDX.
+- Independent 64-bit division and remainder fixtures receive the unsupported-type diagnostic. Left shift is the separate unsupported four-byte binary-operation boundary.
+- Repeated emission of the division object is byte-identical. Failure still publishes no partial IR or object and keeps same-job recovery available.
+
+### Failed checks and calibration
+
+The installed Python 3.14 environment does not include `pytest`, so the first baseline command stopped before running a product test. The repository's `unittest` entry points provided the intended contracts and passed.
+
+The first red IR and object runs stopped at division. After quotient lowering was added, the active helper advanced and the exact object stopped at remainder. That second red result kept the two semantic results separate. The first wide negative used 64-bit parameters and reached the deferred ABI diagnostic before the expression-type boundary. Replacing it with a no-argument function that divides 64-bit constants isolated the intended unsupported-type result. Strict Clang then caught the result-register variable as wider than the encoder interface; giving it the encoder's eight-bit register type resolved the warning without a cast.
+
+The first complete frontend run found stale lexical inventories and self-parse tuples. The final source publishes 46/1,257/11,137/148/37 for `cupidc_ir.c` and 64/1,494/12,383/199/90 for `cupidc_emit.c`. The first repository-wide run then found one remaining audit oracle: the exact object contract adds 30 `sizeof` uses, so the checked total had moved from 2,316 to 2,346. Updating that inventory, regenerating the audit, and rerunning its focused drift test closed the only failure before the final repository pass.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 647 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,853 `if`, 3,394 `else`, 2,934 `for`, 14,537 `return`, and 2,346 `sizeof` occurrences. The active-source digest is `ba91836f2ff588e135ab2402427c58e03beb53f3a38fa365d303c5aed7ab9450`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Division first stopped both public paths. Quotient support advanced the active helper and left remainder red until its distinct result register was implemented. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 19.384 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Clang suite, including every Toolchain contract and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in 59.7 and 58.8 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass `active-leaf` and `static-data` with address and undefined-behavior sanitizers, leak detection, and halt-on-error settings. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and the three affected C contracts. |
+| Two-axis review | PASS AFTER DOC FIX | Standards reported no findings. Spec found that the opening bootstrap summary omitted division, remainder, and the active helper. The corrected summary passed follow-up review. Both reviewers noted that the exact emitted functions are decoded but not executed with runtime inputs. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and `make check-bootstrap-audit` reproduces them exactly. The focused drift regression also passes. |
+| Full repository gate | PASS | The final `make test` passes all 286 tests in 462.002 seconds with one expected skip and returns from Make in 499.1 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide integer operations, the remaining comparison and bitwise operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

@@ -709,6 +709,8 @@ static ctool_status_t cir_lower_binary(
         "CupidC IR lowering does not yet support this value type");
   }
   if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_REMAINDER &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER &&

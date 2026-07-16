@@ -958,6 +958,127 @@ static int validate_unsigned_multiplication_object(
   return 1;
 }
 
+static int validate_division_object(ctool_job_t *job,
+                                    const ctool_elf32_object_t *object) {
+  static const ctool_u8 signed_divide_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x99u, 0xf7u, 0xf9u, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 signed_remainder_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x99u, 0xf7u, 0xf9u, 0x52u, 0x58u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 unsigned_divide_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x31u, 0xd2u, 0xf7u, 0xf1u, 0x50u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 unsigned_remainder_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x31u, 0xd2u, 0xf7u, 0xf1u, 0x52u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t signed_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_CDQ,
+      CTOOL_X86_MN_IDIV, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t unsigned_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_XOR,
+      CTOOL_X86_MN_DIV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *signed_divide =
+      find_symbol(object, "signed_divide");
+  const ctool_elf32_symbol_t *signed_remainder =
+      find_symbol(object, "signed_remainder");
+  const ctool_elf32_symbol_t *unsigned_divide =
+      find_symbol(object, "unsigned_divide");
+  const ctool_elf32_symbol_t *unsigned_remainder =
+      find_symbol(object, "unsigned_remainder");
+  ctool_u32 signed_divide_offset = 0u;
+  ctool_u32 signed_remainder_offset =
+      signed_divide_offset + (ctool_u32)sizeof(signed_divide_bytes);
+  ctool_u32 unsigned_divide_offset =
+      signed_remainder_offset + (ctool_u32)sizeof(signed_remainder_bytes);
+  ctool_u32 unsigned_remainder_offset =
+      unsigned_divide_offset + (ctool_u32)sizeof(unsigned_divide_bytes);
+  ctool_u32 total_size =
+      unsigned_remainder_offset +
+      (ctool_u32)sizeof(unsigned_remainder_bytes);
+  if (text == NULL || rel_text != NULL || signed_divide == NULL ||
+      signed_remainder == NULL || unsigned_divide == NULL ||
+      unsigned_remainder == NULL || text->contents.size != total_size ||
+      text->relocation_count != 0u || object->symbol_count != 5u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(signed_divide, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      signed_divide_offset,
+                      (ctool_u32)sizeof(signed_divide_bytes)) ||
+      !symbol_matches(signed_remainder, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      signed_remainder_offset,
+                      (ctool_u32)sizeof(signed_remainder_bytes)) ||
+      !symbol_matches(unsigned_divide, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      unsigned_divide_offset,
+                      (ctool_u32)sizeof(unsigned_divide_bytes)) ||
+      !symbol_matches(unsigned_remainder, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      unsigned_remainder_offset,
+                      (ctool_u32)sizeof(unsigned_remainder_bytes)) ||
+      !decode_function(
+          job, text, signed_divide, signed_instructions,
+          (ctool_u32)(sizeof(signed_instructions) /
+                      sizeof(signed_instructions[0])),
+          signed_divide_bytes, (ctool_u32)sizeof(signed_divide_bytes),
+          NULL, 0u, "signed_divide") ||
+      !decode_function(
+          job, text, signed_remainder, signed_instructions,
+          (ctool_u32)(sizeof(signed_instructions) /
+                      sizeof(signed_instructions[0])),
+          signed_remainder_bytes,
+          (ctool_u32)sizeof(signed_remainder_bytes), NULL, 0u,
+          "signed_remainder") ||
+      !decode_function(
+          job, text, unsigned_divide, unsigned_instructions,
+          (ctool_u32)(sizeof(unsigned_instructions) /
+                      sizeof(unsigned_instructions[0])),
+          unsigned_divide_bytes,
+          (ctool_u32)sizeof(unsigned_divide_bytes), NULL, 0u,
+          "unsigned_divide") ||
+      !decode_function(
+          job, text, unsigned_remainder, unsigned_instructions,
+          (ctool_u32)(sizeof(unsigned_instructions) /
+                      sizeof(unsigned_instructions[0])),
+          unsigned_remainder_bytes,
+          (ctool_u32)sizeof(unsigned_remainder_bytes), NULL, 0u,
+          "unsigned_remainder")) {
+    (void)fprintf(stderr, "division object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_function_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 implemented_bytes[] = {
@@ -2165,7 +2286,7 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return value / 1; }\n";
+      "int unsupported(int value) { return value << 1; }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2181,6 +2302,17 @@ static int run_static_data(const char *host_root) {
   static const char unsigned_multiplication_text[] =
       "unsigned int multiply_unsigned(unsigned int value) {\n"
       "  return value * 0x80000001u;\n"
+      "}\n";
+  static const char division_text[] =
+      "int signed_divide(int left, int right) { return left / right; }\n"
+      "int signed_remainder(int left, int right) { return left % right; }\n"
+      "unsigned int unsigned_divide(unsigned int left, "
+      "unsigned int right) {\n"
+      "  return left / right;\n"
+      "}\n"
+      "unsigned int unsigned_remainder(unsigned int left, "
+      "unsigned int right) {\n"
+      "  return left % right;\n"
       "}\n";
   static const char file_assignment_text[] =
       "typedef enum { false = 0, true = 1 } bool;\n"
@@ -2267,6 +2399,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t external_object_unit;
   ctool_c_translation_unit_t multiplication_unit;
   ctool_c_translation_unit_t unsigned_multiplication_unit;
+  ctool_c_translation_unit_t division_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_unit;
@@ -2287,6 +2420,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t external_object_snapshot;
   unit_snapshot_t multiplication_snapshot;
   unit_snapshot_t unsigned_multiplication_snapshot;
+  unit_snapshot_t division_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
   unit_snapshot_t bit_field_snapshot;
@@ -2303,6 +2437,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 function_object_size = 0u;
   ctool_u8 *multiplication_object = NULL;
   ctool_u32 multiplication_object_size = 0u;
+  ctool_u8 *division_object = NULL;
+  ctool_u32 division_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
   ctool_u32 file_member_object_size = 0u;
   ctool_u8 *bit_field_object = NULL;
@@ -2331,6 +2467,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
                sizeof(unsigned_multiplication_unit));
+  (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
@@ -2346,6 +2483,7 @@ static int run_static_data(const char *host_root) {
                sizeof(multiplication_snapshot));
   (void)memset(&unsigned_multiplication_snapshot, 0,
                sizeof(unsigned_multiplication_snapshot));
+  (void)memset(&division_snapshot, 0, sizeof(division_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
   (void)memset(&file_member_snapshot, 0, sizeof(file_member_snapshot));
@@ -2949,6 +3087,56 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/division.c", division_text, &division_unit) ||
+      !take_unit_snapshot(&division_unit, &division_snapshot)) {
+    (void)fprintf(stderr, "division object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &division_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first division object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&division_snapshot, &division_unit) == 0) {
+    (void)fprintf(stderr, "first division emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  division_object_size = bytes.size;
+  division_object = (ctool_u8 *)malloc((size_t)division_object_size);
+  if (division_object == NULL) {
+    (void)fprintf(stderr, "division object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(division_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &division_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat division object") ||
+      bytes.size != division_object_size ||
+      memcmp(bytes.data, division_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&division_snapshot, &division_unit) == 0) {
+    (void)fprintf(stderr, "division emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/division.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read division object") ||
+      !validate_division_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-vga-file-assignment.c",
                     file_assignment_text, &file_assignment_unit) ||
       !take_unit_snapshot(&file_assignment_unit,
@@ -3435,6 +3623,7 @@ cleanup:
   free(expected_object);
   free(function_object);
   free(multiplication_object);
+  free(division_object);
   free(file_member_object);
   free(bit_field_object);
   free(chained_assignment_object);
@@ -3443,6 +3632,7 @@ cleanup:
   dispose_unit_snapshot(&file_member_snapshot);
   dispose_unit_snapshot(&file_assignment_snapshot);
   dispose_unit_snapshot(&chained_assignment_snapshot);
+  dispose_unit_snapshot(&division_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);

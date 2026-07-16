@@ -1804,6 +1804,7 @@ static ctool_status_t cemit_emit_ir_instruction(
     return CTOOL_OK;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY) {
+    ctool_u8 result_register = 0u;
     if (cemit_ir_type_is_i32_integer(context,
                                      ir_instruction->input_type) ==
             CTOOL_FALSE ||
@@ -1828,6 +1829,30 @@ static ctool_status_t cemit_emit_ir_instruction(
       status = cemit_x86_two_registers(
           context, CTOOL_X86_MN_IMUL, CTOOL_X86_REG_GPR32, 0u,
           CTOOL_X86_REG_GPR32, 1u, 32u);
+    } else if (ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_DIVIDE ||
+               ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
+      if (context->unit->layout.types[ir_instruction->input_type].is_signed ==
+          CTOOL_TRUE) {
+        status = cemit_x86_no_operand(context, CTOOL_X86_MN_CDQ);
+        if (status == CTOOL_OK) {
+          status = cemit_x86_one_register(
+              context, CTOOL_X86_MN_IDIV, CTOOL_X86_REG_GPR32, 1u, 32u);
+        }
+      } else {
+        status = cemit_x86_two_registers(
+            context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+            CTOOL_X86_REG_GPR32, 2u, 32u);
+        if (status == CTOOL_OK) {
+          status = cemit_x86_one_register(
+              context, CTOOL_X86_MN_DIV, CTOOL_X86_REG_GPR32, 1u, 32u);
+        }
+      }
+      if (ir_instruction->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
+        result_register = 2u;
+      }
     } else if (ir_instruction->operation ==
                CTOOL_C_EXPRESSION_OPERATOR_ADD) {
       status = cemit_x86_two_registers(
@@ -1888,7 +1913,8 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     if (status == CTOOL_OK) {
       status = cemit_x86_one_register(
-          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32,
+          result_register, 32u);
     }
     return status;
   }
