@@ -59,3 +59,5 @@ ADR 0026 extends `BINARY` with 32-bit left shift, right shift, and bitwise OR. S
 ADR 0027 extends `BINARY` with bitwise XOR for same-type represented four-byte integers. The emitter uses `XOR EAX, ECX`. A source guard pins the unchanged CPUID-toggle return expression without claiming the surrounding GNU inline assembly or general statement sequence. Wide XOR remains open.
 
 ADR 0028 adds `UNARY` for bitwise complement over same-type represented four-byte integers. The emitter uses `NOT EAX`. A source guard pins the complete unchanged memory `align_up` helper and its surrounding unsigned arithmetic. Wide complement and the other unary operators remain open.
+
+ADR 0029 extends `UNARY` with unary plus, negation, and logical not over represented four-byte integers. Unary plus emits no target instruction, negation uses `NEG`, and logical not uses `TEST`, `SETE`, and `MOVZX` to produce plain signed `int`. Active-source guards pin the negation in `dis_signed_bits` and the logical-not result in `cc_skip_brace_initializer`. Narrow, wide, floating, pointer, address, and dereference lowering remain open.

@@ -3486,3 +3486,59 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. GNU inline assembly, the other unary operations, wide integer and pointer operations, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC emits the remaining 32-bit integer unary operators
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers unary plus, negation, complement, and logical not for represented four-byte integers. Complement entered this path in the preceding increment. This change completes the bounded integer unary family without changing active source.
+
+Two unchanged expressions record the source requirement:
+
+```c
+return -(ctool_i32)((~value) + 1u);
+return !cc->error;
+```
+
+They come from `dis_signed_bits` in `toolchain/cupiddis.c` and `cc_skip_brace_initializer` in `bin/cupidc_parse.c`. Their complete functions still need casts, control flow, or pointer-based member access outside the current leaf subset. The contracts therefore guard the exact expressions and use focused functions to isolate their unary semantics. Unary plus has no active runtime use today, but it belongs to the same promoted-integer seam and keeps the IR operator family complete.
+
+Unary plus, negation, and complement require matching represented operand and result types. Logical not retains the operand type in `input_type` and requires plain, unqualified signed `int` as the result. The emitter keeps the existing stack slot for unary plus, uses `NEG EAX` for signed or unsigned negation, and keeps `NOT EAX` for complement. Logical not uses `TEST EAX, EAX`, `SETE AL`, and `MOVZX EAX, AL` before pushing the normalized result.
+
+An extra `POP` and `PUSH` for unary plus was rejected because it would add bytes without changing the value or stack shape. XOR with one was rejected for logical not because it only works for inputs already normalized to zero or one. ADR 0029 records these choices and the four-byte boundary.
+
+No user question was needed. ADR 0016 already fixes the typed value-stack contract, the frontend already applies integer promotion, and the shared x86 model owns every required encoding.
+
+### Contract evidence and failed approaches
+
+- The first IR run stopped at `/integer-unary.c:1` with the existing unsupported-expression diagnostic. After lowering was implemented, the first object run reached the new unary instructions and stopped at the emitter's internal unknown-instruction boundary. These red stages separated IR behavior from target emission.
+- Four focused functions lower to exactly 16 instructions. Each function contains `PARAMETER_ADDRESS`, `LOAD`, `UNARY`, and `RETURN_VALUE`, with a maximum abstract-stack depth of one. The contract checks signed unary plus, signed negation, unsigned negation, and logical not over an unsigned operand with a signed `int` result.
+- A copied frozen unit changes the logical-not result to unsigned `int`. Lowering rejects it with `CTOOL_C_IR_DIAG_INVALID_UNIT` and leaves the original unit unchanged.
+- Separate `long long` fixtures for unary plus, negation, logical not, and complement receive `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. The object-level logical-not fixture also proves transactional rollback and an empty output buffer.
+- The exact ELF32 object contains four functions in 86 text bytes. Their sizes are 17, 21, 21, and 27 bytes. The object has five symbols, no relocations, and decoded coverage for `NEG`, `TEST`, `SETE`, and `MOVZX`. Repeated emission is byte-identical and does not change the frontend unit.
+- Unary negation previously served as the ordinary unsupported-expression fixture. That fixture now uses prefix increment, which remains outside this slice and keeps fail-closed handling covered.
+- The final self-source tuples are 48/1,316/11,702/154/37 for `cupidc_ir.c` and 66/1,544/12,933/201/93 for `cupidc_emit.c`.
+- The first WSL test wrapper preserved a Windows carriage return in the final Make target. A second wrapper lost its Bash build-directory variable and attempted to write `/ctool.o`. Both failed before product compilation and changed no tracked file. Fixed, unique `/tmp` paths produced the strict compiler results below.
+- The first sanitizer wrapper passed only `-std=c11` through the Windows argument boundary, so its ordinary builds were excluded from sanitizer evidence. Passing the script through standard input preserved the full flags. Those instrumented builds succeeded, but the first run omitted the required repository-root argument and printed usage. Rerunning the same verified binaries with `.` produced the recorded sanitizer results.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 694 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,991 `if`, 3,403 `else`, 2,943 `for`, 14,624 `return`, and 2,496 `sizeof` occurrences. The active-source digest is `ec3da7b7da702dc2b1ceaae5712fffbad7e74b3dec7399177989349dd264055b`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR lowering first rejected the integer-unary fixture. Object emission then reached the accepted IR and stopped until its i386 mappings were implemented. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 20.547 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 23.951 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in 57.976 and 58.274 seconds. |
+| Sanitizers | PASS AFTER HARNESS FIXES | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data`. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. Both runtimes are present in all four binaries. The corrected builds and runs take 32.580 and 38.318 seconds. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and all three affected C contracts in 72.476 and 59.305 seconds. |
+| Two-axis review | PASS | Independent Standards and Spec reviews against `9f6a8bfdca0745cb4ce21fcff4172d4508b5bb5c` report no findings. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. `make check-bootstrap-audit` reproduces them exactly in 36.522 seconds. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 437.871 seconds with one expected skip and returns from Make in 474.634 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Casts, address and dereference lowering, narrow, wide, floating, and pointer unary operands, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

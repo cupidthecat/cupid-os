@@ -46,6 +46,12 @@ static const char active_align_up[] =
     "  return (val + align - 1) & ~(align - 1);\n"
     "}\n";
 
+static const char active_signed_bits_negation[] =
+    "  return -(ctool_i32)((~value) + 1u);";
+
+static const char active_initializer_success[] =
+    "  return !cc->error;";
+
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
 
@@ -282,6 +288,26 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_bool_valid) == NULL) {
     (void)fprintf(stderr, "the active bool validator changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupiddis.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active disassembler source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_signed_bits_negation) == NULL) {
+    (void)fprintf(stderr, "the active signed-bit conversion changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/bin/cupidc_parse.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active CupidC source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_initializer_success) == NULL) {
+    (void)fprintf(stderr, "the active initializer result changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupidasm.c");
@@ -1749,6 +1775,116 @@ static int validate_align_up_ir(const ctool_c_translation_unit_t *unit,
       (void)fprintf(stderr, "memory alignment IR instruction %u differs\n",
                     index);
       return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_integer_unary_ir(const ctool_c_translation_unit_t *unit,
+                                     const ctool_c_ir_unit_t *ir) {
+  static const char *const names[] = {
+      "unary_plus", "signed_negate", "unsigned_negate", "logical_not"};
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS,
+      CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
+      CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
+      CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT};
+  static const ctool_bool input_signed[] = {
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE};
+  static const ctool_bool result_signed[] = {
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_FALSE, CTOOL_TRUE};
+  ctool_u32 index;
+  if (unit->function_definition_count != 4u || ir->function_count != 4u ||
+      ir->instruction_count != 16u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "integer unary IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 4u; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_type_node_t *function_type;
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[index * 4u];
+    ctool_u32 parameter;
+    ctool_u32 input_type;
+    ctool_u32 result_type;
+    ctool_u32 instruction_index;
+    if (definition->binding >= unit->binding_count ||
+        definition->declared_type >= unit->graph.type_count ||
+        !string_equal(unit->bindings[definition->binding].name,
+                      names[index])) {
+      (void)fprintf(stderr, "integer unary definition differs\n");
+      return 0;
+    }
+    function_type = &unit->graph.types[definition->declared_type];
+    if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+        function_type->parameter_count != 1u ||
+        function_type->first_parameter >= unit->parameter_count) {
+      (void)fprintf(stderr, "integer unary function type differs\n");
+      return 0;
+    }
+    parameter = function_type->first_parameter;
+    input_type = unit->parameters[parameter].type;
+    result_type = function_type->referenced_type;
+    if (input_type >= unit->layout.type_count ||
+        result_type >= unit->layout.type_count ||
+        unit->layout.types[input_type].is_integer != CTOOL_TRUE ||
+        unit->layout.types[input_type].size != 4u ||
+        unit->layout.types[input_type].is_signed != input_signed[index] ||
+        unit->layout.types[result_type].is_integer != CTOOL_TRUE ||
+        unit->layout.types[result_type].size != 4u ||
+        unit->layout.types[result_type].is_signed != result_signed[index] ||
+        function->binding != definition->binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != index * 4u ||
+        function->instruction_count != 4u ||
+        function->maximum_stack_depth != 1u ||
+        instructions[0].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        instructions[0].type != input_type ||
+        instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+        instructions[0].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        instructions[0].conversion != CTOOL_C_CONVERSION_NONE ||
+        instructions[0].reference != parameter ||
+        instructions[0].integer_bits != 0u ||
+        instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        instructions[1].type != input_type ||
+        instructions[1].input_type != input_type ||
+        instructions[1].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        instructions[1].reference != CTOOL_C_AST_NONE ||
+        instructions[1].integer_bits != 0u ||
+        instructions[2].kind != CTOOL_C_IR_INSTRUCTION_UNARY ||
+        instructions[2].type != result_type ||
+        instructions[2].input_type != input_type ||
+        instructions[2].operation != operations[index] ||
+        instructions[2].conversion != CTOOL_C_CONVERSION_NONE ||
+        instructions[2].reference != CTOOL_C_AST_NONE ||
+        instructions[2].integer_bits != 0u ||
+        instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        instructions[3].type != result_type ||
+        instructions[3].input_type != result_type ||
+        instructions[3].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        instructions[3].conversion != CTOOL_C_CONVERSION_NONE ||
+        instructions[3].reference != CTOOL_C_AST_NONE ||
+        instructions[3].integer_bits != 0u) {
+      (void)fprintf(stderr, "integer unary IR function differs\n");
+      return 0;
+    }
+    for (instruction_index = 0u; instruction_index < 4u;
+         instruction_index++) {
+      if (!string_equal(instructions[instruction_index].location.path,
+                        "/integer-unary.c") ||
+          !string_equal(
+              instructions[instruction_index].physical_location.path,
+              "/integer-unary.c") ||
+          instructions[instruction_index].location.line == 0u ||
+          instructions[instruction_index].physical_location.line == 0u) {
+        (void)fprintf(stderr, "integer unary IR lost source locations\n");
+        return 0;
+      }
     }
   }
   return 1;
@@ -3247,7 +3383,12 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
-      "int negate(int value) { return -value; }\n";
+      "int update(int value) { return ++value; }\n";
+  static const char integer_unary_source[] =
+      "int unary_plus(int value) { return +value; }\n"
+      "int signed_negate(int value) { return -value; }\n"
+      "unsigned int unsigned_negate(unsigned int value) { return -value; }\n"
+      "int logical_not(unsigned int value) { return !value; }\n";
   static const char multiplication_source[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -3367,6 +3508,12 @@ static int run_active_leaf(const char *host_root) {
       "int wide_bitwise_xor(void) { return 1LL ^ 2LL; }\n";
   static const char wide_bitwise_not_source[] =
       "int wide_bitwise_not(void) { return ~1LL; }\n";
+  static const char wide_unary_plus_source[] =
+      "int wide_unary_plus(void) { return +1LL; }\n";
+  static const char wide_unary_negate_source[] =
+      "int wide_unary_negate(void) { return -1LL; }\n";
+  static const char wide_logical_not_source[] =
+      "int wide_logical_not(void) { return !1LL; }\n";
   static const char wide_division_source[] =
       "int wide_divide(void) { return 8LL / 2LL; }\n";
   static const char wide_remainder_source[] =
@@ -3466,6 +3613,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t aes_rotw_unit;
   ctool_c_translation_unit_t align_up_unit;
+  ctool_c_translation_unit_t integer_unary_unit;
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
@@ -3474,6 +3622,9 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_bitwise_or_unit;
   ctool_c_translation_unit_t wide_bitwise_xor_unit;
   ctool_c_translation_unit_t wide_bitwise_not_unit;
+  ctool_c_translation_unit_t wide_unary_plus_unit;
+  ctool_c_translation_unit_t wide_unary_negate_unit;
+  ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t wide_division_unit;
   ctool_c_translation_unit_t wide_remainder_unit;
   ctool_c_translation_unit_t variadic_call_unit;
@@ -3499,6 +3650,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_expression_t *cpuid_expressions = NULL;
   ctool_c_expression_t *align_up_expressions = NULL;
+  ctool_c_expression_t *integer_unary_expressions = NULL;
   ctool_c_expression_t *ownership_expressions = NULL;
   ctool_c_expression_t *file_expressions = NULL;
   ctool_c_expression_t *assignment_expressions = NULL;
@@ -3526,6 +3678,8 @@ static int run_active_leaf(const char *host_root) {
   char *call_fixture = NULL;
   ctool_u32 xor_expression;
   ctool_u32 complement_expression;
+  ctool_u32 logical_not_expression;
+  ctool_u32 unsigned_unary_type;
   ctool_u32 signed_expression;
   ctool_u32 comparison_expression;
   ctool_u32 index;
@@ -3537,9 +3691,15 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
   (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
+  (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&wide_bitwise_not_unit, 0,
                sizeof(wide_bitwise_not_unit));
+  (void)memset(&wide_unary_plus_unit, 0, sizeof(wide_unary_plus_unit));
+  (void)memset(&wide_unary_negate_unit, 0,
+               sizeof(wide_unary_negate_unit));
+  (void)memset(&wide_logical_not_unit, 0,
+               sizeof(wide_logical_not_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -3618,6 +3778,11 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-memory-align-up.c", align_up_fixture,
                     &align_up_unit)) {
     (void)fprintf(stderr, "active memory alignment setup failed\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/integer-unary.c", integer_unary_source,
+                    &integer_unary_unit)) {
+    (void)fprintf(stderr, "integer unary setup failed\n");
     goto cleanup;
   }
   simd_cpuid_fixture = make_simd_cpuid_fixture();
@@ -4389,6 +4554,59 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&integer_unary_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &integer_unary_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "integer unary lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&integer_unary_unit) != fingerprint ||
+      !validate_integer_unary_ir(&integer_unary_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  logical_not_expression = CTOOL_C_AST_NONE;
+  unsigned_unary_type = CTOOL_C_TYPE_NONE;
+  for (index = 0u; index < integer_unary_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &integer_unary_unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT) {
+      logical_not_expression = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE &&
+               expression->type < integer_unary_unit.layout.type_count &&
+               integer_unary_unit.layout.types[expression->type].is_signed ==
+                   CTOOL_FALSE) {
+      unsigned_unary_type = expression->type;
+    }
+  }
+  integer_unary_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)integer_unary_unit.expression_count *
+      sizeof(*integer_unary_expressions));
+  if (logical_not_expression == CTOOL_C_AST_NONE ||
+      unsigned_unary_type == CTOOL_C_TYPE_NONE ||
+      integer_unary_expressions == NULL) {
+    (void)fprintf(stderr, "integer unary invalid-unit setup failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(integer_unary_expressions, integer_unary_unit.expressions,
+               (size_t)integer_unary_unit.expression_count *
+                   sizeof(*integer_unary_expressions));
+  integer_unary_expressions[logical_not_expression].type =
+      unsigned_unary_type;
+  invalid_unit = integer_unary_unit;
+  invalid_unit.expressions = integer_unary_expressions;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "mismatched logical-not result type") ||
+      unit_fingerprint(&integer_unary_unit) != fingerprint) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&align_up_unit);
   complement_expression = CTOOL_C_AST_NONE;
   signed_expression = CTOOL_C_AST_NONE;
   for (index = 0u; index < align_up_unit.expression_count; index++) {
@@ -4809,6 +5027,27 @@ static int run_active_leaf(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide right-shift expression") ||
+      !parse_source(job, "/wide-unary-plus.c", wide_unary_plus_source,
+                    &wide_unary_plus_unit) ||
+      !expect_ir_failure(
+          job, &wide_unary_plus_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide unary-plus expression") ||
+      !parse_source(job, "/wide-unary-negate.c", wide_unary_negate_source,
+                    &wide_unary_negate_unit) ||
+      !expect_ir_failure(
+          job, &wide_unary_negate_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide unary-negation expression") ||
+      !parse_source(job, "/wide-logical-not.c", wide_logical_not_source,
+                    &wide_logical_not_unit) ||
+      !expect_ir_failure(
+          job, &wide_logical_not_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide logical-not expression") ||
       !parse_source(job, "/wide-bitwise-or.c", wide_bitwise_or_source,
                     &wide_bitwise_or_unit) ||
       !expect_ir_failure(
@@ -4955,6 +5194,7 @@ cleanup:
   free(invalid_expressions);
   free(cpuid_expressions);
   free(align_up_expressions);
+  free(integer_unary_expressions);
   free(ownership_expressions);
   free(file_expressions);
   free(assignment_expressions);

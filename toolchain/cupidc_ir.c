@@ -248,6 +248,16 @@ static ctool_bool cir_type_is_i32_integer(const cir_context_t *context,
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_type_is_plain_signed_int(
+    const cir_context_t *context, ctool_u32 type) {
+  return type < context->unit->graph.type_count &&
+                 context->unit->graph.types[type].kind ==
+                     CTOOL_C_TYPE_SIGNED_INT &&
+                 context->unit->graph.types[type].qualifiers == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_type_is_complete_record_object(
     const cir_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
@@ -761,6 +771,7 @@ static ctool_status_t cir_lower_unary(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   cir_stack_entry_t operand;
+  ctool_bool logical_not;
   ctool_u32 child;
   ctool_status_t status;
   if (expression->reference != CTOOL_C_AST_NONE ||
@@ -770,9 +781,15 @@ static ctool_status_t cir_lower_unary(
   }
   status = cir_expression_child(
       context, expression_index, expression, 0u, &child);
+  logical_not = expression->operation ==
+                        CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT
+                    ? CTOOL_TRUE
+                    : CTOOL_FALSE;
   if (status == CTOOL_OK &&
-      expression->operation !=
-          CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT &&
+      logical_not == CTOOL_FALSE) {
     return cir_unsupported_expression(context, &expression->location);
   }
   if (status == CTOOL_OK) {
@@ -792,7 +809,10 @@ static ctool_status_t cir_lower_unary(
     return cir_unsupported_type(context, &expression->location);
   }
   if (operand.type != context->unit->expressions[child].type ||
-      expression->type != operand.type) {
+      (logical_not == CTOOL_FALSE && expression->type != operand.type) ||
+      (logical_not == CTOOL_TRUE &&
+       cir_type_is_plain_signed_int(context, expression->type) ==
+           CTOOL_FALSE)) {
     return cir_invalid_unit(context, &expression->location);
   }
   status = cir_append_instruction(

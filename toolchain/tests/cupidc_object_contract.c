@@ -17,6 +17,12 @@ static const char active_align_up[] =
     "  return (val + align - 1) & ~(align - 1);\n"
     "}\n";
 
+static const char active_signed_bits_negation[] =
+    "  return -(ctool_i32)((~value) + 1u);";
+
+static const char active_initializer_success[] =
+    "  return !cc->error;";
+
 typedef struct {
   ctool_c_translation_unit_t unit;
   ctool_c_binding_t *bindings;
@@ -149,6 +155,26 @@ static int active_align_up_is_unchanged(ctool_job_t *job) {
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_align_up) == NULL) {
     (void)fprintf(stderr, "the active memory alignment helper changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupiddis.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active disassembler source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_signed_bits_negation) == NULL) {
+    (void)fprintf(stderr, "the active signed-bit conversion changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/bin/cupidc_parse.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active CupidC source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_initializer_success) == NULL) {
+    (void)fprintf(stderr, "the active initializer result changed\n");
     return 0;
   }
   return 1;
@@ -1389,6 +1415,112 @@ static int validate_align_up_object(ctool_job_t *job,
           function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
           "align_up")) {
     (void)fprintf(stderr, "memory alignment object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_integer_unary_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 unary_plus_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_u8 negate_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xf7u, 0xd8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 logical_not_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x85u, 0xc0u, 0x0fu, 0x94u, 0xc0u, 0x0fu,
+      0xb6u, 0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t unary_plus_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t negate_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_NEG,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t logical_not_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_SETE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *unary_plus =
+      find_symbol(object, "unary_plus");
+  const ctool_elf32_symbol_t *signed_negate =
+      find_symbol(object, "signed_negate");
+  const ctool_elf32_symbol_t *unsigned_negate =
+      find_symbol(object, "unsigned_negate");
+  const ctool_elf32_symbol_t *logical_not =
+      find_symbol(object, "logical_not");
+  ctool_u32 unary_plus_offset = 0u;
+  ctool_u32 signed_negate_offset =
+      unary_plus_offset + (ctool_u32)sizeof(unary_plus_bytes);
+  ctool_u32 unsigned_negate_offset =
+      signed_negate_offset + (ctool_u32)sizeof(negate_bytes);
+  ctool_u32 logical_not_offset =
+      unsigned_negate_offset + (ctool_u32)sizeof(negate_bytes);
+  ctool_u32 total_size =
+      logical_not_offset + (ctool_u32)sizeof(logical_not_bytes);
+  if (text == NULL || rel_text != NULL || unary_plus == NULL ||
+      signed_negate == NULL || unsigned_negate == NULL ||
+      logical_not == NULL || text->contents.size != total_size ||
+      text->relocation_count != 0u || object->symbol_count != 5u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(unary_plus, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      unary_plus_offset,
+                      (ctool_u32)sizeof(unary_plus_bytes)) ||
+      !symbol_matches(signed_negate, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      signed_negate_offset,
+                      (ctool_u32)sizeof(negate_bytes)) ||
+      !symbol_matches(unsigned_negate, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      unsigned_negate_offset,
+                      (ctool_u32)sizeof(negate_bytes)) ||
+      !symbol_matches(logical_not, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      logical_not_offset,
+                      (ctool_u32)sizeof(logical_not_bytes)) ||
+      !decode_function(
+          job, text, unary_plus, unary_plus_instructions,
+          (ctool_u32)(sizeof(unary_plus_instructions) /
+                      sizeof(unary_plus_instructions[0])),
+          unary_plus_bytes, (ctool_u32)sizeof(unary_plus_bytes), NULL, 0u,
+          "unary_plus") ||
+      !decode_function(
+          job, text, signed_negate, negate_instructions,
+          (ctool_u32)(sizeof(negate_instructions) /
+                      sizeof(negate_instructions[0])),
+          negate_bytes, (ctool_u32)sizeof(negate_bytes), NULL, 0u,
+          "signed_negate") ||
+      !decode_function(
+          job, text, unsigned_negate, negate_instructions,
+          (ctool_u32)(sizeof(negate_instructions) /
+                      sizeof(negate_instructions[0])),
+          negate_bytes, (ctool_u32)sizeof(negate_bytes), NULL, 0u,
+          "unsigned_negate") ||
+      !decode_function(
+          job, text, logical_not, logical_not_instructions,
+          (ctool_u32)(sizeof(logical_not_instructions) /
+                      sizeof(logical_not_instructions[0])),
+          logical_not_bytes, (ctool_u32)sizeof(logical_not_bytes), NULL, 0u,
+          "logical_not")) {
+    (void)fprintf(stderr, "integer unary object differs\n");
     return 0;
   }
   return 1;
@@ -2650,7 +2782,14 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return -value; }\n";
+      "int unsupported(int value) { return ++value; }\n";
+  static const char integer_unary_text[] =
+      "int unary_plus(int value) { return +value; }\n"
+      "int signed_negate(int value) { return -value; }\n"
+      "unsigned int unsigned_negate(unsigned int value) { return -value; }\n"
+      "int logical_not(unsigned int value) { return !value; }\n";
+  static const char wide_logical_not_text[] =
+      "int wide_logical_not(void) { return !1LL; }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2791,12 +2930,14 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t aes_rotw_unit;
   ctool_c_translation_unit_t align_up_unit;
+  ctool_c_translation_unit_t integer_unary_unit;
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_unit;
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
+  ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
   ctool_c_translation_unit_t invalid_unit;
@@ -2816,6 +2957,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t branch_fit_snapshot;
   unit_snapshot_t aes_rotw_snapshot;
   unit_snapshot_t align_up_snapshot;
+  unit_snapshot_t integer_unary_snapshot;
   unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
@@ -2841,6 +2983,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 aes_rotw_object_size = 0u;
   ctool_u8 *align_up_object = NULL;
   ctool_u32 align_up_object_size = 0u;
+  ctool_u8 *integer_unary_object = NULL;
+  ctool_u32 integer_unary_object_size = 0u;
   ctool_u8 *simd_cpuid_object = NULL;
   ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
@@ -2876,12 +3020,15 @@ static int run_static_data(const char *host_root) {
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
   (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
+  (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
   (void)memset(&chained_assignment_unit, 0,
                sizeof(chained_assignment_unit));
+  (void)memset(&wide_logical_not_unit, 0,
+               sizeof(wide_logical_not_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
@@ -2896,6 +3043,8 @@ static int run_static_data(const char *host_root) {
   (void)memset(&branch_fit_snapshot, 0, sizeof(branch_fit_snapshot));
   (void)memset(&aes_rotw_snapshot, 0, sizeof(aes_rotw_snapshot));
   (void)memset(&align_up_snapshot, 0, sizeof(align_up_snapshot));
+  (void)memset(&integer_unary_snapshot, 0,
+               sizeof(integer_unary_snapshot));
   (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
@@ -3708,6 +3857,60 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/integer-unary.c", integer_unary_text,
+                    &integer_unary_unit) ||
+      !take_unit_snapshot(&integer_unary_unit, &integer_unary_snapshot)) {
+    (void)fprintf(stderr, "integer unary object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &integer_unary_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first integer unary object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&integer_unary_snapshot,
+                            &integer_unary_unit) == 0) {
+    (void)fprintf(stderr, "first integer unary emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  integer_unary_object_size = bytes.size;
+  integer_unary_object =
+      (ctool_u8 *)malloc((size_t)integer_unary_object_size);
+  if (integer_unary_object == NULL) {
+    (void)fprintf(stderr, "integer unary snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(integer_unary_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &integer_unary_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat integer unary object") ||
+      bytes.size != integer_unary_object_size ||
+      memcmp(bytes.data, integer_unary_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&integer_unary_snapshot,
+                            &integer_unary_unit) == 0) {
+    (void)fprintf(stderr, "integer unary emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/integer-unary.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read integer unary object") ||
+      !validate_integer_unary_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-simd-cpuid.c", simd_cpuid_text,
                     &simd_cpuid_unit) ||
       !take_unit_snapshot(&simd_cpuid_unit, &simd_cpuid_snapshot)) {
@@ -3960,6 +4163,13 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
           "CupidC IR lowering does not yet support this expression",
           "unsupported function expression") ||
+      !parse_source(job, "/wide-logical-not.c", wide_logical_not_text,
+                    &wide_logical_not_unit) ||
+      !expect_object_failure(
+          job, &wide_logical_not_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide logical-not object") ||
       !parse_source(job, "/external-inline.c", external_inline_text,
                     &external_inline_unit) ||
       !expect_object_failure(
@@ -4249,6 +4459,7 @@ cleanup:
   free(branch_fit_object);
   free(aes_rotw_object);
   free(align_up_object);
+  free(integer_unary_object);
   free(simd_cpuid_object);
   free(file_member_object);
   free(bit_field_object);
@@ -4262,6 +4473,7 @@ cleanup:
   dispose_unit_snapshot(&branch_fit_snapshot);
   dispose_unit_snapshot(&aes_rotw_snapshot);
   dispose_unit_snapshot(&align_up_snapshot);
+  dispose_unit_snapshot(&integer_unary_snapshot);
   dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);

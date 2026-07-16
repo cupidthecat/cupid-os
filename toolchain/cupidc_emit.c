@@ -1456,6 +1456,16 @@ static ctool_bool cemit_ir_type_is_i32_integer(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_type_is_plain_signed_int(
+    const cemit_context_t *context, ctool_u32 type) {
+  return type < context->unit->graph.type_count &&
+                 context->unit->graph.types[type].kind ==
+                     CTOOL_C_TYPE_SIGNED_INT &&
+                 context->unit->graph.types[type].qualifiers == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_x86_mnemonic_t cemit_comparison_predicate(
     ctool_c_expression_operator_t operation, ctool_bool is_signed) {
   if (operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
@@ -1828,24 +1838,63 @@ static ctool_status_t cemit_emit_ir_instruction(
     return CTOOL_OK;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY) {
+    ctool_bool logical_not =
+        ir_instruction->operation ==
+                CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if (cemit_ir_type_is_i32_integer(context,
                                      ir_instruction->input_type) ==
             CTOOL_FALSE ||
         cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
             CTOOL_FALSE ||
-        ir_instruction->input_type != ir_instruction->type ||
-        ir_instruction->operation !=
-            CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT ||
+        (logical_not == CTOOL_FALSE &&
+         ir_instruction->input_type != ir_instruction->type) ||
+        (logical_not == CTOOL_TRUE &&
+         cemit_ir_type_is_plain_signed_int(context,
+                                           ir_instruction->type) ==
+             CTOOL_FALSE) ||
+        (ir_instruction->operation !=
+             CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS &&
+         ir_instruction->operation !=
+             CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE &&
+         ir_instruction->operation !=
+             CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT &&
+         logical_not == CTOOL_FALSE) ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
         ir_instruction->reference != CTOOL_C_AST_NONE ||
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
+    if (ir_instruction->operation ==
+        CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS) {
+      return CTOOL_OK;
+    }
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
-    if (status == CTOOL_OK) {
+    if (status == CTOOL_OK &&
+        ir_instruction->operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_NEG, CTOOL_X86_REG_GPR32, 0u, 32u);
+    } else if (status == CTOOL_OK &&
+               ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
       status = cemit_x86_one_register(
           context, CTOOL_X86_MN_NOT, CTOOL_X86_REG_GPR32, 0u, 32u);
+    } else if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_TEST, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR32, 0u, 32u);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_SETE, CTOOL_X86_REG_GPR8, 0u, 8u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_two_registers(
+            context, CTOOL_X86_MN_MOVZX, CTOOL_X86_REG_GPR32, 0u,
+            CTOOL_X86_REG_GPR8, 0u, 32u);
+      }
     }
     if (status == CTOOL_OK) {
       status = cemit_x86_one_register(
