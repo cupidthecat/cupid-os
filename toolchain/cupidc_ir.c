@@ -729,6 +729,27 @@ static ctool_status_t cir_lower_binary(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
+static ctool_status_t cir_lower_logical_operand(
+    cir_context_t *context, ctool_u32 child, ctool_u32 child_depth,
+    ctool_u32 base_depth, const ctool_c_expression_t *expression,
+    cir_stack_entry_t *operand_out) {
+  ctool_status_t status = cir_lower_expression(context, child, child_depth);
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, operand_out);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (context->stack_depth != base_depth ||
+      operand_out->kind != CIR_STACK_VALUE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (cir_type_is_i32_integer(context, operand_out->type) == CTOOL_FALSE) {
+    return cir_unsupported_type(context, &expression->location);
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_lower_logical_and(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
@@ -755,19 +776,11 @@ static ctool_status_t cir_lower_logical_and(
                                   &right_child);
   }
   if (status == CTOOL_OK) {
-    status = cir_lower_expression(context, left_child, depth + 1u);
-  }
-  if (status == CTOOL_OK) {
-    status = cir_pop(context, &left);
+    status = cir_lower_logical_operand(
+        context, left_child, depth + 1u, base_depth, expression, &left);
   }
   if (status != CTOOL_OK) {
     return status;
-  }
-  if (context->stack_depth != base_depth || left.kind != CIR_STACK_VALUE) {
-    return cir_invalid_unit(context, &expression->location);
-  }
-  if (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE) {
-    return cir_unsupported_type(context, &expression->location);
   }
   status = cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
@@ -776,19 +789,11 @@ static ctool_status_t cir_lower_logical_and(
       &expression->location, &expression->physical_location,
       &left_zero_branch);
   if (status == CTOOL_OK) {
-    status = cir_lower_expression(context, right_child, depth + 1u);
-  }
-  if (status == CTOOL_OK) {
-    status = cir_pop(context, &right);
+    status = cir_lower_logical_operand(
+        context, right_child, depth + 1u, base_depth, expression, &right);
   }
   if (status != CTOOL_OK) {
     return status;
-  }
-  if (context->stack_depth != base_depth || right.kind != CIR_STACK_VALUE) {
-    return cir_invalid_unit(context, &expression->location);
-  }
-  if (cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE) {
-    return cir_unsupported_type(context, &expression->location);
   }
   status = cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
@@ -838,6 +843,128 @@ static ctool_status_t cir_lower_logical_and(
   }
   if (status == CTOOL_OK) {
     status = cir_patch_reference(context, result_jump,
+                                 cir_function_offset(context));
+  }
+  return status;
+}
+
+static ctool_status_t cir_lower_logical_or(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 depth) {
+  cir_stack_entry_t left;
+  cir_stack_entry_t right;
+  ctool_u32 left_child;
+  ctool_u32 right_child;
+  ctool_u32 right_branch;
+  ctool_u32 left_result_jump;
+  ctool_u32 false_branch;
+  ctool_u32 right_result_jump;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_status_t status;
+  if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR ||
+      expression->reference != CTOOL_C_AST_NONE ||
+      expression->conversion != CTOOL_C_CONVERSION_NONE ||
+      expression->computation_type != CTOOL_C_TYPE_NONE ||
+      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_expression_child(context, expression_index, expression, 0u,
+                                &left_child);
+  if (status == CTOOL_OK) {
+    status = cir_expression_child(context, expression_index, expression, 1u,
+                                  &right_child);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_lower_logical_operand(
+        context, left_child, depth + 1u, base_depth, expression, &left);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
+      left.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &expression->location, &expression->physical_location, &right_branch);
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        &left_result_jump);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_patch_reference(context, right_branch,
+                                 cir_function_offset(context));
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  context->stack_depth = base_depth;
+  status = cir_lower_logical_operand(
+      context, right_child, depth + 1u, base_depth, expression, &right);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
+      right.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &expression->location, &expression->physical_location, &false_branch);
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        &right_result_jump);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_patch_reference(context, false_branch,
+                                 cir_function_offset(context));
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  context->stack_depth = base_depth;
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
+      CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &expression->location, &expression->physical_location,
+      (ctool_u32 *)0);
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_patch_reference(context, left_result_jump,
+                                 cir_function_offset(context));
+  }
+  if (status == CTOOL_OK) {
+    status = cir_patch_reference(context, right_result_jump,
                                  cir_function_offset(context));
   }
   return status;
@@ -1328,6 +1455,10 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND) {
       return cir_lower_logical_and(context, expression_index, expression,
                                    depth);
+    }
+    if (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR) {
+      return cir_lower_logical_or(context, expression_index, expression,
+                                  depth);
     }
     return cir_lower_binary(context, expression_index, expression, depth);
   }

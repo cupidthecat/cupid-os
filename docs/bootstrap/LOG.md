@@ -3131,3 +3131,67 @@ This increment transfers no production ownership and retires no host dependency.
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Logical OR, the remaining bitwise and comparison operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-15: CupidC lowers short-circuit logical OR
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers the unchanged `cfront_bool_valid` helper from `toolchain/cupidc_frontend.c`:
+
+```c
+static ctool_bool cfront_bool_valid(ctool_bool value) {
+  return value == CTOOL_FALSE || value == CTOOL_TRUE ? CTOOL_TRUE
+                                                      : CTOOL_FALSE;
+}
+```
+
+This function is part of CupidC's own frontend. Leaving logical OR unsupported prevented the compiler from compiling more of itself. The source remains unchanged.
+
+Logical OR uses the existing `BRANCH_ZERO`, `JUMP`, and `INTEGER` IR instructions. Lowering evaluates the left operand first. A zero value branches to the right operand, while a nonzero value produces one and skips it. The right path also normalizes its result to zero or one before both paths join. The joined stack contains one four-byte integer value.
+
+Adding `BRANCH_NONZERO` was rejected because the current branch instruction already represents the required control flow. Eager binary evaluation was rejected because it would run the right operand even when the left operand is true. The existing non-four-byte boundary remains explicit because wide scalar lowering is not complete.
+
+No user question was needed. ADR 0016 already defines the linear branch model, and ADR 0023 records the short-circuit design for both integer logical operators.
+
+### Contract evidence
+
+- The first focused IR run stopped at the unsupported logical OR expression. That red result showed that the active helper reached the missing lowering path.
+- The source guard pins the complete unchanged helper. Its logical OR expression lowers to exactly 20 IR instructions with a maximum abstract-stack depth of two. Both operands are evaluated in source order, the right operand is reachable only through the zero-left branch, and every completed path joins with a normalized integer value.
+- The exact helper is 127 bytes. Shared x86 decoding checks all 46 instructions and relative targets 49, 100, 95, 100, 119, and 124.
+- Appending the local helper grows the combined function object's text from 718 to 845 bytes and its symbol count from 26 to 27. The helper begins at text offset 718. All ten existing relocations keep their previous offsets because the new function follows the relocation-bearing functions.
+- A `long long` logical OR receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. This negative contract keeps the represented four-byte scalar boundary useful and specific.
+- Repeat emission of the combined object remains byte-identical.
+
+### Failed checks and calibration
+
+The object contract intentionally failed first on its old definition count, then on the old 718-byte text and 26-symbol structure. A temporary diagnostic printed the emitted helper bytes so the exact oracle could be recorded. That diagnostic was removed after the byte, decoder, symbol, size, and branch-target contracts were complete.
+
+The first complete Toolchain run stopped on the stale self-parse tuple for `cupidc_ir.c`. The parser measured 45 definitions, 1,278 statements, 11,256 expressions, 147 block bindings, and 36 initializers. Updating that exact oracle made the full Toolchain suite green. Standards review then identified duplicated operand validation in the two logical lowering functions. Extracting `cir_lower_logical_operand` closed that finding. The final source publishes 46 definitions, 1,257 statements, 11,117 expressions, 148 block bindings, and 37 initializers.
+
+The first regenerated audit became stale after its Python inventory oracles were updated. Regenerating from the final source set and rerunning the freshness check resolved it.
+
+The first sanitizer wrapper passed a multiline Bash program through the Windows native argument boundary incorrectly, so it created temporary directories without compiling. Inspecting those directories exposed the problem. Passing the script through standard input ran the intended builds. A later proof step looked only for undefined sanitizer symbols, but Clang links its runtime into the binary. The final check reads the complete symbol table and confirms both AddressSanitizer and UndefinedBehaviorSanitizer before running either contract. None of these wrapper failures changed tracked source.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 638 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,832 `if`, 3,392 `else`, 2,933 `for`, 14,527 `return`, and 2,316 `sizeof` occurrences. The active-source digest is `007d16965a8be74653bc620e25294d6dc5f00bcdf254692b98a00f4f245e08c8`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | The focused IR contract stopped at unsupported logical OR before lowering or emission changed. |
+| Focused CupidC contracts | PASS | The frontend, IR, and object modules pass all 44 tests in isolated strict Clang runs. |
+| Build-graph contracts | PASS | The final repository gate includes all 49 build-graph audit tests. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Clang suite, including both changed selectors and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass `active-leaf` and `static-data` with address and undefined-behavior sanitizers, leak detection, and halt-on-error settings. Sanitizer symbols are present in both binaries. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across `cupidc_ir.c` and both affected C contracts. |
+| Two-axis review | PASS AFTER FIX | Standards found duplicated logical operand validation. The shared private helper closes that finding without merging the distinct branch graphs. Spec found stale post-refactor audit evidence in this log. The final tuple, counts, and digest above close it. Both follow-up reviews are clean. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records, and `make check-bootstrap-audit` reproduces them exactly. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 449.919 seconds with one expected skip and returns from Make in 485.4 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Remaining work includes the other comparison and bitwise operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting. No issue is ready to close from this increment.

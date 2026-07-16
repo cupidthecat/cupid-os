@@ -20,6 +20,12 @@ static const char active_power_of_two[] =
     "                                                     : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_bool_valid[] =
+    "static ctool_bool cfront_bool_valid(ctool_bool value) {\n"
+    "  return value == CTOOL_FALSE || value == CTOOL_TRUE ? CTOOL_TRUE\n"
+    "                                                      : CTOOL_FALSE;\n"
+    "}\n";
+
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
@@ -244,6 +250,15 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active emitter helper changed\n");
     return 0;
   }
+  path.text = ctool_string("/toolchain/cupidc_frontend.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active frontend source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_bool_valid) == NULL) {
+    (void)fprintf(stderr, "the active bool validator changed\n");
+    return 0;
+  }
   path.text = ctool_string("/kernel/core/syscall.c");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
@@ -408,6 +423,21 @@ static char *make_logic_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_power_of_two,
                  sizeof(active_power_of_two));
+  }
+  return text;
+}
+
+static char *make_logical_or_fixture(void) {
+  static const char prefix[] =
+      "typedef int ctool_bool;\n"
+      "#define CTOOL_FALSE 0\n"
+      "#define CTOOL_TRUE 1\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_bool_valid);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    (void)memcpy(text, prefix, sizeof(prefix) - 1u);
+    (void)memcpy(text + sizeof(prefix) - 1u, active_bool_valid,
+                 sizeof(active_bool_valid));
   }
   return text;
 }
@@ -829,6 +859,145 @@ static int validate_logic_ir(const ctool_c_translation_unit_t *unit,
     if (instructions[index].location.line == 0u ||
         instructions[index].physical_location.line == 0u) {
       (void)fprintf(stderr, "logic IR lost source locations\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  ctool_bool has_type;
+  ctool_bool has_input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  ctool_u32 reference;
+  ctool_u64 integer_bits;
+} logical_or_expected_t;
+
+static int validate_logical_or_ir(const ctool_c_translation_unit_t *unit,
+                                  const ctool_c_ir_unit_t *ir) {
+  const ctool_u32 parameter_reference = CTOOL_C_AST_NONE - 1u;
+  static const logical_or_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, CTOOL_TRUE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, CTOOL_TRUE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_EQUAL, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_FALSE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 7u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_FALSE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 15u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, CTOOL_TRUE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, CTOOL_TRUE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_EQUAL, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_FALSE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 14u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_FALSE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 15u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_FALSE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 18u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_FALSE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 19u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CTOOL_TRUE, CTOOL_FALSE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, CTOOL_TRUE, CTOOL_TRUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 parameter;
+  ctool_u32 result_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "logical-or IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "logical-or function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  result_type = function_type->referenced_type;
+  function = &ir->functions[0];
+  instructions = ir->instructions + function->first_instruction;
+  if (unit->parameters[parameter].type != result_type ||
+      function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      function->maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "logical-or IR function record differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const logical_or_expected_t *wanted = &expected[index];
+    const ctool_c_ir_instruction_t *actual = &instructions[index];
+    ctool_u32 reference = wanted->reference == parameter_reference
+                              ? parameter
+                              : wanted->reference;
+    if (actual->kind != wanted->kind ||
+        actual->type !=
+            (wanted->has_type == CTOOL_TRUE ? result_type
+                                             : CTOOL_C_TYPE_NONE) ||
+        actual->input_type !=
+            (wanted->has_input_type == CTOOL_TRUE ? result_type
+                                                   : CTOOL_C_TYPE_NONE) ||
+        actual->operation != wanted->operation ||
+        actual->conversion != wanted->conversion ||
+        actual->reference != reference ||
+        actual->integer_bits != wanted->integer_bits ||
+        string_equal(actual->location.path,
+                     "/active-cfront-bool-valid.c") == 0 ||
+        string_equal(actual->physical_location.path,
+                     "/active-cfront-bool-valid.c") == 0 ||
+        actual->location.line == 0u ||
+        actual->physical_location.line == 0u) {
+      (void)fprintf(stderr, "logical-or IR instruction %u differs\n",
+                    index);
       return 0;
     }
   }
@@ -2256,10 +2425,8 @@ static int run_active_leaf(const char *host_root) {
       "int call_wide(void) { return wide_target(1); }\n";
   static const char wide_comparison_source[] =
       "int wide_greater_equal(void) { return 1LL >= 0LL; }\n";
-  static const char logical_or_source[] =
-      "int unsupported_logic(int left, int right) {\n"
-      "  return left || right;\n"
-      "}\n";
+  static const char wide_logical_or_source[] =
+      "int wide_logical_or(void) { return 1LL || 0LL; }\n";
   static const char wide_multiplication_source[] =
       "int wide_multiply(void) { return 2LL * 3LL; }\n";
   static const char variadic_call_source[] =
@@ -2353,6 +2520,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_call_unit;
   ctool_c_translation_unit_t wide_comparison_unit;
   ctool_c_translation_unit_t logical_or_unit;
+  ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
   ctool_c_translation_unit_t variadic_call_unit;
   ctool_c_translation_unit_t value_statement_unit;
@@ -2393,6 +2561,7 @@ static int run_active_leaf(const char *host_root) {
   uint64_t fingerprint;
   char *fixture = NULL;
   char *logic_fixture = NULL;
+  char *logical_or_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 index;
   int passed = 0;
@@ -2442,6 +2611,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-cemit-power-of-two.c", logic_fixture,
                     &logic_unit)) {
     (void)fprintf(stderr, "active logic helper setup failed\n");
+    goto cleanup;
+  }
+  logical_or_fixture = make_logical_or_fixture();
+  if (logical_or_fixture == NULL ||
+      !parse_source(job, "/active-cfront-bool-valid.c", logical_or_fixture,
+                    &logical_or_unit)) {
+    (void)fprintf(stderr, "active logical-or helper setup failed\n");
     goto cleanup;
   }
 
@@ -3150,6 +3326,17 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&logical_or_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &logical_or_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active logical-or helper lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&logical_or_unit) != fingerprint ||
+      !validate_logical_or_ir(&logical_or_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
 
   if (!parse_source(job, "/simple-leaves.c", simple_source, &simple_unit)) {
     goto cleanup;
@@ -3451,13 +3638,13 @@ static int run_active_leaf(const char *host_root) {
           "wide greater-than-or-equal expression")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/logical-or.c", logical_or_source,
-                    &logical_or_unit) ||
+  if (!parse_source(job, "/wide-logical-or.c", wide_logical_or_source,
+                    &wide_logical_or_unit) ||
       !expect_ir_failure(
-          job, &logical_or_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "logical-or boundary")) {
+          job, &wide_logical_or_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide logical-or operand")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-multiplication.c",
@@ -3564,6 +3751,7 @@ cleanup:
   }
   free(fixture);
   free(logic_fixture);
+  free(logical_or_fixture);
   free(call_fixture);
   free(invalid_statements);
   free(invalid_initializers);
