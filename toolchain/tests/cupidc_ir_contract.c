@@ -84,6 +84,9 @@ static const char active_sleep_crlf[] =
     "  }\r\n"
     "}";
 
+static const char active_for_header[] =
+    "for (i = 0; i < 8; i = i + 1)";
+
 static const char active_addition[] =
     "int add2(int x, int y) {\n"
     "    return x + y;\n"
@@ -394,6 +397,15 @@ static int active_source_is_unchanged(ctool_job_t *job) {
               "    return x + y;\r\n"
               "}\r\n") == NULL)) {
     (void)fprintf(stderr, "the active add2 function changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/bin/browser/url_hash.cc");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active browser for loop") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_for_header) == NULL) {
+    (void)fprintf(stderr, "the active browser for loop changed\n");
     return 0;
   }
   path.text = ctool_string("/bin/paint.cc");
@@ -809,6 +821,18 @@ static int expect_ir_failure(ctool_job_t *job,
     return 0;
   }
   return 1;
+}
+
+static int expect_ir_failure_preserves_unit(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_status_t expected_status, ctool_u32 expected_code,
+    const char *expected_message, const char *context) {
+  uint64_t fingerprint = unit_fingerprint(unit);
+  return expect_ir_failure(job, unit, expected_status, expected_code,
+                           expected_message, context) &&
+                 unit_fingerprint(unit) == fingerprint
+             ? 1
+             : 0;
 }
 
 static int instruction_matches(const ctool_c_ir_instruction_t *instruction,
@@ -3050,6 +3074,171 @@ static int validate_terminal_do_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_for_ir(const ctool_c_translation_unit_t *unit,
+                           const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "url_hash_loop");
+  ctool_u32 index_binding = find_block_binding(unit, "i");
+  ctool_u32 value_type;
+  ctool_u32 condition_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 23u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      index_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "for IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->binding != function_binding ||
+      definition->declared_type >= unit->graph.type_count ||
+      index_binding >= unit->block_binding_count) {
+    (void)fprintf(stderr, "for IR definition differs\n");
+    return 0;
+  }
+  value_type = unit->block_bindings[index_binding].type;
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  condition_type = instructions[7].type;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 23u ||
+      function->maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != index_binding ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[1].type != value_type ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[2].type != value_type ||
+      instructions[2].input_type != value_type ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[3].input_type != value_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[4].type != value_type ||
+      instructions[4].reference != index_binding ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[6].type != value_type ||
+      instructions[6].integer_bits != 8u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[7].operation != CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[8].input_type != condition_type ||
+      instructions[8].reference != 20u ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[9].type != value_type ||
+      instructions[9].reference != index_binding ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[10].type != value_type ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[11].input_type != value_type ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[12].type != value_type ||
+      instructions[12].reference != index_binding ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[13].type != value_type ||
+      instructions[13].reference != index_binding ||
+      instructions[14].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[14].type != value_type ||
+      instructions[15].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[15].type != value_type ||
+      instructions[15].integer_bits != 1u ||
+      instructions[16].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[16].type != value_type ||
+      instructions[16].input_type != value_type ||
+      instructions[16].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[17].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[17].type != value_type ||
+      instructions[17].input_type != value_type ||
+      instructions[18].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[18].input_type != value_type ||
+      instructions[19].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[19].reference != 4u ||
+      instructions[20].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[20].type != value_type ||
+      instructions[20].reference != index_binding ||
+      instructions[21].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[21].type != value_type ||
+      instructions[22].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[22].type != value_type ||
+      instructions[22].input_type != value_type ||
+      !string_equal(instructions[0].location.path, "/active-for.c") ||
+      !string_equal(instructions[8].location.path, "/active-for.c") ||
+      !string_equal(instructions[19].physical_location.path,
+                    "/active-for.c")) {
+    (void)fprintf(stderr, "for IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_for_edge_ir(const ctool_c_translation_unit_t *unit,
+                                const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *spin_definition;
+  const ctool_c_function_definition_t *once_definition;
+  const ctool_c_type_node_t *once_type;
+  ctool_u32 spin_binding = find_binding(unit, "spin");
+  ctool_u32 once_binding = find_binding(unit, "maybe_once");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 6u || ir->functions == NULL ||
+      ir->instructions == NULL || spin_binding == CTOOL_C_AST_NONE ||
+      once_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "for edge IR inventory differs\n");
+    return 0;
+  }
+  spin_definition = &unit->function_definitions[0];
+  once_definition = &unit->function_definitions[1];
+  if (spin_definition->binding != spin_binding ||
+      once_definition->binding != once_binding ||
+      once_definition->declared_type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "for edge definitions differ\n");
+    return 0;
+  }
+  once_type = &unit->graph.types[once_definition->declared_type];
+  if (once_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      once_type->parameter_count != 1u ||
+      once_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "for edge function type differs\n");
+    return 0;
+  }
+  parameter = once_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  if (ir->functions[0].binding != spin_binding ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 1u ||
+      ir->functions[0].maximum_stack_depth != 0u ||
+      ir->instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      ir->instructions[0].reference != 0u ||
+      ir->functions[1].binding != once_binding ||
+      ir->functions[1].first_instruction != 1u ||
+      ir->functions[1].instruction_count != 5u ||
+      ir->functions[1].maximum_stack_depth != 1u ||
+      ir->instructions[1].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      ir->instructions[1].type != value_type ||
+      ir->instructions[1].reference != parameter ||
+      ir->instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      ir->instructions[2].type != value_type ||
+      ir->instructions[2].input_type != value_type ||
+      ir->instructions[3].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      ir->instructions[3].input_type != value_type ||
+      ir->instructions[3].reference != 4u ||
+      ir->instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      ir->instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "for edge IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
                                  const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *definition;
@@ -4359,15 +4548,37 @@ static int run_active_leaf(const char *host_root) {
       "void do_wide(void) { do {} while (1LL); }\n";
   static const char terminal_wide_do_source[] =
       "void terminal_do_wide(void) { do return; while (1LL); }\n";
+  static const char for_source[] =
+      "static int url_hash_loop(void) {\n"
+      "  int i;\n"
+      "  for (i = 0; i < 8; i = i + 1) {\n"
+      "    i;\n"
+      "  }\n"
+      "  return i;\n"
+      "}\n";
+  static const char for_edge_source[] =
+      "void spin(void) { for (;;) {} }\n"
+      "void maybe_once(int value) { for (; value;) return; }\n";
+  static const char wide_for_source[] =
+      "void for_wide(void) { for (; 1LL;) {} }\n";
+  static const char terminal_wide_for_iteration_source[] =
+      "void terminal_for_wide(void) { for (; 1; 1LL) return; }\n";
+  static const char declaration_for_source[] =
+      "void declaration_for(void) {\n"
+      "  for (int i = 0; i < 1; i = i + 1) {}\n"
+      "}\n";
   static const char unreachable_declaration_source[] =
       "int unreachable_declaration(void) {\n"
       "  return 0;\n"
       "  int value;\n"
       "}\n";
   static const char unsupported_statement_source[] =
-      "int choose_loop(int value) {\n"
-      "  for (;;) { if (value) return 1; }\n"
-      "  return 0;\n"
+      "void stop_loop(void) {\n"
+      "  for (;;) { break; }\n"
+      "}\n";
+  static const char continue_statement_source[] =
+      "void continue_loop(void) {\n"
+      "  for (;;) { continue; }\n"
       "}\n";
   static const char expression_source[] =
       "int update(int value) { return ++value; }\n";
@@ -4597,9 +4808,15 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t terminal_do_unit;
   ctool_c_translation_unit_t wide_do_unit;
   ctool_c_translation_unit_t terminal_wide_do_unit;
+  ctool_c_translation_unit_t for_unit;
+  ctool_c_translation_unit_t for_edge_unit;
+  ctool_c_translation_unit_t wide_for_unit;
+  ctool_c_translation_unit_t terminal_wide_for_iteration_unit;
+  ctool_c_translation_unit_t declaration_for_unit;
   ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t unsupported_statement_unit;
+  ctool_c_translation_unit_t continue_statement_unit;
   ctool_c_translation_unit_t expression_unit;
   ctool_c_translation_unit_t abi_unit;
   ctool_c_translation_unit_t inline_success_unit;
@@ -4680,6 +4897,8 @@ static int run_active_leaf(const char *host_root) {
   uint64_t terminal_while_fingerprint;
   uint64_t do_fingerprint;
   uint64_t terminal_do_fingerprint;
+  uint64_t for_fingerprint;
+  uint64_t for_edge_fingerprint;
   char *fixture = NULL;
   char *logic_fixture = NULL;
   char *division_fixture = NULL;
@@ -4761,11 +4980,19 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&wide_do_unit, 0, sizeof(wide_do_unit));
   (void)memset(&terminal_wide_do_unit, 0,
                sizeof(terminal_wide_do_unit));
+  (void)memset(&for_unit, 0, sizeof(for_unit));
+  (void)memset(&for_edge_unit, 0, sizeof(for_edge_unit));
+  (void)memset(&wide_for_unit, 0, sizeof(wide_for_unit));
+  (void)memset(&terminal_wide_for_iteration_unit, 0,
+               sizeof(terminal_wide_for_iteration_unit));
+  (void)memset(&declaration_for_unit, 0, sizeof(declaration_for_unit));
   (void)memset(&unreachable_declaration_unit, 0,
                sizeof(unreachable_declaration_unit));
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
   (void)memset(&unsupported_statement_unit, 0,
                sizeof(unsupported_statement_unit));
+  (void)memset(&continue_statement_unit, 0,
+               sizeof(continue_statement_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job)) {
     goto cleanup;
@@ -5956,6 +6183,57 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  if (!parse_source(job, "/active-for.c", for_source, &for_unit)) {
+    goto cleanup;
+  }
+  for_fingerprint = unit_fingerprint(&for_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &for_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "for lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&for_unit) != for_fingerprint ||
+      !validate_for_ir(&for_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/for-edges.c", for_edge_source,
+                    &for_edge_unit)) {
+    goto cleanup;
+  }
+  for_edge_fingerprint = unit_fingerprint(&for_edge_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &for_edge_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "for edge lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&for_edge_unit) != for_edge_fingerprint ||
+      !validate_for_edge_ir(&for_edge_unit, &ir) ||
+      !parse_source(job, "/wide-for.c", wide_for_source,
+                    &wide_for_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_for_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide for condition") ||
+      !parse_source(job, "/terminal-wide-for-iteration.c",
+                    terminal_wide_for_iteration_source,
+                    &terminal_wide_for_iteration_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &terminal_wide_for_iteration_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "unreachable wide for iteration") ||
+      !parse_source(job, "/declaration-for.c", declaration_for_source,
+                    &declaration_for_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &declaration_for_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "for declaration initializer")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   terminal_while_fingerprint = unit_fingerprint(&terminal_while_unit);
   diagnostic_count = ctool_job_diagnostic_count(job);
   (void)memset(&ir, 0xa5, sizeof(ir));
@@ -6058,11 +6336,18 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/unsupported-statement.c",
                     unsupported_statement_source,
                     &unsupported_statement_unit) ||
-      !expect_ir_failure(
+      !expect_ir_failure_preserves_unit(
           job, &unsupported_statement_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
           "CupidC IR lowering does not yet support this statement",
-          "unsupported loop statement")) {
+          "unsupported break statement") ||
+      !parse_source(job, "/continue-statement.c", continue_statement_source,
+                    &continue_statement_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &continue_statement_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "unsupported continue statement")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-local.c", wide_local_source,

@@ -94,8 +94,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * stack that begins and ends empty. Branch targets are relative to that
  * slice, and every join has the same address/value stack shape on each
  * incoming path. A pre-test while loop uses BRANCH_ZERO for its forward exit
- * and JUMP for its backward edge. LOCAL_ADDRESS and FILE_ADDRESS push object
- * addresses.
+ * and JUMP for its backward edge. A for loop evaluates its optional expression
+ * initializer once, then its optional condition, body, and optional iteration
+ * expression in C source order. An omitted condition has no exit edge.
+ * LOCAL_ADDRESS and FILE_ADDRESS push object addresses.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
  * address and pushes the selected field's extracted integer value. STORE

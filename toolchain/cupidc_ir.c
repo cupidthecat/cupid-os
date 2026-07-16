@@ -1846,26 +1846,25 @@ static ctool_status_t cir_validate_unreachable_statement(
   return cir_finish_count_only_validation(context, &validation, mark, status);
 }
 
-static ctool_status_t cir_lower_expression_statement(
-    cir_context_t *context, const ctool_c_statement_t *statement) {
+static ctool_status_t cir_lower_discarded_expression(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
   cir_stack_entry_t discarded;
   ctool_u32 expression_type;
   ctool_status_t status;
-  if (statement->expression == CTOOL_C_AST_NONE) {
-    return CTOOL_OK;
+  if (expression_index >= context->unit->expression_count) {
+    return cir_invalid_unit(context, location);
   }
-  if (statement->expression >= context->unit->expression_count) {
-    return cir_invalid_unit(context, &statement->location);
-  }
-  expression_type = context->unit->expressions[statement->expression].type;
-  status = cir_lower_expression(context, statement->expression, 0u);
+  expression_type = context->unit->expressions[expression_index].type;
+  status = cir_lower_expression(context, expression_index, 0u);
   if (status != CTOOL_OK) {
     return status;
   }
   if (cir_type_is_void(context, expression_type) == CTOOL_TRUE) {
     return context->stack_depth == 0u
                ? CTOOL_OK
-               : cir_invalid_unit(context, &statement->location);
+               : cir_invalid_unit(context, location);
   }
   status = cir_pop(context, &discarded);
   if (status != CTOOL_OK) {
@@ -1873,13 +1872,41 @@ static ctool_status_t cir_lower_expression_statement(
   }
   if (discarded.kind != CIR_STACK_VALUE ||
       discarded.type != expression_type || context->stack_depth != 0u) {
-    return cir_invalid_unit(context, &statement->location);
+    return cir_invalid_unit(context, location);
   }
   return cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE,
       expression_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
-      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &statement->location,
-      &statement->physical_location, (ctool_u32 *)0);
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, location,
+      physical_location, (ctool_u32 *)0);
+}
+
+static ctool_status_t cir_lower_expression_statement(
+    cir_context_t *context, const ctool_c_statement_t *statement) {
+  if (statement->expression == CTOOL_C_AST_NONE) {
+    return CTOOL_OK;
+  }
+  return cir_lower_discarded_expression(
+      context, statement->expression, &statement->location,
+      &statement->physical_location);
+}
+
+static ctool_status_t cir_validate_unreachable_discarded_expression(
+    cir_context_t *context, ctool_u32 expression_index) {
+  cir_context_t validation;
+  ctool_arena_mark_t mark = ctool_arena_mark(context->arena);
+  ctool_status_t status;
+  cir_prepare_count_only_validation(&validation, context);
+  if (expression_index >= context->unit->expression_count) {
+    status = cir_invalid_unit(&validation, (const ctool_c_pp_location_t *)0);
+  } else {
+    const ctool_c_expression_t *expression =
+        &context->unit->expressions[expression_index];
+    status = cir_lower_discarded_expression(
+        &validation, expression_index, &expression->location,
+        &expression->physical_location);
+  }
+  return cir_finish_count_only_validation(context, &validation, mark, status);
 }
 
 static ctool_status_t cir_lower_compound(cir_context_t *context,
@@ -2040,7 +2067,7 @@ static ctool_status_t cir_lower_if(cir_context_t *context,
   return status;
 }
 
-static ctool_status_t cir_validate_loop_statement(
+static ctool_status_t cir_validate_loop_shape(
     cir_context_t *context, ctool_u32 statement_index,
     const ctool_c_statement_t *statement) {
   if (statement->first_child != CTOOL_C_AST_NONE ||
@@ -2049,15 +2076,28 @@ static ctool_status_t cir_validate_loop_statement(
       statement->first_block_binding != CTOOL_C_AST_NONE ||
       statement->block_binding_count != 0u ||
       statement->label != CTOOL_C_AST_NONE ||
-      statement->initializer_statement != CTOOL_C_AST_NONE ||
-      statement->iteration != CTOOL_C_AST_NONE ||
-      statement->condition == CTOOL_C_AST_NONE ||
-      statement->condition >= context->unit->expression_count ||
       statement->body >= statement_index ||
       statement->body >= context->unit->statement_count ||
       context->unit->statements[statement->body].kind ==
           CTOOL_C_STATEMENT_DECLARATION ||
       statement->else_body != CTOOL_C_AST_NONE) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_validate_loop_statement(
+    cir_context_t *context, ctool_u32 statement_index,
+    const ctool_c_statement_t *statement) {
+  ctool_status_t status =
+      cir_validate_loop_shape(context, statement_index, statement);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->condition == CTOOL_C_AST_NONE ||
+      statement->condition >= context->unit->expression_count) {
     return cir_invalid_unit(context, &statement->location);
   }
   return CTOOL_OK;
@@ -2146,6 +2186,112 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
   return status;
 }
 
+static ctool_status_t cir_validate_for_statement(
+    cir_context_t *context, ctool_u32 statement_index,
+    const ctool_c_statement_t *statement) {
+  const ctool_c_statement_t *initializer;
+  ctool_status_t status =
+      cir_validate_loop_shape(context, statement_index, statement);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if ((statement->condition != CTOOL_C_AST_NONE &&
+       statement->condition >= context->unit->expression_count) ||
+      (statement->iteration != CTOOL_C_AST_NONE &&
+       statement->iteration >= context->unit->expression_count)) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  if (statement->initializer_statement == CTOOL_C_AST_NONE) {
+    return CTOOL_OK;
+  }
+  if (statement->initializer_statement >= statement_index ||
+      statement->initializer_statement >= context->unit->statement_count) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  initializer =
+      &context->unit->statements[statement->initializer_statement];
+  if (initializer->kind != CTOOL_C_STATEMENT_EXPRESSION &&
+      initializer->kind != CTOOL_C_STATEMENT_DECLARATION) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  if (initializer->kind == CTOOL_C_STATEMENT_EXPRESSION &&
+      initializer->expression == CTOOL_C_AST_NONE) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_lower_for(cir_context_t *context,
+                                    ctool_u32 statement_index,
+                                    const ctool_c_statement_t *statement,
+                                    ctool_u32 depth,
+                                    ctool_bool *falls_through_out) {
+  const ctool_c_statement_t *initializer;
+  ctool_bool body_falls_through = CTOOL_TRUE;
+  ctool_u32 condition_target;
+  ctool_u32 exit_branch = CTOOL_C_AST_NONE;
+  ctool_status_t status =
+      cir_validate_for_statement(context, statement_index, statement);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (statement->initializer_statement != CTOOL_C_AST_NONE) {
+    initializer =
+        &context->unit->statements[statement->initializer_statement];
+    if (initializer->kind == CTOOL_C_STATEMENT_DECLARATION) {
+      return cir_unsupported_statement(context, &initializer->location);
+    }
+    status = cir_lower_expression_statement(context, initializer);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  condition_target = cir_function_offset(context);
+  if (statement->condition != CTOOL_C_AST_NONE) {
+    status = cir_lower_integer_condition_branch(context, statement->condition,
+                                                &exit_branch);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_lower_statement(context, statement->body, depth + 1u,
+                                 &body_falls_through);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (body_falls_through == CTOOL_FALSE) {
+    if (statement->iteration != CTOOL_C_AST_NONE) {
+      status = cir_validate_unreachable_discarded_expression(
+          context, statement->iteration);
+    }
+  } else {
+    if (statement->iteration != CTOOL_C_AST_NONE) {
+      const ctool_c_expression_t *iteration =
+          &context->unit->expressions[statement->iteration];
+      status = cir_lower_discarded_expression(
+          context, statement->iteration, &iteration->location,
+          &iteration->physical_location);
+    }
+    if (status == CTOOL_OK) {
+      status = cir_append_instruction(
+          context, CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, condition_target, 0u,
+          &statement->location, &statement->physical_location,
+          (ctool_u32 *)0);
+    }
+  }
+  if (status == CTOOL_OK && exit_branch != CTOOL_C_AST_NONE) {
+    status = cir_patch_reference(context, exit_branch,
+                                 cir_function_offset(context));
+  }
+  if (status == CTOOL_OK) {
+    *falls_through_out = statement->condition == CTOOL_C_AST_NONE
+                             ? CTOOL_FALSE
+                             : CTOOL_TRUE;
+  }
+  return status;
+}
+
 static ctool_status_t cir_lower_statement(cir_context_t *context,
                                           ctool_u32 statement_index,
                                           ctool_u32 depth,
@@ -2188,6 +2334,10 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
   if (statement->kind == CTOOL_C_STATEMENT_DO) {
     return cir_lower_do(context, statement_index, statement, depth,
                         falls_through_out);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_FOR) {
+    return cir_lower_for(context, statement_index, statement, depth,
+                         falls_through_out);
   }
   return cir_unsupported_statement(context, &statement->location);
 }
