@@ -54,4 +54,6 @@ ADR 0024 extends `BINARY` with signed and unsigned 32-bit division and remainder
 
 ADR 0025 extends `BINARY` with signed and unsigned 32-bit less-than and less-than-or-equal. The emitter uses `SETL` or `SETLE` for signed inputs and `SETB` or `SETBE` for unsigned inputs. All six integer comparison operators now reach the represented four-byte object path. Pointer relations and wide integer relations remain open.
 
-ADR 0026 extends `BINARY` with 32-bit left shift, right shift, and bitwise OR. Shift counts keep their independently promoted four-byte integer type, while `input_type` retains the promoted left type. The emitter uses `SHL`, `SHR`, or `SAR` with `CL`, and bitwise OR uses `OR`. Wide shifts, wide bitwise OR, and bitwise XOR remain open.
+ADR 0026 extends `BINARY` with 32-bit left shift, right shift, and bitwise OR. Shift counts keep their independently promoted four-byte integer type, while `input_type` retains the promoted left type. The emitter uses `SHL`, `SHR`, or `SAR` with `CL`, and bitwise OR uses `OR`. Wide shifts and wide bitwise OR remain open.
+
+ADR 0027 extends `BINARY` with bitwise XOR for same-type represented four-byte integers. The emitter uses `XOR EAX, ECX`. A source guard pins the unchanged CPUID-toggle return expression without claiming the surrounding GNU inline assembly or general statement sequence. Wide XOR and unary lowering remain open.

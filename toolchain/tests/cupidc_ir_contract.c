@@ -41,6 +41,9 @@ static const char active_branch_fits[] =
 static const char active_aes_rotw[] =
     "static uint32_t rotw(uint32_t w) { return (w << 8) | (w >> 24); }";
 
+static const char active_simd_cpuid_return[] =
+    "    return ((before ^ after) & (1u << 21)) != 0u;";
+
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
@@ -294,6 +297,16 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active AES word rotation changed\n");
     return 0;
   }
+  path.text = ctool_string("/kernel/cpu/simd.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active SIMD source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_simd_cpuid_return) == NULL) {
+    (void)fprintf(stderr, "the active CPUID toggle expression changed\n");
+    return 0;
+  }
   path.text = ctool_string("/kernel/core/syscall.c");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
@@ -517,6 +530,26 @@ static char *make_aes_rotw_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_aes_rotw,
                  sizeof(active_aes_rotw));
+  }
+  return text;
+}
+
+static char *make_simd_cpuid_fixture(void) {
+  static const char prefix[] =
+      "typedef unsigned int uint32_t;\n"
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "static bool simd_cpuid_changed(uint32_t before, uint32_t after) {\n";
+  static const char suffix[] = "\n}\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_simd_cpuid_return) - 1u +
+                sizeof(suffix);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    size_t offset = sizeof(prefix) - 1u;
+    (void)memcpy(text, prefix, offset);
+    (void)memcpy(text + offset, active_simd_cpuid_return,
+                 sizeof(active_simd_cpuid_return) - 1u);
+    offset += sizeof(active_simd_cpuid_return) - 1u;
+    (void)memcpy(text + offset, suffix, sizeof(suffix));
   }
   return text;
 }
@@ -1523,6 +1556,184 @@ static int validate_aes_rotw_ir(const ctool_c_translation_unit_t *unit,
                      "/active-aes-rotw.c") == 0 ||
         actual->location.line == 0u || actual->physical_location.line == 0u) {
       (void)fprintf(stderr, "AES word-rotation IR instruction %u differs\n",
+                    index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef enum {
+  CPUID_EXPECT_NONE = 0,
+  CPUID_EXPECT_VALUE,
+  CPUID_EXPECT_COUNT,
+  CPUID_EXPECT_COMPARISON,
+  CPUID_EXPECT_RESULT
+} cpuid_expected_type_t;
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  cpuid_expected_type_t type;
+  cpuid_expected_type_t input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  ctool_u32 reference;
+  ctool_u64 integer_bits;
+} cpuid_expected_t;
+
+static ctool_u32 cpuid_expected_type(cpuid_expected_type_t expected,
+                                     ctool_u32 value_type,
+                                     ctool_u32 count_type,
+                                     ctool_u32 comparison_type,
+                                     ctool_u32 result_type) {
+  if (expected == CPUID_EXPECT_VALUE) {
+    return value_type;
+  }
+  if (expected == CPUID_EXPECT_COUNT) {
+    return count_type;
+  }
+  if (expected == CPUID_EXPECT_COMPARISON) {
+    return comparison_type;
+  }
+  if (expected == CPUID_EXPECT_RESULT) {
+    return result_type;
+  }
+  return CTOOL_C_TYPE_NONE;
+}
+
+static int validate_simd_cpuid_ir(const ctool_c_translation_unit_t *unit,
+                                  const ctool_c_ir_unit_t *ir) {
+  const ctool_u32 first_parameter_reference = CTOOL_C_AST_NONE - 1u;
+  const ctool_u32 second_parameter_reference = CTOOL_C_AST_NONE - 2u;
+  static const cpuid_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, CPUID_EXPECT_VALUE,
+       CPUID_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, CPUID_EXPECT_VALUE, CPUID_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, CPUID_EXPECT_VALUE,
+       CPUID_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE - 2u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, CPUID_EXPECT_VALUE, CPUID_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, CPUID_EXPECT_VALUE, CPUID_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CPUID_EXPECT_VALUE, CPUID_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CPUID_EXPECT_COUNT, CPUID_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 21u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, CPUID_EXPECT_VALUE, CPUID_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, CPUID_EXPECT_VALUE, CPUID_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, CPUID_EXPECT_VALUE, CPUID_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, CPUID_EXPECT_COMPARISON,
+       CPUID_EXPECT_VALUE, CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, CPUID_EXPECT_RESULT,
+       CPUID_EXPECT_COMPARISON, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_ASSIGNMENT, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, CPUID_EXPECT_RESULT,
+       CPUID_EXPECT_RESULT, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 first_parameter;
+  ctool_u32 second_parameter;
+  ctool_u32 value_type;
+  ctool_u32 count_type;
+  ctool_u32 comparison_type;
+  ctool_u32 result_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0]))) {
+    (void)fprintf(stderr, "CPUID toggle IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter + 1u >= unit->parameter_count) {
+    (void)fprintf(stderr, "CPUID toggle function type differs\n");
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  second_parameter = first_parameter + 1u;
+  value_type = unit->parameters[first_parameter].type;
+  count_type = ir->instructions[6].type;
+  comparison_type = ir->instructions[10].type;
+  result_type = function_type->referenced_type;
+  if (unit->parameters[second_parameter].type != value_type ||
+      value_type >= unit->layout.type_count ||
+      count_type >= unit->layout.type_count ||
+      comparison_type >= unit->layout.type_count ||
+      result_type >= unit->layout.type_count ||
+      unit->layout.types[value_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[value_type].size != 4u ||
+      unit->layout.types[value_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[count_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[count_type].size != 4u ||
+      unit->layout.types[count_type].is_signed != CTOOL_TRUE ||
+      unit->layout.types[comparison_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[comparison_type].size != 4u ||
+      unit->layout.types[comparison_type].is_signed != CTOOL_TRUE ||
+      unit->layout.types[result_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[result_type].size != 4u ||
+      result_type == comparison_type) {
+    (void)fprintf(stderr, "CPUID toggle operand types differ\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "CPUID toggle IR function record differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const cpuid_expected_t *wanted = &expected[index];
+    const ctool_c_ir_instruction_t *actual = &ir->instructions[index];
+    ctool_u32 wanted_type = cpuid_expected_type(
+        wanted->type, value_type, count_type, comparison_type, result_type);
+    ctool_u32 wanted_input = cpuid_expected_type(
+        wanted->input_type, value_type, count_type, comparison_type,
+        result_type);
+    ctool_u32 wanted_reference = wanted->reference;
+    if (wanted_reference == first_parameter_reference) {
+      wanted_reference = first_parameter;
+    } else if (wanted_reference == second_parameter_reference) {
+      wanted_reference = second_parameter;
+    }
+    if (actual->kind != wanted->kind || actual->type != wanted_type ||
+        actual->input_type != wanted_input ||
+        actual->operation != wanted->operation ||
+        actual->conversion != wanted->conversion ||
+        actual->reference != wanted_reference ||
+        actual->integer_bits != wanted->integer_bits ||
+        string_equal(actual->location.path, "/active-simd-cpuid.c") == 0 ||
+        string_equal(actual->physical_location.path,
+                     "/active-simd-cpuid.c") == 0 ||
+        actual->location.line == 0u || actual->physical_location.line == 0u) {
+      (void)fprintf(stderr, "CPUID toggle IR instruction %u differs\n",
                     index);
       return 0;
     }
@@ -2845,7 +3056,7 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
-      "int xor_values(int left, int right) { return left ^ right; }\n";
+      "int complement(int value) { return ~value; }\n";
   static const char multiplication_source[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2961,6 +3172,8 @@ static int run_active_leaf(const char *host_root) {
       "int wide_right_shift(void) { return 8LL >> 1; }\n";
   static const char wide_bitwise_or_source[] =
       "int wide_bitwise_or(void) { return 1LL | 2LL; }\n";
+  static const char wide_bitwise_xor_source[] =
+      "int wide_bitwise_xor(void) { return 1LL ^ 2LL; }\n";
   static const char wide_division_source[] =
       "int wide_divide(void) { return 8LL / 2LL; }\n";
   static const char wide_remainder_source[] =
@@ -3059,11 +3272,13 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t logical_or_unit;
   ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t aes_rotw_unit;
+  ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
   ctool_c_translation_unit_t wide_left_shift_unit;
   ctool_c_translation_unit_t wide_right_shift_unit;
   ctool_c_translation_unit_t wide_bitwise_or_unit;
+  ctool_c_translation_unit_t wide_bitwise_xor_unit;
   ctool_c_translation_unit_t wide_division_unit;
   ctool_c_translation_unit_t wide_remainder_unit;
   ctool_c_translation_unit_t variadic_call_unit;
@@ -3087,6 +3302,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_initializer_t *void_initializers = NULL;
   ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *cpuid_expressions = NULL;
   ctool_c_expression_t *ownership_expressions = NULL;
   ctool_c_expression_t *file_expressions = NULL;
   ctool_c_expression_t *assignment_expressions = NULL;
@@ -3109,7 +3325,10 @@ static int run_active_leaf(const char *host_root) {
   char *logical_or_fixture = NULL;
   char *branch_fit_fixture = NULL;
   char *aes_rotw_fixture = NULL;
+  char *simd_cpuid_fixture = NULL;
   char *call_fixture = NULL;
+  ctool_u32 xor_expression;
+  ctool_u32 comparison_expression;
   ctool_u32 index;
   int passed = 0;
 
@@ -3118,6 +3337,7 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
+  (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -3189,6 +3409,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-aes-rotw.c", aes_rotw_fixture,
                     &aes_rotw_unit)) {
     (void)fprintf(stderr, "active AES word-rotation setup failed\n");
+    goto cleanup;
+  }
+  simd_cpuid_fixture = make_simd_cpuid_fixture();
+  if (simd_cpuid_fixture == NULL ||
+      !parse_source(job, "/active-simd-cpuid.c", simd_cpuid_fixture,
+                    &simd_cpuid_unit)) {
+    (void)fprintf(stderr, "active CPUID toggle setup failed\n");
     goto cleanup;
   }
 
@@ -3942,6 +4169,56 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&simd_cpuid_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &simd_cpuid_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active CPUID toggle lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&simd_cpuid_unit) != fingerprint ||
+      !validate_simd_cpuid_ir(&simd_cpuid_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  xor_expression = CTOOL_C_AST_NONE;
+  comparison_expression = CTOOL_C_AST_NONE;
+  for (index = 0u; index < simd_cpuid_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &simd_cpuid_unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR) {
+      xor_expression = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
+      comparison_expression = index;
+    }
+  }
+  cpuid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)simd_cpuid_unit.expression_count * sizeof(*cpuid_expressions));
+  if (xor_expression == CTOOL_C_AST_NONE ||
+      comparison_expression == CTOOL_C_AST_NONE ||
+      simd_cpuid_unit.expressions[xor_expression].type ==
+          simd_cpuid_unit.expressions[comparison_expression].type ||
+      cpuid_expressions == NULL) {
+    (void)fprintf(stderr, "CPUID toggle invalid-unit setup failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(cpuid_expressions, simd_cpuid_unit.expressions,
+               (size_t)simd_cpuid_unit.expression_count *
+                   sizeof(*cpuid_expressions));
+  cpuid_expressions[xor_expression].type =
+      simd_cpuid_unit.expressions[comparison_expression].type;
+  invalid_unit = simd_cpuid_unit;
+  invalid_unit.expressions = cpuid_expressions;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "mismatched XOR result type") ||
+      unit_fingerprint(&simd_cpuid_unit) != fingerprint) {
+    goto cleanup;
+  }
 
   if (!parse_source(job, "/simple-leaves.c", simple_source, &simple_unit)) {
     goto cleanup;
@@ -4282,7 +4559,14 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_bitwise_or_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide bitwise-or expression")) {
+          "wide bitwise-or expression") ||
+      !parse_source(job, "/wide-bitwise-xor.c", wide_bitwise_xor_source,
+                    &wide_bitwise_xor_unit) ||
+      !expect_ir_failure(
+          job, &wide_bitwise_xor_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide bitwise-xor expression")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-division.c", wide_division_source,
@@ -4399,11 +4683,13 @@ cleanup:
   free(logical_or_fixture);
   free(branch_fit_fixture);
   free(aes_rotw_fixture);
+  free(simd_cpuid_fixture);
   free(call_fixture);
   free(invalid_statements);
   free(invalid_initializers);
   free(void_initializers);
   free(invalid_expressions);
+  free(cpuid_expressions);
   free(ownership_expressions);
   free(file_expressions);
   free(assignment_expressions);

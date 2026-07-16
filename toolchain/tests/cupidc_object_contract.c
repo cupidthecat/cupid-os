@@ -1311,6 +1311,55 @@ static int validate_aes_rotw_object(ctool_job_t *job,
   return 1;
 }
 
+static int validate_simd_cpuid_object(ctool_job_t *job,
+                                      const ctool_elf32_object_t *object) {
+  static const ctool_u8 simd_cpuid_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x31u, 0xc8u, 0x50u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x15u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u, 0x59u, 0x58u, 0x21u,
+      0xc8u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x39u, 0xc8u, 0x0fu, 0x95u, 0xc0u, 0x0fu, 0xb6u,
+      0xc0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t simd_cpuid_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_XOR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_AND,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETNE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *simd_cpuid_symbol =
+      find_symbol(object, "simd_cpuid_changed");
+  if (text == NULL || rel_text != NULL || simd_cpuid_symbol == NULL ||
+      text->contents.size != (ctool_u32)sizeof(simd_cpuid_bytes) ||
+      text->relocation_count != 0u || object->symbol_count != 2u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(simd_cpuid_symbol, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(simd_cpuid_bytes)) ||
+      !decode_function(
+          job, text, simd_cpuid_symbol, simd_cpuid_instructions,
+          (ctool_u32)(sizeof(simd_cpuid_instructions) /
+                      sizeof(simd_cpuid_instructions[0])),
+          simd_cpuid_bytes, (ctool_u32)sizeof(simd_cpuid_bytes), NULL, 0u,
+          "simd_cpuid_changed")) {
+    (void)fprintf(stderr, "CPUID toggle object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_function_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 implemented_bytes[] = {
@@ -2518,7 +2567,7 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int left, int right) { return left ^ right; }\n";
+      "int unsupported(int value) { return ~value; }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2564,6 +2613,12 @@ static int run_static_data(const char *host_root) {
       "typedef unsigned int uint32_t;\n"
       "static uint32_t rotw(uint32_t w) { return (w << 8) | (w >> 24); }\n"
       "int signed_right_shift(int value, int count) { return value >> count; }\n";
+  static const char simd_cpuid_text[] =
+      "typedef unsigned int uint32_t;\n"
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "static bool simd_cpuid_changed(uint32_t before, uint32_t after) {\n"
+      "    return ((before ^ after) & (1u << 21)) != 0u;\n"
+      "}\n";
   static const char file_assignment_text[] =
       "typedef enum { false = 0, true = 1 } bool;\n"
       "static bool vga_wait_vsync = false;\n"
@@ -2652,6 +2707,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t division_unit;
   ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t aes_rotw_unit;
+  ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_unit;
@@ -2675,6 +2731,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t division_snapshot;
   unit_snapshot_t branch_fit_snapshot;
   unit_snapshot_t aes_rotw_snapshot;
+  unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
   unit_snapshot_t bit_field_snapshot;
@@ -2697,6 +2754,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 branch_fit_object_size = 0u;
   ctool_u8 *aes_rotw_object = NULL;
   ctool_u32 aes_rotw_object_size = 0u;
+  ctool_u8 *simd_cpuid_object = NULL;
+  ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
   ctool_u32 file_member_object_size = 0u;
   ctool_u8 *bit_field_object = NULL;
@@ -2728,6 +2787,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
+  (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
@@ -2746,6 +2806,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&division_snapshot, 0, sizeof(division_snapshot));
   (void)memset(&branch_fit_snapshot, 0, sizeof(branch_fit_snapshot));
   (void)memset(&aes_rotw_snapshot, 0, sizeof(aes_rotw_snapshot));
+  (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
   (void)memset(&file_member_snapshot, 0, sizeof(file_member_snapshot));
@@ -3503,6 +3564,57 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-simd-cpuid.c", simd_cpuid_text,
+                    &simd_cpuid_unit) ||
+      !take_unit_snapshot(&simd_cpuid_unit, &simd_cpuid_snapshot)) {
+    (void)fprintf(stderr, "CPUID toggle object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &simd_cpuid_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first CPUID toggle object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&simd_cpuid_snapshot, &simd_cpuid_unit) == 0) {
+    (void)fprintf(stderr, "first CPUID toggle emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  simd_cpuid_object_size = bytes.size;
+  simd_cpuid_object = (ctool_u8 *)malloc((size_t)simd_cpuid_object_size);
+  if (simd_cpuid_object == NULL) {
+    (void)fprintf(stderr, "CPUID toggle object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(simd_cpuid_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &simd_cpuid_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat CPUID toggle object") ||
+      bytes.size != simd_cpuid_object_size ||
+      memcmp(bytes.data, simd_cpuid_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&simd_cpuid_snapshot, &simd_cpuid_unit) == 0) {
+    (void)fprintf(stderr, "CPUID toggle emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-simd-cpuid.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read CPUID toggle object") ||
+      !validate_simd_cpuid_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-vga-file-assignment.c",
                     file_assignment_text, &file_assignment_unit) ||
       !take_unit_snapshot(&file_assignment_unit,
@@ -3992,6 +4104,7 @@ cleanup:
   free(division_object);
   free(branch_fit_object);
   free(aes_rotw_object);
+  free(simd_cpuid_object);
   free(file_member_object);
   free(bit_field_object);
   free(chained_assignment_object);
@@ -4003,6 +4116,7 @@ cleanup:
   dispose_unit_snapshot(&division_snapshot);
   dispose_unit_snapshot(&branch_fit_snapshot);
   dispose_unit_snapshot(&aes_rotw_snapshot);
+  dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);

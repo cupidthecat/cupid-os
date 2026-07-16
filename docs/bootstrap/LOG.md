@@ -3373,3 +3373,63 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. XOR, wide integer and pointer operations, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC emits 32-bit bitwise XOR
+
+### Decision and active-source requirement
+
+The hosted CupidC path can now lower this unchanged return statement from `kernel/cpu/simd.c`:
+
+```c
+return ((before ^ after) & (1u << 21)) != 0u;
+```
+
+The frontend has already applied the usual arithmetic conversions, so both XOR operands and the result are unsigned 32-bit values. The existing `BINARY` IR instruction now accepts XOR under the same represented four-byte, same-type rule as bitwise AND and OR. The i386 emitter pops the right operand into ECX, pops the left operand into EAX, and sends `XOR EAX, ECX` through the shared x86 encoder.
+
+The source guard pins only the return statement. The complete `simd_cpu_has_cpuid` helper also contains GNU inline assembly and a statement sequence outside the current leaf-body subset, so this increment does not claim that CupidC can emit the whole helper. The focused fixture retains the active expression with two unsigned parameters and a `bool` result.
+
+No user question was needed. The shared frontend already carries the converted operand types, ADR 0016 fixes the value-stack representation, and the x86 model already owns the register encoding. ADR 0027 records the supported boundary.
+
+### Contract evidence and failed approaches
+
+- The first IR run stopped at `/active-simd-cpuid.c` with the existing unsupported-expression diagnostic. After XOR entered IR, the first object run stopped at the emitter's internal unknown-instruction boundary. These were the intended red stages.
+- The focused fixture lowers to exactly 13 IR instructions with a maximum abstract-stack depth of three. It pins both parameter loads, XOR, the unsigned mask, the independently signed `int` shift count, bitwise AND, inequality, conversion from signed `int` to `bool`, and return. Every instruction retains its presumed and physical source path.
+- The exact object contains one 69-byte local `simd_cpuid_changed` function. Its ELF32 symbol table has the null symbol and the function symbol, and it has no relocations. Shared decoding checks all 36 instructions, including `XOR`, `SHL`, `AND`, `CMP`, `SETNE`, and `MOVZX`. A second emission is byte-identical and leaves the frontend unit unchanged.
+- A `long long` XOR fixture receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. A copied frozen unit whose XOR result is changed from unsigned `uint32_t` to signed `int` receives `CTOOL_C_IR_DIAG_INVALID_UNIT` at the XOR node. Unary complement replaces XOR as the ordinary unsupported-expression fixture, so fail-closed behavior remains visible after the new operator succeeds.
+- The Toolchain self-parse guard first reported the exact source drift. The final tuples are 46/1,272/11,283/150/37 for `cupidc_ir.c` and 65/1,513/12,550/200/92 for `cupidc_emit.c`.
+- The regenerated audit changed the checked lexical inventory because the C contracts grew. Six focused Python oracles now match 2,432 `sizeof`, 2,938 `for`, 674 `goto`, 23,924 `if`, 3,398 `else`, and 14,583 `return` occurrences. Both complete repository runs passed after their respective oracle refreshes.
+- The first parallel WSL command used shell variables that the Windows-to-WSL command bridge expanded before Bash received them. It never reached Make. The clean compiler runs use `wsl.exe --exec` with commands that need no bridge-visible variables.
+- The first sanitizer instrumentation probe used `nm | grep -q` under `pipefail`. `grep` exited after its match, `nm` received `SIGPIPE`, and the probe reported a false failure before the contracts ran. The corrected probe lets `grep` consume the complete symbol stream. It confirms ASan and UBSan symbols in all four binaries before executing either contract.
+
+### Review notes
+
+The first Spec review found that non-shift binary lowering checked the two operand types but did not independently enforce XOR's same-type result invariant on a caller-supplied frozen unit. IR now rejects a mismatched XOR result with the invalid-unit diagnostic, and the copied-AST contract proves that the rejection happens at the XOR node.
+
+The first Standards review found that the active-source guard and focused fixture each owned a literal copy of the CPUID return statement. The fixture now composes its source from `active_simd_cpuid_return`, leaving one textual authority for both the guard and the exercised expression.
+
+The first Standards follow-up found that XOR classification was repeated in the result invariant and the supported-operation guard. One `is_bitwise_xor` flag now serves both checks, matching the shared classification already used for shifts.
+
+The final Standards and Spec follow-ups report no remaining findings.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 674 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,924 `if`, 3,398 `else`, 2,938 `for`, 14,583 `return`, and 2,432 `sizeof` occurrences. The active-source digest is `a3edc9b8233e338af73b777b61c45963652c845068028813acdce734de956bb8`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR lowering first rejected the active XOR expression. Object emission then reached the new IR operation and stopped until its x86 mapping was implemented. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests on the reviewed tree in 21.839 seconds. |
+| Windows hosted Toolchain | PASS | A fresh isolated strict Clang build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 26.9 seconds. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds each pass the complete hosted Toolchain suite in 59.6 and 59.1 seconds. |
+| Sanitizers | PASS AFTER PROBE FIX | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data` in 27.9 and 30.8 seconds with leak detection, strict string checks, stack traces, and halt-on-error settings. Runtime symbols are present in both binaries from each compiler. The probe correction is described above. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across both implementation files and the three changed C contracts in 69.1 and 60.6 seconds. |
+| Two-axis review | PASS AFTER FIXES | Spec requested an explicit XOR result-type invariant for caller-supplied frozen units. Standards requested one textual authority for the active CPUID statement and one shared XOR classification. All three fixes and their contracts are present in the reviewed tree. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. `make check-bootstrap-audit` and the repository gate reproduce them exactly. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 427.734 seconds with one expected skip and returns from Make in 463.241 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. GNU inline assembly, unary lowering, wide integer and pointer operations, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

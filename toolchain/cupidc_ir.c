@@ -671,6 +671,7 @@ static ctool_status_t cir_lower_binary(
   cir_stack_entry_t left;
   cir_stack_entry_t right;
   ctool_bool is_shift;
+  ctool_bool is_bitwise_xor;
   ctool_u32 left_child;
   ctool_u32 right_child;
   ctool_status_t status;
@@ -705,6 +706,10 @@ static ctool_status_t cir_lower_binary(
        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  is_bitwise_xor = expression->operation ==
+                           CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR
+                       ? CTOOL_TRUE
+                       : CTOOL_FALSE;
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
       cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
       cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE ||
@@ -720,6 +725,9 @@ static ctool_status_t cir_lower_binary(
     }
   } else if (left.type != right.type) {
     return cir_unsupported_type(context, &expression->location);
+  } else if (is_bitwise_xor == CTOOL_TRUE &&
+             expression->type != left.type) {
+    return cir_invalid_unit(context, &expression->location);
   }
   if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE &&
@@ -734,6 +742,7 @@ static ctool_status_t cir_lower_binary(
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR &&
+      is_bitwise_xor == CTOOL_FALSE &&
       is_shift == CTOOL_FALSE) {
     return cir_unsupported_expression(context, &expression->location);
   }
