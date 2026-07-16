@@ -3663,3 +3663,62 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Declarations inside nested compounds, loops, `switch`, labels, `goto`, narrow, wide, floating, pointer, and `void` casts, address and dereference lowering, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC lowers pre-test while loops
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers pre-test `while` statements with represented four-byte integer conditions. The complete unchanged requirement comes from `syscall_sleep_ms` in `kernel/core/syscall.c`:
+
+```c
+static void syscall_sleep_ms(uint32_t ms) {
+  uint32_t start = timer_get_uptime_ms();
+  while ((timer_get_uptime_ms() - start) < ms) {
+    process_yield();
+  }
+}
+```
+
+Lowering records the function-relative instruction offset before condition evaluation. It emits `BRANCH_ZERO` to the loop exit, lowers the body recursively, and emits `JUMP` back to the condition when the body can continue. A body that cannot continue needs no backward edge. The loop itself remains a possible fallthrough path because its condition may be false before the first iteration. The existing implicit void return therefore provides the exit instruction in this helper.
+
+The loop condition uses the same represented four-byte integer boundary as statement selection. The frozen loop record must use its condition and body fields, and its direct body cannot be a declaration statement. `do`, `for`, `break`, `continue`, `switch`, labels, `goto`, and declarations inside nested compounds remain outside this hosted IR slice.
+
+Rewriting the helper to avoid its loop was rejected because it would hide an active C requirement. Adding a new loop instruction was unnecessary because the existing function-relative `BRANCH_ZERO` and `JUMP` records already express both edges without exposing x86 details. ADR 0032 records the decision and its remaining boundary.
+
+No user question was needed. The frontend already freezes typed `while` statements, ADR 0016 defines branch targets and stack joins, and the active helper fixes the required pre-test behavior.
+
+### Contract evidence and corrections
+
+- The new IR fixture first stopped at `/active-while.c:6:3` with `CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT`. That red result showed the complete helper had reached the intended boundary before implementation.
+- The first active-source guard assumed LF endings. It failed on the Windows checkout because the file used CRLF. The guard now accepts either exact byte form while keeping the helper text fixed.
+- The complete helper lowers to 14 exact instructions with an abstract stack depth of two. Condition evaluation starts at instruction 3. The false branch at instruction 10 exits to instruction 13, the body call is instruction 11, and instruction 12 jumps back to instruction 3. The implicit void return occupies instruction 13.
+- The deterministic ELF32 object contains one exact 82-byte local function and 39 decoded instructions. Its false exit lands at byte offset 80, and its backward jump lands at byte offset 20. It has four symbols and three `R_386_PC32` relocations with addend `-4`. The two timer calls are at offsets 11 and 21, and the yield call is at offset 71.
+- Repeated object emission is byte-identical and leaves the frozen frontend unit unchanged. A `long long` condition receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE` at both public seams. The existing unsupported-loop fixture now uses post-test `do` so the negative still names an open statement kind.
+- Standards review found that `if` and `while` repeated the same condition lowering, stack check, type check, and false-branch emission. The shared `cir_lower_integer_condition_branch` helper now owns that seam for both statements.
+- Standards review also found that the no-backward-edge path was documented but not pinned directly. A focused terminal-body loop now lowers to five exact instructions. Its false branch lands on the following implicit return, its true path returns from the body, and the slice contains no `JUMP`.
+- The first focused run after implementation found only expected exact-oracle drift. The lexical `goto`, `if`, `return`, and `sizeof` totals had changed, and `cupidc_ir.c` now parses as 56 definitions, 1,519 statements, 13,253 expressions, 184 block bindings, and 51 initializers. Updating those exact guards made all 44 focused tests green.
+- The first audit check followed the earlier regeneration but also followed a public header comment and self-source oracle change. The checked digest therefore reported both generated records as stale. Regenerating once from the final source set made the next audit check green.
+- The first final repository run completed all 286 tests, but Python teardown could not delete a temporary `elf32-contract.exe` because Windows returned `WinError 5`. No assertion or product test failed, and no matching process remained. The affected 12-test ELF32 suite then passed in 22.648 seconds, including cleanup. A clean repository-wide retry supplied the final result below.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 739 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 24,120 `if`, 3,405 `else`, 2,948 `for`, 14,708 `return`, and 2,611 `sizeof` occurrences. The active-source digest is `059fa0fdba430facc088e677f0c3440e9cdfdbfada637bf253030242a8ee6b64`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | IR lowering first rejected the complete active helper with the public unsupported-statement diagnostic. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 22.891 seconds on the review-fixed tree. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 29.194 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted Toolchain suite in 63.553 and 63.182 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang address and undefined-behavior sanitizer builds pass `active-leaf` and `static-data` in 46.497 seconds. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across `cupidc_ir.c` and the three touched C contracts in 61.479 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards found duplicated condition-branch validation and missing direct coverage for a terminal loop body. The shared helper and five-instruction regression close both findings. Spec found no gap, incorrect behavior, or scope creep. Both follow-up reviews report no remaining actionable finding. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 39.228 seconds. `make check-bootstrap-audit` reproduces them exactly in 39.958 seconds. |
+| Full repository gate | PASS AFTER TRANSIENT RETRY | `make test` passes all 286 tests in 526.841 seconds with one expected skip and returns from Make in 567.569 seconds. The preceding cleanup-only failure and focused retry are recorded above. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Post-test `do`, `for`, `break`, `continue`, `switch`, labels, `goto`, declarations inside nested compounds, broader types and addresses, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

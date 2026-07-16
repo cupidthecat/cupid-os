@@ -34,6 +34,21 @@ static const char active_signed_bits[] =
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
+static const char active_sleep[] =
+    "static void syscall_sleep_ms(uint32_t ms) {\n"
+    "  uint32_t start = timer_get_uptime_ms();\n"
+    "  while ((timer_get_uptime_ms() - start) < ms) {\n"
+    "    process_yield();\n"
+    "  }\n"
+    "}";
+static const char active_sleep_crlf[] =
+    "static void syscall_sleep_ms(uint32_t ms) {\r\n"
+    "  uint32_t start = timer_get_uptime_ms();\r\n"
+    "  while ((timer_get_uptime_ms() - start) < ms) {\r\n"
+    "    process_yield();\r\n"
+    "  }\r\n"
+    "}";
+
 typedef struct {
   ctool_c_translation_unit_t unit;
   ctool_c_binding_t *bindings;
@@ -185,6 +200,16 @@ static int active_align_up_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data,
              active_initializer_success) == NULL) {
     (void)fprintf(stderr, "the active initializer result changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/kernel/core/syscall.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active syscall source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data, active_sleep) == NULL &&
+       strstr((const char *)source.contents.data, active_sleep_crlf) == NULL)) {
+    (void)fprintf(stderr, "the active sleep helper changed\n");
     return 0;
   }
   return 1;
@@ -1714,6 +1739,97 @@ static int validate_signed_bits_object(
   return 1;
 }
 
+static int validate_while_object(ctool_job_t *job,
+                                 const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
+      0x59u, 0x58u, 0x89u, 0x08u, 0xe8u, 0xfcu, 0xffu, 0xffu,
+      0xffu, 0x50u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u,
+      0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0xe9u, 0xc4u, 0xffu, 0xffu, 0xffu,
+      0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_CALL,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETB,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 branch_targets[] = {80u, 20u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "syscall_sleep_ms");
+  const ctool_elf32_symbol_t *timer =
+      find_symbol(object, "timer_get_uptime_ms");
+  const ctool_elf32_symbol_t *yield = find_symbol(object, "process_yield");
+  if (text == NULL || rel_text == NULL || function == NULL || timer == NULL ||
+      yield == NULL || text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_count != 3u || object->symbol_count != 4u ||
+      object->relocation_count != 3u ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !symbol_matches(timer, timer->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(yield, yield->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 11u ||
+      object->relocations[0].symbol_file_index != timer->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != -4 ||
+      object->relocations[1].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[1].entry_index != 1u ||
+      object->relocations[1].target_section_file_index != text->file_index ||
+      object->relocations[1].offset != 21u ||
+      object->relocations[1].symbol_file_index != timer->file_index ||
+      object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[1].addend_known != CTOOL_TRUE ||
+      object->relocations[1].addend != -4 ||
+      object->relocations[2].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[2].entry_index != 2u ||
+      object->relocations[2].target_section_file_index != text->file_index ||
+      object->relocations[2].offset != 71u ||
+      object->relocations[2].symbol_file_index != yield->file_index ||
+      object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[2].addend_known != CTOOL_TRUE ||
+      object->relocations[2].addend != -4 ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), branch_targets,
+          (ctool_u32)(sizeof(branch_targets) / sizeof(branch_targets[0])),
+          "syscall_sleep_ms")) {
+    (void)fprintf(stderr, "while object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_selection_edge_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 unreachable_bytes[] = {
@@ -3049,6 +3165,18 @@ static int run_static_data(const char *host_root) {
       "int maybe_value(int value) {\n"
       "  if (value) return 1;\n"
       "}\n";
+  static const char while_text[] =
+      "typedef unsigned int uint32_t;\n"
+      "uint32_t timer_get_uptime_ms(void);\n"
+      "void process_yield(void);\n"
+      "static void syscall_sleep_ms(uint32_t ms) {\n"
+      "  uint32_t start = timer_get_uptime_ms();\n"
+      "  while ((timer_get_uptime_ms() - start) < ms) {\n"
+      "    process_yield();\n"
+      "  }\n"
+      "}\n";
+  static const char wide_while_text[] =
+      "void wait_wide(void) { while (1LL) {} }\n";
   static const char unreachable_declaration_text[] =
       "int unreachable_declaration(void) {\n"
       "  return 0;\n"
@@ -3056,7 +3184,7 @@ static int run_static_data(const char *host_root) {
       "}\n";
   static const char unsupported_statement_text[] =
       "int choose_loop(int value) {\n"
-      "  while (value) return 1;\n"
+      "  do { if (value) return 1; } while (value);\n"
       "  return 0;\n"
       "}\n";
   static const char integer_unary_text[] =
@@ -3223,6 +3351,8 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
   ctool_c_translation_unit_t selection_edge_unit;
+  ctool_c_translation_unit_t while_unit;
+  ctool_c_translation_unit_t wide_while_unit;
   ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
   ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
@@ -3255,6 +3385,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t integer_cast_snapshot;
   unit_snapshot_t signed_bits_snapshot;
   unit_snapshot_t selection_edge_snapshot;
+  unit_snapshot_t while_snapshot;
   unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
@@ -3286,6 +3417,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 integer_cast_object_size = 0u;
   ctool_u8 *signed_bits_object = NULL;
   ctool_u32 signed_bits_object_size = 0u;
+  ctool_u8 *while_object = NULL;
+  ctool_u32 while_object_size = 0u;
   ctool_u8 *simd_cpuid_object = NULL;
   ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
@@ -3336,6 +3469,8 @@ static int run_static_data(const char *host_root) {
   (void)memset(&unsupported_function_unit, 0,
                sizeof(unsupported_function_unit));
   (void)memset(&selection_edge_unit, 0, sizeof(selection_edge_unit));
+  (void)memset(&while_unit, 0, sizeof(while_unit));
+  (void)memset(&wide_while_unit, 0, sizeof(wide_while_unit));
   (void)memset(&nonvoid_selection_fallthrough_unit, 0,
                sizeof(nonvoid_selection_fallthrough_unit));
   (void)memset(&unreachable_declaration_unit, 0,
@@ -3369,6 +3504,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&signed_bits_snapshot, 0, sizeof(signed_bits_snapshot));
   (void)memset(&selection_edge_snapshot, 0,
                sizeof(selection_edge_snapshot));
+  (void)memset(&while_snapshot, 0, sizeof(while_snapshot));
   (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
@@ -4342,6 +4478,56 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-while.c", while_text, &while_unit) ||
+      !take_unit_snapshot(&while_unit, &while_snapshot)) {
+    (void)fprintf(stderr, "while object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &while_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first while object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&while_snapshot, &while_unit) == 0) {
+    (void)fprintf(stderr, "first while emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  while_object_size = bytes.size;
+  while_object = (ctool_u8 *)malloc((size_t)while_object_size);
+  if (while_object == NULL) {
+    (void)fprintf(stderr, "while object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(while_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &while_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat while object") ||
+      bytes.size != while_object_size ||
+      memcmp(bytes.data, while_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&while_snapshot, &while_unit) == 0) {
+    (void)fprintf(stderr, "while emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-while.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read while object") ||
+      !validate_while_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/selection-edges.c", selection_edge_text,
                     &selection_edge_unit) ||
       !take_unit_snapshot(&selection_edge_unit, &selection_edge_snapshot)) {
@@ -4683,6 +4869,13 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide selection condition object") ||
+      !parse_source(job, "/wide-while.c", wide_while_text,
+                    &wide_while_unit) ||
+      !expect_object_failure(
+          job, &wide_while_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide while condition object") ||
       !parse_source(job, "/nonvoid-selection-fallthrough.c",
                     nonvoid_selection_fallthrough_text,
                     &nonvoid_selection_fallthrough_unit) ||
@@ -5019,6 +5212,7 @@ cleanup:
   free(integer_unary_object);
   free(integer_cast_object);
   free(signed_bits_object);
+  free(while_object);
   free(unreachable_statements);
   free(simd_cpuid_object);
   free(file_member_object);
@@ -5037,6 +5231,7 @@ cleanup:
   dispose_unit_snapshot(&integer_cast_snapshot);
   dispose_unit_snapshot(&signed_bits_snapshot);
   dispose_unit_snapshot(&selection_edge_snapshot);
+  dispose_unit_snapshot(&while_snapshot);
   dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);

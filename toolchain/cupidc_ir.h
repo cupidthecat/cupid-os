@@ -93,7 +93,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * Each function owns a contiguous instruction slice and a typed abstract
  * stack that begins and ends empty. Branch targets are relative to that
  * slice, and every join has the same address/value stack shape on each
- * incoming path. LOCAL_ADDRESS and FILE_ADDRESS push object addresses.
+ * incoming path. A pre-test while loop uses BRANCH_ZERO for its forward exit
+ * and JUMP for its backward edge. LOCAL_ADDRESS and FILE_ADDRESS push object
+ * addresses.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
  * address and pushes the selected field's extracted integer value. STORE

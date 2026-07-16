@@ -69,6 +69,21 @@ static const char active_simd_cpuid_return[] =
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
+static const char active_sleep[] =
+    "static void syscall_sleep_ms(uint32_t ms) {\n"
+    "  uint32_t start = timer_get_uptime_ms();\n"
+    "  while ((timer_get_uptime_ms() - start) < ms) {\n"
+    "    process_yield();\n"
+    "  }\n"
+    "}";
+static const char active_sleep_crlf[] =
+    "static void syscall_sleep_ms(uint32_t ms) {\r\n"
+    "  uint32_t start = timer_get_uptime_ms();\r\n"
+    "  while ((timer_get_uptime_ms() - start) < ms) {\r\n"
+    "    process_yield();\r\n"
+    "  }\r\n"
+    "}";
+
 static const char active_addition[] =
     "int add2(int x, int y) {\n"
     "    return x + y;\n"
@@ -362,8 +377,10 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active syscall source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data, active_call) == NULL) {
-    (void)fprintf(stderr, "the active getpid wrapper changed\n");
+      strstr((const char *)source.contents.data, active_call) == NULL ||
+      (strstr((const char *)source.contents.data, active_sleep) == NULL &&
+       strstr((const char *)source.contents.data, active_sleep_crlf) == NULL)) {
+    (void)fprintf(stderr, "an active syscall helper changed\n");
     return 0;
   }
   path.text = ctool_string("/bin/cupidc_test3.cc");
@@ -2729,6 +2746,161 @@ static int validate_selection_edge_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_while_ir(const ctool_c_translation_unit_t *unit,
+                             const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "syscall_sleep_ms");
+  ctool_u32 timer_binding = find_binding(unit, "timer_get_uptime_ms");
+  ctool_u32 yield_binding = find_binding(unit, "process_yield");
+  ctool_u32 start_binding = find_block_binding(unit, "start");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  ctool_u32 condition_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 14u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      timer_binding == CTOOL_C_AST_NONE || yield_binding == CTOOL_C_AST_NONE ||
+      start_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "while IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->binding != function_binding ||
+      definition->declared_type >= unit->graph.type_count ||
+      unit->bindings[timer_binding].type >= unit->graph.type_count ||
+      unit->bindings[yield_binding].type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "while IR definitions differ\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "while IR function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  if (unit->block_bindings[start_binding].type != value_type) {
+    (void)fprintf(stderr, "while IR local type differs\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  condition_type = instructions[9].type;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 14u ||
+      function->maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != start_binding ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != unit->bindings[timer_binding].type ||
+      instructions[1].reference != timer_binding ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      instructions[2].type != value_type ||
+      instructions[2].input_type != value_type ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != unit->bindings[timer_binding].type ||
+      instructions[3].reference != timer_binding ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[4].type != value_type ||
+      instructions[4].reference != start_binding ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[6].type != value_type ||
+      instructions[6].input_type != value_type ||
+      instructions[6].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[7].type != value_type ||
+      instructions[7].reference != parameter ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[8].type != value_type ||
+      instructions[8].input_type != value_type ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[9].input_type != value_type ||
+      instructions[9].operation != CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[10].input_type != condition_type ||
+      instructions[10].reference != 13u ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      instructions[11].type != function_type->referenced_type ||
+      instructions[11].input_type != unit->bindings[yield_binding].type ||
+      instructions[11].reference != yield_binding ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[12].reference != 3u ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      !string_equal(instructions[10].location.path, "/active-while.c") ||
+      !string_equal(instructions[12].location.path, "/active-while.c")) {
+    (void)fprintf(stderr, "while IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_terminal_while_ir(const ctool_c_translation_unit_t *unit,
+                                      const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "loop_return");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 5u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "terminal while IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->binding != function_binding ||
+      definition->declared_type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "terminal while IR definition differs\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "terminal while IR function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 5u ||
+      function->maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != value_type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].input_type != value_type ||
+      instructions[2].reference != 4u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "terminal while IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
                                  const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *definition;
@@ -4002,6 +4174,22 @@ static int run_active_leaf(const char *host_root) {
       "int maybe_value(int value) {\n"
       "  if (value) return 1;\n"
       "}\n";
+  static const char while_source[] =
+      "typedef unsigned int uint32_t;\n"
+      "uint32_t timer_get_uptime_ms(void);\n"
+      "void process_yield(void);\n"
+      "static void syscall_sleep_ms(uint32_t ms) {\n"
+      "  uint32_t start = timer_get_uptime_ms();\n"
+      "  while ((timer_get_uptime_ms() - start) < ms) {\n"
+      "    process_yield();\n"
+      "  }\n"
+      "}\n";
+  static const char wide_while_source[] =
+      "void wait_wide(void) { while (1LL) {} }\n";
+  static const char terminal_while_source[] =
+      "void loop_return(int value) {\n"
+      "  while (value) return;\n"
+      "}\n";
   static const char unreachable_declaration_source[] =
       "int unreachable_declaration(void) {\n"
       "  return 0;\n"
@@ -4009,7 +4197,7 @@ static int run_active_leaf(const char *host_root) {
       "}\n";
   static const char unsupported_statement_source[] =
       "int choose_loop(int value) {\n"
-      "  while (value) return 1;\n"
+      "  do { if (value) return 1; } while (value);\n"
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
@@ -4233,6 +4421,9 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t statement_unit;
   ctool_c_translation_unit_t selection_edge_unit;
   ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
+  ctool_c_translation_unit_t while_unit;
+  ctool_c_translation_unit_t wide_while_unit;
+  ctool_c_translation_unit_t terminal_while_unit;
   ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t unsupported_statement_unit;
@@ -4312,6 +4503,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_u32 diagnostic_count;
   ctool_u32 file_binding;
   uint64_t fingerprint;
+  uint64_t while_fingerprint;
+  uint64_t terminal_while_fingerprint;
   char *fixture = NULL;
   char *logic_fixture = NULL;
   char *division_fixture = NULL;
@@ -4385,6 +4578,9 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&selection_edge_unit, 0, sizeof(selection_edge_unit));
   (void)memset(&nonvoid_selection_fallthrough_unit, 0,
                sizeof(nonvoid_selection_fallthrough_unit));
+  (void)memset(&while_unit, 0, sizeof(while_unit));
+  (void)memset(&wide_while_unit, 0, sizeof(wide_while_unit));
+  (void)memset(&terminal_while_unit, 0, sizeof(terminal_while_unit));
   (void)memset(&unreachable_declaration_unit, 0,
                sizeof(unreachable_declaration_unit));
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
@@ -5508,6 +5704,44 @@ static int run_active_leaf(const char *host_root) {
       ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_fingerprint(&selection_edge_unit) != fingerprint ||
       !validate_selection_edge_ir(&selection_edge_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/active-while.c", while_source, &while_unit)) {
+    goto cleanup;
+  }
+  while_fingerprint = unit_fingerprint(&while_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &while_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "while lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&while_unit) != while_fingerprint ||
+      !validate_while_ir(&while_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-while.c", wide_while_source,
+                    &wide_while_unit) ||
+      !expect_ir_failure(
+          job, &wide_while_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide while condition")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/terminal-while.c", terminal_while_source,
+                    &terminal_while_unit)) {
+    goto cleanup;
+  }
+  terminal_while_fingerprint = unit_fingerprint(&terminal_while_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &terminal_while_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "terminal while lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&terminal_while_unit) != terminal_while_fingerprint ||
+      !validate_terminal_while_ir(&terminal_while_unit, &ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
