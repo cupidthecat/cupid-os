@@ -52,6 +52,25 @@ static const char active_sleep_crlf[] =
 static const char active_for_header[] =
     "for (i = 0; i < 8; i = i + 1)";
 
+static const char active_loop_continue[] =
+    "    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {\n"
+    "      continue;\n"
+    "    }";
+static const char active_loop_continue_crlf[] =
+    "    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {\r\n"
+    "      continue;\r\n"
+    "    }";
+static const char active_loop_break[] =
+    "      invalid_location = &initializer->location;\n"
+    "      valid = CTOOL_FALSE;\n"
+    "      break;\n"
+    "    }";
+static const char active_loop_break_crlf[] =
+    "      invalid_location = &initializer->location;\r\n"
+    "      valid = CTOOL_FALSE;\r\n"
+    "      break;\r\n"
+    "    }";
+
 static const char active_doom_tick_loop[] =
     "\tdo\n"
     "\t{\n"
@@ -237,7 +256,17 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              job, "/bin/browser/url_hash.cc",
              "load active browser for loop",
              "the active browser for loop changed", active_for_header,
-             NULL);
+             NULL) &&
+         active_source_contains(
+             job, "/toolchain/cupidc_ir.c",
+             "load active CupidC IR source",
+             "the active CupidC IR continue changed", active_loop_continue,
+             active_loop_continue_crlf) &&
+         active_source_contains(
+             job, "/toolchain/cupidc_ir.c",
+             "load active CupidC IR source",
+             "the active CupidC IR break changed", active_loop_break,
+             active_loop_break_crlf);
 }
 
 static char *make_align_up_fixture(void) {
@@ -2025,24 +2054,291 @@ static int validate_for_object(ctool_job_t *job,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
       CTOOL_X86_MN_RET};
   static const ctool_u32 branch_targets[] = {96u, 21u};
+  static const ctool_u8 break_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u,
+      0x00u, 0xe9u, 0xe2u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t break_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 break_targets[] = {28u, 33u, 3u};
+  static const ctool_u8 break_do_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xe9u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t break_do_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 break_do_targets[] = {8u};
+  static const ctool_u8 continue_while_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0xe7u, 0xffu, 0xffu,
+      0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t continue_while_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 continue_while_targets[] = {28u, 3u};
+  static const ctool_u8 continue_do_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u,
+      0x00u, 0xe9u, 0xe2u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t continue_do_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 continue_do_targets[] = {8u, 33u, 3u};
+  static const ctool_u8 continue_for_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x2cu, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u,
+      0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xe9u,
+      0xc0u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t continue_for_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 continue_for_targets[] = {67u, 28u, 3u};
+  static const ctool_u8 nested_continue_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x1eu, 0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0xe7u,
+      0xffu, 0xffu, 0xffu, 0xe9u, 0xceu, 0xffu, 0xffu, 0xffu, 0xc9u,
+      0xc3u};
+  static const ctool_x86_mnemonic_t nested_continue_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 nested_continue_targets[] = {53u, 48u, 23u, 3u};
+  static const ctool_u8 nested_break_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x1eu, 0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc9u,
+      0xc3u};
+  static const ctool_x86_mnemonic_t nested_break_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 nested_break_targets[] = {53u, 48u, 48u, 53u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
       find_symbol(object, "url_hash_loop");
+  const ctool_elf32_symbol_t *break_function =
+      find_symbol(object, "break_loop");
+  const ctool_elf32_symbol_t *break_do = find_symbol(object, "break_do");
+  const ctool_elf32_symbol_t *continue_while =
+      find_symbol(object, "continue_while");
+  const ctool_elf32_symbol_t *continue_do =
+      find_symbol(object, "continue_do");
+  const ctool_elf32_symbol_t *continue_for =
+      find_symbol(object, "continue_for");
+  const ctool_elf32_symbol_t *continue_for_no_iteration =
+      find_symbol(object, "continue_for_no_iteration");
+  const ctool_elf32_symbol_t *nested_continue =
+      find_symbol(object, "nested_continue");
+  const ctool_elf32_symbol_t *nested_break =
+      find_symbol(object, "nested_break");
   if (text == NULL || rel_text != NULL || function == NULL ||
-      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
-      text->relocation_count != 0u || object->symbol_count != 2u ||
+      break_function == NULL || break_do == NULL || continue_while == NULL ||
+      continue_do == NULL || continue_for == NULL ||
+      continue_for_no_iteration == NULL ||
+      nested_continue == NULL || nested_break == NULL ||
+      text->contents.size !=
+          (ctool_u32)(sizeof(function_bytes) + sizeof(break_bytes) +
+                      sizeof(break_do_bytes) +
+                      sizeof(continue_while_bytes) +
+                      sizeof(continue_do_bytes) +
+                      sizeof(continue_for_bytes) +
+                      sizeof(continue_while_bytes) +
+                      sizeof(nested_continue_bytes) +
+                      sizeof(nested_break_bytes)) ||
+      text->relocation_count != 0u || object->symbol_count != 10u ||
       object->relocation_count != 0u ||
       !symbol_matches(function, 1u, CTOOL_ELF32_BIND_LOCAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
                       (ctool_u32)sizeof(function_bytes)) ||
+      !symbol_matches(break_function, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)sizeof(function_bytes),
+                      (ctool_u32)sizeof(break_bytes)) ||
+      !symbol_matches(break_do, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes)),
+                      (ctool_u32)sizeof(break_do_bytes)) ||
+      !symbol_matches(continue_while, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes) +
+                                  sizeof(break_do_bytes)),
+                      (ctool_u32)sizeof(continue_while_bytes)) ||
+      !symbol_matches(continue_do, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes) +
+                                  sizeof(break_do_bytes) +
+                                  sizeof(continue_while_bytes)),
+                      (ctool_u32)sizeof(continue_do_bytes)) ||
+      !symbol_matches(continue_for, 6u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes) +
+                                  sizeof(break_do_bytes) +
+                                  sizeof(continue_while_bytes) +
+                                  sizeof(continue_do_bytes)),
+                      (ctool_u32)sizeof(continue_for_bytes)) ||
+      !symbol_matches(continue_for_no_iteration, 7u,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes) +
+                                  sizeof(break_do_bytes) +
+                                  sizeof(continue_while_bytes) +
+                                  sizeof(continue_do_bytes) +
+                                  sizeof(continue_for_bytes)),
+                      (ctool_u32)sizeof(continue_while_bytes)) ||
+      !symbol_matches(nested_continue, 8u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes) +
+                                  sizeof(break_do_bytes) +
+                                  sizeof(continue_while_bytes) +
+                                  sizeof(continue_do_bytes) +
+                                  sizeof(continue_for_bytes) +
+                                  sizeof(continue_while_bytes)),
+                      (ctool_u32)sizeof(nested_continue_bytes)) ||
+      !symbol_matches(nested_break, 9u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(break_bytes) +
+                                  sizeof(break_do_bytes) +
+                                  sizeof(continue_while_bytes) +
+                                  sizeof(continue_do_bytes) +
+                                  sizeof(continue_for_bytes) +
+                                  sizeof(continue_while_bytes) +
+                                  sizeof(nested_continue_bytes)),
+                      (ctool_u32)sizeof(nested_break_bytes)) ||
       !decode_function(
           job, text, function, instructions,
           (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
           function_bytes, (ctool_u32)sizeof(function_bytes), branch_targets,
           (ctool_u32)(sizeof(branch_targets) / sizeof(branch_targets[0])),
-          "url_hash_loop")) {
+          "url_hash_loop") ||
+      !decode_function(
+          job, text, break_function, break_instructions,
+          (ctool_u32)(sizeof(break_instructions) /
+                      sizeof(break_instructions[0])),
+          break_bytes, (ctool_u32)sizeof(break_bytes), break_targets,
+          (ctool_u32)(sizeof(break_targets) / sizeof(break_targets[0])),
+          "break_loop") ||
+      !decode_function(
+          job, text, break_do, break_do_instructions,
+          (ctool_u32)(sizeof(break_do_instructions) /
+                      sizeof(break_do_instructions[0])),
+          break_do_bytes, (ctool_u32)sizeof(break_do_bytes), break_do_targets,
+          (ctool_u32)(sizeof(break_do_targets) /
+                      sizeof(break_do_targets[0])),
+          "break_do") ||
+      !decode_function(
+          job, text, continue_while, continue_while_instructions,
+          (ctool_u32)(sizeof(continue_while_instructions) /
+                      sizeof(continue_while_instructions[0])),
+          continue_while_bytes, (ctool_u32)sizeof(continue_while_bytes),
+          continue_while_targets,
+          (ctool_u32)(sizeof(continue_while_targets) /
+                      sizeof(continue_while_targets[0])),
+          "continue_while") ||
+      !decode_function(
+          job, text, continue_do, continue_do_instructions,
+          (ctool_u32)(sizeof(continue_do_instructions) /
+                      sizeof(continue_do_instructions[0])),
+          continue_do_bytes, (ctool_u32)sizeof(continue_do_bytes),
+          continue_do_targets,
+          (ctool_u32)(sizeof(continue_do_targets) /
+                      sizeof(continue_do_targets[0])),
+          "continue_do") ||
+      !decode_function(
+          job, text, continue_for, continue_for_instructions,
+          (ctool_u32)(sizeof(continue_for_instructions) /
+                      sizeof(continue_for_instructions[0])),
+          continue_for_bytes, (ctool_u32)sizeof(continue_for_bytes),
+          continue_for_targets,
+          (ctool_u32)(sizeof(continue_for_targets) /
+                      sizeof(continue_for_targets[0])),
+          "continue_for") ||
+      !decode_function(
+          job, text, continue_for_no_iteration,
+          continue_while_instructions,
+          (ctool_u32)(sizeof(continue_while_instructions) /
+                      sizeof(continue_while_instructions[0])),
+          continue_while_bytes, (ctool_u32)sizeof(continue_while_bytes),
+          continue_while_targets,
+          (ctool_u32)(sizeof(continue_while_targets) /
+                      sizeof(continue_while_targets[0])),
+          "continue_for_no_iteration") ||
+      !decode_function(
+          job, text, nested_continue, nested_continue_instructions,
+          (ctool_u32)(sizeof(nested_continue_instructions) /
+                      sizeof(nested_continue_instructions[0])),
+          nested_continue_bytes, (ctool_u32)sizeof(nested_continue_bytes),
+          nested_continue_targets,
+          (ctool_u32)(sizeof(nested_continue_targets) /
+                      sizeof(nested_continue_targets[0])),
+          "nested_continue") ||
+      !decode_function(
+          job, text, nested_break, nested_break_instructions,
+          (ctool_u32)(sizeof(nested_break_instructions) /
+                      sizeof(nested_break_instructions[0])),
+          nested_break_bytes, (ctool_u32)sizeof(nested_break_bytes),
+          nested_break_targets,
+          (ctool_u32)(sizeof(nested_break_targets) /
+                      sizeof(nested_break_targets[0])),
+          "nested_break")) {
     (void)fprintf(stderr, "for object shape differs\n");
     return 0;
   }
@@ -3405,6 +3701,38 @@ static int run_static_data(const char *host_root) {
       "    i;\n"
       "  }\n"
       "  return i;\n"
+      "}\n"
+      "void break_loop(int value) {\n"
+      "  for (;;) {\n"
+      "    if (value) break;\n"
+      "  }\n"
+      "}\n"
+      "void break_do(int value) {\n"
+      "  do { break; } while (value);\n"
+      "}\n"
+      "void continue_while(int value) {\n"
+      "  while (value) { continue; }\n"
+      "}\n"
+      "void continue_do(int value) {\n"
+      "  do { continue; } while (value);\n"
+      "}\n"
+      "void continue_for(int value) {\n"
+      "  for (; value; value = value - 1) { continue; }\n"
+      "}\n"
+      "void continue_for_no_iteration(int value) {\n"
+      "  for (; value;) { continue; }\n"
+      "}\n"
+      "void nested_continue(int outer, int inner) {\n"
+      "  while (outer) {\n"
+      "    while (inner) { continue; }\n"
+      "    continue;\n"
+      "  }\n"
+      "}\n"
+      "void nested_break(int outer, int inner) {\n"
+      "  while (outer) {\n"
+      "    while (inner) { break; }\n"
+      "    break;\n"
+      "  }\n"
       "}\n";
   static const char wide_for_text[] =
       "void for_wide(void) { for (; 1LL;) {} }\n";
@@ -3418,14 +3746,6 @@ static int run_static_data(const char *host_root) {
       "int unreachable_declaration(void) {\n"
       "  return 0;\n"
       "  int value;\n"
-      "}\n";
-  static const char unsupported_statement_text[] =
-      "void stop_loop(void) {\n"
-      "  for (;;) { break; }\n"
-      "}\n";
-  static const char continue_statement_text[] =
-      "void continue_loop(void) {\n"
-      "  for (;;) { continue; }\n"
       "}\n";
   static const char integer_unary_text[] =
       "int unary_plus(int value) { return +value; }\n"
@@ -3602,8 +3922,6 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
   ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
-  ctool_c_translation_unit_t unsupported_statement_unit;
-  ctool_c_translation_unit_t continue_statement_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t narrow_cast_unit;
   ctool_c_translation_unit_t wide_cast_unit;
@@ -3618,6 +3936,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_initializer_t *invalid_layout_initializers = NULL;
   ctool_c_initializer_element_t *invalid_elements = NULL;
   ctool_c_statement_t *unreachable_statements = NULL;
+  ctool_c_statement_t *loop_control_statements = NULL;
   ctool_c_expression_t invalid_expression;
   unit_snapshot_t snapshot;
   unit_snapshot_t function_snapshot;
@@ -3737,10 +4056,6 @@ static int run_static_data(const char *host_root) {
   (void)memset(&unreachable_declaration_unit, 0,
                sizeof(unreachable_declaration_unit));
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
-  (void)memset(&unsupported_statement_unit, 0,
-               sizeof(unsupported_statement_unit));
-  (void)memset(&continue_statement_unit, 0,
-               sizeof(continue_statement_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
   (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
@@ -4893,6 +5208,36 @@ static int run_static_data(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  loop_control_statements = (ctool_c_statement_t *)malloc(
+      (size_t)for_unit.statement_count * sizeof(*loop_control_statements));
+  if (loop_control_statements == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(loop_control_statements, for_unit.statements,
+               (size_t)for_unit.statement_count *
+                   sizeof(*loop_control_statements));
+  for (definition_index = 0u; definition_index < for_unit.statement_count;
+       definition_index++) {
+    if (loop_control_statements[definition_index].kind ==
+        CTOOL_C_STATEMENT_BREAK) {
+      break;
+    }
+  }
+  if (definition_index == for_unit.statement_count) {
+    goto cleanup;
+  }
+  loop_control_statements[definition_index].expression = 0u;
+  invalid_unit = for_unit;
+  invalid_unit.statements = loop_control_statements;
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "break statement with expression payload object") ||
+      unit_snapshot_matches(&for_snapshot, &for_unit) == 0) {
+    goto cleanup;
+  }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/selection-edges.c", selection_edge_text,
                     &selection_edge_unit) ||
@@ -5277,21 +5622,6 @@ static int run_static_data(const char *host_root) {
           CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
           "CupidC IR lowering does not yet support this statement",
           "nonvoid selection fallthrough object") ||
-      !parse_source(job, "/unsupported-statement.c",
-                    unsupported_statement_text,
-                    &unsupported_statement_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &unsupported_statement_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "unsupported break statement object") ||
-      !parse_source(job, "/continue-statement.c", continue_statement_text,
-                    &continue_statement_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &continue_statement_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "unsupported continue statement object") ||
       !parse_source(job, "/wide-logical-not.c", wide_logical_not_text,
                     &wide_logical_not_unit) ||
       !expect_object_failure(
@@ -5616,6 +5946,7 @@ cleanup:
   free(do_object);
   free(for_object);
   free(unreachable_statements);
+  free(loop_control_statements);
   free(simd_cpuid_object);
   free(file_member_object);
   free(bit_field_object);

@@ -87,6 +87,25 @@ static const char active_sleep_crlf[] =
 static const char active_for_header[] =
     "for (i = 0; i < 8; i = i + 1)";
 
+static const char active_loop_continue[] =
+    "    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {\n"
+    "      continue;\n"
+    "    }";
+static const char active_loop_continue_crlf[] =
+    "    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {\r\n"
+    "      continue;\r\n"
+    "    }";
+static const char active_loop_break[] =
+    "      invalid_location = &initializer->location;\n"
+    "      valid = CTOOL_FALSE;\n"
+    "      break;\n"
+    "    }";
+static const char active_loop_break_crlf[] =
+    "      invalid_location = &initializer->location;\r\n"
+    "      valid = CTOOL_FALSE;\r\n"
+    "      break;\r\n"
+    "    }";
+
 static const char active_addition[] =
     "int add2(int x, int y) {\n"
     "    return x + y;\n"
@@ -406,6 +425,21 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_for_header) == NULL) {
     (void)fprintf(stderr, "the active browser for loop changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupidc_ir.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active CupidC IR source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data, active_loop_continue) ==
+           NULL &&
+       strstr((const char *)source.contents.data,
+              active_loop_continue_crlf) == NULL) ||
+      (strstr((const char *)source.contents.data, active_loop_break) == NULL &&
+       strstr((const char *)source.contents.data, active_loop_break_crlf) ==
+           NULL)) {
+    (void)fprintf(stderr, "the active CupidC IR loop control changed\n");
     return 0;
   }
   path.text = ctool_string("/bin/paint.cc");
@@ -3239,6 +3273,201 @@ static int validate_for_edge_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_break_ir(const ctool_c_translation_unit_t *unit,
+                             const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_function_definition_t *do_definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_function_t *do_function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "break_loop");
+  ctool_u32 do_binding = find_binding(unit, "break_do");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 8u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      do_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "break IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  do_definition = &unit->function_definitions[1];
+  if (definition->binding != function_binding ||
+      definition->declared_type >= unit->graph.type_count ||
+      do_definition->binding != do_binding) {
+    (void)fprintf(stderr, "break IR definition differs\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "break IR function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  function = &ir->functions[0];
+  do_function = &ir->functions[1];
+  instructions = ir->instructions;
+  if (function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 6u ||
+      function->maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].reference != parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != value_type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].input_type != value_type ||
+      instructions[2].reference != 4u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[3].reference != 5u ||
+      instructions[3].integer_bits != 0u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[4].reference != 0u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      do_function->binding != do_binding ||
+      do_function->declared_type != do_definition->declared_type ||
+      do_function->first_instruction != 6u ||
+      do_function->instruction_count != 2u ||
+      do_function->maximum_stack_depth != 0u ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[6].reference != 1u ||
+      instructions[6].integer_bits != 0u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      !string_equal(instructions[3].location.path, "/break-statement.c")) {
+    (void)fprintf(stderr, "break IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_continue_ir(const ctool_c_translation_unit_t *unit,
+                                const ctool_c_ir_unit_t *ir) {
+  static const struct {
+    const char *name;
+    ctool_u32 first_instruction;
+    ctool_u32 instruction_count;
+    ctool_u32 maximum_depth;
+  } expectations[] = {
+      {"continue_while", 0u, 5u, 1u},
+      {"continue_do", 5u, 6u, 1u},
+      {"continue_for", 11u, 13u, 3u},
+      {"continue_for_no_iteration", 24u, 5u, 1u},
+      {"nested_continue", 29u, 9u, 1u},
+      {"nested_break", 38u, 9u, 1u}};
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 expectation_count =
+      (ctool_u32)(sizeof(expectations) / sizeof(expectations[0]));
+  ctool_u32 index;
+  if (unit->function_definition_count != expectation_count ||
+      ir->function_count != expectation_count ||
+      ir->instruction_count != 47u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "continue IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < expectation_count; index++) {
+    ctool_u32 binding = find_binding(unit, expectations[index].name);
+    if (binding == CTOOL_C_AST_NONE ||
+        unit->function_definitions[index].binding != binding ||
+        ir->functions[index].binding != binding ||
+        ir->functions[index].declared_type !=
+            unit->function_definitions[index].declared_type ||
+        ir->functions[index].first_instruction !=
+            expectations[index].first_instruction ||
+        ir->functions[index].instruction_count !=
+            expectations[index].instruction_count ||
+        ir->functions[index].maximum_stack_depth !=
+            expectations[index].maximum_depth) {
+      (void)fprintf(stderr, "continue IR function %u differs\n", index);
+      return 0;
+    }
+  }
+  instructions = ir->instructions;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 4u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[3].reference != 0u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[5].reference != 1u ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[8].reference != 5u ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[9].reference != 0u ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "while or do continue targets differ\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[2].first_instruction;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 12u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[3].reference != 4u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[8].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[11].reference != 0u ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "for continue target differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[3].first_instruction;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 4u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[3].reference != 0u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "for continue without iteration differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[4].first_instruction;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 8u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[5].reference != 7u ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[6].reference != 3u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[7].reference != 0u ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "nested continue targets differ\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[5].first_instruction;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 8u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[5].reference != 7u ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[6].reference != 7u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[7].reference != 8u ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "nested break targets differ\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind == CTOOL_C_IR_INSTRUCTION_JUMP &&
+        (ir->instructions[index].reference == CTOOL_C_AST_NONE ||
+         ir->instructions[index].integer_bits != 0u)) {
+      (void)fprintf(stderr, "continue IR published an unresolved jump\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
                                  const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *definition;
@@ -4572,13 +4801,39 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "  int value;\n"
       "}\n";
-  static const char unsupported_statement_source[] =
-      "void stop_loop(void) {\n"
-      "  for (;;) { break; }\n"
+  static const char break_statement_source[] =
+      "void break_loop(int value) {\n"
+      "  for (;;) {\n"
+      "    if (value) break;\n"
+      "  }\n"
+      "}\n"
+      "void break_do(int value) {\n"
+      "  do { break; } while (value);\n"
       "}\n";
   static const char continue_statement_source[] =
-      "void continue_loop(void) {\n"
-      "  for (;;) { continue; }\n"
+      "void continue_while(int value) {\n"
+      "  while (value) { continue; }\n"
+      "}\n"
+      "void continue_do(int value) {\n"
+      "  do { continue; } while (value);\n"
+      "}\n"
+      "void continue_for(int value) {\n"
+      "  for (; value; value = value - 1) { continue; }\n"
+      "}\n"
+      "void continue_for_no_iteration(int value) {\n"
+      "  for (; value;) { continue; }\n"
+      "}\n"
+      "void nested_continue(int outer, int inner) {\n"
+      "  while (outer) {\n"
+      "    while (inner) { continue; }\n"
+      "    continue;\n"
+      "  }\n"
+      "}\n"
+      "void nested_break(int outer, int inner) {\n"
+      "  while (outer) {\n"
+      "    while (inner) { break; }\n"
+      "    break;\n"
+      "  }\n"
       "}\n";
   static const char expression_source[] =
       "int update(int value) { return ++value; }\n";
@@ -4815,7 +5070,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t declaration_for_unit;
   ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
-  ctool_c_translation_unit_t unsupported_statement_unit;
+  ctool_c_translation_unit_t break_statement_unit;
   ctool_c_translation_unit_t continue_statement_unit;
   ctool_c_translation_unit_t expression_unit;
   ctool_c_translation_unit_t abi_unit;
@@ -4870,6 +5125,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_statement_t *invalid_statements = NULL;
   ctool_c_statement_t *selection_statements = NULL;
   ctool_c_statement_t *unreachable_statements = NULL;
+  ctool_c_statement_t *loop_control_statements = NULL;
+  ctool_u32 *loop_control_children = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_initializer_t *void_initializers = NULL;
   ctool_c_expression_t *invalid_expressions = NULL;
@@ -4989,8 +5246,7 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&unreachable_declaration_unit, 0,
                sizeof(unreachable_declaration_unit));
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
-  (void)memset(&unsupported_statement_unit, 0,
-               sizeof(unsupported_statement_unit));
+  (void)memset(&break_statement_unit, 0, sizeof(break_statement_unit));
   (void)memset(&continue_statement_unit, 0,
                sizeof(continue_statement_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
@@ -6333,21 +6589,118 @@ static int run_active_leaf(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
           "CupidC IR lowering does not yet support this statement",
           "nonvoid selection fallthrough") ||
-      !parse_source(job, "/unsupported-statement.c",
-                    unsupported_statement_source,
-                    &unsupported_statement_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &unsupported_statement_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "unsupported break statement") ||
+      !parse_source(job, "/break-statement.c", break_statement_source,
+                    &break_statement_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&break_statement_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &break_statement_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "break statement lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&break_statement_unit) != fingerprint ||
+      !validate_break_ir(&break_statement_unit, &ir) ||
       !parse_source(job, "/continue-statement.c", continue_statement_source,
-                    &continue_statement_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &continue_statement_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "unsupported continue statement")) {
+                    &continue_statement_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&continue_statement_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &continue_statement_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "continue statement lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&continue_statement_unit) != fingerprint ||
+      !validate_continue_ir(&continue_statement_unit, &ir)) {
+    goto cleanup;
+  }
+  loop_control_statements = (ctool_c_statement_t *)malloc(
+      (size_t)break_statement_unit.statement_count *
+      sizeof(*loop_control_statements));
+  if (loop_control_statements == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(loop_control_statements, break_statement_unit.statements,
+               (size_t)break_statement_unit.statement_count *
+                   sizeof(*loop_control_statements));
+  for (index = 0u; index < break_statement_unit.statement_count; index++) {
+    if (loop_control_statements[index].kind == CTOOL_C_STATEMENT_BREAK) {
+      break;
+    }
+  }
+  if (index == break_statement_unit.statement_count) {
+    goto cleanup;
+  }
+  loop_control_statements[index].expression = 0u;
+  invalid_unit = break_statement_unit;
+  invalid_unit.statements = loop_control_statements;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "break statement with expression payload")) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_statement_t *body;
+    const ctool_c_statement_t *loop;
+    const ctool_c_statement_t *loop_body;
+    ctool_u32 loop_index;
+    ctool_u32 continue_index;
+    if (continue_statement_unit.function_definition_count == 0u ||
+        continue_statement_unit.statement_child_count == 0u) {
+      goto cleanup;
+    }
+    body = &continue_statement_unit.statements
+                [continue_statement_unit.function_definitions[0].body];
+    if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+        body->child_count != 1u ||
+        body->first_child >= continue_statement_unit.statement_child_count) {
+      goto cleanup;
+    }
+    loop_index = continue_statement_unit.statement_children[body->first_child];
+    if (loop_index >= continue_statement_unit.statement_count) {
+      goto cleanup;
+    }
+    loop = &continue_statement_unit.statements[loop_index];
+    if (loop->kind != CTOOL_C_STATEMENT_WHILE ||
+        loop->body >= continue_statement_unit.statement_count) {
+      goto cleanup;
+    }
+    loop_body = &continue_statement_unit.statements[loop->body];
+    if (loop_body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+        loop_body->child_count != 1u ||
+        loop_body->first_child >=
+            continue_statement_unit.statement_child_count) {
+      goto cleanup;
+    }
+    continue_index = continue_statement_unit
+                         .statement_children[loop_body->first_child];
+    if (continue_index >= continue_statement_unit.statement_count ||
+        continue_statement_unit.statements[continue_index].kind !=
+            CTOOL_C_STATEMENT_CONTINUE) {
+      goto cleanup;
+    }
+    loop_control_children = (ctool_u32 *)malloc(
+        (size_t)continue_statement_unit.statement_child_count *
+        sizeof(*loop_control_children));
+    if (loop_control_children == NULL) {
+      goto cleanup;
+    }
+    (void)memcpy(loop_control_children,
+                 continue_statement_unit.statement_children,
+                 (size_t)continue_statement_unit.statement_child_count *
+                     sizeof(*loop_control_children));
+    loop_control_children[body->first_child] = continue_index;
+    invalid_unit = continue_statement_unit;
+    invalid_unit.statement_children = loop_control_children;
+  }
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "continue statement without a loop context")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-local.c", wide_local_source,
@@ -6795,6 +7148,8 @@ cleanup:
   free(invalid_statements);
   free(selection_statements);
   free(unreachable_statements);
+  free(loop_control_statements);
+  free(loop_control_children);
   free(invalid_initializers);
   free(void_initializers);
   free(invalid_expressions);
