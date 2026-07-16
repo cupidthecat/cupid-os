@@ -12,6 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const char active_align_up[] =
+    "static inline uint32_t align_up(uint32_t val, uint32_t align) {\n"
+    "  return (val + align - 1) & ~(align - 1);\n"
+    "}\n";
+
 typedef struct {
   ctool_c_translation_unit_t unit;
   ctool_c_binding_t *bindings;
@@ -131,6 +136,34 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
     return 0;
   }
   return 1;
+}
+
+static int active_align_up_is_unchanged(ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/kernel/mm/memory.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active memory source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_align_up) == NULL) {
+    (void)fprintf(stderr, "the active memory alignment helper changed\n");
+    return 0;
+  }
+  return 1;
+}
+
+static char *make_align_up_fixture(void) {
+  static const char prefix[] = "typedef unsigned int uint32_t;\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_align_up);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    (void)memcpy(text, prefix, sizeof(prefix) - 1u);
+    (void)memcpy(text + sizeof(prefix) - 1u, active_align_up,
+                 sizeof(active_align_up));
+  }
+  return text;
 }
 
 static int copy_array(const void *source, ctool_u32 count, size_t item_size,
@@ -1306,6 +1339,56 @@ static int validate_aes_rotw_object(ctool_job_t *job,
           (ctool_u32)sizeof(signed_right_shift_bytes), NULL, 0u,
           "signed_right_shift")) {
     (void)fprintf(stderr, "AES word-rotation object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_align_up_object(ctool_job_t *job,
+                                    const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x58u, 0xf7u, 0xd0u,
+      0x50u, 0x59u, 0x58u, 0x21u, 0xc8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,  CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,  CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_NOT,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_AND,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function = find_symbol(object, "align_up");
+  if (text == NULL || rel_text != NULL || function == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_count != 0u || object->symbol_count != 2u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), NULL, 0u,
+          "align_up")) {
+    (void)fprintf(stderr, "memory alignment object differs\n");
     return 0;
   }
   return 1;
@@ -2567,7 +2650,7 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return ~value; }\n";
+      "int unsupported(int value) { return -value; }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2707,6 +2790,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t division_unit;
   ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t aes_rotw_unit;
+  ctool_c_translation_unit_t align_up_unit;
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
@@ -2731,6 +2815,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t division_snapshot;
   unit_snapshot_t branch_fit_snapshot;
   unit_snapshot_t aes_rotw_snapshot;
+  unit_snapshot_t align_up_snapshot;
   unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
@@ -2754,6 +2839,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 branch_fit_object_size = 0u;
   ctool_u8 *aes_rotw_object = NULL;
   ctool_u32 aes_rotw_object_size = 0u;
+  ctool_u8 *align_up_object = NULL;
+  ctool_u32 align_up_object_size = 0u;
   ctool_u8 *simd_cpuid_object = NULL;
   ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
@@ -2776,6 +2863,7 @@ static int run_static_data(const char *host_root) {
   ctool_u32 masked_edge = CTOOL_C_AST_NONE;
   ctool_u32 masked_initializer = CTOOL_C_AST_NONE;
   ctool_u32 wrong_child_type = CTOOL_C_TYPE_NONE;
+  char *align_up_text = NULL;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
@@ -2787,6 +2875,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
+  (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
@@ -2806,6 +2895,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&division_snapshot, 0, sizeof(division_snapshot));
   (void)memset(&branch_fit_snapshot, 0, sizeof(branch_fit_snapshot));
   (void)memset(&aes_rotw_snapshot, 0, sizeof(aes_rotw_snapshot));
+  (void)memset(&align_up_snapshot, 0, sizeof(align_up_snapshot));
   (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
@@ -2815,7 +2905,8 @@ static int run_static_data(const char *host_root) {
                sizeof(chained_assignment_snapshot));
   (void)memset(&layout_snapshot, 0, sizeof(layout_snapshot));
   (void)memset(&invalid_expression, 0, sizeof(invalid_expression));
-  if (!open_job(host_root, &adapter, &config, &job)) {
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_align_up_is_unchanged(job)) {
     goto cleanup;
   }
   if (!parse_source(job, "/static-data.c", source_text, &unit) ||
@@ -3563,6 +3654,59 @@ static int run_static_data(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  align_up_text = make_align_up_fixture();
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      align_up_text == NULL ||
+      !parse_source(job, "/active-memory-align-up.c", align_up_text,
+                    &align_up_unit) ||
+      !take_unit_snapshot(&align_up_unit, &align_up_snapshot)) {
+    (void)fprintf(stderr, "memory alignment object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &align_up_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first memory alignment object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&align_up_snapshot, &align_up_unit) == 0) {
+    (void)fprintf(stderr, "first memory alignment emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  align_up_object_size = bytes.size;
+  align_up_object = (ctool_u8 *)malloc((size_t)align_up_object_size);
+  if (align_up_object == NULL) {
+    (void)fprintf(stderr, "memory alignment snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(align_up_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &align_up_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat memory alignment object") ||
+      bytes.size != align_up_object_size ||
+      memcmp(bytes.data, align_up_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&align_up_snapshot, &align_up_unit) == 0) {
+    (void)fprintf(stderr, "memory alignment emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-memory-align-up.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read memory alignment object") ||
+      !validate_align_up_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-simd-cpuid.c", simd_cpuid_text,
                     &simd_cpuid_unit) ||
@@ -4104,6 +4248,7 @@ cleanup:
   free(division_object);
   free(branch_fit_object);
   free(aes_rotw_object);
+  free(align_up_object);
   free(simd_cpuid_object);
   free(file_member_object);
   free(bit_field_object);
@@ -4116,12 +4261,14 @@ cleanup:
   dispose_unit_snapshot(&division_snapshot);
   dispose_unit_snapshot(&branch_fit_snapshot);
   dispose_unit_snapshot(&aes_rotw_snapshot);
+  dispose_unit_snapshot(&align_up_snapshot);
   dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);
   dispose_unit_snapshot(&function_snapshot);
   dispose_unit_snapshot(&snapshot);
+  free(align_up_text);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
   }

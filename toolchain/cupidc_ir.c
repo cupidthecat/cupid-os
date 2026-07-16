@@ -757,6 +757,55 @@ static ctool_status_t cir_lower_binary(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
+static ctool_status_t cir_lower_unary(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 depth) {
+  cir_stack_entry_t operand;
+  ctool_u32 child;
+  ctool_status_t status;
+  if (expression->reference != CTOOL_C_AST_NONE ||
+      expression->conversion != CTOOL_C_CONVERSION_NONE ||
+      expression->computation_type != CTOOL_C_TYPE_NONE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_expression_child(
+      context, expression_index, expression, 0u, &child);
+  if (status == CTOOL_OK &&
+      expression->operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
+    return cir_unsupported_expression(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_lower_expression(context, child, depth + 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &operand);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (operand.kind != CIR_STACK_VALUE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (cir_type_is_i32_integer(context, operand.type) == CTOOL_FALSE ||
+      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+    return cir_unsupported_type(context, &expression->location);
+  }
+  if (operand.type != context->unit->expressions[child].type ||
+      expression->type != operand.type) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_UNARY, expression->type, operand.type,
+      expression->operation, CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &expression->location, &expression->physical_location,
+      (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_VALUE, expression->type);
+}
+
 static ctool_status_t cir_lower_logical_operand(
     cir_context_t *context, ctool_u32 child, ctool_u32 child_depth,
     ctool_u32 base_depth, const ctool_c_expression_t *expression,
@@ -1474,6 +1523,12 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       return cir_invalid_unit(context, &expression->location);
     }
     return cir_lower_conversion(context, expression_index, expression, depth);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_UNARY) {
+    if (expression->child_count != 1u) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    return cir_lower_unary(context, expression_index, expression, depth);
   }
   if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
     if (expression->child_count != 2u) {

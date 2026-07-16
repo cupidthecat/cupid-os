@@ -20,7 +20,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
   CTOOL_C_IR_INSTRUCTION_DISCARD,
   CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
-  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
+  CTOOL_C_IR_INSTRUCTION_UNARY
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -34,8 +35,8 @@ typedef struct {
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD retain their record operand type. STORE and STORE_VALUE
    * retain the stored value type. DISCARD retains its consumed value type.
-   * BINARY retains the common operand type. CALL_DIRECT retains the function
-   * type. BRANCH_ZERO retains its consumed condition type. */
+   * UNARY and BINARY retain their operand type. CALL_DIRECT retains the
+   * function type. BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   ctool_c_conversion_kind_t conversion;

@@ -41,6 +41,11 @@ static const char active_branch_fits[] =
 static const char active_aes_rotw[] =
     "static uint32_t rotw(uint32_t w) { return (w << 8) | (w >> 24); }";
 
+static const char active_align_up[] =
+    "static inline uint32_t align_up(uint32_t val, uint32_t align) {\n"
+    "  return (val + align - 1) & ~(align - 1);\n"
+    "}\n";
+
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
 
@@ -297,6 +302,15 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active AES word rotation changed\n");
     return 0;
   }
+  path.text = ctool_string("/kernel/mm/memory.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active memory source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_align_up) == NULL) {
+    (void)fprintf(stderr, "the active memory alignment helper changed\n");
+    return 0;
+  }
   path.text = ctool_string("/kernel/cpu/simd.c");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
@@ -530,6 +544,18 @@ static char *make_aes_rotw_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_aes_rotw,
                  sizeof(active_aes_rotw));
+  }
+  return text;
+}
+
+static char *make_align_up_fixture(void) {
+  static const char prefix[] = "typedef unsigned int uint32_t;\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_align_up);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    (void)memcpy(text, prefix, sizeof(prefix) - 1u);
+    (void)memcpy(text + sizeof(prefix) - 1u, active_align_up,
+                 sizeof(active_align_up));
   }
   return text;
 }
@@ -1556,6 +1582,171 @@ static int validate_aes_rotw_ir(const ctool_c_translation_unit_t *unit,
                      "/active-aes-rotw.c") == 0 ||
         actual->location.line == 0u || actual->physical_location.line == 0u) {
       (void)fprintf(stderr, "AES word-rotation IR instruction %u differs\n",
+                    index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef enum {
+  ALIGN_EXPECT_NONE = 0,
+  ALIGN_EXPECT_VALUE,
+  ALIGN_EXPECT_COUNT
+} align_expected_type_t;
+
+typedef enum {
+  ALIGN_REFERENCE_NONE = 0,
+  ALIGN_REFERENCE_VALUE,
+  ALIGN_REFERENCE_ALIGNMENT
+} align_expected_reference_t;
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  align_expected_type_t type;
+  align_expected_type_t input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  align_expected_reference_t reference;
+  ctool_u64 integer_bits;
+} align_expected_t;
+
+static int validate_align_up_ir(const ctool_c_translation_unit_t *unit,
+                                const ctool_c_ir_unit_t *ir) {
+  static const align_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, ALIGN_EXPECT_VALUE,
+       ALIGN_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, ALIGN_REFERENCE_VALUE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, ALIGN_EXPECT_VALUE,
+       ALIGN_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, ALIGN_REFERENCE_ALIGNMENT, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, ALIGN_EXPECT_COUNT, ALIGN_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_COUNT,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_USUAL_ARITHMETIC, ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, ALIGN_EXPECT_VALUE,
+       ALIGN_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, ALIGN_REFERENCE_ALIGNMENT, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, ALIGN_EXPECT_COUNT, ALIGN_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_COUNT,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_USUAL_ARITHMETIC, ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_UNARY, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ALIGN_EXPECT_VALUE, ALIGN_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND, CTOOL_C_CONVERSION_NONE,
+       ALIGN_REFERENCE_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, ALIGN_EXPECT_VALUE,
+       ALIGN_EXPECT_VALUE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, ALIGN_REFERENCE_NONE, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 value_parameter;
+  ctool_u32 alignment_parameter;
+  ctool_u32 value_type;
+  ctool_u32 count_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0]))) {
+    (void)fprintf(stderr, "memory alignment IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter >= unit->parameter_count ||
+      unit->parameter_count - function_type->first_parameter < 2u) {
+    (void)fprintf(stderr, "memory alignment function type differs\n");
+    return 0;
+  }
+  value_parameter = function_type->first_parameter;
+  alignment_parameter = value_parameter + 1u;
+  value_type = unit->parameters[value_parameter].type;
+  count_type = ir->instructions[5].type;
+  if (unit->parameters[alignment_parameter].type != value_type ||
+      function_type->referenced_type != value_type ||
+      value_type >= unit->layout.type_count ||
+      count_type >= unit->layout.type_count ||
+      unit->layout.types[value_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[value_type].size != 4u ||
+      unit->layout.types[value_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[count_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[count_type].size != 4u ||
+      unit->layout.types[count_type].is_signed != CTOOL_TRUE) {
+    (void)fprintf(stderr, "memory alignment operand types differ\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "memory alignment IR function record differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const align_expected_t *wanted = &expected[index];
+    const ctool_c_ir_instruction_t *actual = &ir->instructions[index];
+    ctool_u32 wanted_type = wanted->type == ALIGN_EXPECT_VALUE
+                                ? value_type
+                                : wanted->type == ALIGN_EXPECT_COUNT
+                                      ? count_type
+                                      : CTOOL_C_TYPE_NONE;
+    ctool_u32 wanted_input = wanted->input_type == ALIGN_EXPECT_VALUE
+                                 ? value_type
+                                 : wanted->input_type == ALIGN_EXPECT_COUNT
+                                       ? count_type
+                                       : CTOOL_C_TYPE_NONE;
+    ctool_u32 wanted_reference = CTOOL_C_AST_NONE;
+    if (wanted->reference == ALIGN_REFERENCE_VALUE) {
+      wanted_reference = value_parameter;
+    } else if (wanted->reference == ALIGN_REFERENCE_ALIGNMENT) {
+      wanted_reference = alignment_parameter;
+    }
+    if (actual->kind != wanted->kind || actual->type != wanted_type ||
+        actual->input_type != wanted_input ||
+        actual->operation != wanted->operation ||
+        actual->conversion != wanted->conversion ||
+        actual->reference != wanted_reference ||
+        actual->integer_bits != wanted->integer_bits ||
+        string_equal(actual->location.path,
+                     "/active-memory-align-up.c") == 0 ||
+        string_equal(actual->physical_location.path,
+                     "/active-memory-align-up.c") == 0 ||
+        actual->location.line == 0u || actual->physical_location.line == 0u) {
+      (void)fprintf(stderr, "memory alignment IR instruction %u differs\n",
                     index);
       return 0;
     }
@@ -3056,7 +3247,7 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
-      "int complement(int value) { return ~value; }\n";
+      "int negate(int value) { return -value; }\n";
   static const char multiplication_source[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -3174,6 +3365,8 @@ static int run_active_leaf(const char *host_root) {
       "int wide_bitwise_or(void) { return 1LL | 2LL; }\n";
   static const char wide_bitwise_xor_source[] =
       "int wide_bitwise_xor(void) { return 1LL ^ 2LL; }\n";
+  static const char wide_bitwise_not_source[] =
+      "int wide_bitwise_not(void) { return ~1LL; }\n";
   static const char wide_division_source[] =
       "int wide_divide(void) { return 8LL / 2LL; }\n";
   static const char wide_remainder_source[] =
@@ -3272,6 +3465,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t logical_or_unit;
   ctool_c_translation_unit_t branch_fit_unit;
   ctool_c_translation_unit_t aes_rotw_unit;
+  ctool_c_translation_unit_t align_up_unit;
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
@@ -3279,6 +3473,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_right_shift_unit;
   ctool_c_translation_unit_t wide_bitwise_or_unit;
   ctool_c_translation_unit_t wide_bitwise_xor_unit;
+  ctool_c_translation_unit_t wide_bitwise_not_unit;
   ctool_c_translation_unit_t wide_division_unit;
   ctool_c_translation_unit_t wide_remainder_unit;
   ctool_c_translation_unit_t variadic_call_unit;
@@ -3303,6 +3498,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_initializer_t *void_initializers = NULL;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_expression_t *cpuid_expressions = NULL;
+  ctool_c_expression_t *align_up_expressions = NULL;
   ctool_c_expression_t *ownership_expressions = NULL;
   ctool_c_expression_t *file_expressions = NULL;
   ctool_c_expression_t *assignment_expressions = NULL;
@@ -3325,9 +3521,12 @@ static int run_active_leaf(const char *host_root) {
   char *logical_or_fixture = NULL;
   char *branch_fit_fixture = NULL;
   char *aes_rotw_fixture = NULL;
+  char *align_up_fixture = NULL;
   char *simd_cpuid_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 xor_expression;
+  ctool_u32 complement_expression;
+  ctool_u32 signed_expression;
   ctool_u32 comparison_expression;
   ctool_u32 index;
   int passed = 0;
@@ -3337,7 +3536,10 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
   (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
+  (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
+  (void)memset(&wide_bitwise_not_unit, 0,
+               sizeof(wide_bitwise_not_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -3409,6 +3611,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-aes-rotw.c", aes_rotw_fixture,
                     &aes_rotw_unit)) {
     (void)fprintf(stderr, "active AES word-rotation setup failed\n");
+    goto cleanup;
+  }
+  align_up_fixture = make_align_up_fixture();
+  if (align_up_fixture == NULL ||
+      !parse_source(job, "/active-memory-align-up.c", align_up_fixture,
+                    &align_up_unit)) {
+    (void)fprintf(stderr, "active memory alignment setup failed\n");
     goto cleanup;
   }
   simd_cpuid_fixture = make_simd_cpuid_fixture();
@@ -4169,6 +4378,53 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&align_up_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &align_up_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active memory alignment lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&align_up_unit) != fingerprint ||
+      !validate_align_up_ir(&align_up_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  complement_expression = CTOOL_C_AST_NONE;
+  signed_expression = CTOOL_C_AST_NONE;
+  for (index = 0u; index < align_up_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &align_up_unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
+      complement_expression = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+               align_up_unit.layout.types[expression->type].is_signed ==
+                   CTOOL_TRUE) {
+      signed_expression = index;
+    }
+  }
+  align_up_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)align_up_unit.expression_count * sizeof(*align_up_expressions));
+  if (complement_expression == CTOOL_C_AST_NONE ||
+      signed_expression == CTOOL_C_AST_NONE || align_up_expressions == NULL) {
+    (void)fprintf(stderr, "memory alignment invalid-unit setup failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(align_up_expressions, align_up_unit.expressions,
+               (size_t)align_up_unit.expression_count *
+                   sizeof(*align_up_expressions));
+  align_up_expressions[complement_expression].type =
+      align_up_unit.expressions[signed_expression].type;
+  invalid_unit = align_up_unit;
+  invalid_unit.expressions = align_up_expressions;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "mismatched bitwise complement result type") ||
+      unit_fingerprint(&align_up_unit) != fingerprint) {
+    goto cleanup;
+  }
   fingerprint = unit_fingerprint(&simd_cpuid_unit);
   diagnostic_count = ctool_job_diagnostic_count(job);
   (void)memset(&ir, 0xa5, sizeof(ir));
@@ -4566,7 +4822,14 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_bitwise_xor_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide bitwise-xor expression")) {
+          "wide bitwise-xor expression") ||
+      !parse_source(job, "/wide-bitwise-not.c", wide_bitwise_not_source,
+                    &wide_bitwise_not_unit) ||
+      !expect_ir_failure(
+          job, &wide_bitwise_not_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide bitwise-complement expression")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-division.c", wide_division_source,
@@ -4683,6 +4946,7 @@ cleanup:
   free(logical_or_fixture);
   free(branch_fit_fixture);
   free(aes_rotw_fixture);
+  free(align_up_fixture);
   free(simd_cpuid_fixture);
   free(call_fixture);
   free(invalid_statements);
@@ -4690,6 +4954,7 @@ cleanup:
   free(void_initializers);
   free(invalid_expressions);
   free(cpuid_expressions);
+  free(align_up_expressions);
   free(ownership_expressions);
   free(file_expressions);
   free(assignment_expressions);

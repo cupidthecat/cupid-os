@@ -56,4 +56,6 @@ ADR 0025 extends `BINARY` with signed and unsigned 32-bit less-than and less-tha
 
 ADR 0026 extends `BINARY` with 32-bit left shift, right shift, and bitwise OR. Shift counts keep their independently promoted four-byte integer type, while `input_type` retains the promoted left type. The emitter uses `SHL`, `SHR`, or `SAR` with `CL`, and bitwise OR uses `OR`. Wide shifts and wide bitwise OR remain open.
 
-ADR 0027 extends `BINARY` with bitwise XOR for same-type represented four-byte integers. The emitter uses `XOR EAX, ECX`. A source guard pins the unchanged CPUID-toggle return expression without claiming the surrounding GNU inline assembly or general statement sequence. Wide XOR and unary lowering remain open.
+ADR 0027 extends `BINARY` with bitwise XOR for same-type represented four-byte integers. The emitter uses `XOR EAX, ECX`. A source guard pins the unchanged CPUID-toggle return expression without claiming the surrounding GNU inline assembly or general statement sequence. Wide XOR remains open.
+
+ADR 0028 adds `UNARY` for bitwise complement over same-type represented four-byte integers. The emitter uses `NOT EAX`. A source guard pins the complete unchanged memory `align_up` helper and its surrounding unsigned arithmetic. Wide complement and the other unary operators remain open.

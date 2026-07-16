@@ -3433,3 +3433,56 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. GNU inline assembly, unary lowering, wide integer and pointer operations, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC emits 32-bit bitwise complement
+
+### Decision and active-source requirement
+
+The hosted CupidC path can now lower the unchanged alignment helper in `kernel/mm/memory.c`:
+
+```c
+static inline uint32_t align_up(uint32_t val, uint32_t align) {
+  return (val + align - 1) & ~(align - 1);
+}
+```
+
+The typed frontend has already promoted the operand of `~`, so the new `UNARY` IR instruction retains the operand and result type. This slice accepts bitwise complement when both are the same represented four-byte integer type. The instruction kind was appended to the public enum so existing numeric values do not move. Other unary operations remain unsupported.
+
+The i386 emitter pops the operand into EAX, sends `NOT EAX` through the shared x86 encoder, and pushes the result. The surrounding addition, subtraction, and bitwise AND continue through their existing paths. The kernel helper stays unchanged.
+
+No user question was needed. The frontend already records the promoted type, ADR 0016 fixes the value-stack representation, and the target model already owns the `NOT` encoding. ADR 0028 records the decision and its four-byte boundary.
+
+### Contract evidence and failed approaches
+
+- The first IR run stopped at `/active-memory-align-up.c:3:30` with the existing unsupported-expression diagnostic. After `UNARY` entered IR, the first object run reached the new instruction and stopped at the emitter's internal unknown-instruction boundary. These red stages isolated lowering from emission.
+- A source guard pins the complete unchanged helper. Its focused fixture lowers to exactly 16 instructions with a maximum abstract-stack depth of three. The contract checks both parameter loads, the signed `1` constants, usual arithmetic conversions, addition, both subtractions, complement, masking, and return.
+- A copied frozen unit changes the complement result from unsigned `uint32_t` to signed `int`. Lowering rejects it with `CTOOL_C_IR_DIAG_INVALID_UNIT` at the unary node and leaves the original unit unchanged.
+- The exact object contains one 73-byte local `align_up` function. Its ELF32 symbol table has the null symbol and the function symbol, and it has no relocations. Shared decoding checks all 41 instructions, including `ADD`, both `SUB` operations, `NOT`, and `AND`. Repeated emission is byte-identical and does not change the frontend unit.
+- A `long long` complement fixture receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. The first wide fixture used a `long long` parameter and return type, which stopped at the existing ABI boundary before reaching the unary expression. `int wide_bitwise_not(void) { return ~1LL; }` isolates the intended value-type diagnostic.
+- Unary complement previously served as the ordinary unsupported-expression fixture. That fixture now uses unary negation so fail-closed handling remains covered after complement becomes valid.
+- An address-of expression was tried as a stronger unsupported-unary check. It reaches the hosted pointer-value boundary before the general unary diagnostic, so it did not test this slice's classification. The established unary-negation case remains the focused boundary; pointer-valued lowering stays separate work.
+- The first complete Toolchain rerun found the expected self-parse drift in `cupidc_ir.c`. The final tuples are 47/1,312/11,586/153/37 for `cupidc_ir.c` and 65/1,526/12,696/200/92 for `cupidc_emit.c`.
+- One combined verification wrapper exceeded its 304-second harness limit while running the focused tests and two audit passes in sequence. Running each gate independently showed that the tests themselves were healthy and gave each command an appropriate timeout. The failed wrapper changed no repository file.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 684 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,964 `if`, 3,400 `else`, 2,940 `for`, 14,609 `return`, and 2,461 `sizeof` occurrences. The active-source digest is `f8c924d7238c2e44ffb591e2d442ea99dbb2491105d4de9dbfe29f0fc0dfa4a1`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR lowering first rejected the active complement expression. Object emission then reached the new unary instruction and stopped until its x86 mapping was implemented. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 18.087 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 22.2 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in 52.14 and 51.19 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data` in 26.4 and 27.9 seconds. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled, and both runtimes are present in all four binaries. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across both implementation files and all three touched C contracts in 70.9 and 59.8 seconds. |
+| Two-axis review | PASS | Independent Standards and Spec reviews against `fb261534cc16a76f27c8812eab47343c2c93fa80` report no findings. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. `make check-bootstrap-audit` reproduces them exactly. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 448.283 seconds with one expected skip and returns from Make in 483.961 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. GNU inline assembly, the other unary operations, wide integer and pointer operations, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
