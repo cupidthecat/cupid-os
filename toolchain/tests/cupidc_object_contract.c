@@ -20,6 +20,17 @@ static const char active_align_up[] =
 static const char active_signed_bits_negation[] =
     "  return -(ctool_i32)((~value) + 1u);";
 
+static const char active_signed_bits[] =
+    "static ctool_i32 dis_signed_bits(ctool_u32 value) {\n"
+    "  if (value <= 0x7fffffffu) {\n"
+    "    return (ctool_i32)value;\n"
+    "  }\n"
+    "  if (value == 0x80000000u) {\n"
+    "    return (-2147483647 - 1);\n"
+    "  }\n"
+    "  return -(ctool_i32)((~value) + 1u);\n"
+    "}";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -162,8 +173,7 @@ static int active_align_up_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active disassembler source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data,
-             active_signed_bits_negation) == NULL) {
+      strstr((const char *)source.contents.data, active_signed_bits) == NULL) {
     (void)fprintf(stderr, "the active signed-bit conversion changed\n");
     return 0;
   }
@@ -212,6 +222,24 @@ static char *make_integer_cast_fixture(void) {
                  sizeof(active_signed_bits_negation) - 1u);
     offset += sizeof(active_signed_bits_negation) - 1u;
     (void)memcpy(text + offset, suffix, sizeof(suffix));
+  }
+  return text;
+}
+
+static char *make_signed_bits_fixture(void) {
+  static const char prefix[] =
+      "typedef signed int ctool_i32;\n"
+      "typedef unsigned int ctool_u32;\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_signed_bits) + 1u;
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    size_t offset = sizeof(prefix) - 1u;
+    (void)memcpy(text, prefix, offset);
+    (void)memcpy(text + offset, active_signed_bits,
+                 sizeof(active_signed_bits) - 1u);
+    offset += sizeof(active_signed_bits) - 1u;
+    text[offset++] = '\n';
+    text[offset] = '\0';
   }
   return text;
 }
@@ -1615,6 +1643,138 @@ static int validate_integer_cast_object(
   return 1;
 }
 
+static int validate_signed_bits_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0xffu,
+      0xffu, 0xffu, 0x7fu, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
+      0x96u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x0eu, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x8du, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x80u, 0x59u, 0x58u, 0x39u,
+      0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
+      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x16u, 0x00u, 0x00u,
+      0x00u, 0x68u, 0xffu, 0xffu, 0xffu, 0x7fu, 0x58u, 0xf7u,
+      0xd8u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x29u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0xf7u, 0xd0u, 0x50u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u,
+      0x58u, 0xf7u, 0xd8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u32 branch_targets[] = {53u, 111u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETBE,
+      CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETE,  CTOOL_X86_MN_MOVZX,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_NEG,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_NOT,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_NEG,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "dis_signed_bits");
+  if (text == NULL || rel_text != NULL || function == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_count != 0u || object->symbol_count != 2u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), branch_targets,
+          (ctool_u32)(sizeof(branch_targets) / sizeof(branch_targets[0])),
+          "dis_signed_bits")) {
+    (void)fprintf(stderr, "signed-bit object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_selection_edge_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 unreachable_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t unreachable_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u8 void_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x02u, 0x00u,
+      0x00u, 0x00u, 0xc9u, 0xc3u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t void_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP, CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 void_branch_targets[] = {25u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *unreachable =
+      find_symbol(object, "unreachable_tail");
+  const ctool_elf32_symbol_t *void_function =
+      find_symbol(object, "maybe_return");
+  if (text == NULL || rel_text != NULL || unreachable == NULL ||
+      void_function == NULL ||
+      text->contents.size !=
+          (ctool_u32)(sizeof(unreachable_bytes) + sizeof(void_bytes)) ||
+      text->relocation_count != 0u || object->symbol_count != 3u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(unreachable, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(unreachable_bytes)) ||
+      !symbol_matches(void_function, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)sizeof(unreachable_bytes),
+                      (ctool_u32)sizeof(void_bytes)) ||
+      !decode_function(
+          job, text, unreachable, unreachable_instructions,
+          (ctool_u32)(sizeof(unreachable_instructions) /
+                      sizeof(unreachable_instructions[0])),
+          unreachable_bytes, (ctool_u32)sizeof(unreachable_bytes), NULL, 0u,
+          "unreachable_tail") ||
+      !decode_function(
+          job, text, void_function, void_instructions,
+          (ctool_u32)(sizeof(void_instructions) /
+                      sizeof(void_instructions[0])),
+          void_bytes, (ctool_u32)sizeof(void_bytes), void_branch_targets,
+          (ctool_u32)(sizeof(void_branch_targets) /
+                      sizeof(void_branch_targets[0])),
+          "maybe_return")) {
+    (void)fprintf(stderr, "selection edge object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_simd_cpuid_object(ctool_job_t *job,
                                       const ctool_elf32_object_t *object) {
   static const ctool_u8 simd_cpuid_bytes[] = {
@@ -2872,6 +3032,33 @@ static int run_static_data(const char *host_root) {
       "}\n";
   static const char unsupported_function_text[] =
       "int unsupported(int value) { return ++value; }\n";
+  static const char wide_selection_text[] =
+      "int choose_wide(void) {\n"
+      "  if (1LL) return 1;\n"
+      "  return 0;\n"
+      "}\n";
+  static const char selection_edge_text[] =
+      "int unreachable_tail(int value) {\n"
+      "  return 0;\n"
+      "  if (value) return 1;\n"
+      "}\n"
+      "void maybe_return(int value) {\n"
+      "  if (value) return;\n"
+      "}\n";
+  static const char nonvoid_selection_fallthrough_text[] =
+      "int maybe_value(int value) {\n"
+      "  if (value) return 1;\n"
+      "}\n";
+  static const char unreachable_declaration_text[] =
+      "int unreachable_declaration(void) {\n"
+      "  return 0;\n"
+      "  int value;\n"
+      "}\n";
+  static const char unsupported_statement_text[] =
+      "int choose_loop(int value) {\n"
+      "  while (value) return 1;\n"
+      "  return 0;\n"
+      "}\n";
   static const char integer_unary_text[] =
       "int unary_plus(int value) { return +value; }\n"
       "int signed_negate(int value) { return -value; }\n"
@@ -3028,12 +3215,18 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t align_up_unit;
   ctool_c_translation_unit_t integer_unary_unit;
   ctool_c_translation_unit_t integer_cast_unit;
+  ctool_c_translation_unit_t signed_bits_unit;
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_unit;
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t unsupported_function_unit;
+  ctool_c_translation_unit_t selection_edge_unit;
+  ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
+  ctool_c_translation_unit_t unreachable_declaration_unit;
+  ctool_c_translation_unit_t wide_selection_unit;
+  ctool_c_translation_unit_t unsupported_statement_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t narrow_cast_unit;
   ctool_c_translation_unit_t wide_cast_unit;
@@ -3047,6 +3240,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_binding_t *invalid_bindings = NULL;
   ctool_c_initializer_t *invalid_layout_initializers = NULL;
   ctool_c_initializer_element_t *invalid_elements = NULL;
+  ctool_c_statement_t *unreachable_statements = NULL;
   ctool_c_expression_t invalid_expression;
   unit_snapshot_t snapshot;
   unit_snapshot_t function_snapshot;
@@ -3059,6 +3253,8 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t align_up_snapshot;
   unit_snapshot_t integer_unary_snapshot;
   unit_snapshot_t integer_cast_snapshot;
+  unit_snapshot_t signed_bits_snapshot;
+  unit_snapshot_t selection_edge_snapshot;
   unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
@@ -3088,6 +3284,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 integer_unary_object_size = 0u;
   ctool_u8 *integer_cast_object = NULL;
   ctool_u32 integer_cast_object_size = 0u;
+  ctool_u8 *signed_bits_object = NULL;
+  ctool_u32 signed_bits_object_size = 0u;
   ctool_u8 *simd_cpuid_object = NULL;
   ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
@@ -3110,8 +3308,10 @@ static int run_static_data(const char *host_root) {
   ctool_u32 masked_edge = CTOOL_C_AST_NONE;
   ctool_u32 masked_initializer = CTOOL_C_AST_NONE;
   ctool_u32 wrong_child_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 unreachable_statement = CTOOL_C_AST_NONE;
   char *align_up_text = NULL;
   char *integer_cast_text = NULL;
+  char *signed_bits_text = NULL;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
@@ -3126,12 +3326,23 @@ static int run_static_data(const char *host_root) {
   (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
   (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
   (void)memset(&integer_cast_unit, 0, sizeof(integer_cast_unit));
+  (void)memset(&signed_bits_unit, 0, sizeof(signed_bits_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
   (void)memset(&chained_assignment_unit, 0,
                sizeof(chained_assignment_unit));
+  (void)memset(&unsupported_function_unit, 0,
+               sizeof(unsupported_function_unit));
+  (void)memset(&selection_edge_unit, 0, sizeof(selection_edge_unit));
+  (void)memset(&nonvoid_selection_fallthrough_unit, 0,
+               sizeof(nonvoid_selection_fallthrough_unit));
+  (void)memset(&unreachable_declaration_unit, 0,
+               sizeof(unreachable_declaration_unit));
+  (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
+  (void)memset(&unsupported_statement_unit, 0,
+               sizeof(unsupported_statement_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
   (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
@@ -3155,6 +3366,9 @@ static int run_static_data(const char *host_root) {
                sizeof(integer_unary_snapshot));
   (void)memset(&integer_cast_snapshot, 0,
                sizeof(integer_cast_snapshot));
+  (void)memset(&signed_bits_snapshot, 0, sizeof(signed_bits_snapshot));
+  (void)memset(&selection_edge_snapshot, 0,
+               sizeof(selection_edge_snapshot));
   (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
@@ -4074,6 +4288,141 @@ static int run_static_data(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  signed_bits_text = make_signed_bits_fixture();
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      signed_bits_text == NULL ||
+      !parse_source(job, "/active-cupiddis-signed-bits.c", signed_bits_text,
+                    &signed_bits_unit) ||
+      !take_unit_snapshot(&signed_bits_unit, &signed_bits_snapshot)) {
+    (void)fprintf(stderr, "signed-bit object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &signed_bits_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first signed-bit object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&signed_bits_snapshot, &signed_bits_unit) == 0) {
+    (void)fprintf(stderr, "first signed-bit emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  signed_bits_object_size = bytes.size;
+  signed_bits_object = (ctool_u8 *)malloc((size_t)signed_bits_object_size);
+  if (signed_bits_object == NULL) {
+    (void)fprintf(stderr, "signed-bit snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(signed_bits_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &signed_bits_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat signed-bit object") ||
+      bytes.size != signed_bits_object_size ||
+      memcmp(bytes.data, signed_bits_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&signed_bits_snapshot, &signed_bits_unit) == 0) {
+    (void)fprintf(stderr, "signed-bit emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-cupiddis-signed-bits.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read signed-bit object") ||
+      !validate_signed_bits_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/selection-edges.c", selection_edge_text,
+                    &selection_edge_unit) ||
+      !take_unit_snapshot(&selection_edge_unit, &selection_edge_snapshot)) {
+    (void)fprintf(stderr, "selection edge object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &selection_edge_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "selection edge object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&selection_edge_snapshot,
+                            &selection_edge_unit) == 0) {
+    (void)fprintf(stderr, "selection edge emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/selection-edges.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read selection edge object") ||
+      !validate_selection_edge_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (selection_edge_unit.function_definition_count != 2u ||
+      selection_edge_unit.function_definitions[0].body >=
+          selection_edge_unit.statement_count) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_statement_t *body =
+        &selection_edge_unit
+             .statements[selection_edge_unit.function_definitions[0].body];
+    if (body->kind != CTOOL_C_STATEMENT_COMPOUND || body->child_count != 2u ||
+        body->first_child > selection_edge_unit.statement_child_count ||
+        body->child_count >
+            selection_edge_unit.statement_child_count - body->first_child) {
+      goto cleanup;
+    }
+    unreachable_statement =
+        selection_edge_unit.statement_children[body->first_child + 1u];
+  }
+  unreachable_statements = (ctool_c_statement_t *)malloc(
+      (size_t)selection_edge_unit.statement_count *
+      sizeof(*unreachable_statements));
+  if (unreachable_statements == NULL ||
+      unreachable_statement >= selection_edge_unit.statement_count ||
+      selection_edge_unit.statements[unreachable_statement].kind !=
+          CTOOL_C_STATEMENT_IF) {
+    goto cleanup;
+  }
+  (void)memcpy(unreachable_statements, selection_edge_unit.statements,
+               (size_t)selection_edge_unit.statement_count *
+                   sizeof(*unreachable_statements));
+  unreachable_statements[unreachable_statement].condition =
+      selection_edge_unit.expression_count;
+  invalid_unit = selection_edge_unit;
+  invalid_unit.statements = unreachable_statements;
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_failure(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid unreachable selection condition object") ||
+      unit_snapshot_matches(&selection_edge_snapshot,
+                            &selection_edge_unit) == 0 ||
+      !parse_source(job, "/unreachable-declaration.c",
+                    unreachable_declaration_text,
+                    &unreachable_declaration_unit) ||
+      !expect_object_failure(
+          job, &unreachable_declaration_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "unreachable declaration object")) {
+    goto cleanup;
+  }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-simd-cpuid.c", simd_cpuid_text,
                     &simd_cpuid_unit) ||
@@ -4327,6 +4676,29 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
           "CupidC IR lowering does not yet support this expression",
           "unsupported function expression") ||
+      !parse_source(job, "/wide-selection.c", wide_selection_text,
+                    &wide_selection_unit) ||
+      !expect_object_failure(
+          job, &wide_selection_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide selection condition object") ||
+      !parse_source(job, "/nonvoid-selection-fallthrough.c",
+                    nonvoid_selection_fallthrough_text,
+                    &nonvoid_selection_fallthrough_unit) ||
+      !expect_object_failure(
+          job, &nonvoid_selection_fallthrough_unit, second,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "nonvoid selection fallthrough object") ||
+      !parse_source(job, "/unsupported-statement.c",
+                    unsupported_statement_text,
+                    &unsupported_statement_unit) ||
+      !expect_object_failure(
+          job, &unsupported_statement_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "unsupported loop statement object") ||
       !parse_source(job, "/wide-logical-not.c", wide_logical_not_text,
                     &wide_logical_not_unit) ||
       !expect_object_failure(
@@ -4646,6 +5018,8 @@ cleanup:
   free(align_up_object);
   free(integer_unary_object);
   free(integer_cast_object);
+  free(signed_bits_object);
+  free(unreachable_statements);
   free(simd_cpuid_object);
   free(file_member_object);
   free(bit_field_object);
@@ -4661,6 +5035,8 @@ cleanup:
   dispose_unit_snapshot(&align_up_snapshot);
   dispose_unit_snapshot(&integer_unary_snapshot);
   dispose_unit_snapshot(&integer_cast_snapshot);
+  dispose_unit_snapshot(&signed_bits_snapshot);
+  dispose_unit_snapshot(&selection_edge_snapshot);
   dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
@@ -4669,6 +5045,7 @@ cleanup:
   dispose_unit_snapshot(&snapshot);
   free(align_up_text);
   free(integer_cast_text);
+  free(signed_bits_text);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
   }

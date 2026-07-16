@@ -8,7 +8,7 @@ The shared frontend retains explicit casts as typed `CAST` nodes. Active source 
 return -(ctool_i32)((~value) + 1u);
 ```
 
-The hosted IR already lowers the complement, addition, and negation in this expression. It stopped at the cast from `ctool_u32` to `ctool_i32`. Rewriting the source would hide a normal C operation that CupidC must support. The complete function still needs general selection and multiple returns, so this increment isolates its final return expression.
+The hosted IR already lowered the complement, addition, and negation in this expression. It stopped at the cast from `ctool_u32` to `ctool_i32`. Rewriting the source would hide a normal C operation that CupidC must support. Selection and multiple returns were still missing at the time, so this increment isolated the final return expression. ADR 0031 later completed the unchanged function body.
 
 ## Decision
 
@@ -30,4 +30,4 @@ The deterministic ELF32 contract emits both functions in 52 text bytes. Their si
 
 This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
-Issue #25 remains open. General control flow, multiple returns, the other cast families, broader object and ABI work, production integration, and staged self-hosting still remain.
+Issue #25 remains open. Loops, `switch`, labels, `goto`, the other cast families, broader object and ABI work, production integration, and staged self-hosting still remain.

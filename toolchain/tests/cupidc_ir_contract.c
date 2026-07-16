@@ -49,6 +49,17 @@ static const char active_align_up[] =
 static const char active_signed_bits_negation[] =
     "  return -(ctool_i32)((~value) + 1u);";
 
+static const char active_signed_bits[] =
+    "static ctool_i32 dis_signed_bits(ctool_u32 value) {\n"
+    "  if (value <= 0x7fffffffu) {\n"
+    "    return (ctool_i32)value;\n"
+    "  }\n"
+    "  if (value == 0x80000000u) {\n"
+    "    return (-2147483647 - 1);\n"
+    "  }\n"
+    "  return -(ctool_i32)((~value) + 1u);\n"
+    "}";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -295,8 +306,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active disassembler source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data,
-             active_signed_bits_negation) == NULL) {
+      strstr((const char *)source.contents.data, active_signed_bits) == NULL) {
     (void)fprintf(stderr, "the active signed-bit conversion changed\n");
     return 0;
   }
@@ -606,6 +616,24 @@ static char *make_integer_cast_fixture(void) {
                  sizeof(active_signed_bits_negation) - 1u);
     offset += sizeof(active_signed_bits_negation) - 1u;
     (void)memcpy(text + offset, suffix, sizeof(suffix));
+  }
+  return text;
+}
+
+static char *make_signed_bits_fixture(void) {
+  static const char prefix[] =
+      "typedef signed int ctool_i32;\n"
+      "typedef unsigned int ctool_u32;\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_signed_bits) + 1u;
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    size_t offset = sizeof(prefix) - 1u;
+    (void)memcpy(text, prefix, offset);
+    (void)memcpy(text + offset, active_signed_bits,
+                 sizeof(active_signed_bits) - 1u);
+    offset += sizeof(active_signed_bits) - 1u;
+    text[offset++] = '\n';
+    text[offset] = '\0';
   }
   return text;
 }
@@ -2076,6 +2104,190 @@ static int validate_integer_cast_ir(const ctool_c_translation_unit_t *unit,
 }
 
 typedef enum {
+  SIGNED_BITS_TYPE_NONE = 0,
+  SIGNED_BITS_TYPE_SIGNED,
+  SIGNED_BITS_TYPE_UNSIGNED
+} signed_bits_type_t;
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  signed_bits_type_t type;
+  signed_bits_type_t input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  ctool_u32 reference;
+  ctool_u64 integer_bits;
+} signed_bits_instruction_t;
+
+#define SIGNED_BITS_PARAMETER (CTOOL_C_AST_NONE - 1u)
+
+static ctool_u32 signed_bits_type(signed_bits_type_t type,
+                                  ctool_u32 signed_type,
+                                  ctool_u32 unsigned_type) {
+  if (type == SIGNED_BITS_TYPE_SIGNED) {
+    return signed_type;
+  }
+  if (type == SIGNED_BITS_TYPE_UNSIGNED) {
+    return unsigned_type;
+  }
+  return CTOOL_C_TYPE_NONE;
+}
+
+static int validate_signed_bits_ir(const ctool_c_translation_unit_t *unit,
+                                   const ctool_c_ir_unit_t *ir) {
+  static const signed_bits_instruction_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, SIGNED_BITS_PARAMETER, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0x7fffffffu},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, SIGNED_BITS_TYPE_NONE,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, 9u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, SIGNED_BITS_PARAMETER, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, SIGNED_BITS_PARAMETER, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0x80000000u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, SIGNED_BITS_TYPE_NONE,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, 19u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 2147483647u},
+      {CTOOL_C_IR_INSTRUCTION_UNARY, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, SIGNED_BITS_PARAMETER, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_UNARY, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, SIGNED_BITS_TYPE_UNSIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_UNSIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_UNARY, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, SIGNED_BITS_TYPE_SIGNED,
+       SIGNED_BITS_TYPE_SIGNED, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 parameter;
+  ctool_u32 signed_type;
+  ctool_u32 unsigned_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "signed-bit IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->binding >= unit->binding_count ||
+      definition->declared_type >= unit->graph.type_count ||
+      !string_equal(unit->bindings[definition->binding].name,
+                    "dis_signed_bits")) {
+    (void)fprintf(stderr, "signed-bit definition differs\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "signed-bit function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  signed_type = function_type->referenced_type;
+  unsigned_type = unit->parameters[parameter].type;
+  function = &ir->functions[0];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      function->maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "signed-bit IR function differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const signed_bits_instruction_t *wanted = &expected[index];
+    const ctool_c_ir_instruction_t *actual = &ir->instructions[index];
+    ctool_u32 reference = wanted->reference == SIGNED_BITS_PARAMETER
+                              ? parameter
+                              : wanted->reference;
+    if (actual->kind != wanted->kind ||
+        actual->type !=
+            signed_bits_type(wanted->type, signed_type, unsigned_type) ||
+        actual->input_type != signed_bits_type(wanted->input_type, signed_type,
+                                               unsigned_type) ||
+        actual->operation != wanted->operation ||
+        actual->conversion != wanted->conversion ||
+        actual->reference != reference ||
+        actual->integer_bits != wanted->integer_bits ||
+        !string_equal(actual->location.path,
+                      "/active-cupiddis-signed-bits.c") ||
+        !string_equal(actual->physical_location.path,
+                      "/active-cupiddis-signed-bits.c") ||
+        actual->location.line == 0u || actual->physical_location.line == 0u) {
+      (void)fprintf(stderr, "signed-bit IR instruction %lu differs\n",
+                    (unsigned long)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef enum {
   CPUID_EXPECT_NONE = 0,
   CPUID_EXPECT_VALUE,
   CPUID_EXPECT_COUNT,
@@ -2315,8 +2527,210 @@ static int validate_simple_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_selection_ir(const ctool_c_translation_unit_t *unit,
+                                 const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_function_definition_t *else_definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *else_function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_function_t *else_function;
+  const ctool_c_ir_instruction_t *instructions;
+  const ctool_c_ir_instruction_t *else_instructions;
+  ctool_u32 parameter;
+  ctool_u32 else_parameter;
+  ctool_u32 value_type;
+  ctool_u32 else_value_type;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 18u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "selection IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  else_definition = &unit->function_definitions[1];
+  if (definition->binding >= unit->binding_count ||
+      definition->declared_type >= unit->graph.type_count ||
+      else_definition->binding >= unit->binding_count ||
+      else_definition->declared_type >= unit->graph.type_count ||
+      !string_equal(unit->bindings[definition->binding].name, "choose") ||
+      !string_equal(unit->bindings[else_definition->binding].name,
+                    "choose_else")) {
+    (void)fprintf(stderr, "selection definitions differ\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  else_function_type = &unit->graph.types[else_definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count ||
+      else_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      else_function_type->parameter_count != 1u ||
+      else_function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "selection function types differ\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  else_parameter = else_function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  else_value_type = unit->parameters[else_parameter].type;
+  function = &ir->functions[0];
+  else_function = &ir->functions[1];
+  instructions = ir->instructions;
+  else_instructions = &ir->instructions[7];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u || function->instruction_count != 7u ||
+      function->maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != value_type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].reference != parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != value_type ||
+      instructions[1].input_type != value_type ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].type != CTOOL_C_TYPE_NONE ||
+      instructions[2].input_type != value_type ||
+      instructions[2].reference != 5u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[3].type != value_type || instructions[3].integer_bits != 1u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[4].type != value_type ||
+      instructions[4].input_type != value_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[5].type != value_type || instructions[5].integer_bits != 0u ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[6].type != value_type ||
+      instructions[6].input_type != value_type ||
+      else_function->binding != else_definition->binding ||
+      else_function->declared_type != else_definition->declared_type ||
+      else_function->first_instruction != 7u ||
+      else_function->instruction_count != 11u ||
+      else_function->maximum_stack_depth != 1u ||
+      else_instructions[0].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      else_instructions[0].type != else_value_type ||
+      else_instructions[0].reference != else_parameter ||
+      else_instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      else_instructions[1].type != else_value_type ||
+      else_instructions[1].input_type != else_value_type ||
+      else_instructions[1].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      else_instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      else_instructions[2].input_type != else_value_type ||
+      else_instructions[2].reference != 7u ||
+      else_instructions[3].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      else_instructions[3].type != else_value_type ||
+      else_instructions[3].reference != else_parameter ||
+      else_instructions[4].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      else_instructions[4].type != else_value_type ||
+      else_instructions[4].input_type != else_value_type ||
+      else_instructions[4].conversion !=
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      else_instructions[5].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      else_instructions[5].input_type != else_value_type ||
+      else_instructions[6].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      else_instructions[6].reference != 9u ||
+      else_instructions[7].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      else_instructions[7].type != else_value_type ||
+      else_instructions[7].integer_bits != 2u ||
+      else_instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      else_instructions[8].type != else_value_type ||
+      else_instructions[9].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      else_instructions[9].type != else_value_type ||
+      else_instructions[9].integer_bits != 3u ||
+      else_instructions[10].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      else_instructions[10].type != else_value_type) {
+    (void)fprintf(stderr, "selection IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_selection_edge_ir(const ctool_c_translation_unit_t *unit,
+                                      const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *unreachable_definition;
+  const ctool_c_function_definition_t *void_definition;
+  const ctool_c_type_node_t *unreachable_type;
+  const ctool_c_type_node_t *void_type;
+  const ctool_c_ir_function_t *unreachable_function;
+  const ctool_c_ir_function_t *void_function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 7u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "selection edge IR inventory differs\n");
+    return 0;
+  }
+  unreachable_definition = &unit->function_definitions[0];
+  void_definition = &unit->function_definitions[1];
+  if (unreachable_definition->binding >= unit->binding_count ||
+      unreachable_definition->declared_type >= unit->graph.type_count ||
+      void_definition->binding >= unit->binding_count ||
+      void_definition->declared_type >= unit->graph.type_count ||
+      !string_equal(unit->bindings[unreachable_definition->binding].name,
+                    "unreachable_tail") ||
+      !string_equal(unit->bindings[void_definition->binding].name,
+                    "maybe_return")) {
+    (void)fprintf(stderr, "selection edge definitions differ\n");
+    return 0;
+  }
+  unreachable_type =
+      &unit->graph.types[unreachable_definition->declared_type];
+  void_type = &unit->graph.types[void_definition->declared_type];
+  if (unreachable_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      unreachable_type->parameter_count != 1u ||
+      void_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      void_type->parameter_count != 1u ||
+      void_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "selection edge function types differ\n");
+    return 0;
+  }
+  parameter = void_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  unreachable_function = &ir->functions[0];
+  void_function = &ir->functions[1];
+  instructions = ir->instructions;
+  if (unreachable_function->binding != unreachable_definition->binding ||
+      unreachable_function->first_instruction != 0u ||
+      unreachable_function->instruction_count != 2u ||
+      unreachable_function->maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[0].type != unreachable_type->referenced_type ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[1].type != unreachable_type->referenced_type ||
+      instructions[1].input_type != unreachable_type->referenced_type ||
+      void_function->binding != void_definition->binding ||
+      void_function->first_instruction != 2u ||
+      void_function->instruction_count != 5u ||
+      void_function->maximum_stack_depth != 1u ||
+      instructions[2].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != value_type ||
+      instructions[2].reference != parameter ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[4].input_type != value_type ||
+      instructions[4].reference != 4u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "selection edge IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_addition_ir(const ctool_c_translation_unit_t *unit,
-                                const ctool_c_ir_unit_t *ir) {
+                                 const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *definition;
   const ctool_c_type_node_t *function_type;
   const ctool_c_ir_function_t *function;
@@ -3566,6 +3980,37 @@ static int run_active_leaf(const char *host_root) {
       "int choose(int value) {\n"
       "  if (value) return 1;\n"
       "  return 0;\n"
+      "}\n"
+      "int choose_else(int value) {\n"
+      "  if (value) { value; } else return 2;\n"
+      "  return 3;\n"
+      "}\n";
+  static const char wide_selection_source[] =
+      "int choose_wide(void) {\n"
+      "  if (1LL) return 1;\n"
+      "  return 0;\n"
+      "}\n";
+  static const char selection_edge_source[] =
+      "int unreachable_tail(int value) {\n"
+      "  return 0;\n"
+      "  if (value) return 1;\n"
+      "}\n"
+      "void maybe_return(int value) {\n"
+      "  if (value) return;\n"
+      "}\n";
+  static const char nonvoid_selection_fallthrough_source[] =
+      "int maybe_value(int value) {\n"
+      "  if (value) return 1;\n"
+      "}\n";
+  static const char unreachable_declaration_source[] =
+      "int unreachable_declaration(void) {\n"
+      "  return 0;\n"
+      "  int value;\n"
+      "}\n";
+  static const char unsupported_statement_source[] =
+      "int choose_loop(int value) {\n"
+      "  while (value) return 1;\n"
+      "  return 0;\n"
       "}\n";
   static const char expression_source[] =
       "int update(int value) { return ++value; }\n";
@@ -3786,12 +4231,18 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t local_unit;
   ctool_c_translation_unit_t simple_unit;
   ctool_c_translation_unit_t statement_unit;
+  ctool_c_translation_unit_t selection_edge_unit;
+  ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
+  ctool_c_translation_unit_t unreachable_declaration_unit;
+  ctool_c_translation_unit_t wide_selection_unit;
+  ctool_c_translation_unit_t unsupported_statement_unit;
   ctool_c_translation_unit_t expression_unit;
   ctool_c_translation_unit_t abi_unit;
   ctool_c_translation_unit_t inline_success_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t extern_inline_unit;
   ctool_c_translation_unit_t conversion_unit;
+  ctool_c_translation_unit_t signed_bits_unit;
   ctool_c_translation_unit_t narrow_cast_unit;
   ctool_c_translation_unit_t wide_cast_unit;
   ctool_c_translation_unit_t void_cast_unit;
@@ -3836,6 +4287,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_function_definition_t invalid_definition;
   ctool_c_initializer_element_t dangling_initializer_element;
   ctool_c_statement_t *invalid_statements = NULL;
+  ctool_c_statement_t *selection_statements = NULL;
+  ctool_c_statement_t *unreachable_statements = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_initializer_t *void_initializers = NULL;
   ctool_c_expression_t *invalid_expressions = NULL;
@@ -3867,6 +4320,7 @@ static int run_active_leaf(const char *host_root) {
   char *aes_rotw_fixture = NULL;
   char *align_up_fixture = NULL;
   char *cast_fixture = NULL;
+  char *signed_bits_fixture = NULL;
   char *simd_cpuid_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 xor_expression;
@@ -3876,6 +4330,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_u32 unsigned_unary_type;
   ctool_u32 signed_expression;
   ctool_u32 comparison_expression;
+  ctool_u32 unreachable_statement;
   ctool_u32 index;
   int passed = 0;
 
@@ -3887,6 +4342,7 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&align_up_unit, 0, sizeof(align_up_unit));
   (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
   (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
+  (void)memset(&signed_bits_unit, 0, sizeof(signed_bits_unit));
   (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
   (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
   (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
@@ -3925,6 +4381,15 @@ static int run_active_leaf(const char *host_root) {
                sizeof(compound_assignment_unit));
   (void)memset(&local_unit, 0, sizeof(local_unit));
   (void)memset(&simple_unit, 0, sizeof(simple_unit));
+  (void)memset(&statement_unit, 0, sizeof(statement_unit));
+  (void)memset(&selection_edge_unit, 0, sizeof(selection_edge_unit));
+  (void)memset(&nonvoid_selection_fallthrough_unit, 0,
+               sizeof(nonvoid_selection_fallthrough_unit));
+  (void)memset(&unreachable_declaration_unit, 0,
+               sizeof(unreachable_declaration_unit));
+  (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
+  (void)memset(&unsupported_statement_unit, 0,
+               sizeof(unsupported_statement_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job)) {
     goto cleanup;
@@ -3988,6 +4453,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/integer-cast.c", cast_fixture,
                     &conversion_unit)) {
     (void)fprintf(stderr, "integer cast setup failed\n");
+    goto cleanup;
+  }
+  signed_bits_fixture = make_signed_bits_fixture();
+  if (signed_bits_fixture == NULL ||
+      !parse_source(job, "/active-cupiddis-signed-bits.c",
+                    signed_bits_fixture, &signed_bits_unit)) {
+    (void)fprintf(stderr, "active signed-bit helper setup failed\n");
     goto cleanup;
   }
   simd_cpuid_fixture = make_simd_cpuid_fixture();
@@ -4810,6 +5282,17 @@ static int run_active_leaf(const char *host_root) {
       unit_fingerprint(&conversion_unit) != fingerprint) {
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&signed_bits_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &signed_bits_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active signed-bit lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&signed_bits_unit) != fingerprint ||
+      !validate_signed_bits_ir(&signed_bits_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   fingerprint = unit_fingerprint(&integer_unary_unit);
   logical_not_expression = CTOOL_C_AST_NONE;
   unsigned_unary_type = CTOOL_C_TYPE_NONE;
@@ -4999,13 +5482,131 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
 
-  if (!parse_source(job, "/unsupported-statement.c", statement_source,
-                    &statement_unit) ||
+  if (!parse_source(job, "/selection.c", statement_source, &statement_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&statement_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &statement_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "selection lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&statement_unit) != fingerprint ||
+      !validate_selection_ir(&statement_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/selection-edges.c", selection_edge_source,
+                    &selection_edge_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&selection_edge_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &selection_edge_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "selection edge lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&selection_edge_unit) != fingerprint ||
+      !validate_selection_edge_ir(&selection_edge_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (selection_edge_unit.function_definition_count != 2u ||
+      selection_edge_unit.function_definitions[0].body >=
+          selection_edge_unit.statement_count) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_statement_t *body =
+        &selection_edge_unit
+             .statements[selection_edge_unit.function_definitions[0].body];
+    if (body->kind != CTOOL_C_STATEMENT_COMPOUND || body->child_count != 2u ||
+        body->first_child > selection_edge_unit.statement_child_count ||
+        body->child_count >
+            selection_edge_unit.statement_child_count - body->first_child) {
+      goto cleanup;
+    }
+    unreachable_statement =
+        selection_edge_unit.statement_children[body->first_child + 1u];
+  }
+  unreachable_statements = (ctool_c_statement_t *)malloc(
+      (size_t)selection_edge_unit.statement_count *
+      sizeof(*unreachable_statements));
+  if (unreachable_statements == NULL ||
+      unreachable_statement >= selection_edge_unit.statement_count ||
+      selection_edge_unit.statements[unreachable_statement].kind !=
+          CTOOL_C_STATEMENT_IF) {
+    goto cleanup;
+  }
+  (void)memcpy(unreachable_statements, selection_edge_unit.statements,
+               (size_t)selection_edge_unit.statement_count *
+                   sizeof(*unreachable_statements));
+  unreachable_statements[unreachable_statement].condition =
+      selection_edge_unit.expression_count;
+  invalid_unit = selection_edge_unit;
+  invalid_unit.statements = unreachable_statements;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid unreachable selection condition") ||
+      unit_fingerprint(&selection_edge_unit) != fingerprint ||
+      !parse_source(job, "/unreachable-declaration.c",
+                    unreachable_declaration_source,
+                    &unreachable_declaration_unit) ||
       !expect_ir_failure(
-          job, &statement_unit, CTOOL_ERR_UNSUPPORTED,
+          job, &unreachable_declaration_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
           "CupidC IR lowering does not yet support this statement",
-          "unsupported statement")) {
+          "unreachable declaration")) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&statement_unit);
+  selection_statements = (ctool_c_statement_t *)malloc(
+      (size_t)statement_unit.statement_count * sizeof(*selection_statements));
+  if (selection_statements == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(selection_statements, statement_unit.statements,
+               (size_t)statement_unit.statement_count *
+                   sizeof(*selection_statements));
+  for (index = 0u; index < statement_unit.statement_count; index++) {
+    if (selection_statements[index].kind == CTOOL_C_STATEMENT_IF) {
+      selection_statements[index].condition = statement_unit.expression_count;
+      break;
+    }
+  }
+  invalid_unit = statement_unit;
+  invalid_unit.statements = selection_statements;
+  if (index == statement_unit.statement_count ||
+      !expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "invalid selection condition") ||
+      unit_fingerprint(&statement_unit) != fingerprint ||
+      !parse_source(job, "/wide-selection.c", wide_selection_source,
+                    &wide_selection_unit) ||
+      !expect_ir_failure(
+          job, &wide_selection_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide selection condition") ||
+      !parse_source(job, "/nonvoid-selection-fallthrough.c",
+                    nonvoid_selection_fallthrough_source,
+                    &nonvoid_selection_fallthrough_unit) ||
+      !expect_ir_failure(
+          job, &nonvoid_selection_fallthrough_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "nonvoid selection fallthrough") ||
+      !parse_source(job, "/unsupported-statement.c",
+                    unsupported_statement_source,
+                    &unsupported_statement_unit) ||
+      !expect_ir_failure(
+          job, &unsupported_statement_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "unsupported loop statement")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-local.c", wide_local_source,
@@ -5447,9 +6048,12 @@ cleanup:
   free(aes_rotw_fixture);
   free(align_up_fixture);
   free(cast_fixture);
+  free(signed_bits_fixture);
   free(simd_cpuid_fixture);
   free(call_fixture);
   free(invalid_statements);
+  free(selection_statements);
+  free(unreachable_statements);
   free(invalid_initializers);
   free(void_initializers);
   free(invalid_expressions);

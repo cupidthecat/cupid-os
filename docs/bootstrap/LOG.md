@@ -3597,3 +3597,69 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. General control flow, multiple returns, narrow, wide, floating, pointer, and `void` casts, address and dereference lowering, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC lowers structured selection and multiple returns
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers return and expression statements recursively. It accepts compound statements without declarations and `if` with optional `else`, including several returns in one function. The outer function body keeps its direct declaration prefix and existing local-slot ownership.
+
+The complete unchanged requirement comes from `dis_signed_bits` in `toolchain/cupiddis.c`:
+
+```c
+static ctool_i32 dis_signed_bits(ctool_u32 value) {
+  if (value <= 0x7fffffffu) {
+    return (ctool_i32)value;
+  }
+  if (value == 0x80000000u) {
+    return (-2147483647 - 1);
+  }
+  return -(ctool_i32)((~value) + 1u);
+}
+```
+
+Each `if` lowers its condition to a represented four-byte integer value and emits `BRANCH_ZERO`. An `else` arm receives a `JUMP` around it only when the true arm can continue. The recursive lowering result records whether execution can reach the next statement. Returns close their path, an `if` without `else` can fall through, and an `if` with `else` can fall through when either arm does. A sequence stops emitting instructions when its current path cannot continue. Every skipped statement still runs through a count-only validation context, so reachability does not hide malformed references or unsupported syntax. Void fallthrough receives the existing implicit return. Possible fallthrough from a nonvoid function remains unsupported.
+
+A shared epilogue was unnecessary because the current emitter already owns direct return sequences. Rewriting `dis_signed_bits` as a conditional expression was rejected because it would hide active statement requirements. Emitting an unconditional jump before every `else` was also rejected because a returning true arm has no path that needs it. ADR 0031 records the supported shape, the function-relative target contract, and the remaining boundary.
+
+No user question was needed. The frontend already freezes typed `if` statements, ADR 0016 defines branch and stack joins, and the active function fixes the required source behavior.
+
+### Contract evidence and corrections
+
+- The first focused IR run rejected the new selection fixture with the existing unsupported-statement diagnostic. That red result showed the test had reached the intended boundary.
+- Focused `if` and `if` with `else` functions lower to 18 exact instructions. They pin two false targets, the jump around a falling true arm, a discarded value, and several returns.
+- The complete active `dis_signed_bits` helper lowers to 27 exact instructions with an abstract stack depth of two. Its false branches land at function-relative instruction offsets 9 and 19, and all three returns remain direct.
+- The exact ELF32 object contains one 143-byte local function and 71 decoded instructions. Its branch targets are byte offsets 53 and 111. The object has two symbols including the null symbol, no relocations, and repeats byte for byte without changing the frozen frontend unit.
+- Copied reachable and unreachable `if` nodes with out-of-range conditions receive `CTOOL_C_IR_DIAG_INVALID_UNIT`. A declaration after an unconditional return receives `CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT` instead of being mistaken for malformed local ownership. A `long long` condition receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. A `while` statement receives `CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT`. IR and object failures preserve the input, rewind temporary allocations, and publish no partial output.
+- The first complete Toolchain run stopped at its expected self-parse guard. CupidC measured `cupidc_ir.c` as 53 definitions, 1,466 statements, 12,835 expressions, 174 block bindings, and 45 initializers. Updating that exact oracle made the complete suite green.
+- Regenerating the active-source audit exposed the expected lexical drift from the implementation and contracts. Only the exact `goto`, `if`, `for`, `return`, and `sizeof` guards changed.
+- The first two Windows-to-WSL wrappers failed at shell parsing before a compiler ran. One preserved carriage returns in a standard-input script, and the next lost its one-line quoting at the native argument boundary. A literal-LF script under the ignored Toolchain build directory produced the strict, sanitizer, and analyzer results below, then was removed. The failed wrappers changed no repository file.
+- Standards and Spec review both found that an unreachable trailing `if` could publish a false target equal to the function's instruction count. The new IR regression first reproduced seven instructions with that one-past-end target, while object emission failed internally. Statement sequences now stop once their path cannot continue. The function lowers to only its two reachable return instructions, and its exact 11-byte object emits successfully.
+- Spec review also found that structured void and nonvoid fallthrough were not pinned. A void `if` now lowers to five exact instructions, with its false branch landing on the implicit return. The exact function is 27 bytes with a branch target at byte offset 25. The matching nonvoid function receives the public unsupported-statement diagnostic at both IR and object seams.
+- Follow-up Standards and Spec review found that the first reachability fix stopped before validating unreachable statements. A copied unreachable `if` first succeeded with an out-of-range condition, and a valid unreachable declaration was misclassified later as malformed local ownership. The final implementation validates skipped statements without publishing their instructions or changing the reachable result. Both IR and object contracts pin the invalid-unit and unsupported-statement boundaries.
+- The first sanitizer wrapper expected Clang to expose UBSan as a separate shared library, but Clang links the runtime into these binaries. A symbol check confirmed both runtimes. The next check used `grep -q` under `pipefail`, which treated `nm` stopping after a match as a harness failure. A full-output symbol check let both contracts run. These two false stops happened after clean builds and changed no repository file.
+- The review additions moved the final self-source tuple to 54/1,492/12,956/179/48 for `cupidc_ir.c`. The generated audit supplied the final lexical inventory below.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 728 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 24,092 `if`, 3,405 `else`, 2,948 `for`, 14,690 `return`, and 2,594 `sizeof` occurrences. The active-source digest is `a1bb2bb4b6c042eafac6801d5eaad34a323173a2c9ac8d87042d4f5d0789cd3b`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red test | PASS | IR lowering first rejected the focused selection fixture with the public unsupported-statement diagnostic. Review regressions then reproduced the one-past-end branch, skipped malformed condition, and misclassified unreachable declaration before their fixes. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests in 20.412 seconds on the review-fixed tree. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 24.138 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in about 63 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data` in 25 and 26 seconds. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. Both runtimes are present in all four binaries. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and the three affected C contracts in 57 and 56 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards and Spec first found the unreachable branch target and missing fallthrough evidence. Their follow-up found that the first pruning fix also skipped validation. Exact IR and object regressions now cover each case, and both final reviews report no remaining actionable finding. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 35.0 seconds. `make check-bootstrap-audit` reproduces them exactly in 34.917 seconds. |
+| Inventory correction | PASS | Four control-flow drift guards pass in the focused suite. The exact `sizeof` and build-graph guard passes in 102.918 seconds. |
+| Full repository gate | PASS AFTER REVIEW AND INVENTORY FIXES | `make test` passes all 286 tests in 447.186 seconds with one expected skip and returns from Make in 481.600 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Declarations inside nested compounds, loops, `switch`, labels, `goto`, narrow, wide, floating, pointer, and `void` casts, address and dereference lowering, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
