@@ -1893,6 +1893,27 @@ static ctool_status_t cemit_emit_ir_instruction(
           context, CTOOL_X86_MN_AND, CTOOL_X86_REG_GPR32, 0u,
           CTOOL_X86_REG_GPR32, 1u, 32u);
     } else if (ir_instruction->operation ==
+               CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_OR, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR32, 1u, 32u);
+    } else if (ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT ||
+               ir_instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT) {
+      ctool_x86_mnemonic_t mnemonic = CTOOL_X86_MN_SHL;
+      if (ir_instruction->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT) {
+        mnemonic = context->unit->layout
+                           .types[ir_instruction->input_type]
+                           .is_signed == CTOOL_TRUE
+                       ? CTOOL_X86_MN_SAR
+                       : CTOOL_X86_MN_SHR;
+      }
+      status = cemit_x86_two_registers(
+          context, mnemonic, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR8, 1u, 32u);
+    } else if (ir_instruction->operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_LESS ||
                ir_instruction->operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL ||

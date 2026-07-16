@@ -53,3 +53,5 @@ ADR 0023 extends `BINARY` with equality, inequality, and bitwise AND for represe
 ADR 0024 extends `BINARY` with signed and unsigned 32-bit division and remainder. Signed emission uses `CDQ` and `IDIV`; unsigned emission clears EDX and uses `DIV`. Quotients come from EAX and remainders from EDX. Wide integer division and remainder remain open.
 
 ADR 0025 extends `BINARY` with signed and unsigned 32-bit less-than and less-than-or-equal. The emitter uses `SETL` or `SETLE` for signed inputs and `SETB` or `SETBE` for unsigned inputs. All six integer comparison operators now reach the represented four-byte object path. Pointer relations and wide integer relations remain open.
+
+ADR 0026 extends `BINARY` with 32-bit left shift, right shift, and bitwise OR. Shift counts keep their independently promoted four-byte integer type, while `input_type` retains the promoted left type. The emitter uses `SHL`, `SHR`, or `SAR` with `CL`, and bitwise OR uses `OR`. Wide shifts, wide bitwise OR, and bitwise XOR remain open.

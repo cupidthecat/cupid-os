@@ -3315,3 +3315,61 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide integer comparisons, pointer comparisons in emitted code, bitwise OR and XOR, shifts, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC emits 32-bit shifts and bitwise OR
+
+### Decision and active-source requirement
+
+The hosted CupidC path can now lower the unchanged AES word-rotation helper in `kernel/crypto/aes.c`:
+
+```c
+static uint32_t rotw(uint32_t w) {
+  return (w << 8) | (w >> 24);
+}
+```
+
+The frontend promotes each shift operand independently. In this helper, the left operand is unsigned 32-bit while each count is signed `int`. Requiring both operands to have the same type rejected valid C, so shift IR now keeps the promoted left type as its input and result type while accepting a separately promoted 32-bit integer count. Both operands must still fit the current four-byte integer representation.
+
+The i386 emitter evaluates both operands through the existing value stack, moves the count into `ECX`, and uses `CL` for the target instruction. Left shift uses `SHL`. Right shift uses `SAR` for signed input and `SHR` for unsigned input. Bitwise OR uses the same `EAX` and `ECX` binary pattern as the other represented operators. CupidC does not add a count-range check because C leaves an oversized or negative shift count undefined.
+
+This increment keeps one general register-count path because a separate immediate form would not expand the language boundary. The register path handles constants and runtime counts with one contract. The existing AES helper already expresses the intended operation cleanly, so it stays unchanged. XOR remains unsupported and now supplies the ordinary unsupported-expression negative.
+
+No user question was needed. The typed frontend already records the converted operand types, ADR 0016 fixes the linear value-stack representation, and the i386 target model supplies the required register-width encodings. ADR 0026 records the extension and its current boundary.
+
+### Contract evidence
+
+- The first IR run stopped in `/active-aes-rotw.c` with the existing unsupported-type diagnostic. This exposed the invalid equal-operand-type rule for shifts. Once IR lowering advanced, the object contract stopped with the internal unknown-instruction result until target emission was added.
+- A source guard pins the complete unchanged helper. It lowers to exactly ten IR instructions with a maximum abstract-stack depth of three. The sequence checks both shift directions, their independently typed counts, bitwise OR, and return.
+- The exact object fixture contains the active helper and a signed runtime-count right shift. Its text is 86 bytes: 53 bytes for local `rotw` and 33 bytes for global `signed_right_shift`. The object has three symbols including the null symbol, no relocations, and byte-identical repeated emission.
+- Shared x86 decoding checks `SHL`, unsigned `SHR`, signed `SAR`, and `OR`. The byte oracle is independent of the emitter, and the ELF32 reader verifies the emitted sections and symbol bindings.
+- Separate `long long` fixtures for left shift, right shift, and bitwise OR each receive `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE`. These negatives keep the current four-byte boundary visible.
+- The earlier generic shift negative now uses XOR. This keeps a normal unsupported-expression path after shifts move into the supported set.
+- The first repository gate exposed stale lexical inventory values through four tests. The checked manifest reported 2,408 `sizeof`, 2,936 `for`, 664 `goto`, 23,895 `if`, and 3,394 `else` occurrences. Updating all five oracles made the focused drift checks and final repository rerun pass.
+- The final self-parse tuples are 46/1,267/11,240/149/37 for `cupidc_ir.c` and 65/1,510/12,522/200/92 for `cupidc_emit.c`.
+
+### Review notes
+
+The first Standards review found two judgment-call naming and duplication issues. The IR operation guard now uses the existing `is_shift` classification instead of spelling out the shift pair again. The exact object contract now names its `rotw` and signed-right-shift byte, instruction, symbol, and fixture records directly. Once the new ADR became visible in the complete Git diff, both reviewers found one stale `signed_right` name in this log; it now matches the `signed_right_shift` symbol. The final Standards and Spec follow-ups are clean.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 606 direct designated initializers across 17 files, 664 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 23,895 `if`, 3,394 `else`, 2,936 `for`, 14,566 `return`, and 2,408 `sizeof` occurrences. The active-source digest is `ad60924cea12775be5862182377583e23209375db2e585c3cce7d9d3adb1f2ce`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | IR lowering first rejected the valid mixed promoted types in the AES shifts. Object emission then stopped at the newly represented instructions until their x86 mappings were implemented. |
+| Focused CupidC contracts | PASS | `python -m unittest -v tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 44 tests on the reviewed tree in 22.177 seconds. |
+| Windows hosted Toolchain | PASS | A fresh isolated strict Clang build passes the complete hosted Toolchain suite, including every contract and all 22 assembly demos, in 27.12 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite in 54 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang builds pass `active-leaf` and `static-data` in 28 and 29 seconds with address and undefined-behavior sanitizers, leak detection, strict string checks, and halt-on-error settings. The sanitizer runtimes are present in both object-contract binaries. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no diagnostics across both implementation files and the three changed C contracts in 55 and 66 seconds. |
+| Two-axis review | PASS AFTER CLEANUP | Standards requested one shared shift classification and self-identifying exact-oracle names. The complete-diff pass also found one stale fixture name in this log. All three fixes are present, and the final Standards and Spec follow-ups report no findings. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records. `make check-bootstrap-audit` and the focused mutation-based drift regression reproduce the final inventory exactly. |
+| Full repository gate | PASS AFTER ORACLE REFRESH | The first run found the five stale inventory values described above. The reviewed-tree `make test` passes all 286 tests in 474.985 seconds with one expected skip and returns from Make in 509.446 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. XOR, wide integer and pointer operations, bit-field writes, subscript and pointer-based addresses, compound and update lowering, atomic ordering, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.

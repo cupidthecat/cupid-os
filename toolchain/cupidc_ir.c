@@ -670,6 +670,7 @@ static ctool_status_t cir_lower_binary(
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   cir_stack_entry_t left;
   cir_stack_entry_t right;
+  ctool_bool is_shift;
   ctool_u32 left_child;
   ctool_u32 right_child;
   ctool_status_t status;
@@ -699,14 +700,26 @@ static ctool_status_t cir_lower_binary(
   if (status != CTOOL_OK) {
     return status;
   }
+  is_shift =
+      (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT ||
+       expression->operation == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT)
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
-      left.type != right.type ||
       cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
+      cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE ||
       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
         "CupidC IR lowering does not yet support this value type");
+  }
+  if (is_shift == CTOOL_TRUE) {
+    if (expression->type != left.type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  } else if (left.type != right.type) {
+    return cir_unsupported_type(context, &expression->location);
   }
   if (expression->operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE &&
@@ -719,7 +732,9 @@ static ctool_status_t cir_lower_binary(
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_EQUAL &&
       expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL &&
-      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND &&
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR &&
+      is_shift == CTOOL_FALSE) {
     return cir_unsupported_expression(context, &expression->location);
   }
   status = cir_append_instruction(

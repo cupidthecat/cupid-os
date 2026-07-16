@@ -1233,6 +1233,84 @@ static int validate_branch_fit_object(ctool_job_t *job,
   return 1;
 }
 
+static int validate_aes_rotw_object(ctool_job_t *job,
+                                    const ctool_elf32_object_t *object) {
+  static const ctool_u8 rotw_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x68u, 0x18u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0xd3u, 0xe8u, 0x50u, 0x59u, 0x58u, 0x09u,
+      0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 signed_right_shift_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0xd3u, 0xf8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_x86_mnemonic_t rotw_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,  CTOOL_X86_MN_SHR,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_OR,    CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t signed_right_shift_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_SAR,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *rotw_symbol = find_symbol(object, "rotw");
+  const ctool_elf32_symbol_t *signed_right_shift_symbol =
+      find_symbol(object, "signed_right_shift");
+  ctool_u32 signed_right_shift_offset = (ctool_u32)sizeof(rotw_bytes);
+  ctool_u32 total_size =
+      signed_right_shift_offset +
+      (ctool_u32)sizeof(signed_right_shift_bytes);
+  if (text == NULL || rel_text != NULL || rotw_symbol == NULL ||
+      signed_right_shift_symbol == NULL || text->contents.size != total_size ||
+      text->relocation_count != 0u || object->symbol_count != 3u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(rotw_symbol, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(rotw_bytes)) ||
+      !symbol_matches(signed_right_shift_symbol, 2u,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      signed_right_shift_offset,
+                      (ctool_u32)sizeof(signed_right_shift_bytes)) ||
+      !decode_function(
+          job, text, rotw_symbol, rotw_instructions,
+          (ctool_u32)(sizeof(rotw_instructions) /
+                      sizeof(rotw_instructions[0])),
+          rotw_bytes, (ctool_u32)sizeof(rotw_bytes), NULL, 0u,
+          "rotw") ||
+      !decode_function(
+          job, text, signed_right_shift_symbol,
+          signed_right_shift_instructions,
+          (ctool_u32)(sizeof(signed_right_shift_instructions) /
+                      sizeof(signed_right_shift_instructions[0])),
+          signed_right_shift_bytes,
+          (ctool_u32)sizeof(signed_right_shift_bytes), NULL, 0u,
+          "signed_right_shift")) {
+    (void)fprintf(stderr, "AES word-rotation object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_function_object(ctool_job_t *job,
                                     const ctool_elf32_object_t *object) {
   static const ctool_u8 implemented_bytes[] = {
@@ -2440,7 +2518,7 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return value << 1; }\n";
+      "int unsupported(int left, int right) { return left ^ right; }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2482,6 +2560,10 @@ static int run_static_data(const char *host_root) {
       "int unsigned_less(unsigned int left, unsigned int right) {\n"
       "  return left < right;\n"
       "}\n";
+  static const char aes_rotw_text[] =
+      "typedef unsigned int uint32_t;\n"
+      "static uint32_t rotw(uint32_t w) { return (w << 8) | (w >> 24); }\n"
+      "int signed_right_shift(int value, int count) { return value >> count; }\n";
   static const char file_assignment_text[] =
       "typedef enum { false = 0, true = 1 } bool;\n"
       "static bool vga_wait_vsync = false;\n"
@@ -2569,6 +2651,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t unsigned_multiplication_unit;
   ctool_c_translation_unit_t division_unit;
   ctool_c_translation_unit_t branch_fit_unit;
+  ctool_c_translation_unit_t aes_rotw_unit;
   ctool_c_translation_unit_t file_assignment_unit;
   ctool_c_translation_unit_t file_member_unit;
   ctool_c_translation_unit_t bit_field_unit;
@@ -2591,6 +2674,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t unsigned_multiplication_snapshot;
   unit_snapshot_t division_snapshot;
   unit_snapshot_t branch_fit_snapshot;
+  unit_snapshot_t aes_rotw_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
   unit_snapshot_t bit_field_snapshot;
@@ -2611,6 +2695,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 division_object_size = 0u;
   ctool_u8 *branch_fit_object = NULL;
   ctool_u32 branch_fit_object_size = 0u;
+  ctool_u8 *aes_rotw_object = NULL;
+  ctool_u32 aes_rotw_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
   ctool_u32 file_member_object_size = 0u;
   ctool_u8 *bit_field_object = NULL;
@@ -2641,6 +2727,7 @@ static int run_static_data(const char *host_root) {
                sizeof(unsigned_multiplication_unit));
   (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
+  (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
   (void)memset(&file_assignment_unit, 0, sizeof(file_assignment_unit));
   (void)memset(&file_member_unit, 0, sizeof(file_member_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
@@ -2658,6 +2745,7 @@ static int run_static_data(const char *host_root) {
                sizeof(unsigned_multiplication_snapshot));
   (void)memset(&division_snapshot, 0, sizeof(division_snapshot));
   (void)memset(&branch_fit_snapshot, 0, sizeof(branch_fit_snapshot));
+  (void)memset(&aes_rotw_snapshot, 0, sizeof(aes_rotw_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
   (void)memset(&file_member_snapshot, 0, sizeof(file_member_snapshot));
@@ -3362,6 +3450,59 @@ static int run_static_data(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/active-aes-rotw.c", aes_rotw_text,
+                    &aes_rotw_unit) ||
+      !take_unit_snapshot(&aes_rotw_unit, &aes_rotw_snapshot)) {
+    (void)fprintf(stderr, "AES word-rotation object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &aes_rotw_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first AES word-rotation object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&aes_rotw_snapshot, &aes_rotw_unit) == 0) {
+    (void)fprintf(stderr, "first AES word-rotation emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  aes_rotw_object_size = bytes.size;
+  aes_rotw_object = (ctool_u8 *)malloc((size_t)aes_rotw_object_size);
+  if (aes_rotw_object == NULL) {
+    (void)fprintf(stderr,
+                  "AES word-rotation object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(aes_rotw_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &aes_rotw_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat AES word-rotation object") ||
+      bytes.size != aes_rotw_object_size ||
+      memcmp(bytes.data, aes_rotw_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&aes_rotw_snapshot, &aes_rotw_unit) == 0) {
+    (void)fprintf(stderr,
+                  "AES word-rotation emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-aes-rotw.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read AES word-rotation object") ||
+      !validate_aes_rotw_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/active-vga-file-assignment.c",
                     file_assignment_text, &file_assignment_unit) ||
       !take_unit_snapshot(&file_assignment_unit,
@@ -3850,6 +3991,7 @@ cleanup:
   free(multiplication_object);
   free(division_object);
   free(branch_fit_object);
+  free(aes_rotw_object);
   free(file_member_object);
   free(bit_field_object);
   free(chained_assignment_object);
@@ -3860,6 +4002,7 @@ cleanup:
   dispose_unit_snapshot(&chained_assignment_snapshot);
   dispose_unit_snapshot(&division_snapshot);
   dispose_unit_snapshot(&branch_fit_snapshot);
+  dispose_unit_snapshot(&aes_rotw_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);
   dispose_unit_snapshot(&external_object_snapshot);

@@ -38,6 +38,9 @@ static const char active_branch_fits[] =
     "  return bits <= 0x7fu || bits >= 0xffffff80u ? CTOOL_TRUE : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_aes_rotw[] =
+    "static uint32_t rotw(uint32_t w) { return (w << 8) | (w >> 24); }";
+
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
 
@@ -282,6 +285,15 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active branch-range helper changed\n");
     return 0;
   }
+  path.text = ctool_string("/kernel/crypto/aes.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active AES source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_aes_rotw) == NULL) {
+    (void)fprintf(stderr, "the active AES word rotation changed\n");
+    return 0;
+  }
   path.text = ctool_string("/kernel/core/syscall.c");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
@@ -493,6 +505,18 @@ static char *make_branch_fit_fixture(void) {
     (void)memcpy(text, prefix, sizeof(prefix) - 1u);
     (void)memcpy(text + sizeof(prefix) - 1u, active_branch_fits,
                  sizeof(active_branch_fits));
+  }
+  return text;
+}
+
+static char *make_aes_rotw_fixture(void) {
+  static const char prefix[] = "typedef unsigned int uint32_t;\n";
+  size_t size = sizeof(prefix) - 1u + sizeof(active_aes_rotw);
+  char *text = (char *)malloc(size);
+  if (text != NULL) {
+    (void)memcpy(text, prefix, sizeof(prefix) - 1u);
+    (void)memcpy(text + sizeof(prefix) - 1u, active_aes_rotw,
+                 sizeof(active_aes_rotw));
   }
   return text;
 }
@@ -1364,6 +1388,141 @@ static int validate_branch_fit_ir(const ctool_c_translation_unit_t *unit,
                      "/active-asm-branch-fits-i8.c") == 0 ||
         actual->location.line == 0u || actual->physical_location.line == 0u) {
       (void)fprintf(stderr, "branch-range IR instruction %u differs\n",
+                    index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef enum {
+  ROTW_EXPECT_NONE = 0,
+  ROTW_EXPECT_VALUE,
+  ROTW_EXPECT_COUNT
+} rotw_expected_type_t;
+
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  rotw_expected_type_t type;
+  rotw_expected_type_t input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  ctool_u32 reference;
+  ctool_u64 integer_bits;
+} rotw_expected_t;
+
+static int validate_aes_rotw_ir(const ctool_c_translation_unit_t *unit,
+                                const ctool_c_ir_unit_t *ir) {
+  const ctool_u32 parameter_reference = CTOOL_C_AST_NONE - 1u;
+  static const rotw_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, ROTW_EXPECT_VALUE,
+       ROTW_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, ROTW_EXPECT_VALUE, ROTW_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, ROTW_EXPECT_COUNT, ROTW_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 8u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ROTW_EXPECT_VALUE, ROTW_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, ROTW_EXPECT_VALUE,
+       ROTW_EXPECT_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE - 1u, 0u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, ROTW_EXPECT_VALUE, ROTW_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, ROTW_EXPECT_COUNT, ROTW_EXPECT_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 24u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ROTW_EXPECT_VALUE, ROTW_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, ROTW_EXPECT_VALUE, ROTW_EXPECT_VALUE,
+       CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, ROTW_EXPECT_VALUE,
+       ROTW_EXPECT_VALUE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  ctool_u32 count_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0]))) {
+    (void)fprintf(stderr, "AES word-rotation IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "AES word-rotation function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  count_type = ir->instructions[2].type;
+  if (function_type->referenced_type != value_type ||
+      value_type >= unit->layout.type_count ||
+      count_type >= unit->layout.type_count ||
+      unit->layout.types[value_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[value_type].size != 4u ||
+      unit->layout.types[value_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[count_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[count_type].size != 4u ||
+      unit->layout.types[count_type].is_signed != CTOOL_TRUE ||
+      ir->instructions[6].type != count_type) {
+    (void)fprintf(stderr, "AES word-rotation operand types differ\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "AES word-rotation IR function record differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const rotw_expected_t *wanted = &expected[index];
+    const ctool_c_ir_instruction_t *actual = &ir->instructions[index];
+    ctool_u32 wanted_type = wanted->type == ROTW_EXPECT_VALUE
+                                ? value_type
+                                : wanted->type == ROTW_EXPECT_COUNT
+                                      ? count_type
+                                      : CTOOL_C_TYPE_NONE;
+    ctool_u32 wanted_input = wanted->input_type == ROTW_EXPECT_VALUE
+                                 ? value_type
+                                 : wanted->input_type == ROTW_EXPECT_COUNT
+                                       ? count_type
+                                       : CTOOL_C_TYPE_NONE;
+    ctool_u32 wanted_reference =
+        wanted->reference == parameter_reference ? parameter
+                                                  : wanted->reference;
+    if (actual->kind != wanted->kind || actual->type != wanted_type ||
+        actual->input_type != wanted_input ||
+        actual->operation != wanted->operation ||
+        actual->conversion != wanted->conversion ||
+        actual->reference != wanted_reference ||
+        actual->integer_bits != wanted->integer_bits ||
+        string_equal(actual->location.path, "/active-aes-rotw.c") == 0 ||
+        string_equal(actual->physical_location.path,
+                     "/active-aes-rotw.c") == 0 ||
+        actual->location.line == 0u || actual->physical_location.line == 0u) {
+      (void)fprintf(stderr, "AES word-rotation IR instruction %u differs\n",
                     index);
       return 0;
     }
@@ -2686,7 +2845,7 @@ static int run_active_leaf(const char *host_root) {
       "  return 0;\n"
       "}\n";
   static const char expression_source[] =
-      "int shift_one(int value) { return value << 1; }\n";
+      "int xor_values(int left, int right) { return left ^ right; }\n";
   static const char multiplication_source[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -2796,6 +2955,12 @@ static int run_active_leaf(const char *host_root) {
       "int wide_logical_or(void) { return 1LL || 0LL; }\n";
   static const char wide_multiplication_source[] =
       "int wide_multiply(void) { return 2LL * 3LL; }\n";
+  static const char wide_left_shift_source[] =
+      "int wide_left_shift(void) { return 1LL << 1; }\n";
+  static const char wide_right_shift_source[] =
+      "int wide_right_shift(void) { return 8LL >> 1; }\n";
+  static const char wide_bitwise_or_source[] =
+      "int wide_bitwise_or(void) { return 1LL | 2LL; }\n";
   static const char wide_division_source[] =
       "int wide_divide(void) { return 8LL / 2LL; }\n";
   static const char wide_remainder_source[] =
@@ -2893,8 +3058,12 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t division_unit;
   ctool_c_translation_unit_t logical_or_unit;
   ctool_c_translation_unit_t branch_fit_unit;
+  ctool_c_translation_unit_t aes_rotw_unit;
   ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
+  ctool_c_translation_unit_t wide_left_shift_unit;
+  ctool_c_translation_unit_t wide_right_shift_unit;
+  ctool_c_translation_unit_t wide_bitwise_or_unit;
   ctool_c_translation_unit_t wide_division_unit;
   ctool_c_translation_unit_t wide_remainder_unit;
   ctool_c_translation_unit_t variadic_call_unit;
@@ -2939,6 +3108,7 @@ static int run_active_leaf(const char *host_root) {
   char *division_fixture = NULL;
   char *logical_or_fixture = NULL;
   char *branch_fit_fixture = NULL;
+  char *aes_rotw_fixture = NULL;
   char *call_fixture = NULL;
   ctool_u32 index;
   int passed = 0;
@@ -2947,6 +3117,7 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&logic_unit, 0, sizeof(logic_unit));
   (void)memset(&division_unit, 0, sizeof(division_unit));
   (void)memset(&branch_fit_unit, 0, sizeof(branch_fit_unit));
+  (void)memset(&aes_rotw_unit, 0, sizeof(aes_rotw_unit));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -3011,6 +3182,13 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/active-asm-branch-fits-i8.c",
                     branch_fit_fixture, &branch_fit_unit)) {
     (void)fprintf(stderr, "active branch-range helper setup failed\n");
+    goto cleanup;
+  }
+  aes_rotw_fixture = make_aes_rotw_fixture();
+  if (aes_rotw_fixture == NULL ||
+      !parse_source(job, "/active-aes-rotw.c", aes_rotw_fixture,
+                    &aes_rotw_unit)) {
+    (void)fprintf(stderr, "active AES word-rotation setup failed\n");
     goto cleanup;
   }
 
@@ -3753,6 +3931,17 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&aes_rotw_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &aes_rotw_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active AES word-rotation lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&aes_rotw_unit) != fingerprint ||
+      !validate_aes_rotw_ir(&aes_rotw_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
 
   if (!parse_source(job, "/simple-leaves.c", simple_source, &simple_unit)) {
     goto cleanup;
@@ -4073,6 +4262,29 @@ static int run_active_leaf(const char *host_root) {
           "wide multiplication expression")) {
     goto cleanup;
   }
+  if (!parse_source(job, "/wide-left-shift.c", wide_left_shift_source,
+                    &wide_left_shift_unit) ||
+      !expect_ir_failure(
+          job, &wide_left_shift_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide left-shift expression") ||
+      !parse_source(job, "/wide-right-shift.c", wide_right_shift_source,
+                    &wide_right_shift_unit) ||
+      !expect_ir_failure(
+          job, &wide_right_shift_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide right-shift expression") ||
+      !parse_source(job, "/wide-bitwise-or.c", wide_bitwise_or_source,
+                    &wide_bitwise_or_unit) ||
+      !expect_ir_failure(
+          job, &wide_bitwise_or_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide bitwise-or expression")) {
+    goto cleanup;
+  }
   if (!parse_source(job, "/wide-division.c", wide_division_source,
                     &wide_division_unit) ||
       !expect_ir_failure(
@@ -4186,6 +4398,7 @@ cleanup:
   free(division_fixture);
   free(logical_or_fixture);
   free(branch_fit_fixture);
+  free(aes_rotw_fixture);
   free(call_fixture);
   free(invalid_statements);
   free(invalid_initializers);
