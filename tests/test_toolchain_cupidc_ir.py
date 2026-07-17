@@ -104,6 +104,68 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "switch-nesting: ok\n")
 
+    def test_integer_update_evaluates_its_destination_once(self):
+        result = subprocess.run(
+            [str(self.contract_path), "integer-updates", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-updates: ok\n")
+
+    def test_integer_compounds_evaluate_their_destination_once(self):
+        result = subprocess.run(
+            [str(self.contract_path), "integer-compounds", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-compounds: ok\n")
+
+    def test_integer_compounds_preserve_usual_arithmetic_conversions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "integer-compound-conversions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-compound-conversions: ok\n")
+
+    def test_integer_updates_preserve_promotions_and_qualifiers(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "integer-update-conversions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-update-conversions: ok\n")
+
+    def test_integer_mutation_rejects_unsupported_targets_transactionally(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "integer-mutation-rejections",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "integer-mutation-rejections: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -396,7 +396,13 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) depth-constant ..
 	$(CUPIDC_FRONTEND_CONTRACT) depth-record ..
 	$(CUPIDC_IR_CONTRACT) active-leaf ..
+	$(CUPIDC_IR_CONTRACT) integer-updates ..
+	$(CUPIDC_IR_CONTRACT) integer-compounds ..
+	$(CUPIDC_IR_CONTRACT) integer-compound-conversions ..
+	$(CUPIDC_IR_CONTRACT) integer-update-conversions ..
+	$(CUPIDC_IR_CONTRACT) integer-mutation-rejections ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
+	$(CUPIDC_OBJECT_CONTRACT) integer-mutation ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

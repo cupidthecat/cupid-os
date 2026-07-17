@@ -67,6 +67,17 @@ static const char switch_object_source[] =
     "  }\n"
     "}\n";
 
+static const char integer_mutation_object_source[] =
+    "static unsigned int mutation_state;\n"
+    "int prefix_update(int value) { return ++value; }\n"
+    "unsigned int postfix_update(unsigned int value) { return value--; }\n"
+    "unsigned int compound_update(unsigned int value) {\n"
+    "  value *= 2u;\n"
+    "  value >>= 1u;\n"
+    "  return value;\n"
+    "}\n"
+    "unsigned int file_update(void) { return mutation_state++; }\n";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -1060,6 +1071,126 @@ static int validate_switch_object(ctool_job_t *job,
                   "ret=%u size=%u\n",
                   comparison_count, conditional_branch_count, jump_count,
                   return_count, function->size);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_integer_mutation_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x51u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x02u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x0fu, 0xafu, 0xc1u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x51u, 0x58u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u,
+      0xe8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x50u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0x59u, 0x58u, 0x01u, 0xc8u, 0x50u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x51u, 0x68u, 0x01u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *state =
+      find_symbol(object, "mutation_state");
+  const ctool_elf32_symbol_t *prefix =
+      find_symbol(object, "prefix_update");
+  const ctool_elf32_symbol_t *postfix =
+      find_symbol(object, "postfix_update");
+  const ctool_elf32_symbol_t *compound =
+      find_symbol(object, "compound_update");
+  const ctool_elf32_symbol_t *file = find_symbol(object, "file_update");
+  ctool_u32 cursor = 0u;
+  ctool_u32 add_count = 0u;
+  ctool_u32 subtract_count = 0u;
+  ctool_u32 multiply_count = 0u;
+  ctool_u32 shift_count = 0u;
+  ctool_u32 return_count = 0u;
+  if (text == NULL || bss == NULL || rel_text == NULL || state == NULL ||
+      prefix == NULL || postfix == NULL || compound == NULL || file == NULL ||
+      text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      text->relocation_first != 0u || text->relocation_count != 1u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 4u || bss->contents.size != 0u ||
+      object->symbol_count != 6u || object->relocation_count != 1u ||
+      object->relocations == NULL ||
+      !symbol_matches(state, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(prefix, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u, 35u) ||
+      !symbol_matches(postfix, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 35u, 45u) ||
+      !symbol_matches(compound, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 80u, 78u) ||
+      !symbol_matches(file, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 158u, 43u) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 162u ||
+      object->relocations[0].symbol_file_index != state->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0) {
+    (void)fprintf(stderr, "integer mutation object inventory differs\n");
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "integer mutation object decode failed at %u\n", cursor);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_ADD) {
+      add_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SUB) {
+      subtract_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_IMUL) {
+      multiply_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SHR) {
+      shift_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || add_count != 3u ||
+      subtract_count != 2u || multiply_count != 1u || shift_count != 1u ||
+      return_count != 4u) {
+    (void)fprintf(stderr, "integer mutation object operations differ\n");
     return 0;
   }
   return 1;
@@ -4208,7 +4339,11 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "int unsupported(int value) { return ++value; }\n";
+      "struct unsupported_bits { unsigned int value : 3; };\n"
+      "static struct unsupported_bits unsupported_state;\n"
+      "unsigned int unsupported(void) {\n"
+      "  return ++unsupported_state.value;\n"
+      "}\n";
   static const char wide_selection_text[] =
       "int choose_wide(void) {\n"
       "  if (1LL) return 1;\n"
@@ -6984,6 +7119,109 @@ cleanup:
   return 1;
 }
 
+static int run_integer_mutation_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/integer-mutation-object.c",
+                    integer_mutation_object_source, &unit) ||
+      unit.function_definition_count != 4u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "integer mutation object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 512u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 512u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "integer mutation object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first integer mutation object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first integer mutation emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr,
+                  "integer mutation object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat integer mutation object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "integer mutation emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/integer-mutation-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read integer mutation object") ||
+      !validate_integer_mutation_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("integer-mutation: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -6994,8 +7232,12 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "switch-object") == 0) {
     return run_switch_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "integer-mutation") == 0) {
+    return run_integer_mutation_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
-                "static-data|direct-goto|switch-object HOST_ROOT\n");
+                "static-data|direct-goto|switch-object|integer-mutation "
+                "HOST_ROOT\n");
   return 2;
 }

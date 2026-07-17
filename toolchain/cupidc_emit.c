@@ -1805,7 +1805,8 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return status;
   }
-  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE) {
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE ||
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS) {
     if (ir_instruction->type != ir_instruction->input_type ||
         cemit_ir_type_is_i32_integer(context,
                                      ir_instruction->type) == CTOOL_FALSE ||

@@ -53,6 +53,78 @@ static const char active_public_storage[] =
     "  }\n"
     "}\n";
 
+static const char integer_update_source[] =
+    "int prefix_increment(int value) { return ++value; }\n"
+    "unsigned int prefix_decrement(unsigned int value) { return --value; }\n"
+    "int postfix_increment(int value) { return value++; }\n"
+    "unsigned int postfix_decrement(unsigned int value) { return value--; }\n";
+
+static const char integer_compound_source[] =
+    "unsigned int all_compounds(unsigned int value, unsigned int right) {\n"
+    "  value *= right;\n"
+    "  value /= right;\n"
+    "  value %= right;\n"
+    "  value += right;\n"
+    "  value -= right;\n"
+    "  value <<= right;\n"
+    "  value >>= right;\n"
+    "  value &= right;\n"
+    "  value ^= right;\n"
+    "  value |= right;\n"
+    "  return value;\n"
+    "}\n"
+    "int signed_compounds(int value, int right) {\n"
+    "  value /= right;\n"
+    "  value >>= right;\n"
+    "  return value;\n"
+    "}\n";
+
+static const char integer_compound_conversion_source[] =
+    "int add_unsigned(int value, unsigned int right) {\n"
+    "  return value += right;\n"
+    "}\n"
+    "enum signed_step { STEP_NEGATIVE = -1, STEP_ZERO = 0 };\n"
+    "enum signed_step add_enum_unsigned(enum signed_step value,\n"
+    "                                   unsigned int right) {\n"
+    "  return value += right;\n"
+    "}\n";
+
+static const char integer_update_conversion_source[] =
+    "enum step { STEP_ZERO = 0, STEP_ONE = 1 };\n"
+    "enum step increment_step(enum step value) { return ++value; }\n"
+    "enum step add_step(enum step value) { return value += 1; }\n"
+    "volatile unsigned int update_state;\n"
+    "unsigned int read_then_increment(void) { return update_state++; }\n";
+
+static const char atomic_update_source[] =
+    "_Atomic unsigned int state;\n"
+    "unsigned int update_atomic(void) { return ++state; }\n";
+
+static const char wide_compound_source[] =
+    "long long state;\n"
+    "int update_wide(void) { state += 1; return 0; }\n";
+
+static const char pointer_update_source[] =
+    "int *pointer;\n"
+    "int update_pointer(void) { pointer++; return 0; }\n";
+
+static const char bit_field_update_source[] =
+    "struct flags { unsigned int value : 3; };\n"
+    "struct flags state;\n"
+    "unsigned int update_bit_field(void) { return ++state.value; }\n";
+
+static const char bit_field_compound_source[] =
+    "struct flags { unsigned int value : 3; };\n"
+    "struct flags state;\n"
+    "unsigned int add_bit_field(void) { return state.value += 1; }\n";
+
+static const char narrow_update_source[] =
+    "unsigned short state;\n"
+    "unsigned int update_narrow(void) { return ++state; }\n";
+
+static const char invalid_update_source[] =
+    "int update_value(int value) { return ++value; }\n";
+
 static const char switch_lowering_source[] =
     "typedef enum {\n"
     "  CTOOL_C_STORAGE_NONE = 0,\n"
@@ -274,6 +346,15 @@ static const char active_signed_bits[] =
 
 static const char active_initializer_success[] =
     "  return !cc->error;";
+
+static const char active_size_increment[] =
+    "      size++;";
+
+static const char active_capacity_growth[] =
+    "      capacity *= 2u;";
+
+static const char active_decimal_shrink[] =
+    "    value /= 10u;";
 
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
@@ -667,6 +748,20 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data, active_public_storage) ==
           NULL) {
     (void)fprintf(stderr, "an active frontend helper changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/ctool.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active core source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_size_increment) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_capacity_growth) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_decimal_shrink) ==
+          NULL) {
+    (void)fprintf(stderr, "an active core integer mutation changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupiddis.c");
@@ -5837,7 +5932,9 @@ static int run_active_leaf(const char *host_root) {
       "  }\n"
       "}\n";
   static const char expression_source[] =
-      "int update(int value) { return ++value; }\n";
+      "struct bits { unsigned int value : 3; };\n"
+      "static struct bits state;\n"
+      "unsigned int update(void) { return ++state.value; }\n";
   static const char integer_unary_source[] =
       "int unary_plus(int value) { return +value; }\n"
       "int signed_negate(int value) { return -value; }\n"
@@ -5924,7 +6021,7 @@ static int run_active_leaf(const char *host_root) {
       "int *pointer_state;\n"
       "void clear_pointer(void) { pointer_state = 0; }\n";
   static const char compound_assignment_source[] =
-      "int counter;\n"
+      "int *counter;\n"
       "void bump(void) { counter += 1; }\n";
   static const char abi_source[] =
       "long long wide(long long value) { return value; }\n";
@@ -6454,9 +6551,9 @@ static int run_active_leaf(const char *host_root) {
                     &compound_assignment_unit) ||
       !expect_ir_failure(
           job, &compound_assignment_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "compound assignment")) {
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "pointer compound assignment")) {
     goto cleanup;
   }
 
@@ -8971,6 +9068,850 @@ cleanup:
   return 1;
 }
 
+static int validate_integer_update_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const names[] = {
+      "prefix_increment", "prefix_decrement",
+      "postfix_increment", "postfix_decrement"};
+  static const ctool_c_expression_operator_t update_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT};
+  static const ctool_c_expression_operator_t postfix_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD};
+  ctool_u32 function_index;
+  ctool_u32 instruction_cursor = 0u;
+  if (unit->function_definition_count != 4u || ir->function_count != 4u ||
+      ir->instruction_count != 32u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "integer update IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 4u; function_index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[function_index];
+    const ctool_c_type_node_t *function_type;
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[instruction_cursor];
+    ctool_u32 function_binding = find_binding(unit, names[function_index]);
+    ctool_u32 parameter;
+    ctool_u32 value_type;
+    ctool_u32 expected_count = function_index < 2u ? 7u : 9u;
+    ctool_u32 offset;
+    if (definition->declared_type >= unit->graph.type_count ||
+        function_binding == CTOOL_C_AST_NONE) {
+      return 0;
+    }
+    function_type = &unit->graph.types[definition->declared_type];
+    if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+        function_type->parameter_count != 1u ||
+        function_type->first_parameter >= unit->parameter_count) {
+      return 0;
+    }
+    parameter = function_type->first_parameter;
+    value_type = unit->parameters[parameter].type;
+    if (function_type->referenced_type != value_type ||
+        definition->binding != function_binding ||
+        function->binding != function_binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != instruction_cursor ||
+        function->instruction_count != expected_count ||
+        function->maximum_stack_depth != 3u ||
+        instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        instructions[0].type != value_type ||
+        instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+        instructions[0].reference != parameter ||
+        instructions[1].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+        instructions[1].type != value_type ||
+        instructions[1].input_type != value_type ||
+        instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        instructions[2].type != value_type ||
+        instructions[2].input_type != value_type ||
+        instructions[2].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        instructions[3].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+        instructions[3].type != value_type ||
+        instructions[3].integer_bits != 1u ||
+        instructions[4].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+        instructions[4].type != value_type ||
+        instructions[4].input_type != value_type ||
+        instructions[4].operation != update_operations[function_index] ||
+        instructions[5].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+        instructions[5].type != value_type ||
+        instructions[5].input_type != value_type) {
+      (void)fprintf(stderr, "integer update function %u differs\n",
+                    function_index);
+      return 0;
+    }
+    if (function_index < 2u) {
+      if (instructions[6].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+          instructions[6].type != value_type ||
+          instructions[6].input_type != value_type) {
+        return 0;
+      }
+    } else if (instructions[6].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+               instructions[6].type != value_type ||
+               instructions[6].integer_bits != 1u ||
+               instructions[7].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+               instructions[7].type != value_type ||
+               instructions[7].input_type != value_type ||
+               instructions[7].operation !=
+                   postfix_operations[function_index] ||
+               instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+               instructions[8].type != value_type ||
+               instructions[8].input_type != value_type) {
+      (void)fprintf(stderr, "integer postfix result %u differs\n",
+                    function_index);
+      return 0;
+    }
+    for (offset = 0u; offset < expected_count; offset++) {
+      if (!string_equal(instructions[offset].location.path,
+                        "/integer-update.c") ||
+          !string_equal(instructions[offset].physical_location.path,
+                        "/integer-update.c")) {
+        (void)fprintf(stderr, "integer update IR source path differs\n");
+        return 0;
+      }
+    }
+    instruction_cursor += expected_count;
+  }
+  return instruction_cursor == ir->instruction_count ? 1 : 0;
+}
+
+static int run_integer_updates(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/integer-update.c", integer_update_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "integer update lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_integer_update_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("integer-updates: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_compound_function(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 function_index,
+    const char *name,
+    const ctool_c_expression_operator_t *operations,
+    ctool_u32 operation_count, ctool_bool is_signed,
+    ctool_u32 *instruction_cursor_io) {
+  const ctool_c_function_definition_t *definition =
+      &unit->function_definitions[function_index];
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function = &ir->functions[function_index];
+  const ctool_c_ir_instruction_t *instructions =
+      &ir->instructions[*instruction_cursor_io];
+  ctool_u32 function_binding = find_binding(unit, name);
+  ctool_u32 value_parameter;
+  ctool_u32 right_parameter;
+  ctool_u32 value_type;
+  ctool_u32 right_type;
+  ctool_u32 expected_count = operation_count * 8u + 3u;
+  ctool_u32 operation_index;
+  ctool_u32 offset;
+  if (definition->declared_type >= unit->graph.type_count ||
+      function_binding == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  value_parameter = function_type->first_parameter;
+  right_parameter = value_parameter + 1u;
+  value_type = unit->parameters[value_parameter].type;
+  right_type = unit->parameters[right_parameter].type;
+  if (value_type >= unit->layout.type_count || value_type != right_type ||
+      unit->layout.types[value_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[value_type].size != 4u ||
+      unit->layout.types[value_type].is_signed != is_signed ||
+      function_type->referenced_type != value_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != *instruction_cursor_io ||
+      function->instruction_count != expected_count ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "integer compound function inventory differs\n");
+    return 0;
+  }
+  for (operation_index = 0u; operation_index < operation_count;
+       operation_index++) {
+    ctool_u32 base = operation_index * 8u;
+    if (instructions[base].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        instructions[base].type != value_type ||
+        instructions[base].reference != value_parameter ||
+        instructions[base + 1u].kind !=
+            CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+        instructions[base + 1u].type != value_type ||
+        instructions[base + 1u].input_type != value_type ||
+        instructions[base + 2u].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        instructions[base + 2u].type != value_type ||
+        instructions[base + 2u].input_type != value_type ||
+        instructions[base + 2u].conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        instructions[base + 3u].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        instructions[base + 3u].type != right_type ||
+        instructions[base + 3u].reference != right_parameter ||
+        instructions[base + 4u].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        instructions[base + 4u].type != right_type ||
+        instructions[base + 4u].input_type != right_type ||
+        instructions[base + 4u].conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        instructions[base + 5u].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+        instructions[base + 5u].type != value_type ||
+        instructions[base + 5u].input_type != value_type ||
+        instructions[base + 5u].operation != operations[operation_index] ||
+        instructions[base + 6u].kind !=
+            CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+        instructions[base + 6u].type != value_type ||
+        instructions[base + 6u].input_type != value_type ||
+        instructions[base + 7u].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+        instructions[base + 7u].type != CTOOL_C_TYPE_NONE ||
+        instructions[base + 7u].input_type != value_type) {
+      (void)fprintf(stderr, "integer compound operation %u differs\n",
+                    operation_index);
+      return 0;
+    }
+  }
+  offset = operation_count * 8u;
+  if (instructions[offset].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[offset].type != value_type ||
+      instructions[offset].reference != value_parameter ||
+      instructions[offset + 1u].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[offset + 1u].type != value_type ||
+      instructions[offset + 1u].input_type != value_type ||
+      instructions[offset + 2u].kind !=
+          CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[offset + 2u].type != value_type ||
+      instructions[offset + 2u].input_type != value_type) {
+    (void)fprintf(stderr, "integer compound return differs\n");
+    return 0;
+  }
+  for (offset = 0u; offset < expected_count; offset++) {
+    if (!string_equal(instructions[offset].location.path,
+                      "/integer-compound.c") ||
+        !string_equal(instructions[offset].physical_location.path,
+                      "/integer-compound.c")) {
+      (void)fprintf(stderr, "integer compound IR source path differs\n");
+      return 0;
+    }
+  }
+  *instruction_cursor_io += expected_count;
+  return 1;
+}
+
+static int validate_integer_compound_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_expression_operator_t all_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR};
+  static const ctool_c_expression_operator_t signed_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT};
+  ctool_u32 instruction_cursor = 0u;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 102u || ir->functions == NULL ||
+      ir->instructions == NULL ||
+      !validate_compound_function(
+          unit, ir, 0u, "all_compounds", all_operations, 10u,
+          CTOOL_FALSE, &instruction_cursor) ||
+      !validate_compound_function(
+          unit, ir, 1u, "signed_compounds", signed_operations, 2u,
+          CTOOL_TRUE, &instruction_cursor)) {
+    (void)fprintf(stderr, "integer compound IR differs\n");
+    return 0;
+  }
+  return instruction_cursor == ir->instruction_count ? 1 : 0;
+}
+
+static int run_integer_compounds(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/integer-compound.c", integer_compound_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "integer compound lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_integer_compound_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("integer-compounds: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_integer_compound_conversion_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions = ir->instructions;
+  ctool_u32 left_parameter;
+  ctool_u32 right_parameter;
+  ctool_u32 left_type;
+  ctool_u32 right_type;
+  ctool_u32 computation_type;
+  ctool_u32 enum_type;
+  ctool_u32 promoted_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 21u || ir->functions == NULL ||
+      instructions == NULL ||
+      unit->function_definitions[0].declared_type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "integer compound conversion inventory differs\n");
+    return 0;
+  }
+  function_type =
+      &unit->graph.types[unit->function_definitions[0].declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  left_parameter = function_type->first_parameter;
+  right_parameter = left_parameter + 1u;
+  left_type = unit->parameters[left_parameter].type;
+  right_type = unit->parameters[right_parameter].type;
+  computation_type = instructions[3].type;
+  if (left_type == right_type || computation_type != right_type ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 10u ||
+      ir->functions[0].maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != left_type ||
+      instructions[0].reference != left_parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+      instructions[1].type != left_type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[2].type != left_type ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[3].type != computation_type ||
+      instructions[3].input_type != left_type ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_USUAL_ARITHMETIC ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[4].type != right_type ||
+      instructions[4].reference != right_parameter ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[5].type != right_type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[6].type != computation_type ||
+      instructions[6].input_type != computation_type ||
+      instructions[6].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[7].type != left_type ||
+      instructions[7].input_type != computation_type ||
+      instructions[7].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[8].type != left_type ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[9].type != left_type) {
+    (void)fprintf(stderr, "integer compound conversion IR differs\n");
+    return 0;
+  }
+  if (unit->function_definitions[1].declared_type >=
+      unit->graph.type_count) {
+    return 0;
+  }
+  function_type =
+      &unit->graph.types[unit->function_definitions[1].declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  left_parameter = function_type->first_parameter;
+  right_parameter = left_parameter + 1u;
+  enum_type = unit->parameters[left_parameter].type;
+  right_type = unit->parameters[right_parameter].type;
+  if (enum_type >= unit->graph.type_count ||
+      unit->graph.types[enum_type].kind != CTOOL_C_TYPE_ENUM) {
+    return 0;
+  }
+  promoted_type = unit->graph.types[enum_type].referenced_type;
+  computation_type = instructions[14].type;
+  if (promoted_type == enum_type || promoted_type == computation_type ||
+      computation_type != right_type ||
+      ir->functions[1].first_instruction != 10u ||
+      ir->functions[1].instruction_count != 11u ||
+      ir->functions[1].maximum_stack_depth != 3u ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[10].type != enum_type ||
+      instructions[10].reference != left_parameter ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+      instructions[11].type != enum_type ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[12].type != enum_type ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[13].type != promoted_type ||
+      instructions[13].input_type != enum_type ||
+      instructions[13].conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      instructions[14].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[14].type != computation_type ||
+      instructions[14].input_type != promoted_type ||
+      instructions[14].conversion != CTOOL_C_CONVERSION_USUAL_ARITHMETIC ||
+      instructions[15].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[15].type != right_type ||
+      instructions[15].reference != right_parameter ||
+      instructions[16].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[16].type != right_type ||
+      instructions[17].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[17].type != computation_type ||
+      instructions[17].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[18].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[18].type != enum_type ||
+      instructions[18].input_type != computation_type ||
+      instructions[18].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      instructions[19].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[19].type != enum_type ||
+      instructions[20].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[20].type != enum_type) {
+    (void)fprintf(stderr, "enum compound conversion IR differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!string_equal(instructions[index].location.path,
+                      "/integer-compound-conversion.c") ||
+        !string_equal(instructions[index].physical_location.path,
+                      "/integer-compound-conversion.c")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_integer_compound_conversions(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/integer-compound-conversion.c",
+                    integer_compound_conversion_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "integer compound conversion lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_integer_compound_conversion_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("integer-compound-conversions: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_integer_update_conversion_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions = ir->instructions;
+  const ctool_c_type_node_t *function_type;
+  ctool_u32 enum_type;
+  ctool_u32 computation_type;
+  ctool_u32 state_binding = find_binding(unit, "update_state");
+  ctool_u32 state_type;
+  ctool_u32 value_type;
+  ctool_u32 index;
+  if (unit->function_definition_count != 3u || ir->function_count != 3u ||
+      ir->instruction_count != 28u || ir->functions == NULL ||
+      instructions == NULL || state_binding == CTOOL_C_AST_NONE ||
+      unit->function_definitions[0].declared_type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "integer update conversion inventory differs\n");
+    return 0;
+  }
+  function_type =
+      &unit->graph.types[unit->function_definitions[0].declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  enum_type = unit->parameters[function_type->first_parameter].type;
+  computation_type = instructions[3].type;
+  state_type = unit->bindings[state_binding].type;
+  value_type = instructions[21].type;
+  if (enum_type >= unit->layout.type_count ||
+      computation_type >= unit->layout.type_count ||
+      state_type >= unit->graph.type_count ||
+      value_type >= unit->layout.type_count ||
+      unit->layout.types[enum_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[enum_type].size != 4u ||
+      unit->layout.types[computation_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[computation_type].size != 4u ||
+      enum_type == computation_type ||
+      unit->graph.types[state_type].kind != CTOOL_C_TYPE_QUALIFIED ||
+      unit->graph.types[state_type].referenced_type != value_type) {
+    return 0;
+  }
+  if (ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 9u ||
+      ir->functions[0].maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != enum_type ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+      instructions[1].type != enum_type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[2].type != enum_type ||
+      instructions[2].input_type != enum_type ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[3].type != computation_type ||
+      instructions[3].input_type != enum_type ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[4].type != computation_type ||
+      instructions[4].integer_bits != 1u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[5].type != computation_type ||
+      instructions[5].input_type != computation_type ||
+      instructions[5].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[6].type != enum_type ||
+      instructions[6].input_type != computation_type ||
+      instructions[6].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[7].type != enum_type ||
+      instructions[7].input_type != enum_type ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[8].type != enum_type) {
+    (void)fprintf(stderr, "enum prefix update conversion differs\n");
+    return 0;
+  }
+  if (ir->functions[1].first_instruction != 9u ||
+      ir->functions[1].instruction_count != 10u ||
+      ir->functions[1].maximum_stack_depth != 3u ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[9].type != enum_type ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+      instructions[10].type != enum_type ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[11].type != enum_type ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[12].type != computation_type ||
+      instructions[12].conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[14].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[14].type != computation_type ||
+      instructions[14].input_type != instructions[13].type ||
+      instructions[14].conversion != CTOOL_C_CONVERSION_USUAL_ARITHMETIC ||
+      instructions[15].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[15].type != computation_type ||
+      instructions[15].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[16].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[16].type != enum_type ||
+      instructions[16].input_type != computation_type ||
+      instructions[16].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      instructions[17].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[17].type != enum_type ||
+      instructions[18].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[18].type != enum_type) {
+    (void)fprintf(stderr, "enum compound update conversion differs\n");
+    return 0;
+  }
+  if (ir->functions[2].first_instruction != 19u ||
+      ir->functions[2].instruction_count != 9u ||
+      ir->functions[2].maximum_stack_depth != 3u ||
+      instructions[19].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[19].type != state_type ||
+      instructions[19].reference != state_binding ||
+      instructions[20].kind !=
+          CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+      instructions[20].type != state_type ||
+      instructions[21].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[21].type != value_type ||
+      instructions[21].input_type != state_type ||
+      instructions[22].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[22].type != value_type ||
+      instructions[23].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[23].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[24].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[24].type != value_type ||
+      instructions[25].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[26].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[26].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[27].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[27].type != value_type) {
+    (void)fprintf(stderr, "volatile postfix update differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!string_equal(instructions[index].location.path,
+                      "/integer-update-conversion.c") ||
+        !string_equal(instructions[index].physical_location.path,
+                      "/integer-update-conversion.c")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_integer_update_conversions(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/integer-update-conversion.c",
+                    integer_update_conversion_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "integer update conversion lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_integer_update_conversion_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("integer-update-conversions: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_integer_mutation_rejections(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t pointer_unit;
+  ctool_c_translation_unit_t bit_field_unit;
+  ctool_c_translation_unit_t bit_field_compound_unit;
+  ctool_c_translation_unit_t narrow_unit;
+  ctool_c_translation_unit_t valid_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 update_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  int passed = 0;
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&wide_unit, 0, sizeof(wide_unit));
+  (void)memset(&pointer_unit, 0, sizeof(pointer_unit));
+  (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
+  (void)memset(&bit_field_compound_unit, 0,
+               sizeof(bit_field_compound_unit));
+  (void)memset(&narrow_unit, 0, sizeof(narrow_unit));
+  (void)memset(&valid_unit, 0, sizeof(valid_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/atomic-update.c", atomic_update_source,
+                    &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic integer update") ||
+      !parse_source(job, "/wide-compound.c", wide_compound_source,
+                    &wide_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide integer compound assignment") ||
+      !parse_source(job, "/pointer-update.c", pointer_update_source,
+                    &pointer_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &pointer_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "pointer update") ||
+      !parse_source(job, "/bit-field-update.c", bit_field_update_source,
+                    &bit_field_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &bit_field_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "bit-field update") ||
+      !parse_source(job, "/bit-field-compound.c",
+                    bit_field_compound_source,
+                    &bit_field_compound_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &bit_field_compound_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "bit-field compound assignment") ||
+      !parse_source(job, "/narrow-update.c", narrow_update_source,
+                    &narrow_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &narrow_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow integer update") ||
+      !parse_source(job, "/invalid-update.c", invalid_update_source,
+                    &valid_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < valid_unit.expression_count; index++) {
+    if (valid_unit.expressions[index].kind == CTOOL_C_EXPRESSION_UPDATE) {
+      update_expression = index;
+      break;
+    }
+  }
+  if (update_expression == CTOOL_C_AST_NONE ||
+      valid_unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)valid_unit.expression_count) {
+    (void)fprintf(stderr, "invalid update fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)valid_unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "invalid update fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, valid_unit.expressions,
+               (size_t)valid_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[update_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_NONE;
+  invalid_unit = valid_unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing update operation")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, valid_unit.expressions,
+               (size_t)valid_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[update_expression].computation_type =
+      valid_unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "update computation type range")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("integer-mutation-rejections: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -8990,9 +9931,29 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "switch-nesting") == 0) {
     return run_switch_nesting(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "integer-updates") == 0) {
+    return run_integer_updates(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "integer-compounds") == 0) {
+    return run_integer_compounds(argv[2]);
+  }
+  if (argc == 3 &&
+      strcmp(argv[1], "integer-compound-conversions") == 0) {
+    return run_integer_compound_conversions(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "integer-update-conversions") == 0) {
+    return run_integer_update_conversions(argv[2]);
+  }
+  if (argc == 3 &&
+      strcmp(argv[1], "integer-mutation-rejections") == 0) {
+    return run_integer_mutation_rejections(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
-                "switch-control|switch-nesting HOST_ROOT\n");
+                "switch-control|switch-nesting|integer-updates|"
+                "integer-compounds|integer-compound-conversions|"
+                "integer-update-conversions|"
+                "integer-mutation-rejections HOST_ROOT\n");
   return 2;
 }

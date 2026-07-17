@@ -4055,3 +4055,58 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0038 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. This checkout has no repository wiki tree to update. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Narrow, wide, floating, pointer, and aggregate values; broader addresses and calls; production integration; staged self-hosting; and the final fixed-point bootstrap remain. No issue is ready to close from this increment.
+
+## 2026-07-17: CupidC lowers integer mutation
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers all ten integer compound assignments and all four prefix and postfix update forms within its represented 32-bit slice. The unchanged requirements come from three ordinary statements in `toolchain/ctool.c`: `size++`, `capacity *= 2u`, and `value /= 10u`. Rewriting them as plain assignments would hide a compiler requirement and make the source less direct.
+
+`DUPLICATE_ADDRESS` keeps one evaluated destination address on the abstract stack for the final store. Compound assignment loads the object, performs integer promotion, applies the usual arithmetic conversion when needed, runs the selected operation, converts the result back to the destination type, and stores through the saved address. The destination designator is evaluated once.
+
+Update lowering follows the same address path. Prefix forms leave the stored value as their result. Postfix forms recover the earlier 32-bit value by applying the inverse operation after the store, so a volatile object still receives exactly one load and one store. The recovery is exact for unsigned arithmetic and for signed executions that do not overflow. Atomic access remains unsupported because it needs an explicit ordering and target-instruction contract.
+
+The conversion path distinguishes integer promotion from the usual arithmetic conversion. A signed enum used with an unsigned operand first promotes to its compatible signed type and then converts to the unsigned computation type. An `int` used with an `unsigned int` needs only the usual arithmetic conversion. Shift assignment keeps the promoted left type as its computation type.
+
+The i386 emitter encodes `DUPLICATE_ADDRESS` with the same `POP EAX`, `PUSH EAX`, `PUSH EAX` sequence used for represented value duplication. Its separate public kind preserves the address/value distinction without changing the 32-bit machine representation. ADR 0039 records this decision and the remaining boundaries.
+
+No user question was needed. The frozen frontend nodes already carry the raw destination, stored type, result type, computation type, and operator needed to preserve the C evaluation rules.
+
+### Contract evidence and corrections
+
+- The first update and compound fixtures stopped at the public unsupported-expression diagnostic. Those red runs confirmed that the frontend had accepted the source and isolated the missing IR path.
+- Prefix increment, prefix decrement, postfix increment, and postfix decrement publish 32 exact instructions. The general compound proof covers every compound operator plus signed division and signed right shift in 102 exact instructions.
+- Active-source guards pin the exact `ctool.c` statements at their unchanged spellings. No compiler source was rewritten to avoid the missing feature.
+- The first mixed signedness proof found an incorrect semantic record: the left conversion was always labeled as integer promotion. Separate promotion and usual-arithmetic steps now cover both `int` with `unsigned int` and a signed enum that needs both conversions.
+- The first object proof reached the emitter's internal unsupported-instruction failure for `DUPLICATE_ADDRESS`. Adding the matching i386 emission path made the same frozen unit produce a deterministic object.
+- The object has four functions of 35, 45, 78, and 43 bytes. Its 201-byte text section covers prefix and postfix update, multiplication assignment, logical right-shift assignment, and a file-object update. It has six symbols, one four-byte BSS object, and one `R_386_32` relocation at text offset 162. Repeated emission is byte-identical.
+- CupidDis decodes the full object text and finds three additions, two subtractions, one multiplication, one logical right shift, and four returns.
+- Negative contracts retain the public diagnostics for atomic, pointer, narrow, wide, and bit-field targets. A bit-field compound assignment and update both fail as unsupported expressions. Malformed update nodes reject a missing operator and an out-of-range computation type. Each failure preserves the frozen input, leaves the public result empty, and rewinds temporary allocations.
+- The Toolchain `test` target now invokes all five mutation IR modes and the mutation object mode, so direct hosted builds exercise the new capability without relying only on the Python wrapper.
+- The first sanitizer execution used `toolchain` as the active-source root and stopped with `not_found`. The already-instrumented binaries passed when rerun with the repository root. This was a harness-path error and did not expose a product failure.
+- GCC's first analyzer command used `-fsyntax-only`, which returned too quickly to count as useful path analysis. The recorded run compiles each translation unit with `-fanalyzer` and discards its object output.
+- Standards review found a second README inventory paragraph that still held the pre-change totals. That paragraph now matches the generated audit. Spec review found no missing behavior or scope mismatch, and the follow-up Standards review reports no remaining finding.
+- The final self-source tuple for `cupidc_ir.c` is 101 definitions, 2,926 statements, 24,270 expressions, 348 block bindings, and 106 initializers. `cupidc_emit.c` publishes 66/1,557/13,152/201/93.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 607 direct designated initializers across 18 files, 854 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,493 `while`, 1,677 `break`, 923 `continue`, 24,736 `if`, 3,427 `else`, 2,993 `for`, 15,131 `return`, and 2,922 `sizeof` occurrences. The active-source digest is `6817fc754966e9174f73577613d9dd674b38c3d2503ef3400417ecb98a41619d`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Update and compound assignment first failed at the intended unsupported-expression boundary. Address duplication then failed at the emitter boundary before its machine sequence was added. |
+| Focused CupidC contracts | PASS | The selected frontend aggregate gate plus the complete IR and object modules pass all 16 tests in 18.285 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted Toolchain suite, including every new mutation mode and all 22 assembly demos, in 23.1 seconds. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds pass the complete hosted Toolchain suite together in a 52.7-second parallel batch. |
+| Sanitizers | PASS AFTER HARNESS CORRECTION | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf`, all five mutation IR modes, `static-data`, and `integer-mutation`. Leak detection, stack traces, and halt-on-error behavior are enabled. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c`, `cupidc_emit.c`, and the three changed C contracts. |
+| Two-axis review | PASS AFTER DOCUMENTATION FIX | Standards review found one stale duplicate README inventory. Spec review found no behavior or scope gap. The follow-up Standards review reports no remaining finding. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 33.5 seconds. `make check-bootstrap-audit` reproduces them exactly in 34.1 seconds. |
+| Full repository gate | PASS | `make test` passes all 299 tests in 425.825 seconds with one expected skip and returns from Make in 459.3 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0039 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. This checkout has no repository wiki tree to update. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Pointer and bit-field mutation, other widths, floating and aggregate values, atomic ordering, broader address forms and calls, production integration, staged self-hosting, and the final fixed-point bootstrap remain. No issue is ready to close from this increment.

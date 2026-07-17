@@ -22,7 +22,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
   CTOOL_C_IR_INSTRUCTION_UNARY,
-  CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE
+  CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE,
+  CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -37,7 +38,8 @@ typedef struct {
    * BIT_FIELD_LOAD retain their record operand type. STORE and STORE_VALUE
    * retain the stored value type. DISCARD retains its consumed value type.
    * UNARY and BINARY retain their operand type. DUPLICATE_VALUE retains the
-   * duplicated value type. CALL_DIRECT retains the function type.
+   * duplicated value type. DUPLICATE_ADDRESS retains the duplicated object's
+   * type. CALL_DIRECT retains the function type.
    * BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
@@ -110,7 +112,12 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * targets are resolved before the immutable result is published.
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
- * LOCAL_ADDRESS and FILE_ADDRESS push object addresses.
+ * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. DUPLICATE_ADDRESS
+ * preserves an address while an integer compound assignment or update loads
+ * and stores the object. This evaluates the destination once. Compound
+ * assignments retain integer-promotion, usual-arithmetic, and assignment
+ * conversions. Prefix updates produce the stored value. Postfix updates
+ * produce the value from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
  * address and pushes the selected field's extracted integer value. STORE
