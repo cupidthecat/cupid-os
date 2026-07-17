@@ -21,7 +21,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_DISCARD,
   CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
-  CTOOL_C_IR_INSTRUCTION_UNARY
+  CTOOL_C_IR_INSTRUCTION_UNARY,
+  CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -35,8 +36,9 @@ typedef struct {
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD retain their record operand type. STORE and STORE_VALUE
    * retain the stored value type. DISCARD retains its consumed value type.
-   * UNARY and BINARY retain their operand type. CALL_DIRECT retains the
-   * function type. BRANCH_ZERO retains its consumed condition type. */
+   * UNARY and BINARY retain their operand type. DUPLICATE_VALUE retains the
+   * duplicated value type. CALL_DIRECT retains the function type.
+   * BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
@@ -99,12 +101,15 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * optional iteration expression in C source order. Declarations in supported
  * compound statements use the same source-ordered block bindings as outer
  * declarations. An omitted condition has no false exit.
- * Break and continue use JUMP to the nearest loop's exit and continuation
- * point. A do continuation reaches its condition, while a for continuation
- * reaches its iteration expression when one is present and its condition
- * otherwise. Identifier labels select zero-width targets inside one function.
+ * Break uses JUMP to the nearest loop or switch exit. Continue uses JUMP to
+ * the nearest loop's continuation point. A do continuation reaches its
+ * condition, while a for continuation reaches its iteration expression when
+ * one is present and its condition otherwise. Identifier labels select
+ * zero-width targets inside one function.
  * Direct goto statements use JUMP with a function-relative target. Forward
  * targets are resolved before the immutable result is published.
+ * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
+ * preserves that value while equality tests select resolved case targets.
  * LOCAL_ADDRESS and FILE_ADDRESS push object addresses.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record

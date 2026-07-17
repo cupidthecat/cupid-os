@@ -1,8 +1,10 @@
 #include "cupidc_ir.h"
 
 #define CIR_STACK_LIMIT (CTOOL_C_PARSE_NESTING_LIMIT + 1u)
-#define CIR_LOOP_PATCH_BREAK 1u
-#define CIR_LOOP_PATCH_CONTINUE 2u
+#define CIR_CONTROL_PATCH_BREAK 1u
+#define CIR_CONTROL_PATCH_CONTINUE 2u
+#define CIR_SWITCH_EXIT_PATCH 3u
+#define CIR_SWITCH_CASE_PATCH_TAG 0x4000000000000000ull
 #define CIR_GOTO_PATCH_TAG 0x8000000000000000ull
 
 typedef enum {
@@ -15,17 +17,28 @@ typedef struct {
   ctool_u32 type;
 } cir_stack_entry_t;
 
-typedef struct {
-  ctool_u32 first_instruction;
-  ctool_u32 continue_target;
-  ctool_bool has_break;
-  ctool_bool has_continue;
-} cir_loop_frame_t;
+typedef enum {
+  CIR_CONTROL_LOOP = 1,
+  CIR_CONTROL_SWITCH
+} cir_control_kind_t;
 
 typedef struct {
+  cir_control_kind_t kind;
+  ctool_u32 first_instruction;
+  ctool_u32 continue_target;
+  ctool_u32 condition_type;
   ctool_bool has_break;
   ctool_bool has_continue;
-} cir_reach_loop_frame_t;
+  ctool_bool switch_entry_reachable;
+} cir_control_frame_t;
+
+typedef struct {
+  cir_control_kind_t kind;
+  ctool_bool has_break;
+  ctool_bool has_continue;
+  ctool_bool has_default;
+  ctool_bool switch_entry_reachable;
+} cir_reach_control_frame_t;
 
 typedef struct {
   ctool_job_t *job;
@@ -56,10 +69,11 @@ typedef struct {
   cir_stack_entry_t stack[CIR_STACK_LIMIT];
   ctool_u32 stack_depth;
   ctool_u32 maximum_stack_depth;
-  cir_loop_frame_t loop_frames[CTOOL_C_PARSE_NESTING_LIMIT];
-  ctool_u32 loop_depth;
-  cir_reach_loop_frame_t reach_loop_frames[CTOOL_C_PARSE_NESTING_LIMIT];
-  ctool_u32 reach_loop_depth;
+  cir_control_frame_t control_frames[CTOOL_C_PARSE_NESTING_LIMIT];
+  ctool_u32 control_depth;
+  cir_reach_control_frame_t
+      reach_control_frames[CTOOL_C_PARSE_NESTING_LIMIT];
+  ctool_u32 reach_control_depth;
   ctool_bool failure_reported;
 } cir_context_t;
 
@@ -284,6 +298,16 @@ static ctool_bool cir_type_is_i32_integer(const cir_context_t *context,
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_i32_bits_are_canonical(ctool_u64 bits,
+                                              ctool_bool is_signed) {
+  ctool_u64 low = bits & 0xffffffffu;
+  ctool_u64 expected_upper =
+      is_signed == CTOOL_TRUE && (low & 0x80000000u) != 0u
+          ? 0xffffffffu
+          : 0u;
+  return bits >> 32u == expected_upper ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
 static ctool_bool cir_type_is_plain_signed_int(
     const cir_context_t *context, ctool_u32 type) {
   return type < context->unit->graph.type_count &&
@@ -292,6 +316,17 @@ static ctool_bool cir_type_is_plain_signed_int(
                  context->unit->graph.types[type].qualifiers == 0u
              ? CTOOL_TRUE
              : CTOOL_FALSE;
+}
+
+static ctool_u32 cir_plain_signed_int_type(
+    const cir_context_t *context) {
+  ctool_u32 type;
+  for (type = 0u; type < context->unit->graph.type_count; type++) {
+    if (cir_type_is_plain_signed_int(context, type) == CTOOL_TRUE) {
+      return type;
+    }
+  }
+  return CTOOL_C_TYPE_NONE;
 }
 
 static ctool_bool cir_type_is_complete_record_object(
@@ -1543,8 +1578,36 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         expression->type >= context->unit->graph.type_count) {
       return cir_invalid_unit(context, &expression->location);
     }
-    if (binding->kind == CTOOL_C_BINDING_FUNCTION ||
-        binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+    if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      ctool_u64 low = binding->integer_bits & 0xffffffffu;
+      if (binding->storage != CTOOL_C_STORAGE_NONE ||
+          binding->linkage != CTOOL_C_LINKAGE_NONE ||
+          (binding->integer_unsigned != CTOOL_FALSE &&
+           binding->integer_unsigned != CTOOL_TRUE)) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+      if (cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+        return cir_unsupported_type(context, &expression->location);
+      }
+      if (cir_i32_bits_are_canonical(
+              binding->integer_bits,
+              binding->integer_unsigned == CTOOL_FALSE ? CTOOL_TRUE
+                                                        : CTOOL_FALSE) ==
+          CTOOL_FALSE) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+      status = cir_append_instruction(
+          context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
+          low, &expression->location,
+          &expression->physical_location, (ctool_u32 *)0);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      return cir_push(context, CIR_STACK_VALUE, expression->type);
+    }
+    if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
       return cir_unsupported_expression(context, &expression->location);
     }
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
@@ -1617,9 +1680,20 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     return cir_push(context, CIR_STACK_ADDRESS, expression->type);
   }
   if (expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT) {
+    ctool_bool is_signed;
     if (expression->child_count != 0u ||
-        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE ||
-        (expression->integer_bits >> 32u) != 0u) {
+        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
+          "CupidC IR lowering does not yet support this value type");
+    }
+    is_signed = context->unit->layout.types[expression->type].is_signed;
+    if (is_signed != CTOOL_FALSE && is_signed != CTOOL_TRUE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (cir_i32_bits_are_canonical(expression->integer_bits, is_signed) ==
+        CTOOL_FALSE) {
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
@@ -1629,7 +1703,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
         CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
         CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
-        expression->integer_bits, &expression->location,
+        expression->integer_bits & 0xffffffffu, &expression->location,
         &expression->physical_location, (ctool_u32 *)0);
     if (status != CTOOL_OK) {
       return status;
@@ -1886,7 +1960,12 @@ static ctool_status_t cir_finish_count_only_validation(
 static ctool_status_t cir_lower_statement(cir_context_t *context,
                                           ctool_u32 statement_index,
                                           ctool_u32 depth,
+                                          ctool_bool entry_reachable,
                                           ctool_bool *falls_through_out);
+
+static ctool_status_t cir_lower_statement_from_entry(
+    cir_context_t *context, ctool_u32 statement_index, ctool_u32 depth,
+    ctool_bool entry_reachable, ctool_bool *falls_through_out);
 
 static ctool_bool cir_label_in_function(const cir_context_t *context,
                                         ctool_u32 label) {
@@ -1953,8 +2032,10 @@ static ctool_status_t cir_lower_label(cir_context_t *context,
                                       ctool_u32 statement_index,
                                       const ctool_c_statement_t *statement,
                                       ctool_u32 depth,
+                                      ctool_bool entry_reachable,
                                       ctool_bool *falls_through_out) {
   const ctool_c_label_t *label;
+  ctool_bool label_entry_reachable;
   ctool_u32 target;
   ctool_status_t status;
   if (statement->first_child != CTOOL_C_AST_NONE ||
@@ -1988,13 +2069,19 @@ static ctool_status_t cir_lower_label(cir_context_t *context,
   if (status != CTOOL_OK) {
     return status;
   }
-  return cir_lower_statement(context, statement->body, depth + 1u,
-                             falls_through_out);
+  label_entry_reachable =
+      entry_reachable == CTOOL_TRUE ||
+              context->label_reachable[statement->label] == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  return cir_lower_statement_from_entry(
+      context, statement->body, depth + 1u, label_entry_reachable,
+      falls_through_out);
 }
 
-static ctool_bool cir_statement_contains_reachable_label(
+static ctool_bool cir_statement_contains_reachable_label_inner(
     const cir_context_t *context, ctool_u32 statement_index,
-    ctool_u32 depth) {
+    ctool_u32 depth, ctool_bool switch_labels_reachable) {
   const ctool_c_statement_t *statement;
   ctool_u32 child_offset;
   if (depth >= CTOOL_C_PARSE_NESTING_LIMIT ||
@@ -2007,8 +2094,14 @@ static ctool_bool cir_statement_contains_reachable_label(
         context->label_reachable[statement->label] == CTOOL_TRUE) {
       return CTOOL_TRUE;
     }
-    return cir_statement_contains_reachable_label(
-        context, statement->body, depth + 1u);
+    return cir_statement_contains_reachable_label_inner(
+        context, statement->body, depth + 1u, switch_labels_reachable);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_CASE ||
+      statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+    if (switch_labels_reachable == CTOOL_TRUE) {
+      return CTOOL_TRUE;
+    }
   }
   if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
     if (statement->first_child > context->unit->statement_child_count ||
@@ -2020,33 +2113,58 @@ static ctool_bool cir_statement_contains_reachable_label(
          child_offset++) {
       ctool_u32 child = context->unit->statement_children
           [statement->first_child + child_offset];
-      if (cir_statement_contains_reachable_label(
-              context, child, depth + 1u) == CTOOL_TRUE) {
+      if (cir_statement_contains_reachable_label_inner(
+              context, child, depth + 1u,
+              switch_labels_reachable) == CTOOL_TRUE) {
         return CTOOL_TRUE;
       }
     }
     return CTOOL_FALSE;
   }
   if (statement->kind == CTOOL_C_STATEMENT_IF) {
-    if (cir_statement_contains_reachable_label(
-            context, statement->body, depth + 1u) == CTOOL_TRUE) {
+    if (cir_statement_contains_reachable_label_inner(
+            context, statement->body, depth + 1u,
+            switch_labels_reachable) == CTOOL_TRUE) {
       return CTOOL_TRUE;
     }
     return statement->else_body != CTOOL_C_AST_NONE
-               ? cir_statement_contains_reachable_label(
-                     context, statement->else_body, depth + 1u)
+               ? cir_statement_contains_reachable_label_inner(
+                     context, statement->else_body, depth + 1u,
+                     switch_labels_reachable)
                : CTOOL_FALSE;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_SWITCH) {
+    return cir_statement_contains_reachable_label_inner(
+        context, statement->body, depth + 1u, CTOOL_FALSE);
   }
   if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
       statement->kind == CTOOL_C_STATEMENT_DO ||
       statement->kind == CTOOL_C_STATEMENT_FOR ||
-      statement->kind == CTOOL_C_STATEMENT_SWITCH ||
       statement->kind == CTOOL_C_STATEMENT_CASE ||
       statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
-    return cir_statement_contains_reachable_label(
-        context, statement->body, depth + 1u);
+    return cir_statement_contains_reachable_label_inner(
+        context, statement->body, depth + 1u, switch_labels_reachable);
   }
   return CTOOL_FALSE;
+}
+
+static ctool_bool cir_statement_contains_reachable_label(
+    const cir_context_t *context, ctool_u32 statement_index,
+    ctool_u32 depth) {
+  ctool_u32 frame_index;
+  ctool_bool switch_labels_reachable = CTOOL_FALSE;
+  for (frame_index = context->control_depth; frame_index != 0u;
+       frame_index--) {
+    if (context->control_frames[frame_index - 1u].kind ==
+        CIR_CONTROL_SWITCH) {
+      switch_labels_reachable =
+          context->control_frames[frame_index - 1u]
+              .switch_entry_reachable;
+      break;
+    }
+  }
+  return cir_statement_contains_reachable_label_inner(
+      context, statement_index, depth, switch_labels_reachable);
 }
 
 static ctool_status_t cir_validate_unreachable_statement(
@@ -2057,8 +2175,22 @@ static ctool_status_t cir_validate_unreachable_statement(
   ctool_status_t status;
   cir_prepare_count_only_validation(&validation, context);
   status = cir_lower_statement(&validation, statement_index, depth,
-                               &ignored_fallthrough);
+                               CTOOL_FALSE, &ignored_fallthrough);
   return cir_finish_count_only_validation(context, &validation, mark, status);
+}
+
+static ctool_status_t cir_lower_statement_from_entry(
+    cir_context_t *context, ctool_u32 statement_index, ctool_u32 depth,
+    ctool_bool entry_reachable, ctool_bool *falls_through_out) {
+  *falls_through_out = CTOOL_FALSE;
+  if (entry_reachable == CTOOL_FALSE &&
+      cir_statement_contains_reachable_label(
+          context, statement_index, depth) == CTOOL_FALSE) {
+    return cir_validate_unreachable_statement(context, statement_index,
+                                               depth);
+  }
+  return cir_lower_statement(context, statement_index, depth,
+                             entry_reachable, falls_through_out);
 }
 
 static ctool_status_t cir_lower_discarded_expression(
@@ -2128,8 +2260,9 @@ static ctool_status_t cir_lower_compound(cir_context_t *context,
                                          ctool_u32 statement_index,
                                          const ctool_c_statement_t *statement,
                                          ctool_u32 depth,
+                                         ctool_bool entry_reachable,
                                          ctool_bool *falls_through_out) {
-  ctool_bool falls_through = CTOOL_TRUE;
+  ctool_bool falls_through = entry_reachable;
   ctool_u32 child_offset;
   if (statement->first_child > context->unit->statement_child_count ||
       statement->child_count >
@@ -2146,14 +2279,9 @@ static ctool_status_t cir_lower_compound(cir_context_t *context,
     if (child >= statement_index || child >= context->unit->statement_count) {
       return cir_invalid_unit(context, &statement->location);
     }
-    if (falls_through == CTOOL_FALSE &&
-        cir_statement_contains_reachable_label(
-            context, child, depth + 1u) == CTOOL_FALSE) {
-      status = cir_validate_unreachable_statement(context, child, depth + 1u);
-    } else {
-      status = cir_lower_statement(context, child, depth + 1u,
-                                   &child_falls_through);
-    }
+    status = cir_lower_statement_from_entry(
+        context, child, depth + 1u, falls_through,
+        &child_falls_through);
     if (status != CTOOL_OK) {
       return status;
     }
@@ -2210,29 +2338,32 @@ static ctool_status_t cir_validate_unreachable_integer_condition(
 
 static ctool_status_t cir_enter_loop(cir_context_t *context,
                                      ctool_u32 continue_target) {
-  cir_loop_frame_t *frame;
-  if (context->loop_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+  cir_control_frame_t *frame;
+  if (context->control_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
     return cir_emit_failure(
         context, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
         (const ctool_c_pp_location_t *)0,
         "CupidC IR lowering exceeded a configured resource limit");
   }
-  frame = &context->loop_frames[context->loop_depth++];
+  frame = &context->control_frames[context->control_depth++];
+  frame->kind = CIR_CONTROL_LOOP;
   frame->first_instruction = context->instruction_count;
   frame->continue_target = continue_target;
+  frame->condition_type = CTOOL_C_TYPE_NONE;
   frame->has_break = CTOOL_FALSE;
   frame->has_continue = CTOOL_FALSE;
+  frame->switch_entry_reachable = CTOOL_FALSE;
   return CTOOL_OK;
 }
 
-static cir_loop_frame_t cir_leave_loop(cir_context_t *context) {
-  context->loop_depth--;
-  return context->loop_frames[context->loop_depth];
+static cir_control_frame_t cir_leave_loop(cir_context_t *context) {
+  context->control_depth--;
+  return context->control_frames[context->control_depth];
 }
 
-static ctool_status_t cir_patch_loop_jumps(
-    cir_context_t *context, const cir_loop_frame_t *frame,
-    ctool_u64 patch_kind, ctool_u32 target) {
+static ctool_status_t cir_patch_tagged_jumps(
+    cir_context_t *context, const cir_control_frame_t *frame,
+    ctool_u64 patch, ctool_u32 target) {
   ctool_u32 instruction;
   cir_record_patched_target(context, target);
   if (context->instructions == (ctool_c_ir_instruction_t *)0) {
@@ -2247,7 +2378,7 @@ static ctool_status_t cir_patch_loop_jumps(
         &context->instructions[instruction];
     if (candidate->kind == CTOOL_C_IR_INSTRUCTION_JUMP &&
         candidate->reference == CTOOL_C_AST_NONE &&
-        candidate->integer_bits == patch_kind) {
+        candidate->integer_bits == patch) {
       candidate->reference = target;
       candidate->integer_bits = 0u;
     }
@@ -2255,9 +2386,10 @@ static ctool_status_t cir_patch_loop_jumps(
   return CTOOL_OK;
 }
 
-static ctool_status_t cir_lower_loop_jump(
+static ctool_status_t cir_lower_control_jump(
     cir_context_t *context, const ctool_c_statement_t *statement) {
-  cir_loop_frame_t *frame;
+  cir_control_frame_t *frame;
+  ctool_u32 frame_index;
   ctool_u32 reference = CTOOL_C_AST_NONE;
   ctool_u64 patch_kind = 0u;
   if (statement->first_child != CTOOL_C_AST_NONE ||
@@ -2271,19 +2403,32 @@ static ctool_status_t cir_lower_loop_jump(
       statement->iteration != CTOOL_C_AST_NONE ||
       statement->body != CTOOL_C_AST_NONE ||
       statement->else_body != CTOOL_C_AST_NONE ||
-      context->loop_depth == 0u) {
+      context->control_depth == 0u) {
     return cir_invalid_unit(context, &statement->location);
   }
-  frame = &context->loop_frames[context->loop_depth - 1u];
   if (statement->kind == CTOOL_C_STATEMENT_BREAK) {
+    frame = &context->control_frames[context->control_depth - 1u];
     frame->has_break = CTOOL_TRUE;
-    patch_kind = CIR_LOOP_PATCH_BREAK;
+    patch_kind = CIR_CONTROL_PATCH_BREAK;
   } else if (statement->kind == CTOOL_C_STATEMENT_CONTINUE) {
+    frame = (cir_control_frame_t *)0;
+    for (frame_index = context->control_depth; frame_index != 0u;
+         frame_index--) {
+      cir_control_frame_t *candidate =
+          &context->control_frames[frame_index - 1u];
+      if (candidate->kind == CIR_CONTROL_LOOP) {
+        frame = candidate;
+        break;
+      }
+    }
+    if (frame == (cir_control_frame_t *)0) {
+      return cir_invalid_unit(context, &statement->location);
+    }
     frame->has_continue = CTOOL_TRUE;
     if (frame->continue_target != CTOOL_C_AST_NONE) {
       reference = frame->continue_target;
     } else {
-      patch_kind = CIR_LOOP_PATCH_CONTINUE;
+      patch_kind = CIR_CONTROL_PATCH_CONTINUE;
     }
   } else {
     return cir_invalid_unit(context, &statement->location);
@@ -2297,14 +2442,15 @@ static ctool_status_t cir_lower_loop_jump(
 
 static ctool_status_t cir_lower_loop_body(
     cir_context_t *context, ctool_u32 body, ctool_u32 depth,
-    ctool_u32 continue_target, cir_loop_frame_t *frame_out,
+    ctool_bool entry_reachable, ctool_u32 continue_target,
+    cir_control_frame_t *frame_out,
     ctool_bool *falls_through_out) {
   ctool_status_t status = cir_enter_loop(context, continue_target);
   if (status != CTOOL_OK) {
     return status;
   }
-  status = cir_lower_statement(context, body, depth + 1u,
-                               falls_through_out);
+  status = cir_lower_statement_from_entry(
+      context, body, depth + 1u, entry_reachable, falls_through_out);
   *frame_out = cir_leave_loop(context);
   return status;
 }
@@ -2313,9 +2459,10 @@ static ctool_status_t cir_lower_if(cir_context_t *context,
                                    ctool_u32 statement_index,
                                    const ctool_c_statement_t *statement,
                                    ctool_u32 depth,
+                                   ctool_bool entry_reachable,
                                    ctool_bool *falls_through_out) {
-  ctool_bool body_falls_through = CTOOL_TRUE;
-  ctool_bool else_falls_through = CTOOL_TRUE;
+  ctool_bool body_falls_through = CTOOL_FALSE;
+  ctool_bool else_falls_through = CTOOL_FALSE;
   ctool_u32 branch;
   ctool_u32 jump = CTOOL_C_AST_NONE;
   ctool_status_t status;
@@ -2343,8 +2490,9 @@ static ctool_status_t cir_lower_if(cir_context_t *context,
   status = cir_lower_integer_condition_branch(context, statement->condition,
                                               &branch);
   if (status == CTOOL_OK) {
-    status = cir_lower_statement(context, statement->body, depth + 1u,
-                                 &body_falls_through);
+    status = cir_lower_statement_from_entry(
+        context, statement->body, depth + 1u, entry_reachable,
+        &body_falls_through);
   }
   if (status != CTOOL_OK) {
     return status;
@@ -2353,7 +2501,10 @@ static ctool_status_t cir_lower_if(cir_context_t *context,
     status = cir_patch_reference(context, branch,
                                  cir_function_offset(context));
     if (status == CTOOL_OK) {
-      *falls_through_out = CTOOL_TRUE;
+      *falls_through_out = entry_reachable == CTOOL_TRUE ||
+                                   body_falls_through == CTOOL_TRUE
+                               ? CTOOL_TRUE
+                               : CTOOL_FALSE;
     }
     return status;
   }
@@ -2369,8 +2520,9 @@ static ctool_status_t cir_lower_if(cir_context_t *context,
                                  cir_function_offset(context));
   }
   if (status == CTOOL_OK) {
-    status = cir_lower_statement(context, statement->else_body, depth + 1u,
-                                 &else_falls_through);
+    status = cir_lower_statement_from_entry(
+        context, statement->else_body, depth + 1u, entry_reachable,
+        &else_falls_through);
   }
   if (status == CTOOL_OK && jump != CTOOL_C_AST_NONE) {
     status = cir_patch_reference(context, jump,
@@ -2426,8 +2578,9 @@ static ctool_status_t cir_lower_while(cir_context_t *context,
                                       ctool_u32 statement_index,
                                       const ctool_c_statement_t *statement,
                                       ctool_u32 depth,
+                                      ctool_bool entry_reachable,
                                       ctool_bool *falls_through_out) {
-  cir_loop_frame_t frame;
+  cir_control_frame_t frame;
   ctool_bool body_falls_through = CTOOL_TRUE;
   ctool_u32 condition_target;
   ctool_u32 branch;
@@ -2442,7 +2595,7 @@ static ctool_status_t cir_lower_while(cir_context_t *context,
                                               &branch);
   if (status == CTOOL_OK) {
     status = cir_lower_loop_body(context, statement->body, depth,
-                                 condition_target, &frame,
+                                 entry_reachable, condition_target, &frame,
                                  &body_falls_through);
   }
   if (status != CTOOL_OK) {
@@ -2460,11 +2613,16 @@ static ctool_status_t cir_lower_while(cir_context_t *context,
     status = cir_patch_reference(context, branch, exit_target);
   }
   if (status == CTOOL_OK && frame.has_break == CTOOL_TRUE) {
-    status = cir_patch_loop_jumps(context, &frame, CIR_LOOP_PATCH_BREAK,
-                                  exit_target);
+    status = cir_patch_tagged_jumps(context, &frame,
+                                    CIR_CONTROL_PATCH_BREAK, exit_target);
   }
   if (status == CTOOL_OK) {
-    *falls_through_out = CTOOL_TRUE;
+    *falls_through_out =
+        entry_reachable == CTOOL_TRUE || frame.has_break == CTOOL_TRUE ||
+                body_falls_through == CTOOL_TRUE ||
+                frame.has_continue == CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
   }
   return status;
 }
@@ -2473,8 +2631,9 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
                                    ctool_u32 statement_index,
                                    const ctool_c_statement_t *statement,
                                    ctool_u32 depth,
+                                   ctool_bool entry_reachable,
                                    ctool_bool *falls_through_out) {
-  cir_loop_frame_t frame;
+  cir_control_frame_t frame;
   ctool_bool body_falls_through = CTOOL_TRUE;
   ctool_u32 body_target;
   ctool_u32 branch = CTOOL_C_AST_NONE;
@@ -2487,7 +2646,7 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
   }
   body_target = cir_function_offset(context);
   status = cir_lower_loop_body(context, statement->body, depth,
-                               CTOOL_C_AST_NONE, &frame,
+                               entry_reachable, CTOOL_C_AST_NONE, &frame,
                                &body_falls_through);
   if (status != CTOOL_OK) {
     return status;
@@ -2499,9 +2658,9 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
   } else {
     condition_target = cir_function_offset(context);
     if (frame.has_continue == CTOOL_TRUE) {
-      status = cir_patch_loop_jumps(context, &frame,
-                                    CIR_LOOP_PATCH_CONTINUE,
-                                    condition_target);
+      status = cir_patch_tagged_jumps(context, &frame,
+                                      CIR_CONTROL_PATCH_CONTINUE,
+                                      condition_target);
     }
     if (status == CTOOL_OK) {
       status = cir_lower_integer_condition_branch(context,
@@ -2521,8 +2680,8 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
     status = cir_patch_reference(context, branch, exit_target);
   }
   if (status == CTOOL_OK && frame.has_break == CTOOL_TRUE) {
-    status = cir_patch_loop_jumps(context, &frame, CIR_LOOP_PATCH_BREAK,
-                                  exit_target);
+    status = cir_patch_tagged_jumps(context, &frame,
+                                    CIR_CONTROL_PATCH_BREAK, exit_target);
   }
   if (status == CTOOL_OK) {
     *falls_through_out =
@@ -2574,9 +2733,10 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
                                     ctool_u32 statement_index,
                                     const ctool_c_statement_t *statement,
                                     ctool_u32 depth,
+                                    ctool_bool entry_reachable,
                                     ctool_bool *falls_through_out) {
   const ctool_c_statement_t *initializer;
-  cir_loop_frame_t frame;
+  cir_control_frame_t frame;
   ctool_bool body_falls_through = CTOOL_TRUE;
   ctool_u32 condition_target;
   ctool_u32 exit_branch = CTOOL_C_AST_NONE;
@@ -2605,7 +2765,7 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
   }
   if (status == CTOOL_OK) {
     status = cir_lower_loop_body(
-        context, statement->body, depth,
+        context, statement->body, depth, entry_reachable,
         statement->iteration == CTOOL_C_AST_NONE ? condition_target
                                                  : CTOOL_C_AST_NONE,
         &frame, &body_falls_through);
@@ -2624,9 +2784,9 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
       const ctool_c_expression_t *iteration =
           &context->unit->expressions[statement->iteration];
       if (frame.has_continue == CTOOL_TRUE) {
-        status = cir_patch_loop_jumps(context, &frame,
-                                      CIR_LOOP_PATCH_CONTINUE,
-                                      cir_function_offset(context));
+        status = cir_patch_tagged_jumps(context, &frame,
+                                        CIR_CONTROL_PATCH_CONTINUE,
+                                        cir_function_offset(context));
       }
       if (status == CTOOL_OK) {
         status = cir_lower_discarded_expression(
@@ -2650,13 +2810,437 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
     status = cir_patch_reference(context, exit_branch, exit_target);
   }
   if (status == CTOOL_OK && frame.has_break == CTOOL_TRUE) {
-    status = cir_patch_loop_jumps(context, &frame, CIR_LOOP_PATCH_BREAK,
-                                  exit_target);
+    status = cir_patch_tagged_jumps(context, &frame,
+                                    CIR_CONTROL_PATCH_BREAK, exit_target);
+  }
+  if (status == CTOOL_OK) {
+    if (statement->condition == CTOOL_C_AST_NONE) {
+      *falls_through_out = frame.has_break;
+    } else {
+      *falls_through_out =
+          entry_reachable == CTOOL_TRUE || frame.has_break == CTOOL_TRUE ||
+                  body_falls_through == CTOOL_TRUE ||
+                  frame.has_continue == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+    }
+  }
+  return status;
+}
+
+static ctool_status_t cir_enter_switch(cir_context_t *context,
+                                       ctool_u32 condition_type,
+                                       ctool_bool entry_reachable) {
+  cir_control_frame_t *frame;
+  if (context->control_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+        (const ctool_c_pp_location_t *)0,
+        "CupidC IR lowering exceeded a configured resource limit");
+  }
+  frame = &context->control_frames[context->control_depth++];
+  frame->kind = CIR_CONTROL_SWITCH;
+  frame->first_instruction = context->instruction_count;
+  frame->continue_target = CTOOL_C_AST_NONE;
+  frame->condition_type = condition_type;
+  frame->has_break = CTOOL_FALSE;
+  frame->has_continue = CTOOL_FALSE;
+  frame->switch_entry_reachable = entry_reachable;
+  return CTOOL_OK;
+}
+
+static cir_control_frame_t cir_leave_switch(cir_context_t *context) {
+  context->control_depth--;
+  return context->control_frames[context->control_depth];
+}
+
+static ctool_status_t cir_duplicate_value(
+    cir_context_t *context, ctool_u32 type,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  ctool_status_t status;
+  if (context->stack_depth == 0u ||
+      context->stack[context->stack_depth - 1u].kind != CIR_STACK_VALUE ||
+      context->stack[context->stack_depth - 1u].type != type ||
+      cir_type_is_i32_integer(context, type) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE, type, type,
+      CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+      CTOOL_C_AST_NONE, 0u, location, physical_location,
+      (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_VALUE, type);
+}
+
+static ctool_status_t cir_emit_switch_case_test(
+    cir_context_t *context, ctool_u32 statement_index,
+    const ctool_c_statement_t *statement, ctool_u32 condition_type) {
+  const ctool_c_expression_t *case_expression;
+  cir_stack_entry_t case_value;
+  cir_stack_entry_t comparison_left;
+  cir_stack_entry_t comparison_result;
+  cir_stack_entry_t switch_value;
+  ctool_u32 comparison_type = cir_plain_signed_int_type(context);
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_u32 next_case_branch;
+  ctool_u64 patch = CIR_SWITCH_CASE_PATCH_TAG | (ctool_u64)statement_index;
+  ctool_status_t status;
+  if (statement->expression >= context->unit->expression_count ||
+      comparison_type == CTOOL_C_TYPE_NONE) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  case_expression = &context->unit->expressions[statement->expression];
+  if (case_expression->kind != CTOOL_C_EXPRESSION_INTEGER_CONSTANT ||
+      case_expression->type != condition_type || base_depth == 0u) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  switch_value = context->stack[base_depth - 1u];
+  status = cir_duplicate_value(context, condition_type,
+                               &case_expression->location,
+                               &case_expression->physical_location);
+  if (status == CTOOL_OK) {
+    status = cir_lower_expression(context, statement->expression, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &case_value);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &comparison_left);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (context->stack_depth != base_depth ||
+      comparison_left.kind != CIR_STACK_VALUE ||
+      case_value.kind != CIR_STACK_VALUE ||
+      comparison_left.type != condition_type ||
+      case_value.type != condition_type) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_BINARY, comparison_type,
+      condition_type, CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &case_expression->location, &case_expression->physical_location,
+      (ctool_u32 *)0);
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, comparison_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &comparison_result);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (comparison_result.kind != CIR_STACK_VALUE ||
+      comparison_result.type != comparison_type ||
+      context->stack_depth != base_depth) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
+      comparison_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &case_expression->location, &case_expression->physical_location,
+      &next_case_branch);
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &switch_value);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE,
+        condition_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &statement->location, &statement->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, patch,
+        &statement->location, &statement->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_patch_reference(context, next_case_branch,
+                                 cir_function_offset(context));
+  }
+  if (status == CTOOL_OK) {
+    context->stack[base_depth - 1u] = switch_value;
+    context->stack_depth = base_depth;
+  }
+  return status;
+}
+
+static ctool_status_t cir_emit_switch_dispatch(
+    cir_context_t *context, ctool_u32 statement_index, ctool_u32 depth,
+    ctool_u32 condition_type, ctool_u32 *default_statement) {
+  const ctool_c_statement_t *statement;
+  ctool_u32 child_offset;
+  ctool_status_t status;
+  if (depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+        (const ctool_c_pp_location_t *)0,
+        "CupidC IR lowering exceeded a configured resource limit");
+  }
+  if (statement_index >= context->unit->statement_count) {
+    return cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
+  }
+  statement = &context->unit->statements[statement_index];
+  if (statement->kind == CTOOL_C_STATEMENT_SWITCH) {
+    return CTOOL_OK;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_CASE ||
+      statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+    if (statement->first_child != CTOOL_C_AST_NONE ||
+        statement->child_count != 0u ||
+        statement->first_block_binding != CTOOL_C_AST_NONE ||
+        statement->block_binding_count != 0u ||
+        statement->label != CTOOL_C_AST_NONE ||
+        statement->initializer_statement != CTOOL_C_AST_NONE ||
+        statement->condition != CTOOL_C_AST_NONE ||
+        statement->iteration != CTOOL_C_AST_NONE ||
+        statement->else_body != CTOOL_C_AST_NONE ||
+        statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count ||
+        context->unit->statements[statement->body].kind ==
+            CTOOL_C_STATEMENT_DECLARATION ||
+        (statement->kind == CTOOL_C_STATEMENT_CASE &&
+         statement->expression == CTOOL_C_AST_NONE) ||
+        (statement->kind == CTOOL_C_STATEMENT_DEFAULT &&
+         statement->expression != CTOOL_C_AST_NONE)) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (statement->kind == CTOOL_C_STATEMENT_CASE) {
+      status = cir_emit_switch_case_test(context, statement_index, statement,
+                                         condition_type);
+    } else {
+      if (*default_statement != CTOOL_C_AST_NONE) {
+        return cir_invalid_unit(context, &statement->location);
+      }
+      *default_statement = statement_index;
+      status = CTOOL_OK;
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_emit_switch_dispatch(context, statement->body, depth + 1u,
+                                    condition_type, default_statement);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
+    if (statement->first_child > context->unit->statement_child_count ||
+        statement->child_count >
+            context->unit->statement_child_count - statement->first_child) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    for (child_offset = 0u; child_offset < statement->child_count;
+         child_offset++) {
+      ctool_u32 child = context->unit->statement_children
+          [statement->first_child + child_offset];
+      if (child >= statement_index ||
+          child >= context->unit->statement_count) {
+        return cir_invalid_unit(context, &statement->location);
+      }
+      status = cir_emit_switch_dispatch(context, child, depth + 1u,
+                                        condition_type, default_statement);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    }
+    return CTOOL_OK;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_IF) {
+    status = cir_emit_switch_dispatch(context, statement->body, depth + 1u,
+                                      condition_type, default_statement);
+    if (status != CTOOL_OK || statement->else_body == CTOOL_C_AST_NONE) {
+      return status;
+    }
+    return cir_emit_switch_dispatch(context, statement->else_body,
+                                    depth + 1u, condition_type,
+                                    default_statement);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
+      statement->kind == CTOOL_C_STATEMENT_DO ||
+      statement->kind == CTOOL_C_STATEMENT_FOR ||
+      statement->kind == CTOOL_C_STATEMENT_LABEL) {
+    return cir_emit_switch_dispatch(context, statement->body, depth + 1u,
+                                    condition_type, default_statement);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_lower_switch_label(
+    cir_context_t *context, ctool_u32 statement_index,
+    const ctool_c_statement_t *statement, ctool_u32 depth,
+    ctool_bool entry_reachable,
+    ctool_bool *falls_through_out) {
+  cir_control_frame_t *frame = (cir_control_frame_t *)0;
+  ctool_u32 frame_index;
+  ctool_u64 patch;
+  ctool_status_t status;
+  for (frame_index = context->control_depth; frame_index != 0u;
+       frame_index--) {
+    cir_control_frame_t *candidate =
+        &context->control_frames[frame_index - 1u];
+    if (candidate->kind == CIR_CONTROL_SWITCH) {
+      frame = candidate;
+      break;
+    }
+  }
+  if (frame == (cir_control_frame_t *)0) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_CASE) {
+    if (statement->expression >= context->unit->expression_count ||
+        context->unit->expressions[statement->expression].type !=
+            frame->condition_type) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+  } else if (statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+    if (statement->expression != CTOOL_C_AST_NONE) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+  } else {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  patch = CIR_SWITCH_CASE_PATCH_TAG | (ctool_u64)statement_index;
+  status = cir_patch_tagged_jumps(context, frame, patch,
+                                  cir_function_offset(context));
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_lower_statement_from_entry(
+      context, statement->body, depth + 1u,
+      entry_reachable == CTOOL_TRUE ||
+              frame->switch_entry_reachable == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE,
+      falls_through_out);
+}
+
+static ctool_status_t cir_lower_switch(cir_context_t *context,
+                                       ctool_u32 statement_index,
+                                       const ctool_c_statement_t *statement,
+                                       ctool_u32 depth,
+                                       ctool_bool entry_reachable,
+                                       ctool_bool *falls_through_out) {
+  const ctool_c_expression_t *condition_expression;
+  cir_stack_entry_t condition;
+  cir_control_frame_t frame;
+  ctool_bool body_falls_through = CTOOL_TRUE;
+  ctool_bool entered_switch = CTOOL_FALSE;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_u32 default_statement = CTOOL_C_AST_NONE;
+  ctool_u32 exit_target;
+  ctool_u64 final_patch;
+  ctool_status_t status;
+  if (statement->first_child != CTOOL_C_AST_NONE ||
+      statement->child_count != 0u ||
+      statement->expression != CTOOL_C_AST_NONE ||
+      statement->first_block_binding != CTOOL_C_AST_NONE ||
+      statement->block_binding_count != 0u ||
+      statement->label != CTOOL_C_AST_NONE ||
+      statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->condition == CTOOL_C_AST_NONE ||
+      statement->condition >= context->unit->expression_count ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->body >= statement_index ||
+      statement->body >= context->unit->statement_count ||
+      context->unit->statements[statement->body].kind ==
+          CTOOL_C_STATEMENT_DECLARATION ||
+      statement->else_body != CTOOL_C_AST_NONE) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  condition_expression = &context->unit->expressions[statement->condition];
+  status = cir_lower_expression(context, statement->condition, 0u);
+  if (status == CTOOL_OK && context->stack_depth != base_depth + 1u) {
+    status = cir_invalid_unit(context, &condition_expression->location);
+  }
+  if (status == CTOOL_OK) {
+    condition = context->stack[base_depth];
+    if (condition.kind != CIR_STACK_VALUE ||
+        cir_type_is_i32_integer(context, condition.type) == CTOOL_FALSE) {
+      status = cir_unsupported_type(context, &condition_expression->location);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cir_enter_switch(context, condition.type, entry_reachable);
+    if (status == CTOOL_OK) {
+      entered_switch = CTOOL_TRUE;
+    }
+  }
+  if (status == CTOOL_OK) {
+    if (entry_reachable == CTOOL_TRUE) {
+      status = cir_emit_switch_dispatch(context, statement->body, depth + 1u,
+                                        condition.type, &default_statement);
+    } else {
+      cir_context_t validation;
+      ctool_arena_mark_t mark = ctool_arena_mark(context->arena);
+      cir_prepare_count_only_validation(&validation, context);
+      status = cir_emit_switch_dispatch(
+          &validation, statement->body, depth + 1u, condition.type,
+          &default_statement);
+      status = cir_finish_count_only_validation(context, &validation, mark,
+                                                status);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &condition);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE,
+        condition.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &statement->location, &statement->physical_location,
+        (ctool_u32 *)0);
+  }
+  final_patch = default_statement == CTOOL_C_AST_NONE
+                    ? CIR_SWITCH_EXIT_PATCH
+                    : CIR_SWITCH_CASE_PATCH_TAG |
+                          (ctool_u64)default_statement;
+  if (status == CTOOL_OK && entry_reachable == CTOOL_TRUE) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, final_patch,
+        &statement->location, &statement->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_lower_statement_from_entry(
+        context, statement->body, depth + 1u, CTOOL_FALSE,
+        &body_falls_through);
+  }
+  if (entered_switch == CTOOL_FALSE) {
+    return status;
+  }
+  frame = cir_leave_switch(context);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  exit_target = cir_function_offset(context);
+  if (entry_reachable == CTOOL_TRUE &&
+      default_statement == CTOOL_C_AST_NONE) {
+    status = cir_patch_tagged_jumps(context, &frame,
+                                    CIR_SWITCH_EXIT_PATCH, exit_target);
+  }
+  if (status == CTOOL_OK && frame.has_break == CTOOL_TRUE) {
+    status = cir_patch_tagged_jumps(context, &frame,
+                                    CIR_CONTROL_PATCH_BREAK, exit_target);
   }
   if (status == CTOOL_OK) {
     *falls_through_out =
-        statement->condition != CTOOL_C_AST_NONE ||
-                frame.has_break == CTOOL_TRUE
+        (entry_reachable == CTOOL_TRUE &&
+         default_statement == CTOOL_C_AST_NONE) ||
+                frame.has_break == CTOOL_TRUE ||
+                body_falls_through == CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
   }
@@ -2666,6 +3250,7 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
 static ctool_status_t cir_lower_statement(cir_context_t *context,
                                           ctool_u32 statement_index,
                                           ctool_u32 depth,
+                                          ctool_bool entry_reachable,
                                           ctool_bool *falls_through_out) {
   const ctool_c_statement_t *statement;
   ctool_status_t status;
@@ -2702,19 +3287,25 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
   }
   if (statement->kind == CTOOL_C_STATEMENT_LABEL) {
     return cir_lower_label(context, statement_index, statement, depth,
-                           falls_through_out);
+                           entry_reachable, falls_through_out);
   }
   if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
     return cir_lower_compound(context, statement_index, statement, depth,
-                              falls_through_out);
+                              entry_reachable, falls_through_out);
   }
   if (statement->kind == CTOOL_C_STATEMENT_IF) {
     return cir_lower_if(context, statement_index, statement, depth,
-                        falls_through_out);
+                        entry_reachable, falls_through_out);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_CASE ||
+      statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+    return cir_lower_switch_label(context, statement_index, statement,
+                                  depth, entry_reachable,
+                                  falls_through_out);
   }
   if (statement->kind == CTOOL_C_STATEMENT_BREAK ||
       statement->kind == CTOOL_C_STATEMENT_CONTINUE) {
-    status = cir_lower_loop_jump(context, statement);
+    status = cir_lower_control_jump(context, statement);
     if (status == CTOOL_OK) {
       *falls_through_out = CTOOL_FALSE;
     }
@@ -2722,15 +3313,19 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
   }
   if (statement->kind == CTOOL_C_STATEMENT_WHILE) {
     return cir_lower_while(context, statement_index, statement, depth,
-                           falls_through_out);
+                           entry_reachable, falls_through_out);
   }
   if (statement->kind == CTOOL_C_STATEMENT_DO) {
     return cir_lower_do(context, statement_index, statement, depth,
-                        falls_through_out);
+                        entry_reachable, falls_through_out);
   }
   if (statement->kind == CTOOL_C_STATEMENT_FOR) {
     return cir_lower_for(context, statement_index, statement, depth,
-                         falls_through_out);
+                         entry_reachable, falls_through_out);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_SWITCH) {
+    return cir_lower_switch(context, statement_index, statement, depth,
+                            entry_reachable, falls_through_out);
   }
   return cir_unsupported_statement(context, &statement->location);
 }
@@ -2824,6 +3419,16 @@ static ctool_status_t cir_scan_declaration_bindings(
   }
   if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
       statement->kind == CTOOL_C_STATEMENT_DO) {
+    if (statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    return cir_scan_declaration_bindings(
+        context, statement->body, depth + 1u, binding_cursor);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_SWITCH ||
+      statement->kind == CTOOL_C_STATEMENT_CASE ||
+      statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
     if (statement->body >= statement_index ||
         statement->body >= context->unit->statement_count) {
       return cir_invalid_unit(context, &statement->location);
@@ -2949,6 +3554,7 @@ static ctool_status_t cir_lower_body(
       status = cir_validate_unreachable_statement(context, statement_index, 0u);
     } else {
       status = cir_lower_statement(context, statement_index, 0u,
+                                   falls_through,
                                    &child_falls_through);
     }
     if (status != CTOOL_OK) {
@@ -2967,9 +3573,7 @@ static ctool_status_t cir_lower_body(
               context->function_block_binding_count) {
     return cir_invalid_unit(context, &body->location);
   }
-  if (context->function_label_count != 0u) {
-    falls_through = context->function_reachable_fallthrough;
-  }
+  falls_through = context->function_reachable_fallthrough;
   if (falls_through == CTOOL_FALSE) {
     if (context->function_has_patched_target == CTOOL_TRUE &&
         context->function_maximum_patched_target ==
@@ -3150,32 +3754,120 @@ static ctool_status_t cir_discover_statement_labels(
     }
     return status;
   }
-  if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
-      statement->kind == CTOOL_C_STATEMENT_DO ||
-      statement->kind == CTOOL_C_STATEMENT_FOR) {
-    cir_reach_loop_frame_t frame;
+  if (statement->kind == CTOOL_C_STATEMENT_SWITCH) {
+    cir_reach_control_frame_t frame;
+    cir_reach_control_frame_t *active_frame;
     ctool_bool body_falls;
     ctool_bool body_active;
     if (statement->body >= statement_index ||
         statement->body >= context->unit->statement_count) {
       return cir_invalid_unit(context, &statement->location);
     }
-    if (context->reach_loop_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    if (context->reach_control_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
       return cir_emit_failure(
           context, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
           &statement->location,
           "CupidC IR lowering exceeded a configured resource limit");
     }
-    context->reach_loop_frames[context->reach_loop_depth].has_break =
-        CTOOL_FALSE;
-    context->reach_loop_frames[context->reach_loop_depth].has_continue =
-        CTOOL_FALSE;
-    context->reach_loop_depth++;
+    active_frame =
+        &context->reach_control_frames[context->reach_control_depth++];
+    active_frame->kind = CIR_CONTROL_SWITCH;
+    active_frame->has_break = CTOOL_FALSE;
+    active_frame->has_continue = CTOOL_FALSE;
+    active_frame->has_default = CTOOL_FALSE;
+    active_frame->switch_entry_reachable = entry_reachable;
+    status = cir_discover_statement_labels(
+        context, statement->body, depth + 1u, CTOOL_FALSE, &body_falls,
+        &body_active, changed_out);
+    context->reach_control_depth--;
+    frame = context->reach_control_frames[context->reach_control_depth];
+    if (status == CTOOL_OK) {
+      *falls_through_out =
+          (entry_reachable == CTOOL_TRUE &&
+           frame.has_default == CTOOL_FALSE) ||
+                  frame.has_break == CTOOL_TRUE ||
+                  body_falls == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      *active_out = entry_reachable == CTOOL_TRUE ||
+                            body_active == CTOOL_TRUE
+                        ? CTOOL_TRUE
+                        : CTOOL_FALSE;
+    }
+    return status;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_CASE ||
+      statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+    cir_reach_control_frame_t *frame =
+        (cir_reach_control_frame_t *)0;
+    ctool_bool label_entry;
+    ctool_bool body_active;
+    ctool_u32 frame_index;
+    if (statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    for (frame_index = context->reach_control_depth; frame_index != 0u;
+         frame_index--) {
+      cir_reach_control_frame_t *candidate =
+          &context->reach_control_frames[frame_index - 1u];
+      if (candidate->kind == CIR_CONTROL_SWITCH) {
+        frame = candidate;
+        break;
+      }
+    }
+    if (frame == (cir_reach_control_frame_t *)0) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (statement->kind == CTOOL_C_STATEMENT_DEFAULT) {
+      if (frame->has_default == CTOOL_TRUE) {
+        return cir_invalid_unit(context, &statement->location);
+      }
+      frame->has_default = CTOOL_TRUE;
+    }
+    label_entry = entry_reachable == CTOOL_TRUE ||
+                          frame->switch_entry_reachable == CTOOL_TRUE
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
+    status = cir_discover_statement_labels(
+        context, statement->body, depth + 1u, label_entry,
+        falls_through_out, &body_active, changed_out);
+    if (status == CTOOL_OK) {
+      *active_out = label_entry == CTOOL_TRUE || body_active == CTOOL_TRUE
+                        ? CTOOL_TRUE
+                        : CTOOL_FALSE;
+    }
+    return status;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
+      statement->kind == CTOOL_C_STATEMENT_DO ||
+      statement->kind == CTOOL_C_STATEMENT_FOR) {
+    cir_reach_control_frame_t frame;
+    cir_reach_control_frame_t *active_frame;
+    ctool_bool body_falls;
+    ctool_bool body_active;
+    if (statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    if (context->reach_control_depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+          &statement->location,
+          "CupidC IR lowering exceeded a configured resource limit");
+    }
+    active_frame =
+        &context->reach_control_frames[context->reach_control_depth++];
+    active_frame->kind = CIR_CONTROL_LOOP;
+    active_frame->has_break = CTOOL_FALSE;
+    active_frame->has_continue = CTOOL_FALSE;
+    active_frame->has_default = CTOOL_FALSE;
+    active_frame->switch_entry_reachable = CTOOL_FALSE;
     status = cir_discover_statement_labels(
         context, statement->body, depth + 1u, entry_reachable, &body_falls,
         &body_active, changed_out);
-    context->reach_loop_depth--;
-    frame = context->reach_loop_frames[context->reach_loop_depth];
+    context->reach_control_depth--;
+    frame = context->reach_control_frames[context->reach_control_depth];
     if (status == CTOOL_OK) {
       *active_out = entry_reachable == CTOOL_TRUE ||
                             body_active == CTOOL_TRUE
@@ -3203,17 +3895,32 @@ static ctool_status_t cir_discover_statement_labels(
   }
   if (statement->kind == CTOOL_C_STATEMENT_BREAK ||
       statement->kind == CTOOL_C_STATEMENT_CONTINUE) {
-    cir_reach_loop_frame_t *frame;
+    cir_reach_control_frame_t *frame =
+        (cir_reach_control_frame_t *)0;
+    ctool_u32 frame_index;
     if (entry_reachable == CTOOL_FALSE) {
       return CTOOL_OK;
     }
-    if (context->reach_loop_depth == 0u) {
+    if (context->reach_control_depth == 0u) {
       return cir_invalid_unit(context, &statement->location);
     }
-    frame = &context->reach_loop_frames[context->reach_loop_depth - 1u];
     if (statement->kind == CTOOL_C_STATEMENT_BREAK) {
+      frame = &context->reach_control_frames
+          [context->reach_control_depth - 1u];
       frame->has_break = CTOOL_TRUE;
     } else {
+      for (frame_index = context->reach_control_depth; frame_index != 0u;
+           frame_index--) {
+        cir_reach_control_frame_t *candidate =
+            &context->reach_control_frames[frame_index - 1u];
+        if (candidate->kind == CIR_CONTROL_LOOP) {
+          frame = candidate;
+          break;
+        }
+      }
+      if (frame == (cir_reach_control_frame_t *)0) {
+        return cir_invalid_unit(context, &statement->location);
+      }
       frame->has_continue = CTOOL_TRUE;
     }
     return CTOOL_OK;
@@ -3235,13 +3942,13 @@ static ctool_status_t cir_discover_reachable_labels(
     ctool_bool falls_through;
     ctool_bool active;
     ctool_status_t status;
-    context->reach_loop_depth = 0u;
+    context->reach_control_depth = 0u;
     status = cir_discover_statement_labels(
         context, definition->body, 0u, CTOOL_TRUE, &falls_through, &active,
         &changed);
     (void)falls_through;
     (void)active;
-    if (status != CTOOL_OK || context->reach_loop_depth != 0u) {
+    if (status != CTOOL_OK || context->reach_control_depth != 0u) {
       if (status == CTOOL_OK) {
         return CTOOL_ERR_INTERNAL;
       }
@@ -3265,7 +3972,8 @@ static ctool_status_t cir_validate_resolved_gotos(cir_context_t *context) {
     const ctool_c_ir_instruction_t *candidate =
         &context->instructions[instruction];
     if (candidate->kind == CTOOL_C_IR_INSTRUCTION_JUMP &&
-        (candidate->integer_bits & CIR_GOTO_PATCH_TAG) != 0u) {
+        (candidate->reference == CTOOL_C_AST_NONE ||
+         candidate->integer_bits != 0u)) {
       return CTOOL_ERR_INTERNAL;
     }
   }
@@ -3351,7 +4059,7 @@ static ctool_status_t cir_lower_function(
   context->function_result_type = function_type->referenced_type;
   context->stack_depth = 0u;
   context->maximum_stack_depth = 0u;
-  context->loop_depth = 0u;
+  context->control_depth = 0u;
   context->function_has_patched_target = CTOOL_FALSE;
   context->function_maximum_patched_target = 0u;
   status = cir_lower_body(context, definition);
@@ -3361,7 +4069,7 @@ static ctool_status_t cir_lower_function(
   if (status != CTOOL_OK) {
     return status;
   }
-  if (context->stack_depth != 0u || context->loop_depth != 0u) {
+  if (context->stack_depth != 0u || context->control_depth != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
   if (context->functions != (ctool_c_ir_function_t *)0) {

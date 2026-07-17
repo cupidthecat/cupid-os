@@ -33,11 +33,11 @@ Count-only validation does not update live label targets. This keeps validation 
 
 Declaration ownership follows a label's body. No public IR record, calling convention, or ELF relocation rule changes. Direct jumps stay inside one function, so the object emitter resolves them to machine-code displacements and emits no `.rel.text` entry.
 
-Hosted IR still does not lower `switch`, `case`, or `default`. A later switch increment must combine switch exits with the existing loop and label reachability rules. Computed `goto` and GNU label addresses also remain outside this decision.
+At the time of this decision, hosted IR did not lower `switch`, `case`, or `default`. ADR 0038 adds that support and combines switch exits with the loop and label reachability rules. Computed `goto` and GNU label addresses remain outside this decision.
 
 ## Consequences and evidence
 
-The direct contract covers forward and backward jumps, a two-label cycle, and an unreachable jump after a return. Four functions publish 39 exact IR instructions. A second contract covers entry into a nested compound, entry into an `if` arm, a jump after an ordinary loop exit, and entry into a terminal `do` body. It also jumps into an otherwise unreachable infinite loop before `break` and `continue`, then checks whether the function can fall through. A final function enters a label above a compound declaration. These seven functions publish 46 instructions.
+The direct contract covers forward and backward jumps, a two-label cycle, and an unreachable jump after a return. Four functions publish 39 exact IR instructions. A second contract covers entry into a nested compound, entry into an `if` arm, a jump after an ordinary loop exit, and entry into a terminal `do` body. It also jumps into an otherwise unreachable infinite loop before `break` and `continue`, then checks whether the function can fall through. A final function enters a label above a compound declaration. These seven functions originally published 46 instructions. ADR 0038's entry-aware lowering removes 12 dead prefix instructions, so the current proof publishes 34.
 
 The deterministic object contract contains a 44-byte forward-jump function, a 76-byte backward loop, 38-byte terminal `if` and `while` functions, and a 41-byte function that enters a label above an automatic declaration. Its 237-byte `.text` section has six symbols including the null symbol and no relocations. The shared decoder checks branch targets at byte offsets 28 and 36 in the first function, 62 and 3 in the second, 22 and 30 in each terminal structured function, and 11 in the declaration function. The declaration uses one four-byte stack slot. Repeated emission is byte-identical and preserves the frozen input.
 

@@ -31,6 +31,42 @@ static const char active_signed_bits[] =
     "  return -(ctool_i32)((~value) + 1u);\n"
     "}";
 
+static const char switch_object_source[] =
+    "typedef enum {\n"
+    "  CTOOL_C_STORAGE_NONE = 0,\n"
+    "  CTOOL_C_STORAGE_TYPEDEF,\n"
+    "  CTOOL_C_STORAGE_EXTERN,\n"
+    "  CTOOL_C_STORAGE_STATIC,\n"
+    "  CTOOL_C_STORAGE_AUTO,\n"
+    "  CTOOL_C_STORAGE_REGISTER\n"
+    "} ctool_c_storage_class_t;\n"
+    "typedef enum {\n"
+    "  CFRONT_STORAGE_NONE = 0,\n"
+    "  CFRONT_STORAGE_TYPEDEF,\n"
+    "  CFRONT_STORAGE_EXTERN,\n"
+    "  CFRONT_STORAGE_STATIC,\n"
+    "  CFRONT_STORAGE_AUTO,\n"
+    "  CFRONT_STORAGE_REGISTER\n"
+    "} cfront_storage_t;\n"
+    "static ctool_c_storage_class_t cfront_public_storage(\n"
+    "    cfront_storage_t storage) {\n"
+    "  switch (storage) {\n"
+    "  case CFRONT_STORAGE_TYPEDEF:\n"
+    "    return CTOOL_C_STORAGE_TYPEDEF;\n"
+    "  case CFRONT_STORAGE_EXTERN:\n"
+    "    return CTOOL_C_STORAGE_EXTERN;\n"
+    "  case CFRONT_STORAGE_STATIC:\n"
+    "    return CTOOL_C_STORAGE_STATIC;\n"
+    "  case CFRONT_STORAGE_AUTO:\n"
+    "    return CTOOL_C_STORAGE_AUTO;\n"
+    "  case CFRONT_STORAGE_REGISTER:\n"
+    "    return CTOOL_C_STORAGE_REGISTER;\n"
+    "  case CFRONT_STORAGE_NONE:\n"
+    "  default:\n"
+    "    return CTOOL_C_STORAGE_NONE;\n"
+    "  }\n"
+    "}\n";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -906,6 +942,124 @@ static int validate_direct_goto_object(
                       sizeof(declaration_targets[0])),
           "object_label_declaration")) {
     (void)fprintf(stderr, "direct goto object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_switch_object(ctool_job_t *job,
+                                  const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x50u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x06u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xe9u, 0xb0u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0x50u, 0x50u, 0x68u, 0x02u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu,
+      0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u,
+      0x06u, 0x00u, 0x00u, 0x00u, 0x58u, 0xe9u, 0x96u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0x50u, 0x50u, 0x68u, 0x03u, 0x00u,
+      0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u,
+      0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x06u, 0x00u, 0x00u, 0x00u, 0x58u, 0xe9u,
+      0x7cu, 0x00u, 0x00u, 0x00u, 0x58u, 0x50u, 0x50u, 0x68u,
+      0x04u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u,
+      0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u,
+      0x85u, 0xc0u, 0x0fu, 0x84u, 0x06u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xe9u, 0x62u, 0x00u, 0x00u, 0x00u, 0x58u, 0x50u,
+      0x50u, 0x68u, 0x05u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x06u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xe9u, 0x48u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0x50u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu,
+      0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u,
+      0x06u, 0x00u, 0x00u, 0x00u, 0x58u, 0xe9u, 0x2eu, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xe9u, 0x28u, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x68u, 0x02u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x68u, 0x03u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x68u, 0x04u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x68u, 0x05u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "cfront_public_storage");
+  ctool_u32 cursor = 0u;
+  ctool_u32 comparison_count = 0u;
+  ctool_u32 conditional_branch_count = 0u;
+  ctool_u32 jump_count = 0u;
+  ctool_u32 return_count = 0u;
+  if (text == NULL || rel_text != NULL || function == NULL ||
+      object->symbol_count != 2u || object->relocation_count != 0u ||
+      text->relocation_count != 0u || function->value != 0u ||
+      function->size != (ctool_u32)sizeof(expected_text) ||
+      function->size != text->contents.size ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      function->size)) {
+    (void)fprintf(stderr, "switch object inventory differs\n");
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + function->value + cursor,
+                    function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "switch object decode failed at %u\n", cursor);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CMP) {
+      comparison_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_JE ||
+               decoded.instruction.mnemonic == CTOOL_X86_MN_JMP) {
+      int64_t target;
+      int32_t displacement;
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_RELATIVE ||
+          decoded.instruction.operands[0].as.value.kind !=
+              CTOOL_X86_VALUE_CONSTANT) {
+        (void)fprintf(stderr, "switch object branch shape differs\n");
+        return 0;
+      }
+      displacement =
+          (int32_t)decoded.instruction.operands[0].as.value.bits;
+      target = (int64_t)cursor + (int64_t)decoded.consumed +
+               (int64_t)displacement;
+      if (target < 0 || target >= (int64_t)function->size) {
+        (void)fprintf(stderr, "switch object branch target differs\n");
+        return 0;
+      }
+      if (decoded.instruction.mnemonic == CTOOL_X86_MN_JE) {
+        conditional_branch_count++;
+      } else {
+        jump_count++;
+      }
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != function->size || comparison_count != 6u ||
+      conditional_branch_count != 6u || jump_count != 7u ||
+      return_count != 6u) {
+    (void)fprintf(stderr,
+                  "switch object operations differ: cmp=%u je=%u jmp=%u "
+                  "ret=%u size=%u\n",
+                  comparison_count, conditional_branch_count, jump_count,
+                  return_count, function->size);
     return 0;
   }
   return 1;
@@ -6693,6 +6847,143 @@ cleanup:
   return 1;
 }
 
+static int run_switch_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_statement_t *invalid_statements = NULL;
+  void *invalid_statement_copy = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_u32 case_statement = CTOOL_C_AST_NONE;
+  ctool_u32 statement_index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_object_sources_are_unchanged(job) ||
+      !parse_source(job, "/switch-object.c", switch_object_source, &unit) ||
+      unit.function_definition_count != 1u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "switch object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 512u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 512u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "switch object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first switch object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first switch object emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "switch object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat switch object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "switch object emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/switch-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read switch object") ||
+      !validate_switch_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  if (copy_array(unit.statements, unit.statement_count,
+                 sizeof(*unit.statements), &invalid_statement_copy) == 0) {
+    (void)fprintf(stderr, "switch invalid fixture copy failed\n");
+    goto cleanup;
+  }
+  invalid_statements = (ctool_c_statement_t *)invalid_statement_copy;
+  for (statement_index = 0u; statement_index < unit.statement_count;
+       statement_index++) {
+    if (invalid_statements[statement_index].kind == CTOOL_C_STATEMENT_CASE) {
+      case_statement = statement_index;
+      break;
+    }
+  }
+  if (case_statement == CTOOL_C_AST_NONE ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "switch invalid fixture setup failed\n");
+    goto cleanup;
+  }
+  invalid_statements[case_statement].expression = unit.expression_count;
+  invalid_unit = unit;
+  invalid_unit.statements = invalid_statements;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "malformed case object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_statements);
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("switch-object: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -6700,8 +6991,11 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "direct-goto") == 0) {
     return run_direct_goto(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "switch-object") == 0) {
+    return run_switch_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
-                "static-data|direct-goto HOST_ROOT\n");
+                "static-data|direct-goto|switch-object HOST_ROOT\n");
   return 2;
 }

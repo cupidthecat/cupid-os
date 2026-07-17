@@ -1805,6 +1805,28 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return status;
   }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE) {
+    if (ir_instruction->type != ir_instruction->input_type ||
+        cemit_ir_type_is_i32_integer(context,
+                                     ir_instruction->type) == CTOOL_FALSE ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD) {
     if (ir_instruction->type != CTOOL_C_TYPE_NONE ||
         cemit_ir_type_is_i32_integer(context,

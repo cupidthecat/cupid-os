@@ -3999,3 +3999,59 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and related ADRs describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. This checkout has no repository wiki tree to update. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. `switch`, computed `goto`, GNU label addresses, additional local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain. No issue is ready to close from this increment.
+
+## 2026-07-17: CupidC lowers C switch statements
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers represented C `switch`, `case`, and `default` statements. The unchanged requirement comes from `cfront_public_storage` in `toolchain/cupidc_frontend.c`, which maps six private storage classes to the public storage enum. Replacing that switch with conditionals would hide a compiler requirement and make the source harder to read.
+
+IR evaluates the promoted 32-bit condition once. `DUPLICATE_VALUE` keeps the saved value on the abstract stack while a source-ordered equality chain tests each case. A match and the final unmatched path discard the saved value before jumping to a case, default, or exit. Case and default statements remain zero-width targets. Private tags are resolved before publication.
+
+The i386 emitter duplicates a represented value with `POP EAX`, two `PUSH EAX` instructions, and no new relocation. The public instruction kind was appended so every earlier numeric instruction value stays stable. The unchanged active function emits one local 272-byte ELF32 function with no relocations.
+
+Loop frames are now tagged control frames. `break` selects the nearest loop or switch. `continue` skips switch frames and selects the nearest loop. One tagged-jump patch helper owns both control exits and switch targets.
+
+Reachability carries statement-entry facts into nested compounds, selections, and loops. A switch body has no ordinary entry before a case, default, or reachable identifier label. Dead prefix statements are validated without being published. When a prior `goto` enters an identifier label inside a switch, IR validates the condition and all case records but omits the unreachable dispatch chain. An unused ordinary label does not revive its body, while a nested case can still enter the later case statement. Nested switches keep separate case-label reachability. Local `while` and `for` fallthrough use the same entry fact.
+
+Canonical signed 32-bit constants are accepted alongside zero-extended unsigned values. Published integer instructions retain the low target bits, so `case -1` compares with `0xffffffff`. Enumerator identifiers use the same represented integer path after their binding storage, linkage, type, and canonical target value are checked.
+
+ADR 0038 records the design, limits, and review corrections. No user question was needed because the frontend statement model, existing branch contract, and unchanged active function determine the required semantics.
+
+### Contract evidence and corrections
+
+- The first active switch run failed with the public unsupported-statement diagnostic. Enum returns then reached the unsupported-expression boundary. A switch `break` next exposed the old loop-only control stack.
+- The first nested-switch reachability run published two equality comparisons and four return paths from an unreachable inner switch. Restricting case reachability to the nearest entered switch reduced that function to one comparison and two returns.
+- The active function has 59 exact IR instructions and a maximum stack depth of three. Six dispatch blocks have exact duplicate, constant, equality, conditional branch, discard, and jump records. The final default jump shares the last case target.
+- Its deterministic object has 272 text bytes, two symbols including the null symbol, no relocations, six comparisons, six conditional branches, seven direct jumps, and six returns. Every decoded branch stays inside the function. Repeated emission is byte-identical and leaves the frozen frontend unit and arena unchanged.
+- Control fixtures cover fallthrough, no default, a signed negative case, switch and loop exits, and continuation through a switch to the enclosing `for` iteration. The four control statements must land on the exact source line for the intended exit or iteration.
+- Nesting fixtures cover an inner switch, cases inside an `if` and all three loop forms, direct `goto` into a case body, an unreachable nested switch, dead `break` and `goto` prefixes, and a reachable case below an unused identifier label. Both dead-prefix `goto` fixtures first failed with the internal unresolved-patch diagnostic.
+- Entry-aware lowering also removed twelve dead instructions from the older nested-`goto` proof. Its seven functions now publish 34 exact instructions. Direct label entry still retains valid loop exits, loop continuations, a terminal `do` body, and one four-byte local below a label.
+- Negative contracts reject a 64-bit switch condition, an out-of-range case expression, extra case or default payloads, and a noncanonical enumerator. IR failure preserves the input. Object failure leaves output empty and rewinds temporary allocations.
+- Standards review found that the control contract counted jumps without checking their targets, its general range check used the end of the last function, the public header still described `break` as loop-only, two helpers duplicated the tagged-jump scan, the control-jump helper had a loop-only name, this log entry was missing, and stable direct-`goto` totals were stale after entry-aware lowering. Spec review found the signed case failure, dead prefix `goto`, weak target oracle, unused-label revival bug, local loop fallthrough mismatch, and missing positive proof for cases nested in loops. The product regressions failed before their fixes. Exact targets, per-function branch bounds, corrected reachability, current documentation, and cases inside `while`, `do`, and `for` close the findings.
+- The first repository gate stopped at one stale audit oracle: it expected 2,872 `sizeof` occurrences while the then-current generated inventory held 2,894. Review fixtures and the final implementation moved that inventory to 2,896. The exact gate now follows the regenerated record.
+- The first final sanitizer-run wrapper lost its Bash loop variable at the PowerShell boundary and printed the contract usage text. Literal mode arguments then ran the same instrumented GCC and Clang binaries successfully. The wrapper failure changed no repository file and is not counted as test evidence.
+- The final self-source tuple for `cupidc_ir.c` is 95 definitions, 2,618 statements, 21,605 expressions, 322 block bindings, and 103 initializers. `cupidc_emit.c` remains 66/1,557/13,142/201/93.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 607 direct designated initializers across 18 files, 835 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,492 `while`, 1,676 `break`, 923 `continue`, 24,578 `if`, 3,422 `else`, 2,986 `for`, 15,021 `return`, and 2,896 `sizeof` occurrences. The active-source digest is `8c69f5974cf728ea393eb760c940a9e937419d3e3dc71cb862a0acae8da745fa`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | The active switch, enum return, switch `break`, unreachable nested switch, signed negative case, dead prefix `goto`, and unused-label prefix each failed at the intended boundary before its fix. |
+| Focused CupidC contracts | PASS AFTER REVIEW FIXES | `python -m unittest tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 51 tests in 24.666 seconds. |
+| Windows hosted Toolchain | PASS | The exact-tree strict Clang rebuild and complete hosted Toolchain suite, including all 22 assembly demos, pass in 4.761 seconds. |
+| WSL strict compilers | PASS | The exact-tree GCC 13.3 and Clang 18.1 rebuilds and complete hosted Toolchain suites pass in 31.725 and 30.673 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds, followed by exact-tree contract rebuilds, pass `active-leaf`, `nested-goto`, all three switch modes, `static-data`, `direct-goto`, and `switch-object`. Leak detection, strict string checks, stack-use checks, stack traces, and halt-on-error behavior are enabled. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c`, `cupidc_emit.c`, and the three affected C contracts. All ten analyses finish in one 63-second parallel batch. |
+| Two-axis review | PASS AFTER FIXES | Independent Standards and Spec reviews report no remaining violation, code smell, missing behavior, or scope mismatch after the reachability, oracle, and documentation corrections. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 37.4 seconds. `make check-bootstrap-audit` reproduces them exactly in 40.4 seconds. |
+| Full repository gate | PASS AFTER INVENTORY CORRECTION | `make test` passes all 293 tests in 448.878 seconds with one expected Windows `/dev/full` skip and returns from Make in 484.574 seconds. The earlier stale inventory failure is recorded above. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object and still has its separate `continue` limitation inside a switch nested in a loop.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0038 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. This checkout has no repository wiki tree to update. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Narrow, wide, floating, pointer, and aggregate values; broader addresses and calls; production integration; staged self-hosting; and the final fixed-point bootstrap remain. No issue is ready to close from this increment.

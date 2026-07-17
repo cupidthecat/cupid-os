@@ -33,6 +33,218 @@ static const char active_bool_valid[] =
     "                                                      : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_public_storage[] =
+    "static ctool_c_storage_class_t cfront_public_storage(\n"
+    "    cfront_storage_t storage) {\n"
+    "  switch (storage) {\n"
+    "  case CFRONT_STORAGE_TYPEDEF:\n"
+    "    return CTOOL_C_STORAGE_TYPEDEF;\n"
+    "  case CFRONT_STORAGE_EXTERN:\n"
+    "    return CTOOL_C_STORAGE_EXTERN;\n"
+    "  case CFRONT_STORAGE_STATIC:\n"
+    "    return CTOOL_C_STORAGE_STATIC;\n"
+    "  case CFRONT_STORAGE_AUTO:\n"
+    "    return CTOOL_C_STORAGE_AUTO;\n"
+    "  case CFRONT_STORAGE_REGISTER:\n"
+    "    return CTOOL_C_STORAGE_REGISTER;\n"
+    "  case CFRONT_STORAGE_NONE:\n"
+    "  default:\n"
+    "    return CTOOL_C_STORAGE_NONE;\n"
+    "  }\n"
+    "}\n";
+
+static const char switch_lowering_source[] =
+    "typedef enum {\n"
+    "  CTOOL_C_STORAGE_NONE = 0,\n"
+    "  CTOOL_C_STORAGE_TYPEDEF,\n"
+    "  CTOOL_C_STORAGE_EXTERN,\n"
+    "  CTOOL_C_STORAGE_STATIC,\n"
+    "  CTOOL_C_STORAGE_AUTO,\n"
+    "  CTOOL_C_STORAGE_REGISTER\n"
+    "} ctool_c_storage_class_t;\n"
+    "typedef enum {\n"
+    "  CFRONT_STORAGE_NONE = 0,\n"
+    "  CFRONT_STORAGE_TYPEDEF,\n"
+    "  CFRONT_STORAGE_EXTERN,\n"
+    "  CFRONT_STORAGE_STATIC,\n"
+    "  CFRONT_STORAGE_AUTO,\n"
+    "  CFRONT_STORAGE_REGISTER\n"
+    "} cfront_storage_t;\n"
+    "static ctool_c_storage_class_t cfront_public_storage(\n"
+    "    cfront_storage_t storage) {\n"
+    "  switch (storage) {\n"
+    "  case CFRONT_STORAGE_TYPEDEF:\n"
+    "    return CTOOL_C_STORAGE_TYPEDEF;\n"
+    "  case CFRONT_STORAGE_EXTERN:\n"
+    "    return CTOOL_C_STORAGE_EXTERN;\n"
+    "  case CFRONT_STORAGE_STATIC:\n"
+    "    return CTOOL_C_STORAGE_STATIC;\n"
+    "  case CFRONT_STORAGE_AUTO:\n"
+    "    return CTOOL_C_STORAGE_AUTO;\n"
+    "  case CFRONT_STORAGE_REGISTER:\n"
+    "    return CTOOL_C_STORAGE_REGISTER;\n"
+    "  case CFRONT_STORAGE_NONE:\n"
+    "  default:\n"
+    "    return CTOOL_C_STORAGE_NONE;\n"
+    "  }\n"
+    "}\n";
+
+static const char switch_control_source[] =
+    "int switch_break(int value) {\n"
+    "  int result = 9;\n"
+    "  switch (value) {\n"
+    "  case 0:\n"
+    "    result = 1;\n"
+    "    break;\n"
+    "  case 1:\n"
+    "    result = 2;\n"
+    "  default:\n"
+    "    result = result + 3;\n"
+    "  }\n"
+    "  return result;\n"
+    "}\n"
+    "int switch_in_loop(int outer, int inner) {\n"
+    "  int result = 0;\n"
+    "  for (; outer; outer = outer - 1) {\n"
+    "    switch (inner) {\n"
+    "    case 0:\n"
+    "      result = result + 1;\n"
+    "      continue;\n"
+    "    case 1:\n"
+    "      break;\n"
+    "    default:\n"
+    "      result = result + 3;\n"
+    "    }\n"
+    "    result = result + 2;\n"
+    "    break;\n"
+    "  }\n"
+    "  return result;\n"
+    "}\n"
+    "int switch_without_default(int value) {\n"
+    "  switch (value) {\n"
+    "  case 0: return 1;\n"
+    "  }\n"
+    "  return 2;\n"
+    "}\n"
+    "int switch_negative(int value) {\n"
+    "  switch (value) {\n"
+    "  case -1:\n"
+    "    return 3;\n"
+    "  default:\n"
+    "    return 4;\n"
+    "  }\n"
+    "}\n";
+
+static const char switch_nesting_source[] =
+    "int nested_switch(int outer, int inner) {\n"
+    "  int result = 0;\n"
+    "  switch (outer) {\n"
+    "  case 0:\n"
+    "    switch (inner) {\n"
+    "    case 0:\n"
+    "      result = 1;\n"
+    "      break;\n"
+    "    default:\n"
+    "      result = 2;\n"
+    "    }\n"
+    "    break;\n"
+    "  default:\n"
+    "    result = 3;\n"
+    "  }\n"
+    "  return result;\n"
+    "}\n"
+    "int case_in_if(int value) {\n"
+    "  switch (value) {\n"
+    "    if (value) {\n"
+    "    case 1:\n"
+    "      return 1;\n"
+    "    }\n"
+    "  default:\n"
+    "    return 2;\n"
+    "  }\n"
+    "}\n"
+    "int goto_case(int value) {\n"
+    "  goto inside;\n"
+    "  switch (value) {\n"
+    "  case 0:\n"
+    "inside:\n"
+    "    return 1;\n"
+    "  default:\n"
+    "    return 2;\n"
+    "  }\n"
+    "}\n"
+    "int unreachable_nested_switch(int outer, int inner) {\n"
+    "  switch (outer) {\n"
+    "  case 0:\n"
+    "    return 1;\n"
+    "    switch (inner) {\n"
+    "    case 0:\n"
+    "      return 2;\n"
+    "    default:\n"
+    "      return 4;\n"
+    "    }\n"
+    "  default:\n"
+    "    return 3;\n"
+    "  }\n"
+    "}\n"
+    "int unreachable_switch_prefix(int value) {\n"
+    "  switch (value) {\n"
+    "    break;\n"
+    "  default:\n"
+    "    return 1;\n"
+    "  }\n"
+    "}\n"
+    "int dead_prefix_goto(int value) {\n"
+    "  switch (value) {\n"
+    "    goto dead;\n"
+    "  default:\n"
+    "    return 1;\n"
+    "  }\n"
+    "dead:\n"
+    "  return 2;\n"
+    "}\n"
+    "int case_below_unused_label(int value) {\n"
+    "  switch (value) {\n"
+    "unused: {\n"
+    "    goto dead;\n"
+    "  case 1:\n"
+    "    return 1;\n"
+    "  }\n"
+    "  default:\n"
+    "    return 0;\n"
+    "  }\n"
+    "dead:\n"
+    "  return 2;\n"
+    "}\n"
+    "int case_in_loops(int value) {\n"
+    "  switch (value) {\n"
+    "    while (value) {\n"
+    "    case 1:\n"
+    "      return 1;\n"
+    "    }\n"
+    "    do {\n"
+    "    case 2:\n"
+    "      return 2;\n"
+    "    } while (value);\n"
+    "    for (; value;) {\n"
+    "    case 3:\n"
+    "      return 3;\n"
+    "    }\n"
+    "  default:\n"
+    "    return 0;\n"
+    "  }\n"
+    "}\n";
+
+static const char wide_switch_source[] =
+    "int wide_switch(int value) {\n"
+    "  switch ((long long)value) {\n"
+    "  case 0:\n"
+    "    return 1;\n"
+    "  default:\n"
+    "    return 2;\n"
+    "  }\n"
+    "}\n";
+
 static const char active_branch_fits[] =
     "static ctool_bool asm_branch_fits_i8(ctool_u32 bits) {\n"
     "  return bits <= 0x7fu || bits >= 0xffffff80u ? CTOOL_TRUE : CTOOL_FALSE;\n"
@@ -451,8 +663,10 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active frontend source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data, active_bool_valid) == NULL) {
-    (void)fprintf(stderr, "the active bool validator changed\n");
+      strstr((const char *)source.contents.data, active_bool_valid) == NULL ||
+      strstr((const char *)source.contents.data, active_public_storage) ==
+          NULL) {
+    (void)fprintf(stderr, "an active frontend helper changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupiddis.c");
@@ -3854,7 +4068,7 @@ static int validate_nested_goto_ir(
   ctool_u32 value_type;
   if (unit->function_definition_count != 7u || unit->label_count != 7u ||
       unit->block_binding_count != 1u || ir->function_count != 7u ||
-      ir->instruction_count != 46u ||
+      ir->instruction_count != 34u ||
       ir->functions == NULL || ir->instructions == NULL ||
       binding == CTOOL_C_AST_NONE || if_binding == CTOOL_C_AST_NONE ||
       break_binding == CTOOL_C_AST_NONE ||
@@ -3906,33 +4120,27 @@ static int validate_nested_goto_ir(
   instructions = ir->instructions;
   if (ir->functions[0].binding != binding ||
       ir->functions[0].first_instruction != 0u ||
-      ir->functions[0].instruction_count != 11u ||
-      ir->functions[0].maximum_stack_depth != 3u ||
+      ir->functions[0].instruction_count != 4u ||
+      ir->functions[0].maximum_stack_depth != 1u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
-      instructions[0].reference != 8u ||
+      instructions[0].reference != 1u ||
       instructions[0].integer_bits != 0u ||
       instructions[1].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
       instructions[1].type != value_type ||
       instructions[1].reference != parameter ||
-      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
-      instructions[5].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
-      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
-      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
-      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
-      instructions[8].reference != parameter ||
-      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
-      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
       !string_equal(instructions[0].location.path, "/nested-goto.c") ||
-      !string_equal(instructions[8].location.path, "/nested-goto.c")) {
+      !string_equal(instructions[1].location.path, "/nested-goto.c")) {
     (void)fprintf(stderr, "nested goto IR instructions differ\n");
     return 0;
   }
-  instructions = ir->instructions + 11u;
+  instructions = ir->instructions + 4u;
   if (ir->functions[1].binding != if_binding ||
       ir->functions[1].declared_type != if_definition->declared_type ||
-      ir->functions[1].first_instruction != 11u ||
-      ir->functions[1].instruction_count != 13u ||
-      ir->functions[1].maximum_stack_depth != 3u ||
+      ir->functions[1].first_instruction != 4u ||
+      ir->functions[1].instruction_count != 8u ||
+      ir->functions[1].maximum_stack_depth != 1u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
       instructions[0].reference != 4u ||
       instructions[0].integer_bits != 0u ||
@@ -3941,17 +4149,16 @@ static int validate_nested_goto_ir(
       instructions[4].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
       instructions[4].integer_bits != 1u ||
       instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
-      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
-      instructions[10].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
-      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
-      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_DISCARD) {
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[6].integer_bits != 0u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
     (void)fprintf(stderr, "nested selection goto IR differs\n");
     return 0;
   }
-  instructions = ir->instructions + 24u;
+  instructions = ir->instructions + 12u;
   if (ir->functions[2].binding != break_binding ||
       ir->functions[2].declared_type != break_definition->declared_type ||
-      ir->functions[2].first_instruction != 24u ||
+      ir->functions[2].first_instruction != 12u ||
       ir->functions[2].instruction_count != 5u ||
       ir->functions[2].maximum_stack_depth != 1u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
@@ -3966,11 +4173,11 @@ static int validate_nested_goto_ir(
     (void)fprintf(stderr, "loop exit goto IR differs\n");
     return 0;
   }
-  instructions = ir->instructions + 29u;
+  instructions = ir->instructions + 17u;
   if (ir->functions[3].binding != terminal_do_binding ||
       ir->functions[3].declared_type !=
           terminal_do_definition->declared_type ||
-      ir->functions[3].first_instruction != 29u ||
+      ir->functions[3].first_instruction != 17u ||
       ir->functions[3].instruction_count != 3u ||
       ir->functions[3].maximum_stack_depth != 1u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
@@ -3982,10 +4189,10 @@ static int validate_nested_goto_ir(
     (void)fprintf(stderr, "terminal do goto IR differs\n");
     return 0;
   }
-  instructions = ir->instructions + 32u;
+  instructions = ir->instructions + 20u;
   if (ir->functions[4].binding != loop_break_binding ||
       ir->functions[4].declared_type != loop_break_definition->declared_type ||
-      ir->functions[4].first_instruction != 32u ||
+      ir->functions[4].first_instruction != 20u ||
       ir->functions[4].instruction_count != 4u ||
       ir->functions[4].maximum_stack_depth != 1u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
@@ -4000,11 +4207,11 @@ static int validate_nested_goto_ir(
     (void)fprintf(stderr, "goto-driven break IR differs\n");
     return 0;
   }
-  instructions = ir->instructions + 36u;
+  instructions = ir->instructions + 24u;
   if (ir->functions[5].binding != loop_continue_binding ||
       ir->functions[5].declared_type !=
           loop_continue_definition->declared_type ||
-      ir->functions[5].first_instruction != 36u ||
+      ir->functions[5].first_instruction != 24u ||
       ir->functions[5].instruction_count != 2u ||
       ir->functions[5].maximum_stack_depth != 0u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
@@ -4016,10 +4223,10 @@ static int validate_nested_goto_ir(
     (void)fprintf(stderr, "goto-driven continue IR differs\n");
     return 0;
   }
-  instructions = ir->instructions + 38u;
+  instructions = ir->instructions + 26u;
   if (ir->functions[6].binding != declaration_binding ||
       ir->functions[6].declared_type != declaration_definition->declared_type ||
-      ir->functions[6].first_instruction != 38u ||
+      ir->functions[6].first_instruction != 26u ||
       ir->functions[6].instruction_count != 8u ||
       ir->functions[6].maximum_stack_depth != 2u ||
       instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
@@ -7813,12 +8020,22 @@ static int run_active_leaf(const char *host_root) {
           "narrow file-object load") ||
       !parse_source(job, "/enumerator-identifier.c",
                     enumerator_identifier_source,
-                    &enumerator_identifier_unit) ||
-      !expect_ir_failure(
-          job, &enumerator_identifier_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "enumerator identifier")) {
+                    &enumerator_identifier_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&enumerator_identifier_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &enumerator_identifier_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "enumerator identifier") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&enumerator_identifier_unit) != fingerprint ||
+      ir.function_count != 1u || ir.instruction_count != 2u ||
+      ir.instructions == NULL ||
+      ir.instructions[0].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      ir.instructions[0].integer_bits != 1u ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "enumerator identifier IR differs\n");
     goto cleanup;
   }
   if (!parse_source(job, "/unsupported-expression.c", expression_source,
@@ -8242,6 +8459,518 @@ cleanup:
   return 1;
 }
 
+static int switch_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_c_conversion_kind_t conversion, ctool_u32 reference,
+    ctool_u64 integer_bits) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == integer_bits &&
+                 string_equal(instruction->location.path,
+                              "/switch-lowering.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/switch-lowering.c") != 0
+             ? 1
+             : 0;
+}
+
+static int validate_switch_lowering_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u64 case_values[] = {1u, 2u, 3u, 4u, 5u, 0u};
+  static const ctool_u32 next_case_targets[] = {9u, 15u, 21u,
+                                                27u, 33u, 39u};
+  static const ctool_u32 case_body_targets[] = {41u, 44u, 47u,
+                                                50u, 53u, 56u};
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u ||
+      ir->function_count != 1u || ir->functions == NULL ||
+      ir->instructions == NULL || ir->instruction_count != 59u ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != ir->instruction_count ||
+      ir->functions[0].maximum_stack_depth != 3u ||
+      !switch_instruction_matches(
+          &ir->instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          5u, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, 0u, 0u) ||
+      !switch_instruction_matches(
+          &ir->instructions[1], CTOOL_C_IR_INSTRUCTION_LOAD, 5u, 5u,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !switch_instruction_matches(
+          &ir->instructions[2], CTOOL_C_IR_INSTRUCTION_CONVERT, 1u, 5u,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_INTEGER_PROMOTION, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "switch lowering IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 6u; index++) {
+    ctool_u32 base = 3u + index * 6u;
+    if (!switch_instruction_matches(
+            &ir->instructions[base],
+            CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE, 1u, 1u,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, 0u) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 1u], CTOOL_C_IR_INSTRUCTION_INTEGER,
+            1u, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
+            case_values[index]) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 2u], CTOOL_C_IR_INSTRUCTION_BINARY,
+            0u, 1u, CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 3u],
+            CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 0u,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            next_case_targets[index], 0u) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 4u], CTOOL_C_IR_INSTRUCTION_DISCARD,
+            CTOOL_C_TYPE_NONE, 1u, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 5u], CTOOL_C_IR_INSTRUCTION_JUMP,
+            CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            case_body_targets[index], 0u)) {
+      (void)fprintf(stderr, "switch lowering dispatch %u differs\n", index);
+      return 0;
+    }
+  }
+  if (!switch_instruction_matches(
+          &ir->instructions[39], CTOOL_C_IR_INSTRUCTION_DISCARD,
+          CTOOL_C_TYPE_NONE, 1u, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !switch_instruction_matches(
+          &ir->instructions[40], CTOOL_C_IR_INSTRUCTION_JUMP,
+          CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 56u,
+          0u)) {
+    (void)fprintf(stderr, "switch lowering default dispatch differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 6u; index++) {
+    ctool_u32 base = 41u + index * 3u;
+    if (!switch_instruction_matches(
+            &ir->instructions[base], CTOOL_C_IR_INSTRUCTION_INTEGER, 0u,
+            CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
+            case_values[index]) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 1u], CTOOL_C_IR_INSTRUCTION_CONVERT,
+            4u, 0u, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_ASSIGNMENT, CTOOL_C_AST_NONE, 0u) ||
+        !switch_instruction_matches(
+            &ir->instructions[base + 2u],
+            CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 4u, 4u,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, 0u)) {
+      (void)fprintf(stderr, "switch lowering return %u differs\n", index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_switch_lowering(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_statement_t *invalid_statements = NULL;
+  ctool_c_binding_t *invalid_bindings = NULL;
+  ctool_u32 diagnostic_count;
+  ctool_u32 case_statement = CTOOL_C_AST_NONE;
+  ctool_u32 default_statement = CTOOL_C_AST_NONE;
+  ctool_u32 enumerator_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/switch-lowering.c", switch_lowering_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "switch lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_switch_lowering_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-switch.c", wide_switch_source, &wide_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide switch condition")) {
+    goto cleanup;
+  }
+  if (unit.statement_count == 0u || unit.binding_count == 0u ||
+      sizeof(*invalid_statements) >
+          SIZE_MAX / (size_t)unit.statement_count ||
+      sizeof(*invalid_bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    (void)fprintf(stderr, "switch invalid fixtures are too large\n");
+    goto cleanup;
+  }
+  invalid_statements = (ctool_c_statement_t *)malloc(
+      (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  if (invalid_statements == NULL || invalid_bindings == NULL) {
+    (void)fprintf(stderr, "switch invalid fixture allocation failed\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.statement_count; index++) {
+    if (case_statement == CTOOL_C_AST_NONE &&
+        unit.statements[index].kind == CTOOL_C_STATEMENT_CASE) {
+      case_statement = index;
+    }
+    if (default_statement == CTOOL_C_AST_NONE &&
+        unit.statements[index].kind == CTOOL_C_STATEMENT_DEFAULT) {
+      default_statement = index;
+    }
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (unit.bindings[index].kind == CTOOL_C_BINDING_ENUMERATOR) {
+      enumerator_binding = index;
+      break;
+    }
+  }
+  if (case_statement == CTOOL_C_AST_NONE ||
+      default_statement == CTOOL_C_AST_NONE ||
+      enumerator_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "switch invalid fixture target was not found\n");
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_statements[case_statement].expression = unit.expression_count;
+  invalid_unit = unit;
+  invalid_unit.statements = invalid_statements;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "case expression range")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_statements[case_statement].condition = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "case condition payload")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_statements[default_statement].expression = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "default expression payload")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  invalid_bindings[enumerator_binding].integer_bits =
+      0xffffffff00000000ull;
+  invalid_unit = unit;
+  invalid_unit.bindings = invalid_bindings;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "enumerator value width") ||
+      unit_fingerprint(&unit) != fingerprint) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_bindings);
+  free(invalid_statements);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("switch-lowering: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_switch_control_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const struct {
+    ctool_u32 function;
+    ctool_u32 source_line;
+    ctool_u32 target_line;
+  } expected_control_targets[] = {
+      {0u, 6u, 12u}, {1u, 20u, 16u},
+      {1u, 22u, 26u}, {1u, 27u, 29u}};
+  ctool_u32 expected_target_index;
+  ctool_u32 function_index;
+  ctool_u32 jump_count = 0u;
+  if (unit->function_definition_count != 4u ||
+      ir->function_count != 4u || ir->functions == NULL ||
+      ir->instructions == NULL || ir->instruction_count == 0u) {
+    (void)fprintf(stderr, "switch control IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < ir->function_count;
+       function_index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    ctool_u32 offset;
+    if (function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction) {
+      (void)fprintf(stderr, "switch control function range differs\n");
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[function->first_instruction + offset];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP) {
+        jump_count++;
+      }
+      if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+           instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP) &&
+          (instruction->reference >= function->instruction_count ||
+           instruction->integer_bits != 0u)) {
+        (void)fprintf(stderr,
+                      "switch control published an unresolved jump\n");
+        return 0;
+      }
+    }
+  }
+  if (jump_count < 10u) {
+    (void)fprintf(stderr, "switch control emitted too few control edges\n");
+    return 0;
+  }
+  for (expected_target_index = 0u;
+       expected_target_index <
+           sizeof(expected_control_targets) / sizeof(expected_control_targets[0]);
+       expected_target_index++) {
+    const ctool_c_ir_function_t *function =
+        &ir->functions[expected_control_targets[expected_target_index].function];
+    ctool_u32 match_count = 0u;
+    ctool_u32 offset;
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[function->first_instruction + offset];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP &&
+          instruction->location.line ==
+              expected_control_targets[expected_target_index].source_line) {
+        if (instruction->reference >= function->instruction_count ||
+            ir->instructions[function->first_instruction +
+                             instruction->reference]
+                    .location.line !=
+                expected_control_targets[expected_target_index].target_line) {
+          (void)fprintf(stderr,
+                        "switch control jump on line %u has the wrong target\n",
+                        instruction->location.line);
+          return 0;
+        }
+        match_count++;
+      }
+    }
+    if (match_count != 1u) {
+      (void)fprintf(stderr,
+                    "switch control jump on line %u has %u matches\n",
+                    expected_control_targets[expected_target_index].source_line,
+                    match_count);
+      return 0;
+    }
+  }
+  {
+    const ctool_c_ir_function_t *negative = &ir->functions[3];
+    ctool_u32 negative_constant_count = 0u;
+    ctool_u32 offset;
+    for (offset = 0u; offset < negative->instruction_count; offset++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[negative->first_instruction + offset];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER &&
+          instruction->location.line == 39u &&
+          instruction->integer_bits == 0xffffffffu) {
+        negative_constant_count++;
+      }
+    }
+    if (negative_constant_count != 1u) {
+      (void)fprintf(stderr,
+                    "switch negative case did not retain 32-bit -1\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_switch_control(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/switch-control.c", switch_control_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "switch control lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_switch_control_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("switch-control: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_switch_nesting_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u32 expected_equal_counts[] = {
+      2u, 1u, 0u, 1u, 0u, 0u, 1u, 3u};
+  static const ctool_u32 expected_return_counts[] = {
+      1u, 2u, 1u, 2u, 1u, 1u, 2u, 4u};
+  static const ctool_u32 minimum_stack_depths[] = {
+      2u, 2u, 1u, 2u, 1u, 1u, 2u, 2u};
+  ctool_u32 function_index;
+  if (unit->function_definition_count != 8u || ir->function_count != 8u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "switch nesting IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < ir->function_count;
+       function_index++) {
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 equal_count = 0u;
+    ctool_u32 return_count = 0u;
+    ctool_u32 offset;
+    if (function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->maximum_stack_depth <
+            minimum_stack_depths[function_index]) {
+      (void)fprintf(stderr, "switch nesting function range differs\n");
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[function->first_instruction + offset];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+          instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+        equal_count++;
+      }
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+        return_count++;
+      }
+      if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+           instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP) &&
+          (instruction->reference >= function->instruction_count ||
+           instruction->integer_bits != 0u)) {
+        (void)fprintf(stderr,
+                      "switch nesting published an unresolved jump\n");
+        return 0;
+      }
+    }
+    if (equal_count != expected_equal_counts[function_index] ||
+        return_count != expected_return_counts[function_index]) {
+      (void)fprintf(stderr,
+                    "switch nesting function %u differs: equal=%u "
+                    "return=%u\n",
+                    function_index, equal_count, return_count);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_switch_nesting(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/switch-nesting.c", switch_nesting_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "switch nesting lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_switch_nesting_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("switch-nesting: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -8252,8 +8981,18 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "nested-goto") == 0) {
     return run_nested_goto(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "switch-lowering") == 0) {
+    return run_switch_lowering(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "switch-control") == 0) {
+    return run_switch_control(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "switch-nesting") == 0) {
+    return run_switch_nesting(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
-                "active-leaf|forward-goto|nested-goto HOST_ROOT\n");
+                "active-leaf|forward-goto|nested-goto|switch-lowering|"
+                "switch-control|switch-nesting HOST_ROOT\n");
   return 2;
 }

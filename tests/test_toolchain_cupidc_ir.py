@@ -74,6 +74,36 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "nested-goto: ok\n")
 
+    def test_switch_dispatches_once_to_resolved_case_targets(self):
+        result = subprocess.run(
+            [str(self.contract_path), "switch-lowering", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "switch-lowering: ok\n")
+
+    def test_switch_and_loop_control_use_the_nearest_valid_target(self):
+        result = subprocess.run(
+            [str(self.contract_path), "switch-control", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "switch-control: ok\n")
+
+    def test_nested_switches_keep_labels_and_reachability_isolated(self):
+        result = subprocess.run(
+            [str(self.contract_path), "switch-nesting", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "switch-nesting: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()
