@@ -37,3 +37,7 @@ Negative contracts reject a `break` statement with an expression payload and a s
 This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object, so the change transfers no build ownership and does not require an OS boot claim.
 
 Issue #25 remains open. Declaration-initialized loops, declarations inside nested compounds, `switch`, labels, `goto`, broader values and addresses, production integration, and staged self-hosting remain.
+
+## Extension
+
+ADR 0036 permits represented declarations in a `for` initializer and in supported nested compounds. Loop frames still own only control targets. Block-binding ownership stays in the automatic-local path.

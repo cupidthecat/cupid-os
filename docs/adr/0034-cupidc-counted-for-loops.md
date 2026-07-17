@@ -33,3 +33,7 @@ Negative contracts reject a 64-bit condition, a 64-bit iteration that is unreach
 This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object, so this change transfers no build ownership and does not require an OS boot claim.
 
 Issue #25 remains open. Declaration initializers, declarations inside nested compounds, `break`, `continue`, `switch`, labels, `goto`, broader values and addresses, production integration, and staged self-hosting remain.
+
+## Extension
+
+ADR 0036 adds declaration initializers through the existing automatic-local path. The initializer's bindings become visible before its condition, iteration, and body are lowered. The loop order and branch rules in this decision remain unchanged.

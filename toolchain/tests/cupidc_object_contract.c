@@ -52,6 +52,18 @@ static const char active_sleep_crlf[] =
 static const char active_for_header[] =
     "for (i = 0; i < 8; i = i + 1)";
 
+static const char active_declaration_for_header[] =
+    "for (int i = 0; i < total_sfnt; i = i + 1)";
+
+static const char active_nested_declaration[] =
+    "    const ctool_c_initializer_t *initializer =\n"
+    "        &context->unit->initializers[index];\n"
+    "    ctool_u32 child_offset;";
+static const char active_nested_declaration_crlf[] =
+    "    const ctool_c_initializer_t *initializer =\r\n"
+    "        &context->unit->initializers[index];\r\n"
+    "    ctool_u32 child_offset;";
+
 static const char active_loop_continue[] =
     "    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {\n"
     "      continue;\n"
@@ -257,6 +269,10 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "load active browser for loop",
              "the active browser for loop changed", active_for_header,
              NULL) &&
+         active_source_contains(job, "/bin/browser/woff.cc",
+                                "load active browser declaration loop",
+                                "the active browser declaration loop changed",
+                                active_declaration_for_header, NULL) &&
          active_source_contains(
              job, "/toolchain/cupidc_ir.c",
              "load active CupidC IR source",
@@ -266,7 +282,11 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              job, "/toolchain/cupidc_ir.c",
              "load active CupidC IR source",
              "the active CupidC IR break changed", active_loop_break,
-             active_loop_break_crlf);
+             active_loop_break_crlf) &&
+         active_source_contains(
+             job, "/toolchain/cupidc_ir.c", "load active CupidC IR source",
+             "the active CupidC IR nested declaration changed",
+             active_nested_declaration, active_nested_declaration_crlf);
 }
 
 static char *make_align_up_fixture(void) {
@@ -2345,6 +2365,161 @@ static int validate_for_object(ctool_job_t *job,
   return 1;
 }
 
+static int validate_declaration_for_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9cu, 0xc0u, 0x0fu,
+      0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u,
+      0x21u, 0x00u, 0x00u, 0x00u, 0x8du, 0x45u, 0xfcu, 0x50u,
+      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x01u,
+      0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
+      0xe9u, 0xbeu, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
+      CTOOL_X86_MN_SETL,  CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 branch_targets[] = {85u, 19u};
+  static const ctool_u8 nested_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1eu, 0x00u,
+      0x00u, 0x00u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x8du, 0x45u, 0xf8u, 0x50u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xf8u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t nested_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 nested_targets[] = {56u};
+  static const ctool_u8 unreachable_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t unreachable_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u8 loop_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t loop_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,   CTOOL_X86_MN_JMP,  CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_TEST, CTOOL_X86_MN_JE,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 loop_targets[] = {28u, 28u, 33u, 58u, 58u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "declaration_for");
+  const ctool_elf32_symbol_t *nested =
+      find_symbol(object, "nested_declaration");
+  const ctool_elf32_symbol_t *unreachable =
+      find_symbol(object, "unreachable_declaration");
+  const ctool_elf32_symbol_t *loop =
+      find_symbol(object, "loop_declarations");
+  if (text == NULL || rel_text != NULL || function == NULL || nested == NULL ||
+      unreachable == NULL || loop == NULL ||
+      text->contents.size !=
+          (ctool_u32)(sizeof(function_bytes) + sizeof(nested_bytes) +
+                      sizeof(unreachable_bytes) + sizeof(loop_bytes)) ||
+      text->relocation_count != 0u || object->symbol_count != 5u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(function, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      !symbol_matches(nested, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)sizeof(function_bytes),
+                      (ctool_u32)sizeof(nested_bytes)) ||
+      !symbol_matches(unreachable, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(nested_bytes)),
+                      (ctool_u32)sizeof(unreachable_bytes)) ||
+      !symbol_matches(loop, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(function_bytes) +
+                                  sizeof(nested_bytes) +
+                                  sizeof(unreachable_bytes)),
+                      (ctool_u32)sizeof(loop_bytes)) ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes), branch_targets,
+          (ctool_u32)(sizeof(branch_targets) / sizeof(branch_targets[0])),
+          "declaration_for") ||
+      !decode_function(
+          job, text, nested, nested_instructions,
+          (ctool_u32)(sizeof(nested_instructions) /
+                      sizeof(nested_instructions[0])),
+          nested_bytes, (ctool_u32)sizeof(nested_bytes), nested_targets,
+          (ctool_u32)(sizeof(nested_targets) / sizeof(nested_targets[0])),
+          "nested_declaration") ||
+      !decode_function(
+          job, text, unreachable, unreachable_instructions,
+          (ctool_u32)(sizeof(unreachable_instructions) /
+                      sizeof(unreachable_instructions[0])),
+          unreachable_bytes, (ctool_u32)sizeof(unreachable_bytes), NULL, 0u,
+          "unreachable_declaration") ||
+      !decode_function(
+          job, text, loop, loop_instructions,
+          (ctool_u32)(sizeof(loop_instructions) /
+                      sizeof(loop_instructions[0])),
+          loop_bytes, (ctool_u32)sizeof(loop_bytes), loop_targets,
+          (ctool_u32)(sizeof(loop_targets) / sizeof(loop_targets[0])),
+          "loop_declarations")) {
+    (void)fprintf(stderr, "declaration for object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_selection_edge_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 unreachable_bytes[] = {
@@ -3741,11 +3916,33 @@ static int run_static_data(const char *host_root) {
   static const char declaration_for_text[] =
       "void declaration_for(void) {\n"
       "  for (int i = 0; i < 1; i = i + 1) {}\n"
-      "}\n";
-  static const char unreachable_declaration_text[] =
+      "}\n"
+      "int nested_declaration(int value) {\n"
+      "  if (value) {\n"
+      "    int copy = value;\n"
+      "    return copy;\n"
+      "  } else {\n"
+      "    int zero = 0;\n"
+      "    return zero;\n"
+      "  }\n"
+      "}\n"
       "int unreachable_declaration(void) {\n"
       "  return 0;\n"
       "  int value;\n"
+      "}\n"
+      "void loop_declarations(int value) {\n"
+      "  while (value) { int in_while; break; }\n"
+      "  do { int in_do; break; } while (value);\n"
+      "  for (; value;) { int in_for; break; }\n"
+      "}\n";
+  static const char wide_declaration_for_text[] =
+      "void wide_declaration_for(void) {\n"
+      "  for (long long i = 0; i < 1; i = i + 1) {}\n"
+      "}\n";
+  static const char unreachable_wide_declaration_text[] =
+      "int unreachable_wide_declaration(void) {\n"
+      "  return 0;\n"
+      "  long long value;\n"
       "}\n";
   static const char integer_unary_text[] =
       "int unary_plus(int value) { return +value; }\n"
@@ -3919,8 +4116,9 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t wide_for_unit;
   ctool_c_translation_unit_t terminal_wide_for_iteration_unit;
   ctool_c_translation_unit_t declaration_for_unit;
+  ctool_c_translation_unit_t wide_declaration_for_unit;
+  ctool_c_translation_unit_t unreachable_wide_declaration_unit;
   ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
-  ctool_c_translation_unit_t unreachable_declaration_unit;
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t narrow_cast_unit;
@@ -3935,6 +4133,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_binding_t *invalid_bindings = NULL;
   ctool_c_initializer_t *invalid_layout_initializers = NULL;
   ctool_c_initializer_element_t *invalid_elements = NULL;
+  ctool_c_statement_t *lexical_declaration_statements = NULL;
   ctool_c_statement_t *unreachable_statements = NULL;
   ctool_c_statement_t *loop_control_statements = NULL;
   ctool_c_expression_t invalid_expression;
@@ -3954,6 +4153,7 @@ static int run_static_data(const char *host_root) {
   unit_snapshot_t while_snapshot;
   unit_snapshot_t do_snapshot;
   unit_snapshot_t for_snapshot;
+  unit_snapshot_t declaration_for_snapshot;
   unit_snapshot_t simd_cpuid_snapshot;
   unit_snapshot_t file_assignment_snapshot;
   unit_snapshot_t file_member_snapshot;
@@ -3991,6 +4191,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 do_object_size = 0u;
   ctool_u8 *for_object = NULL;
   ctool_u32 for_object_size = 0u;
+  ctool_u8 *declaration_for_object = NULL;
+  ctool_u32 declaration_for_object_size = 0u;
   ctool_u8 *simd_cpuid_object = NULL;
   ctool_u32 simd_cpuid_object_size = 0u;
   ctool_u8 *file_member_object = NULL;
@@ -4009,6 +4211,7 @@ static int run_static_data(const char *host_root) {
   ctool_u32 definition_index;
   ctool_u32 duplicate_initializer = CTOOL_C_AST_NONE;
   ctool_u32 initializer_index;
+  ctool_u32 statement_index;
   ctool_u32 masked_child = CTOOL_C_AST_NONE;
   ctool_u32 masked_edge = CTOOL_C_AST_NONE;
   ctool_u32 masked_initializer = CTOOL_C_AST_NONE;
@@ -4051,10 +4254,12 @@ static int run_static_data(const char *host_root) {
   (void)memset(&terminal_wide_for_iteration_unit, 0,
                sizeof(terminal_wide_for_iteration_unit));
   (void)memset(&declaration_for_unit, 0, sizeof(declaration_for_unit));
+  (void)memset(&wide_declaration_for_unit, 0,
+               sizeof(wide_declaration_for_unit));
+  (void)memset(&unreachable_wide_declaration_unit, 0,
+               sizeof(unreachable_wide_declaration_unit));
   (void)memset(&nonvoid_selection_fallthrough_unit, 0,
                sizeof(nonvoid_selection_fallthrough_unit));
-  (void)memset(&unreachable_declaration_unit, 0,
-               sizeof(unreachable_declaration_unit));
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
@@ -4085,6 +4290,8 @@ static int run_static_data(const char *host_root) {
   (void)memset(&while_snapshot, 0, sizeof(while_snapshot));
   (void)memset(&do_snapshot, 0, sizeof(do_snapshot));
   (void)memset(&for_snapshot, 0, sizeof(for_snapshot));
+  (void)memset(&declaration_for_snapshot, 0,
+               sizeof(declaration_for_snapshot));
   (void)memset(&simd_cpuid_snapshot, 0, sizeof(simd_cpuid_snapshot));
   (void)memset(&file_assignment_snapshot, 0,
                sizeof(file_assignment_snapshot));
@@ -5208,6 +5415,95 @@ static int run_static_data(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/declaration-for.c", declaration_for_text,
+                    &declaration_for_unit) ||
+      !take_unit_snapshot(&declaration_for_unit,
+                          &declaration_for_snapshot)) {
+    (void)fprintf(stderr, "declaration for object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &declaration_for_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "first declaration for object") ||
+      bytes.size == 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&declaration_for_snapshot,
+                            &declaration_for_unit) == 0) {
+    (void)fprintf(stderr, "first declaration for emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  declaration_for_object_size = bytes.size;
+  declaration_for_object =
+      (ctool_u8 *)malloc((size_t)declaration_for_object_size);
+  if (declaration_for_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(declaration_for_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &declaration_for_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat declaration for object") ||
+      bytes.size != declaration_for_object_size ||
+      memcmp(bytes.data, declaration_for_object, (size_t)bytes.size) != 0 ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_snapshot_matches(&declaration_for_snapshot,
+                            &declaration_for_unit) == 0) {
+    (void)fprintf(stderr, "declaration for emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/declaration-for.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read declaration for object") ||
+      !validate_declaration_for_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  lexical_declaration_statements = (ctool_c_statement_t *)malloc(
+      (size_t)declaration_for_unit.statement_count *
+      sizeof(*lexical_declaration_statements));
+  if (lexical_declaration_statements == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(lexical_declaration_statements,
+               declaration_for_unit.statements,
+               (size_t)declaration_for_unit.statement_count *
+                   sizeof(*lexical_declaration_statements));
+  for (statement_index = 0u;
+       statement_index < declaration_for_unit.statement_count;
+       statement_index++) {
+    if (lexical_declaration_statements[statement_index].kind ==
+            CTOOL_C_STATEMENT_DECLARATION &&
+        lexical_declaration_statements[statement_index]
+                .first_block_binding == 2u) {
+      lexical_declaration_statements[statement_index].first_block_binding =
+          1u;
+      break;
+    }
+  }
+  invalid_unit = declaration_for_unit;
+  invalid_unit.statements = lexical_declaration_statements;
+  if (statement_index == declaration_for_unit.statement_count ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "overlapping nested declaration bindings object") ||
+      unit_snapshot_matches(&declaration_for_snapshot,
+                            &declaration_for_unit) == 0) {
+    goto cleanup;
+  }
   loop_control_statements = (ctool_c_statement_t *)malloc(
       (size_t)for_unit.statement_count * sizeof(*loop_control_statements));
   if (loop_control_statements == NULL) {
@@ -5309,15 +5605,7 @@ static int run_static_data(const char *host_root) {
           "CupidC IR lowering received an invalid translation unit",
           "invalid unreachable selection condition object") ||
       unit_snapshot_matches(&selection_edge_snapshot,
-                            &selection_edge_unit) == 0 ||
-      !parse_source(job, "/unreachable-declaration.c",
-                    unreachable_declaration_text,
-                    &unreachable_declaration_unit) ||
-      !expect_object_failure(
-          job, &unreachable_declaration_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "unreachable declaration object")) {
+                            &selection_edge_unit) == 0) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
@@ -5607,13 +5895,22 @@ static int run_static_data(const char *host_root) {
           CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "unreachable wide for iteration object") ||
-      !parse_source(job, "/declaration-for.c", declaration_for_text,
-                    &declaration_for_unit) ||
+      !parse_source(job, "/wide-declaration-for.c",
+                    wide_declaration_for_text,
+                    &wide_declaration_for_unit) ||
       !expect_object_failure_preserves_unit(
-          job, &declaration_for_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "for declaration initializer object") ||
+          job, &wide_declaration_for_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide declaration for initializer object") ||
+      !parse_source(job, "/unreachable-wide-declaration.c",
+                    unreachable_wide_declaration_text,
+                    &unreachable_wide_declaration_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &unreachable_wide_declaration_unit, second,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "unreachable wide declaration object") ||
       !parse_source(job, "/nonvoid-selection-fallthrough.c",
                     nonvoid_selection_fallthrough_text,
                     &nonvoid_selection_fallthrough_unit) ||
@@ -5945,6 +6242,8 @@ cleanup:
   free(while_object);
   free(do_object);
   free(for_object);
+  free(declaration_for_object);
+  free(lexical_declaration_statements);
   free(unreachable_statements);
   free(loop_control_statements);
   free(simd_cpuid_object);
@@ -5967,6 +6266,7 @@ cleanup:
   dispose_unit_snapshot(&while_snapshot);
   dispose_unit_snapshot(&do_snapshot);
   dispose_unit_snapshot(&for_snapshot);
+  dispose_unit_snapshot(&declaration_for_snapshot);
   dispose_unit_snapshot(&simd_cpuid_snapshot);
   dispose_unit_snapshot(&unsigned_multiplication_snapshot);
   dispose_unit_snapshot(&multiplication_snapshot);

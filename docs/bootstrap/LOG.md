@@ -3895,3 +3895,53 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Declaration-initialized loops, `switch`, labels, `goto`, declarations inside nested compounds, broader values and addresses, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC lowers lexical block declarations
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers supported automatic declarations wherever they appear in a compound statement that IR can already traverse. It also accepts a declaration as a `for` initializer. The unchanged source requirements come from `bin/browser/woff.cc`, which declares its loop index in `for (int i = 0; ...)`, and from the nested temporary declarations in `cir_validate_initializer_ownership` in `toolchain/cupidc_ir.c`.
+
+Before lowering a function, IR walks its supported statement tree and verifies the complete source-ordered block-binding range. The walk follows compounds, both `if` arms, loop bodies, and a `for` declaration initializer. Each declaration must own the next contiguous binding slice. This catches overlapping or cross-function ownership before result allocation without adding another range to the public function record.
+
+Declarations use the existing automatic-local path from ADR 0018. A binding becomes visible before its initializer is evaluated, preserving point-of-declaration behavior. A declaration initializer in `for` runs before the loop condition target is recorded. Successful count-only validation copies its binding cursor and visible end back to the live context, so declarations after an unconditional transfer are checked and consumed without publishing dead instructions.
+
+The frontend remains responsible for lexical lookup. IR validates the frozen ownership and the represented type boundary rather than resolving names again. No public IR instruction, object record, emitter rule, or ABI changed. This slice still accepts only complete four-byte integer automatic objects with supported storage. Narrow, wide, pointer, floating, aggregate, block-static, incomplete, and over-aligned objects retain their existing diagnostics. `switch`, labels, and `goto` also remain outside hosted IR.
+
+Rewriting the active sources was rejected because it would conceal a compiler requirement. Treating an unreachable declaration as a no-op was also rejected because later bindings could then appear unowned and an unsupported type could hide after a return. ADR 0036 records the resulting contract and boundary. No user question was needed because the frontend statement tree, the existing local-storage decision, and the active sources determine the required ordering.
+
+### Contract evidence and corrections
+
+- The first declaration-initialized loop run failed with the public unsupported-statement diagnostic. The nested declaration fixture failed at the same boundary. Those red results showed that both intended paths reached IR before implementation.
+- The declaration-initialized `for` function lowers to 17 exact instructions. The nested `if` and `else` declarations lower to 16 instructions. Declarations inside `while`, `do`, and `for` bodies consume their bindings while publishing ten control-flow instructions. A return followed by an uninitialized declaration publishes only its two return instructions.
+- The deterministic ELF32 fixture contains those four functions in 238 text bytes. Their sizes are 87, 80, 11, and 60 bytes. It has five symbols including the null symbol, no relocations, byte-identical repeat emission, and exact branch targets. The 60-byte loop function decodes to 23 instructions with targets at byte offsets 28, 28, 33, 58, and 58.
+- Negative contracts reject a wide declaration in a `for` initializer and the same unsupported declaration after an unconditional return. A nested declaration with an overlapping binding slice is invalid at both public entry points. IR failures preserve the frozen input. Object failures leave the output empty and rewind temporary allocations.
+- Active-source guards pin the browser loop and the nested declarations in `cir_validate_initializer_ownership`. Neither active source was changed.
+- The final self-source tuple for `cupidc_ir.c` is 73 definitions, 1,831 statements, 15,277 expressions, 225 block bindings, and 69 initializers.
+- Spec review found one stale host-dependency sentence that still described declaration-initialized loops as unsupported. The sentence now states the actual automatic-local boundary. Follow-up Standards and Spec reviews report no remaining finding.
+- A broad formatter run wrapped unrelated lines in the three changed C files. The diff exposed the churn before staging, so the files were restored to their prior layout and only the intended semantic edits were reapplied. Focused tests were rerun after that recovery.
+- The first standalone audit-test wrapper allowed 180 seconds and expired after 184 seconds while the suite was still running. A 600-second rerun passed all 49 tests in 338.067 seconds. The timeout is not counted as product evidence.
+- The first Clang analyzer loop lost its Bash source variable at the PowerShell boundary, printed `no input files`, and returned a misleading zero from its wrapper. A GCC `-fanalyzer -fsyntax-only` probe was also too weak to count. The final analyzer commands name each translation unit explicitly, and GCC compiles each one with `-fanalyzer`.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 607 designated initializers across 18 files, 791 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 1,667 `break`, 923 `continue`, 24,285 `if`, 3,412 `else`, 2,955 `for`, 14,822 `return`, and 2,804 `sizeof` occurrences. The active-source digest is `148047e39234d85aa6e92fa33765d1754c4f7b60775f4561c3f4bec497dfd9c9`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | The declaration-initialized loop and nested declaration fixtures first failed with the public unsupported-statement diagnostic. |
+| Focused CupidC contracts | PASS | The frontend, IR, and object Python modules pass all 44 tests in 21.725 seconds. |
+| Windows hosted Toolchain | PASS | The final strict Clang build passes the complete Toolchain suite, including all 22 assembly demos, in 18.237 seconds. |
+| WSL strict compilers | PASS | Final GCC 13.3 and Clang 18.1 builds pass the complete Toolchain suite in 49.657 and 50.300 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass `active-leaf` and `static-data` in 39.396 and 39.918 seconds. Leak detection, strict string checks, stack-use checks, stack traces, and halt-on-error behavior are enabled. Sanitizer symbols are present in all four binaries. |
+| Static analysis | PASS AFTER HARNESS CORRECTION | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c` and all three changed contracts in 96.230 and 67.127 seconds. The discarded commands are recorded above. |
+| Two-axis review | PASS AFTER DOCUMENTATION FIX | Follow-up Standards and Spec reviews find no standards violation, actionable smell, missing requirement, scope creep, or incorrect behavior. |
+| Active-source audit | PASS AFTER TIMEOUT CORRECTION | `make bootstrap-audit` regenerates the checked records. The independent build-graph audit suite passes all 49 tests in 338.067 seconds. |
+| Full repository gate | PASS | `make test` passes all 286 tests in 482.787 seconds with one expected skip and returns from Make in 519.702 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and related ADRs now describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. `switch`, labels, `goto`, additional local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain. No issue is ready to close from this increment.

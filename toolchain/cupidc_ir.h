@@ -95,8 +95,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * slice, and every join has the same address/value stack shape on each
  * incoming path. A pre-test while loop uses BRANCH_ZERO for its forward exit
  * and JUMP for its backward edge. A for loop evaluates its optional expression
- * initializer once, then its optional condition, body, and optional iteration
- * expression in C source order. An omitted condition has no false exit.
+ * or declaration initializer once, then its optional condition, body, and
+ * optional iteration expression in C source order. Declarations in supported
+ * compound statements use the same source-ordered block bindings as outer
+ * declarations. An omitted condition has no false exit.
  * Break and continue use JUMP to the nearest loop's exit and continuation
  * point. A do continuation reaches its condition, while a for continuation
  * reaches its iteration expression when one is present and its condition

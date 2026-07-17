@@ -1837,6 +1837,10 @@ static ctool_status_t cir_finish_count_only_validation(
   if (validation->failure_reported == CTOOL_TRUE) {
     context->failure_reported = CTOOL_TRUE;
   }
+  if (status == CTOOL_OK && rewind_status == CTOOL_OK) {
+    context->block_binding_cursor = validation->block_binding_cursor;
+    context->visible_block_binding_end = validation->visible_block_binding_end;
+  }
   return rewind_status == CTOOL_OK ? status : rewind_status;
 }
 
@@ -2382,9 +2386,10 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
     initializer =
         &context->unit->statements[statement->initializer_statement];
     if (initializer->kind == CTOOL_C_STATEMENT_DECLARATION) {
-      return cir_unsupported_statement(context, &initializer->location);
+      status = cir_lower_declaration(context, initializer);
+    } else {
+      status = cir_lower_expression_statement(context, initializer);
     }
-    status = cir_lower_expression_statement(context, initializer);
     if (status != CTOOL_OK) {
       return status;
     }
@@ -2481,6 +2486,9 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
   if (statement->kind == CTOOL_C_STATEMENT_EXPRESSION) {
     return cir_lower_expression_statement(context, statement);
   }
+  if (statement->kind == CTOOL_C_STATEMENT_DECLARATION) {
+    return cir_lower_declaration(context, statement);
+  }
   if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
     return cir_lower_compound(context, statement_index, statement, depth,
                               falls_through_out);
@@ -2512,12 +2520,132 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
   return cir_unsupported_statement(context, &statement->location);
 }
 
+static ctool_status_t cir_scan_declaration_bindings(
+    cir_context_t *context, ctool_u32 statement_index, ctool_u32 depth,
+    ctool_u32 *binding_cursor) {
+  const ctool_c_statement_t *statement;
+  ctool_u32 child_offset;
+  ctool_status_t status;
+  if (depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+        (const ctool_c_pp_location_t *)0,
+        "CupidC IR lowering exceeded a configured resource limit");
+  }
+  if (statement_index >= context->unit->statement_count) {
+    return cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
+  }
+  statement = &context->unit->statements[statement_index];
+  if (statement->kind == CTOOL_C_STATEMENT_DECLARATION) {
+    if (statement->first_block_binding == CTOOL_C_AST_NONE ||
+        statement->first_block_binding != *binding_cursor ||
+        statement->first_block_binding > context->unit->block_binding_count ||
+        statement->block_binding_count == 0u ||
+        statement->block_binding_count > context->unit->block_binding_count -
+                                             statement->first_block_binding ||
+        cir_add_overflows(*binding_cursor, statement->block_binding_count) ==
+            CTOOL_TRUE) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    *binding_cursor += statement->block_binding_count;
+    return CTOOL_OK;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
+    if (statement->first_child > context->unit->statement_child_count ||
+        statement->child_count >
+            context->unit->statement_child_count - statement->first_child) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    for (child_offset = 0u; child_offset < statement->child_count;
+         child_offset++) {
+      ctool_u32 child = context->unit->statement_children
+          [statement->first_child + child_offset];
+      if (child >= statement_index || child >= context->unit->statement_count) {
+        return cir_invalid_unit(context, &statement->location);
+      }
+      status = cir_scan_declaration_bindings(context, child, depth + 1u,
+                                             binding_cursor);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    }
+    return CTOOL_OK;
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_FOR) {
+    if (statement->initializer_statement != CTOOL_C_AST_NONE) {
+      if (statement->initializer_statement >= statement_index ||
+          statement->initializer_statement >= context->unit->statement_count) {
+        return cir_invalid_unit(context, &statement->location);
+      }
+      status = cir_scan_declaration_bindings(
+          context, statement->initializer_statement, depth + 1u,
+          binding_cursor);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    }
+    if (statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    return cir_scan_declaration_bindings(
+        context, statement->body, depth + 1u, binding_cursor);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_IF) {
+    if (statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count ||
+        (statement->else_body != CTOOL_C_AST_NONE &&
+         (statement->else_body >= statement_index ||
+          statement->else_body >= context->unit->statement_count))) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    status = cir_scan_declaration_bindings(
+        context, statement->body, depth + 1u, binding_cursor);
+    if (status != CTOOL_OK || statement->else_body == CTOOL_C_AST_NONE) {
+      return status;
+    }
+    return cir_scan_declaration_bindings(
+        context, statement->else_body, depth + 1u, binding_cursor);
+  }
+  if (statement->kind == CTOOL_C_STATEMENT_WHILE ||
+      statement->kind == CTOOL_C_STATEMENT_DO) {
+    if (statement->body >= statement_index ||
+        statement->body >= context->unit->statement_count) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+    return cir_scan_declaration_bindings(
+        context, statement->body, depth + 1u, binding_cursor);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_prepare_function_block_bindings(
+    cir_context_t *context, const ctool_c_statement_t *body) {
+  ctool_u32 binding_cursor = context->block_binding_cursor;
+  ctool_u32 child_offset;
+  ctool_status_t status;
+  context->function_first_block_binding = binding_cursor;
+  context->function_block_binding_count = 0u;
+  context->visible_block_binding_end = binding_cursor;
+  for (child_offset = 0u; child_offset < body->child_count;
+       child_offset++) {
+    ctool_u32 child = context->unit->statement_children
+        [body->first_child + child_offset];
+    status = cir_scan_declaration_bindings(context, child, 0u,
+                                           &binding_cursor);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  context->function_block_binding_count =
+      binding_cursor - context->function_first_block_binding;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_lower_body(
     cir_context_t *context, const ctool_c_function_definition_t *definition) {
   const ctool_c_statement_t *body;
-  const ctool_c_statement_t *statement;
   ctool_bool falls_through = CTOOL_TRUE;
-  ctool_u32 declaration_count = 0u;
   ctool_u32 child_offset;
   ctool_u32 statement_index;
   ctool_status_t status;
@@ -2531,9 +2659,10 @@ static ctool_status_t cir_lower_body(
           context->unit->statement_child_count - body->first_child) {
     return cir_invalid_unit(context, &body->location);
   }
-  context->function_first_block_binding = context->block_binding_cursor;
-  context->function_block_binding_count = 0u;
-  context->visible_block_binding_end = context->block_binding_cursor;
+  status = cir_prepare_function_block_bindings(context, body);
+  if (status != CTOOL_OK) {
+    return status;
+  }
   if (body->child_count == 0u) {
     if (cir_type_is_void(context, context->function_result_type) ==
         CTOOL_FALSE) {
@@ -2546,62 +2675,6 @@ static ctool_status_t cir_lower_body(
         &body->physical_location, (ctool_u32 *)0);
   }
   for (child_offset = 0u; child_offset < body->child_count; child_offset++) {
-    statement_index =
-        context->unit->statement_children[body->first_child + child_offset];
-    if (statement_index >= definition->body ||
-        statement_index >= context->unit->statement_count) {
-      return cir_invalid_unit(context, &body->location);
-    }
-    statement = &context->unit->statements[statement_index];
-    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
-      break;
-    }
-    if (statement->first_block_binding == CTOOL_C_AST_NONE ||
-        statement->first_block_binding > context->unit->block_binding_count ||
-        statement->block_binding_count == 0u ||
-        statement->block_binding_count >
-            context->unit->block_binding_count -
-                statement->first_block_binding) {
-      return cir_invalid_unit(context, &statement->location);
-    }
-    if (cir_add_overflows(context->function_first_block_binding,
-                          context->function_block_binding_count) ==
-            CTOOL_TRUE ||
-        (declaration_count == 0u &&
-         statement->first_block_binding != context->block_binding_cursor) ||
-        (declaration_count != 0u &&
-         statement->first_block_binding !=
-               context->function_first_block_binding +
-                   context->function_block_binding_count)) {
-      return cir_invalid_unit(context, &statement->location);
-    }
-    if (cir_add_overflows(context->function_block_binding_count,
-                          statement->block_binding_count) == CTOOL_TRUE) {
-      return cir_invalid_unit(context, &statement->location);
-    }
-    context->function_block_binding_count += statement->block_binding_count;
-    declaration_count++;
-  }
-  if (declaration_count != 0u &&
-      (cir_add_overflows(context->function_first_block_binding,
-                         context->function_block_binding_count) ==
-           CTOOL_TRUE ||
-       context->function_first_block_binding +
-               context->function_block_binding_count >
-           context->unit->block_binding_count)) {
-    return cir_invalid_unit(context, &body->location);
-  }
-  for (child_offset = 0u; child_offset < declaration_count; child_offset++) {
-    statement_index =
-        context->unit->statement_children[body->first_child + child_offset];
-    status = cir_lower_declaration(
-        context, &context->unit->statements[statement_index]);
-    if (status != CTOOL_OK) {
-      return status;
-    }
-  }
-  for (child_offset = declaration_count; child_offset < body->child_count;
-       child_offset++) {
     ctool_bool child_falls_through = CTOOL_TRUE;
     statement_index =
         context->unit->statement_children[body->first_child + child_offset];
@@ -2621,6 +2694,13 @@ static ctool_status_t cir_lower_body(
     if (falls_through == CTOOL_TRUE) {
       falls_through = child_falls_through;
     }
+  }
+  if (cir_add_overflows(context->function_first_block_binding,
+                        context->function_block_binding_count) == CTOOL_TRUE ||
+      context->block_binding_cursor !=
+          context->function_first_block_binding +
+              context->function_block_binding_count) {
+    return cir_invalid_unit(context, &body->location);
   }
   if (falls_through == CTOOL_FALSE) {
     return CTOOL_OK;
