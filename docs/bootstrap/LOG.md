@@ -3945,3 +3945,57 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and related ADRs now describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. `switch`, labels, `goto`, additional local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain. No issue is ready to close from this increment.
+
+## 2026-07-16: CupidC lowers direct labels and goto
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers direct identifier labels and `goto`. The unchanged requirement comes from `ld_serialize` in `toolchain/cupidld.c`, where setup and serialization failures jump to one `done` label that reports the diagnostic and releases the shared buffer. Duplicating that cleanup at every failure site would make the linker harder to maintain and would hide a real compiler requirement.
+
+The frontend already resolves each label name to a canonical function-scope record. IR now validates every function's contiguous label slice before lowering. Each record must name a `LABEL` statement in that function, and every `LABEL` or `GOTO` statement must refer to the same slice. A cross-function jump is invalid even when its numeric reference happens to name a real label.
+
+Reachability needs more than a source-order walk. A private fixed-point pass starts at the function entry and marks a label only when a reachable jump names it. Repeating the pass handles forward chains and backward cycles. A jump after an unconditional return stays dead and cannot revive its target. The pass also tracks reachable `break` and `continue` statements, which lets a jump enter an otherwise unreachable loop without losing the loop's true fallthrough behavior.
+
+Labels occupy no IR instruction. A backward jump receives its function-relative target immediately. A forward jump carries a private patch tag until its label is lowered, then becomes an ordinary `JUMP`. No tag survives publication. Count-only validation checks unreachable statements without changing the live target table, and the declaration scan follows a label's body so block-binding ownership remains contiguous.
+
+A reachable label may sit inside structured code whose earlier instructions remain unreachable from the jump. Lowering keeps those instructions in a stable source-ordered stream and directs the jump past them. If an unused structured exit would otherwise point one instruction beyond a terminal function, IR adds an unreachable return block of the function's result type. This keeps every branch target inside the function without creating real fallthrough.
+
+No public IR instruction, calling convention, relocation rule, or ABI changed. Direct jumps remain inside one function, so the existing emitter resolves their machine displacements without a `.rel.text` relocation. ADR 0037 records the design and its remaining boundary. No user question was needed because the frontend label model, existing `JUMP` semantics, and active linker source fix the required behavior.
+
+### Contract evidence and corrections
+
+- The first forward-jump fixture reached its `goto` and failed with the public unsupported-statement diagnostic. That red result isolated the missing IR capability before implementation.
+- Four direct functions cover a forward jump, a backward loop, a two-label cycle, and a dead jump after a return. They publish 39 exact instructions. Seven nested functions add entry into a compound and an `if` arm, a jump after a normal loop exit, entry into a terminal `do` body, entry before `break` and `continue` in otherwise unreachable infinite loops, and a label above an automatic declaration. They publish another 46 instructions. The complete direct-label proof is 85 instructions across eleven functions.
+- The deterministic ELF32 object contains a 44-byte forward function, a 76-byte backward function, 38-byte terminal `if` and `while` functions, and a 41-byte declaration function. Its 237-byte text section has six symbols including the null symbol, no relocations, and nine fixed decoded branch targets. The declaration function lands at byte offset 11 and owns one four-byte stack slot. Repeated emission is byte-identical and preserves the frozen frontend unit.
+- Negative contracts reject a `goto` with an expression payload, a cross-function target, a label record that names the wrong statement, and a missing label table. IR failure preserves the input. Object failure leaves the output empty and rewinds temporary allocations.
+- LF and CRLF guards pin the first `goto done` and the `done` label in `toolchain/cupidld.c`. The linker source itself was not changed.
+- The first reachability design treated every syntactic jump target as live. That let a jump after a return revive its label, so the implementation moved to the fixed-point entry-reachability pass.
+- The first terminal nested-label object reached the emitter with an unused `if` exit aimed at the end of its function. Adding exact terminal `if` and `while` fixtures reproduced the failure. The unreachable typed return block now gives those exits valid targets without changing the reachable path.
+- Adding every fixture to the large `active-leaf` mode exceeded its existing job resource ceiling. Separate `forward-goto` and `nested-goto` modes keep the contracts independent and deterministic.
+- Standards review asked for a label immediately above a declaration and an object check for the resulting stack slot. Spec review asked for jump-driven reachability before both `break` and `continue`. Those cases were added to both exact IR and object evidence. Follow-up Standards and Spec reviews report no remaining finding.
+- Clang analysis warned that a negative object fixture could pass a zero allocation size to `malloc`. The fixture now uses the existing checked array-copy helper and validates the body bound explicitly. The final GCC and Clang analyzer runs are clean.
+- The first final Python command selected `pytest`, which is not installed in this workspace. The canonical `unittest` command then ran all 96 requested tests and found one stale inventory value: the analyzer cleanup had removed one lexical `goto` from a contract helper. Regenerating the audit and changing the exact gate from 812 to 811 made the focused rerun green. Neither command exposed a product failure.
+- One manual WSL wrapper lost its shell variable and tried to run `.//cupidc-ir-contract`. Explicit binary paths passed on both WSL compilers. A later sanitizer wrapper returned success without observable contract output, so it was excluded. Direct `env` invocations rebuilt the changed object contract with sanitizer linkage and produced the visible results below.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 607 direct designated initializers across 18 files, 811 `goto` occurrences in 24 files, 61 `do`, 202 `switch`, 1,510 `case`, 133 `default`, 2,491 `while`, 1,669 `break`, 923 `continue`, 24,413 `if`, 3,415 `else`, 2,967 `for`, 14,916 `return`, and 2,872 `sizeof` occurrences. The active-source digest is `573439805063ccf604cd43f0c812f08a8122e9d8df64db56b06b36f8413dafc6`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Direct `goto` first failed at the intended unsupported-statement boundary. Terminal structured entries then exposed the out-of-range branch target before the fix. |
+| Focused CupidC contracts | PASS AFTER INVENTORY CORRECTION | `python -m unittest tests.test_toolchain_cupidc_frontend tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 47 tests in 18.566 seconds. |
+| Windows hosted Toolchain | PASS | The final strict Clang build passes the complete Toolchain suite, including all 22 assembly demos, in 11.7 seconds after rebuilding the changed contract objects. The three new modes also pass explicitly. |
+| WSL strict compilers | PASS | Final GCC 13.3 and Clang 18.1 builds pass the complete Toolchain suite in 35.7 and 36.7 seconds. `forward-goto`, `nested-goto`, and `direct-goto` pass explicitly on both builds. |
+| Sanitizers | PASS AFTER HARNESS CORRECTION | GCC and Clang ASan and UBSan builds pass `active-leaf`, `forward-goto`, `nested-goto`, `static-data`, and `direct-goto`. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. GCC links `libasan` and `libubsan`; the Clang binary contains `__asan_init`. |
+| Static analysis | PASS AFTER FIX | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c` and all three changed C contracts. |
+| Two-axis review | PASS AFTER COVERAGE FIXES | The initial Standards and Spec findings prompted the declaration-slot and loop-control entry cases. Both follow-up reviews report no standards violation, actionable smell, missing requirement, scope creep, or incorrect behavior. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the checked records, and `make check-bootstrap-audit` reproduces them exactly in 33.7 seconds. |
+| Full repository gate | PASS | `make test` passes all 289 tests in 422.666 seconds with one expected Windows `/dev/full` skip and returns from Make in 456.7 seconds. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and related ADRs describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. This checkout has no repository wiki tree to update. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. `switch`, computed `goto`, GNU label addresses, additional local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain. No issue is ready to close from this increment.

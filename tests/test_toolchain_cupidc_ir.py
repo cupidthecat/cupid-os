@@ -54,6 +54,26 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "active-leaf: ok\n")
 
+    def test_direct_forward_goto_lowers_to_function_relative_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "forward-goto", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "forward-goto: ok\n")
+
+    def test_goto_enters_nested_compound_at_the_label(self):
+        result = subprocess.run(
+            [str(self.contract_path), "nested-goto", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "nested-goto: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

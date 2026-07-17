@@ -82,6 +82,24 @@ static const char active_loop_break_crlf[] =
     "      valid = CTOOL_FALSE;\r\n"
     "      break;\r\n"
     "    }";
+static const char active_linker_goto[] =
+    "  ctool_status_t status = ld_find_entry(link, &entry);\n"
+    "  if (status != CTOOL_OK) {\n"
+    "    goto done;\n"
+    "  }";
+static const char active_linker_goto_crlf[] =
+    "  ctool_status_t status = ld_find_entry(link, &entry);\r\n"
+    "  if (status != CTOOL_OK) {\r\n"
+    "    goto done;\r\n"
+    "  }";
+static const char active_linker_label[] =
+    "done:\n"
+    "  if (status != CTOOL_OK &&\n"
+    "      ctool_job_diagnostic_count(link->job) == diagnostics_before) {";
+static const char active_linker_label_crlf[] =
+    "done:\r\n"
+    "  if (status != CTOOL_OK &&\r\n"
+    "      ctool_job_diagnostic_count(link->job) == diagnostics_before) {";
 
 static const char active_doom_tick_loop[] =
     "\tdo\n"
@@ -105,6 +123,7 @@ typedef struct {
   ctool_c_block_binding_t *block_bindings;
   ctool_c_initializer_t *initializers;
   ctool_c_initializer_element_t *initializer_elements;
+  ctool_c_label_t *labels;
   ctool_c_function_definition_t *function_definitions;
   ctool_c_statement_t *statements;
   ctool_u32 *statement_children;
@@ -286,7 +305,15 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
          active_source_contains(
              job, "/toolchain/cupidc_ir.c", "load active CupidC IR source",
              "the active CupidC IR nested declaration changed",
-             active_nested_declaration, active_nested_declaration_crlf);
+             active_nested_declaration, active_nested_declaration_crlf) &&
+         active_source_contains(
+             job, "/toolchain/cupidld.c", "load active linker source",
+             "the active linker goto changed", active_linker_goto,
+             active_linker_goto_crlf) &&
+         active_source_contains(
+             job, "/toolchain/cupidld.c", "load active linker source",
+             "the active linker label changed", active_linker_label,
+             active_linker_label_crlf);
 }
 
 static char *make_align_up_fixture(void) {
@@ -393,6 +420,7 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
   void *block_bindings = NULL;
   void *initializers = NULL;
   void *initializer_elements = NULL;
+  void *labels = NULL;
   void *function_definitions = NULL;
   void *statements = NULL;
   void *statement_children = NULL;
@@ -411,6 +439,8 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
       copy_array(unit->initializer_elements, unit->initializer_element_count,
                  sizeof(*unit->initializer_elements),
                  &initializer_elements) == 0 ||
+      copy_array(unit->labels, unit->label_count, sizeof(*unit->labels),
+                 &labels) == 0 ||
       copy_array(unit->function_definitions,
                  unit->function_definition_count,
                  sizeof(*unit->function_definitions),
@@ -430,6 +460,7 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
     free(statement_children);
     free(statements);
     free(function_definitions);
+    free(labels);
     free(initializer_elements);
     free(initializers);
     free(block_bindings);
@@ -445,6 +476,7 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
   snapshot->initializers = (ctool_c_initializer_t *)initializers;
   snapshot->initializer_elements =
       (ctool_c_initializer_element_t *)initializer_elements;
+  snapshot->labels = (ctool_c_label_t *)labels;
   snapshot->function_definitions =
       (ctool_c_function_definition_t *)function_definitions;
   snapshot->statements = (ctool_c_statement_t *)statements;
@@ -479,6 +511,10 @@ static int unit_snapshot_matches(const unit_snapshot_t *snapshot,
                          unit->initializer_elements,
                          (size_t)unit->initializer_element_count *
                              sizeof(*unit->initializer_elements)) == 0) &&
+                 (unit->label_count == 0u ||
+                  memcmp(snapshot->labels, unit->labels,
+                         (size_t)unit->label_count *
+                             sizeof(*unit->labels)) == 0) &&
                  (unit->function_definition_count == 0u ||
                   memcmp(snapshot->function_definitions,
                          unit->function_definitions,
@@ -512,6 +548,7 @@ static void dispose_unit_snapshot(unit_snapshot_t *snapshot) {
   free(snapshot->statement_children);
   free(snapshot->statements);
   free(snapshot->function_definitions);
+  free(snapshot->labels);
   free(snapshot->initializer_elements);
   free(snapshot->initializers);
   free(snapshot->block_bindings);
@@ -689,6 +726,186 @@ static int decode_function(
   }
   if (cursor != symbol->size || branch_index != expected_branch_count) {
     (void)fprintf(stderr, "%s: trailing function bytes differ\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_direct_goto_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 forward_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u, 0x68u, 0x02u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t forward_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_JMP,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 forward_targets[] = {28u, 36u};
+  static const ctool_u8 backward_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x27u, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x58u, 0xe9u, 0xc5u, 0xffu, 0xffu, 0xffu, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t backward_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 backward_targets[] = {62u, 3u};
+  static const ctool_u8 terminal_if_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xe9u, 0x0eu, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x08u, 0x00u, 0x00u, 0x00u, 0x68u, 0x03u,
+      0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_u8 terminal_while_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xe9u, 0x0eu, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x08u, 0x00u, 0x00u, 0x00u, 0x68u, 0x04u,
+      0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t terminal_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JE,    CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 terminal_targets[] = {22u, 30u};
+  static const ctool_u8 declaration_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0xe9u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u,
+      0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
+      0xc3u};
+  static const ctool_x86_mnemonic_t declaration_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 declaration_targets[] = {11u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *forward =
+      find_symbol(object, "object_goto");
+  const ctool_elf32_symbol_t *backward =
+      find_symbol(object, "object_backward");
+  const ctool_elf32_symbol_t *terminal_if =
+      find_symbol(object, "object_terminal_if");
+  const ctool_elf32_symbol_t *terminal_while =
+      find_symbol(object, "object_terminal_while");
+  const ctool_elf32_symbol_t *declaration =
+      find_symbol(object, "object_label_declaration");
+  if (text == NULL || rel_text != NULL || forward == NULL ||
+      backward == NULL || terminal_if == NULL || terminal_while == NULL ||
+      declaration == NULL ||
+      text->contents.size !=
+          (ctool_u32)(sizeof(forward_bytes) + sizeof(backward_bytes) +
+                      sizeof(terminal_if_bytes) +
+                      sizeof(terminal_while_bytes) +
+                      sizeof(declaration_bytes)) ||
+      text->relocation_count != 0u || object->symbol_count != 6u ||
+      object->relocation_count != 0u ||
+      !symbol_matches(forward, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(forward_bytes)) ||
+      !symbol_matches(backward, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)sizeof(forward_bytes),
+                      (ctool_u32)sizeof(backward_bytes)) ||
+      !symbol_matches(terminal_if, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(forward_bytes) +
+                                  sizeof(backward_bytes)),
+                      (ctool_u32)sizeof(terminal_if_bytes)) ||
+      !symbol_matches(terminal_while, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(forward_bytes) +
+                                  sizeof(backward_bytes) +
+                                  sizeof(terminal_if_bytes)),
+                      (ctool_u32)sizeof(terminal_while_bytes)) ||
+      !symbol_matches(declaration, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      (ctool_u32)(sizeof(forward_bytes) +
+                                  sizeof(backward_bytes) +
+                                  sizeof(terminal_if_bytes) +
+                                  sizeof(terminal_while_bytes)),
+                      (ctool_u32)sizeof(declaration_bytes)) ||
+      !decode_function(
+          job, text, forward, forward_instructions,
+          (ctool_u32)(sizeof(forward_instructions) /
+                      sizeof(forward_instructions[0])),
+          forward_bytes, (ctool_u32)sizeof(forward_bytes), forward_targets,
+          (ctool_u32)(sizeof(forward_targets) / sizeof(forward_targets[0])),
+          "object_goto") ||
+      !decode_function(
+          job, text, backward, backward_instructions,
+          (ctool_u32)(sizeof(backward_instructions) /
+                      sizeof(backward_instructions[0])),
+          backward_bytes, (ctool_u32)sizeof(backward_bytes),
+          backward_targets,
+          (ctool_u32)(sizeof(backward_targets) /
+                      sizeof(backward_targets[0])),
+          "object_backward") ||
+      !decode_function(
+          job, text, terminal_if, terminal_instructions,
+          (ctool_u32)(sizeof(terminal_instructions) /
+                      sizeof(terminal_instructions[0])),
+          terminal_if_bytes, (ctool_u32)sizeof(terminal_if_bytes),
+          terminal_targets,
+          (ctool_u32)(sizeof(terminal_targets) /
+                      sizeof(terminal_targets[0])),
+          "object_terminal_if") ||
+      !decode_function(
+          job, text, terminal_while, terminal_instructions,
+          (ctool_u32)(sizeof(terminal_instructions) /
+                      sizeof(terminal_instructions[0])),
+          terminal_while_bytes, (ctool_u32)sizeof(terminal_while_bytes),
+          terminal_targets,
+          (ctool_u32)(sizeof(terminal_targets) /
+                      sizeof(terminal_targets[0])),
+          "object_terminal_while") ||
+      !decode_function(
+          job, text, declaration, declaration_instructions,
+          (ctool_u32)(sizeof(declaration_instructions) /
+                      sizeof(declaration_instructions[0])),
+          declaration_bytes, (ctool_u32)sizeof(declaration_bytes),
+          declaration_targets,
+          (ctool_u32)(sizeof(declaration_targets) /
+                      sizeof(declaration_targets[0])),
+          "object_label_declaration")) {
+    (void)fprintf(stderr, "direct goto object differs\n");
     return 0;
   }
   return 1;
@@ -6296,11 +6513,195 @@ cleanup:
   return 1;
 }
 
+static int run_direct_goto(const char *host_root) {
+  static const char source_text[] =
+      "int object_goto(int value) {\n"
+      "  if (value) goto done;\n"
+      "  return 1;\n"
+      "done:\n"
+      "  return 2;\n"
+      "}\n"
+      "int object_backward(int value) {\n"
+      "again:\n"
+      "  if (value) {\n"
+      "    value = value - 1;\n"
+      "    goto again;\n"
+      "  }\n"
+      "  return value;\n"
+      "}\n"
+      "int object_terminal_if(void) {\n"
+      "  goto inside_if;\n"
+      "  if (1) {\n"
+      "inside_if:\n"
+      "    return 3;\n"
+      "  }\n"
+      "}\n"
+      "int object_terminal_while(void) {\n"
+      "  goto inside_while;\n"
+      "  while (1) {\n"
+      "inside_while:\n"
+      "    return 4;\n"
+      "  }\n"
+      "}\n"
+      "int object_label_declaration(int value) {\n"
+      "  goto with_local;\n"
+      "  return 9;\n"
+      "with_local: {\n"
+      "    int copy = value;\n"
+      "    return copy;\n"
+      "  }\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_statement_t *invalid_statements = NULL;
+  void *invalid_statement_copy = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_u32 goto_statement = CTOOL_C_AST_NONE;
+  ctool_u32 statement_index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_object_sources_are_unchanged(job) ||
+      !parse_source(job, "/direct-goto.c", source_text, &unit) ||
+      unit.function_definition_count != 5u || unit.label_count != 5u ||
+      unit.block_binding_count != 1u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "direct goto object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "direct goto object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first direct goto object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first direct goto emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "direct goto object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat direct goto object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "direct goto emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/direct-goto.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read direct goto object") ||
+      !validate_direct_goto_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  if (unit.statement_count == 0u ||
+      unit.function_definitions[0].body >= unit.statement_count ||
+      copy_array(unit.statements, unit.statement_count,
+                 sizeof(*unit.statements), &invalid_statement_copy) == 0) {
+    (void)fprintf(stderr, "direct goto invalid fixture copy failed\n");
+    goto cleanup;
+  }
+  invalid_statements = (ctool_c_statement_t *)invalid_statement_copy;
+  for (statement_index = 0u;
+       statement_index <= unit.function_definitions[0].body;
+       statement_index++) {
+    if (invalid_statements[statement_index].kind ==
+        CTOOL_C_STATEMENT_GOTO) {
+      goto_statement = statement_index;
+      break;
+    }
+  }
+  if (goto_statement == CTOOL_C_AST_NONE ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "direct goto invalid fixture setup failed\n");
+    goto cleanup;
+  }
+  invalid_statements[goto_statement].label =
+      unit.function_definitions[1].first_label;
+  invalid_unit = unit;
+  invalid_unit.statements = invalid_statements;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "cross-function goto object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_statements);
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("direct-goto: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "direct-goto") == 0) {
+    return run_direct_goto(argv[2]);
+  }
   (void)fprintf(stderr,
-                "usage: cupidc-object-contract static-data HOST_ROOT\n");
+                "usage: cupidc-object-contract "
+                "static-data|direct-goto HOST_ROOT\n");
   return 2;
 }

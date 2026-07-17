@@ -102,7 +102,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * Break and continue use JUMP to the nearest loop's exit and continuation
  * point. A do continuation reaches its condition, while a for continuation
  * reaches its iteration expression when one is present and its condition
- * otherwise.
+ * otherwise. Identifier labels select zero-width targets inside one function.
+ * Direct goto statements use JUMP with a function-relative target. Forward
+ * targets are resolved before the immutable result is published.
  * LOCAL_ADDRESS and FILE_ADDRESS push object addresses.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record

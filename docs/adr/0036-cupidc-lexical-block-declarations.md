@@ -39,3 +39,7 @@ Active-source guards pin the browser declaration loop and the nested declaration
 This is hosted bootstrap evidence. GCC or Clang still builds the shared modules and contracts, and the private in-kernel compiler still produces every normal OS C object. This decision transfers no production ownership and does not require an OS boot claim.
 
 Issue #25 remains open. `switch`, labels, `goto`, other local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain.
+
+## Extension
+
+ADR 0037 lowers direct identifier labels and `goto` through the same function body. The declaration scan follows a label's body, and count-only validation no longer changes live label targets. `switch`, other local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain.

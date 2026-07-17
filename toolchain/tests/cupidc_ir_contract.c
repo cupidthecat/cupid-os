@@ -117,6 +117,111 @@ static const char active_loop_break_crlf[] =
     "      valid = CTOOL_FALSE;\r\n"
     "      break;\r\n"
     "    }";
+static const char active_linker_goto[] =
+    "  ctool_status_t status = ld_find_entry(link, &entry);\n"
+    "  if (status != CTOOL_OK) {\n"
+    "    goto done;\n"
+    "  }";
+static const char active_linker_goto_crlf[] =
+    "  ctool_status_t status = ld_find_entry(link, &entry);\r\n"
+    "  if (status != CTOOL_OK) {\r\n"
+    "    goto done;\r\n"
+    "  }";
+static const char active_linker_label[] =
+    "done:\n"
+    "  if (status != CTOOL_OK &&\n"
+    "      ctool_job_diagnostic_count(link->job) == diagnostics_before) {";
+static const char active_linker_label_crlf[] =
+    "done:\r\n"
+    "  if (status != CTOOL_OK &&\r\n"
+    "      ctool_job_diagnostic_count(link->job) == diagnostics_before) {";
+
+static const char forward_goto_source[] =
+    "int goto_forward(int value) {\n"
+    "  if (value) goto done;\n"
+    "  return 1;\n"
+    "done:\n"
+    "  return 2;\n"
+    "}\n"
+    "int goto_backward(int value) {\n"
+    "again:\n"
+    "  if (value) {\n"
+    "    value = value - 1;\n"
+    "    goto again;\n"
+    "  }\n"
+    "  return value;\n"
+    "}\n"
+    "int goto_cycle(int value) {\n"
+    "  goto check;\n"
+    "again:\n"
+    "  value = value - 1;\n"
+    "check:\n"
+    "  if (value) goto again;\n"
+    "  return value;\n"
+    "}\n"
+    "int unreachable_goto(void) {\n"
+    "  return 7;\n"
+    "  goto dead;\n"
+    "dead:\n"
+    "  return 9;\n"
+    "}\n";
+
+static const char nested_goto_source[] =
+    "int goto_nested(int value) {\n"
+    "  goto inside;\n"
+    "  {\n"
+    "    value = value + 1;\n"
+    "inside:\n"
+    "    return value;\n"
+    "  }\n"
+    "}\n"
+    "int goto_if_return(int value) {\n"
+    "  goto inside_if;\n"
+    "  if (value) {\n"
+    "inside_if:\n"
+    "    return 1;\n"
+    "  } else {\n"
+    "    value = value + 1;\n"
+    "  }\n"
+    "}\n"
+    "int goto_after_break(int value) {\n"
+    "  for (;;) { break; }\n"
+    "  goto done_after_break;\n"
+    "  return 1;\n"
+    "done_after_break:\n"
+    "  return value;\n"
+    "}\n"
+    "int goto_terminal_do(void) {\n"
+    "  goto inside_terminal_do;\n"
+    "  do {\n"
+    "inside_terminal_do:\n"
+    "    return 5;\n"
+    "  } while (1);\n"
+    "}\n"
+    "int goto_into_break(void) {\n"
+    "  goto inside_break;\n"
+    "  for (;;) {\n"
+    "inside_break:\n"
+    "    break;\n"
+    "  }\n"
+    "  return 6;\n"
+    "}\n"
+    "int goto_into_continue(void) {\n"
+    "  goto inside_continue;\n"
+    "  for (;;) {\n"
+    "inside_continue:\n"
+    "    continue;\n"
+    "  }\n"
+    "  return 7;\n"
+    "}\n"
+    "int goto_declaration(int value) {\n"
+    "  goto with_declaration;\n"
+    "  return 9;\n"
+    "with_declaration: {\n"
+    "    int copy = value;\n"
+    "    return copy;\n"
+    "  }\n"
+    "}\n";
 
 static const char active_addition[] =
     "int add2(int x, int y) {\n"
@@ -357,6 +462,21 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_signed_bits) == NULL) {
     (void)fprintf(stderr, "the active signed-bit conversion changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupidld.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active linker source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data, active_linker_goto) == NULL &&
+       strstr((const char *)source.contents.data,
+              active_linker_goto_crlf) == NULL) ||
+      (strstr((const char *)source.contents.data, active_linker_label) ==
+           NULL &&
+       strstr((const char *)source.contents.data,
+              active_linker_label_crlf) == NULL)) {
+    (void)fprintf(stderr, "the active linker cleanup path changed\n");
     return 0;
   }
   path.text = ctool_string("/bin/cupidc_parse.c");
@@ -816,6 +936,8 @@ static uint64_t unit_fingerprint(const ctool_c_translation_unit_t *unit) {
   hash = hash_bytes(hash, unit->initializer_elements,
                     (size_t)unit->initializer_element_count *
                         sizeof(*unit->initializer_elements));
+  hash = hash_bytes(hash, unit->labels,
+                    (size_t)unit->label_count * sizeof(*unit->labels));
   hash = hash_bytes(hash, unit->function_definitions,
                     (size_t)unit->function_definition_count *
                         sizeof(*unit->function_definitions));
@@ -3596,6 +3718,325 @@ static int validate_for_edge_ir(const ctool_c_translation_unit_t *unit,
       ir->instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
       ir->instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
     (void)fprintf(stderr, "for edge IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_forward_goto_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const struct {
+    const char *name;
+    ctool_u32 first_instruction;
+    ctool_u32 instruction_count;
+    ctool_u32 maximum_stack_depth;
+    ctool_u32 first_label;
+    ctool_u32 label_count;
+  } expectations[] = {
+      {"goto_forward", 0u, 8u, 1u, 0u, 1u},
+      {"goto_backward", 8u, 14u, 3u, 1u, 1u},
+      {"goto_cycle", 22u, 15u, 3u, 2u, 2u},
+      {"unreachable_goto", 37u, 2u, 1u, 4u, 1u}};
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 expectation_count =
+      (ctool_u32)(sizeof(expectations) / sizeof(expectations[0]));
+  ctool_u32 index;
+  if (unit->function_definition_count != expectation_count ||
+      unit->label_count != 5u || ir->function_count != expectation_count ||
+      ir->instruction_count != 39u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "direct goto IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < expectation_count; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    ctool_u32 binding = find_binding(unit, expectations[index].name);
+    if (binding == CTOOL_C_AST_NONE || definition->binding != binding ||
+        definition->declared_type >= unit->graph.type_count ||
+        definition->first_label != expectations[index].first_label ||
+        definition->label_count != expectations[index].label_count ||
+        ir->functions[index].binding != binding ||
+        ir->functions[index].declared_type != definition->declared_type ||
+        ir->functions[index].first_instruction !=
+            expectations[index].first_instruction ||
+        ir->functions[index].instruction_count !=
+            expectations[index].instruction_count ||
+        ir->functions[index].maximum_stack_depth !=
+            expectations[index].maximum_stack_depth) {
+      (void)fprintf(stderr, "direct goto function %u differs\n", index);
+      return 0;
+    }
+  }
+  instructions = ir->instructions;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 4u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[3].reference != 6u ||
+      instructions[3].integer_bits != 0u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "forward goto targets differ\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[1].first_instruction;
+  if (instructions[2].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[2].reference != 11u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[7].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[10].reference != 0u ||
+      instructions[10].integer_bits != 0u ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "backward goto targets differ\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[2].first_instruction;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 8u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[5].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[10].reference != 12u ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[11].reference != 1u ||
+      instructions[11].integer_bits != 0u ||
+      instructions[14].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "cyclic goto targets differ\n");
+    return 0;
+  }
+  instructions = ir->instructions + expectations[3].first_instruction;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[0].integer_bits != 7u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "unreachable goto emitted dead instructions\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind == CTOOL_C_IR_INSTRUCTION_JUMP &&
+        (ir->instructions[index].reference == CTOOL_C_AST_NONE ||
+         ir->instructions[index].integer_bits != 0u)) {
+      (void)fprintf(stderr, "direct goto published an unresolved jump\n");
+      return 0;
+    }
+  }
+  return string_equal(ir->instructions[3].location.path,
+                      "/forward-goto.c");
+}
+
+static int validate_nested_goto_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_function_definition_t *if_definition;
+  const ctool_c_function_definition_t *break_definition;
+  const ctool_c_function_definition_t *terminal_do_definition;
+  const ctool_c_function_definition_t *loop_break_definition;
+  const ctool_c_function_definition_t *loop_continue_definition;
+  const ctool_c_function_definition_t *declaration_definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 binding = find_binding(unit, "goto_nested");
+  ctool_u32 if_binding = find_binding(unit, "goto_if_return");
+  ctool_u32 break_binding = find_binding(unit, "goto_after_break");
+  ctool_u32 terminal_do_binding = find_binding(unit, "goto_terminal_do");
+  ctool_u32 loop_break_binding = find_binding(unit, "goto_into_break");
+  ctool_u32 loop_continue_binding = find_binding(unit, "goto_into_continue");
+  ctool_u32 declaration_binding = find_binding(unit, "goto_declaration");
+  ctool_u32 copy_binding = find_block_binding(unit, "copy");
+  ctool_u32 parameter;
+  ctool_u32 declaration_parameter;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 7u || unit->label_count != 7u ||
+      unit->block_binding_count != 1u || ir->function_count != 7u ||
+      ir->instruction_count != 46u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      binding == CTOOL_C_AST_NONE || if_binding == CTOOL_C_AST_NONE ||
+      break_binding == CTOOL_C_AST_NONE ||
+      terminal_do_binding == CTOOL_C_AST_NONE ||
+      loop_break_binding == CTOOL_C_AST_NONE ||
+      loop_continue_binding == CTOOL_C_AST_NONE ||
+      declaration_binding == CTOOL_C_AST_NONE ||
+      copy_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "nested goto IR inventory differs: functions=%u labels=%u "
+                  "blocks=%u ir-functions=%u instructions=%u\n",
+                  unit->function_definition_count, unit->label_count,
+                  unit->block_binding_count, ir->function_count,
+                  ir->instruction_count);
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if_definition = &unit->function_definitions[1];
+  break_definition = &unit->function_definitions[2];
+  terminal_do_definition = &unit->function_definitions[3];
+  loop_break_definition = &unit->function_definitions[4];
+  loop_continue_definition = &unit->function_definitions[5];
+  declaration_definition = &unit->function_definitions[6];
+  if (definition->binding != binding ||
+      definition->declared_type >= unit->graph.type_count ||
+      if_definition->binding != if_binding ||
+      break_definition->binding != break_binding ||
+      terminal_do_definition->binding != terminal_do_binding ||
+      loop_break_definition->binding != loop_break_binding ||
+      loop_continue_definition->binding != loop_continue_binding ||
+      declaration_definition->binding != declaration_binding) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  function_type = &unit->graph.types[declaration_definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  declaration_parameter = function_type->first_parameter;
+  instructions = ir->instructions;
+  if (ir->functions[0].binding != binding ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 11u ||
+      ir->functions[0].maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 8u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[1].type != value_type ||
+      instructions[1].reference != parameter ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[5].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[8].reference != parameter ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      !string_equal(instructions[0].location.path, "/nested-goto.c") ||
+      !string_equal(instructions[8].location.path, "/nested-goto.c")) {
+    (void)fprintf(stderr, "nested goto IR instructions differ\n");
+    return 0;
+  }
+  instructions = ir->instructions + 11u;
+  if (ir->functions[1].binding != if_binding ||
+      ir->functions[1].declared_type != if_definition->declared_type ||
+      ir->functions[1].first_instruction != 11u ||
+      ir->functions[1].instruction_count != 13u ||
+      ir->functions[1].maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 4u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO ||
+      instructions[3].reference != 6u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[4].integer_bits != 1u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[10].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_DISCARD) {
+    (void)fprintf(stderr, "nested selection goto IR differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + 24u;
+  if (ir->functions[2].binding != break_binding ||
+      ir->functions[2].declared_type != break_definition->declared_type ||
+      ir->functions[2].first_instruction != 24u ||
+      ir->functions[2].instruction_count != 5u ||
+      ir->functions[2].maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 1u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[1].reference != 2u ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "loop exit goto IR differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + 29u;
+  if (ir->functions[3].binding != terminal_do_binding ||
+      ir->functions[3].declared_type !=
+          terminal_do_definition->declared_type ||
+      ir->functions[3].first_instruction != 29u ||
+      ir->functions[3].instruction_count != 3u ||
+      ir->functions[3].maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 1u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[1].integer_bits != 5u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "terminal do goto IR differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + 32u;
+  if (ir->functions[4].binding != loop_break_binding ||
+      ir->functions[4].declared_type != loop_break_definition->declared_type ||
+      ir->functions[4].first_instruction != 32u ||
+      ir->functions[4].instruction_count != 4u ||
+      ir->functions[4].maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 1u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[1].reference != 2u ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[2].integer_bits != 6u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "goto-driven break IR differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + 36u;
+  if (ir->functions[5].binding != loop_continue_binding ||
+      ir->functions[5].declared_type !=
+          loop_continue_definition->declared_type ||
+      ir->functions[5].first_instruction != 36u ||
+      ir->functions[5].instruction_count != 2u ||
+      ir->functions[5].maximum_stack_depth != 0u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 1u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[1].reference != 1u ||
+      instructions[1].integer_bits != 0u) {
+    (void)fprintf(stderr, "goto-driven continue IR differs\n");
+    return 0;
+  }
+  instructions = ir->instructions + 38u;
+  if (ir->functions[6].binding != declaration_binding ||
+      ir->functions[6].declared_type != declaration_definition->declared_type ||
+      ir->functions[6].first_instruction != 38u ||
+      ir->functions[6].instruction_count != 8u ||
+      ir->functions[6].maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_JUMP ||
+      instructions[0].reference != 1u ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[1].reference != copy_binding ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].reference != declaration_parameter ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[5].reference != copy_binding ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[7].type != unit->block_bindings[copy_binding].type) {
+    (void)fprintf(stderr, "label declaration IR differs\n");
     return 0;
   }
   return 1;
@@ -7639,11 +8080,180 @@ cleanup:
   return 1;
 }
 
+static int run_forward_goto(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_statement_t *invalid_statements = NULL;
+  ctool_c_label_t *invalid_labels = NULL;
+  ctool_u32 diagnostic_count;
+  ctool_u32 goto_statement = CTOOL_C_AST_NONE;
+  ctool_u32 statement_index;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/forward-goto.c", forward_goto_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "forward goto lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_forward_goto_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (unit.statement_count == 0u || unit.label_count < 2u ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_statements) >
+          SIZE_MAX / (size_t)unit.statement_count ||
+      sizeof(*invalid_labels) > SIZE_MAX / (size_t)unit.label_count) {
+    (void)fprintf(stderr, "forward goto invalid fixtures are too large\n");
+    goto cleanup;
+  }
+  invalid_statements = (ctool_c_statement_t *)malloc(
+      (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_labels = (ctool_c_label_t *)malloc(
+      (size_t)unit.label_count * sizeof(*invalid_labels));
+  if (invalid_statements == NULL || invalid_labels == NULL) {
+    (void)fprintf(stderr, "forward goto invalid fixture allocation failed\n");
+    goto cleanup;
+  }
+  for (statement_index = 0u;
+       statement_index <= unit.function_definitions[0].body;
+       statement_index++) {
+    if (unit.statements[statement_index].kind == CTOOL_C_STATEMENT_GOTO) {
+      goto_statement = statement_index;
+      break;
+    }
+  }
+  if (goto_statement == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "forward goto statement was not found\n");
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_statements[goto_statement].expression = 0u;
+  invalid_unit = unit;
+  invalid_unit.statements = invalid_statements;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "goto expression payload")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_statements[goto_statement].label =
+      unit.function_definitions[1].first_label;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "cross-function goto")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_labels, unit.labels,
+               (size_t)unit.label_count * sizeof(*invalid_labels));
+  invalid_labels[0].statement = invalid_labels[1].statement;
+  invalid_unit = unit;
+  invalid_unit.labels = invalid_labels;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "label statement mismatch")) {
+    goto cleanup;
+  }
+
+  invalid_unit = unit;
+  invalid_unit.labels = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing label table") ||
+      unit_fingerprint(&unit) != fingerprint) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_labels);
+  free(invalid_statements);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("forward-goto: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_nested_goto(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/nested-goto.c", nested_goto_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "nested goto lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_nested_goto_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("nested-goto: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "forward-goto") == 0) {
+    return run_forward_goto(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "nested-goto") == 0) {
+    return run_nested_goto(argv[2]);
+  }
   (void)fprintf(stderr,
-                "usage: cupidc-ir-contract active-leaf HOST_ROOT\n");
+                "usage: cupidc-ir-contract "
+                "active-leaf|forward-goto|nested-goto HOST_ROOT\n");
   return 2;
 }
