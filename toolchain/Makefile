@@ -401,8 +401,11 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) integer-compound-conversions ..
 	$(CUPIDC_IR_CONTRACT) integer-update-conversions ..
 	$(CUPIDC_IR_CONTRACT) integer-mutation-rejections ..
+	$(CUPIDC_IR_CONTRACT) pointer-member-loads ..
+	$(CUPIDC_IR_CONTRACT) pointer-values ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
 	$(CUPIDC_OBJECT_CONTRACT) integer-mutation ..
+	$(CUPIDC_OBJECT_CONTRACT) pointer-values ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

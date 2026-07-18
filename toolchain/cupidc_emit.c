@@ -1456,6 +1456,60 @@ static ctool_bool cemit_ir_type_is_i32_integer(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_type_is_i32_pointer(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
+  const ctool_c_type_node_t *referent =
+      node != (const ctool_c_type_node_t *)0 &&
+              node->kind == CTOOL_C_TYPE_POINTER
+          ? cemit_unwrapped_type(context, node->referenced_type)
+          : (const ctool_c_type_node_t *)0;
+  return type < context->unit->layout.type_count &&
+                 node != (const ctool_c_type_node_t *)0 &&
+                 node->kind == CTOOL_C_TYPE_POINTER &&
+                 node->referenced_type < context->unit->layout.type_count &&
+                 referent != (const ctool_c_type_node_t *)0 &&
+                 (context->unit->layout.types[node->referenced_type]
+                              .is_object == CTOOL_TRUE ||
+                  referent->kind == CTOOL_C_TYPE_VOID) &&
+                 context->unit->layout.types[type].is_object == CTOOL_TRUE &&
+                 context->unit->layout.types[type].is_complete_object ==
+                     CTOOL_TRUE &&
+                 context->unit->layout.types[type].size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_type_is_i32_scalar(
+    const cemit_context_t *context, ctool_u32 type) {
+  return cemit_ir_type_is_i32_integer(context, type) == CTOOL_TRUE ||
+                 cemit_ir_type_is_i32_pointer(context, type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_pointer_types_match(
+    const cemit_context_t *context, ctool_u32 object_type,
+    ctool_u32 value_type) {
+  return cemit_ir_type_is_i32_pointer(context, object_type) == CTOOL_TRUE &&
+                 cemit_ir_type_is_i32_pointer(context, value_type) ==
+                     CTOOL_TRUE &&
+                 ctool_c_ir_pointer_value_types_compatible(
+                     context->unit, object_type, value_type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_scalar_types_match(
+    const cemit_context_t *context, ctool_u32 object_type,
+    ctool_u32 value_type) {
+  if (cemit_ir_type_is_i32_integer(context, object_type) == CTOOL_TRUE &&
+      cemit_ir_type_is_i32_integer(context, value_type) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  return cemit_ir_pointer_types_match(context, object_type, value_type);
+}
+
 static ctool_bool cemit_ir_type_is_plain_signed_int(
     const cemit_context_t *context, ctool_u32 type) {
   return type < context->unit->graph.type_count &&
@@ -1542,7 +1596,7 @@ static ctool_status_t cemit_emit_direct_call(
               function_type->first_parameter ||
       function_type->parameter_count > 0x20000000u ||
       (cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE &&
-       cemit_ir_type_is_i32_integer(context, instruction->type) ==
+       cemit_ir_type_is_i32_scalar(context, instruction->type) ==
            CTOOL_FALSE)) {
     return CTOOL_ERR_INTERNAL;
   }
@@ -1551,7 +1605,7 @@ static ctool_status_t cemit_emit_direct_call(
     ctool_u32 parameter_type =
         context->unit->graph
             .parameter_types[function_type->first_parameter + argument];
-    if (cemit_ir_type_is_i32_integer(context, parameter_type) ==
+    if (cemit_ir_type_is_i32_scalar(context, parameter_type) ==
         CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
@@ -1606,7 +1660,7 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (ir_instruction->reference < function_type->first_parameter ||
         ir_instruction->reference - function_type->first_parameter >=
             function_type->parameter_count ||
-        cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
+        cemit_ir_type_is_i32_scalar(context, ir_instruction->type) ==
             CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
@@ -1642,7 +1696,7 @@ static ctool_status_t cemit_emit_ir_instruction(
          binding->storage != CTOOL_C_STORAGE_REGISTER) ||
         binding->type != ir_instruction->type || offset == CTOOL_C_AST_NONE ||
         offset == 0u ||
-        cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
+        cemit_ir_type_is_i32_scalar(context, ir_instruction->type) ==
             CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
@@ -1668,7 +1722,7 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         binding->type != ir_instruction->type ||
         symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count ||
-        (cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
+        (cemit_ir_type_is_i32_scalar(context, ir_instruction->type) ==
              CTOOL_FALSE &&
          cemit_ir_type_is_complete_record_object(
              context, ir_instruction->type) == CTOOL_FALSE)) {
@@ -1755,11 +1809,13 @@ static ctool_status_t cemit_emit_ir_instruction(
     return status;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD) {
-    if (cemit_ir_type_is_i32_integer(context,
-                                     ir_instruction->input_type) ==
-            CTOOL_FALSE ||
-        cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
-            CTOOL_FALSE) {
+    if ((cemit_ir_type_is_i32_integer(context,
+                                      ir_instruction->input_type) ==
+             CTOOL_FALSE ||
+         cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
+             CTOOL_FALSE) &&
+        cemit_ir_pointer_types_match(context, ir_instruction->input_type,
+                                     ir_instruction->type) == CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
     status = cemit_x86_one_register(
@@ -1773,16 +1829,51 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return status;
   }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DEREFERENCE) {
+    const ctool_c_type_node_t *pointer =
+        cemit_unwrapped_type(context, ir_instruction->input_type);
+    if (pointer == (const ctool_c_type_node_t *)0 ||
+        cemit_ir_type_is_i32_pointer(context,
+                                     ir_instruction->input_type) ==
+            CTOOL_FALSE ||
+        pointer->referenced_type != ir_instruction->type ||
+        ir_instruction->operation !=
+            CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    return CTOOL_OK;
+  }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ADDRESS_OF) {
+    const ctool_c_type_node_t *pointer =
+        cemit_unwrapped_type(context, ir_instruction->type);
+    if (pointer == (const ctool_c_type_node_t *)0 ||
+        cemit_ir_type_is_i32_pointer(context, ir_instruction->type) ==
+            CTOOL_FALSE ||
+        ir_instruction->input_type >= context->unit->layout.type_count ||
+        context->unit->layout.types[ir_instruction->input_type].is_object ==
+            CTOOL_FALSE ||
+        context->unit->layout.types[ir_instruction->input_type]
+                .is_complete_object == CTOOL_FALSE ||
+        pointer->referenced_type != ir_instruction->input_type ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_ADDRESS ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    return CTOOL_OK;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE ||
       ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) {
     ctool_bool preserve_value =
         ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
-    if (cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
-            CTOOL_FALSE ||
-        cemit_ir_type_is_i32_integer(context,
-                                     ir_instruction->input_type) ==
+    if (cemit_ir_scalar_types_match(context, ir_instruction->type,
+                                    ir_instruction->input_type) ==
             CTOOL_FALSE ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
@@ -1830,8 +1921,8 @@ static ctool_status_t cemit_emit_ir_instruction(
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD) {
     if (ir_instruction->type != CTOOL_C_TYPE_NONE ||
-        cemit_ir_type_is_i32_integer(context,
-                                     ir_instruction->input_type) ==
+        cemit_ir_type_is_i32_scalar(context,
+                                    ir_instruction->input_type) ==
             CTOOL_FALSE ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
@@ -1851,11 +1942,38 @@ static ctool_status_t cemit_emit_ir_instruction(
         context, (ctool_u32)ir_instruction->integer_bits);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
-    if (cemit_ir_type_is_i32_integer(context,
+    ctool_bool integer_conversion =
+        cemit_ir_type_is_i32_integer(context,
                                      ir_instruction->input_type) ==
-            CTOOL_FALSE ||
-        cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
-            CTOOL_FALSE ||
+                CTOOL_TRUE &&
+                cemit_ir_type_is_i32_integer(context,
+                                             ir_instruction->type) ==
+                    CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool pointer_conversion =
+        cemit_ir_type_is_i32_pointer(context,
+                                     ir_instruction->input_type) ==
+                CTOOL_TRUE &&
+                cemit_ir_type_is_i32_pointer(context,
+                                             ir_instruction->type) ==
+                    CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool null_conversion =
+        cemit_ir_type_is_i32_integer(context,
+                                     ir_instruction->input_type) ==
+                CTOOL_TRUE &&
+                cemit_ir_type_is_i32_pointer(context,
+                                             ir_instruction->type) ==
+                    CTOOL_TRUE &&
+                ir_instruction->conversion ==
+                    CTOOL_C_CONVERSION_NULL_POINTER
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if ((integer_conversion == CTOOL_FALSE &&
+         pointer_conversion == CTOOL_FALSE &&
+         null_conversion == CTOOL_FALSE) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
@@ -1863,7 +1981,20 @@ static ctool_status_t cemit_emit_ir_instruction(
              CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
          ir_instruction->conversion !=
              CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_ASSIGNMENT &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_POINTER &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_NULL_POINTER) ||
+        (pointer_conversion == CTOOL_TRUE &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_POINTER) ||
+        (integer_conversion == CTOOL_TRUE &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_ASSIGNMENT) ||
+        (null_conversion == CTOOL_TRUE &&
+         ir_instruction->conversion != CTOOL_C_CONVERSION_NULL_POINTER) ||
         ir_instruction->reference != CTOOL_C_AST_NONE ||
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
@@ -2160,7 +2291,8 @@ static ctool_status_t cemit_prepare_local_offsets(
           binding->type != instruction->type ||
           layout->is_complete_object == CTOOL_FALSE ||
           layout->is_object == CTOOL_FALSE ||
-          layout->is_integer == CTOOL_FALSE || layout->size != 4u ||
+          cemit_ir_type_is_i32_scalar(context, instruction->type) ==
+              CTOOL_FALSE ||
           layout->alignment == 0u || layout->alignment > 4u ||
           cemit_power_of_two(layout->alignment) == CTOOL_FALSE) {
         return CTOOL_ERR_INTERNAL;

@@ -84,6 +84,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "integer-mutation: ok\n")
 
+    def test_object_pointer_values_emit_deterministic_i386_objects(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-values", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-values: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

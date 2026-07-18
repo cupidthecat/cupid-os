@@ -356,6 +356,64 @@ static const char active_capacity_growth[] =
 static const char active_decimal_shrink[] =
     "    value /= 10u;";
 
+static const char active_pointer_member_helper[] =
+    "static ctool_bool obj_region_less(const obj_flat_region_t *left,\n"
+    "                                  const obj_flat_region_t *right) {\n"
+    "  return left->address < right->address ||\n"
+    "                 (left->address == right->address && left->order < right->order)\n"
+    "             ? CTOOL_TRUE\n"
+    "             : CTOOL_FALSE;\n"
+    "}";
+
+static const char pointer_member_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef int ctool_bool;\n"
+    "#define CTOOL_FALSE 0\n"
+    "#define CTOOL_TRUE 1\n"
+    "typedef struct { const unsigned char *data; ctool_u32 size; } ctool_bytes_t;\n"
+    "typedef struct {\n"
+    "  ctool_u32 address;\n"
+    "  ctool_u32 order;\n"
+    "  ctool_bytes_t contents;\n"
+    "} obj_flat_region_t;\n"
+    "static ctool_bool obj_region_less(const obj_flat_region_t *left,\n"
+    "                                  const obj_flat_region_t *right) {\n"
+    "  return left->address < right->address ||\n"
+    "                 (left->address == right->address && left->order < right->order)\n"
+    "             ? CTOOL_TRUE\n"
+    "             : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char pointer_value_source[] =
+    "typedef struct { int member; } value_t;\n"
+    "typedef int row_a_t[2];\n"
+    "typedef const row_a_t wrapped_row_t;\n"
+    "typedef const int row_b_t[2];\n"
+    "value_t global_value;\n"
+    "value_t *global_pointer;\n"
+    "int read_indirect(int *pointer) { return *pointer; }\n"
+    "int *address_member(void) { return &global_value.member; }\n"
+    "void write_indirect(int *pointer, int value) { *pointer = value; }\n"
+    "wrapped_row_t *pass_pointer(row_b_t *pointer) { return pointer; }\n"
+    "const int *qualify_pointer(int *pointer) { return pointer; }\n"
+    "void *erase_pointer(int *pointer) { return pointer; }\n"
+    "int *restore_pointer(void *pointer) { return pointer; }\n"
+    "wrapped_row_t *copy_pointer(row_b_t *const volatile pointer) {\n"
+    "  wrapped_row_t *const volatile copy = pointer;\n"
+    "  return copy;\n"
+    "}\n"
+    "void set_global_pointer(value_t *pointer) { global_pointer = pointer; }\n"
+    "void clear_global_pointer(void) { global_pointer = 0; }\n"
+    "int read_global_member(void) { return global_pointer->member; }\n"
+    "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n";
+
+static const char atomic_pointer_source[] =
+    "int * _Atomic shared_pointer;\n"
+    "int *read_shared_pointer(void) { return shared_pointer; }\n";
+
+static const char function_pointer_source[] =
+    "int rejects_function_pointer(int (*pointer)(void)) { return 0; }\n";
+
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
 
@@ -771,6 +829,16 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_signed_bits) == NULL) {
     (void)fprintf(stderr, "the active signed-bit conversion changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupidobj.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active object-tool source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_pointer_member_helper) == NULL) {
+    (void)fprintf(stderr, "the active object-pointer helper changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupidld.c");
@@ -6017,9 +6085,6 @@ static int run_active_leaf(const char *host_root) {
   static const char wide_assignment_source[] =
       "long long wide_state;\n"
       "void set_wide(void) { wide_state = 1; }\n";
-  static const char pointer_assignment_source[] =
-      "int *pointer_state;\n"
-      "void clear_pointer(void) { pointer_state = 0; }\n";
   static const char compound_assignment_source[] =
       "int *counter;\n"
       "void bump(void) { counter += 1; }\n";
@@ -6147,7 +6212,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t local_parameter_assignment_unit;
   ctool_c_translation_unit_t wide_assignment_unit;
-  ctool_c_translation_unit_t pointer_assignment_unit;
   ctool_c_translation_unit_t compound_assignment_unit;
   ctool_c_translation_unit_t local_unit;
   ctool_c_translation_unit_t simple_unit;
@@ -6325,8 +6389,6 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&local_parameter_assignment_unit, 0,
                sizeof(local_parameter_assignment_unit));
   (void)memset(&wide_assignment_unit, 0, sizeof(wide_assignment_unit));
-  (void)memset(&pointer_assignment_unit, 0,
-               sizeof(pointer_assignment_unit));
   (void)memset(&compound_assignment_unit, 0,
                sizeof(compound_assignment_unit));
   (void)memset(&local_unit, 0, sizeof(local_unit));
@@ -6539,13 +6601,6 @@ static int run_active_leaf(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide assignment") ||
-      !parse_source(job, "/pointer-assignment.c", pointer_assignment_source,
-                    &pointer_assignment_unit) ||
-      !expect_ir_failure(
-          job, &pointer_assignment_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "pointer assignment") ||
       !parse_source(job, "/compound-assignment.c",
                     compound_assignment_source,
                     &compound_assignment_unit) ||
@@ -8284,7 +8339,7 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic direct calls "
-          "with 32-bit integer arguments and void or 32-bit integer results",
+          "with 32-bit scalar arguments and void or 32-bit scalar results",
           "wide direct call")) {
     goto cleanup;
   }
@@ -8294,7 +8349,7 @@ static int run_active_leaf(const char *host_root) {
           job, &variadic_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic direct calls "
-          "with 32-bit integer arguments and void or 32-bit integer results",
+          "with 32-bit scalar arguments and void or 32-bit scalar results",
           "variadic direct call")) {
     goto cleanup;
   }
@@ -8318,7 +8373,7 @@ static int run_active_leaf(const char *host_root) {
           job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic cdecl functions "
-          "with 32-bit integer parameters and void or 32-bit integer results",
+          "with 32-bit scalar parameters and void or 32-bit scalar results",
           "unsupported ABI")) {
     goto cleanup;
   }
@@ -9912,6 +9967,710 @@ cleanup:
   return 1;
 }
 
+typedef struct {
+  ctool_c_ir_instruction_kind_t kind;
+  ctool_u32 type;
+  ctool_u32 input_type;
+  ctool_c_expression_operator_t operation;
+  ctool_c_conversion_kind_t conversion;
+  ctool_u32 reference;
+  ctool_u64 integer_bits;
+  ctool_u32 line;
+  ctool_u32 column;
+} pointer_ir_expected_t;
+
+static int pointer_ir_instruction_matches(
+    const ctool_c_ir_instruction_t *actual,
+    const pointer_ir_expected_t *expected, const char *path) {
+  return actual->kind == expected->kind &&
+                 actual->type == expected->type &&
+                 actual->input_type == expected->input_type &&
+                 actual->operation == expected->operation &&
+                 actual->conversion == expected->conversion &&
+                 actual->reference == expected->reference &&
+                 actual->integer_bits == expected->integer_bits &&
+                 string_equal(actual->location.path, path) != 0 &&
+                 string_equal(actual->physical_location.path, path) != 0 &&
+                 actual->location.line == expected->line &&
+                 actual->location.column == expected->column &&
+                 actual->physical_location.line == expected->line &&
+                 actual->physical_location.column == expected->column
+             ? 1
+             : 0;
+}
+
+static int validate_pointer_member_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const pointer_ir_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 8u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       13u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 8u, 8u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 7u, 8u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 14u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 12u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       13u, 16u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 12u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 16u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 10u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u,
+       13u, 26u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 10u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 26u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 9u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 31u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 13u, 9u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       13u, 33u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 13u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 33u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, 1u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_LESS, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 24u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 14u, 0u,
+       13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 45u, 0u,
+       13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 8u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       14u, 19u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 8u, 8u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 19u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 7u, 8u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 23u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 14u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       14u, 25u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 14u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 25u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 10u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u,
+       14u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 10u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 9u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 15u, 9u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       14u, 43u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 43u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, 1u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_EQUAL, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 33u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 40u, 0u,
+       14u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 8u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       14u, 54u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 8u, 8u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 54u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 7u, 8u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 16u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 3u, 0u,
+       14u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 16u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 10u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u,
+       14u, 68u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 10u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 68u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 9u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 73u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 17u, 9u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 3u, 0u,
+       14u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 17u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 14u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, 1u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_LESS, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 40u, 0u,
+       14u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 14u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 41u, 0u,
+       14u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 14u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 44u, 0u,
+       13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 45u, 0u,
+       13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 48u, 0u,
+       15u, 14u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 15u, 16u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 49u, 0u,
+       15u, 14u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 16u, 16u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 3u}};
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->functions[0].binding != unit->function_definitions[0].binding ||
+      ir->functions[0].declared_type !=
+          unit->function_definitions[0].declared_type ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != ir->instruction_count ||
+      ir->functions[0].maximum_stack_depth != 2u ||
+      find_member(unit, "address") != 2u ||
+      find_member(unit, "order") != 3u) {
+    (void)fprintf(stderr, "object-pointer member IR shape differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!pointer_ir_instruction_matches(
+            &ir->instructions[index], &expected[index],
+            "/active-obj-region-less.c")) {
+      (void)fprintf(stderr,
+                    "object-pointer member instruction %u differs\n",
+                    (unsigned)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_pointer_value_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const pointer_ir_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 7u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       7u, 43u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 7u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 7u, 43u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 1u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 7u, 42u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 7u, 42u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 7u, 35u},
+      {CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u,
+       8u, 37u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 1u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       8u, 50u},
+      {CTOOL_C_IR_INSTRUCTION_ADDRESS_OF, 11u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADDRESS, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 8u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 9u, 11u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 8u, 29u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 13u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u,
+       9u, 49u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 13u, 13u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 9u, 49u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 1u, 13u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       9u, 59u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 9u, 59u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 57u},
+      {CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+       CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, 9u, 46u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 3u, 0u,
+       10u, 56u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 10u, 56u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 16u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 10u, 49u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 19u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u,
+       11u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 19u, 19u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 11u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 20u, 19u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_QUALIFICATION,
+       CTOOL_C_AST_NONE, 0u, 11u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 20u, 20u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 11u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 22u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u,
+       12u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 22u, 22u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 12u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 23u, 22u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_POINTER,
+       CTOOL_C_AST_NONE, 0u, 12u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 23u, 23u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 12u, 37u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 25u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u,
+       13u, 46u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 25u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 46u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 26u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_POINTER,
+       CTOOL_C_AST_NONE, 0u, 13u, 46u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 26u, 26u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 39u},
+      {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, 32u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       15u, 33u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 28u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 7u, 0u,
+       15u, 40u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 34u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 15u, 40u},
+      {CTOOL_C_IR_INSTRUCTION_STORE, 32u, 34u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 15u, 40u},
+      {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, 32u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       16u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 35u, 32u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 16u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 30u, 35u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 16u, 3u},
+      {CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, 6u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u,
+       18u, 45u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 36u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u,
+       18u, 62u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 36u, 36u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 18u, 62u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 6u, 36u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 18u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 18u, 45u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+       CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, 18u, 43u},
+      {CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, 6u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u,
+       19u, 35u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 19u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 6u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NULL_POINTER,
+       CTOOL_C_AST_NONE, 0u, 19u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 6u, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 19u, 50u},
+      {CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 19u, 35u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+       CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, 19u, 33u},
+      {CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, 6u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u,
+       20u, 39u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 6u, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 20u, 39u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 0u, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 20u, 53u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 1u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       20u, 55u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 20u, 55u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 20u, 32u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 40u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 9u, 0u,
+       21u, 76u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 40u, 40u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 21u, 76u},
+      {CTOOL_C_IR_INSTRUCTION_CALL_DIRECT, 16u, 17u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 9u, 0u,
+       21u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 41u, 16u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 21u, 56u}};
+  static const ctool_u32 function_counts[] = {
+      5u, 4u, 8u, 3u, 4u, 4u, 4u, 7u, 6u, 6u, 6u, 4u};
+  static const ctool_u32 stack_depths[] = {
+      1u, 1u, 2u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 1u, 1u};
+  ctool_c_translation_unit_t malformed_unit;
+  ctool_u32 index;
+  ctool_u32 first = 0u;
+  malformed_unit = *unit;
+  malformed_unit.layout.types = NULL;
+  if (unit->function_definition_count != 12u || ir->function_count != 12u ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      unit->graph.type_count <= 43u ||
+      unit->graph.types[15].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[16].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[15].referenced_type != 5u ||
+      unit->graph.types[16].referenced_type != 3u ||
+      unit->graph.types[5].kind != CTOOL_C_TYPE_ARRAY ||
+      unit->graph.types[5].element_count != 2u ||
+      unit->graph.types[5].referenced_type != 4u ||
+      unit->graph.types[4].kind != CTOOL_C_TYPE_QUALIFIED ||
+      unit->graph.types[4].qualifiers != CTOOL_C_QUAL_CONST ||
+      unit->graph.types[4].referenced_type != 1u ||
+      unit->graph.types[3].kind != CTOOL_C_TYPE_QUALIFIED ||
+      unit->graph.types[3].qualifiers != CTOOL_C_QUAL_CONST ||
+      unit->graph.types[3].referenced_type != 2u ||
+      unit->graph.types[2].kind != CTOOL_C_TYPE_ARRAY ||
+      unit->graph.types[2].element_count != 2u ||
+      unit->graph.types[2].referenced_type != 1u ||
+      unit->graph.types[28].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[28].referenced_type != 5u ||
+      unit->graph.types[28].qualifiers !=
+          (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE) ||
+      unit->graph.types[32].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[32].referenced_type != 3u ||
+      unit->graph.types[32].qualifiers !=
+          (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE) ||
+      unit->graph.types[34].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[34].referenced_type != 5u ||
+      unit->graph.types[34].qualifiers != 0u ||
+      unit->graph.types[35].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[35].referenced_type != 3u ||
+      unit->graph.types[35].qualifiers != 0u ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 15u, 16u) !=
+          CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 16u, 15u) !=
+          CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 7u, 15u) !=
+          CTOOL_FALSE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 15u, 7u) !=
+          CTOOL_FALSE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 28u, 34u) !=
+          CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 34u, 28u) !=
+          CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 32u, 35u) !=
+          CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 32u, 34u) !=
+          CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(unit, 19u, 20u) !=
+          CTOOL_FALSE ||
+      ctool_c_ir_pointer_value_types_compatible(&malformed_unit, 15u, 16u) !=
+          CTOOL_FALSE ||
+      ctool_c_ir_pointer_value_types_compatible(NULL, 15u, 16u) !=
+          CTOOL_FALSE) {
+    (void)fprintf(stderr, "pointer value IR shape differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    if (ir->functions[index].binding !=
+            unit->function_definitions[index].binding ||
+        ir->functions[index].declared_type !=
+            unit->function_definitions[index].declared_type ||
+        ir->functions[index].first_instruction != first ||
+        ir->functions[index].instruction_count != function_counts[index] ||
+        ir->functions[index].maximum_stack_depth != stack_depths[index]) {
+      (void)fprintf(stderr, "pointer function %u IR slice differs\n",
+                    (unsigned)index);
+      return 0;
+    }
+    first += function_counts[index];
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!pointer_ir_instruction_matches(
+            &ir->instructions[index], &expected[index],
+            "/pointer-values.c")) {
+      (void)fprintf(stderr, "pointer instruction %u differs\n",
+                    (unsigned)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_pointer_member_loads(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/active-obj-region-less.c", pointer_member_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "object-pointer member lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint || ir.function_count != 1u ||
+      ir.functions == NULL || ir.instructions == NULL ||
+      !validate_pointer_member_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-member-loads: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_pointer_values(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t function_pointer_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  ctool_u32 dereference_expression = CTOOL_C_AST_NONE;
+  ctool_u32 address_expression = CTOOL_C_AST_NONE;
+  ctool_u32 null_conversion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 qualification_conversion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 incompatible_pointer_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 index;
+  uint64_t fingerprint;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&function_pointer_unit, 0, sizeof(function_pointer_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/pointer-values.c", pointer_value_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "object-pointer value lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_pointer_value_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE &&
+        dereference_expression == CTOOL_C_AST_NONE) {
+      dereference_expression = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+               expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADDRESS &&
+               address_expression == CTOOL_C_AST_NONE) {
+      address_expression = index;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_NULL_POINTER) {
+      null_conversion_expression = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+               expression->conversion == CTOOL_C_CONVERSION_QUALIFICATION) {
+      qualification_conversion_expression = index;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_PARAMETER &&
+        expression->location.line == 10u) {
+      incompatible_pointer_type = expression->type;
+    }
+  }
+  if (dereference_expression == CTOOL_C_AST_NONE ||
+      address_expression == CTOOL_C_AST_NONE ||
+      null_conversion_expression == CTOOL_C_AST_NONE ||
+      qualification_conversion_expression == CTOOL_C_AST_NONE ||
+      incompatible_pointer_type == CTOOL_C_TYPE_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "pointer rejection fixtures differ\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "pointer rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[dereference_expression].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "dereference result type range")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[address_expression].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "address result type range")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[null_conversion_expression].conversion =
+      CTOOL_C_CONVERSION_POINTER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "null pointer conversion kind")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[qualification_conversion_expression].type =
+      incompatible_pointer_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "incompatible pointer qualification")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[qualification_conversion_expression].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "pointer assignment conversion kind")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-pointer.c", atomic_pointer_source,
+                    &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic pointer load")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/function-pointer.c", function_pointer_source,
+                    &function_pointer_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &function_pointer_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic cdecl "
+          "functions with 32-bit scalar parameters and void or 32-bit "
+          "scalar results",
+          "function pointer parameter")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-values: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -9948,12 +10707,19 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "integer-mutation-rejections") == 0) {
     return run_integer_mutation_rejections(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "pointer-member-loads") == 0) {
+    return run_pointer_member_loads(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "pointer-values") == 0) {
+    return run_pointer_values(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
                 "switch-control|switch-nesting|integer-updates|"
                 "integer-compounds|integer-compound-conversions|"
                 "integer-update-conversions|"
-                "integer-mutation-rejections HOST_ROOT\n");
+                "integer-mutation-rejections|pointer-member-loads|"
+                "pointer-values HOST_ROOT\n");
   return 2;
 }

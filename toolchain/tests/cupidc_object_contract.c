@@ -78,6 +78,29 @@ static const char integer_mutation_object_source[] =
     "}\n"
     "unsigned int file_update(void) { return mutation_state++; }\n";
 
+static const char pointer_value_object_source[] =
+    "typedef struct { int member; } value_t;\n"
+    "typedef int row_a_t[2];\n"
+    "typedef const row_a_t wrapped_row_t;\n"
+    "typedef const int row_b_t[2];\n"
+    "value_t global_value;\n"
+    "value_t *global_pointer;\n"
+    "int read_indirect(int *pointer) { return *pointer; }\n"
+    "int *address_member(void) { return &global_value.member; }\n"
+    "void write_indirect(int *pointer, int value) { *pointer = value; }\n"
+    "wrapped_row_t *pass_pointer(row_b_t *pointer) { return pointer; }\n"
+    "const int *qualify_pointer(int *pointer) { return pointer; }\n"
+    "void *erase_pointer(int *pointer) { return pointer; }\n"
+    "int *restore_pointer(void *pointer) { return pointer; }\n"
+    "wrapped_row_t *copy_pointer(row_b_t *const volatile pointer) {\n"
+    "  wrapped_row_t *const volatile copy = pointer;\n"
+    "  return copy;\n"
+    "}\n"
+    "void set_global_pointer(value_t *pointer) { global_pointer = pointer; }\n"
+    "void clear_global_pointer(void) { global_pointer = 0; }\n"
+    "int read_global_member(void) { return global_pointer->member; }\n"
+    "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -1191,6 +1214,157 @@ static int validate_integer_mutation_object(
       subtract_count != 2u || multiply_count != 1u || shift_count != 1u ||
       return_count != 4u) {
     (void)fprintf(stderr, "integer mutation object operations differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_pointer_value_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0x50u, 0x58u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u, 0xfcu,
+      0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
+  static const char *const function_names[] = {
+      "read_indirect",        "address_member",     "write_indirect",
+      "pass_pointer",         "qualify_pointer",    "erase_pointer",
+      "restore_pointer",      "copy_pointer",       "set_global_pointer",
+      "clear_global_pointer", "read_global_member", "call_pointer_result"};
+  static const ctool_u32 function_offsets[] = {
+      0u, 21u, 34u, 67u, 84u, 101u, 118u, 135u, 171u, 198u, 219u, 240u};
+  static const ctool_u32 function_sizes[] = {
+      21u, 13u, 33u, 17u, 17u, 17u, 17u, 36u, 27u, 21u, 21u, 26u};
+  static const ctool_u32 relocation_offsets[] = {
+      25u, 175u, 202u, 223u, 255u};
+  static const char *const relocation_symbols[] = {
+      "global_value", "global_pointer", "global_pointer",
+      "global_pointer", "pass_pointer"};
+  static const ctool_u32 relocation_types[] = {
+      CTOOL_ELF32_R_386_32, CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_32, CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_PC32};
+  static const ctool_i32 relocation_addends[] = {0, 0, 0, 0, -4};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *global_value =
+      find_symbol(object, "global_value");
+  const ctool_elf32_symbol_t *global_pointer =
+      find_symbol(object, "global_pointer");
+  ctool_u32 return_count = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (text == NULL || bss == NULL || rel_text == NULL ||
+      global_value == NULL || global_pointer == NULL ||
+      text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      text->relocation_count != 5u || object->relocation_count != 5u ||
+      object->relocations == NULL || object->symbol_count != 15u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 4u ||
+      bss->size != 8u || bss->contents.size != 0u ||
+      !symbol_matches(global_value, global_value->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(global_pointer, global_pointer->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u)) {
+    (void)fprintf(stderr, "pointer value object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    if (function == NULL || function->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        function->value != function_offsets[index] ||
+        function->size != function_sizes[index] ||
+        function->value > text->contents.size ||
+        function->size > text->contents.size - function->value) {
+      (void)fprintf(stderr, "pointer function %s differs\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation = &object->relocations[index];
+    const ctool_elf32_symbol_t *target =
+        find_symbol(object, relocation_symbols[index]);
+    if (relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset != relocation_offsets[index] || target == NULL ||
+        relocation->symbol_file_index != target->file_index ||
+        relocation->type != relocation_types[index] ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != relocation_addends[index]) {
+      (void)fprintf(stderr, "pointer relocation %u differs\n",
+                    (unsigned)index);
+      return 0;
+    }
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                             &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "pointer object decode failed at %u\n",
+                    (unsigned)cursor);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      call_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || return_count != 12u ||
+      call_count != 1u) {
+    (void)fprintf(stderr, "pointer object operations differ (%u/%u)\n",
+                  (unsigned)return_count, (unsigned)call_count);
     return 0;
   }
   return 1;
@@ -7222,6 +7396,107 @@ cleanup:
   return 1;
 }
 
+static int run_pointer_value_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/pointer-value-object.c",
+                    pointer_value_object_source, &unit) ||
+      unit.function_definition_count != 12u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "pointer value object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "pointer value object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first pointer value object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first pointer value emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "pointer object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat pointer value object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "pointer value emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/pointer-value-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read pointer value object") ||
+      !validate_pointer_value_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-values: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -7235,9 +7510,13 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "integer-mutation") == 0) {
     return run_integer_mutation_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "pointer-values") == 0) {
+    return run_pointer_value_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
-                "static-data|direct-goto|switch-object|integer-mutation "
+                "static-data|direct-goto|switch-object|integer-mutation|"
+                "pointer-values "
                 "HOST_ROOT\n");
   return 2;
 }

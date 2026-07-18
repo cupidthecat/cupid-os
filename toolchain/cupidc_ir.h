@@ -23,7 +23,9 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
   CTOOL_C_IR_INSTRUCTION_UNARY,
   CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE,
-  CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS
+  CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+  CTOOL_C_IR_INSTRUCTION_ADDRESS_OF
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -39,7 +41,8 @@ typedef struct {
    * retain the stored value type. DISCARD retains its consumed value type.
    * UNARY and BINARY retain their operand type. DUPLICATE_VALUE retains the
    * duplicated value type. DUPLICATE_ADDRESS retains the duplicated object's
-   * type. CALL_DIRECT retains the function type.
+   * type. DEREFERENCE retains its pointer operand type. ADDRESS_OF retains
+   * its object operand type. CALL_DIRECT retains the function type.
    * BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
@@ -74,6 +77,17 @@ typedef struct {
   const ctool_c_ir_instruction_t *instructions;
   ctool_u32 instruction_count;
 } ctool_c_ir_unit_t;
+
+/* Reports whether two published semantic types carry compatible represented
+ * four-byte object or void pointer values. Top-level pointer-object
+ * qualifiers do not belong to the value after lvalue conversion. Referent
+ * qualifiers remain significant. The query walks qualified, aligned,
+ * pointer, array, vector, enumeration, and scalar nodes without allocating.
+ * Distinct function and record nodes remain compatible only when the
+ * frontend has already canonicalized them to the same graph entry. */
+ctool_bool ctool_c_ir_pointer_value_types_compatible(
+    const ctool_c_translation_unit_t *unit, ctool_u32 left,
+    ctool_u32 right);
 
 typedef enum {
   CTOOL_C_IR_DIAG_INVALID_REQUEST = 0x0d000001u,
@@ -120,9 +134,13 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * produce the value from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
- * address and pushes the selected field's extracted integer value. STORE
- * consumes the value on top of the stack and the destination address below
- * it, without producing a result.
+ * address and pushes the selected field's extracted integer value.
+ * DEREFERENCE consumes a pointer value and pushes the referenced object
+ * address. It emits no target instruction because both forms occupy one
+ * 32-bit machine word, while the public IR keeps their meanings distinct.
+ * ADDRESS_OF performs the inverse transition for an object designator.
+ * STORE consumes the value on top of the stack and the destination address
+ * below it, without producing a result.
  * STORE_VALUE consumes the same pair and pushes the stored assignment result.
  * DISCARD consumes one value.
  * CALL_DIRECT consumes its fixed arguments after they have been evaluated in

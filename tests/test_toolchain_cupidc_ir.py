@@ -166,6 +166,30 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "integer-mutation-rejections: ok\n")
 
+    def test_object_pointer_parameters_reach_indirect_members(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "pointer-member-loads",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-member-loads: ok\n")
+
+    def test_object_pointer_values_cross_supported_storage_and_calls(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-values", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-values: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()
