@@ -9,13 +9,28 @@
 
 typedef enum {
   CIR_STACK_VALUE = 1,
-  CIR_STACK_ADDRESS
+  CIR_STACK_ADDRESS,
+  CIR_STACK_FUNCTION_DESIGNATOR
 } cir_stack_kind_t;
 
 typedef struct {
   cir_stack_kind_t kind;
   ctool_u32 type;
 } cir_stack_entry_t;
+
+typedef struct {
+  ctool_u32 left;
+  ctool_u32 right;
+  ctool_u32 left_carried_qualifiers;
+  ctool_u32 right_carried_qualifiers;
+  ctool_bool parameter_context;
+} cir_type_pair_t;
+
+typedef struct {
+  cir_type_pair_t *items;
+  ctool_u32 count;
+  ctool_u32 capacity;
+} cir_type_pair_vector_t;
 
 typedef enum {
   CIR_CONTROL_LOOP = 1,
@@ -75,6 +90,7 @@ typedef struct {
       reach_control_frames[CTOOL_C_PARSE_NESTING_LIMIT];
   ctool_u32 reach_control_depth;
   ctool_bool failure_reported;
+  ctool_status_t relation_status;
 } cir_context_t;
 
 static ctool_status_t cir_alloc_array(cir_context_t *context,
@@ -127,6 +143,9 @@ static ctool_status_t cir_emit_failure(
 
 static ctool_status_t cir_invalid_unit(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
   return cir_emit_failure(
       context, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT, location,
       "CupidC IR lowering received an invalid translation unit");
@@ -134,6 +153,9 @@ static ctool_status_t cir_invalid_unit(
 
 static ctool_status_t cir_unsupported_statement(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
   return cir_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED,
       CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, location,
@@ -142,6 +164,9 @@ static ctool_status_t cir_unsupported_statement(
 
 static ctool_status_t cir_unsupported_expression(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
   return cir_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED,
       CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION, location,
@@ -150,6 +175,9 @@ static ctool_status_t cir_unsupported_expression(
 
 static ctool_status_t cir_unsupported_conversion(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
   return cir_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED,
       CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION, location,
@@ -158,6 +186,9 @@ static ctool_status_t cir_unsupported_conversion(
 
 static ctool_status_t cir_unsupported_type(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
   return cir_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
       location, "CupidC IR lowering does not yet support this value type");
@@ -317,10 +348,39 @@ static ctool_bool cir_type_is_i32_pointer(const cir_context_t *context,
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_type_is_i32_function_pointer(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
+  const ctool_c_type_node_t *referent =
+      node != (const ctool_c_type_node_t *)0 &&
+              node->kind == CTOOL_C_TYPE_POINTER
+          ? cir_unwrapped_type(context, node->referenced_type)
+          : (const ctool_c_type_node_t *)0;
+  return type < context->unit->layout.type_count &&
+                 node != (const ctool_c_type_node_t *)0 &&
+                 node->kind == CTOOL_C_TYPE_POINTER &&
+                 referent != (const ctool_c_type_node_t *)0 &&
+                 referent->kind == CTOOL_C_TYPE_FUNCTION &&
+                 context->unit->layout.types[type].is_object == CTOOL_TRUE &&
+                 context->unit->layout.types[type].is_complete_object ==
+                     CTOOL_TRUE &&
+                 context->unit->layout.types[type].size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_is_i32_pointer_value(
+    const cir_context_t *context, ctool_u32 type) {
+  return cir_type_is_i32_pointer(context, type) == CTOOL_TRUE ||
+                 cir_type_is_i32_function_pointer(context, type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_type_is_i32_scalar(const cir_context_t *context,
                                          ctool_u32 type) {
   return cir_type_is_i32_integer(context, type) == CTOOL_TRUE ||
-                 cir_type_is_i32_pointer(context, type) == CTOOL_TRUE
+                 cir_type_is_i32_pointer_value(context, type) == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -345,92 +405,279 @@ static ctool_bool cir_compatible_scalar_kind(ctool_c_type_kind_t kind) {
              : CTOOL_FALSE;
 }
 
-static ctool_bool cir_types_compatible(const cir_context_t *context,
-                                       ctool_u32 left, ctool_u32 right) {
-  ctool_u32 limit = context->unit->graph.type_count > 0x7fffffffu
-                        ? 0xffffffffu
-                        : context->unit->graph.type_count * 2u;
-  ctool_u32 left_carried_qualifiers = 0u;
-  ctool_u32 right_carried_qualifiers = 0u;
-  ctool_u32 traversed = 0u;
-  while (traversed++ < limit) {
-    const ctool_c_type_node_t *left_node;
-    const ctool_c_type_node_t *right_node;
-    ctool_u32 left_base;
-    ctool_u32 right_base;
-    ctool_u32 left_qualifiers;
-    ctool_u32 right_qualifiers;
-    if (cir_underlying_type(context, left, &left_base, &left_qualifiers,
-                            &left_node) == CTOOL_FALSE ||
-        cir_underlying_type(context, right, &right_base, &right_qualifiers,
-                            &right_node) == CTOOL_FALSE) {
-      return CTOOL_FALSE;
-    }
-    left_qualifiers |= left_carried_qualifiers | left_node->qualifiers;
-    right_qualifiers |= right_carried_qualifiers | right_node->qualifiers;
-    left_carried_qualifiers = 0u;
-    right_carried_qualifiers = 0u;
-    if (left_node->kind == CTOOL_C_TYPE_ARRAY &&
-        right_node->kind == CTOOL_C_TYPE_ARRAY) {
-      if (left_base == right_base &&
-          left_qualifiers == right_qualifiers) {
-        return CTOOL_TRUE;
-      }
-      if (left_node->array_bound_kind == CTOOL_C_ARRAY_VARIABLE ||
-          right_node->array_bound_kind == CTOOL_C_ARRAY_VARIABLE ||
-          (left_node->array_bound_kind == CTOOL_C_ARRAY_FIXED &&
-           right_node->array_bound_kind == CTOOL_C_ARRAY_FIXED &&
-           left_node->element_count != right_node->element_count)) {
-        return CTOOL_FALSE;
-      }
-      left = left_node->referenced_type;
-      right = right_node->referenced_type;
-      left_carried_qualifiers = left_qualifiers;
-      right_carried_qualifiers = right_qualifiers;
-      continue;
-    }
-    if (left_qualifiers != right_qualifiers) {
-      return CTOOL_FALSE;
-    }
-    if (left_base == right_base) {
+static ctool_bool cir_type_pair_equal(const cir_type_pair_t *left,
+                                      const cir_type_pair_t *right) {
+  return left->left == right->left && left->right == right->right &&
+                 left->left_carried_qualifiers ==
+                     right->left_carried_qualifiers &&
+                 left->right_carried_qualifiers ==
+                     right->right_carried_qualifiers &&
+                 left->parameter_context == right->parameter_context
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_pair_seen(const cir_type_pair_vector_t *seen,
+                                     const cir_type_pair_t *pair) {
+  ctool_u32 index;
+  for (index = 0u; index < seen->count; index++) {
+    if (cir_type_pair_equal(&seen->items[index], pair) == CTOOL_TRUE) {
       return CTOOL_TRUE;
     }
-    if (left_node->kind != right_node->kind) {
-      if (left_node->kind == CTOOL_C_TYPE_ENUM) {
-        left = left_node->referenced_type;
-        right = right_base;
-        continue;
-      }
-      if (right_node->kind == CTOOL_C_TYPE_ENUM) {
-        left = left_base;
-        right = right_node->referenced_type;
-        continue;
-      }
-      return CTOOL_FALSE;
-    }
-    if (cir_compatible_scalar_kind(left_node->kind) == CTOOL_TRUE) {
-      return CTOOL_TRUE;
-    }
-    if (left_node->kind == CTOOL_C_TYPE_POINTER) {
-      left = left_node->referenced_type;
-      right = right_node->referenced_type;
-      continue;
-    }
-    if (left_node->kind == CTOOL_C_TYPE_VECTOR) {
-      if (left_node->element_count != right_node->element_count) {
-        return CTOOL_FALSE;
-      }
-      left = left_node->referenced_type;
-      right = right_node->referenced_type;
-      continue;
-    }
-    return CTOOL_FALSE;
   }
   return CTOOL_FALSE;
 }
 
+static ctool_status_t cir_type_pair_append(
+    cir_context_t *context, cir_type_pair_vector_t *vector,
+    const cir_type_pair_t *pair) {
+  if (vector->count == vector->capacity) {
+    cir_type_pair_t *replacement;
+    ctool_u32 capacity = vector->capacity == 0u ? 16u : vector->capacity;
+    ctool_u32 index;
+    ctool_status_t status;
+    if (vector->capacity != 0u) {
+      if (vector->capacity > 0x7fffffffu) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      capacity = vector->capacity * 2u;
+    }
+    status = cir_alloc_array(context, capacity,
+                             (ctool_u32)sizeof(*replacement),
+                             (void **)&replacement);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (replacement == (cir_type_pair_t *)0) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    for (index = 0u; index < vector->count; index++) {
+      replacement[index] = vector->items[index];
+    }
+    vector->items = replacement;
+    vector->capacity = capacity;
+  }
+  vector->items[vector->count++] = *pair;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_compare_types(
+    cir_context_t *context, ctool_u32 left, ctool_u32 right,
+    ctool_bool *compatible_out) {
+  cir_type_pair_vector_t work;
+  cir_type_pair_vector_t seen;
+  cir_type_pair_t initial;
+  ctool_arena_mark_t mark = ctool_arena_mark(context->arena);
+  ctool_status_t status;
+  ctool_status_t rewind_status;
+  ctool_bool compatible = CTOOL_TRUE;
+  cir_zero(&work, (ctool_u32)sizeof(work));
+  cir_zero(&seen, (ctool_u32)sizeof(seen));
+  initial.left = left;
+  initial.right = right;
+  initial.left_carried_qualifiers = 0u;
+  initial.right_carried_qualifiers = 0u;
+  initial.parameter_context = CTOOL_FALSE;
+  status = cir_type_pair_append(context, &work, &initial);
+  while (status == CTOOL_OK && compatible == CTOOL_TRUE &&
+         work.count != 0u) {
+    cir_type_pair_t pair = work.items[--work.count];
+    ctool_u32 traversed = 0u;
+    if (cir_type_pair_seen(&seen, &pair) == CTOOL_TRUE) {
+      continue;
+    }
+    status = cir_type_pair_append(context, &seen, &pair);
+    while (status == CTOOL_OK && compatible == CTOOL_TRUE) {
+      const ctool_c_type_node_t *left_node;
+      const ctool_c_type_node_t *right_node;
+      ctool_u32 left_base;
+      ctool_u32 right_base;
+      ctool_u32 left_qualifiers;
+      ctool_u32 right_qualifiers;
+      if (traversed++ > context->unit->graph.type_count ||
+          cir_underlying_type(context, pair.left, &left_base,
+                              &left_qualifiers, &left_node) == CTOOL_FALSE ||
+          cir_underlying_type(context, pair.right, &right_base,
+                              &right_qualifiers,
+                              &right_node) == CTOOL_FALSE) {
+        compatible = CTOOL_FALSE;
+        break;
+      }
+      left_qualifiers |=
+          pair.left_carried_qualifiers | left_node->qualifiers;
+      right_qualifiers |=
+          pair.right_carried_qualifiers | right_node->qualifiers;
+      pair.left_carried_qualifiers = 0u;
+      pair.right_carried_qualifiers = 0u;
+      if (pair.parameter_context == CTOOL_TRUE) {
+        left_qualifiers &= CTOOL_C_QUAL_ATOMIC;
+        right_qualifiers &= CTOOL_C_QUAL_ATOMIC;
+        pair.parameter_context = CTOOL_FALSE;
+      }
+      if (left_node->kind == CTOOL_C_TYPE_ARRAY &&
+          right_node->kind == CTOOL_C_TYPE_ARRAY) {
+        if (left_base == right_base &&
+            left_qualifiers == right_qualifiers) {
+          break;
+        }
+        if (left_node->array_bound_kind == CTOOL_C_ARRAY_VARIABLE ||
+            right_node->array_bound_kind == CTOOL_C_ARRAY_VARIABLE ||
+            (left_node->array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+             right_node->array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+             left_node->element_count != right_node->element_count)) {
+          compatible = CTOOL_FALSE;
+          break;
+        }
+        pair.left = left_node->referenced_type;
+        pair.right = right_node->referenced_type;
+        pair.left_carried_qualifiers = left_qualifiers;
+        pair.right_carried_qualifiers = right_qualifiers;
+        continue;
+      }
+      if (left_qualifiers != right_qualifiers) {
+        compatible = CTOOL_FALSE;
+        break;
+      }
+      if (left_base == right_base) {
+        break;
+      }
+      if (left_node->kind != right_node->kind) {
+        if (left_node->kind == CTOOL_C_TYPE_ENUM) {
+          pair.left = left_node->referenced_type;
+          pair.right = right_base;
+          continue;
+        }
+        if (right_node->kind == CTOOL_C_TYPE_ENUM) {
+          pair.left = left_base;
+          pair.right = right_node->referenced_type;
+          continue;
+        }
+        compatible = CTOOL_FALSE;
+        break;
+      }
+      if (cir_compatible_scalar_kind(left_node->kind) == CTOOL_TRUE) {
+        break;
+      }
+      if (left_node->kind == CTOOL_C_TYPE_POINTER) {
+        pair.left = left_node->referenced_type;
+        pair.right = right_node->referenced_type;
+        continue;
+      }
+      if (left_node->kind == CTOOL_C_TYPE_VECTOR) {
+        if (left_node->element_count != right_node->element_count) {
+          compatible = CTOOL_FALSE;
+          break;
+        }
+        pair.left = left_node->referenced_type;
+        pair.right = right_node->referenced_type;
+        continue;
+      }
+      if (left_node->kind == CTOOL_C_TYPE_FUNCTION) {
+        ctool_bool both_prototypes =
+            left_node->has_prototype == CTOOL_TRUE &&
+                    right_node->has_prototype == CTOOL_TRUE
+                ? CTOOL_TRUE
+                : CTOOL_FALSE;
+        ctool_bool different_prototypes =
+            left_node->has_prototype != right_node->has_prototype
+                ? CTOOL_TRUE
+                : CTOOL_FALSE;
+        ctool_u32 index;
+        if ((context->unit->graph.parameter_type_count != 0u &&
+             context->unit->graph.parameter_types == (const ctool_u32 *)0) ||
+            left_node->first_parameter >
+                context->unit->graph.parameter_type_count ||
+            left_node->parameter_count >
+                context->unit->graph.parameter_type_count -
+                    left_node->first_parameter ||
+            right_node->first_parameter >
+                context->unit->graph.parameter_type_count ||
+            right_node->parameter_count >
+                context->unit->graph.parameter_type_count -
+                    right_node->first_parameter) {
+          compatible = CTOOL_FALSE;
+          break;
+        }
+        if (different_prototypes == CTOOL_TRUE) {
+          const ctool_c_type_node_t *prototype =
+              left_node->has_prototype == CTOOL_TRUE ? left_node
+                                                     : right_node;
+          if (prototype->variadic == CTOOL_TRUE) {
+            compatible = CTOOL_FALSE;
+            break;
+          }
+          for (index = 0u; index < prototype->parameter_count; index++) {
+            const ctool_c_type_node_t *parameter = cir_unwrapped_type(
+                context,
+                context->unit->graph
+                    .parameter_types[prototype->first_parameter + index]);
+            if (parameter == (const ctool_c_type_node_t *)0 ||
+                parameter->kind == CTOOL_C_TYPE_BOOL ||
+                parameter->kind == CTOOL_C_TYPE_CHAR ||
+                parameter->kind == CTOOL_C_TYPE_SIGNED_CHAR ||
+                parameter->kind == CTOOL_C_TYPE_UNSIGNED_CHAR ||
+                parameter->kind == CTOOL_C_TYPE_SIGNED_SHORT ||
+                parameter->kind == CTOOL_C_TYPE_UNSIGNED_SHORT ||
+                parameter->kind == CTOOL_C_TYPE_FLOAT) {
+              compatible = CTOOL_FALSE;
+              break;
+            }
+          }
+        } else if (both_prototypes == CTOOL_TRUE) {
+          if (left_node->variadic != right_node->variadic ||
+              left_node->parameter_count != right_node->parameter_count) {
+            compatible = CTOOL_FALSE;
+            break;
+          }
+          for (index = 0u; index < left_node->parameter_count; index++) {
+            cir_type_pair_t child;
+            child.left = context->unit->graph.parameter_types
+                [left_node->first_parameter + index];
+            child.right = context->unit->graph.parameter_types
+                [right_node->first_parameter + index];
+            child.left_carried_qualifiers = 0u;
+            child.right_carried_qualifiers = 0u;
+            child.parameter_context = CTOOL_TRUE;
+            status = cir_type_pair_append(context, &work, &child);
+            if (status != CTOOL_OK) {
+              break;
+            }
+          }
+        }
+        if (status == CTOOL_OK && compatible == CTOOL_TRUE) {
+          cir_type_pair_t result;
+          result.left = left_node->referenced_type;
+          result.right = right_node->referenced_type;
+          result.left_carried_qualifiers = 0u;
+          result.right_carried_qualifiers = 0u;
+          result.parameter_context = CTOOL_FALSE;
+          status = cir_type_pair_append(context, &work, &result);
+        }
+        break;
+      }
+      compatible = CTOOL_FALSE;
+      break;
+    }
+  }
+  rewind_status = ctool_arena_rewind(context->arena, mark);
+  if (status == CTOOL_OK && rewind_status == CTOOL_OK) {
+    *compatible_out = compatible;
+  }
+  return status != CTOOL_OK ? status : rewind_status;
+}
+
+static ctool_bool cir_types_compatible(cir_context_t *context,
+                                       ctool_u32 left, ctool_u32 right) {
+  ctool_bool compatible = CTOOL_FALSE;
+  if (context->relation_status == CTOOL_OK) {
+    context->relation_status =
+        cir_compare_types(context, left, right, &compatible);
+  }
+  return context->relation_status == CTOOL_OK ? compatible : CTOOL_FALSE;
+}
+
 static ctool_bool cir_pointer_values_compatible(
-    const cir_context_t *context, ctool_u32 left, ctool_u32 right) {
+    cir_context_t *context, ctool_u32 left, ctool_u32 right) {
   const ctool_c_type_node_t *left_pointer;
   const ctool_c_type_node_t *right_pointer;
   ctool_u32 left_base;
@@ -454,7 +701,7 @@ static ctool_bool cir_pointer_values_compatible(
 }
 
 static ctool_bool cir_array_decay_types_match(
-    const cir_context_t *context, ctool_u32 array_type,
+    cir_context_t *context, ctool_u32 array_type,
     ctool_u32 pointer_type) {
   const ctool_c_type_node_t *array;
   const ctool_c_type_node_t *pointer =
@@ -493,31 +740,48 @@ static ctool_bool cir_array_decay_types_match(
              : CTOOL_FALSE;
 }
 
-ctool_bool ctool_c_ir_pointer_value_types_compatible(
-    const ctool_c_translation_unit_t *unit, ctool_u32 left,
-    ctool_u32 right) {
+static ctool_bool cir_type_query_unit_is_valid(
+    const ctool_c_translation_unit_t *unit) {
+  return unit != (const ctool_c_translation_unit_t *)0 &&
+                 unit->graph.types != (const ctool_c_type_node_t *)0 &&
+                 unit->layout.type_count == unit->graph.type_count &&
+                 unit->layout.types != (const ctool_c_type_layout_t *)0 &&
+                 (unit->graph.parameter_type_count == 0u ||
+                  unit->graph.parameter_types != (const ctool_u32 *)0)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+ctool_status_t ctool_c_ir_pointer_value_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out) {
   cir_context_t context;
-  if (unit == (const ctool_c_translation_unit_t *)0 ||
-      unit->graph.types == (const ctool_c_type_node_t *)0 ||
-      unit->layout.type_count != unit->graph.type_count ||
-      unit->layout.types == (const ctool_c_type_layout_t *)0 ||
+  if (job == (ctool_job_t *)0 || compatible_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *compatible_out = CTOOL_FALSE;
+  if (cir_type_query_unit_is_valid(unit) == CTOOL_FALSE ||
       left >= unit->graph.type_count || right >= unit->graph.type_count) {
-    return CTOOL_FALSE;
+    return CTOOL_OK;
   }
   cir_zero(&context, (ctool_u32)sizeof(context));
+  context.job = job;
   context.unit = unit;
-  if (cir_type_is_i32_pointer(&context, left) == CTOOL_FALSE ||
-      cir_type_is_i32_pointer(&context, right) == CTOOL_FALSE) {
-    return CTOOL_FALSE;
+  context.arena = ctool_job_arena(job);
+  if (cir_type_is_i32_pointer_value(&context, left) == CTOOL_FALSE ||
+      cir_type_is_i32_pointer_value(&context, right) == CTOOL_FALSE) {
+    return CTOOL_OK;
   }
-  return cir_pointer_values_compatible(&context, left, right);
+  *compatible_out = cir_pointer_values_compatible(&context, left, right);
+  return context.relation_status;
 }
 
 static ctool_bool cir_pointer_value_types_match(
-    const cir_context_t *context, ctool_u32 object_type,
+    cir_context_t *context, ctool_u32 object_type,
     ctool_u32 value_type) {
-  return cir_type_is_i32_pointer(context, object_type) == CTOOL_TRUE &&
-                 cir_type_is_i32_pointer(context, value_type) == CTOOL_TRUE &&
+  return cir_type_is_i32_pointer_value(context, object_type) == CTOOL_TRUE &&
+                 cir_type_is_i32_pointer_value(context, value_type) ==
+                     CTOOL_TRUE &&
                  cir_pointer_values_compatible(context, object_type,
                                                value_type) == CTOOL_TRUE
              ? CTOOL_TRUE
@@ -525,7 +789,7 @@ static ctool_bool cir_pointer_value_types_match(
 }
 
 static ctool_bool cir_pointer_comparison_types_match(
-    const cir_context_t *context, ctool_u32 left_type,
+    cir_context_t *context, ctool_u32 left_type,
     ctool_u32 right_type, ctool_bool require_object_referents) {
   const ctool_c_type_node_t *left_pointer =
       cir_unwrapped_type(context, left_type);
@@ -537,8 +801,8 @@ static ctool_bool cir_pointer_comparison_types_match(
   ctool_u32 right_base;
   ctool_u32 left_qualifiers;
   ctool_u32 right_qualifiers;
-  if (cir_type_is_i32_pointer(context, left_type) == CTOOL_FALSE ||
-      cir_type_is_i32_pointer(context, right_type) == CTOOL_FALSE ||
+  if (cir_type_is_i32_pointer_value(context, left_type) == CTOOL_FALSE ||
+      cir_type_is_i32_pointer_value(context, right_type) == CTOOL_FALSE ||
       left_pointer == (const ctool_c_type_node_t *)0 ||
       right_pointer == (const ctool_c_type_node_t *)0 ||
       cir_underlying_type(context, left_pointer->referenced_type, &left_base,
@@ -553,7 +817,9 @@ static ctool_bool cir_pointer_comparison_types_match(
   (void)left_referent;
   (void)right_referent;
   if (require_object_referents == CTOOL_TRUE &&
-      (left_base >= context->unit->layout.type_count ||
+      (cir_type_is_i32_pointer(context, left_type) == CTOOL_FALSE ||
+       cir_type_is_i32_pointer(context, right_type) == CTOOL_FALSE ||
+       left_base >= context->unit->layout.type_count ||
        right_base >= context->unit->layout.type_count ||
        context->unit->layout.types[left_base].is_object == CTOOL_FALSE ||
        context->unit->layout.types[right_base].is_object == CTOOL_FALSE)) {
@@ -562,21 +828,46 @@ static ctool_bool cir_pointer_comparison_types_match(
   return cir_types_compatible(context, left_base, right_base);
 }
 
-ctool_bool ctool_c_ir_pointer_arithmetic_types_compatible(
-    const ctool_c_translation_unit_t *unit, ctool_u32 left,
-    ctool_u32 right) {
+ctool_status_t ctool_c_ir_pointer_comparison_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool require_object_referents,
+    ctool_bool *compatible_out) {
+  cir_context_t context;
+  if (job == (ctool_job_t *)0 || compatible_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *compatible_out = CTOOL_FALSE;
+  if (cir_type_query_unit_is_valid(unit) == CTOOL_FALSE ||
+      left >= unit->graph.type_count || right >= unit->graph.type_count) {
+    return CTOOL_OK;
+  }
+  cir_zero(&context, (ctool_u32)sizeof(context));
+  context.job = job;
+  context.unit = unit;
+  context.arena = ctool_job_arena(job);
+  *compatible_out = cir_pointer_comparison_types_match(
+      &context, left, right, require_object_referents);
+  return context.relation_status;
+}
+
+ctool_status_t ctool_c_ir_pointer_arithmetic_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out) {
   cir_context_t context;
   const ctool_c_type_node_t *left_pointer;
   const ctool_c_type_node_t *right_pointer;
-  if (unit == (const ctool_c_translation_unit_t *)0 ||
-      unit->graph.types == (const ctool_c_type_node_t *)0 ||
-      unit->layout.type_count != unit->graph.type_count ||
-      unit->layout.types == (const ctool_c_type_layout_t *)0 ||
+  if (job == (ctool_job_t *)0 || compatible_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *compatible_out = CTOOL_FALSE;
+  if (cir_type_query_unit_is_valid(unit) == CTOOL_FALSE ||
       left >= unit->graph.type_count || right >= unit->graph.type_count) {
-    return CTOOL_FALSE;
+    return CTOOL_OK;
   }
   cir_zero(&context, (ctool_u32)sizeof(context));
+  context.job = job;
   context.unit = unit;
+  context.arena = ctool_job_arena(job);
   left_pointer = cir_unwrapped_type(&context, left);
   right_pointer = cir_unwrapped_type(&context, right);
   if (left_pointer == (const ctool_c_type_node_t *)0 ||
@@ -591,31 +882,38 @@ ctool_bool ctool_c_ir_pointer_arithmetic_types_compatible(
               .is_complete_object == CTOOL_FALSE ||
       unit->layout.types[left_pointer->referenced_type].size == 0u ||
       unit->layout.types[right_pointer->referenced_type].size == 0u) {
-    return CTOOL_FALSE;
+    return CTOOL_OK;
   }
-  return cir_pointer_comparison_types_match(&context, left, right,
-                                            CTOOL_TRUE);
+  *compatible_out = cir_pointer_comparison_types_match(
+      &context, left, right, CTOOL_TRUE);
+  return context.relation_status;
 }
 
-ctool_bool ctool_c_ir_array_decay_types_compatible(
-    const ctool_c_translation_unit_t *unit, ctool_u32 array_type,
-    ctool_u32 pointer_type) {
+ctool_status_t ctool_c_ir_array_decay_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 array_type, ctool_u32 pointer_type,
+    ctool_bool *compatible_out) {
   cir_context_t context;
-  if (unit == (const ctool_c_translation_unit_t *)0 ||
-      unit->graph.types == (const ctool_c_type_node_t *)0 ||
-      unit->layout.type_count != unit->graph.type_count ||
-      unit->layout.types == (const ctool_c_type_layout_t *)0 ||
+  if (job == (ctool_job_t *)0 || compatible_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *compatible_out = CTOOL_FALSE;
+  if (cir_type_query_unit_is_valid(unit) == CTOOL_FALSE ||
       array_type >= unit->graph.type_count ||
       pointer_type >= unit->graph.type_count) {
-    return CTOOL_FALSE;
+    return CTOOL_OK;
   }
   cir_zero(&context, (ctool_u32)sizeof(context));
+  context.job = job;
   context.unit = unit;
-  return cir_array_decay_types_match(&context, array_type, pointer_type);
+  context.arena = ctool_job_arena(job);
+  *compatible_out =
+      cir_array_decay_types_match(&context, array_type, pointer_type);
+  return context.relation_status;
 }
 
 static ctool_bool cir_pointer_conversion_is_valid(
-    const cir_context_t *context, ctool_u32 source_type,
+    cir_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
   const ctool_c_type_node_t *source_pointer =
       cir_unwrapped_type(context, source_type);
@@ -658,6 +956,29 @@ static ctool_bool cir_pointer_conversion_is_valid(
                      CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
+}
+
+ctool_status_t ctool_c_ir_pointer_conversion_is_valid(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 source_type, ctool_u32 target_type,
+    ctool_c_conversion_kind_t conversion, ctool_bool *valid_out) {
+  cir_context_t context;
+  if (job == (ctool_job_t *)0 || valid_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *valid_out = CTOOL_FALSE;
+  if (cir_type_query_unit_is_valid(unit) == CTOOL_FALSE ||
+      source_type >= unit->graph.type_count ||
+      target_type >= unit->graph.type_count) {
+    return CTOOL_OK;
+  }
+  cir_zero(&context, (ctool_u32)sizeof(context));
+  context.job = job;
+  context.unit = unit;
+  context.arena = ctool_job_arena(job);
+  *valid_out = cir_pointer_conversion_is_valid(
+      &context, source_type, target_type, conversion);
+  return context.relation_status;
 }
 
 static ctool_bool cir_i32_bits_are_canonical(ctool_u64 bits,
@@ -728,7 +1049,7 @@ static ctool_bool cir_integer_value_types_match(
 }
 
 static ctool_bool cir_scalar_value_types_match(
-    const cir_context_t *context, ctool_u32 object_type,
+    cir_context_t *context, ctool_u32 object_type,
     ctool_u32 value_type) {
   if (cir_type_is_i32_integer(context, object_type) == CTOOL_TRUE &&
       cir_type_is_i32_integer(context, value_type) == CTOOL_TRUE) {
@@ -1194,6 +1515,25 @@ static ctool_status_t cir_lower_conversion(
         CTOOL_C_AST_NONE, 0u, &expression->location,
         &expression->physical_location, (ctool_u32 *)0);
   } else if (expression->conversion ==
+             CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) {
+    const ctool_c_type_node_t *pointer =
+        cir_unwrapped_type(context, expression->type);
+    if (source.kind != CIR_STACK_FUNCTION_DESIGNATOR ||
+        source.type != context->unit->expressions[child].type ||
+        pointer == (const ctool_c_type_node_t *)0 ||
+        pointer->kind != CTOOL_C_TYPE_POINTER ||
+        pointer->referenced_type != source.type ||
+        cir_type_is_i32_function_pointer(context, expression->type) ==
+            CTOOL_FALSE) {
+      return cir_unsupported_conversion(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER,
+        expression->type, source.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        expression->conversion, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  } else if (expression->conversion ==
              CTOOL_C_CONVERSION_ARRAY_TO_POINTER) {
     if (source.kind != CIR_STACK_ADDRESS ||
         source.type != context->unit->expressions[child].type ||
@@ -1221,8 +1561,8 @@ static ctool_status_t cir_lower_conversion(
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     ctool_bool pointer_conversion =
-        cir_type_is_i32_pointer(context, source.type) == CTOOL_TRUE &&
-                cir_type_is_i32_pointer(context, expression->type) ==
+        cir_type_is_i32_pointer_value(context, source.type) == CTOOL_TRUE &&
+                cir_type_is_i32_pointer_value(context, expression->type) ==
                     CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
@@ -1251,7 +1591,8 @@ static ctool_status_t cir_lower_conversion(
              CTOOL_C_CONVERSION_NULL_POINTER) {
     if (source.kind != CIR_STACK_VALUE ||
         cir_type_is_i32_integer(context, source.type) == CTOOL_FALSE ||
-        cir_type_is_i32_pointer(context, expression->type) == CTOOL_FALSE) {
+        cir_type_is_i32_pointer_value(context, expression->type) ==
+            CTOOL_FALSE) {
       return cir_unsupported_conversion(context, &expression->location);
     }
     status = cir_append_instruction(
@@ -1290,6 +1631,12 @@ static ctool_status_t cir_lower_cast(
           context->unit->layout.type_count ||
       expression->type >= context->unit->layout.type_count) {
     return cir_invalid_unit(context, &expression->location);
+  }
+  if (cir_type_is_i32_function_pointer(
+          context, context->unit->expressions[child].type) == CTOOL_TRUE ||
+      cir_type_is_i32_function_pointer(context, expression->type) ==
+          CTOOL_TRUE) {
+    return cir_unsupported_conversion(context, &expression->location);
   }
   if (cir_type_is_i32_scalar(
           context, context->unit->expressions[child].type) == CTOOL_FALSE ||
@@ -1472,8 +1819,10 @@ static ctool_status_t cir_lower_binary(
           : CTOOL_FALSE;
   is_pointer_comparison =
       is_comparison == CTOOL_TRUE &&
-              cir_type_is_i32_pointer(context, left.type) == CTOOL_TRUE &&
-              cir_type_is_i32_pointer(context, right.type) == CTOOL_TRUE
+              cir_type_is_i32_pointer_value(context, left.type) ==
+                  CTOOL_TRUE &&
+              cir_type_is_i32_pointer_value(context, right.type) ==
+                  CTOOL_TRUE
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   is_pointer_arithmetic =
@@ -1566,6 +1915,8 @@ static ctool_status_t cir_lower_unary(
   if (status == CTOOL_OK &&
       expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADDRESS) {
     const ctool_c_type_node_t *pointer;
+    const ctool_c_type_node_t *addressed;
+    ctool_bool function_address;
     ctool_u32 child_type = context->unit->expressions[child].type;
     status = cir_lower_expression(context, child, depth + 1u);
     if (status == CTOOL_OK) {
@@ -1575,12 +1926,24 @@ static ctool_status_t cir_lower_unary(
       return status;
     }
     pointer = cir_unwrapped_type(context, expression->type);
-    if (operand.kind != CIR_STACK_ADDRESS || operand.type != child_type ||
-        child_type >= context->unit->layout.type_count ||
-        context->unit->layout.types[child_type].is_object == CTOOL_FALSE ||
-        context->unit->layout.types[child_type].is_complete_object ==
+    addressed = cir_unwrapped_type(context, child_type);
+    function_address =
+        addressed != (const ctool_c_type_node_t *)0 &&
+                addressed->kind == CTOOL_C_TYPE_FUNCTION
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if (operand.type != child_type ||
+        ((function_address == CTOOL_TRUE &&
+          operand.kind != CIR_STACK_FUNCTION_DESIGNATOR) ||
+         (function_address == CTOOL_FALSE &&
+          operand.kind != CIR_STACK_ADDRESS)) ||
+        (function_address == CTOOL_FALSE &&
+         (child_type >= context->unit->layout.type_count ||
+          context->unit->layout.types[child_type].is_object == CTOOL_FALSE ||
+          context->unit->layout.types[child_type].is_complete_object ==
+              CTOOL_FALSE)) ||
+        cir_type_is_i32_pointer_value(context, expression->type) ==
             CTOOL_FALSE ||
-        cir_type_is_i32_pointer(context, expression->type) == CTOOL_FALSE ||
         pointer == (const ctool_c_type_node_t *)0 ||
         pointer->referenced_type != child_type) {
       return cir_invalid_unit(context, &expression->location);
@@ -1598,6 +1961,8 @@ static ctool_status_t cir_lower_unary(
   if (status == CTOOL_OK &&
       expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
     const ctool_c_type_node_t *pointer;
+    const ctool_c_type_node_t *referent;
+    ctool_bool function_designator;
     status = cir_lower_expression(context, child, depth + 1u);
     if (status == CTOOL_OK) {
       status = cir_pop(context, &operand);
@@ -1606,10 +1971,18 @@ static ctool_status_t cir_lower_unary(
       return status;
     }
     pointer = cir_unwrapped_type(context, operand.type);
+    referent = cir_unwrapped_type(context, expression->type);
+    function_designator =
+        referent != (const ctool_c_type_node_t *)0 &&
+                referent->kind == CTOOL_C_TYPE_FUNCTION
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if (operand.kind != CIR_STACK_VALUE ||
-        cir_type_is_i32_pointer(context, operand.type) == CTOOL_FALSE ||
+        cir_type_is_i32_pointer_value(context, operand.type) == CTOOL_FALSE ||
         pointer == (const ctool_c_type_node_t *)0 ||
-        pointer->referenced_type != expression->type) {
+        pointer->referenced_type != expression->type ||
+        (function_designator == CTOOL_FALSE &&
+         cir_type_is_i32_pointer(context, operand.type) == CTOOL_FALSE)) {
       return cir_invalid_unit(context, &expression->location);
     }
     status = cir_append_instruction(
@@ -1620,7 +1993,11 @@ static ctool_status_t cir_lower_unary(
     if (status != CTOOL_OK) {
       return status;
     }
-    return cir_push(context, CIR_STACK_ADDRESS, expression->type);
+    return cir_push(context,
+                    function_designator == CTOOL_TRUE
+                        ? CIR_STACK_FUNCTION_DESIGNATOR
+                        : CIR_STACK_ADDRESS,
+                    expression->type);
   }
   logical_not = expression->operation ==
                         CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT
@@ -2802,18 +3179,21 @@ static ctool_status_t cir_lower_conditional(
   return status;
 }
 
-static ctool_status_t cir_lower_direct_call(
+static ctool_status_t cir_lower_call(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   const ctool_c_expression_t *callee;
-  const ctool_c_expression_t *identifier;
-  const ctool_c_binding_t *binding;
+  const ctool_c_expression_t *identifier =
+      (const ctool_c_expression_t *)0;
+  const ctool_c_binding_t *binding = (const ctool_c_binding_t *)0;
   const ctool_c_type_node_t *pointer_type;
   const ctool_c_type_node_t *function_type;
   ctool_u32 callee_index;
-  ctool_u32 identifier_index;
+  ctool_u32 identifier_index = CTOOL_C_AST_NONE;
   ctool_u32 base_depth = context->stack_depth;
+  ctool_u32 argument_base;
   ctool_u32 argument;
+  ctool_bool direct = CTOOL_FALSE;
   ctool_status_t status;
   status = cir_expression_child(context, expression_index, expression, 0u,
                                 &callee_index);
@@ -2821,37 +3201,16 @@ static ctool_status_t cir_lower_direct_call(
     return status;
   }
   callee = &context->unit->expressions[callee_index];
-  if (callee->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
-      callee->conversion != CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) {
-    return cir_unsupported_expression(context, &expression->location);
-  }
-  if (callee->child_count != 1u) {
-    return cir_invalid_unit(context, &callee->location);
-  }
-  status = cir_expression_child(context, callee_index, callee, 0u,
-                                &identifier_index);
-  if (status != CTOOL_OK) {
-    return status;
-  }
-  identifier = &context->unit->expressions[identifier_index];
-  if (identifier->kind != CTOOL_C_EXPRESSION_IDENTIFIER) {
-    return cir_unsupported_expression(context, &expression->location);
-  }
-  if (identifier->child_count != 0u ||
-      identifier->reference >= context->unit->binding_count ||
-      identifier->type >= context->unit->graph.type_count ||
-      callee->type >= context->unit->graph.type_count) {
-    return cir_invalid_unit(context, &identifier->location);
-  }
-  binding = &context->unit->bindings[identifier->reference];
   pointer_type = cir_unwrapped_type(context, callee->type);
-  function_type = cir_unwrapped_type(context, identifier->type);
-  if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
-      binding->type != identifier->type ||
-      pointer_type == (const ctool_c_type_node_t *)0 ||
+  if (pointer_type == (const ctool_c_type_node_t *)0 ||
       pointer_type->kind != CTOOL_C_TYPE_POINTER ||
-      pointer_type->referenced_type != identifier->type ||
-      function_type == (const ctool_c_type_node_t *)0 ||
+      pointer_type->referenced_type >= context->unit->graph.type_count) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  function_type =
+      cir_unwrapped_type(context, pointer_type->referenced_type);
+  if (function_type == (const ctool_c_type_node_t *)0 ||
+      cir_type_is_i32_function_pointer(context, callee->type) == CTOOL_FALSE ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
       function_type->referenced_type != expression->type ||
       function_type->first_parameter >
@@ -2863,6 +3222,32 @@ static ctool_status_t cir_lower_direct_call(
       expression->child_count - 1u != function_type->parameter_count) {
     return cir_invalid_unit(context, &expression->location);
   }
+  if (callee->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+      callee->conversion == CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) {
+    if (callee->child_count != 1u) {
+      return cir_invalid_unit(context, &callee->location);
+    }
+    status = cir_expression_child(context, callee_index, callee, 0u,
+                                  &identifier_index);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    identifier = &context->unit->expressions[identifier_index];
+    if (identifier->kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
+      if (identifier->child_count != 0u ||
+          identifier->reference >= context->unit->binding_count ||
+          identifier->type >= context->unit->graph.type_count ||
+          pointer_type->referenced_type != identifier->type) {
+        return cir_invalid_unit(context, &identifier->location);
+      }
+      binding = &context->unit->bindings[identifier->reference];
+      if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
+          binding->type != identifier->type) {
+        return cir_invalid_unit(context, &identifier->location);
+      }
+      direct = CTOOL_TRUE;
+    }
+  }
   if (function_type->has_prototype == CTOOL_FALSE ||
       function_type->variadic == CTOOL_TRUE ||
       (cir_type_is_void(context, expression->type) == CTOOL_FALSE &&
@@ -2870,9 +3255,23 @@ static ctool_status_t cir_lower_direct_call(
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
         &expression->location,
-        "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+        "CupidC IR lowering supports only fixed, nonvariadic calls "
         "with 32-bit scalar arguments and void or 32-bit scalar results");
   }
+  if (direct == CTOOL_FALSE) {
+    status = cir_lower_expression(context, callee_index, depth + 1u);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (context->stack_depth != base_depth + 1u ||
+        context->stack[base_depth].kind != CIR_STACK_VALUE ||
+        cir_pointer_value_types_match(
+            context, callee->type,
+            context->stack[base_depth].type) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &callee->location);
+    }
+  }
+  argument_base = base_depth + (direct == CTOOL_TRUE ? 0u : 1u);
   for (argument = 0u; argument < function_type->parameter_count; argument++) {
     ctool_u32 child;
     ctool_u32 parameter_type =
@@ -2883,7 +3282,7 @@ static ctool_status_t cir_lower_direct_call(
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           &expression->location,
-          "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+          "CupidC IR lowering supports only fixed, nonvariadic calls "
           "with 32-bit scalar arguments and void or 32-bit scalar results");
     }
     status = cir_expression_child(context, expression_index, expression,
@@ -2894,20 +3293,24 @@ static ctool_status_t cir_lower_direct_call(
     if (status != CTOOL_OK) {
       return status;
     }
-    if (context->stack_depth != base_depth + argument + 1u ||
-        context->stack[base_depth + argument].kind != CIR_STACK_VALUE ||
-        (context->stack[base_depth + argument].type != parameter_type &&
+    if (context->stack_depth != argument_base + argument + 1u ||
+        context->stack[argument_base + argument].kind != CIR_STACK_VALUE ||
+        (context->stack[argument_base + argument].type != parameter_type &&
          cir_scalar_value_types_match(
              context, parameter_type,
-             context->stack[base_depth + argument].type) == CTOOL_FALSE)) {
+             context->stack[argument_base + argument].type) == CTOOL_FALSE)) {
       return cir_invalid_unit(context, &expression->location);
     }
   }
   context->stack_depth = base_depth;
   status = cir_append_instruction(
-      context, CTOOL_C_IR_INSTRUCTION_CALL_DIRECT, expression->type,
-      identifier->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
-      CTOOL_C_CONVERSION_NONE, identifier->reference, 0u,
+      context,
+      direct == CTOOL_TRUE ? CTOOL_C_IR_INSTRUCTION_CALL_DIRECT
+                           : CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT,
+      expression->type,
+      direct == CTOOL_TRUE ? identifier->type : callee->type,
+      CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+      direct == CTOOL_TRUE ? identifier->reference : CTOOL_C_AST_NONE, 0u,
       &expression->location, &expression->physical_location,
       (ctool_u32 *)0);
   if (status != CTOOL_OK ||
@@ -3006,7 +3409,34 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       return cir_push(context, CIR_STACK_VALUE, expression->type);
     }
     if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
-      return cir_unsupported_expression(context, &expression->location);
+      if (binding->linkage != CTOOL_C_LINKAGE_INTERNAL &&
+          binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+      if (binding->linkage == CTOOL_C_LINKAGE_INTERNAL) {
+        for (definition = 0u;
+             definition < context->unit->function_definition_count;
+             definition++) {
+          if (context->unit->function_definitions[definition].binding ==
+              expression->reference) {
+            break;
+          }
+        }
+        if (definition == context->unit->function_definition_count) {
+          return cir_invalid_unit(context, &expression->location);
+        }
+      }
+      status = cir_append_instruction(
+          context, CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
+          expression->type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          expression->reference, 0u, &expression->location,
+          &expression->physical_location, (ctool_u32 *)0);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      return cir_push(context, CIR_STACK_FUNCTION_DESIGNATOR,
+                      expression->type);
     }
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         (binding->linkage != CTOOL_C_LINKAGE_INTERNAL &&
@@ -3165,7 +3595,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     if (expression->child_count == 0u) {
       return cir_invalid_unit(context, &expression->location);
     }
-    return cir_lower_direct_call(context, expression_index, expression,
+    return cir_lower_call(context, expression_index, expression,
                                  depth);
   }
   if (expression->kind == CTOOL_C_EXPRESSION_CAST) {

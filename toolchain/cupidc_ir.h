@@ -27,13 +27,17 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
   CTOOL_C_IR_INSTRUCTION_ADDRESS_OF,
   CTOOL_C_IR_INSTRUCTION_POINTER_BINARY,
-  CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER
+  CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+  CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT,
+  CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
   ctool_c_ir_instruction_kind_t kind;
-  /* Value-producing instructions use type for their result. Address
+  /* Value-producing instructions use type for their result. Object-address
    * instructions and STORE use the referenced destination object type.
+   * FUNCTION_ADDRESS retains its function-designator type.
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
    * result type. */
@@ -45,9 +49,10 @@ typedef struct {
    * left operand type. ARRAY_TO_POINTER retains its array operand type.
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
    * retains the duplicated object's type. DEREFERENCE retains its pointer
-   * operand type. ADDRESS_OF retains its object operand type. CALL_DIRECT
-   * retains the function type. BRANCH_ZERO retains its consumed condition
-   * type. */
+   * operand type. ADDRESS_OF retains its object or function operand type.
+   * FUNCTION_TO_POINTER retains its function operand type. CALL_DIRECT
+   * retains the function type, while CALL_INDIRECT retains the function
+   * pointer type. BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
@@ -55,11 +60,11 @@ typedef struct {
   ctool_c_conversion_kind_t conversion;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index. FILE_ADDRESS
-   * and CALL_DIRECT use an absolute file-binding index. MEMBER_ADDRESS and
-   * BIT_FIELD_LOAD use an absolute graph-member index. POINTER_BINARY uses
-   * an absolute graph-type index for its right operand. Branches use a
-   * function-relative instruction index. Other instructions use
-   * CTOOL_C_AST_NONE. */
+   * CALL_DIRECT, and FUNCTION_ADDRESS use an absolute file-binding index.
+   * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
+   * POINTER_BINARY uses an absolute graph-type index for its right operand.
+   * Branches use a function-relative instruction index. Other instructions
+   * use CTOOL_C_AST_NONE. */
   ctool_u32 reference;
   ctool_u64 integer_bits;
   ctool_c_pp_location_t location;
@@ -84,30 +89,52 @@ typedef struct {
 } ctool_c_ir_unit_t;
 
 /* Reports whether two published semantic types carry compatible represented
- * four-byte object or void pointer values. Top-level pointer-object
+ * four-byte object, void, or function pointer values. Top-level pointer-object
  * qualifiers do not belong to the value after lvalue conversion. Referent
- * qualifiers remain significant. The query walks qualified, aligned,
- * pointer, array, vector, enumeration, and scalar nodes without allocating.
- * Distinct function and record nodes remain compatible only when the
- * frontend has already canonicalized them to the same graph entry. */
-ctool_bool ctool_c_ir_pointer_value_types_compatible(
-    const ctool_c_translation_unit_t *unit, ctool_u32 left,
-    ctool_u32 right);
+ * qualifiers remain significant. The query compares qualified, aligned,
+ * pointer, array, vector, function, enumeration, and scalar nodes with a
+ * memoized worklist. It returns all scratch storage to the job arena before
+ * returning. Function types are compared structurally. Top-level const,
+ * volatile, and restrict parameter qualification is ignored, while atomic
+ * and referent qualification remains significant. Distinct record nodes
+ * remain compatible only when the frontend has canonicalized them to the same
+ * graph entry. A malformed graph or out-of-range type returns CTOOL_OK with a
+ * false result. Missing job or output arguments return
+ * CTOOL_ERR_INVALID_ARGUMENT. */
+ctool_status_t ctool_c_ir_pointer_value_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out);
+
+/* Applies the same structural relation to pointer comparison operands.
+ * Requiring object referents rejects function and void pointers, as needed
+ * for relational comparison. */
+ctool_status_t ctool_c_ir_pointer_comparison_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool require_object_referents,
+    ctool_bool *compatible_out);
+
+/* Checks one implicit pointer conversion against the IR lowerer's
+ * qualification and object-to-void rules. */
+ctool_status_t ctool_c_ir_pointer_conversion_is_valid(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 source_type, ctool_u32 target_type,
+    ctool_c_conversion_kind_t conversion, ctool_bool *valid_out);
 
 /* Reports whether two represented object pointers may participate in pointer
  * subtraction. The pointed-to types must be compatible complete objects.
  * Immediate pointed-to qualification, including atomic qualification, does
  * not change compatibility for this operation. */
-ctool_bool ctool_c_ir_pointer_arithmetic_types_compatible(
-    const ctool_c_translation_unit_t *unit, ctool_u32 left,
-    ctool_u32 right);
+ctool_status_t ctool_c_ir_pointer_arithmetic_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out);
 
 /* Reports whether a complete array object may decay to a represented pointer
  * to its first element. Array qualification follows the C rule that moves it
  * to the element type. */
-ctool_bool ctool_c_ir_array_decay_types_compatible(
-    const ctool_c_translation_unit_t *unit, ctool_u32 array_type,
-    ctool_u32 pointer_type);
+ctool_status_t ctool_c_ir_array_decay_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 array_type, ctool_u32 pointer_type,
+    ctool_bool *compatible_out);
 
 typedef enum {
   CTOOL_C_IR_DIAG_INVALID_REQUEST = 0x0d000001u,
@@ -158,9 +185,11 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
  * address and pushes the selected field's extracted integer value.
  * DEREFERENCE consumes a pointer value and pushes the referenced object
- * address. It emits no target instruction because both forms occupy one
- * 32-bit machine word, while the public IR keeps their meanings distinct.
- * ADDRESS_OF performs the inverse transition for an object designator.
+ * address or function designator. It emits no target instruction because
+ * both forms occupy one 32-bit machine word, while the public IR keeps their
+ * meanings distinct. ADDRESS_OF performs the inverse transition for an
+ * object or function designator. FUNCTION_ADDRESS publishes a linked function
+ * designator, and FUNCTION_TO_POINTER records its value conversion.
  * ARRAY_TO_POINTER consumes an array address and produces the address of its
  * first element without emitting a target instruction. POINTER_BINARY scales
  * an integer operand by the pointed-to object size. Pointer subtraction
@@ -170,8 +199,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * STORE_VALUE consumes the same pair and pushes the stored assignment result.
  * DISCARD consumes one value.
  * CALL_DIRECT consumes its fixed arguments after they have been evaluated in
- * source order. Argument zero is deepest on the stack and the final argument
- * is on top. The call pushes one result unless its result type is void.
+ * source order. CALL_INDIRECT also consumes the function pointer below those
+ * arguments. Argument zero is deepest among the arguments, and the final
+ * argument is on top. Either call pushes one result unless its result type is
+ * void.
  * Failure zeros the result, rewinds allocations made during the operation,
  * and keeps its structured diagnostic in the job. */
 

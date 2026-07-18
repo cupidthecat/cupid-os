@@ -226,6 +226,12 @@ static const char active_linker_label_crlf[] =
     "  if (status != CTOOL_OK &&\r\n"
     "      ctool_job_diagnostic_count(link->job) == diagnostics_before) {";
 
+static const char active_invocation_body_call[] =
+    "    status = body(&invocation, user_data);";
+
+static const char active_linker_selector_call[] =
+    "          selector(section, selector_context) == CTOOL_TRUE &&";
+
 static const char active_doom_tick_loop[] =
     "\tdo\n"
     "\t{\n"
@@ -438,7 +444,15 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
          active_source_contains(
              job, "/toolchain/cupidld.c", "load active linker source",
              "the active linker label changed", active_linker_label,
-             active_linker_label_crlf);
+             active_linker_label_crlf) &&
+         active_source_contains(
+             job, "/toolchain/ctool.c", "load active core source",
+             "the active invocation callback changed",
+             active_invocation_body_call, NULL) &&
+         active_source_contains(
+             job, "/toolchain/cupidld.c", "load active linker source",
+             "the active linker selector callback changed",
+             active_linker_selector_call, NULL);
 }
 
 static char *make_align_up_fixture(void) {
@@ -8317,6 +8331,477 @@ cleanup:
   return 1;
 }
 
+static int validate_function_pointer_call_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu, 0xd0u, 0x83u,
+      0xc4u, 0x08u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu, 0xd0u, 0x83u,
+      0xc4u, 0x08u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8bu, 0x44u, 0x24u, 0x04u, 0xffu, 0xd0u, 0x83u,
+      0xc4u, 0x08u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x14u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu,
+      0x4cu, 0x24u, 0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u,
+      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x8bu, 0x44u, 0x24u,
+      0x0cu, 0xffu, 0xd0u, 0x83u, 0xc4u, 0x10u, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
+  static const ctool_u32 relocation_offsets[] = {
+      42u, 53u, 234u, 253u, 304u, 424u, 429u, 440u, 466u, 0u};
+  static const ctool_u32 relocation_types[] = {
+      CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_PC32, CTOOL_ELF32_R_386_32};
+  static const ctool_i32 relocation_addends[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, -4, 0};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_section_t *rel_data = find_section(object, ".rel.data");
+  const ctool_elf32_symbol_t *function = find_symbol(object, "invoke");
+  const ctool_elf32_symbol_t *address =
+      find_symbol(object, "target_address");
+  const ctool_elf32_symbol_t *explicit_address =
+      find_symbol(object, "explicit_target_address");
+  const ctool_elf32_symbol_t *dereferenced =
+      find_symbol(object, "invoke_dereferenced");
+  const ctool_elf32_symbol_t *notify = find_symbol(object, "notify");
+  const ctool_elf32_symbol_t *three = find_symbol(object, "invoke_three");
+  const ctool_elf32_symbol_t *stored =
+      find_symbol(object, "stored_callback");
+  const ctool_elf32_symbol_t *use = find_symbol(object, "use_callback");
+  const ctool_elf32_symbol_t *target = find_symbol(object, "target");
+  const ctool_elf32_symbol_t *round_trip =
+      find_symbol(object, "round_trip");
+  const ctool_elf32_symbol_t *select =
+      find_symbol(object, "select_callback");
+  const ctool_elf32_symbol_t *equal =
+      find_symbol(object, "callbacks_equal");
+  const ctool_elf32_symbol_t *missing =
+      find_symbol(object, "callback_missing");
+  const ctool_elf32_symbol_t *present =
+      find_symbol(object, "callback_present");
+  const ctool_elf32_symbol_t *install =
+      find_symbol(object, "install_target");
+  const ctool_elf32_symbol_t *forward =
+      find_symbol(object, "forward_callback");
+  const ctool_elf32_symbol_t *relocation_symbols[] = {
+      target, target, stored, stored, target,
+      stored, target, stored, use,    target};
+  ctool_u32 cursor = 0u;
+  ctool_u32 indirect_call_count = 0u;
+  ctool_u32 direct_call_count = 0u;
+  ctool_u32 return_count = 0u;
+  if (text == NULL || data == NULL || rel_text == NULL || rel_data == NULL ||
+      function == NULL ||
+      address == NULL || explicit_address == NULL || dereferenced == NULL ||
+      notify == NULL || three == NULL || stored == NULL || use == NULL ||
+      target == NULL || round_trip == NULL || select == NULL || equal == NULL ||
+      missing == NULL || present == NULL || install == NULL || forward == NULL ||
+      object->relocations == NULL || object->relocation_count != 10u ||
+      text->relocation_count != 9u || data->relocation_count != 1u ||
+      object->symbol_count != 17u || text->contents.size != 477u ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      data->type != CTOOL_ELF32_SHT_PROGBITS || data->alignment != 4u ||
+      data->size != 4u || data->contents.size != 4u ||
+      data->contents.data == NULL || data->contents.data[0] != 0u ||
+      data->contents.data[1] != 0u || data->contents.data[2] != 0u ||
+      data->contents.data[3] != 0u ||
+      function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      function->section_file_index != text->file_index ||
+      function->value != 0u || function->size != 38u ||
+      !symbol_matches(address, address->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      38u, 11u) ||
+      !symbol_matches(
+          explicit_address, explicit_address->file_index,
+          CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+          CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+          49u, 11u) ||
+      !symbol_matches(
+          dereferenced, dereferenced->file_index, CTOOL_ELF32_BIND_GLOBAL,
+          CTOOL_ELF32_SYMBOL_FUNCTION, CTOOL_ELF32_SYMBOL_DEFINED,
+          text->file_index, 60u, 38u) ||
+      !symbol_matches(notify, notify->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      98u, 36u) ||
+      !symbol_matches(three, three->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      134u, 74u) ||
+      !symbol_matches(target, target->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(stored, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
+      !symbol_matches(use, use->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(round_trip, round_trip->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 208u,
+                      56u) ||
+      !symbol_matches(select, select->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 264u,
+                      47u) ||
+      !symbol_matches(equal, equal->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 311u,
+                      39u) ||
+      !symbol_matches(missing, missing->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 350u,
+                      33u) ||
+      !symbol_matches(present, present->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 383u,
+                      37u) ||
+      !symbol_matches(install, install->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 420u,
+                      31u) ||
+      !symbol_matches(forward, forward->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 451u,
+                      26u)) {
+    (void)fprintf(stderr, "function pointer object inventory differs\n");
+    return 0;
+  }
+  for (cursor = 0u; cursor < object->relocation_count; cursor++) {
+    const ctool_elf32_relocation_t *relocation = &object->relocations[cursor];
+    const ctool_elf32_section_t *target_section =
+        cursor < 9u ? text : data;
+    const ctool_elf32_section_t *relocation_section =
+        cursor < 9u ? rel_text : rel_data;
+    if (relocation_symbols[cursor] == NULL ||
+        relocation->relocation_section_file_index !=
+            relocation_section->file_index ||
+        relocation->entry_index != (cursor < 9u ? cursor : 0u) ||
+        relocation->target_section_file_index != target_section->file_index ||
+        relocation->offset != relocation_offsets[cursor] ||
+        relocation->symbol_file_index !=
+            relocation_symbols[cursor]->file_index ||
+        relocation->type != relocation_types[cursor] ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != relocation_addends[cursor]) {
+      (void)fprintf(stderr, "function pointer relocation %u differs\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+  }
+  cursor = 0u;
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "function pointer object decode failed at %u (0x%02x)\n",
+                    (unsigned int)cursor,
+                    (unsigned int)text->contents.data[cursor]);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      if (decoded.instruction.operand_count != 1u) {
+        (void)fprintf(stderr, "function pointer call operand differs\n");
+        return 0;
+      }
+      if (decoded.instruction.operands[0].kind ==
+          CTOOL_X86_OPERAND_REGISTER) {
+        if (decoded.instruction.operands[0].as.reg.class_id !=
+                CTOOL_X86_REG_GPR32 ||
+            decoded.instruction.operands[0].as.reg.index != 0u) {
+          (void)fprintf(stderr, "indirect callback operand differs\n");
+          return 0;
+        }
+        indirect_call_count++;
+      } else if (decoded.instruction.operands[0].kind ==
+                 CTOOL_X86_OPERAND_RELATIVE) {
+        direct_call_count++;
+      } else {
+        (void)fprintf(stderr, "function pointer call form differs\n");
+        return 0;
+      }
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || indirect_call_count != 4u ||
+      direct_call_count != 1u || return_count != 13u) {
+    (void)fprintf(stderr, "function pointer instruction inventory differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_local_function_address_object(
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *target =
+      find_symbol(object, "local_target");
+  const ctool_elf32_symbol_t *address =
+      find_symbol(object, "local_target_address");
+  const ctool_elf32_relocation_t *relocation;
+  if (text == NULL || rel_text == NULL || target == NULL || address == NULL ||
+      object->symbol_count != 3u || object->relocation_count != 1u ||
+      text->relocation_count != 1u || text->contents.size != 28u ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      !symbol_matches(target, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      0u, 17u) ||
+      !symbol_matches(address, address->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      17u, 11u)) {
+    (void)fprintf(stderr, "local function address inventory differs\n");
+    return 0;
+  }
+  relocation = &object->relocations[0];
+  if (relocation->relocation_section_file_index != rel_text->file_index ||
+      relocation->entry_index != 0u ||
+      relocation->target_section_file_index != text->file_index ||
+      relocation->offset != 21u ||
+      relocation->symbol_file_index != target->file_index ||
+      relocation->type != CTOOL_ELF32_R_386_32 ||
+      relocation->addend_known != CTOOL_TRUE || relocation->addend != 0) {
+    (void)fprintf(stderr, "local function address relocation differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_function_pointer_object(const char *host_root) {
+  static const char source_text[] =
+      "typedef int (*callback_t)(int);\n"
+      "extern int target(int);\n"
+      "int invoke(callback_t callback, int value) { return callback(value); }\n"
+      "callback_t target_address(void) { return target; }\n"
+      "callback_t explicit_target_address(void) { return &target; }\n"
+      "int invoke_dereferenced(callback_t callback, int value) {\n"
+      "  return (*callback)(value);\n"
+      "}\n"
+      "typedef void (*notify_t)(int);\n"
+      "void notify(notify_t callback, int value) { callback(value); }\n"
+      "typedef int (*combine_t)(int, int, int);\n"
+      "int invoke_three(combine_t callback, int a, int b, int c) {\n"
+      "  return callback(a, b, c);\n"
+      "}\n"
+      "extern int use_callback(callback_t);\n"
+      "static callback_t stored_callback = target;\n"
+      "callback_t round_trip(callback_t callback) {\n"
+      "  callback_t local = callback;\n"
+      "  stored_callback = local;\n"
+      "  return stored_callback;\n"
+      "}\n"
+      "callback_t select_callback(callback_t callback) {\n"
+      "  return callback ? callback : target;\n"
+      "}\n"
+      "int callbacks_equal(callback_t left, callback_t right) {\n"
+      "  return left == right;\n"
+      "}\n"
+      "int callback_missing(callback_t callback) { return callback == 0; }\n"
+      "int callback_present(callback_t callback) { return !!callback; }\n"
+      "callback_t install_target(void) {\n"
+      "  stored_callback = target;\n"
+      "  return stored_callback;\n"
+      "}\n"
+      "int forward_callback(callback_t callback) {\n"
+      "  return use_callback(callback);\n"
+      "}\n";
+  static const char variadic_source[] =
+      "typedef int (*variadic_callback_t)(int, ...);\n"
+      "int call_variadic(variadic_callback_t callback) {\n"
+      "  return callback(1);\n"
+      "}\n";
+  static const char atomic_source[] =
+      "typedef int (*callback_t)(int);\n"
+      "callback_t _Atomic shared_callback;\n"
+      "int callback_is_set(void) { return shared_callback != 0; }\n";
+  static const char local_address_source[] =
+      "typedef int (*callback_t)(int);\n"
+      "static int local_target(int value) { return value; }\n"
+      "callback_t local_target_address(void) { return local_target; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t variadic_unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t local_address_unit;
+  unit_snapshot_t local_address_snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_arena_mark_t mark;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&variadic_unit, 0, sizeof(variadic_unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&local_address_unit, 0, sizeof(local_address_unit));
+  (void)memset(&local_address_snapshot, 0, sizeof(local_address_snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_object_sources_are_unchanged(job) ||
+      !parse_source(job, "/function-pointer-object.c", source_text, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "function pointer object buffer")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "function pointer object emission") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    (void)fprintf(stderr, "function pointer object copy failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)first_object_size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK) {
+    (void)fprintf(stderr, "function pointer object rewind failed\n");
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "repeat function pointer object") ||
+      bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "function pointer emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/function-pointer-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read function pointer object") ||
+      !validate_function_pointer_call_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !parse_source(job, "/local-function-address-object.c",
+                    local_address_source, &local_address_unit) ||
+      !take_unit_snapshot(&local_address_unit, &local_address_snapshot)) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &local_address_unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "local function address object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(
+          &local_address_snapshot, &local_address_unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/local-function-address-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read local function address object") ||
+      !validate_local_function_address_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !parse_source(job, "/variadic-function-pointer-object.c",
+                    variadic_source, &variadic_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &variadic_unit, output, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "32-bit scalar arguments and void or 32-bit scalar results",
+          "variadic function pointer object")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-function-pointer-object.c", atomic_source,
+                    &atomic_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &atomic_unit, output, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic function pointer object")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  dispose_unit_snapshot(&local_address_snapshot);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("function-pointers: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -8342,11 +8827,14 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "pointer-arithmetic") == 0) {
     return run_pointer_arithmetic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "function-pointers") == 0) {
+    return run_function_pointer_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic "
+                "pointer-arithmetic|function-pointers "
                 "HOST_ROOT\n");
   return 2;
 }

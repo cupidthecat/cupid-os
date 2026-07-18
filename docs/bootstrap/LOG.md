@@ -4297,3 +4297,72 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADR 0042 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic array storage, indirect calls, atomic mutation, other integer widths, floating and aggregate values, production integration, staged self-hosting, and the final fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-18: CupidC represents function pointers and fixed indirect calls
+
+### Decision and active-source requirement
+
+The hosted CupidC path now carries represented four-byte function pointers through values, storage, and fixed i386 cdecl calls. The unchanged requirements are the invocation callback in `toolchain/ctool.c` and the section-selector callback in `toolchain/cupidld.c`. Their interfaces remain intact:
+
+```c
+status = body(&invocation, user_data);
+```
+
+```c
+selector(section, selector_context) == CTOOL_TRUE &&
+```
+
+Function designators remain distinct from object addresses in the abstract stack. `FUNCTION_ADDRESS` names a linked function, `FUNCTION_TO_POINTER` records decay, and `ADDRESS_OF` or `DEREFERENCE` move between a function designator and its pointer without emitting a target instruction. This preserves the source type while using the target's existing four-byte representation.
+
+Function compatibility is structural. Fixed prototypes compare result and parameter types, parameter count, and variadic state. Top-level `const`, `volatile`, and `restrict` on parameters do not affect compatibility, while `_Atomic` and referent qualifiers remain significant. A prototype paired with an old-style declaration keeps the existing default-promotion checks. A checked arena-backed worklist remembers compared pairs and returns its scratch storage before the query completes. This matters because compatible callback declarations do not always share one type-graph node, and repeated callback children must not reopen the same relation for every path.
+
+`CALL_INDIRECT` retains the callee pointer type for ABI validation. Lowering evaluates the callee first and then each argument in source order. The emitter reverses the completed four-byte argument slots for cdecl, loads the saved callee into EAX, emits `CALL EAX` through the shared x86 encoder, and removes both the arguments and the saved callee. Direct identifiers continue to use `CALL_DIRECT` and `R_386_PC32`.
+
+Linked function addresses use `R_386_32` with addend zero in code and static data. Function pointers now cross fixed parameters and results, automatic and linked objects, static and automatic initialization, loads, stores, assignment, direct arguments, equality, null conversion, scalar truth tests, and conditional selection. Function-pointer arithmetic and relational comparison remain invalid. Explicit casts involving function pointers are also outside this slice, including casts to or from integers, object pointers, compatible function pointers, or another function signature. Variadic and wider indirect calls, floating and aggregate call forms, atomic callback access, and 16-byte call-site alignment remain unsupported.
+
+No user question was needed. The frozen frontend already publishes function types, conversions, value categories, initializer binding addresses, and fixed call prototypes.
+
+### Contract evidence and corrections
+
+- Six call and address functions publish 36 instructions. They cover implicit and explicit function addresses, `(*callback)(value)`, a void callback, and a three-argument callback.
+- Seven value functions publish another 50 instructions. They cover static and automatic storage, assignment, equality, null conversion, truth testing, conditional selection, and a callback passed to a direct call. Stable fingerprints cover every public instruction field and both source locations.
+- The deterministic object contains 13 functions, 477 text bytes, 17 symbols, nine text relocations, and one data relocation. Its first 208 text bytes are exact. Shared decoding finds four register-indirect calls, one direct call, and 13 returns. A second 28-byte object has one local static function, one address-returning function, and one `R_386_32` relocation with addend zero against the local function symbol. Repeated emission is byte-identical.
+- Negative cases reject function-pointer order, variadic and wide indirect calls, all six represented explicit function-pointer cast categories, and atomic callback loads. A malformed graph with a nonzero parameter count and no parameter array returns false instead of reading missing storage. Each lowering failure keeps the frozen input unchanged, leaves object output empty where applicable, and rewinds allocations made during the operation.
+- The first semantic run stopped at the prior object-pointer and direct-call boundaries. Treating callbacks as integers or object addresses would have erased the signature, so the implementation added separate function-designator and function-pointer paths instead.
+- The first returned function decay exposed an overly strict compatibility check that required both function types to use the same graph node. Structural prototype comparison fixed the valid case without weakening record identity or pointer qualification rules.
+- The public compatibility contract proves that top-level `const`, `volatile`, and `restrict` on function parameters do not change compatibility. It also proves that `_Atomic` parameters and qualifiers on pointer referents remain significant in both comparison directions. Old-style comparison accepts `int` and `double` parameters that survive default promotion and rejects a `char` parameter that does not.
+- A generated 24-level relation fixture builds separate callback graphs whose two parameters both reuse the previous callback type. The positive pair completes through one memoized comparison per distinct pair, while a graph with an unsigned leaf remains incompatible. A 256-byte arena forces the first worklist allocation to fail, returns `CTOOL_ERR_LIMIT`, keeps the result false, and restores the exact arena mark.
+- Standards review found that the first structural relation recursively reopened both callback children with a fresh traversal budget. That made a repeated type DAG exponential and repeated a graph-relation defect already closed in the frontend. The recursive relation was removed. The IR and emitter now use the same checked query family for value matching, conversions, comparisons, arithmetic, and array decay.
+- Spec review found that widening the general four-byte scalar predicate had also admitted explicit function-pointer casts without a target policy or contract. The cast path now rejects every function-pointer source or destination while retaining existing integer and object-pointer casts. The same review found the missing parameter-array guard and weaker emitter checks for implicit conversions and relational function-pointer comparisons; all three paths now share the lowerer's predicates.
+- Review also requested direct evidence for old-style promotion, a defined static function address, and ignored `restrict`. Those cases are now explicit contracts. Direct and indirect call emitters still have separate stack-shape routines because only the indirect form owns a saved callee slot. Shared signature and relation predicates now cover the common validation; consolidating the remaining slot movement is an optional code-organization task, not a behavior gap.
+- The first qualifier test edit put one translation-unit declaration in the wrong rejection fixture and used a parameter-context name that shadowed an inner variable. The strict build caught both mistakes before an accepted run. The declaration now belongs to the function-pointer fixture, and the context name describes its boolean role without shadowing.
+- The first exact contract checked the important semantic fields but did not pin every location and unused field. Deterministic instruction fingerprints now cover all 86 records while the readable assertions still describe each call, address, and value shape.
+- One sanitizer wrapper split its multiword flags at the PowerShell-to-WSL boundary and failed before producing evidence. A later wrapper returned without creating either requested binary, and an attempted JavaScript encoder stopped because that runtime does not provide `btoa`. The accepted PowerShell wrapper encoded the complete Bash script before passing it to WSL. Only the visibly instrumented GCC and Clang builds count below.
+- One combined focused command hit its three-minute wrapper limit while the slow audit module was still running. Splitting the compiler contracts from the audit case produced both accepted results below.
+- Clang analysis found that an inventory-mismatch debug loop could inspect a null instruction array. The loop now runs only when that array exists. Both analyzers, the exact contract, the full hosted suites, and the repository gate passed after the correction.
+- A later Clang analysis could not prove that successful growth of the type-pair worklist always returned a nonnull buffer. The positive capacity already made that state unreachable under the arena contract, but the append path now checks the result and reports an internal error before copying. GCC and Clang analysis both pass after that defensive check.
+- Re-parsing the changed implementation updated the source gates. `cupidc_ir.c` now publishes 126 definitions, 3,657 statements, 31,244 expressions, 455 block bindings, and 138 initializers. `cupidc_emit.c` publishes 82/1,800/16,204/252/134.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. Its lexical inventory contains 614 direct designated initializers across 18 files, 938 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,500 `while`, 1,699 `break`, 929 `continue`, 25,164 `if`, 3,455 `else`, 3,035 `for`, 15,408 `return`, and 3,046 `sizeof` occurrences. The active-source digest is `e310edd078eb66e66e6d80ba33c666b503c3e1422dde7429a1cb6eb9665d8861`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Function values and indirect calls first failed at the prior semantic boundaries. A returned decay then exposed the graph-identity compatibility bug before structural comparison was added. |
+| Focused CupidC contracts | PASS | The IR, object, and frontend Python modules pass all 68 tests in 21.313 seconds. The 26 IR and object cases include both explicit `function-pointers` modes. The final repository gate below also reruns the manifest-drift case. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete suite in 29.6 seconds, including all hosted modes and 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds each pass the complete hosted suite in about 64 seconds. |
+| Sanitizers | PASS AFTER WRAPPER CORRECTION | Fresh, visibly instrumented GCC and Clang ASan and UBSan builds pass the affected pointer modes. After the defensive worklist check, both instrumented trees rebuild and pass all 11 affected IR and object modes in 7.374 and 10.507 seconds. |
+| Static analysis | PASS AFTER FIX | Real GCC `-fanalyzer` compilation and Clang `--analyze` with analyzer warnings treated as errors report no diagnostics across `cupidc_ir.c`, `cupidc_emit.c`, and the three affected C contracts in 188.582 and 77.424 seconds. |
+| Two-axis review | PASS AFTER FIX | Standards and Spec follow-up reviews report no remaining findings. They confirm the memoized type relation, checked rollback, cast boundary, emitter predicates, old-style promotion tests, qualifier rules, and local-function relocation evidence. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 35.426 seconds. `make check-bootstrap-audit` reproduces them exactly in 34.934 seconds. |
+| Full repository gate | PASS | `make test` passes all 310 tests in 457.533 seconds with one expected Windows skip and returns from Make after the audit check in 493.329 seconds. |
+| Production image build | PASS | `make all` rebuilds the normal CupidASM, CupidLD, CupidObj, kernel, and disk-image path in 21.328 seconds. |
+| Emulator gate | NOT RUN | This hosted capability changes no production compiler, kernel object, disk format, boot path, runtime behavior, or ABI owner. The production image build verifies the unaffected normal path without claiming runtime ownership. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0043 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic array storage, atomic access and mutation, other widths, floating and aggregate values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.

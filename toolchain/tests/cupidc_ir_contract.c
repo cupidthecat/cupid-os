@@ -501,8 +501,96 @@ static const char atomic_pointer_source[] =
     "int * _Atomic shared_pointer;\n"
     "int *read_shared_pointer(void) { return shared_pointer; }\n";
 
-static const char function_pointer_source[] =
-    "int rejects_function_pointer(int (*pointer)(void)) { return 0; }\n";
+static const char function_pointer_call_source[] =
+    "typedef int (*callback_t)(int);\n"
+    "extern int target(int);\n"
+    "int invoke(callback_t callback, int value) { return callback(value); }\n"
+    "callback_t target_address(void) { return target; }\n"
+    "callback_t explicit_target_address(void) { return &target; }\n"
+    "int invoke_dereferenced(callback_t callback, int value) {\n"
+    "  return (*callback)(value);\n"
+    "}\n"
+    "typedef void (*notify_t)(int);\n"
+    "void notify(notify_t callback, int value) { callback(value); }\n"
+    "typedef int (*combine_t)(int, int, int);\n"
+    "int invoke_three(combine_t callback, int first, int second, int third) {\n"
+    "  return callback(first, second, third);\n"
+    "}\n";
+
+static const char function_pointer_value_source[] =
+    "typedef int (*callback_t)(int);\n"
+    "extern int target(int);\n"
+    "extern int use_callback(callback_t);\n"
+    "static callback_t stored_callback = target;\n"
+    "callback_t round_trip(callback_t callback) {\n"
+    "  callback_t local = callback;\n"
+    "  stored_callback = local;\n"
+    "  return stored_callback;\n"
+    "}\n"
+    "callback_t select_callback(callback_t callback) {\n"
+    "  return callback ? callback : target;\n"
+    "}\n"
+    "int callbacks_equal(callback_t left, callback_t right) {\n"
+    "  return left == right;\n"
+    "}\n"
+    "int callback_missing(callback_t callback) { return callback == 0; }\n"
+    "int callback_present(callback_t callback) { return !!callback; }\n"
+    "callback_t install_target(void) {\n"
+    "  stored_callback = target;\n"
+    "  return stored_callback;\n"
+    "}\n"
+    "int forward_callback(callback_t callback) {\n"
+    "  return use_callback(callback);\n"
+    "}\n";
+
+static const char variadic_function_pointer_source[] =
+    "typedef int (*variadic_callback_t)(int, ...);\n"
+    "int call_variadic(variadic_callback_t callback) {\n"
+    "  return callback(1);\n"
+    "}\n";
+
+static const char wide_function_pointer_source[] =
+    "typedef long long (*wide_callback_t)(long long);\n"
+    "int call_wide(wide_callback_t callback) { return callback(1); }\n";
+
+static const char atomic_function_pointer_source[] =
+    "typedef int (*callback_t)(int);\n"
+    "callback_t _Atomic shared_callback;\n"
+    "int callback_is_set(void) { return shared_callback != 0; }\n";
+
+static const char function_pointer_qualification_source[] =
+    "typedef int (*plain_callback_t)(int);\n"
+    "typedef int (*qualified_parameter_callback_t)(const volatile int);\n"
+    "typedef int (*atomic_parameter_callback_t)(_Atomic int);\n"
+    "typedef int (*plain_pointer_callback_t)(int *);\n"
+    "typedef int (*restrict_parameter_callback_t)(int *restrict);\n"
+    "typedef int (*qualified_referent_callback_t)(const int *);\n"
+    "typedef int (*old_style_callback_t)();\n"
+    "typedef int (*promoted_parameter_callback_t)(int, double);\n"
+    "typedef int (*promoted_char_callback_t)(char);\n";
+
+static const char *const function_pointer_cast_sources[] = {
+    "typedef int (*callback_t)(int);\n"
+    "callback_t from_integer(unsigned value) { return (callback_t)value; }\n",
+    "typedef int (*callback_t)(int);\n"
+    "unsigned to_integer(callback_t value) { return (unsigned)value; }\n",
+    "typedef int (*callback_t)(int);\n"
+    "callback_t from_object(void *value) { return (callback_t)value; }\n",
+    "typedef int (*callback_t)(int);\n"
+    "void *to_object(callback_t value) { return (void *)value; }\n",
+    "typedef int (*callback_t)(int);\n"
+    "typedef int (*other_t)(void);\n"
+    "other_t change_signature(callback_t value) { return (other_t)value; }\n",
+    "typedef int (*callback_t)(int);\n"
+    "callback_t keep_signature(callback_t value) { return (callback_t)value; }\n"};
+
+static const char *const function_pointer_cast_paths[] = {
+    "/function-pointer-cast-from-integer.c",
+    "/function-pointer-cast-to-integer.c",
+    "/function-pointer-cast-from-object.c",
+    "/function-pointer-cast-to-object.c",
+    "/function-pointer-cast-signature.c",
+    "/function-pointer-cast-compatible.c"};
 
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
@@ -511,6 +599,15 @@ static const char active_job_arena[] =
     "ctool_arena_t *ctool_job_arena(ctool_job_t *job) {\n"
     "  return job != (ctool_job_t *)0 ? job->arena : (ctool_arena_t *)0;\n"
     "}";
+
+static const char active_invocation_body_check[] =
+    "      body == (ctool_invocation_body_t)0 ||";
+
+static const char active_invocation_body_call[] =
+    "    status = body(&invocation, user_data);";
+
+static const char active_linker_selector_call[] =
+    "          selector(section, selector_context) == CTOOL_TRUE &&";
 
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
@@ -796,6 +893,48 @@ static int arena_marks_equal(ctool_arena_mark_t left,
              : 0;
 }
 
+static int pointer_value_query_matches(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool expected) {
+  ctool_bool compatible = expected == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+  ctool_arena_mark_t mark = ctool_arena_mark(ctool_job_arena(job));
+  ctool_status_t status = ctool_c_ir_pointer_value_types_compatible(
+      job, unit, left, right, &compatible);
+  return status == CTOOL_OK && compatible == expected &&
+                 arena_marks_equal(
+                     mark, ctool_arena_mark(ctool_job_arena(job))) != 0
+             ? 1
+             : 0;
+}
+
+static int pointer_arithmetic_query_matches(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool expected) {
+  ctool_bool compatible = expected == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+  ctool_arena_mark_t mark = ctool_arena_mark(ctool_job_arena(job));
+  ctool_status_t status = ctool_c_ir_pointer_arithmetic_types_compatible(
+      job, unit, left, right, &compatible);
+  return status == CTOOL_OK && compatible == expected &&
+                 arena_marks_equal(
+                     mark, ctool_arena_mark(ctool_job_arena(job))) != 0
+             ? 1
+             : 0;
+}
+
+static int array_decay_query_matches(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 array_type, ctool_u32 pointer_type, ctool_bool expected) {
+  ctool_bool compatible = expected == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+  ctool_arena_mark_t mark = ctool_arena_mark(ctool_job_arena(job));
+  ctool_status_t status = ctool_c_ir_array_decay_types_compatible(
+      job, unit, array_type, pointer_type, &compatible);
+  return status == CTOOL_OK && compatible == expected &&
+                 arena_marks_equal(
+                     mark, ctool_arena_mark(ctool_job_arena(job))) != 0
+             ? 1
+             : 0;
+}
+
 static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
                     ctool_job_config_t *config, ctool_job_t **job_out) {
   ctool_status_t status = ctool_host_adapter_init(adapter, host_root);
@@ -914,7 +1053,11 @@ static int active_source_is_unchanged(ctool_job_t *job) {
           NULL ||
       strstr((const char *)source.contents.data, active_decimal_shrink) ==
           NULL ||
-      strstr((const char *)source.contents.data, active_job_arena) == NULL) {
+      strstr((const char *)source.contents.data, active_job_arena) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_invocation_body_check) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_invocation_body_call) == NULL) {
     (void)fprintf(stderr, "an active CupidC source guard changed\n");
     return 0;
   }
@@ -948,7 +1091,9 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       (strstr((const char *)source.contents.data, active_linker_label) ==
            NULL &&
        strstr((const char *)source.contents.data,
-              active_linker_label_crlf) == NULL)) {
+              active_linker_label_crlf) == NULL) ||
+      strstr((const char *)source.contents.data,
+             active_linker_selector_call) == NULL) {
     (void)fprintf(stderr, "the active linker cleanup path changed\n");
     return 0;
   }
@@ -1390,6 +1535,51 @@ static uint64_t hash_bytes(uint64_t hash, const void *data, size_t size) {
   for (index = 0u; index < size; index++) {
     hash ^= bytes[index];
     hash *= UINT64_C(1099511628211);
+  }
+  return hash;
+}
+
+static uint64_t hash_u32(uint64_t hash, ctool_u32 value) {
+  ctool_u8 bytes[4];
+  bytes[0] = (ctool_u8)(value & 0xffu);
+  bytes[1] = (ctool_u8)((value >> 8u) & 0xffu);
+  bytes[2] = (ctool_u8)((value >> 16u) & 0xffu);
+  bytes[3] = (ctool_u8)((value >> 24u) & 0xffu);
+  return hash_bytes(hash, bytes, sizeof(bytes));
+}
+
+static uint64_t hash_u64(uint64_t hash, ctool_u64 value) {
+  ctool_u32 index;
+  for (index = 0u; index < 8u; index++) {
+    ctool_u8 byte = (ctool_u8)((value >> (index * 8u)) & 0xffu);
+    hash = hash_bytes(hash, &byte, sizeof(byte));
+  }
+  return hash;
+}
+
+static uint64_t hash_location(uint64_t hash,
+                              const ctool_c_pp_location_t *location) {
+  hash = hash_u32(hash, location->path.size);
+  hash = hash_bytes(hash, location->path.data, location->path.size);
+  hash = hash_u32(hash, location->line);
+  return hash_u32(hash, location->column);
+}
+
+static uint64_t ir_instruction_fingerprint(const ctool_c_ir_unit_t *ir) {
+  uint64_t hash = UINT64_C(1469598103934665603);
+  ctool_u32 index;
+  hash = hash_u32(hash, ir->instruction_count);
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    hash = hash_u32(hash, (ctool_u32)instruction->kind);
+    hash = hash_u32(hash, instruction->type);
+    hash = hash_u32(hash, instruction->input_type);
+    hash = hash_u32(hash, (ctool_u32)instruction->operation);
+    hash = hash_u32(hash, (ctool_u32)instruction->conversion);
+    hash = hash_u32(hash, instruction->reference);
+    hash = hash_u64(hash, instruction->integer_bits);
+    hash = hash_location(hash, &instruction->location);
+    hash = hash_location(hash, &instruction->physical_location);
   }
   return hash;
 }
@@ -6214,9 +6404,6 @@ static int run_active_leaf(const char *host_root) {
   static const char void_cast_source[] =
       "extern void sink(void);\n"
       "void discard_sink(void) { (void)sink(); }\n";
-  static const char indirect_call_source[] =
-      "int (*indirect_call)(int);\n"
-      "int call_pointer(int value) { return indirect_call(value); }\n";
   static const char wide_call_source[] =
       "int wide_target(long long value);\n"
       "int call_wide(void) { return wide_target(1); }\n";
@@ -6357,7 +6544,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_cast_unit;
   ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t call_unit;
-  ctool_c_translation_unit_t indirect_call_unit;
   ctool_c_translation_unit_t wide_call_unit;
   ctool_c_translation_unit_t wide_comparison_unit;
   ctool_c_translation_unit_t division_unit;
@@ -8422,21 +8608,12 @@ static int run_active_leaf(const char *host_root) {
           "void cast of void call")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/indirect-call.c", indirect_call_source,
-                    &indirect_call_unit) ||
-      !expect_ir_failure(
-          job, &indirect_call_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "indirect call")) {
-    goto cleanup;
-  }
   if (!parse_source(job, "/wide-call.c", wide_call_source,
                     &wide_call_unit) ||
       !expect_ir_failure(
           job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+          "CupidC IR lowering supports only fixed, nonvariadic calls "
           "with 32-bit scalar arguments and void or 32-bit scalar results",
           "wide direct call")) {
     goto cleanup;
@@ -8446,7 +8623,7 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &variadic_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic direct calls "
+          "CupidC IR lowering supports only fixed, nonvariadic calls "
           "with 32-bit scalar arguments and void or 32-bit scalar results",
           "variadic direct call")) {
     goto cleanup;
@@ -10271,7 +10448,8 @@ static int validate_pointer_member_ir(
 }
 
 static int validate_pointer_value_ir(
-    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
   static const pointer_ir_expected_t expected[] = {
       {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 7u, CTOOL_C_TYPE_NONE,
        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
@@ -10500,28 +10678,18 @@ static int validate_pointer_value_ir(
       unit->graph.types[35].kind != CTOOL_C_TYPE_POINTER ||
       unit->graph.types[35].referenced_type != 3u ||
       unit->graph.types[35].qualifiers != 0u ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 15u, 16u) !=
-          CTOOL_TRUE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 16u, 15u) !=
-          CTOOL_TRUE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 7u, 15u) !=
-          CTOOL_FALSE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 15u, 7u) !=
-          CTOOL_FALSE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 28u, 34u) !=
-          CTOOL_TRUE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 34u, 28u) !=
-          CTOOL_TRUE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 32u, 35u) !=
-          CTOOL_TRUE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 32u, 34u) !=
-          CTOOL_TRUE ||
-      ctool_c_ir_pointer_value_types_compatible(unit, 19u, 20u) !=
-          CTOOL_FALSE ||
-      ctool_c_ir_pointer_value_types_compatible(&malformed_unit, 15u, 16u) !=
-          CTOOL_FALSE ||
-      ctool_c_ir_pointer_value_types_compatible(NULL, 15u, 16u) !=
-          CTOOL_FALSE) {
+      !pointer_value_query_matches(job, unit, 15u, 16u, CTOOL_TRUE) ||
+      !pointer_value_query_matches(job, unit, 16u, 15u, CTOOL_TRUE) ||
+      !pointer_value_query_matches(job, unit, 7u, 15u, CTOOL_FALSE) ||
+      !pointer_value_query_matches(job, unit, 15u, 7u, CTOOL_FALSE) ||
+      !pointer_value_query_matches(job, unit, 28u, 34u, CTOOL_TRUE) ||
+      !pointer_value_query_matches(job, unit, 34u, 28u, CTOOL_TRUE) ||
+      !pointer_value_query_matches(job, unit, 32u, 35u, CTOOL_TRUE) ||
+      !pointer_value_query_matches(job, unit, 32u, 34u, CTOOL_TRUE) ||
+      !pointer_value_query_matches(job, unit, 19u, 20u, CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &malformed_unit, 15u, 16u, CTOOL_FALSE) ||
+      !pointer_value_query_matches(job, NULL, 15u, 16u, CTOOL_FALSE)) {
     (void)fprintf(stderr, "pointer value IR shape differs\n");
     return 0;
   }
@@ -10600,7 +10768,6 @@ static int run_pointer_values(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t atomic_unit;
-  ctool_c_translation_unit_t function_pointer_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_ir_unit_t ir;
@@ -10617,7 +10784,6 @@ static int run_pointer_values(const char *host_root) {
 
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
-  (void)memset(&function_pointer_unit, 0, sizeof(function_pointer_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/pointer-values.c", pointer_value_source, &unit)) {
     goto cleanup;
@@ -10629,7 +10795,7 @@ static int run_pointer_values(const char *host_root) {
   if (!check_status(status, CTOOL_OK, "object-pointer value lowering") ||
       ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_fingerprint(&unit) != fingerprint ||
-      !validate_pointer_value_ir(&unit, &ir)) {
+      !validate_pointer_value_ir(job, &unit, &ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -10735,15 +10901,848 @@ static int run_pointer_values(const char *host_root) {
           "atomic pointer load")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/function-pointer.c", function_pointer_source,
-                    &function_pointer_unit) ||
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-values: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_function_pointer_call_ir(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_function_definition_t *address_definition;
+  const ctool_c_function_definition_t *explicit_address_definition;
+  const ctool_c_function_definition_t *dereference_definition;
+  const ctool_c_function_definition_t *notify_definition;
+  const ctool_c_function_definition_t *three_definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *address_function_type;
+  const ctool_c_type_node_t *explicit_address_function_type;
+  const ctool_c_type_node_t *dereference_function_type;
+  const ctool_c_type_node_t *notify_function_type;
+  const ctool_c_type_node_t *three_function_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "invoke");
+  ctool_u32 address_binding = find_binding(unit, "target_address");
+  ctool_u32 explicit_address_binding =
+      find_binding(unit, "explicit_target_address");
+  ctool_u32 dereference_binding =
+      find_binding(unit, "invoke_dereferenced");
+  ctool_u32 notify_binding = find_binding(unit, "notify");
+  ctool_u32 three_binding = find_binding(unit, "invoke_three");
+  ctool_u32 target_binding = find_binding(unit, "target");
+  ctool_u32 callback_parameter;
+  ctool_u32 value_parameter;
+  ctool_u32 callback_type;
+  ctool_u32 value_type;
+  ctool_u32 dereference_callback_parameter;
+  ctool_u32 dereference_value_parameter;
+  ctool_u32 dereference_callback_type;
+  ctool_u32 dereference_value_type;
+  ctool_u32 notify_parameter;
+  ctool_u32 notify_value_parameter;
+  ctool_u32 three_parameter;
+  ctool_u32 three_argument;
+  if (unit->function_definition_count != 6u || ir->function_count != 6u ||
+      ir->instruction_count != 36u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE ||
+      address_binding == CTOOL_C_AST_NONE ||
+      explicit_address_binding == CTOOL_C_AST_NONE ||
+      dereference_binding == CTOOL_C_AST_NONE ||
+      notify_binding == CTOOL_C_AST_NONE ||
+      three_binding == CTOOL_C_AST_NONE ||
+      target_binding == CTOOL_C_AST_NONE) {
+    ctool_u32 index;
+    (void)fprintf(stderr,
+                  "function pointer call IR inventory differs: %u functions, "
+                  "%u instructions\n",
+                  (unsigned int)ir->function_count,
+                  (unsigned int)ir->instruction_count);
+    if (ir->instructions != NULL) {
+      for (index = 0u; index < ir->instruction_count; index++) {
+        (void)fprintf(stderr, "%u: kind=%u type=%u input=%u ref=%u\n",
+                      (unsigned int)index,
+                      (unsigned int)ir->instructions[index].kind,
+                      (unsigned int)ir->instructions[index].type,
+                      (unsigned int)ir->instructions[index].input_type,
+                      (unsigned int)ir->instructions[index].reference);
+      }
+    }
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  address_definition = &unit->function_definitions[1];
+  explicit_address_definition = &unit->function_definitions[2];
+  dereference_definition = &unit->function_definitions[3];
+  notify_definition = &unit->function_definitions[4];
+  three_definition = &unit->function_definitions[5];
+  if (definition->declared_type >= unit->graph.type_count ||
+      address_definition->declared_type >= unit->graph.type_count ||
+      explicit_address_definition->declared_type >= unit->graph.type_count ||
+      dereference_definition->declared_type >= unit->graph.type_count ||
+      notify_definition->declared_type >= unit->graph.type_count ||
+      three_definition->declared_type >= unit->graph.type_count ||
+      unit->bindings[target_binding].type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  address_function_type =
+      &unit->graph.types[address_definition->declared_type];
+  explicit_address_function_type =
+      &unit->graph.types[explicit_address_definition->declared_type];
+  dereference_function_type =
+      &unit->graph.types[dereference_definition->declared_type];
+  notify_function_type =
+      &unit->graph.types[notify_definition->declared_type];
+  three_function_type = &unit->graph.types[three_definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - function_type->first_parameter ||
+      dereference_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      dereference_function_type->parameter_count != 2u ||
+      dereference_function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count -
+               dereference_function_type->first_parameter ||
+      notify_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      notify_function_type->parameter_count != 2u ||
+      notify_function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - notify_function_type->first_parameter ||
+      three_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      three_function_type->parameter_count != 4u ||
+      three_function_type->first_parameter > unit->parameter_count ||
+      4u > unit->parameter_count - three_function_type->first_parameter) {
+    return 0;
+  }
+  callback_parameter = function_type->first_parameter;
+  value_parameter = callback_parameter + 1u;
+  callback_type = unit->parameters[callback_parameter].type;
+  value_type = unit->parameters[value_parameter].type;
+  dereference_callback_parameter =
+      dereference_function_type->first_parameter;
+  dereference_value_parameter = dereference_callback_parameter + 1u;
+  dereference_callback_type =
+      unit->parameters[dereference_callback_parameter].type;
+  dereference_value_type = unit->parameters[dereference_value_parameter].type;
+  notify_parameter = notify_function_type->first_parameter;
+  notify_value_parameter = notify_parameter + 1u;
+  three_parameter = three_function_type->first_parameter;
+  three_argument = three_parameter + 1u;
+  instructions = ir->instructions;
+  if (definition->binding != function_binding ||
+      ir->functions[0].binding != function_binding ||
+      ir->functions[0].declared_type != definition->declared_type ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 6u ||
+      ir->functions[0].maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != callback_type ||
+      instructions[0].reference != callback_parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != callback_type ||
+      instructions[1].input_type != callback_type ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != value_type ||
+      instructions[2].reference != value_parameter ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != value_type ||
+      instructions[3].input_type != value_type ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+      instructions[4].type != value_type ||
+      instructions[4].input_type != callback_type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[4].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[4].reference != CTOOL_C_AST_NONE ||
+      instructions[4].integer_bits != 0u ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      address_definition->binding != address_binding ||
+      address_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      address_function_type->parameter_count != 0u ||
+      ir->functions[1].binding != address_binding ||
+      ir->functions[1].declared_type != address_definition->declared_type ||
+      ir->functions[1].first_instruction != 6u ||
+      ir->functions[1].instruction_count != 3u ||
+      ir->functions[1].maximum_stack_depth != 1u ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS ||
+      instructions[6].type != unit->bindings[target_binding].type ||
+      instructions[6].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[6].reference != target_binding ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER ||
+      instructions[7].input_type != unit->bindings[target_binding].type ||
+      instructions[7].conversion != CTOOL_C_CONVERSION_FUNCTION_TO_POINTER ||
+      instructions[7].reference != CTOOL_C_AST_NONE ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[8].type != address_function_type->referenced_type ||
+      instructions[8].input_type != instructions[7].type ||
+      !pointer_value_query_matches(
+          job, unit, instructions[7].type,
+          address_function_type->referenced_type, CTOOL_TRUE) ||
+      explicit_address_definition->binding != explicit_address_binding ||
+      explicit_address_function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      explicit_address_function_type->parameter_count != 0u ||
+      ir->functions[2].binding != explicit_address_binding ||
+      ir->functions[2].declared_type !=
+          explicit_address_definition->declared_type ||
+      ir->functions[2].first_instruction != 9u ||
+      ir->functions[2].instruction_count != 3u ||
+      ir->functions[2].maximum_stack_depth != 1u ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS ||
+      instructions[9].type != unit->bindings[target_binding].type ||
+      instructions[9].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[9].reference != target_binding ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_ADDRESS_OF ||
+      instructions[10].input_type != instructions[9].type ||
+      instructions[10].operation != CTOOL_C_EXPRESSION_OPERATOR_ADDRESS ||
+      instructions[10].reference != CTOOL_C_AST_NONE ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[11].type !=
+          explicit_address_function_type->referenced_type ||
+      instructions[11].input_type != instructions[10].type ||
+      !pointer_value_query_matches(
+          job, unit, instructions[10].type,
+          explicit_address_function_type->referenced_type, CTOOL_TRUE) ||
+      dereference_definition->binding != dereference_binding ||
+      ir->functions[3].binding != dereference_binding ||
+      ir->functions[3].declared_type != dereference_definition->declared_type ||
+      ir->functions[3].first_instruction != 12u ||
+      ir->functions[3].instruction_count != 8u ||
+      ir->functions[3].maximum_stack_depth != 2u ||
+      instructions[12].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[12].type != dereference_callback_type ||
+      instructions[12].reference != dereference_callback_parameter ||
+      instructions[13].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[13].type != dereference_callback_type ||
+      instructions[13].input_type != dereference_callback_type ||
+      instructions[14].kind != CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+      instructions[14].input_type != dereference_callback_type ||
+      instructions[14].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE ||
+      instructions[15].kind !=
+          CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER ||
+      instructions[15].input_type != instructions[14].type ||
+      instructions[15].conversion !=
+          CTOOL_C_CONVERSION_FUNCTION_TO_POINTER ||
+      instructions[16].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[16].type != dereference_value_type ||
+      instructions[16].reference != dereference_value_parameter ||
+      instructions[17].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[17].type != dereference_value_type ||
+      instructions[17].input_type != dereference_value_type ||
+      instructions[18].kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+      instructions[18].type != dereference_value_type ||
+      instructions[18].input_type != instructions[15].type ||
+      instructions[18].reference != CTOOL_C_AST_NONE ||
+      instructions[19].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[19].type != dereference_value_type ||
+      instructions[19].input_type != dereference_value_type ||
+      notify_definition->binding != notify_binding ||
+      ir->functions[4].binding != notify_binding ||
+      ir->functions[4].declared_type != notify_definition->declared_type ||
+      ir->functions[4].first_instruction != 20u ||
+      ir->functions[4].instruction_count != 6u ||
+      ir->functions[4].maximum_stack_depth != 2u ||
+      instructions[20].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[20].type != unit->parameters[notify_parameter].type ||
+      instructions[20].reference != notify_parameter ||
+      instructions[21].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[21].type != unit->parameters[notify_parameter].type ||
+      instructions[22].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[22].type !=
+          unit->parameters[notify_value_parameter].type ||
+      instructions[22].reference != notify_value_parameter ||
+      instructions[23].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[24].kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+      instructions[24].type != notify_function_type->referenced_type ||
+      instructions[24].input_type !=
+          unit->parameters[notify_parameter].type ||
+      instructions[25].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      three_definition->binding != three_binding ||
+      ir->functions[5].binding != three_binding ||
+      ir->functions[5].declared_type != three_definition->declared_type ||
+      ir->functions[5].first_instruction != 26u ||
+      ir->functions[5].instruction_count != 10u ||
+      ir->functions[5].maximum_stack_depth != 4u ||
+      instructions[26].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[26].type != unit->parameters[three_parameter].type ||
+      instructions[26].reference != three_parameter ||
+      instructions[27].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[28].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[28].reference != three_argument ||
+      instructions[29].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[30].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[30].reference != three_argument + 1u ||
+      instructions[31].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[32].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[32].reference != three_argument + 2u ||
+      instructions[33].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[34].kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+      instructions[34].type != three_function_type->referenced_type ||
+      instructions[34].input_type != unit->parameters[three_parameter].type ||
+      instructions[35].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[35].type != three_function_type->referenced_type ||
+      instructions[35].input_type != three_function_type->referenced_type ||
+      ir_instruction_fingerprint(ir) != UINT64_C(0x859a99312600f810)) {
+    ctool_u32 index;
+    (void)fprintf(stderr,
+                  "function pointer call IR differs: slices %u/%u and %u/%u, "
+                  "depths %u/%u, fingerprint %016llx\n",
+                  (unsigned int)ir->functions[0].first_instruction,
+                  (unsigned int)ir->functions[0].instruction_count,
+                  (unsigned int)ir->functions[1].first_instruction,
+                  (unsigned int)ir->functions[1].instruction_count,
+                  (unsigned int)ir->functions[0].maximum_stack_depth,
+                  (unsigned int)ir->functions[1].maximum_stack_depth,
+                  (unsigned long long)ir_instruction_fingerprint(ir));
+    for (index = 0u; index < ir->instruction_count; index++) {
+      (void)fprintf(
+          stderr,
+          "%u: kind=%u type=%u input=%u op=%u conversion=%u ref=%u\n",
+          (unsigned int)index,
+          (unsigned int)ir->instructions[index].kind,
+          (unsigned int)ir->instructions[index].type,
+          (unsigned int)ir->instructions[index].input_type,
+          (unsigned int)ir->instructions[index].operation,
+          (unsigned int)ir->instructions[index].conversion,
+          (unsigned int)ir->instructions[index].reference);
+    }
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_function_pointer_value_ir(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const function_names[] = {
+      "round_trip",       "select_callback", "callbacks_equal",
+      "callback_missing", "callback_present", "install_target",
+      "forward_callback"};
+  static const ctool_u32 first_instructions[] = {0u, 12u, 21u, 27u,
+                                                 33u, 38u, 46u};
+  static const ctool_u32 instruction_counts[] = {12u, 9u, 6u, 6u,
+                                                 5u,  8u, 4u};
+  static const ctool_u32 maximum_depths[] = {2u, 1u, 2u, 2u,
+                                             1u, 2u, 1u};
+  static const ctool_c_ir_instruction_kind_t expected_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_STORE,
+      CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_DISCARD,
+      CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_JUMP,
+      CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_INTEGER,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_UNARY,
+      CTOOL_C_IR_INSTRUCTION_UNARY,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_DISCARD,
+      CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  const ctool_c_initializer_t *initializer;
+  ctool_u32 stored_binding = find_binding(unit, "stored_callback");
+  ctool_u32 target_binding = find_binding(unit, "target");
+  ctool_u32 use_binding = find_binding(unit, "use_callback");
+  ctool_u32 object_definition = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  if (unit->function_definition_count != 7u || ir->function_count != 7u ||
+      ir->instruction_count != 50u || ir->functions == NULL ||
+      ir->instructions == NULL || unit->object_definition_count != 1u ||
+      unit->initializer_count != 2u || stored_binding == CTOOL_C_AST_NONE ||
+      target_binding == CTOOL_C_AST_NONE || use_binding == CTOOL_C_AST_NONE ||
+      (ctool_u32)(sizeof(expected_kinds) / sizeof(expected_kinds[0])) !=
+          ir->instruction_count) {
+    (void)fprintf(stderr,
+                  "function pointer value IR inventory differs: functions "
+                  "%u/%u, instructions %u, objects %u, initializers %u\n",
+                  (unsigned int)unit->function_definition_count,
+                  (unsigned int)ir->function_count,
+                  (unsigned int)ir->instruction_count,
+                  (unsigned int)unit->object_definition_count,
+                  (unsigned int)unit->initializer_count);
+    return 0;
+  }
+  for (index = 0u; index < unit->object_definition_count; index++) {
+    if (unit->object_definitions[index].binding == stored_binding) {
+      object_definition = index;
+      break;
+    }
+  }
+  if (object_definition == CTOOL_C_AST_NONE ||
+      unit->object_definitions[object_definition].initializer >=
+          unit->initializer_count) {
+    (void)fprintf(stderr, "stored callback definition differs\n");
+    return 0;
+  }
+  initializer =
+      &unit->initializers
+           [unit->object_definitions[object_definition].initializer];
+  if (initializer->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      initializer->type != unit->bindings[stored_binding].type ||
+      initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_BINDING ||
+      initializer->address_reference != target_binding ||
+      initializer->address_addend != 0) {
+    (void)fprintf(stderr, "stored callback initializer differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    ctool_u32 binding = find_binding(unit, function_names[index]);
+    if (binding == CTOOL_C_AST_NONE ||
+        unit->function_definitions[index].binding != binding ||
+        ir->functions[index].binding != binding ||
+        ir->functions[index].declared_type !=
+            unit->function_definitions[index].declared_type ||
+        ir->functions[index].first_instruction != first_instructions[index] ||
+        ir->functions[index].instruction_count != instruction_counts[index] ||
+        ir->functions[index].maximum_stack_depth != maximum_depths[index]) {
+      (void)fprintf(stderr, "function pointer value slice %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind != expected_kinds[index]) {
+      (void)fprintf(stderr, "function pointer instruction %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  if (ir->instructions[25].operation != CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+      ir->instructions[31].operation != CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+      ir->instructions[30].conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+      ir->instructions[35].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT ||
+      ir->instructions[36].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT ||
+      ir->instructions[39].reference != target_binding ||
+      ir->instructions[48].reference != use_binding ||
+      ir->instructions[48].input_type != unit->bindings[use_binding].type ||
+      !pointer_value_query_matches(
+          job, unit, ir->instructions[30].type,
+          ir->instructions[28].type, CTOOL_TRUE) ||
+      ir_instruction_fingerprint(ir) != UINT64_C(0x2ea1d26a05bc88aa)) {
+    (void)fprintf(stderr,
+                  "function pointer value semantics differ: fingerprint "
+                  "%016llx\n",
+                  (unsigned long long)ir_instruction_fingerprint(ir));
+    return 0;
+  }
+  return 1;
+}
+
+static int append_callback_relation_layer(
+    char *source, size_t capacity, size_t *used,
+    const char *name, unsigned int level) {
+  int written = snprintf(
+      source + *used, capacity - *used,
+      "typedef int (*%s%u_t)(%s%u_t, %s%u_t);\n",
+      name, level, name, level - 1u, name, level - 1u);
+  if (written < 0 || (size_t)written >= capacity - *used) {
+    return 0;
+  }
+  *used += (size_t)written;
+  return 1;
+}
+
+static int validate_function_pointer_relation_worklist(
+    const char *host_root, ctool_job_t *job) {
+  char source[8192];
+  char left_name[32];
+  char right_name[32];
+  char different_name[32];
+  ctool_c_translation_unit_t unit;
+  ctool_host_adapter_t limited_adapter;
+  ctool_job_t *limited_job = NULL;
+  ctool_u32 left_binding;
+  ctool_u32 right_binding;
+  ctool_u32 different_binding;
+  ctool_u32 left_type;
+  ctool_u32 right_type;
+  ctool_u32 different_type;
+  ctool_bool compatible = CTOOL_TRUE;
+  ctool_arena_mark_t mark;
+  ctool_status_t status;
+  size_t used;
+  unsigned int level;
+  int written = snprintf(
+      source, sizeof(source),
+      "typedef int (*left0_t)(int);\n"
+      "typedef int (*right0_t)(int);\n"
+      "typedef int (*different0_t)(unsigned);\n");
+  if (written < 0 || (size_t)written >= sizeof(source)) {
+    return 0;
+  }
+  used = (size_t)written;
+  for (level = 1u; level <= 24u; level++) {
+    if (!append_callback_relation_layer(
+            source, sizeof(source), &used, "left", level) ||
+        !append_callback_relation_layer(
+            source, sizeof(source), &used, "right", level) ||
+        !append_callback_relation_layer(
+            source, sizeof(source), &used, "different", level)) {
+      return 0;
+    }
+  }
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!parse_source(job, "/function-pointer-relation-worklist.c", source,
+                    &unit)) {
+    return 0;
+  }
+  if (snprintf(left_name, sizeof(left_name), "left%u_t", level - 1u) < 0 ||
+      snprintf(right_name, sizeof(right_name), "right%u_t", level - 1u) <
+          0 ||
+      snprintf(different_name, sizeof(different_name), "different%u_t",
+               level - 1u) < 0) {
+    return 0;
+  }
+  left_binding = find_binding(&unit, left_name);
+  right_binding = find_binding(&unit, right_name);
+  different_binding = find_binding(&unit, different_name);
+  if (left_binding == CTOOL_C_AST_NONE ||
+      right_binding == CTOOL_C_AST_NONE ||
+      different_binding == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  left_type = unit.bindings[left_binding].type;
+  right_type = unit.bindings[right_binding].type;
+  different_type = unit.bindings[different_binding].type;
+  if (left_type == right_type || left_type == different_type ||
+      unit.graph.types[left_type].kind != CTOOL_C_TYPE_POINTER ||
+      unit.graph.types[right_type].kind != CTOOL_C_TYPE_POINTER ||
+      unit.graph.types[left_type].referenced_type ==
+          unit.graph.types[right_type].referenced_type ||
+      !pointer_value_query_matches(
+          job, &unit, left_type, right_type, CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &unit, right_type, left_type, CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &unit, left_type, different_type, CTOOL_FALSE)) {
+    (void)fprintf(stderr, "function pointer relation worklist differs\n");
+    return 0;
+  }
+  if (!open_limited_job(host_root, &limited_adapter, &limited_job)) {
+    return 0;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(limited_job));
+  status = ctool_c_ir_pointer_value_types_compatible(
+      limited_job, &unit, left_type, right_type, &compatible);
+  if (status != CTOOL_ERR_LIMIT || compatible != CTOOL_FALSE ||
+      arena_marks_equal(
+          mark, ctool_arena_mark(ctool_job_arena(limited_job))) == 0) {
+    (void)fprintf(stderr,
+                  "function pointer relation limit rollback differs\n");
+    ctool_job_close(limited_job);
+    return 0;
+  }
+  ctool_job_close(limited_job);
+  return 1;
+}
+
+static int run_function_pointers(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t value_unit;
+  ctool_c_translation_unit_t variadic_unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t cast_unit;
+  ctool_c_translation_unit_t qualification_unit;
+  ctool_c_translation_unit_t malformed_qualification_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t value_ir;
+  ctool_u64 fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_u32 relational_expression = CTOOL_C_AST_NONE;
+  ctool_u32 plain_callback;
+  ctool_u32 qualified_parameter_callback;
+  ctool_u32 atomic_parameter_callback;
+  ctool_u32 plain_pointer_callback;
+  ctool_u32 restrict_parameter_callback;
+  ctool_u32 qualified_referent_callback;
+  ctool_u32 old_style_callback;
+  ctool_u32 promoted_parameter_callback;
+  ctool_u32 promoted_char_callback;
+  ctool_bool query_result = CTOOL_TRUE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&value_unit, 0, sizeof(value_unit));
+  (void)memset(&variadic_unit, 0, sizeof(variadic_unit));
+  (void)memset(&wide_unit, 0, sizeof(wide_unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&cast_unit, 0, sizeof(cast_unit));
+  (void)memset(&qualification_unit, 0, sizeof(qualification_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/function-pointer-call.c",
+                    function_pointer_call_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "function pointer call lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_function_pointer_call_ir(job, &unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/function-pointer-values.c",
+                    function_pointer_value_source, &value_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&value_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&value_ir, 0xa5, sizeof(value_ir));
+  status = ctool_c_lower_ir(job, &value_unit, &value_ir);
+  if (!check_status(status, CTOOL_OK, "function pointer value lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&value_unit) != fingerprint ||
+      !validate_function_pointer_value_ir(job, &value_unit, &value_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < value_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &value_unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+      relational_expression = index;
+      break;
+    }
+  }
+  if (relational_expression == CTOOL_C_AST_NONE ||
+      value_unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)value_unit.expression_count) {
+    (void)fprintf(stderr, "function pointer rejection fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)value_unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "function pointer rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, value_unit.expressions,
+               (size_t)value_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_unit = value_unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[relational_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_LESS;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "function pointer relational comparison")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/variadic-function-pointer.c",
+                    variadic_function_pointer_source, &variadic_unit) ||
       !expect_ir_failure_preserves_unit(
-          job, &function_pointer_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic cdecl "
-          "functions with 32-bit scalar parameters and void or 32-bit "
-          "scalar results",
-          "function pointer parameter")) {
+          job, &variadic_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "32-bit scalar arguments and void or 32-bit scalar results",
+          "variadic indirect call")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-function-pointer.c",
+                    wide_function_pointer_source, &wide_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "32-bit scalar arguments and void or 32-bit scalar results",
+          "wide indirect call")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-function-pointer.c",
+                    atomic_function_pointer_source, &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic function pointer load")) {
+    goto cleanup;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_pointer_cast_sources) /
+                           sizeof(function_pointer_cast_sources[0]));
+       index++) {
+    (void)memset(&cast_unit, 0, sizeof(cast_unit));
+    if (!parse_source(job, function_pointer_cast_paths[index],
+                      function_pointer_cast_sources[index], &cast_unit) ||
+        !expect_ir_failure_preserves_unit(
+            job, &cast_unit, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+            "CupidC IR lowering does not yet support this conversion",
+            "explicit function pointer cast")) {
+      goto cleanup;
+    }
+  }
+  if (!parse_source(job, "/function-pointer-qualification.c",
+                    function_pointer_qualification_source,
+                    &qualification_unit)) {
+    goto cleanup;
+  }
+  plain_callback = find_binding(&qualification_unit, "plain_callback_t");
+  qualified_parameter_callback = find_binding(
+      &qualification_unit, "qualified_parameter_callback_t");
+  atomic_parameter_callback =
+      find_binding(&qualification_unit, "atomic_parameter_callback_t");
+  plain_pointer_callback =
+      find_binding(&qualification_unit, "plain_pointer_callback_t");
+  restrict_parameter_callback = find_binding(
+      &qualification_unit, "restrict_parameter_callback_t");
+  qualified_referent_callback = find_binding(
+      &qualification_unit, "qualified_referent_callback_t");
+  old_style_callback =
+      find_binding(&qualification_unit, "old_style_callback_t");
+  promoted_parameter_callback = find_binding(
+      &qualification_unit, "promoted_parameter_callback_t");
+  promoted_char_callback =
+      find_binding(&qualification_unit, "promoted_char_callback_t");
+  malformed_qualification_unit = qualification_unit;
+  malformed_qualification_unit.graph.parameter_types = NULL;
+  if (plain_callback == CTOOL_C_AST_NONE ||
+      qualified_parameter_callback == CTOOL_C_AST_NONE ||
+      atomic_parameter_callback == CTOOL_C_AST_NONE ||
+      plain_pointer_callback == CTOOL_C_AST_NONE ||
+      restrict_parameter_callback == CTOOL_C_AST_NONE ||
+      qualified_referent_callback == CTOOL_C_AST_NONE ||
+      old_style_callback == CTOOL_C_AST_NONE ||
+      promoted_parameter_callback == CTOOL_C_AST_NONE ||
+      promoted_char_callback == CTOOL_C_AST_NONE ||
+      qualification_unit.graph.parameter_type_count == 0u ||
+      ctool_c_ir_pointer_value_types_compatible(
+          NULL, &qualification_unit,
+          qualification_unit.bindings[plain_callback].type,
+          qualification_unit.bindings[qualified_parameter_callback].type,
+          &query_result) != CTOOL_ERR_INVALID_ARGUMENT ||
+      query_result != CTOOL_TRUE ||
+      ctool_c_ir_pointer_value_types_compatible(
+          job, &qualification_unit,
+          qualification_unit.bindings[plain_callback].type,
+          qualification_unit.bindings[qualified_parameter_callback].type,
+          NULL) != CTOOL_ERR_INVALID_ARGUMENT ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[plain_callback].type,
+          qualification_unit.bindings[qualified_parameter_callback].type,
+          CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[qualified_parameter_callback].type,
+          qualification_unit.bindings[plain_callback].type, CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[plain_callback].type,
+          qualification_unit.bindings[atomic_parameter_callback].type,
+          CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[atomic_parameter_callback].type,
+          qualification_unit.bindings[plain_callback].type, CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[plain_pointer_callback].type,
+          qualification_unit.bindings[restrict_parameter_callback].type,
+          CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[restrict_parameter_callback].type,
+          qualification_unit.bindings[plain_pointer_callback].type,
+          CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[plain_pointer_callback].type,
+          qualification_unit.bindings[qualified_referent_callback].type,
+          CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[qualified_referent_callback].type,
+          qualification_unit.bindings[plain_pointer_callback].type,
+          CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[old_style_callback].type,
+          qualification_unit.bindings[promoted_parameter_callback].type,
+          CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[promoted_parameter_callback].type,
+          qualification_unit.bindings[old_style_callback].type,
+          CTOOL_TRUE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[old_style_callback].type,
+          qualification_unit.bindings[promoted_char_callback].type,
+          CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &qualification_unit,
+          qualification_unit.bindings[promoted_char_callback].type,
+          qualification_unit.bindings[old_style_callback].type,
+          CTOOL_FALSE) ||
+      !pointer_value_query_matches(
+          job, &malformed_qualification_unit,
+          qualification_unit.bindings[plain_callback].type,
+          qualification_unit.bindings[qualified_parameter_callback].type,
+          CTOOL_FALSE) ||
+      !validate_function_pointer_relation_worklist(host_root, job)) {
+    (void)fprintf(stderr,
+                  "function pointer parameter qualification differs\n");
     goto cleanup;
   }
   passed = 1;
@@ -10754,7 +11753,7 @@ cleanup:
     ctool_job_close(job);
   }
   if (passed != 0) {
-    (void)puts("pointer-values: ok");
+    (void)puts("function-pointers: ok");
     return 0;
   }
   return 1;
@@ -11336,8 +12335,8 @@ cleanup:
 }
 
 static int validate_ata_and_pointer_update_ir(
-    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
-    ctool_u32 first_instruction) {
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 first_instruction) {
   static const ctool_u32 referent_sizes[] = {2u, 2u, 4u, 4u};
   static const ctool_u32 parameter_columns[] = {55u, 68u, 45u, 46u};
   static const ctool_u32 operation_columns[] = {59u, 72u, 52u, 44u};
@@ -11369,8 +12368,8 @@ static int validate_ata_and_pointer_update_ir(
     result_type = function_type->referenced_type;
     if (parameter_type >= unit->graph.type_count ||
         result_type >= unit->graph.type_count ||
-        ctool_c_ir_pointer_value_types_compatible(
-            unit, parameter_type, result_type) == CTOOL_FALSE) {
+        !pointer_value_query_matches(
+            job, unit, parameter_type, result_type, CTOOL_TRUE)) {
       return 0;
     }
     pointer_type = &unit->graph.types[parameter_type];
@@ -11448,7 +12447,8 @@ static int validate_ata_and_pointer_update_ir(
 }
 
 static int validate_pointer_arithmetic_ir(
-    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
   static const char *const function_names[] = {
       "advance",      "reverse_add",      "retreat", "distance",
       "read_index",   "read_reverse",     "global_start",
@@ -11720,15 +12720,15 @@ static int validate_pointer_arithmetic_ir(
     (void)fprintf(stderr, "pointer arithmetic IR inventory differs\n");
     return 0;
   }
-  if (ctool_c_ir_pointer_arithmetic_types_compatible(
-          unit, ir->instructions[22].input_type,
-          ir->instructions[22].reference) == CTOOL_FALSE ||
-      ctool_c_ir_pointer_arithmetic_types_compatible(
-          unit, ir->instructions[4].input_type,
-          ir->instructions[4].reference) != CTOOL_FALSE ||
-      ctool_c_ir_pointer_arithmetic_types_compatible(
-          NULL, ir->instructions[22].input_type,
-          ir->instructions[22].reference) != CTOOL_FALSE) {
+  if (!pointer_arithmetic_query_matches(
+          job, unit, ir->instructions[22].input_type,
+          ir->instructions[22].reference, CTOOL_TRUE) ||
+      !pointer_arithmetic_query_matches(
+          job, unit, ir->instructions[4].input_type,
+          ir->instructions[4].reference, CTOOL_FALSE) ||
+      !pointer_arithmetic_query_matches(
+          job, NULL, ir->instructions[22].input_type,
+          ir->instructions[22].reference, CTOOL_FALSE)) {
     (void)fprintf(stderr, "pointer arithmetic type query differs\n");
     return 0;
   }
@@ -11763,11 +12763,12 @@ static int validate_pointer_arithmetic_ir(
       return 0;
     }
   }
-  return validate_ata_and_pointer_update_ir(unit, ir, 83u);
+  return validate_ata_and_pointer_update_ir(job, unit, ir, 83u);
 }
 
 static int validate_qualified_array_decay_ir(
-    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
   const ctool_c_ir_instruction_t *instructions;
   ctool_u32 array_binding = find_binding(unit, "const_values");
   ctool_u32 function_binding = find_binding(unit, "const_start");
@@ -11789,12 +12790,12 @@ static int validate_qualified_array_decay_ir(
   array_type = unit->bindings[array_binding].type;
   pointer_type = instructions[1].type;
   unqualified_pointer_type = unit->bindings[unqualified_binding].type;
-  if (ctool_c_ir_array_decay_types_compatible(unit, array_type,
-                                               pointer_type) == CTOOL_FALSE ||
-      ctool_c_ir_array_decay_types_compatible(
-          unit, array_type, unqualified_pointer_type) != CTOOL_FALSE ||
-      ctool_c_ir_array_decay_types_compatible(
-          NULL, array_type, pointer_type) != CTOOL_FALSE ||
+  if (!array_decay_query_matches(
+          job, unit, array_type, pointer_type, CTOOL_TRUE) ||
+      !array_decay_query_matches(
+          job, unit, array_type, unqualified_pointer_type, CTOOL_FALSE) ||
+      !array_decay_query_matches(
+          job, NULL, array_type, pointer_type, CTOOL_FALSE) ||
       ir->functions[0].binding != function_binding ||
       ir->functions[0].first_instruction != 0u ||
       ir->functions[0].instruction_count != 3u ||
@@ -11835,7 +12836,8 @@ static int validate_qualified_array_decay_ir(
 }
 
 static int validate_qualified_pointer_update_ir(
-    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
   const ctool_c_ir_instruction_t *instructions;
   ctool_u32 cursor_binding = find_binding(unit, "cursor");
   ctool_u32 function_binding = find_binding(unit, "advance_volatile");
@@ -11855,8 +12857,8 @@ static int validate_qualified_pointer_update_ir(
   object_type = unit->bindings[cursor_binding].type;
   value_type = instructions[2].type;
   integer_type = instructions[3].type;
-  if (ctool_c_ir_pointer_value_types_compatible(
-          unit, object_type, value_type) == CTOOL_FALSE ||
+  if (!pointer_value_query_matches(
+          job, unit, object_type, value_type, CTOOL_TRUE) ||
       ir->functions[0].binding != function_binding ||
       ir->functions[0].first_instruction != 0u ||
       ir->functions[0].instruction_count != 9u ||
@@ -11945,7 +12947,7 @@ static int run_pointer_arithmetic(const char *host_root) {
   (void)memset(&ir, 0xa5, sizeof(ir));
   status = ctool_c_lower_ir(job, &unit, &ir);
   if (!check_status(status, CTOOL_OK, "object-pointer arithmetic lowering") ||
-      !validate_pointer_arithmetic_ir(&unit, &ir)) {
+      !validate_pointer_arithmetic_ir(job, &unit, &ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -11956,7 +12958,8 @@ static int run_pointer_arithmetic(const char *host_root) {
   }
   status = ctool_c_lower_ir(job, &qualified_unit, &qualified_ir);
   if (!check_status(status, CTOOL_OK, "qualified array decay lowering") ||
-      !validate_qualified_array_decay_ir(&qualified_unit, &qualified_ir)) {
+      !validate_qualified_array_decay_ir(
+          job, &qualified_unit, &qualified_ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -12010,8 +13013,8 @@ static int run_pointer_arithmetic(const char *host_root) {
   status = ctool_c_lower_ir(job, &qualified_pointer_unit,
                             &qualified_pointer_ir);
   if (!check_status(status, CTOOL_OK, "qualified pointer update lowering") ||
-      !validate_qualified_pointer_update_ir(&qualified_pointer_unit,
-                                            &qualified_pointer_ir)) {
+      !validate_qualified_pointer_update_ir(
+          job, &qualified_pointer_unit, &qualified_pointer_ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -12131,6 +13134,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "pointer-arithmetic") == 0) {
     return run_pointer_arithmetic(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "function-pointers") == 0) {
+    return run_function_pointers(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -12139,7 +13145,7 @@ int main(int argc, char **argv) {
                 "integer-update-conversions|"
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic "
+                "pointer-arithmetic|function-pointers "
                 "HOST_ROOT\n");
   return 2;
 }
