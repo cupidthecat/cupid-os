@@ -152,6 +152,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "integer-update-conversions: ok\n")
 
+    def test_narrow_integer_mutation_uses_promoted_arithmetic(self):
+        result = subprocess.run(
+            [str(self.contract_path), "narrow-mutations", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "narrow-mutations: ok\n")
+
     def test_integer_mutation_rejects_unsupported_targets_transactionally(self):
         result = subprocess.run(
             [

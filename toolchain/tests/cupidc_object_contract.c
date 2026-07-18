@@ -9412,6 +9412,768 @@ static int validate_narrow_value_object(
   return 1;
 }
 
+#define NARROW_ORACLE_MEMORY_SIZE 256u
+#define NARROW_ORACLE_INITIAL_ESP 192u
+#define NARROW_ORACLE_EAX 0u
+#define NARROW_ORACLE_ESP 4u
+#define NARROW_ORACLE_EBP 5u
+
+typedef struct {
+  ctool_u32 registers[8];
+  ctool_u8 memory[NARROW_ORACLE_MEMORY_SIZE];
+} narrow_oracle_machine_t;
+
+typedef struct {
+  ctool_u8 parent;
+  ctool_u8 shift;
+  ctool_u16 width_bits;
+  ctool_u32 mask;
+} narrow_oracle_register_lane_t;
+
+static int narrow_oracle_memory_range(ctool_u32 address, ctool_u32 width) {
+  return address <= NARROW_ORACLE_MEMORY_SIZE &&
+                 width <= NARROW_ORACLE_MEMORY_SIZE - address
+             ? 1
+             : 0;
+}
+
+static int narrow_oracle_read_memory(const narrow_oracle_machine_t *machine,
+                                     ctool_u32 address, ctool_u16 width_bits,
+                                     ctool_u32 *value) {
+  ctool_u32 width = (ctool_u32)width_bits / 8u;
+  ctool_u32 result = 0u;
+  ctool_u32 index;
+  if (machine == NULL || value == NULL ||
+      (width_bits != 8u && width_bits != 16u && width_bits != 32u) ||
+      !narrow_oracle_memory_range(address, width)) {
+    return 0;
+  }
+  for (index = 0u; index < width; index++) {
+    result |= (ctool_u32)machine->memory[address + index] << (index * 8u);
+  }
+  *value = result;
+  return 1;
+}
+
+static int narrow_oracle_write_memory(narrow_oracle_machine_t *machine,
+                                      ctool_u32 address,
+                                      ctool_u16 width_bits,
+                                      ctool_u32 value) {
+  ctool_u32 width = (ctool_u32)width_bits / 8u;
+  ctool_u32 index;
+  if (machine == NULL ||
+      (width_bits != 8u && width_bits != 16u && width_bits != 32u) ||
+      !narrow_oracle_memory_range(address, width)) {
+    return 0;
+  }
+  for (index = 0u; index < width; index++) {
+    machine->memory[address + index] =
+        (ctool_u8)(value >> (index * 8u));
+  }
+  return 1;
+}
+
+static int narrow_oracle_register_lane(
+    ctool_x86_reg_t reg, narrow_oracle_register_lane_t *lane) {
+  if (lane == NULL || reg.index >= 8u) {
+    return 0;
+  }
+  lane->parent = reg.index;
+  lane->shift = 0u;
+  if (reg.class_id == CTOOL_X86_REG_GPR32) {
+    lane->width_bits = 32u;
+    lane->mask = 0xffffffffu;
+    return 1;
+  }
+  if (reg.class_id == CTOOL_X86_REG_GPR16) {
+    lane->width_bits = 16u;
+    lane->mask = 0xffffu;
+    return 1;
+  }
+  if (reg.class_id == CTOOL_X86_REG_GPR8) {
+    lane->width_bits = 8u;
+    lane->mask = 0xffu;
+    if (reg.index >= 4u) {
+      lane->parent = (ctool_u8)(reg.index - 4u);
+      lane->shift = 8u;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+static int narrow_oracle_read_register(const narrow_oracle_machine_t *machine,
+                                       ctool_x86_reg_t reg,
+                                       ctool_u32 *value) {
+  narrow_oracle_register_lane_t lane;
+  if (machine == NULL || value == NULL ||
+      !narrow_oracle_register_lane(reg, &lane)) {
+    return 0;
+  }
+  *value = (machine->registers[lane.parent] >> lane.shift) & lane.mask;
+  return 1;
+}
+
+static int narrow_oracle_write_register(narrow_oracle_machine_t *machine,
+                                        ctool_x86_reg_t reg,
+                                        ctool_u32 value) {
+  narrow_oracle_register_lane_t lane;
+  ctool_u32 shifted_mask;
+  if (machine == NULL || !narrow_oracle_register_lane(reg, &lane)) {
+    return 0;
+  }
+  shifted_mask = lane.mask << lane.shift;
+  machine->registers[lane.parent] =
+      (machine->registers[lane.parent] & ~shifted_mask) |
+      ((value & lane.mask) << lane.shift);
+  return 1;
+}
+
+static int narrow_oracle_memory_address(
+    const narrow_oracle_machine_t *machine,
+    const ctool_x86_memory_t *memory, ctool_u32 *address) {
+  ctool_u32 result;
+  ctool_u32 register_value;
+  if (machine == NULL || memory == NULL || address == NULL ||
+      memory->address_bits != 32u ||
+      memory->segment.class_id != CTOOL_X86_REG_NONE ||
+      memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT) {
+    return 0;
+  }
+  result = memory->displacement.bits +
+           (ctool_u32)memory->displacement.addend;
+  if (memory->base.class_id != CTOOL_X86_REG_NONE) {
+    if (memory->base.class_id != CTOOL_X86_REG_GPR32 ||
+        !narrow_oracle_read_register(machine, memory->base,
+                                     &register_value)) {
+      return 0;
+    }
+    result += register_value;
+  }
+  if (memory->index.class_id != CTOOL_X86_REG_NONE) {
+    if (memory->index.class_id != CTOOL_X86_REG_GPR32 ||
+        !narrow_oracle_read_register(machine, memory->index,
+                                     &register_value) ||
+        (memory->scale != 1u && memory->scale != 2u &&
+         memory->scale != 4u && memory->scale != 8u)) {
+      return 0;
+    }
+    result += register_value * (ctool_u32)memory->scale;
+  }
+  *address = result;
+  return 1;
+}
+
+static ctool_u16 narrow_oracle_operand_width(
+    const ctool_x86_operand_t *operand) {
+  if (operand == NULL) {
+    return 0u;
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_REGISTER) {
+    narrow_oracle_register_lane_t lane;
+    return narrow_oracle_register_lane(operand->as.reg, &lane)
+               ? lane.width_bits
+               : 0u;
+  }
+  return operand->width_bits;
+}
+
+static int narrow_oracle_read_operand(const narrow_oracle_machine_t *machine,
+                                      const ctool_x86_operand_t *operand,
+                                      ctool_u32 *value) {
+  ctool_u32 address;
+  if (machine == NULL || operand == NULL || value == NULL) {
+    return 0;
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_REGISTER) {
+    return narrow_oracle_read_register(machine, operand->as.reg, value);
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+      operand->as.value.kind == CTOOL_X86_VALUE_CONSTANT) {
+    *value = operand->as.value.bits + (ctool_u32)operand->as.value.addend;
+    return 1;
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+      narrow_oracle_memory_address(machine, &operand->as.memory, &address)) {
+    return narrow_oracle_read_memory(machine, address, operand->width_bits,
+                                     value);
+  }
+  return 0;
+}
+
+static int narrow_oracle_write_operand(narrow_oracle_machine_t *machine,
+                                       const ctool_x86_operand_t *operand,
+                                       ctool_u32 value) {
+  ctool_u32 address;
+  if (machine == NULL || operand == NULL) {
+    return 0;
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_REGISTER) {
+    return narrow_oracle_write_register(machine, operand->as.reg, value);
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+      narrow_oracle_memory_address(machine, &operand->as.memory, &address)) {
+    return narrow_oracle_write_memory(machine, address, operand->width_bits,
+                                      value);
+  }
+  return 0;
+}
+
+static ctool_u32 narrow_oracle_extend(ctool_u32 value,
+                                      ctool_u16 source_width,
+                                      ctool_bool is_signed) {
+  if (source_width == 8u) {
+    value &= 0xffu;
+    if (is_signed == CTOOL_TRUE && (value & 0x80u) != 0u) {
+      value |= 0xffffff00u;
+    }
+  } else if (source_width == 16u) {
+    value &= 0xffffu;
+    if (is_signed == CTOOL_TRUE && (value & 0x8000u) != 0u) {
+      value |= 0xffff0000u;
+    }
+  }
+  return value;
+}
+
+static int narrow_oracle_step(narrow_oracle_machine_t *machine,
+                              const ctool_x86_instruction_t *instruction,
+                              ctool_bool *returned) {
+  const ctool_x86_operand_t *left;
+  const ctool_x86_operand_t *right;
+  ctool_u32 left_value;
+  ctool_u32 right_value;
+  ctool_u32 address;
+  ctool_u32 stack_pointer;
+  ctool_u16 width;
+  if (machine == NULL || instruction == NULL || returned == NULL) {
+    return 0;
+  }
+  *returned = CTOOL_FALSE;
+  if (instruction->mnemonic == CTOOL_X86_MN_NOP &&
+      instruction->operand_count == 0u) {
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_RET &&
+      instruction->operand_count == 0u) {
+    *returned = CTOOL_TRUE;
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_LEAVE &&
+      instruction->operand_count == 0u) {
+    machine->registers[NARROW_ORACLE_ESP] =
+        machine->registers[NARROW_ORACLE_EBP];
+    stack_pointer = machine->registers[NARROW_ORACLE_ESP];
+    if (!narrow_oracle_read_memory(machine, stack_pointer, 32u,
+                                   &machine->registers[NARROW_ORACLE_EBP])) {
+      return 0;
+    }
+    machine->registers[NARROW_ORACLE_ESP] = stack_pointer + 4u;
+    return 1;
+  }
+  if (instruction->operand_count != 1u &&
+      instruction->operand_count != 2u) {
+    return 0;
+  }
+  left = &instruction->operands[0];
+  right = instruction->operand_count == 2u ? &instruction->operands[1]
+                                            : NULL;
+  if (instruction->mnemonic == CTOOL_X86_MN_PUSH && right == NULL &&
+      narrow_oracle_read_operand(machine, left, &left_value)) {
+    stack_pointer = machine->registers[NARROW_ORACLE_ESP] - 4u;
+    if (!narrow_oracle_write_memory(machine, stack_pointer, 32u,
+                                    left_value)) {
+      return 0;
+    }
+    machine->registers[NARROW_ORACLE_ESP] = stack_pointer;
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_POP && right == NULL) {
+    stack_pointer = machine->registers[NARROW_ORACLE_ESP];
+    if (!narrow_oracle_read_memory(machine, stack_pointer, 32u,
+                                   &left_value) ||
+        !narrow_oracle_write_operand(machine, left, left_value)) {
+      return 0;
+    }
+    machine->registers[NARROW_ORACLE_ESP] = stack_pointer + 4u;
+    return 1;
+  }
+  if (right == NULL) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_LEA &&
+      right->kind == CTOOL_X86_OPERAND_MEMORY &&
+      narrow_oracle_memory_address(machine, &right->as.memory, &address)) {
+    return narrow_oracle_write_operand(machine, left, address);
+  }
+  if (!narrow_oracle_read_operand(machine, right, &right_value)) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_MOV) {
+    return narrow_oracle_write_operand(machine, left, right_value);
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_MOVSX ||
+      instruction->mnemonic == CTOOL_X86_MN_MOVZX) {
+    width = narrow_oracle_operand_width(right);
+    if (width != 8u && width != 16u) {
+      return 0;
+    }
+    return narrow_oracle_write_operand(
+        machine, left,
+        narrow_oracle_extend(
+            right_value, width,
+            instruction->mnemonic == CTOOL_X86_MN_MOVSX ? CTOOL_TRUE
+                                                         : CTOOL_FALSE));
+  }
+  if (!narrow_oracle_read_operand(machine, left, &left_value)) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_ADD) {
+    left_value += right_value;
+  } else if (instruction->mnemonic == CTOOL_X86_MN_SUB) {
+    left_value -= right_value;
+  } else if (instruction->mnemonic == CTOOL_X86_MN_AND) {
+    left_value &= right_value;
+  } else if (instruction->mnemonic == CTOOL_X86_MN_XOR) {
+    left_value ^= right_value;
+  } else {
+    return 0;
+  }
+  return narrow_oracle_write_operand(machine, left, left_value);
+}
+
+static int narrow_oracle_execute(ctool_job_t *job,
+                                 const ctool_elf32_section_t *text,
+                                 const ctool_elf32_symbol_t *symbol,
+                                 ctool_u32 input, ctool_u16 stored_width_bits,
+                                 ctool_u32 *result, ctool_u32 *stored_slot) {
+  narrow_oracle_machine_t machine;
+  ctool_u32 cursor = 0u;
+  ctool_u32 initial_slot;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == NULL || text == NULL || symbol == NULL || result == NULL ||
+      stored_slot == NULL || symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      (stored_width_bits != 8u && stored_width_bits != 16u)) {
+    return 0;
+  }
+  (void)memset(&machine, 0xcd, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = 64u;
+  initial_slot = stored_width_bits == 8u
+                     ? 0xa5b6c700u | (input & 0xffu)
+                     : 0xa5b60000u | (input & 0xffffu);
+  if (!narrow_oracle_write_memory(&machine, NARROW_ORACLE_INITIAL_ESP, 32u,
+                                  0x13579bdfu) ||
+      !narrow_oracle_write_memory(&machine, NARROW_ORACLE_INITIAL_ESP + 4u,
+                                  32u, initial_slot)) {
+    return 0;
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor, symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        !narrow_oracle_step(&machine, &decoded.instruction, &returned)) {
+      (void)fprintf(
+          stderr, "narrow mutation oracle stopped at %u on %s\n",
+          (unsigned int)cursor,
+          status == CTOOL_OK && decoded.kind == CTOOL_X86_DECODE_KNOWN
+              ? ctool_x86_mnemonic_name(decoded.instruction.mnemonic).data
+              : "invalid instruction");
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
+      !narrow_oracle_read_memory(&machine, NARROW_ORACLE_INITIAL_ESP, 32u,
+                                 &initial_slot) ||
+      initial_slot != 0x13579bdfu ||
+      !narrow_oracle_read_memory(&machine, NARROW_ORACLE_INITIAL_ESP + 4u,
+                                 32u, stored_slot)) {
+    return 0;
+  }
+  *result = machine.registers[NARROW_ORACLE_EAX];
+  return 1;
+}
+
+static int validate_narrow_mutation_results(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text) {
+  typedef struct {
+    const char *function_name;
+    ctool_u32 input;
+    ctool_u32 expected_result;
+    ctool_u32 expected_stored_value;
+    ctool_u16 stored_width_bits;
+  } narrow_mutation_case_t;
+  static const narrow_mutation_case_t cases[] = {
+      {"prefix_i8", 0u, 1u, 1u, 8u},
+      {"prefix_i8", 0x7fu, 0xffffff80u, 0x80u, 8u},
+      {"prefix_i8", 0x80u, 0xffffff81u, 0x81u, 8u},
+      {"prefix_u8", 0u, 0xffu, 0xffu, 8u},
+      {"prefix_u8", 1u, 0u, 0u, 8u},
+      {"prefix_u8", 0xffu, 0xfeu, 0xfeu, 8u},
+      {"postfix_i16", 0u, 0u, 1u, 16u},
+      {"postfix_i16", 0x7fffu, 0x7fffu, 0x8000u, 16u},
+      {"postfix_i16", 0x8000u, 0xffff8000u, 0x8001u, 16u},
+      {"postfix_u16", 0u, 0u, 0xffffu, 16u},
+      {"postfix_u16", 1u, 1u, 0u, 16u},
+      {"postfix_u16", 0xffffu, 0xffffu, 0xfffeu, 16u}};
+  ctool_u32 index;
+  for (index = 0u; index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, cases[index].function_name);
+    ctool_u32 result = 0u;
+    ctool_u32 stored_slot = 0u;
+    ctool_u32 expected_slot =
+        cases[index].stored_width_bits == 8u
+            ? 0xa5b6c700u | (cases[index].expected_stored_value & 0xffu)
+            : 0xa5b60000u |
+                  (cases[index].expected_stored_value & 0xffffu);
+    if (function == NULL ||
+        !narrow_oracle_execute(job, text, function, cases[index].input,
+                               cases[index].stored_width_bits, &result,
+                               &stored_slot) ||
+        result != cases[index].expected_result ||
+        stored_slot != expected_slot) {
+      (void)fprintf(stderr,
+                    "narrow mutation result %s case %u differs: "
+                    "eax=%08x slot=%08x\n",
+                    cases[index].function_name, (unsigned int)index,
+                    (unsigned int)result, (unsigned int)stored_slot);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_narrow_mutation_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  typedef struct {
+    const char *name;
+    ctool_u32 offset;
+    ctool_u32 size;
+  } narrow_mutation_function_t;
+  static const narrow_mutation_function_t functions[] = {
+      {"all_u8_compounds", 0u, 446u},
+      {"signed_i16_compounds", 446u, 108u},
+      {"prefix_i8", 554u, 44u},
+      {"prefix_u8", 598u, 44u},
+      {"postfix_i16", 642u, 60u},
+      {"postfix_u16", 702u, 60u},
+      {"volatile_postfix", 762u, 57u},
+      {"add_prefix", 819u, 59u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *volatile_byte_symbol =
+      find_symbol(object, "volatile_byte");
+  ctool_u32 cursor = 0u;
+  ctool_u32 expected_offset = 0u;
+  ctool_u32 signed_byte_loads = 0u;
+  ctool_u32 unsigned_byte_loads = 0u;
+  ctool_u32 signed_word_loads = 0u;
+  ctool_u32 unsigned_word_loads = 0u;
+  ctool_u32 byte_stores = 0u;
+  ctool_u32 word_stores = 0u;
+  ctool_u32 multiply_count = 0u;
+  ctool_u32 signed_divide_count = 0u;
+  ctool_u32 unsigned_divide_count = 0u;
+  ctool_u32 left_shift_count = 0u;
+  ctool_u32 right_shift_count = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 index;
+  if (text == NULL || bss == NULL || rel_text == NULL ||
+      volatile_byte_symbol == NULL ||
+      text->contents.data == NULL || text->contents.size != 878u ||
+      text->relocation_count != 1u || object->relocation_count != 1u ||
+      object->relocations == NULL || object->symbol_count != 10u ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 1u ||
+      bss->size != 1u || bss->contents.size != 0u ||
+      volatile_byte_symbol->file_index != 7u ||
+      !symbol_matches(volatile_byte_symbol, volatile_byte_symbol->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 1u)) {
+    (void)fprintf(
+        stderr,
+        "narrow mutation object inventory differs: text=%u bss-align=%u "
+        "bss-size=%u symbols=%u relocations=%u text-relocations=%u "
+        "state=%u/%u/%u/%u/%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        bss == NULL ? 0u : (unsigned int)bss->alignment,
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        (unsigned int)object->symbol_count,
+        (unsigned int)object->relocation_count,
+        text == NULL ? 0u : (unsigned int)text->relocation_count,
+        volatile_byte_symbol == NULL
+            ? 0u
+            : (unsigned int)volatile_byte_symbol->file_index,
+        volatile_byte_symbol == NULL
+            ? 0u
+            : (unsigned int)volatile_byte_symbol->binding,
+        volatile_byte_symbol == NULL
+            ? 0u
+            : (unsigned int)volatile_byte_symbol->section_file_index,
+        volatile_byte_symbol == NULL
+            ? 0u
+            : (unsigned int)volatile_byte_symbol->value,
+        volatile_byte_symbol == NULL
+            ? 0u
+            : (unsigned int)volatile_byte_symbol->size);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(functions) / sizeof(functions[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, functions[index].name);
+    if (function == NULL || function->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        function->value != expected_offset ||
+        function->value != functions[index].offset ||
+        function->size != functions[index].size ||
+        function->value > text->contents.size ||
+        function->size > text->contents.size - function->value) {
+      (void)fprintf(stderr, "narrow mutation function %s differs\n",
+                    functions[index].name);
+      return 0;
+    }
+    expected_offset += function->size;
+  }
+  if (expected_offset != text->contents.size ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].symbol_file_index !=
+          volatile_byte_symbol->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0) {
+    (void)fprintf(stderr, "narrow mutation relocation differs\n");
+    return 0;
+  }
+  if (!validate_narrow_mutation_results(job, object, text)) {
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    const ctool_x86_instruction_t *instruction;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "narrow mutation decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if ((instruction->mnemonic == CTOOL_X86_MN_MOVSX ||
+         instruction->mnemonic == CTOOL_X86_MN_MOVZX) &&
+        instruction->operand_count == 2u &&
+        instruction->operands[1].kind == CTOOL_X86_OPERAND_MEMORY) {
+      if (instruction->mnemonic == CTOOL_X86_MN_MOVSX &&
+          instruction->operands[1].width_bits == 8u) {
+        signed_byte_loads++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MOVZX &&
+                 instruction->operands[1].width_bits == 8u) {
+        unsigned_byte_loads++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MOVSX &&
+                 instruction->operands[1].width_bits == 16u) {
+        signed_word_loads++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MOVZX &&
+                 instruction->operands[1].width_bits == 16u) {
+        unsigned_word_loads++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+               instruction->operands[1].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      if (instruction->operands[0].width_bits == 8u &&
+          instruction->operands[1].as.reg.class_id == CTOOL_X86_REG_GPR8) {
+        byte_stores++;
+      } else if (instruction->operands[0].width_bits == 16u &&
+                 instruction->operands[1].as.reg.class_id ==
+                     CTOOL_X86_REG_GPR16) {
+        word_stores++;
+      }
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_IMUL) {
+      multiply_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_IDIV) {
+      signed_divide_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_DIV) {
+      unsigned_divide_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SHL) {
+      left_shift_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SAR ||
+               instruction->mnemonic == CTOOL_X86_MN_SHR) {
+      right_shift_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || signed_byte_loads == 0u ||
+      unsigned_byte_loads == 0u || signed_word_loads == 0u ||
+      unsigned_word_loads == 0u || byte_stores != 14u ||
+      word_stores != 4u || multiply_count != 1u ||
+      signed_divide_count != 1u || unsigned_divide_count != 2u ||
+      left_shift_count != 1u || right_shift_count != 2u ||
+      return_count != 8u) {
+    (void)fprintf(stderr,
+                  "narrow mutation operation inventory differs: sx8=%u "
+                  "zx8=%u sx16=%u zx16=%u store8=%u store16=%u ret=%u\n",
+                  (unsigned int)signed_byte_loads,
+                  (unsigned int)unsigned_byte_loads,
+                  (unsigned int)signed_word_loads,
+                  (unsigned int)unsigned_word_loads,
+                  (unsigned int)byte_stores, (unsigned int)word_stores,
+                  (unsigned int)return_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_narrow_mutation_object(const char *host_root) {
+  static const char source[] =
+      "typedef signed char i8;\n"
+      "typedef unsigned char u8;\n"
+      "typedef signed short i16;\n"
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "u8 all_u8_compounds(u8 value, u32 right) {\n"
+      "  value *= right;\n"
+      "  value /= right;\n"
+      "  value %= right;\n"
+      "  value += right;\n"
+      "  value -= right;\n"
+      "  value <<= right;\n"
+      "  value >>= right;\n"
+      "  value &= right;\n"
+      "  value ^= right;\n"
+      "  value |= right;\n"
+      "  return value;\n"
+      "}\n"
+      "i16 signed_i16_compounds(i16 value, int right) {\n"
+      "  value /= right;\n"
+      "  value >>= right;\n"
+      "  return value;\n"
+      "}\n"
+      "i8 prefix_i8(i8 value) { return ++value; }\n"
+      "u8 prefix_u8(u8 value) { return --value; }\n"
+      "i16 postfix_i16(i16 value) { return value++; }\n"
+      "u16 postfix_u16(u16 value) { return value--; }\n"
+      "volatile u8 volatile_byte;\n"
+      "u8 volatile_postfix(void) { return volatile_byte++; }\n"
+      "struct decoded_instruction { u8 prefixes; };\n"
+      "struct decoded_value { struct decoded_instruction instruction; };\n"
+      "u8 add_prefix(struct decoded_value *decoded, u8 flag) {\n"
+      "  return decoded->instruction.prefixes |= flag;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_arena_mark_t mark;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/narrow-mutations.c", source, &unit) ||
+      unit.function_definition_count != 8u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "narrow mutation object buffer")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "narrow mutation object emission") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "repeat narrow mutation emission") ||
+      bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "narrow mutation object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/narrow-mutations.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read narrow mutation object") ||
+      !validate_narrow_mutation_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  dispose_unit_snapshot(&snapshot);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("narrow-mutations: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_narrow_value_object(const char *host_root) {
   static const char source[] =
       "typedef signed char i8;\n"
@@ -9684,6 +10446,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "narrow-mutations") == 0) {
+    return run_narrow_mutation_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_value_object(argv[2]);
   }
@@ -9692,7 +10457,7 @@ int main(int argc, char **argv) {
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "narrow-values "
+                "narrow-mutations|narrow-values "
                 "HOST_ROOT\n");
   return 2;
 }

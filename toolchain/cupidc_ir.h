@@ -181,11 +181,13 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * automatic scalar receives one target-sized slot. A referenced uninitialized
  * fixed array or record receives its target size and alignment, up to four
  * byte alignment. DUPLICATE_ADDRESS preserves an address while a supported
- * 32-bit integer or pointer compound assignment or update loads and stores
- * the object. This evaluates the destination once.
- * 32-bit integer compound assignments retain integer-promotion,
- * usual-arithmetic, and assignment conversions. Pointer compound
- * assignments and updates use POINTER_BINARY with a complete-object stride.
+ * integer or pointer compound assignment or update loads and stores the
+ * object. This evaluates the destination once. Integer mutation supports
+ * non-Boolean scalar objects that occupy one, two, or four bytes. Narrow
+ * values are promoted for the 32-bit computation and converted back before
+ * an exact-width store. Compound assignments retain integer-promotion, usual
+ * arithmetic, and assignment conversions. Pointer compound assignments and
+ * updates use POINTER_BINARY with a complete-object stride.
  * Prefix updates produce the stored value. Postfix updates produce the value
  * from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,

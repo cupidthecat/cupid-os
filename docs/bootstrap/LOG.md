@@ -4473,3 +4473,56 @@ Three verification wrappers were discarded before they produced evidence. The fi
 | Emulator gate | NOT RUN | This hosted-only change does not alter a production object, image format, boot path, runtime behavior, or ABI owner, so it makes no boot claim. |
 
 This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler path, and the private in-kernel compiler remains the runtime JIT and AOT path. [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open because production ownership, the deferred value categories, staged self-hosting, and the fixed-point bootstrap are still unfinished.
+
+## 2026-07-18: CupidC mutates narrow integers through promoted arithmetic
+
+### Decision and active-source requirement
+
+Hosted CupidC now lowers compound assignment and prefix or postfix increment and decrement for represented, non-Boolean integer objects that occupy one, two, or four bytes. The complete unchanged `x86_put_u8` function is the primary active-source guard. Its one-byte `size` member is incremented after each emitted byte. Active decoder paths add more one-byte counters and a byte-sized prefix `|=` requirement. Those fields remain narrow; the compiler learned the C operations they require.
+
+Narrow mutation keeps the existing single-evaluation IR sequence. `DUPLICATE_ADDRESS` preserves the destination address, a signed or unsigned byte or word load enters the abstract stack as a canonical 32-bit value, and integer promotion produces the target's signed `int`. Compound assignment applies the frontend's usual arithmetic conversion when needed. Assignment conversion then narrows the result before `STORE_VALUE` writes exactly one or two bytes.
+
+Prefix updates return the canonical stored value. Postfix updates promote the stored result, apply the inverse one-step operation, and narrow again to reconstruct the old value without a second load. CupidC defines out-of-range conversion to signed byte and word types by keeping the low AL or AX lane and sign-extending it. This gives a deterministic two's-complement result at signed wrap boundaries.
+
+`_Bool` mutation remains unsupported. Boolean assignment conversion maps every nonzero result to one, so the inverse-operation sequence cannot recover an earlier true value after postfix increment. Atomic objects and bit fields still need their own access rules. A frozen narrow mutation node that claims a byte or word computation type is malformed because integer promotion requires a four-byte computation.
+
+No user question was needed. The active source, the frozen frontend conversion records, the existing mutation stack contract, and the i386 width rules determine the behavior.
+
+### Contract evidence and corrections
+
+- The IR matrix covers all ten compound operators, signed and unsigned byte and word updates, a volatile byte update, and a nested byte member. It requires 19 narrow address duplications, 25 narrow loads, 26 promotions, 23 narrowing assignment conversions, 20 exact-width stores, and one volatile load.
+- Exact update and mixed-signedness fixtures pin the order, type, conversion, and operation of every public IR record. The complete `x86_put_u8` guard prevents a fragment from standing in for the active requirement.
+- The deterministic object has eight functions in 878 exact text bytes. Their offsets and sizes are 0/446, 446/108, 554/44, 598/44, 642/60, 702/60, 762/57, and 819/59. Its ten symbols include a one-byte BSS object aligned to one byte. One `R_386_32` relocation has addend zero.
+- Shared decoding finds signed and unsigned byte and word loads, fourteen byte stores, four word stores, one multiplication, one signed divide, two unsigned divides, one left shift, two right shifts, and eight returns. Repeated emission is byte-identical and preserves the frozen translation unit and job arena.
+- A decoder-driven test-only i386 executor runs twelve zero and wrap-boundary cases across signed and unsigned prefix and postfix functions. It checks EAX and the stored byte or word. The unused bytes of the four-byte cdecl argument slot are poisoned, and every case requires them to remain unchanged.
+- Useful negatives keep Boolean postfix update, Boolean compound assignment, atomic, bit-field, and wide mutation outside the supported contract. A malformed narrow computation type returns the invalid-unit diagnostic, while a genuinely unsupported computation type keeps the unsupported-type diagnostic. Every failure preserves the input, publishes no IR or object, rewinds operation storage, and leaves the job reusable.
+- The first positive update and compound tests stopped at the old unsupported-value check. Object emission then reached the expected boundary before the new IR sequence was accepted. The first malformed-computation test returned unsupported until represented bad metadata was separated from a genuinely unsupported type. These are the red results for the increment.
+- The hosted source-shape gate failed after the implementation helper was extracted. The accepted final tuple for `cupidc_ir.c` is 134 definitions, 3,760 statements, 32,068 expressions, 466 block bindings, and 146 initializers.
+- Initial Standards review found duplicate computation-type classification and three parallel function metadata arrays. One behavior-named helper now owns the diagnostic split, and each function's name, offset, and size now live in one record. Follow-up review found repeated register-class checks, numeric EAX/ESP/EBP indices, and a vague ELF symbol variable in the test executor. One register-lane descriptor, named register constants, and `volatile_byte_symbol` replace those primitives. The review also noted similar source fixtures in the standalone IR and object contracts. They remain separate because each public operation must prove its own complete frozen input without depending on the other contract's setup.
+- Initial Spec review found that aggregate opcode counts did not independently prove prefix and postfix results at wrap boundaries. The decoder-driven executor and poisoned argument-slot checks close that gap. The signed narrowing rule is now explicit in ADR 0046 and the current manuals.
+- One focused command used the wrong Python test class name and never ran a test. It was corrected immediately and is excluded from evidence.
+- Three proof wrappers were also excluded. A sanitizer instrumentation check used `nm | grep -q` under `pipefail`, which turned an early successful match into SIGPIPE. A PowerShell-to-WSL wrapper then lost its quoted sanitizer flags and rebuilt ordinary binaries. Finally, a GCC analyzer command used `-fsyntax-only`, which returned too quickly to prove the analysis pass. Encoded shell scripts preserved the sanitizer flags, and GCC analysis was rerun as real compile passes.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature identifiers, 498 reachable transforms, and 39 accounted unreachable sources. Its lexical inventory contains 616 direct designated initializers across 18 files, 993 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,504 `while`, 1,705 `break`, 929 `continue`, 25,472 `if`, 3,486 `else`, 3,059 `for`, 15,626 `return`, and 3,165 `sizeof` occurrences. The active-source digest is `48285f8cf257f1109059236aa5ee61a2ba35ad0d293f86e880487f7bd7303d28`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Narrow update and compound assignment first failed at the old semantic boundary. Object emission then reached the old lowering boundary. The malformed computation fixture initially exposed the undifferentiated diagnostic path. |
+| Focused CupidC contracts | PASS | The complete frontend, IR, and object Python modules pass all 74 tests in 21.128 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Clang suite, including both narrow-mutation modes and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass the complete hosted Toolchain suite, both narrow-mutation modes, and all 22 assembly demos. Both compilers also rebuild and pass the semantic object mode after the final review refactor. |
+| Sanitizers | PASS AFTER WRAPPER CORRECTION | Fresh, visibly instrumented GCC and Clang ASan and UBSan builds pass the narrow IR, mutation rejection, and semantic object modes without diagnostics in 54.5 and 60.7 seconds. After the final review refactor, both compilers rebuild and pass the semantic object mode again in 11.1 and 8.9 seconds. The uninstrumented wrapper run is excluded. |
+| Static analysis | PASS AFTER COMMAND CORRECTION | GCC `-fanalyzer` compile passes and Clang `--analyze -analyzer-werror` report no diagnostics across `cupidc_ir.c`, the IR contract, and the object contract. They finish in 160.4 and 37.1 seconds. Final object-contract rechecks finish without diagnostics in 14.5 and 15 seconds. The GCC syntax-only command is excluded. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 35.6 seconds. `make check-bootstrap-audit` reproduces them exactly in 35.9 seconds. |
+| Full repository gate | PASS | `make test` passes all 316 tests in 458.453 seconds with one expected skip and returns from Make in 495.2 seconds. |
+| Production image build | PASS | `make all` rebuilds the normal CupidASM, CupidLD, CupidObj, kernel, embedded documentation, and disk-image path in 21.5 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards review found the missing chronological entry, duplicated mutation classification, parallel function metadata, and test-oracle register primitives. Those findings are resolved with one computation validator, records for function and register lanes, named i386 registers, and this log. Spec review found the aggregate decoder counts did not prove wrap-boundary results. The execution oracle closes that gap, and the final Spec pass reports no mismatch or scope creep. |
+| Emulator gate | NOT RUN | The implementation changes only the hosted compiler path. The rebuilt image contains refreshed documentation but no executable path, disk format, runtime behavior, or ABI change that needs a new boot claim. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules and produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
+
+The root README, bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, wiki, CTXT manual, and ADR 0046 describe the capability and its limits. No active OS C or assembly source, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Boolean mutation, aggregate initialization and values, narrow bit fields, atomic access, 64-bit integers, floating values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.

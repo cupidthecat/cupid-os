@@ -1270,7 +1270,7 @@ static ctool_status_t cir_duplicate_address(
   if (context->stack_depth == 0u ||
       context->stack[context->stack_depth - 1u].kind != CIR_STACK_ADDRESS ||
       context->stack[context->stack_depth - 1u].type != type ||
-      cir_type_is_i32_scalar(context, type) == CTOOL_FALSE) {
+      cir_type_is_represented_scalar(context, type) == CTOOL_FALSE) {
     return cir_invalid_unit(context, location);
   }
   status = cir_append_instruction(
@@ -1284,7 +1284,7 @@ static ctool_status_t cir_duplicate_address(
   return cir_push(context, CIR_STACK_ADDRESS, type);
 }
 
-static ctool_bool cir_i32_integer_promotion_type(
+static ctool_bool cir_represented_integer_promotion_type(
     const cir_context_t *context, ctool_u32 type,
     ctool_u32 *promoted_type_out) {
   const ctool_c_type_node_t *node;
@@ -1300,6 +1300,20 @@ static ctool_bool cir_i32_integer_promotion_type(
                             &qualifiers, &node) == CTOOL_FALSE) {
       return CTOOL_FALSE;
     }
+  }
+  if (cir_narrow_integer_kind(node->kind) == CTOOL_TRUE) {
+    ctool_u32 signed_int_type;
+    if (node->kind == CTOOL_C_TYPE_BOOL) {
+      return CTOOL_FALSE;
+    }
+    signed_int_type = cir_plain_signed_int_type(context);
+    if (signed_int_type == CTOOL_C_TYPE_NONE ||
+        cir_integer_promotion_is_valid(context, type, signed_int_type) ==
+            CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    *promoted_type_out = signed_int_type;
+    return CTOOL_TRUE;
   }
   if (node->kind != CTOOL_C_TYPE_SIGNED_INT &&
       node->kind != CTOOL_C_TYPE_UNSIGNED_INT &&
@@ -1326,11 +1340,8 @@ static ctool_status_t cir_convert_top_integer(
   if (context->stack_depth == 0u ||
       context->stack[context->stack_depth - 1u].kind != CIR_STACK_VALUE ||
       context->stack[context->stack_depth - 1u].type != input_type ||
-      cir_type_is_i32_integer(context, input_type) == CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, output_type) == CTOOL_FALSE ||
-      (conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
-       conversion != CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
-       conversion != CTOOL_C_CONVERSION_ASSIGNMENT)) {
+      cir_integer_conversion_is_valid(context, input_type, output_type,
+                                      conversion) == CTOOL_FALSE) {
     return cir_invalid_unit(context, location);
   }
   status = cir_append_instruction(
@@ -1341,6 +1352,18 @@ static ctool_status_t cir_convert_top_integer(
     context->stack[context->stack_depth - 1u].type = output_type;
   }
   return status;
+}
+
+static ctool_status_t cir_require_i32_mutation_computation(
+    cir_context_t *context, ctool_u32 type,
+    const ctool_c_pp_location_t *location) {
+  if (cir_type_is_i32_integer(context, type) == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  if (cir_type_is_represented_integer(context, type) == CTOOL_TRUE) {
+    return cir_invalid_unit(context, location);
+  }
+  return cir_unsupported_type(context, location);
 }
 
 static void cir_record_patched_target(cir_context_t *context,
@@ -2601,19 +2624,23 @@ static ctool_status_t cir_lower_compound_assignment(
         context, expression, left_expression, left_child, right_child, depth,
         operation);
   }
-  if (cir_type_is_i32_integer(context, left_expression->type) ==
+  if (cir_type_is_represented_integer(context, left_expression->type) ==
           CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, expression->computation_type) ==
+      cir_type_is_represented_integer(context, expression->type) ==
           CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
+  }
+  status = cir_require_i32_mutation_computation(
+      context, expression->computation_type, &expression->location);
+  if (status != CTOOL_OK) {
+    return status;
   }
   if (cir_integer_value_types_match(context, left_expression->type,
                                     expression->type) == CTOOL_FALSE) {
     return cir_invalid_unit(context, &expression->location);
   }
-  if (cir_i32_integer_promotion_type(context, expression->type,
-                                     &promoted_type) == CTOOL_FALSE) {
+  if (cir_represented_integer_promotion_type(context, expression->type,
+                                             &promoted_type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
   }
   if (shift == CTOOL_TRUE &&
@@ -3011,12 +3038,16 @@ static ctool_status_t cir_lower_update(
         context, expression, operand_expression, child, depth,
         update_operation, postfix);
   }
-  if (cir_type_is_i32_integer(context, operand_expression->type) ==
+  if (cir_type_is_represented_integer(context, operand_expression->type) ==
           CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, expression->computation_type) ==
+      cir_type_is_represented_integer(context, expression->type) ==
           CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
+  }
+  status = cir_require_i32_mutation_computation(
+      context, expression->computation_type, &expression->location);
+  if (status != CTOOL_OK) {
+    return status;
   }
   if (cir_integer_value_types_match(context, operand_expression->type,
                                     expression->type) == CTOOL_FALSE) {
@@ -3031,8 +3062,8 @@ static ctool_status_t cir_lower_update(
     return cir_invalid_unit(context, &expression->location);
   }
   if (status == CTOOL_OK &&
-      cir_i32_integer_promotion_type(context, expression->type,
-                                     &promoted_type) == CTOOL_FALSE) {
+      cir_represented_integer_promotion_type(context, expression->type,
+                                             &promoted_type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
   }
   if (status == CTOOL_OK &&

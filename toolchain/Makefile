@@ -400,6 +400,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) integer-compounds ..
 	$(CUPIDC_IR_CONTRACT) integer-compound-conversions ..
 	$(CUPIDC_IR_CONTRACT) integer-update-conversions ..
+	$(CUPIDC_IR_CONTRACT) narrow-mutations ..
 	$(CUPIDC_IR_CONTRACT) integer-mutation-rejections ..
 	$(CUPIDC_IR_CONTRACT) pointer-member-loads ..
 	$(CUPIDC_IR_CONTRACT) pointer-values ..
@@ -417,6 +418,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) function-pointers ..
 	$(CUPIDC_OBJECT_CONTRACT) automatic-objects ..
+	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
