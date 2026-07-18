@@ -101,6 +101,37 @@ static const char pointer_value_object_source[] =
     "int read_global_member(void) { return global_pointer->member; }\n"
     "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n";
 
+static const char pointer_comparison_object_source[] =
+    "typedef struct ctool_arena ctool_arena_t;\n"
+    "typedef struct { ctool_arena_t *arena; } ctool_job_t;\n"
+    "ctool_arena_t *ctool_job_arena(ctool_job_t *job) {\n"
+    "  return job != (ctool_job_t *)0 ? job->arena : (ctool_arena_t *)0;\n"
+    "}\n"
+    "int object_pointer_equal(const int *left, volatile int *right) {\n"
+    "  return left == right;\n"
+    "}\n"
+    "int object_pointer_less(const int *left, volatile int *right) {\n"
+    "  return left < right;\n"
+    "}\n"
+    "unsigned int object_pointer_bits(const int *pointer) {\n"
+    "  return (unsigned int)pointer;\n"
+    "}\n"
+    "void *object_pointer_erase(int *pointer) { return (void *)pointer; }\n"
+    "int *object_pointer_restore(void *pointer) { return (int *)pointer; }\n";
+
+static const char pointer_condition_object_source[] =
+    "int pointer_not(int *pointer) { return !pointer; }\n"
+    "int pointer_and(int *left, int *right) { return left && right; }\n"
+    "int pointer_or(int *left, int *right) { return left || right; }\n"
+    "int pointer_select(int *pointer) { return pointer ? 1 : 0; }\n"
+    "int pointer_if(int *pointer) { if (pointer) return 1; return 0; }\n"
+    "int pointer_while(int *pointer) { while (pointer) break; return 0; }\n"
+    "int pointer_do(int *pointer) {\n"
+    "  do { if (pointer) break; } while (pointer);\n"
+    "  return 0;\n"
+    "}\n"
+    "int pointer_for(int *pointer) { for (; pointer;) break; return 0; }\n";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -1365,6 +1396,242 @@ static int validate_pointer_value_object(
       call_count != 1u) {
     (void)fprintf(stderr, "pointer object operations differ (%u/%u)\n",
                   (unsigned)return_count, (unsigned)call_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_pointer_comparison_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu,
+      0x95u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x16u, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u,
+      0x39u, 0xc8u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x39u,
+      0xc8u, 0x0fu, 0x92u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const char *const function_names[] = {
+      "ctool_job_arena",       "object_pointer_equal",
+      "object_pointer_less",  "object_pointer_bits",
+      "object_pointer_erase", "object_pointer_restore"};
+  static const ctool_u32 function_offsets[] = {
+      0u, 69u, 108u, 147u, 164u, 181u};
+  static const ctool_u32 function_sizes[] = {69u, 39u, 39u, 17u, 17u, 17u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 compare_count = 0u;
+  ctool_u32 equal_count = 0u;
+  ctool_u32 not_equal_count = 0u;
+  ctool_u32 below_count = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      text->relocation_count != 0u ||
+      object->relocation_count != 0u || object->symbol_count != 7u) {
+    (void)fprintf(stderr, "pointer comparison object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    if (function == NULL || function->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        function->value != function_offsets[index] ||
+        function->size != function_sizes[index] ||
+        function->value > text->contents.size ||
+        function->size > text->contents.size - function->value) {
+      (void)fprintf(stderr, "pointer comparison function %s differs\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "pointer comparison decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CMP) {
+      compare_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SETE) {
+      equal_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SETNE) {
+      not_equal_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SETB) {
+      below_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || compare_count != 3u ||
+      equal_count != 1u || not_equal_count != 1u || below_count != 1u ||
+      return_count != 6u) {
+    (void)fprintf(stderr,
+                  "pointer comparison operations differ (%u/%u/%u/%u/%u)\n",
+                  (unsigned int)compare_count, (unsigned int)equal_count,
+                  (unsigned int)not_equal_count, (unsigned int)below_count,
+                  (unsigned int)return_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_pointer_condition_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x94u, 0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x1eu, 0x00u,
+      0x00u, 0x00u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x23u, 0x00u, 0x00u,
+      0x00u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu,
+      0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0x05u, 0x00u, 0x00u, 0x00u,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x08u, 0x00u, 0x00u, 0x00u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u, 0xc0u,
+      0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u,
+      0x00u, 0x00u, 0xe9u, 0x19u, 0x00u, 0x00u, 0x00u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u, 0x05u,
+      0x00u, 0x00u, 0x00u, 0xe9u, 0xceu, 0xffu, 0xffu, 0xffu,
+      0x68u, 0x00u, 0x00u, 0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x85u,
+      0xc0u, 0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u};
+  static const char *const function_names[] = {
+      "pointer_not", "pointer_and", "pointer_or", "pointer_select",
+      "pointer_if",  "pointer_while", "pointer_do", "pointer_for"};
+  static const ctool_u32 function_offsets[] = {
+      0u, 27u, 88u, 159u, 200u, 239u, 275u, 336u};
+  static const ctool_u32 function_sizes[] = {
+      27u, 61u, 71u, 41u, 39u, 36u, 61u, 36u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 test_count = 0u;
+  ctool_u32 set_equal_count = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      text->relocation_count != 0u ||
+      object->relocation_count != 0u || object->symbol_count != 9u) {
+    (void)fprintf(stderr, "pointer condition object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    if (function == NULL || function->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        function->value != function_offsets[index] ||
+        function->size != function_sizes[index] ||
+        function->value > text->contents.size ||
+        function->size > text->contents.size - function->value) {
+      (void)fprintf(stderr, "pointer condition function %s differs\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "pointer condition decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_TEST) {
+      test_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SETE) {
+      set_equal_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || test_count != 11u ||
+      set_equal_count != 1u || return_count != 9u) {
+    (void)fprintf(stderr, "pointer condition operations differ (%u/%u/%u)\n",
+                  (unsigned int)test_count,
+                  (unsigned int)set_equal_count,
+                  (unsigned int)return_count);
     return 0;
   }
   return 1;
@@ -7497,6 +7764,209 @@ cleanup:
   return 1;
 }
 
+static int run_pointer_comparison_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/pointer-comparison-object.c",
+                    pointer_comparison_object_source, &unit) ||
+      unit.function_definition_count != 6u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "pointer comparison object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "pointer comparison object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first pointer comparison object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first pointer comparison emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "pointer comparison snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat pointer comparison object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "pointer comparison emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/pointer-comparison-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read pointer comparison object") ||
+      !validate_pointer_comparison_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-comparisons: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_pointer_condition_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/pointer-condition-object.c",
+                    pointer_condition_object_source, &unit) ||
+      unit.function_definition_count != 8u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "pointer condition object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "pointer condition object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first pointer condition object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first pointer condition emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "pointer condition snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat pointer condition object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "pointer condition emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/pointer-condition-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read pointer condition object") ||
+      !validate_pointer_condition_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-conditions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -7513,10 +7983,16 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "pointer-values") == 0) {
     return run_pointer_value_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "pointer-comparisons") == 0) {
+    return run_pointer_comparison_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "pointer-conditions") == 0) {
+    return run_pointer_condition_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
-                "pointer-values "
+                "pointer-values|pointer-comparisons|pointer-conditions "
                 "HOST_ROOT\n");
   return 2;
 }

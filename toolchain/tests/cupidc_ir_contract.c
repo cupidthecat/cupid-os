@@ -407,6 +407,50 @@ static const char pointer_value_source[] =
     "int read_global_member(void) { return global_pointer->member; }\n"
     "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n";
 
+static const char pointer_comparison_source[] =
+    "typedef struct ctool_arena ctool_arena_t;\n"
+    "typedef struct { ctool_arena_t *arena; } ctool_job_t;\n"
+    "ctool_arena_t *ctool_job_arena(ctool_job_t *job) {\n"
+    "  return job != (ctool_job_t *)0 ? job->arena : (ctool_arena_t *)0;\n"
+    "}\n"
+    "int object_pointer_equal(const int *left, volatile int *right) {\n"
+    "  return left == right;\n"
+    "}\n"
+    "int object_pointer_less(const int *left, volatile int *right) {\n"
+    "  return left < right;\n"
+    "}\n"
+    "unsigned int object_pointer_bits(const int *pointer) {\n"
+    "  return (unsigned int)pointer;\n"
+    "}\n"
+    "void *object_pointer_erase(int *pointer) { return (void *)pointer; }\n"
+    "int *object_pointer_restore(void *pointer) { return (int *)pointer; }\n";
+
+static const char void_pointer_equality_source[] =
+    "int void_pointer_equal(void *left, void *right) { return left == right; }\n";
+
+static const char pointer_condition_source[] =
+    "int pointer_not(int *pointer) { return !pointer; }\n"
+    "int pointer_and(int *left, int *right) { return left && right; }\n"
+    "int pointer_or(int *left, int *right) { return left || right; }\n"
+    "int pointer_select(int *pointer) { return pointer ? 1 : 0; }\n"
+    "int pointer_if(int *pointer) { if (pointer) return 1; return 0; }\n"
+    "int pointer_while(int *pointer) { while (pointer) break; return 0; }\n"
+    "int pointer_do(int *pointer) {\n"
+    "  do { if (pointer) break; } while (pointer);\n"
+    "  return 0;\n"
+    "}\n"
+    "int pointer_for(int *pointer) { for (; pointer;) break; return 0; }\n";
+
+static const char pointer_arithmetic_boundary_source[] =
+    "int *add_pointer(int *pointer) { return pointer + 1; }\n";
+
+static const char wide_pointer_cast_source[] =
+    "int *cast_wide_integer(void) { return (int *)(long long)0; }\n";
+
+static const char atomic_pointer_condition_source[] =
+    "int * _Atomic shared_pointer;\n"
+    "int test_shared_pointer(void) { return !!shared_pointer; }\n";
+
 static const char atomic_pointer_source[] =
     "int * _Atomic shared_pointer;\n"
     "int *read_shared_pointer(void) { return shared_pointer; }\n";
@@ -416,6 +460,11 @@ static const char function_pointer_source[] =
 
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
+
+static const char active_job_arena[] =
+    "ctool_arena_t *ctool_job_arena(ctool_job_t *job) {\n"
+    "  return job != (ctool_job_t *)0 ? job->arena : (ctool_arena_t *)0;\n"
+    "}";
 
 static const char active_call[] =
     "static uint32_t syscall_getpid(void) { return process_get_current_pid(); }";
@@ -818,8 +867,9 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data, active_capacity_growth) ==
           NULL ||
       strstr((const char *)source.contents.data, active_decimal_shrink) ==
-          NULL) {
-    (void)fprintf(stderr, "an active core integer mutation changed\n");
+          NULL ||
+      strstr((const char *)source.contents.data, active_job_arena) == NULL) {
+    (void)fprintf(stderr, "an active CupidC source guard changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupiddis.c");
@@ -10671,6 +10721,590 @@ cleanup:
   return 1;
 }
 
+static int validate_pointer_comparison_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *const function_names[] = {
+      "ctool_job_arena",       "object_pointer_equal",
+      "object_pointer_less",  "object_pointer_bits",
+      "object_pointer_erase", "object_pointer_restore"};
+  static const ctool_u32 function_counts[] = {15u, 6u, 6u, 4u, 4u, 4u};
+  static const ctool_u32 stack_depths[] = {2u, 2u, 2u, 1u, 1u, 1u};
+  static const pointer_ir_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 3u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       4u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 3u, 3u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 4u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 7u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 32u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 6u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 17u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, 7u, 3u,
+       CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 14u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 12u, 0u,
+       4u, 34u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 3u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       4u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 3u, 3u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 4u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 1u, 3u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 39u},
+      {CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, 2u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       4u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 2u, 2u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 4u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 14u, 0u,
+       4u, 34u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 7u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 8u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 49u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 4u, 9u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 3u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 11u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u,
+       7u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 11u, 11u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 7u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 13u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       7u, 18u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 13u, 13u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 7u, 18u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, 7u, 11u,
+       CTOOL_C_EXPRESSION_OPERATOR_EQUAL, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 7u, 15u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 7u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 7u, 3u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 16u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 3u, 0u,
+       10u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 16u, 16u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 10u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 18u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u,
+       10u, 17u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 18u, 18u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 10u, 17u},
+      {CTOOL_C_IR_INSTRUCTION_BINARY, 7u, 16u,
+       CTOOL_C_EXPRESSION_OPERATOR_LESS, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 10u, 15u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 7u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 10u, 3u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 22u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u,
+       13u, 24u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 22u, 22u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 24u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 20u, 22u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 20u, 20u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 3u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 25u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u,
+       15u, 59u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 25u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 15u, 59u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 28u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 15u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 26u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 15u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 29u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 7u, 0u,
+       16u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 29u, 29u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 16u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_CONVERT, 32u, 29u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 16u, 53u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 30u, 32u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 16u, 46u}};
+  ctool_u32 first = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->function_count != 6u ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "pointer comparison IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    ctool_u32 binding = find_binding(unit, function_names[index]);
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    if (binding == CTOOL_C_AST_NONE || function->binding != binding ||
+        function->first_instruction != first ||
+        function->instruction_count != function_counts[index] ||
+        function->maximum_stack_depth != stack_depths[index]) {
+      (void)fprintf(stderr, "pointer comparison function %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+    first += function_counts[index];
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!pointer_ir_instruction_matches(
+            &ir->instructions[index], &expected[index],
+            "/pointer-comparisons.c")) {
+      (void)fprintf(stderr, "pointer comparison instruction %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_pointer_comparisons(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t arithmetic_unit;
+  ctool_c_translation_unit_t wide_cast_unit;
+  ctool_c_translation_unit_t void_equality_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t invalid_void_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *invalid_void_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  ctool_u32 comparison_expression = CTOOL_C_AST_NONE;
+  ctool_u32 void_comparison_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  uint64_t fingerprint;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&arithmetic_unit, 0, sizeof(arithmetic_unit));
+  (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
+  (void)memset(&void_equality_unit, 0, sizeof(void_equality_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/pointer-comparisons.c", pointer_comparison_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "object-pointer comparison lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_pointer_comparison_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind == CTOOL_C_EXPRESSION_BINARY &&
+        unit.expressions[index].operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+      comparison_expression = index;
+      break;
+    }
+  }
+  if (comparison_expression == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "pointer comparison rejection fixtures differ\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "pointer comparison rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[comparison_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_ADD;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "malformed pointer arithmetic") ||
+      !parse_source(job, "/void-pointer-equality.c",
+                    void_pointer_equality_source, &void_equality_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < void_equality_unit.expression_count; index++) {
+    if (void_equality_unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_BINARY &&
+        void_equality_unit.expressions[index].operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+      void_comparison_expression = index;
+      break;
+    }
+  }
+  if (void_comparison_expression == CTOOL_C_AST_NONE ||
+      void_equality_unit.expression_count == 0u ||
+      sizeof(*invalid_void_expressions) >
+          SIZE_MAX / (size_t)void_equality_unit.expression_count) {
+    (void)fprintf(stderr, "void pointer rejection fixture differs\n");
+    goto cleanup;
+  }
+  invalid_void_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)void_equality_unit.expression_count *
+      sizeof(*invalid_void_expressions));
+  if (invalid_void_expressions == NULL) {
+    (void)fprintf(stderr, "void pointer rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_void_expressions, void_equality_unit.expressions,
+               (size_t)void_equality_unit.expression_count *
+                   sizeof(*invalid_void_expressions));
+  invalid_void_unit = void_equality_unit;
+  invalid_void_unit.expressions = invalid_void_expressions;
+  invalid_void_expressions[void_comparison_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_LESS;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_void_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "malformed void pointer order") ||
+      !parse_source(job, "/pointer-arithmetic-boundary.c",
+                    pointer_arithmetic_boundary_source, &arithmetic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &arithmetic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "pointer arithmetic boundary") ||
+      !parse_source(job, "/wide-pointer-cast.c", wide_pointer_cast_source,
+                    &wide_cast_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_cast_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide integer pointer cast")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_void_expressions);
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-comparisons: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_pointer_condition_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *const function_names[] = {
+      "pointer_not", "pointer_and", "pointer_or", "pointer_select",
+      "pointer_if",  "pointer_while", "pointer_do", "pointer_for"};
+  static const ctool_u32 function_counts[] = {4u, 10u, 12u, 7u,
+                                               7u, 6u,  10u, 6u};
+  static const pointer_ir_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u, 1u,
+       41u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 1u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_UNARY, 0u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 1u, 40u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 1u, 33u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 3u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u, 2u,
+       49u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 3u, 3u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 2u, 49u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 3u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u, 2u,
+       54u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 4u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u, 2u,
+       57u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 4u, 4u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 2u, 57u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 4u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u, 2u,
+       54u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 2u, 54u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 9u, 0u, 2u,
+       54u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 2u, 54u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 2u, 42u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 6u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 3u, 0u, 3u,
+       48u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 6u, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 3u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 6u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u, 3u,
+       53u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 3u, 53u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 11u, 0u, 3u,
+       53u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 7u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u, 3u,
+       56u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 7u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 3u, 56u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 10u, 0u, 3u,
+       53u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 3u, 53u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 11u, 0u, 3u,
+       53u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 3u, 53u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 3u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 9u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u, 4u,
+       43u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 9u, 9u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 4u, 43u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 9u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u, 4u,
+       51u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 4u, 53u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u, 4u,
+       51u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 57u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 11u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u, 5u,
+       36u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 11u, 11u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 5u, 36u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 11u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u, 5u,
+       36u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 5u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 5u, 45u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 5u, 62u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 5u, 55u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 13u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 7u, 0u, 6u,
+       42u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 13u, 13u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 6u, 42u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 13u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u, 6u,
+       42u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u, 6u,
+       51u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 6u, 65u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 6u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u, 8u,
+       12u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 8u, 12u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u, 8u,
+       12u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u, 8u,
+       21u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u, 8u,
+       37u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 8u, 37u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u, 8u,
+       37u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u, 8u,
+       3u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 10u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 3u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 17u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 9u, 0u, 11u,
+       40u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 17u, 17u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 11u, 40u},
+      {CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE, 17u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u, 11u,
+       40u},
+      {CTOOL_C_IR_INSTRUCTION_JUMP, CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u, 11u,
+       50u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 11u, 64u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 11u, 57u}};
+  ctool_u32 first = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->function_count != 8u ||
+      ir->instruction_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "pointer condition IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    ctool_u32 binding = find_binding(unit, function_names[index]);
+    if (binding == CTOOL_C_AST_NONE || function->binding != binding ||
+        function->first_instruction != first ||
+        function->instruction_count != function_counts[index] ||
+        function->maximum_stack_depth != 1u) {
+      (void)fprintf(stderr, "pointer condition function %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+    first += function_counts[index];
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!pointer_ir_instruction_matches(
+            &ir->instructions[index], &expected[index],
+            "/pointer-conditions.c")) {
+      (void)fprintf(stderr, "pointer condition instruction %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_pointer_conditions(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/pointer-conditions.c", pointer_condition_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "object-pointer condition lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_pointer_condition_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-pointer-condition.c",
+                    atomic_pointer_condition_source, &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic pointer condition")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-conditions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -10713,6 +11347,12 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "pointer-values") == 0) {
     return run_pointer_values(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "pointer-comparisons") == 0) {
+    return run_pointer_comparisons(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "pointer-conditions") == 0) {
+    return run_pointer_conditions(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -10720,6 +11360,7 @@ int main(int argc, char **argv) {
                 "integer-compounds|integer-compound-conversions|"
                 "integer-update-conversions|"
                 "integer-mutation-rejections|pointer-member-loads|"
-                "pointer-values HOST_ROOT\n");
+                "pointer-values|pointer-comparisons|pointer-conditions "
+                "HOST_ROOT\n");
   return 2;
 }

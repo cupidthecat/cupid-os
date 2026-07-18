@@ -4166,3 +4166,70 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0040 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Pointer arithmetic, subscripts, conditions, comparisons, casts, mutation, decay, indirect calls, atomics, other widths, floating and aggregate values, production integration, staged self-hosting, and the final fixed-point bootstrap remain. No issue is ready to close from this increment.
+
+## 2026-07-17: CupidC lowers object-pointer comparisons and conditions
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers represented four-byte object-pointer comparisons, truth tests, pointer-valued conditional expressions, and explicit same-width casts through deterministic i386 object emission. The unchanged requirement is `ctool_job_arena` in `toolchain/ctool.c`:
+
+```c
+ctool_arena_t *ctool_job_arena(ctool_job_t *job) {
+  return job != (ctool_job_t *)0 ? job->arena : (ctool_arena_t *)0;
+}
+```
+
+Pointer equality and order keep using the existing typed `BINARY` instruction. Lowering checks compatible referents after removing immediate referent qualifiers. Equality retains frontend-normalized object-pointer and `void *` pairs. Pointer order also requires object referents, which keeps malformed frozen `void *` order out of the public IR. The frontend continues to own null-pointer conversion. The emitter treats pointer order as unsigned and uses the existing sign-independent equality predicates.
+
+Pointer values now enter logical not, short-circuit logical AND and OR, conditional-expression conditions, and the conditions of `if`, `while`, `do`, and `for`. `BRANCH_ZERO` retains the pointer input type. Logical and comparison results remain plain signed `int`.
+
+Explicit casts may cross represented four-byte integer and object-pointer types in either direction, or move between represented object-pointer types. The IR keeps both semantic types. The emitter preserves the existing 32-bit word without adding a machine instruction. Function pointers, wide integers, and non-four-byte values remain unsupported.
+
+A pointer-valued conditional may receive compatible arm types with different graph identities. Lowering validates each arm against the frontend's composite result type and records that type at the abstract-stack join. This fixes the active helper without rewriting its source or erasing pointer semantics behind integer operations.
+
+Atomic pointer loads still need an explicit ordering and target-instruction contract. Pointer arithmetic, subscripts, pointer mutation, decay, indirect calls, and function-pointer values also remain open. ADR 0041 records the design and rejected alternatives.
+
+No user question was needed. The frozen frontend already publishes the types, conversions, value categories, and composite conditional result required by this step.
+
+### Contract evidence and corrections
+
+- The active helper and two focused comparison functions publish 27 exact IR instructions. Every kind, type, input type, operation, conversion, reference, value, branch target, and source location is pinned.
+- Three cast functions add twelve exact instructions for pointer to integer, object pointer to `void *`, and `void *` to object pointer. The active typed null cast covers integer to pointer.
+- Eight condition functions cover logical not, logical AND, logical OR, conditional selection, and pointer conditions in `if`, `while`, `do`, and `for`. Their 62 exact instructions pin every public field and source location, including ten pointer-typed branches and one pointer logical-not instruction.
+- The comparison and cast object has six functions in 198 exact text bytes, seven symbols including the null symbol, and no relocations. Decoding finds three comparisons, `SETE`, `SETNE`, unsigned `SETB`, and six returns.
+- The condition object has eight functions in 372 exact text bytes, nine symbols including the null symbol, and no relocations. Decoding finds eleven `TEST` instructions, one `SETE`, and nine returns. Both objects repeat byte for byte.
+- A malformed frozen unit that changes valid `void *` equality into pointer order receives the exact invalid-unit diagnostic. Pointer arithmetic, a cast involving a wide integer, and an atomic pointer load keep the exact unsupported-type diagnostic. Each failure preserves the frozen unit, publishes no partial IR, rewinds operation allocations, and leaves the job usable.
+- The first semantic IR run stopped at the expected unsupported-value boundary in `ctool_job_arena`. The first object run then reached the emitter's internal unsupported-instruction boundary. Those red runs isolated the two missing layers before implementation.
+- The first comparison harness used the local `ARRAY_COUNT` macro without defining it. Replacing that harness-only dependency with `sizeof` exposed the intended semantic red result. No product code changed for the harness mistake.
+- Pointer-valued conditional lowering initially compared arm and result graph indices directly. The active helper showed that the frontend had correctly published distinct but compatible arm and composite pointer identities. The join now validates structural compatibility and records the composite result type.
+- The contracts originally checked instruction kinds and decoded operation counts. They now pin all 39 comparison and cast IR records, all 62 condition IR records, all 198 comparison-object bytes, all 372 condition-object bytes, and every function offset and size.
+- `python -m pytest` could not run because the installed Python 3.14 environment has no `pytest` module. The repository's direct `unittest` entry points supplied the accepted focused evidence.
+- One combined frontend, IR, object, and graph command exceeded its four-minute wrapper timeout before unittest printed a result. Splitting the compiler modules from the graph regeneration produced complete accepted results.
+- The first sanitizer wrapper split the quoted flags at the Windows-to-WSL boundary. The first analyzer wrapper similarly returned without its required completion marker. PowerShell stop-parsing preserved both corrected command lines. The incomplete wrapper runs are excluded from evidence. After review, one WSL helper lost its variable-based build path and one PowerShell stop-parsing command failed before execution. Literal build paths and a stdin script supplied the accepted strict and sanitizer reruns; the two wrapper failures are excluded.
+- The Toolchain `test` target now invokes both new IR modes and both new object modes, so direct hosted builds exercise the capability without relying only on Python wrappers.
+- Standards review found that relational validation admitted `void *` referents and that the condition contract checked only aggregate operation counts. The object-referent gate and exact 62-record oracle close both findings. Follow-up Standards and Spec reviews report no remaining actionable issue.
+- The final self-source tuple for `cupidc_ir.c` is 111 definitions, 3,141 statements, 26,492 expressions, 390 block bindings, and 118 initializers. `cupidc_emit.c` publishes 70/1,592/14,092/210/102.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 271 C translation units, 264 headers, 26 assembly sources, and 127 Cupid C programs. The lexical inventory contains 610 direct designated initializers across 18 files, 896 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,497 `while`, 1,679 `break`, 928 `continue`, 24,894 `if`, 3,439 `else`, 3,007 `for`, 15,235 `return`, and 2,982 `sizeof` occurrences. The active-source digest is `5ee21f03444af25b2bb33c3e11198a20cd44a979f22ceec2c47b356e4118aed0`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | The active helper first failed at the unsupported-value boundary. Object emission then failed at the emitter boundary before scalar pointer instructions were accepted. Review then exposed a frozen `void *` equality expression that could be changed to pointer order. The new negative failed before relational validation required object referents, then passed with the exact transactional invalid-unit result. Pointer arithmetic, wide casts, and atomic pointer loads remain exact transactional failures. |
+| Focused CupidC contracts | PASS | The complete frontend, IR, and object Python modules pass all 64 tests in 23.408 seconds. |
+| Graph drift contract | PASS | The isolated active-manifest regeneration and exact inventory test passes in 111.276 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted Toolchain suite in 26.6 seconds, including both new IR modes, both new object modes, and all 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds pass the complete hosted Toolchain suite together in a 64.2-second parallel run. After review, fresh strict builds of the IR contract pass both pointer modes under GCC and Clang in 20.9 seconds. |
+| Sanitizers | PASS AFTER WRAPPER CORRECTION | Fresh GCC and Clang ASan and UBSan builds pass the active helper, pointer member, pointer value, comparison, cast, condition, and object modes in 60.9 seconds. Leak detection, strict string checks, stack traces, and halt-on-error behavior are enabled. The split-flag wrapper run is excluded. After review, fresh GCC and Clang ASan and UBSan builds pass both amended IR modes in 64.3 seconds. |
+| Static analysis | PASS AFTER WRAPPER CORRECTION | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c`, `cupidc_emit.c`, and the three changed C contracts. The accepted broad parallel run takes 167 seconds and requires empty diagnostic logs plus an explicit completion marker. After review, GCC `-fanalyzer` and Clang `--analyze` recheck `cupidc_ir.c` and its IR contract without diagnostics in 130.5 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 36.6 seconds. `make check-bootstrap-audit` reproduces them exactly in 36.9 seconds. |
+| Full repository gate | PASS | `make test` passes all 306 tests in 479.744 seconds with one expected skip and returns from Make in 517.1 seconds. |
+| Two-axis review | PASS AFTER FIX | Standards review found the malformed `void *` relational seam and the loose pointer-condition oracle. Both were fixed and reverified. Spec review found no mismatch, and both follow-up reviews are clean. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADR 0041 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Pointer arithmetic, subscripts, pointer mutation, decay, indirect calls, function-pointer values, atomics, other widths, floating and aggregate values, production integration, staged self-hosting, and the final fixed-point bootstrap remain. No issue is ready to close from this increment.

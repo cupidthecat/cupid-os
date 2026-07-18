@@ -190,6 +190,26 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-values: ok\n")
 
+    def test_object_pointer_comparisons_preserve_c_pointer_semantics(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-comparisons", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-comparisons: ok\n")
+
+    def test_object_pointer_conditions_use_scalar_truth_testing(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-conditions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-conditions: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

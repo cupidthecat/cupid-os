@@ -484,6 +484,44 @@ static ctool_bool cir_pointer_value_types_match(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_pointer_comparison_types_match(
+    const cir_context_t *context, ctool_u32 left_type,
+    ctool_u32 right_type, ctool_bool require_object_referents) {
+  const ctool_c_type_node_t *left_pointer =
+      cir_unwrapped_type(context, left_type);
+  const ctool_c_type_node_t *right_pointer =
+      cir_unwrapped_type(context, right_type);
+  const ctool_c_type_node_t *left_referent;
+  const ctool_c_type_node_t *right_referent;
+  ctool_u32 left_base;
+  ctool_u32 right_base;
+  ctool_u32 left_qualifiers;
+  ctool_u32 right_qualifiers;
+  if (cir_type_is_i32_pointer(context, left_type) == CTOOL_FALSE ||
+      cir_type_is_i32_pointer(context, right_type) == CTOOL_FALSE ||
+      left_pointer == (const ctool_c_type_node_t *)0 ||
+      right_pointer == (const ctool_c_type_node_t *)0 ||
+      cir_underlying_type(context, left_pointer->referenced_type, &left_base,
+                          &left_qualifiers, &left_referent) == CTOOL_FALSE ||
+      cir_underlying_type(context, right_pointer->referenced_type,
+                          &right_base, &right_qualifiers,
+                          &right_referent) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)left_qualifiers;
+  (void)right_qualifiers;
+  (void)left_referent;
+  (void)right_referent;
+  if (require_object_referents == CTOOL_TRUE &&
+      (left_base >= context->unit->layout.type_count ||
+       right_base >= context->unit->layout.type_count ||
+       context->unit->layout.types[left_base].is_object == CTOOL_FALSE ||
+       context->unit->layout.types[right_base].is_object == CTOOL_FALSE)) {
+    return CTOOL_FALSE;
+  }
+  return cir_types_compatible(context, left_base, right_base);
+}
+
 static ctool_bool cir_pointer_conversion_is_valid(
     const cir_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
@@ -1146,9 +1184,9 @@ static ctool_status_t cir_lower_cast(
       expression->type >= context->unit->layout.type_count) {
     return cir_invalid_unit(context, &expression->location);
   }
-  if (cir_type_is_i32_integer(
+  if (cir_type_is_i32_scalar(
           context, context->unit->expressions[child].type) == CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+      cir_type_is_i32_scalar(context, expression->type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
   }
   status = cir_lower_expression(context, child, depth + 1u);
@@ -1178,6 +1216,9 @@ static ctool_status_t cir_lower_binary(
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   cir_stack_entry_t left;
   cir_stack_entry_t right;
+  ctool_bool is_comparison;
+  ctool_bool is_pointer_comparison;
+  ctool_bool is_relational_comparison;
   ctool_bool is_shift;
   ctool_bool is_bitwise_xor;
   ctool_u32 left_child;
@@ -1214,20 +1255,55 @@ static ctool_status_t cir_lower_binary(
        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  is_comparison =
+      expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+              expression->operation ==
+                  CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL ||
+              expression->operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
+              expression->operation ==
+                  CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL ||
+              expression->operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+              expression->operation == CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  is_relational_comparison =
+      expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+              expression->operation ==
+                  CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL ||
+              expression->operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
+              expression->operation ==
+                  CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  is_pointer_comparison =
+      is_comparison == CTOOL_TRUE &&
+              cir_type_is_i32_pointer(context, left.type) == CTOOL_TRUE &&
+              cir_type_is_i32_pointer(context, right.type) == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   is_bitwise_xor = expression->operation ==
                            CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR
                        ? CTOOL_TRUE
                        : CTOOL_FALSE;
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
-      cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE ||
-      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE ||
+      (is_pointer_comparison == CTOOL_FALSE &&
+       (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
+        cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE))) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
         "CupidC IR lowering does not yet support this value type");
   }
-  if (is_shift == CTOOL_TRUE) {
+  if (is_pointer_comparison == CTOOL_TRUE) {
+    if (cir_type_is_plain_signed_int(context, expression->type) ==
+            CTOOL_FALSE ||
+        cir_pointer_comparison_types_match(
+            context, left.type, right.type, is_relational_comparison) ==
+            CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  } else if (is_shift == CTOOL_TRUE) {
     if (expression->type != left.type) {
       return cir_invalid_unit(context, &expression->location);
     }
@@ -1361,7 +1437,10 @@ static ctool_status_t cir_lower_unary(
   if (operand.kind != CIR_STACK_VALUE) {
     return cir_invalid_unit(context, &expression->location);
   }
-  if (cir_type_is_i32_integer(context, operand.type) == CTOOL_FALSE ||
+  if ((logical_not == CTOOL_FALSE &&
+       cir_type_is_i32_integer(context, operand.type) == CTOOL_FALSE) ||
+      (logical_not == CTOOL_TRUE &&
+       cir_type_is_i32_scalar(context, operand.type) == CTOOL_FALSE) ||
       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
   }
@@ -1398,7 +1477,7 @@ static ctool_status_t cir_lower_logical_operand(
       operand_out->kind != CIR_STACK_VALUE) {
     return cir_invalid_unit(context, &expression->location);
   }
-  if (cir_type_is_i32_integer(context, operand_out->type) == CTOOL_FALSE) {
+  if (cir_type_is_i32_scalar(context, operand_out->type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
   }
   return CTOOL_OK;
@@ -2198,7 +2277,7 @@ static ctool_status_t cir_lower_conditional(
     return status;
   }
   if (condition.kind != CIR_STACK_VALUE ||
-      cir_type_is_i32_integer(context, condition.type) == CTOOL_FALSE) {
+      cir_type_is_i32_scalar(context, condition.type) == CTOOL_FALSE) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
@@ -2240,9 +2319,15 @@ static ctool_status_t cir_lower_conditional(
     when_zero = context->stack[context->stack_depth - 1u];
     if (when_nonzero.kind != CIR_STACK_VALUE ||
         when_zero.kind != CIR_STACK_VALUE ||
-        when_nonzero.type != expression->type ||
-        when_zero.type != expression->type) {
+        (when_nonzero.type != expression->type &&
+         cir_pointer_value_types_match(context, expression->type,
+                                       when_nonzero.type) == CTOOL_FALSE) ||
+        (when_zero.type != expression->type &&
+         cir_pointer_value_types_match(context, expression->type,
+                                       when_zero.type) == CTOOL_FALSE)) {
       status = cir_invalid_unit(context, &expression->location);
+    } else {
+      context->stack[context->stack_depth - 1u].type = expression->type;
     }
   }
   if (status == CTOOL_OK) {
@@ -3151,7 +3236,7 @@ static ctool_status_t cir_lower_compound(cir_context_t *context,
   return CTOOL_OK;
 }
 
-static ctool_status_t cir_lower_integer_condition_branch(
+static ctool_status_t cir_lower_scalar_condition_branch(
     cir_context_t *context, ctool_u32 condition_index,
     ctool_u32 *branch_out) {
   const ctool_c_expression_t *condition_expression =
@@ -3169,7 +3254,7 @@ static ctool_status_t cir_lower_integer_condition_branch(
   if (condition.kind != CIR_STACK_VALUE || context->stack_depth != 0u) {
     return cir_invalid_unit(context, &condition_expression->location);
   }
-  if (cir_type_is_i32_integer(context, condition.type) == CTOOL_FALSE) {
+  if (cir_type_is_i32_scalar(context, condition.type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &condition_expression->location);
   }
   return cir_append_instruction(
@@ -3180,15 +3265,15 @@ static ctool_status_t cir_lower_integer_condition_branch(
       branch_out);
 }
 
-static ctool_status_t cir_validate_unreachable_integer_condition(
+static ctool_status_t cir_validate_unreachable_scalar_condition(
     cir_context_t *context, ctool_u32 condition_index) {
   cir_context_t validation;
   ctool_arena_mark_t mark = ctool_arena_mark(context->arena);
   ctool_u32 ignored_branch;
   ctool_status_t status;
   cir_prepare_count_only_validation(&validation, context);
-  status = cir_lower_integer_condition_branch(&validation, condition_index,
-                                              &ignored_branch);
+  status = cir_lower_scalar_condition_branch(&validation, condition_index,
+                                             &ignored_branch);
   return cir_finish_count_only_validation(context, &validation, mark, status);
 }
 
@@ -3343,8 +3428,8 @@ static ctool_status_t cir_lower_if(cir_context_t *context,
             CTOOL_C_STATEMENT_DECLARATION))) {
     return cir_invalid_unit(context, &statement->location);
   }
-  status = cir_lower_integer_condition_branch(context, statement->condition,
-                                              &branch);
+  status = cir_lower_scalar_condition_branch(context, statement->condition,
+                                             &branch);
   if (status == CTOOL_OK) {
     status = cir_lower_statement_from_entry(
         context, statement->body, depth + 1u, entry_reachable,
@@ -3447,8 +3532,8 @@ static ctool_status_t cir_lower_while(cir_context_t *context,
     return status;
   }
   condition_target = cir_function_offset(context);
-  status = cir_lower_integer_condition_branch(context, statement->condition,
-                                              &branch);
+  status = cir_lower_scalar_condition_branch(context, statement->condition,
+                                             &branch);
   if (status == CTOOL_OK) {
     status = cir_lower_loop_body(context, statement->body, depth,
                                  entry_reachable, condition_target, &frame,
@@ -3509,8 +3594,8 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
   }
   if (body_falls_through == CTOOL_FALSE &&
       frame.has_continue == CTOOL_FALSE) {
-    status = cir_validate_unreachable_integer_condition(context,
-                                                        statement->condition);
+    status = cir_validate_unreachable_scalar_condition(context,
+                                                       statement->condition);
   } else {
     condition_target = cir_function_offset(context);
     if (frame.has_continue == CTOOL_TRUE) {
@@ -3519,9 +3604,9 @@ static ctool_status_t cir_lower_do(cir_context_t *context,
                                       condition_target);
     }
     if (status == CTOOL_OK) {
-      status = cir_lower_integer_condition_branch(context,
-                                                  statement->condition,
-                                                  &branch);
+      status = cir_lower_scalar_condition_branch(context,
+                                                 statement->condition,
+                                                 &branch);
     }
     if (status == CTOOL_OK) {
       status = cir_append_instruction(
@@ -3616,8 +3701,8 @@ static ctool_status_t cir_lower_for(cir_context_t *context,
   }
   condition_target = cir_function_offset(context);
   if (statement->condition != CTOOL_C_AST_NONE) {
-    status = cir_lower_integer_condition_branch(context, statement->condition,
-                                                &exit_branch);
+    status = cir_lower_scalar_condition_branch(context, statement->condition,
+                                               &exit_branch);
   }
   if (status == CTOOL_OK) {
     status = cir_lower_loop_body(
