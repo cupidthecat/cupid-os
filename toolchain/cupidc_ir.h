@@ -25,7 +25,9 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE,
   CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
-  CTOOL_C_IR_INSTRUCTION_ADDRESS_OF
+  CTOOL_C_IR_INSTRUCTION_ADDRESS_OF,
+  CTOOL_C_IR_INSTRUCTION_POINTER_BINARY,
+  CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -39,11 +41,13 @@ typedef struct {
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD retain their record operand type. STORE and STORE_VALUE
    * retain the stored value type. DISCARD retains its consumed value type.
-   * UNARY and BINARY retain their operand type. DUPLICATE_VALUE retains the
-   * duplicated value type. DUPLICATE_ADDRESS retains the duplicated object's
-   * type. DEREFERENCE retains its pointer operand type. ADDRESS_OF retains
-   * its object operand type. CALL_DIRECT retains the function type.
-   * BRANCH_ZERO retains its consumed condition type. */
+   * UNARY and BINARY retain their operand type. POINTER_BINARY retains its
+   * left operand type. ARRAY_TO_POINTER retains its array operand type.
+   * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
+   * retains the duplicated object's type. DEREFERENCE retains its pointer
+   * operand type. ADDRESS_OF retains its object operand type. CALL_DIRECT
+   * retains the function type. BRANCH_ZERO retains its consumed condition
+   * type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
@@ -52,7 +56,8 @@ typedef struct {
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index. FILE_ADDRESS
    * and CALL_DIRECT use an absolute file-binding index. MEMBER_ADDRESS and
-   * BIT_FIELD_LOAD use an absolute graph-member index. Branches use a
+   * BIT_FIELD_LOAD use an absolute graph-member index. POINTER_BINARY uses
+   * an absolute graph-type index for its right operand. Branches use a
    * function-relative instruction index. Other instructions use
    * CTOOL_C_AST_NONE. */
   ctool_u32 reference;
@@ -88,6 +93,21 @@ typedef struct {
 ctool_bool ctool_c_ir_pointer_value_types_compatible(
     const ctool_c_translation_unit_t *unit, ctool_u32 left,
     ctool_u32 right);
+
+/* Reports whether two represented object pointers may participate in pointer
+ * subtraction. The pointed-to types must be compatible complete objects.
+ * Immediate pointed-to qualification, including atomic qualification, does
+ * not change compatibility for this operation. */
+ctool_bool ctool_c_ir_pointer_arithmetic_types_compatible(
+    const ctool_c_translation_unit_t *unit, ctool_u32 left,
+    ctool_u32 right);
+
+/* Reports whether a complete array object may decay to a represented pointer
+ * to its first element. Array qualification follows the C rule that moves it
+ * to the element type. */
+ctool_bool ctool_c_ir_array_decay_types_compatible(
+    const ctool_c_translation_unit_t *unit, ctool_u32 array_type,
+    ctool_u32 pointer_type);
 
 typedef enum {
   CTOOL_C_IR_DIAG_INVALID_REQUEST = 0x0d000001u,
@@ -127,11 +147,13 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
  * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. DUPLICATE_ADDRESS
- * preserves an address while an integer compound assignment or update loads
- * and stores the object. This evaluates the destination once. Compound
- * assignments retain integer-promotion, usual-arithmetic, and assignment
- * conversions. Prefix updates produce the stored value. Postfix updates
- * produce the value from before the store.
+ * preserves an address while a represented scalar compound assignment or
+ * update loads and stores the object. This evaluates the destination once.
+ * Integer compound assignments retain integer-promotion,
+ * usual-arithmetic, and assignment conversions. Pointer compound
+ * assignments and updates use POINTER_BINARY with a complete-object stride.
+ * Prefix updates produce the stored value. Postfix updates produce the value
+ * from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
  * address and pushes the selected field's extracted integer value.
@@ -139,6 +161,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * address. It emits no target instruction because both forms occupy one
  * 32-bit machine word, while the public IR keeps their meanings distinct.
  * ADDRESS_OF performs the inverse transition for an object designator.
+ * ARRAY_TO_POINTER consumes an array address and produces the address of its
+ * first element without emitting a target instruction. POINTER_BINARY scales
+ * an integer operand by the pointed-to object size. Pointer subtraction
+ * divides the byte difference by that size and produces signed int.
  * STORE consumes the value on top of the stack and the destination address
  * below it, without producing a result.
  * STORE_VALUE consumes the same pair and pushes the stored assignment result.

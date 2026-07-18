@@ -453,6 +453,46 @@ static ctool_bool cir_pointer_values_compatible(
                               right_pointer->referenced_type);
 }
 
+static ctool_bool cir_array_decay_types_match(
+    const cir_context_t *context, ctool_u32 array_type,
+    ctool_u32 pointer_type) {
+  const ctool_c_type_node_t *array;
+  const ctool_c_type_node_t *pointer =
+      cir_unwrapped_type(context, pointer_type);
+  const ctool_c_type_node_t *element;
+  const ctool_c_type_node_t *target;
+  ctool_u32 array_base;
+  ctool_u32 array_qualifiers;
+  ctool_u32 element_base;
+  ctool_u32 element_qualifiers;
+  ctool_u32 target_base;
+  ctool_u32 target_qualifiers;
+  if (cir_underlying_type(context, array_type, &array_base,
+                          &array_qualifiers, &array) == CTOOL_FALSE ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array_type >= context->unit->layout.type_count ||
+      context->unit->layout.types[array_type].is_complete_object ==
+          CTOOL_FALSE ||
+      pointer == (const ctool_c_type_node_t *)0 ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      cir_type_is_i32_pointer(context, pointer_type) == CTOOL_FALSE ||
+      cir_underlying_type(context, array->referenced_type, &element_base,
+                          &element_qualifiers, &element) == CTOOL_FALSE ||
+      cir_underlying_type(context, pointer->referenced_type, &target_base,
+                          &target_qualifiers, &target) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)array_base;
+  array_qualifiers |= array->qualifiers;
+  element_qualifiers |= element->qualifiers;
+  target_qualifiers |= target->qualifiers;
+  return target_qualifiers == (element_qualifiers | array_qualifiers) &&
+                 cir_types_compatible(context, element_base, target_base) ==
+                     CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 ctool_bool ctool_c_ir_pointer_value_types_compatible(
     const ctool_c_translation_unit_t *unit, ctool_u32 left,
     ctool_u32 right) {
@@ -520,6 +560,58 @@ static ctool_bool cir_pointer_comparison_types_match(
     return CTOOL_FALSE;
   }
   return cir_types_compatible(context, left_base, right_base);
+}
+
+ctool_bool ctool_c_ir_pointer_arithmetic_types_compatible(
+    const ctool_c_translation_unit_t *unit, ctool_u32 left,
+    ctool_u32 right) {
+  cir_context_t context;
+  const ctool_c_type_node_t *left_pointer;
+  const ctool_c_type_node_t *right_pointer;
+  if (unit == (const ctool_c_translation_unit_t *)0 ||
+      unit->graph.types == (const ctool_c_type_node_t *)0 ||
+      unit->layout.type_count != unit->graph.type_count ||
+      unit->layout.types == (const ctool_c_type_layout_t *)0 ||
+      left >= unit->graph.type_count || right >= unit->graph.type_count) {
+    return CTOOL_FALSE;
+  }
+  cir_zero(&context, (ctool_u32)sizeof(context));
+  context.unit = unit;
+  left_pointer = cir_unwrapped_type(&context, left);
+  right_pointer = cir_unwrapped_type(&context, right);
+  if (left_pointer == (const ctool_c_type_node_t *)0 ||
+      right_pointer == (const ctool_c_type_node_t *)0 ||
+      left_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      right_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      left_pointer->referenced_type >= unit->layout.type_count ||
+      right_pointer->referenced_type >= unit->layout.type_count ||
+      unit->layout.types[left_pointer->referenced_type].is_complete_object ==
+          CTOOL_FALSE ||
+      unit->layout.types[right_pointer->referenced_type]
+              .is_complete_object == CTOOL_FALSE ||
+      unit->layout.types[left_pointer->referenced_type].size == 0u ||
+      unit->layout.types[right_pointer->referenced_type].size == 0u) {
+    return CTOOL_FALSE;
+  }
+  return cir_pointer_comparison_types_match(&context, left, right,
+                                            CTOOL_TRUE);
+}
+
+ctool_bool ctool_c_ir_array_decay_types_compatible(
+    const ctool_c_translation_unit_t *unit, ctool_u32 array_type,
+    ctool_u32 pointer_type) {
+  cir_context_t context;
+  if (unit == (const ctool_c_translation_unit_t *)0 ||
+      unit->graph.types == (const ctool_c_type_node_t *)0 ||
+      unit->layout.type_count != unit->graph.type_count ||
+      unit->layout.types == (const ctool_c_type_layout_t *)0 ||
+      array_type >= unit->graph.type_count ||
+      pointer_type >= unit->graph.type_count) {
+    return CTOOL_FALSE;
+  }
+  cir_zero(&context, (ctool_u32)sizeof(context));
+  context.unit = unit;
+  return cir_array_decay_types_match(&context, array_type, pointer_type);
 }
 
 static ctool_bool cir_pointer_conversion_is_valid(
@@ -599,13 +691,14 @@ static ctool_u32 cir_plain_signed_int_type(
   return CTOOL_C_TYPE_NONE;
 }
 
-static ctool_bool cir_type_is_complete_record_object(
+static ctool_bool cir_type_is_complete_aggregate_object(
     const cir_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
   return type < context->unit->layout.type_count &&
                  node != (const ctool_c_type_node_t *)0 &&
-                 node->kind == CTOOL_C_TYPE_RECORD &&
-                 node->record_complete == CTOOL_TRUE &&
+                 (node->kind == CTOOL_C_TYPE_ARRAY ||
+                  (node->kind == CTOOL_C_TYPE_RECORD &&
+                   node->record_complete == CTOOL_TRUE)) &&
                  context->unit->layout.types[type].is_object == CTOOL_TRUE &&
                  context->unit->layout.types[type].is_complete_object ==
                      CTOOL_TRUE
@@ -723,7 +816,7 @@ static ctool_status_t cir_duplicate_address(
   if (context->stack_depth == 0u ||
       context->stack[context->stack_depth - 1u].kind != CIR_STACK_ADDRESS ||
       context->stack[context->stack_depth - 1u].type != type ||
-      cir_type_is_i32_integer(context, type) == CTOOL_FALSE) {
+      cir_type_is_i32_scalar(context, type) == CTOOL_FALSE) {
     return cir_invalid_unit(context, location);
   }
   status = cir_append_instruction(
@@ -1100,6 +1193,20 @@ static ctool_status_t cir_lower_conversion(
         CTOOL_C_EXPRESSION_OPERATOR_NONE, expression->conversion,
         CTOOL_C_AST_NONE, 0u, &expression->location,
         &expression->physical_location, (ctool_u32 *)0);
+  } else if (expression->conversion ==
+             CTOOL_C_CONVERSION_ARRAY_TO_POINTER) {
+    if (source.kind != CIR_STACK_ADDRESS ||
+        source.type != context->unit->expressions[child].type ||
+        cir_array_decay_types_match(context, source.type,
+                                    expression->type) == CTOOL_FALSE) {
+      return cir_unsupported_conversion(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+        expression->type, source.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        expression->conversion, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
   } else if (expression->conversion == CTOOL_C_CONVERSION_QUALIFICATION ||
              expression->conversion ==
                  CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
@@ -1211,6 +1318,93 @@ static ctool_status_t cir_lower_cast(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
+static ctool_status_t cir_append_pointer_binary(
+    cir_context_t *context, const cir_stack_entry_t *left,
+    const cir_stack_entry_t *right, ctool_u32 result_type,
+    ctool_c_expression_operator_t operation,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  const ctool_c_type_node_t *pointer;
+  ctool_bool left_is_pointer;
+  ctool_bool right_is_pointer;
+  ctool_u32 instruction_index = 0u;
+  ctool_u32 pointer_type;
+  ctool_status_t status;
+  if (left->kind != CIR_STACK_VALUE || right->kind != CIR_STACK_VALUE ||
+      (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+       operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT)) {
+    return cir_invalid_unit(context, location);
+  }
+  left_is_pointer = cir_type_is_i32_pointer(context, left->type);
+  right_is_pointer = cir_type_is_i32_pointer(context, right->type);
+  if (left_is_pointer == CTOOL_FALSE && right_is_pointer == CTOOL_FALSE) {
+    return cir_invalid_unit(context, location);
+  }
+  pointer_type = left_is_pointer == CTOOL_TRUE ? left->type : right->type;
+  pointer = cir_unwrapped_type(context, pointer_type);
+  if (pointer == (const ctool_c_type_node_t *)0 ||
+      pointer->referenced_type >= context->unit->layout.type_count ||
+      context->unit->layout.types[pointer->referenced_type].is_object ==
+          CTOOL_FALSE ||
+      context->unit->layout.types[pointer->referenced_type]
+              .is_complete_object == CTOOL_FALSE ||
+      context->unit->layout.types[pointer->referenced_type].size == 0u) {
+    return cir_invalid_unit(context, location);
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+    ctool_u32 integer_type = left_is_pointer == CTOOL_TRUE
+                                 ? right->type
+                                 : left->type;
+    if (left_is_pointer == right_is_pointer ||
+        integer_type >= context->unit->layout.type_count ||
+        context->unit->layout.types[integer_type].is_integer == CTOOL_FALSE ||
+        cir_pointer_value_types_match(context, pointer_type, result_type) ==
+            CTOOL_FALSE) {
+      return cir_invalid_unit(context, location);
+    }
+    if (cir_type_is_i32_integer(context, integer_type) == CTOOL_FALSE) {
+      return cir_unsupported_type(context, location);
+    }
+  } else if (left_is_pointer == CTOOL_FALSE) {
+    return cir_invalid_unit(context, location);
+  } else if (right_is_pointer == CTOOL_TRUE) {
+    const ctool_c_type_node_t *right_pointer =
+        cir_unwrapped_type(context, right->type);
+    if (right_pointer == (const ctool_c_type_node_t *)0 ||
+        right_pointer->referenced_type >= context->unit->layout.type_count ||
+        context->unit->layout.types[right_pointer->referenced_type]
+                .is_complete_object == CTOOL_FALSE ||
+        context->unit->layout.types[right_pointer->referenced_type].size ==
+            0u ||
+        cir_type_is_plain_signed_int(context, result_type) == CTOOL_FALSE ||
+        cir_pointer_comparison_types_match(context, left->type, right->type,
+                                           CTOOL_TRUE) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, location);
+    }
+  } else {
+    if (right->type >= context->unit->layout.type_count ||
+        context->unit->layout.types[right->type].is_integer == CTOOL_FALSE ||
+        cir_pointer_value_types_match(context, left->type, result_type) ==
+            CTOOL_FALSE) {
+      return cir_invalid_unit(context, location);
+    }
+    if (cir_type_is_i32_integer(context, right->type) == CTOOL_FALSE) {
+      return cir_unsupported_type(context, location);
+    }
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, result_type,
+      left->type, operation, CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      location, physical_location, &instruction_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (context->instructions != (ctool_c_ir_instruction_t *)0) {
+    context->instructions[instruction_index].reference = right->type;
+  }
+  return cir_push(context, CIR_STACK_VALUE, result_type);
+}
+
 static ctool_status_t cir_lower_binary(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
@@ -1218,6 +1412,7 @@ static ctool_status_t cir_lower_binary(
   cir_stack_entry_t right;
   ctool_bool is_comparison;
   ctool_bool is_pointer_comparison;
+  ctool_bool is_pointer_arithmetic;
   ctool_bool is_relational_comparison;
   ctool_bool is_shift;
   ctool_bool is_bitwise_xor;
@@ -1281,12 +1476,25 @@ static ctool_status_t cir_lower_binary(
               cir_type_is_i32_pointer(context, right.type) == CTOOL_TRUE
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  is_pointer_arithmetic =
+      (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+       expression->operation == CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) &&
+              (cir_type_is_i32_pointer(context, left.type) == CTOOL_TRUE ||
+               cir_type_is_i32_pointer(context, right.type) == CTOOL_TRUE)
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   is_bitwise_xor = expression->operation ==
                            CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR
                        ? CTOOL_TRUE
                        : CTOOL_FALSE;
+  if (is_pointer_arithmetic == CTOOL_TRUE) {
+    return cir_append_pointer_binary(
+        context, &left, &right, expression->type, expression->operation,
+        &expression->location, &expression->physical_location);
+  }
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
-      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE ||
+      (is_pointer_comparison == CTOOL_FALSE &&
+       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) ||
       (is_pointer_comparison == CTOOL_FALSE &&
        (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
         cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE))) {
@@ -1731,6 +1939,114 @@ static ctool_c_expression_operator_t cir_compound_binary_operation(
   }
 }
 
+static ctool_status_t cir_lower_pointer_compound_assignment(
+    cir_context_t *context, const ctool_c_expression_t *expression,
+    const ctool_c_expression_t *left_expression, ctool_u32 left_child,
+    ctool_u32 right_child, ctool_u32 depth,
+    ctool_c_expression_operator_t operation) {
+  cir_stack_entry_t address;
+  cir_stack_entry_t left;
+  cir_stack_entry_t result;
+  cir_stack_entry_t right;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_status_t status;
+  if (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (cir_type_is_i32_pointer(context, left_expression->type) == CTOOL_FALSE ||
+      cir_type_is_i32_pointer(context, expression->type) == CTOOL_FALSE ||
+      cir_type_is_i32_pointer(context, expression->computation_type) ==
+          CTOOL_FALSE) {
+    return cir_unsupported_type(context, &expression->location);
+  }
+  if (cir_pointer_value_types_match(context, left_expression->type,
+                                    expression->type) == CTOOL_FALSE ||
+      cir_pointer_value_types_match(context, expression->type,
+                                    expression->computation_type) ==
+          CTOOL_FALSE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_lower_expression(context, left_child, depth + 1u);
+  if (status == CTOOL_OK &&
+      (cir_add_overflows(base_depth, 1u) == CTOOL_TRUE ||
+       context->stack_depth != base_depth + 1u ||
+       context->stack[base_depth].kind != CIR_STACK_ADDRESS ||
+       context->stack[base_depth].type != left_expression->type)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_duplicate_address(
+        context, left_expression->type, &expression->location,
+        &expression->physical_location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status == CTOOL_OK &&
+      (address.kind != CIR_STACK_ADDRESS ||
+       address.type != left_expression->type)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_LOAD, expression->type,
+        left_expression->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_lower_expression(context, right_child, depth + 1u);
+  }
+  if (status == CTOOL_OK &&
+      (cir_add_overflows(base_depth, 3u) == CTOOL_TRUE ||
+       context->stack_depth != base_depth + 3u)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &right);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &left);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_pointer_binary(
+        context, &left, &right, expression->computation_type, operation,
+        &expression->location, &expression->physical_location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &result);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status == CTOOL_OK &&
+      (address.kind != CIR_STACK_ADDRESS ||
+       result.kind != CIR_STACK_VALUE ||
+       address.type != left_expression->type ||
+       result.type != expression->computation_type ||
+       cir_pointer_value_types_match(context, expression->type,
+                                     result.type) == CTOOL_FALSE)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_STORE_VALUE, expression->type,
+        result.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_VALUE, expression->type);
+}
+
 static ctool_status_t cir_lower_compound_assignment(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
@@ -1766,6 +2082,11 @@ static ctool_status_t cir_lower_compound_assignment(
   if (cir_type_has_atomic_qualification(context, left_expression->type) ==
       CTOOL_TRUE) {
     return cir_unsupported_type(context, &expression->location);
+  }
+  if (cir_type_is_i32_pointer(context, left_expression->type) == CTOOL_TRUE) {
+    return cir_lower_pointer_compound_assignment(
+        context, expression, left_expression, left_child, right_child, depth,
+        operation);
   }
   if (cir_type_is_i32_integer(context, left_expression->type) ==
           CTOOL_FALSE ||
@@ -1986,6 +2307,144 @@ static ctool_status_t cir_lower_assignment(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
+static ctool_status_t cir_lower_pointer_update(
+    cir_context_t *context, const ctool_c_expression_t *expression,
+    const ctool_c_expression_t *operand_expression, ctool_u32 child,
+    ctool_u32 depth, ctool_c_expression_operator_t update_operation,
+    ctool_bool postfix) {
+  cir_stack_entry_t address;
+  cir_stack_entry_t left;
+  cir_stack_entry_t result;
+  cir_stack_entry_t right;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_u32 integer_type = cir_plain_signed_int_type(context);
+  ctool_status_t status;
+  if (integer_type == CTOOL_C_TYPE_NONE ||
+      cir_type_is_i32_pointer(context, operand_expression->type) ==
+          CTOOL_FALSE ||
+      cir_type_is_i32_pointer(context, expression->type) == CTOOL_FALSE ||
+      cir_type_is_i32_pointer(context, expression->computation_type) ==
+          CTOOL_FALSE ||
+      (update_operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+       update_operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (cir_pointer_value_types_match(context, operand_expression->type,
+                                    expression->type) == CTOOL_FALSE ||
+      cir_pointer_value_types_match(context, expression->type,
+                                    expression->computation_type) ==
+          CTOOL_FALSE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_lower_expression(context, child, depth + 1u);
+  if (status == CTOOL_OK &&
+      (cir_add_overflows(base_depth, 1u) == CTOOL_TRUE ||
+       context->stack_depth != base_depth + 1u ||
+       context->stack[base_depth].kind != CIR_STACK_ADDRESS ||
+       context->stack[base_depth].type != operand_expression->type)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_duplicate_address(
+        context, operand_expression->type, &expression->location,
+        &expression->physical_location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status == CTOOL_OK &&
+      (address.kind != CIR_STACK_ADDRESS ||
+       address.type != operand_expression->type)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_LOAD, expression->type,
+        operand_expression->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_INTEGER, integer_type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, integer_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &right);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &left);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_pointer_binary(
+        context, &left, &right, expression->computation_type,
+        update_operation, &expression->location,
+        &expression->physical_location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &result);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status == CTOOL_OK &&
+      (address.kind != CIR_STACK_ADDRESS ||
+       result.kind != CIR_STACK_VALUE ||
+       address.type != operand_expression->type ||
+       result.type != expression->computation_type ||
+       cir_pointer_value_types_match(context, expression->type,
+                                     result.type) == CTOOL_FALSE)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_STORE_VALUE, expression->type,
+        result.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (status == CTOOL_OK && postfix == CTOOL_TRUE) {
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_INTEGER, integer_type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK && postfix == CTOOL_TRUE) {
+    status = cir_push(context, CIR_STACK_VALUE, integer_type);
+  }
+  if (status == CTOOL_OK && postfix == CTOOL_TRUE) {
+    status = cir_pop(context, &right);
+  }
+  if (status == CTOOL_OK && postfix == CTOOL_TRUE) {
+    status = cir_pop(context, &left);
+  }
+  if (status == CTOOL_OK && postfix == CTOOL_TRUE) {
+    status = cir_append_pointer_binary(
+        context, &left, &right, expression->type,
+        update_operation == CTOOL_C_EXPRESSION_OPERATOR_ADD
+            ? CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT
+            : CTOOL_C_EXPRESSION_OPERATOR_ADD,
+        &expression->location, &expression->physical_location);
+  }
+  return status;
+}
+
 static ctool_status_t cir_lower_update(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
@@ -2031,6 +2490,12 @@ static ctool_status_t cir_lower_update(
                                         operand_expression->type) ==
       CTOOL_TRUE) {
     return cir_unsupported_type(context, &expression->location);
+  }
+  if (cir_type_is_i32_pointer(context, operand_expression->type) ==
+      CTOOL_TRUE) {
+    return cir_lower_pointer_update(
+        context, expression, operand_expression, child, depth,
+        update_operation, postfix);
   }
   if (cir_type_is_i32_integer(context, operand_expression->type) ==
           CTOOL_FALSE ||
@@ -2562,7 +3027,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       }
     }
     if (cir_type_is_i32_scalar(context, expression->type) == CTOOL_FALSE &&
-        cir_type_is_complete_record_object(context, expression->type) ==
+        cir_type_is_complete_aggregate_object(context, expression->type) ==
             CTOOL_FALSE) {
       return cir_unsupported_type(context, &expression->location);
     }

@@ -114,6 +114,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-conditions: ok\n")
 
+    def test_object_pointer_arithmetic_emits_scaled_i386_operations(self):
+        result = subprocess.run(
+            [str(self.contract_path), "pointer-arithmetic", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-arithmetic: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

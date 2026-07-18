@@ -4233,3 +4233,67 @@ This increment transfers no production ownership and retires no host dependency.
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADR 0041 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Pointer arithmetic, subscripts, pointer mutation, decay, indirect calls, function-pointer values, atomics, other widths, floating and aggregate values, production integration, staged self-hosting, and the final fixed-point bootstrap remain. No issue is ready to close from this increment.
+
+## 2026-07-18: CupidC lowers complete-object pointer arithmetic
+
+### Decision and active-source requirement
+
+The hosted CupidC path now lowers pointer arithmetic for complete object types. The immediate pressure comes from the unchanged ATA read and write loops in `drivers/ata.c`:
+
+```c
+uint16_t *buf = (uint16_t *)buffer;
+insw(ATA_PRIMARY_DATA, buf, 256);
+buf += 256;
+
+const uint16_t *buf = (const uint16_t *)buffer;
+outsw(ATA_PRIMARY_DATA, buf, 256);
+buf += 256;
+```
+
+Pointer addition accepts the pointer on either side. Pointer subtraction accepts an integer offset, while subtraction between compatible pointers produces a signed `int` element distance. Subscript lowering uses the same scaled operation. Each offset must be a represented 32-bit integer, signed or unsigned, and each referent must be a complete object type with a nonzero target size.
+
+The public IR adds `POINTER_BINARY` and `ARRAY_TO_POINTER` after the existing instruction kinds, preserving every published numeric value. A pointer binary instruction keeps the result type, both operand type identities, and the requested add or subtract operation. The emitter obtains the referent size from the frozen target layout, then multiplies an integer offset by that size before addition or subtraction. Pointer difference subtracts the addresses and uses signed division to recover the element count. A one-byte referent needs neither multiply nor divide.
+
+Complete linked arrays now decay to pointers without emitting machine code. Element qualifiers survive the decay, and linked file-scope arrays can enter the same address path as other linked aggregate objects. An incompatible qualified decay remains an unsupported conversion instead of silently discarding qualifiers.
+
+Pointer `+=`, `-=`, prefix and postfix `++`, and prefix and postfix `--` share the scaled pointer operation. Lowering evaluates the destination once, performs one load and one store, and leaves the correct prefix or postfix value on the abstract stack. Postfix recovery applies the inverse scaled operation to the stored result, so it does not load the destination a second time. Atomic pointer mutation still lacks an ordering contract and remains unsupported.
+
+This increment deliberately leaves incomplete referents, zero-sized referents, wide offsets, function-pointer arithmetic, and atomic pointer updates outside the contract. The existing integer mutation path also remains separate. Its conversion stages and the pointer path's postfix recovery use different stack contracts, so extracting a common helper here would hide the checks that matter. ADR 0042 records the design and the alternatives that were rejected.
+
+No user question was needed. The frozen frontend already supplies the value categories, referent compatibility, qualifiers, and target sizes required by the IR.
+
+### Contract evidence and corrections
+
+- The main pointer-arithmetic contract publishes 113 exact IR instructions across sixteen functions. It covers pointer addition in both operand orders, pointer subtraction, compatible pointer difference, local and linked-array subscripts, array decay, both ATA stride updates, both compound assignments, and all four prefix and postfix directions.
+- The unchanged ATA forms pin a two-byte stride, an offset of 256, and both `uint16_t *` and `const uint16_t *`. Focused contracts also pin a three-instruction qualified array decay and a nine-instruction volatile-pointer postfix update.
+- A malformed frozen qualified decay, an atomic pointer update, a wide integer offset, and a malformed compound assignment all produce their exact transactional diagnostics. Each failure leaves the source unit and published IR untouched, rewinds operation allocations, and keeps the job reusable.
+- The object contract has nineteen functions in 811 exact text bytes and 21 symbols. It pins the 16-byte linked array, relocation offsets 373 and 384, thirteen additions, seven subtractions, seventeen multiplies, two signed divisions, nineteen returns, and element strides of one, two, four, and twelve bytes. A repeated build is byte-for-byte identical.
+- The first positive IR run stopped at the expected unsupported-type boundary. Mutation coverage reached the same boundary, and the first object run then reached the emitter's unsupported-instruction boundary. Those red runs isolated the missing semantic and machine-code layers before either was added.
+- Exact inventories failed after the implementation until the new public records and bytes were pinned. Re-parsing the changed implementation also exposed the expected self-source drift. The final tuple for `cupidc_ir.c` is 117 definitions, 3,398 statements, 29,234 expressions, 426 block bindings, and 125 initializers. `cupidc_emit.c` publishes 73/1,678/14,850/222/113.
+- One combined focused command named a `unittest` class that does not exist. The 66 compiler tests in that command still passed, and the corrected audit fixture passed separately. The selector mistake is excluded from product evidence.
+- Two early full-suite runs were stopped before completion because review findings required changes to the tree. They are excluded from the accepted evidence. The final full run below starts from the reviewed tree and completes normally.
+- Standards review found a stale capability count, a missing chronological entry, and a helper whose name described review history instead of behavior. Spec review found that the ATA two-byte stride, both missing increment directions, and the transactional decay failure needed exact coverage. The records, contracts, and helper name were corrected before the final gate.
+- Standards review also noted the similar integer and pointer mutation skeletons. They remain separate in this increment because their conversion and postfix stack rules differ. This is a refactoring note, not a correctness finding.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. Its lexical inventory contains 614 direct designated initializers across 18 files, 915 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,498 `while`, 1,681 `break`, 928 `continue`, 25,037 `if`, 3,450 `else`, 3,017 `for`, 15,319 `return`, and 3,004 `sizeof` occurrences. The active-source digest is `0e372248dfe759959da1c790d746d22d896852171d32f5ba0866311ecdc01d6c`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Pointer arithmetic and mutation first failed at the semantic unsupported-type boundary. Object emission then failed at the emitter boundary. The qualified-decay, atomic-update, wide-offset, and malformed-compound negatives now fail transactionally with their exact diagnostics. |
+| Focused CupidC contracts | PASS | The frontend module passes 42 tests in 7.203 seconds. The IR and object modules pass another 24 tests in 13.594 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete suite in 21.1 seconds. After the review amendments, the complete incremental suite passes in 13.9 seconds, including all hosted modes and 22 assembly demos. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds pass the complete hosted suite together in 64.6 seconds. Review-amended IR and object modes pass again under GCC in 5.6 seconds and Clang in 6.8 seconds. |
+| Sanitizers | PASS | Fresh, visibly instrumented GCC and Clang ASan and UBSan builds pass the affected modes in 41.8 and 42.9 seconds. The final pointer modes pass again after review in 22.4 seconds under GCC and 20.5 seconds under Clang. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across the five affected C files in 130.1 and 90 seconds. The amended contracts pass scoped rechecks in 70 and 18.1 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates both checked records in 37.4 seconds. `make check-bootstrap-audit` reproduces them exactly in 38.5 seconds. |
+| Full repository gate | PASS | `make test` passes all 308 tests in 475.123 seconds with one expected skip and returns from Make in 511.3 seconds. |
+| Two-axis review | PASS AFTER FIX | Standards and Spec review findings were addressed with exact coverage, current documentation, and behavior-based naming. Follow-up review found no remaining correctness or specification mismatch. |
+| Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
+
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+
+The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADR 0042 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic array storage, indirect calls, atomic mutation, other integer widths, floating and aggregate values, production integration, staged self-hosting, and the final fixed-point bootstrap still remain. No issue is ready to close from this increment.

@@ -132,6 +132,30 @@ static const char pointer_condition_object_source[] =
     "}\n"
     "int pointer_for(int *pointer) { for (; pointer;) break; return 0; }\n";
 
+static const char pointer_arithmetic_object_source[] =
+    "typedef struct { int first; int second; int third; } triple_t;\n"
+    "int *advance(int *pointer, int index) { return pointer + index; }\n"
+    "int *reverse_add(int index, int *pointer) { return index + pointer; }\n"
+    "int *retreat(int *pointer, int index) { return pointer - index; }\n"
+    "int distance(int *end, const int *begin) { return end - begin; }\n"
+    "int read_index(int *pointer, unsigned int index) { return pointer[index]; }\n"
+    "int read_reverse(int *pointer, unsigned int index) { return index[pointer]; }\n"
+    "char *advance_byte(char *pointer, int index) { return pointer + index; }\n"
+    "triple_t *advance_triple(triple_t *pointer, int index) { return pointer + index; }\n"
+    "int triple_distance(triple_t *end, const triple_t *begin) { return end - begin; }\n"
+    "static int global_values[4];\n"
+    "int *global_start(void) { return global_values; }\n"
+    "int read_global_index(unsigned int index) { return global_values[index]; }\n"
+    "int *prefix_advance(int *pointer) { return ++pointer; }\n"
+    "int *postfix_retreat(int *pointer) { return pointer--; }\n"
+    "int *assign_advance(int *pointer, unsigned int index) { return pointer += index; }\n"
+    "int *assign_retreat(int *pointer, unsigned int index) { return pointer -= index; }\n"
+    "typedef unsigned short uint16_t;\n"
+    "uint16_t *advance_read_sector(uint16_t *buf) { return buf += 256; }\n"
+    "const uint16_t *advance_write_sector(const uint16_t *buf) { return buf += 256; }\n"
+    "int *postfix_advance(int *pointer) { return pointer++; }\n"
+    "int *prefix_retreat(int *pointer) { return --pointer; }\n";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -1631,6 +1655,228 @@ static int validate_pointer_condition_object(
     (void)fprintf(stderr, "pointer condition operations differ (%u/%u/%u)\n",
                   (unsigned int)test_count,
                   (unsigned int)set_equal_count,
+                  (unsigned int)return_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_pointer_arithmetic_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
+      0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
+      0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
+      0x00u, 0x0fu, 0xafu, 0xc2u, 0x01u, 0xc8u, 0x50u, 0x58u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
+      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u,
+      0xb9u, 0x04u, 0x00u, 0x00u, 0x00u, 0x99u, 0xf7u, 0xf9u,
+      0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
+      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
+      0xc8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
+      0x00u, 0x0fu, 0xafu, 0xc2u, 0x01u, 0xc8u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
+      0x58u, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u,
+      0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x59u, 0x58u, 0xbau, 0x0cu, 0x00u, 0x00u, 0x00u, 0x0fu,
+      0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x59u, 0x58u, 0x29u, 0xc8u, 0xb9u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x99u, 0xf7u, 0xf9u, 0x50u, 0x58u, 0xc9u,
+      0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x68u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x8du, 0x85u, 0x08u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
+      0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
+      0xcau, 0x01u, 0xc8u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
+      0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x04u,
+      0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x29u, 0xc8u,
+      0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u,
+      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u,
+      0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu,
+      0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u,
+      0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x0cu,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu,
+      0xafu, 0xcau, 0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u,
+      0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x50u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x59u, 0x58u, 0xbau, 0x02u, 0x00u,
+      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
+      0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x00u, 0x01u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0xbau, 0x02u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau,
+      0x01u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x8du, 0x85u,
+      0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x50u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x01u, 0x00u, 0x00u,
+      0x00u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u,
+      0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x51u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u,
+      0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu,
+      0xafu, 0xcau, 0x29u, 0xc8u, 0x50u, 0x58u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x50u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u,
+      0xbau, 0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau,
+      0x29u, 0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u,
+      0x58u, 0xc9u, 0xc3u};
+  static const char *const function_names[] = {
+      "advance",       "reverse_add",       "retreat",
+      "distance",      "read_index",        "read_reverse",
+      "advance_byte",  "advance_triple",    "triple_distance",
+      "global_start",  "read_global_index", "prefix_advance",
+      "postfix_retreat", "assign_advance",  "assign_retreat",
+      "advance_read_sector", "advance_write_sector", "postfix_advance",
+      "prefix_retreat"};
+  static const ctool_u32 function_offsets[] = {
+      0u, 41u, 82u, 123u, 164u, 209u, 254u, 287u, 328u, 369u, 380u,
+      419u, 462u, 523u, 572u, 621u, 664u, 707u, 768u};
+  static const ctool_u32 function_sizes[] = {
+      41u, 41u, 41u, 41u, 45u, 45u, 33u, 41u, 41u, 11u, 39u,
+      43u, 61u, 49u, 49u, 43u, 43u, 61u, 43u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *global_values =
+      find_symbol(object, "global_values");
+  ctool_u32 add_count = 0u;
+  ctool_u32 subtract_count = 0u;
+  ctool_u32 multiply_count = 0u;
+  ctool_u32 divide_count = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (text == NULL || bss == NULL || rel_text == NULL ||
+      global_values == NULL || text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      text->relocation_first != 0u || text->relocation_count != 2u ||
+      object->relocation_count != 2u || object->relocations == NULL ||
+      object->symbol_count != 21u || bss->type != CTOOL_ELF32_SHT_NOBITS ||
+      bss->alignment != 4u || bss->size != 16u ||
+      bss->contents.size != 0u ||
+      !symbol_matches(global_values, global_values->file_index,
+                      CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 16u)) {
+    (void)fprintf(stderr, "pointer arithmetic object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    if (function == NULL || function->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        function->value != function_offsets[index] ||
+        function->size != function_sizes[index] ||
+        function->value > text->contents.size ||
+        function->size > text->contents.size - function->value) {
+      (void)fprintf(stderr, "pointer arithmetic function %s differs\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation = &object->relocations[index];
+    static const ctool_u32 relocation_offsets[] = {373u, 384u};
+    if (relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset != relocation_offsets[index] ||
+        relocation->symbol_file_index != global_values->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != 0) {
+      (void)fprintf(stderr, "pointer arithmetic relocation %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "pointer arithmetic decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_ADD) {
+      add_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_SUB) {
+      subtract_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_IMUL) {
+      multiply_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_IDIV) {
+      divide_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || add_count != 13u ||
+      subtract_count != 7u || multiply_count != 17u || divide_count != 2u ||
+      return_count != 19u) {
+    (void)fprintf(stderr,
+                  "pointer arithmetic operations differ (%u/%u/%u/%u/%u)\n",
+                  (unsigned int)add_count, (unsigned int)subtract_count,
+                  (unsigned int)multiply_count, (unsigned int)divide_count,
                   (unsigned int)return_count);
     return 0;
   }
@@ -7967,6 +8213,110 @@ cleanup:
   return 1;
 }
 
+static int run_pointer_arithmetic_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/pointer-arithmetic-object.c",
+                    pointer_arithmetic_object_source, &unit) ||
+      unit.function_definition_count != 19u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "pointer arithmetic object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "pointer arithmetic object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first pointer arithmetic object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first pointer arithmetic emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr,
+                  "pointer arithmetic snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat pointer arithmetic object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "pointer arithmetic emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/pointer-arithmetic-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read pointer arithmetic object") ||
+      !validate_pointer_arithmetic_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-arithmetic: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -7989,10 +8339,14 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "pointer-conditions") == 0) {
     return run_pointer_condition_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "pointer-arithmetic") == 0) {
+    return run_pointer_arithmetic_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
-                "pointer-values|pointer-comparisons|pointer-conditions "
+                "pointer-values|pointer-comparisons|pointer-conditions|"
+                "pointer-arithmetic "
                 "HOST_ROOT\n");
   return 2;
 }

@@ -53,6 +53,22 @@ static const char active_public_storage[] =
     "  }\n"
     "}\n";
 
+static const char active_ata_read_advance_lf[] =
+    "insw(ATA_PRIMARY_DATA, buf, 256);\n"
+    "        buf += 256;";
+
+static const char active_ata_read_advance_crlf[] =
+    "insw(ATA_PRIMARY_DATA, buf, 256);\r\n"
+    "        buf += 256;";
+
+static const char active_ata_write_advance_lf[] =
+    "outsw(ATA_PRIMARY_DATA, buf, 256);\n"
+    "        buf += 256;";
+
+static const char active_ata_write_advance_crlf[] =
+    "outsw(ATA_PRIMARY_DATA, buf, 256);\r\n"
+    "        buf += 256;";
+
 static const char integer_update_source[] =
     "int prefix_increment(int value) { return ++value; }\n"
     "unsigned int prefix_decrement(unsigned int value) { return --value; }\n"
@@ -103,10 +119,6 @@ static const char atomic_update_source[] =
 static const char wide_compound_source[] =
     "long long state;\n"
     "int update_wide(void) { state += 1; return 0; }\n";
-
-static const char pointer_update_source[] =
-    "int *pointer;\n"
-    "int update_pointer(void) { pointer++; return 0; }\n";
 
 static const char bit_field_update_source[] =
     "struct flags { unsigned int value : 3; };\n"
@@ -441,8 +453,42 @@ static const char pointer_condition_source[] =
     "}\n"
     "int pointer_for(int *pointer) { for (; pointer;) break; return 0; }\n";
 
-static const char pointer_arithmetic_boundary_source[] =
-    "int *add_pointer(int *pointer) { return pointer + 1; }\n";
+static const char pointer_arithmetic_source[] =
+    "int *advance(int *pointer, int index) { return pointer + index; }\n"
+    "int *reverse_add(int index, int *pointer) { return index + pointer; }\n"
+    "int *retreat(int *pointer, int index) { return pointer - index; }\n"
+    "int distance(int *end, const int *begin) { return end - begin; }\n"
+    "int read_index(int *pointer, unsigned int index) { return pointer[index]; }\n"
+    "int read_reverse(int *pointer, unsigned int index) { return index[pointer]; }\n"
+    "static int global_values[4];\n"
+    "int *global_start(void) { return global_values; }\n"
+    "int read_global_index(unsigned int index) { return global_values[index]; }\n"
+    "int *prefix_advance(int *pointer) { return ++pointer; }\n"
+    "int *postfix_retreat(int *pointer) { return pointer--; }\n"
+    "int *assign_advance(int *pointer, unsigned int index) { return pointer += index; }\n"
+    "int *assign_retreat(int *pointer, unsigned int index) { return pointer -= index; }\n"
+    "typedef unsigned short uint16_t;\n"
+    "uint16_t *advance_read_sector(uint16_t *buf) { return buf += 256; }\n"
+    "const uint16_t *advance_write_sector(const uint16_t *buf) { return buf += 256; }\n"
+    "int *postfix_advance(int *pointer) { return pointer++; }\n"
+    "int *prefix_retreat(int *pointer) { return --pointer; }\n";
+
+static const char atomic_pointer_update_source[] =
+    "int * _Atomic shared_pointer;\n"
+    "int *advance_atomic(void) { return shared_pointer++; }\n";
+
+static const char wide_pointer_offset_source[] =
+    "int *wide_assign(int *pointer) { return pointer += (long long)1; }\n";
+
+static const char qualified_array_decay_source[] =
+    "typedef int values_t[2];\n"
+    "static const values_t const_values;\n"
+    "static int *unqualified_pointer;\n"
+    "const int *const_start(void) { return const_values; }\n";
+
+static const char qualified_pointer_update_source[] =
+    "static int *volatile cursor;\n"
+    "int *advance_volatile(void) { return cursor++; }\n";
 
 static const char wide_pointer_cast_source[] =
     "int *cast_wide_integer(void) { return (int *)(long long)0; }\n";
@@ -1125,6 +1171,22 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data, active_doom_blue_read) ==
           NULL) {
     (void)fprintf(stderr, "the active Doom color reads changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/drivers/ata.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active ATA source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data,
+              active_ata_read_advance_lf) == NULL &&
+       strstr((const char *)source.contents.data,
+              active_ata_read_advance_crlf) == NULL) ||
+      (strstr((const char *)source.contents.data,
+              active_ata_write_advance_lf) == NULL &&
+       strstr((const char *)source.contents.data,
+              active_ata_write_advance_crlf) == NULL)) {
+    (void)fprintf(stderr, "an active ATA pointer advance changed\n");
     return 0;
   }
   return 1;
@@ -6135,9 +6197,6 @@ static int run_active_leaf(const char *host_root) {
   static const char wide_assignment_source[] =
       "long long wide_state;\n"
       "void set_wide(void) { wide_state = 1; }\n";
-  static const char compound_assignment_source[] =
-      "int *counter;\n"
-      "void bump(void) { counter += 1; }\n";
   static const char abi_source[] =
       "long long wide(long long value) { return value; }\n";
   static const char inline_success_source[] =
@@ -6262,7 +6321,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t chained_assignment_unit;
   ctool_c_translation_unit_t local_parameter_assignment_unit;
   ctool_c_translation_unit_t wide_assignment_unit;
-  ctool_c_translation_unit_t compound_assignment_unit;
   ctool_c_translation_unit_t local_unit;
   ctool_c_translation_unit_t simple_unit;
   ctool_c_translation_unit_t statement_unit;
@@ -6439,8 +6497,6 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&local_parameter_assignment_unit, 0,
                sizeof(local_parameter_assignment_unit));
   (void)memset(&wide_assignment_unit, 0, sizeof(wide_assignment_unit));
-  (void)memset(&compound_assignment_unit, 0,
-               sizeof(compound_assignment_unit));
   (void)memset(&local_unit, 0, sizeof(local_unit));
   (void)memset(&simple_unit, 0, sizeof(simple_unit));
   (void)memset(&statement_unit, 0, sizeof(statement_unit));
@@ -6650,15 +6706,7 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_assignment_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide assignment") ||
-      !parse_source(job, "/compound-assignment.c",
-                    compound_assignment_source,
-                    &compound_assignment_unit) ||
-      !expect_ir_failure(
-          job, &compound_assignment_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "pointer compound assignment")) {
+          "wide assignment")) {
     goto cleanup;
   }
 
@@ -9892,7 +9940,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t wide_unit;
-  ctool_c_translation_unit_t pointer_unit;
   ctool_c_translation_unit_t bit_field_unit;
   ctool_c_translation_unit_t bit_field_compound_unit;
   ctool_c_translation_unit_t narrow_unit;
@@ -9904,7 +9951,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
   int passed = 0;
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   (void)memset(&wide_unit, 0, sizeof(wide_unit));
-  (void)memset(&pointer_unit, 0, sizeof(pointer_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
   (void)memset(&bit_field_compound_unit, 0,
                sizeof(bit_field_compound_unit));
@@ -9925,13 +9971,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide integer compound assignment") ||
-      !parse_source(job, "/pointer-update.c", pointer_update_source,
-                    &pointer_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &pointer_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "pointer update") ||
       !parse_source(job, "/bit-field-update.c", bit_field_update_source,
                     &bit_field_unit) ||
       !expect_ir_failure_preserves_unit(
@@ -10886,7 +10925,6 @@ static int run_pointer_comparisons(const char *host_root) {
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
-  ctool_c_translation_unit_t arithmetic_unit;
   ctool_c_translation_unit_t wide_cast_unit;
   ctool_c_translation_unit_t void_equality_unit;
   ctool_c_translation_unit_t invalid_unit;
@@ -10903,7 +10941,6 @@ static int run_pointer_comparisons(const char *host_root) {
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
-  (void)memset(&arithmetic_unit, 0, sizeof(arithmetic_unit));
   (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
   (void)memset(&void_equality_unit, 0, sizeof(void_equality_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
@@ -10951,9 +10988,9 @@ static int run_pointer_comparisons(const char *host_root) {
   invalid_expressions[comparison_expression].operation =
       CTOOL_C_EXPRESSION_OPERATOR_ADD;
   if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
           "malformed pointer arithmetic") ||
       !parse_source(job, "/void-pointer-equality.c",
                     void_pointer_equality_source, &void_equality_unit)) {
@@ -10994,13 +11031,6 @@ static int run_pointer_comparisons(const char *host_root) {
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
           "malformed void pointer order") ||
-      !parse_source(job, "/pointer-arithmetic-boundary.c",
-                    pointer_arithmetic_boundary_source, &arithmetic_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &arithmetic_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "pointer arithmetic boundary") ||
       !parse_source(job, "/wide-pointer-cast.c", wide_pointer_cast_source,
                     &wide_cast_unit) ||
       !expect_ir_failure_preserves_unit(
@@ -11305,6 +11335,751 @@ cleanup:
   return 1;
 }
 
+static int validate_ata_and_pointer_update_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    ctool_u32 first_instruction) {
+  static const ctool_u32 referent_sizes[] = {2u, 2u, 4u, 4u};
+  static const ctool_u32 parameter_columns[] = {55u, 68u, 45u, 46u};
+  static const ctool_u32 operation_columns[] = {59u, 72u, 52u, 44u};
+  static const ctool_u32 return_columns[] = {48u, 61u, 38u, 37u};
+  pointer_ir_expected_t expected[30];
+  ctool_u32 expected_count = 0u;
+  ctool_u32 function_index;
+  ctool_u32 instruction_index;
+  for (function_index = 0u; function_index < 4u; function_index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[12u + function_index];
+    const ctool_c_type_node_t *function_type;
+    const ctool_c_type_node_t *pointer_type;
+    ctool_u32 parameter;
+    ctool_u32 parameter_type;
+    ctool_u32 result_type;
+    ctool_u32 line = 15u + function_index;
+    if (definition->declared_type >= unit->graph.type_count) {
+      return 0;
+    }
+    function_type = &unit->graph.types[definition->declared_type];
+    if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+        function_type->parameter_count != 1u ||
+        function_type->first_parameter >= unit->parameter_count) {
+      return 0;
+    }
+    parameter = function_type->first_parameter;
+    parameter_type = unit->parameters[parameter].type;
+    result_type = function_type->referenced_type;
+    if (parameter_type >= unit->graph.type_count ||
+        result_type >= unit->graph.type_count ||
+        ctool_c_ir_pointer_value_types_compatible(
+            unit, parameter_type, result_type) == CTOOL_FALSE) {
+      return 0;
+    }
+    pointer_type = &unit->graph.types[parameter_type];
+    if (pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+        pointer_type->referenced_type >= unit->layout.type_count ||
+        unit->layout.types[pointer_type->referenced_type].size !=
+            referent_sizes[function_index]) {
+      return 0;
+    }
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, parameter_type,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, parameter, 0u, line,
+        parameter_columns[function_index]};
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, parameter_type,
+        parameter_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, line,
+        operation_columns[function_index]};
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_LOAD, parameter_type, parameter_type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, line,
+        operation_columns[function_index]};
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        CTOOL_C_AST_NONE, function_index < 2u ? 256u : 1u, line,
+        function_index < 2u ? operation_columns[function_index] + 3u
+                            : operation_columns[function_index]};
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, parameter_type,
+        parameter_type,
+        function_index == 3u
+            ? CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT
+            : CTOOL_C_EXPRESSION_OPERATOR_ADD,
+        CTOOL_C_CONVERSION_NONE, 0u, 0u, line,
+        operation_columns[function_index]};
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_STORE_VALUE, parameter_type, parameter_type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        CTOOL_C_AST_NONE, 0u, line, operation_columns[function_index]};
+    if (function_index == 2u) {
+      expected[expected_count++] = (pointer_ir_expected_t){
+          CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          CTOOL_C_AST_NONE, 1u, line, operation_columns[function_index]};
+      expected[expected_count++] = (pointer_ir_expected_t){
+          CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, parameter_type,
+          parameter_type, CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+          CTOOL_C_CONVERSION_NONE, 0u, 0u, line,
+          operation_columns[function_index]};
+    }
+    expected[expected_count++] = (pointer_ir_expected_t){
+        CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, result_type, parameter_type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        CTOOL_C_AST_NONE, 0u, line, return_columns[function_index]};
+  }
+  if (expected_count != 30u || first_instruction > ir->instruction_count ||
+      expected_count > ir->instruction_count - first_instruction) {
+    return 0;
+  }
+  for (instruction_index = 0u; instruction_index < expected_count;
+       instruction_index++) {
+    if (!pointer_ir_instruction_matches(
+            &ir->instructions[first_instruction + instruction_index],
+            &expected[instruction_index], "/pointer-arithmetic.c")) {
+      (void)fprintf(stderr,
+                    "ATA and pointer update instruction %u differs\n",
+                    (unsigned int)instruction_index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_pointer_arithmetic_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *const function_names[] = {
+      "advance",      "reverse_add",      "retreat", "distance",
+      "read_index",   "read_reverse",     "global_start",
+      "read_global_index", "prefix_advance", "postfix_retreat",
+      "assign_advance", "assign_retreat", "advance_read_sector",
+      "advance_write_sector", "postfix_advance", "prefix_retreat"};
+  static const ctool_u32 function_counts[] = {
+      6u, 6u, 6u, 6u, 8u, 8u, 3u, 8u, 7u, 9u, 8u, 8u, 7u, 7u, 9u, 7u};
+  static const ctool_u32 stack_depths[] = {
+      2u, 2u, 2u, 2u, 2u, 2u, 1u, 2u, 3u, 3u, 3u, 3u, 3u, 3u, 3u, 3u};
+  static const ctool_u32 function_lines[] = {
+      1u, 2u, 3u, 4u, 5u, 6u, 8u, 9u, 10u, 11u, 12u, 13u, 15u, 16u,
+      17u, 18u};
+  static const pointer_ir_expected_t expected[] = {
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 1u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       1u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 1u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 1u, 0u,
+       1u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 1u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 1u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       1u, 56u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 2u, 1u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 1u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 2u, 0u,
+       2u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 2u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 4u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 3u, 0u,
+       2u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 4u, 4u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 2u, 60u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 4u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 4u, 0u,
+       2u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 5u, 4u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 2u, 45u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 7u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 4u, 0u,
+       3u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 7u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 3u, 48u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 5u, 0u,
+       3u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 3u, 58u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 7u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, CTOOL_C_CONVERSION_NONE, 0u,
+       0u, 3u, 56u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 8u, 7u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 3u, 41u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 10u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u,
+       4u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 10u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 4u, 51u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 12u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 7u, 0u,
+       4u, 57u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 12u, 12u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 4u, 57u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 0u, 10u,
+       CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, CTOOL_C_CONVERSION_NONE, 12u,
+       0u, 4u, 55u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 4u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 14u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 8u, 0u,
+       5u, 59u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 14u, 14u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 5u, 59u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 9u, 0u,
+       5u, 67u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 5u, 67u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 14u, 14u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 15u, 0u,
+       5u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 0u, 14u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 5u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 5u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 5u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 11u, 0u,
+       6u, 61u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 6u, 61u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 17u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 10u, 0u,
+       6u, 67u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 17u, 17u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 6u, 67u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 17u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 17u, 0u,
+       6u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 0u, 17u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 6u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 6u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 6u, 54u},
+      {CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, 19u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u,
+       8u, 34u},
+      {CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER, 22u, 19u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_ARRAY_TO_POINTER, CTOOL_C_AST_NONE, 0u, 8u, 34u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 20u, 22u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 8u, 27u},
+      {CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS, 19u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 6u, 0u,
+       9u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER, 24u, 19u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_ARRAY_TO_POINTER, CTOOL_C_AST_NONE, 0u, 9u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 12u, 0u,
+       9u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 9u, 66u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 24u, 24u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 15u, 0u,
+       9u, 65u},
+      {CTOOL_C_IR_INSTRUCTION_DEREFERENCE, 0u, 24u,
+       CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 65u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 9u, 65u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 0u, 0u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 9u, 45u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 25u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 13u, 0u,
+       10u, 46u},
+      {CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, 25u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 10u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 25u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 10u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 10u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 25u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       10u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 25u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 10u, 44u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 26u, 25u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 10u, 37u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 28u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 14u, 0u,
+       11u, 45u},
+      {CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, 28u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 28u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 28u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, CTOOL_C_CONVERSION_NONE, 0u,
+       0u, 11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 28u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_INTEGER, 0u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 1u, 11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 28u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 0u, 0u,
+       11u, 52u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 29u, 28u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 11u, 38u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 31u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 15u, 0u,
+       12u, 64u},
+      {CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, 31u, 31u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 12u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 31u, 31u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 12u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 16u, 0u,
+       12u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 12u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 31u, 31u,
+       CTOOL_C_EXPRESSION_OPERATOR_ADD, CTOOL_C_CONVERSION_NONE, 15u, 0u,
+       12u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 31u, 31u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 12u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 32u, 31u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 12u, 57u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 34u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 17u, 0u,
+       13u, 64u},
+      {CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, 34u, 34u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 34u, 34u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, 15u, CTOOL_C_TYPE_NONE,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 18u, 0u,
+       13u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_LOAD, 15u, 15u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE,
+       CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u, 13u, 75u},
+      {CTOOL_C_IR_INSTRUCTION_POINTER_BINARY, 34u, 34u,
+       CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT, CTOOL_C_CONVERSION_NONE, 15u,
+       0u, 13u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, 34u, 34u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 72u},
+      {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, 35u, 34u,
+       CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+       CTOOL_C_AST_NONE, 0u, 13u, 57u}};
+  ctool_u32 first = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 16u ||
+      ir->function_count != 16u || ir->instruction_count != 113u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "pointer arithmetic IR inventory differs\n");
+    return 0;
+  }
+  if (ctool_c_ir_pointer_arithmetic_types_compatible(
+          unit, ir->instructions[22].input_type,
+          ir->instructions[22].reference) == CTOOL_FALSE ||
+      ctool_c_ir_pointer_arithmetic_types_compatible(
+          unit, ir->instructions[4].input_type,
+          ir->instructions[4].reference) != CTOOL_FALSE ||
+      ctool_c_ir_pointer_arithmetic_types_compatible(
+          NULL, ir->instructions[22].input_type,
+          ir->instructions[22].reference) != CTOOL_FALSE) {
+    (void)fprintf(stderr, "pointer arithmetic type query differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    ctool_u32 binding = find_binding(unit, function_names[index]);
+    if (binding == CTOOL_C_AST_NONE || definition->binding != binding ||
+        function->binding != binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != first ||
+        function->instruction_count != function_counts[index] ||
+        function->maximum_stack_depth != stack_depths[index] ||
+        !string_equal(function->location.path, "/pointer-arithmetic.c") ||
+        !string_equal(function->physical_location.path,
+                      "/pointer-arithmetic.c") ||
+        function->location.line != function_lines[index] ||
+        function->physical_location.line != function_lines[index]) {
+      (void)fprintf(stderr, "pointer arithmetic function %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+    first += function_counts[index];
+  }
+  for (index = 0u; index < 83u; index++) {
+    if (!pointer_ir_instruction_matches(
+            &ir->instructions[index], &expected[index],
+            "/pointer-arithmetic.c")) {
+      (void)fprintf(stderr, "pointer arithmetic instruction %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  return validate_ata_and_pointer_update_ir(unit, ir, 83u);
+}
+
+static int validate_qualified_array_decay_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 array_binding = find_binding(unit, "const_values");
+  ctool_u32 function_binding = find_binding(unit, "const_start");
+  ctool_u32 unqualified_binding = find_binding(unit, "unqualified_pointer");
+  ctool_u32 array_type;
+  ctool_u32 pointer_type;
+  ctool_u32 unqualified_pointer_type;
+  ctool_u32 index;
+  if (array_binding == CTOOL_C_AST_NONE ||
+      function_binding == CTOOL_C_AST_NONE ||
+      unqualified_binding == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 3u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "qualified array decay inventory differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  array_type = unit->bindings[array_binding].type;
+  pointer_type = instructions[1].type;
+  unqualified_pointer_type = unit->bindings[unqualified_binding].type;
+  if (ctool_c_ir_array_decay_types_compatible(unit, array_type,
+                                               pointer_type) == CTOOL_FALSE ||
+      ctool_c_ir_array_decay_types_compatible(
+          unit, array_type, unqualified_pointer_type) != CTOOL_FALSE ||
+      ctool_c_ir_array_decay_types_compatible(
+          NULL, array_type, pointer_type) != CTOOL_FALSE ||
+      ir->functions[0].binding != function_binding ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 3u ||
+      ir->functions[0].maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != array_type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[0].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[0].reference != array_binding ||
+      instructions[0].integer_bits != 0u ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER ||
+      instructions[1].input_type != array_type ||
+      instructions[1].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+      instructions[1].reference != CTOOL_C_AST_NONE ||
+      instructions[1].integer_bits != 0u ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[2].input_type != pointer_type ||
+      instructions[2].operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[2].reference != CTOOL_C_AST_NONE ||
+      instructions[2].integer_bits != 0u) {
+    (void)fprintf(stderr, "qualified array decay IR differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!string_equal(instructions[index].location.path,
+                      "/qualified-array-decay.c") ||
+        !string_equal(instructions[index].physical_location.path,
+                      "/qualified-array-decay.c") ||
+        instructions[index].location.line != 4u ||
+        instructions[index].physical_location.line != 4u) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_qualified_pointer_update_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 cursor_binding = find_binding(unit, "cursor");
+  ctool_u32 function_binding = find_binding(unit, "advance_volatile");
+  ctool_u32 object_type;
+  ctool_u32 value_type;
+  ctool_u32 integer_type;
+  ctool_u32 index;
+  if (cursor_binding == CTOOL_C_AST_NONE ||
+      function_binding == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 9u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "qualified pointer update inventory differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  object_type = unit->bindings[cursor_binding].type;
+  value_type = instructions[2].type;
+  integer_type = instructions[3].type;
+  if (ctool_c_ir_pointer_value_types_compatible(
+          unit, object_type, value_type) == CTOOL_FALSE ||
+      ir->functions[0].binding != function_binding ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 9u ||
+      ir->functions[0].maximum_stack_depth != 3u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != object_type ||
+      instructions[0].reference != cursor_binding ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+      instructions[1].type != object_type ||
+      instructions[1].input_type != object_type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[2].input_type != object_type ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[3].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[3].integer_bits != 1u ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_POINTER_BINARY ||
+      instructions[4].type != value_type ||
+      instructions[4].input_type != value_type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[4].reference != integer_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[5].type != value_type ||
+      instructions[5].input_type != value_type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[6].type != integer_type ||
+      instructions[6].integer_bits != 1u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_POINTER_BINARY ||
+      instructions[7].type != value_type ||
+      instructions[7].input_type != value_type ||
+      instructions[7].operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      instructions[7].reference != integer_type ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[8].input_type != value_type) {
+    (void)fprintf(stderr, "qualified pointer update IR differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!string_equal(instructions[index].location.path,
+                      "/qualified-pointer-update.c") ||
+        !string_equal(instructions[index].physical_location.path,
+                      "/qualified-pointer-update.c") ||
+        instructions[index].location.line != 2u ||
+        instructions[index].physical_location.line != 2u) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_pointer_arithmetic(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t qualified_unit;
+  ctool_c_translation_unit_t qualified_pointer_unit;
+  ctool_c_translation_unit_t invalid_decay_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t qualified_ir;
+  ctool_c_ir_unit_t qualified_pointer_ir;
+  ctool_c_expression_t *invalid_decay_expressions = NULL;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 assignment_expression = CTOOL_C_AST_NONE;
+  ctool_u32 decay_expression = CTOOL_C_AST_NONE;
+  ctool_u32 unqualified_pointer_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&wide_unit, 0, sizeof(wide_unit));
+  (void)memset(&qualified_unit, 0, sizeof(qualified_unit));
+  (void)memset(&qualified_pointer_unit, 0,
+               sizeof(qualified_pointer_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/pointer-arithmetic.c", pointer_arithmetic_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "object-pointer arithmetic lowering") ||
+      !validate_pointer_arithmetic_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&qualified_ir, 0xa5, sizeof(qualified_ir));
+  if (!parse_source(job, "/qualified-array-decay.c",
+                    qualified_array_decay_source, &qualified_unit)) {
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &qualified_unit, &qualified_ir);
+  if (!check_status(status, CTOOL_OK, "qualified array decay lowering") ||
+      !validate_qualified_array_decay_ir(&qualified_unit, &qualified_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < qualified_unit.expression_count; index++) {
+    if (qualified_unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        qualified_unit.expressions[index].conversion ==
+            CTOOL_C_CONVERSION_ARRAY_TO_POINTER) {
+      decay_expression = index;
+      break;
+    }
+  }
+  unqualified_pointer_binding =
+      find_binding(&qualified_unit, "unqualified_pointer");
+  if (decay_expression == CTOOL_C_AST_NONE ||
+      unqualified_pointer_binding == CTOOL_C_AST_NONE ||
+      qualified_unit.expression_count == 0u ||
+      sizeof(*invalid_decay_expressions) >
+          SIZE_MAX / (size_t)qualified_unit.expression_count) {
+    (void)fprintf(stderr, "array decay rejection fixture differs\n");
+    goto cleanup;
+  }
+  invalid_decay_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)qualified_unit.expression_count *
+      sizeof(*invalid_decay_expressions));
+  if (invalid_decay_expressions == NULL) {
+    (void)fprintf(stderr, "array decay rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_decay_expressions, qualified_unit.expressions,
+               (size_t)qualified_unit.expression_count *
+                   sizeof(*invalid_decay_expressions));
+  invalid_decay_expressions[decay_expression].type =
+      qualified_unit.bindings[unqualified_pointer_binding].type;
+  invalid_decay_unit = qualified_unit;
+  invalid_decay_unit.expressions = invalid_decay_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_decay_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "qualified array decay target")) {
+    goto cleanup;
+  }
+  (void)memset(&qualified_pointer_ir, 0xa5,
+               sizeof(qualified_pointer_ir));
+  if (!parse_source(job, "/qualified-pointer-update.c",
+                    qualified_pointer_update_source,
+                    &qualified_pointer_unit)) {
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &qualified_pointer_unit,
+                            &qualified_pointer_ir);
+  if (!check_status(status, CTOOL_OK, "qualified pointer update lowering") ||
+      !validate_qualified_pointer_update_ir(&qualified_pointer_unit,
+                                            &qualified_pointer_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-pointer-update.c",
+                    atomic_pointer_update_source, &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic pointer update") ||
+      !parse_source(job, "/wide-pointer-offset.c",
+                    wide_pointer_offset_source, &wide_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide pointer offset")) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind == CTOOL_C_EXPRESSION_ASSIGNMENT &&
+        unit.expressions[index].operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN) {
+      assignment_expression = index;
+      break;
+    }
+  }
+  if (assignment_expression == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "pointer mutation rejection fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "pointer mutation rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[assignment_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "malformed pointer compound assignment")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_decay_expressions);
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pointer-arithmetic: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -11353,6 +12128,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "pointer-conditions") == 0) {
     return run_pointer_conditions(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "pointer-arithmetic") == 0) {
+    return run_pointer_arithmetic(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -11360,7 +12138,8 @@ int main(int argc, char **argv) {
                 "integer-compounds|integer-compound-conversions|"
                 "integer-update-conversions|"
                 "integer-mutation-rejections|pointer-member-loads|"
-                "pointer-values|pointer-comparisons|pointer-conditions "
+                "pointer-values|pointer-comparisons|pointer-conditions|"
+                "pointer-arithmetic "
                 "HOST_ROOT\n");
   return 2;
 }
