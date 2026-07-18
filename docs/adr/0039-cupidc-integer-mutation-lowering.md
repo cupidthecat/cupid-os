@@ -22,7 +22,7 @@ Qualified volatile destinations keep their qualified type on the address path an
 
 The i386 emitter gives `DUPLICATE_ADDRESS` the same machine sequence as value duplication: `POP EAX`, `PUSH EAX`, and `PUSH EAX`. The separate public IR kind preserves the address/value distinction even though both represented values occupy one 32-bit machine word.
 
-This decision does not add pointer arithmetic, bit-field writes, narrow or wide integer mutation, floating or aggregate mutation, or atomic ordering. It covers hosted IR and deterministic hosted ELF32 emission only. The private in-kernel CupidC compiler still owns every normal OS C object.
+This decision does not add pointer arithmetic, bit-field writes, narrow or wide integer mutation, floating or aggregate mutation, or atomic ordering. It covers hosted IR and deterministic hosted ELF32 emission only. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 ## Consequences and evidence
 

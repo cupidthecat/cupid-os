@@ -30,7 +30,7 @@ The deterministic ELF32 object contains one 107-byte local function with 58 deco
 
 Negative contracts reject a 64-bit condition, a 64-bit iteration that is unreachable after a terminal body, a declaration initializer, `break`, and `continue`. Every rejected IR or object operation preserves the input unit. Object failure also leaves the output empty.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object, so this change transfers no build ownership and does not require an OS boot claim.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. This change transfers no build ownership and does not require an OS boot claim.
 
 Issue #25 remains open. Declaration initializers, declarations inside nested compounds, `break`, `continue`, `switch`, labels, `goto`, broader values and addresses, production integration, and staged self-hosting remain.
 

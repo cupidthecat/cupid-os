@@ -35,6 +35,6 @@ The deterministic ELF32 object contains one 109-byte local function and 54 decod
 
 A terminal-body fixture lowers to one direct return with no condition instructions, implicit return, or backward edge. A `long long` condition receives the unsupported-type diagnostic in both ordinary and terminal-body forms, which proves that unreachable condition validation remains active. The object seam rejects the same wide condition transactionally. A `for` statement remains the unsupported-loop boundary.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. `for`, `break`, `continue`, `switch`, labels, `goto`, nested declarations, broader values and addresses, production integration, and staged self-hosting remain.

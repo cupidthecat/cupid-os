@@ -47,6 +47,6 @@ Active-source guards pin the first `goto done` and the cleanup label in `toolcha
 
 The first reachability attempt treated every syntactic target as reachable. That revived a label named only by an unreachable jump after a return, so the fixed-point pass replaced it. The first nested-label implementation also left an unused structured exit one instruction past a terminal function. The terminal `if` and `while` object tests caught that error before publication, and the unreachable return block now gives those exits valid targets. An early attempt to add the new fixtures to the large `active-leaf` contract exceeded that contract's existing job resource ceiling. Separate `forward-goto` and `nested-goto` modes keep the public seams focused and deterministic.
 
-This is hosted bootstrap evidence. GCC or Clang still builds the shared modules and contracts, while the private in-kernel compiler produces every normal OS C object. The change transfers no build ownership and does not need an OS boot claim.
+This is hosted bootstrap evidence. GCC or Clang still builds the shared modules and contracts and produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. The change transfers no build ownership and does not need an OS boot claim.
 
 Issue #25 remains open. `switch`, broader values and addresses, additional local representations and storage durations, production integration, and staged self-hosting remain.

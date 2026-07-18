@@ -407,6 +407,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) pointer-conditions ..
 	$(CUPIDC_IR_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) function-pointers ..
+	$(CUPIDC_IR_CONTRACT) automatic-objects ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
 	$(CUPIDC_OBJECT_CONTRACT) integer-mutation ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-values ..
@@ -414,6 +415,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) pointer-conditions ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) function-pointers ..
+	$(CUPIDC_OBJECT_CONTRACT) automatic-objects ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

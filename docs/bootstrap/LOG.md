@@ -1185,7 +1185,7 @@ The standing user direction resolved the design choices for this slice: active s
 | Independent Standards/Spec/semantic review | PASS | The unclear composite-relation name and atomic-parameter identity finding were fixed. The 152-header evidence gap became the audit-derived committed gate; rereview reports no remaining semantic blocker. The unrelated `.gitignore` change remains unstaged. |
 | Full Windows repository gate | PASS | All 247 tests complete in 414.079 seconds; 246 pass and only the expected Windows `/dev/full` case is skipped. The enclosing build/audit gate completes in 449 seconds. |
 
-The build pipeline and ownership counts do not move in this slice. GCC or Clang still compiles the shared frontend and all host-C objects; the private kernel CupidC parser/code generator still owns production source compilation; the regenerated checked graph remains 681 inputs/490 transforms and records only Toolchain source provenance and feature-frequency changes. No kernel, driver, application, Doom, assembly, linker-script, generated OS artifact, or `TempleOS/` file changed. This is hosted semantic compatibility evidence, not a host-dependency retirement or boot claim, so no emulator result is attributed to it.
+The build pipeline and ownership counts do not move in this slice. GCC or Clang still compiles the shared frontend and all normal root and user C objects; the private kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path; the regenerated checked graph remains 681 inputs/490 transforms and records only Toolchain source provenance and feature-frequency changes. No kernel, driver, application, Doom, assembly, linker-script, generated OS artifact, or `TempleOS/` file changed. This is hosted semantic compatibility evidence, not a host-dependency retirement or boot claim, so no emulator result is attributed to it.
 
 ## 2026-07-11: semantic CupidC packed, aligned, and noreturn attributes
 
@@ -1224,7 +1224,7 @@ The red/green sequence was kept at the public parse seam. Post-record packed fir
 | Active-source audit regeneration | PASS | The checked graph remains 681 inputs/490 transforms and now records the corrected 97 attribute-name occurrences. |
 | Full repository gate | PASS | `make test` runs 249 tests in 464.305 seconds: 248 pass and only the expected platform case skips. The enclosing Toolchain/audit gate completes in 501.4 seconds. |
 
-This slice transfers no build ownership. The host compiler still builds the shared frontend and contracts; the private kernel CupidC parser/code generator still compiles production source. Static assertions, the remaining active attributes (`section`, `weak`, `used`, `noinline`, `unused`, `naked`, and `target`), extended assembly, bodies, initializers, typed AST/IR, object lowering, and self-compilation remain. No kernel or generated OS artifact changed, so no boot claim follows. `TempleOS/` remains untouched reference material and excluded from progress counts.
+This slice transfers no build ownership. The host compiler still builds the shared frontend and contracts and produces the normal root and user C objects. The private kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. Static assertions, the remaining active attributes (`section`, `weak`, `used`, `noinline`, `unused`, `naked`, and `target`), extended assembly, bodies, initializers, typed AST/IR, object lowering, and self-compilation remain. No kernel or generated OS artifact changed, so no boot claim follows. `TempleOS/` remains untouched reference material and excluded from progress counts.
 
 ## 2026-07-11: CupidC static assertions and target type-name size
 
@@ -1257,7 +1257,7 @@ Review also caught a failed static-assert nesting entry releasing a depth it did
 | Active-source audit and drift gate | PASS | Regeneration and the checked comparison pass with 681 inputs, 490 transforms, the exact 22-assertion/four-file inventory, and updated hosted-source provenance. |
 | Full repository gate | PASS | `make test` runs 251 tests in 436.063 seconds: 250 pass and only the expected platform case skips. The enclosing Toolchain/audit gate completes in 470.1 seconds. |
 
-This slice transfers no build ownership. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No kernel, driver, application, Doom, assembly, linker script, generated OS artifact, or `TempleOS/` reference file changed. The work is hosted semantic evidence, so no boot result or host-dependency retirement is attributed to it. Function bodies/initializers, typed unevaluated expressions, offset/alignment builtins, logical operators, the remaining active attributes, AST/IR, object lowering, kernel integration, and self-compilation remain.
+This slice transfers no build ownership. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, driver, application, Doom, assembly, linker script, generated OS artifact, or `TempleOS/` reference file changed. The work is hosted semantic evidence, so no boot result or host-dependency retirement is attributed to it. Function bodies/initializers, typed unevaluated expressions, offset/alignment builtins, logical operators, the remaining active attributes, AST/IR, object lowering, kernel integration, and self-compilation remain.
 
 ## 2026-07-11: exact hosted CupidC preprocessing profiles
 
@@ -1291,7 +1291,7 @@ The audit derives the hosted flags from GNU Make's evaluated `CPPFLAGS` and `CFL
 | Generated active-source audit | PASS | The checked graph remains 681 inputs and 490 transforms; the preprocessing contract is 356 tracked plus four generated roots with 17 external and zero hermetic hosted deferrals. |
 | Full repository gate | PASS | `make test` runs 251 tests in 363.249 seconds: 250 pass and only the expected platform case skips. The enclosing Toolchain/audit command completes in 392.6 seconds. |
 
-The shared preprocessing module's language capability is unchanged, so this slice adds no OS artifact, ABI, code-generation, or boot/runtime claim. The host compiler and native linker backend still build the hosted tools, the private kernel CupidC frontend still owns production preprocessing and code generation, and no host dependency is retired. Named GNU variadics, GNU numeric line markers, external-runtime hosted profiles, kernel integration, typed AST/IR, object lowering, and self-compilation remain. Source inspection also identifies C11 `inline` function-specifier semantics as the next shared declaration frontier: the exact six remaining non-Doom header failures all reach `static inline` definitions. Separate read-only investigation confirms that build-time kernel symbol extraction still uses host `nm` even though CupidDis has a matching `-n` view; that production cutover remains a later coherent ticket. Two non-active CupidASM follow-ups were also recorded for later work: duplicate raw `ORG` is not rejected, and raw multi-section layout reaches an internal diagnostic instead of either flattening sections or rejecting the unsupported form usefully.
+The shared preprocessing module's language capability is unchanged, so this slice adds no OS artifact, ABI, code-generation, or boot/runtime claim. The host compiler and native linker backend still build the hosted tools, and the host compiler still produces the normal root and user C objects. The private kernel CupidC frontend remains the embedded runtime JIT and AOT path. No host dependency is retired. Named GNU variadics, GNU numeric line markers, external-runtime hosted profiles, kernel integration, typed AST/IR, object lowering, and self-compilation remain. Source inspection also identifies C11 `inline` function-specifier semantics as the next shared declaration frontier: the exact six remaining non-Doom header failures all reach `static inline` definitions. Separate read-only investigation confirms that build-time kernel symbol extraction still uses host `nm` even though CupidDis has a matching `-n` view; that production cutover remains a later coherent ticket. Two non-active CupidASM follow-ups were also recorded for later work: duplicate raw `ORG` is not rejected, and raw multi-section layout reaches an internal diagnostic instead of either flattening sections or rejecting the unsupported form usefully.
 
 ## 2026-07-11: retained C11 inline function declarations
 
@@ -1329,7 +1329,7 @@ Function specifiers are accepted only on declarations whose completed declarator
 | Static analysis | PASS | Fresh Clang analyzer runs report no finding in the product or contract, and fresh GCC `-fanalyzer` reports no finding in the final unguarded product source. The temporary unrelated guard described above is not part of this slice. |
 | Full repository gate | PASS | `make test` runs 253 tests in 561.555 seconds: 252 pass and only the expected platform case skips. The enclosing Toolchain/audit gate completes in 641.7 seconds. |
 
-This slice transfers no production build ownership. GCC or Clang still builds the shared frontend and contract, the private in-kernel CupidC parser/code generator remains the production compiler, and no kernel, driver, application, Doom, assembly, linker, object, image, ABI, or runtime artifact changed. A boot smoke is therefore not attributed to this metadata-only change. The next declaration frontier is a real function-body/typed-expression AST slice; host symbol extraction through `nm` remains a separate ready ownership cutover to CupidDis.
+This slice transfers no production build ownership. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, driver, application, Doom, assembly, linker, object, image, ABI, or runtime artifact changed. A boot smoke is therefore not attributed to this metadata-only change. The next declaration frontier is a real function-body/typed-expression AST slice; host symbol extraction through `nm` remains a separate ready ownership cutover to CupidDis.
 
 ## 2026-07-11: CupidDis owns production kernel-symbol inspection
 
@@ -1392,7 +1392,7 @@ An active-source contract preprocesses the unchanged `kernel/lang/exec.c` and tr
 | Active-source audit | PASS | Regeneration and `make check-bootstrap-audit` accept the checked graph at 681 inputs, 250 feature IDs, and 491 transforms with updated hosted-source provenance. |
 | Full repository gate | PASS | `make test` runs 255 tests in 404.717 seconds: 254 pass and only the expected optional/platform case skips. The enclosing command completes in 433.1 seconds. |
 
-This slice transfers no production build ownership. GCC or Clang still builds the hosted frontend and contract, the private in-kernel CupidC parser/code generator remains the production compiler, and no kernel object, ABI output, image, runtime path, or `TempleOS/` reference file changed. A boot smoke is therefore not attributed to this hosted semantic change. Function bodies and initializers, typed unevaluated expressions, alignment/offset builtins, conditional/comma/cast/character/address expressions, the remaining active GNU attributes and inline assembly, typed AST/IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
+This slice transfers no production build ownership. GCC or Clang still builds the hosted frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel object, ABI output, image, runtime path, or `TempleOS/` reference file changed. A boot smoke is therefore not attributed to this hosted semantic change. Function bodies and initializers, typed unevaluated expressions, alignment/offset builtins, conditional/comma/cast/character/address expressions, the remaining active GNU attributes and inline assembly, typed AST/IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
 
 ## 2026-07-11: CupidC typed call-only function bodies
 
@@ -1434,7 +1434,7 @@ The positive contract checks exact definition-local versus canonical metadata, t
 | Active-source audit regeneration | PASS | The checked graph remains 681 inputs, 250 feature IDs, and 491 transforms; only hosted Toolchain source feature frequencies and line counts move. |
 | Post-review full repository gate | PASS | `make test` runs 256 tests in 344.815 seconds: 255 pass and only the expected Windows `/dev/full` case skips. The enclosing command completes in 373.914 seconds. |
 
-This slice transfers no production build ownership. GCC or Clang still builds the shared frontend and every host-C object; the private in-kernel CupidC parser/code generator still compiles production sources. No kernel object, image, ABI output, runtime path, assembly source, or `TempleOS/` reference file changed, so no boot claim follows. The next source-driven body frontier is block declarations plus return/control/member/arithmetic expressions and GNU extended assembly in `ports.h`, `cpu.h`, and `percpu.h`. Initializers, typed unevaluated expressions and offset/alignment builtins, complete AST/linear IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
+This slice transfers no production build ownership. GCC or Clang still builds the shared frontend and every normal root and user C object. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel object, image, ABI output, runtime path, assembly source, or `TempleOS/` reference file changed, so no boot claim follows. The next source-driven body frontier is block declarations plus return/control/member/arithmetic expressions and GNU extended assembly in `ports.h`, `cpu.h`, and `percpu.h`. Initializers, typed unevaluated expressions and offset/alignment builtins, complete AST/linear IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
 
 ## 2026-07-11: CupidC typed block bindings and lexical local declarations
 
@@ -1467,7 +1467,7 @@ The audit-derived active non-Doom header result remains 147/152, but each of the
 | Full repository gate | PASS | `make test` runs 257 tests in 359.444 seconds: 256 pass and only the expected optional/platform case skips. The enclosing command completes in 390.1 seconds. |
 | Boot gate | NOT RUN | This hosted AST change does not alter an OS object, ABI output, image, or runtime path, so no boot result is attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No kernel object, image, runtime path, active C/assembly source, or `TempleOS/` reference file changed, so no boot claim follows. GNU extended assembly is now the exact header blocker; return/control/member/arithmetic expressions, block initializers and non-automatic declarations, typed unevaluated expressions and offset/alignment builtins, complete AST/linear IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel object, image, runtime path, active C/assembly source, or `TempleOS/` reference file changed, so no boot claim follows. GNU extended assembly is now the exact header blocker; return/control/member/arithmetic expressions, block initializers and non-automatic declarations, typed unevaluated expressions and offset/alignment builtins, complete AST/linear IR, ELF32 object lowering, kernel integration, and staged self-compilation remain.
 
 ## 2026-07-12: CupidC scalar integer expressions, assignment, and returns
 
@@ -1508,7 +1508,7 @@ Parameter metadata now separates two C roles that the earlier normalized represe
 | Full repository gate | PASS | `make test` runs 259 tests in 348.034 seconds: 258 pass and only the expected platform case skips. The enclosing Toolchain/audit command completes in 376.9 seconds. |
 | Boot gate | NOT RUN | This hosted AST change does not alter an OS object, ABI output, image, or runtime path, so no boot result is attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No kernel object, image, runtime path, active C/assembly source, or `TempleOS/` reference file changed. Issue #25 therefore remains open for the rest of freestanding C11/i386 cdecl semantics, deterministic ELF32 lowering, integration, and staged self-hosting.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel object, image, runtime path, active C/assembly source, or `TempleOS/` reference file changed. Issue #25 therefore remains open for the rest of freestanding C11/i386 cdecl semantics, deterministic ELF32 lowering, integration, and staged self-hosting.
 
 ## 2026-07-12: CupidC typed lvalue designators and target layout queries
 
@@ -1524,7 +1524,7 @@ File- and record-scope assertions remain validation-only. Typed unevaluated oper
 
 Standards and spec review changed several initially plausible implementations before this slice was accepted. Skipping default operand conversions for a `void` cast was rejected because it erased volatile accesses and array/function decay; applying the floating-conversion boundary before the `void` exemption was also rejected because `(void)volatile_float_lvalue` is a discard, not an unsupported numeric conversion. Treating every unsigned-`int` bit-field like an ordinary `unsigned int` was rejected because a narrow field whose values fit target `int` must publish lvalue conversion followed by signed-`int` promotion; a full-width 32-bit field remains unsigned. Qualified array decay initially discarded the record-derived `const` wrapper, so decay now applies array qualification to the pointed-to element just as parameter adjustment does. GNU expression alignment initially overcorrected by including containing member-placement alignment: GCC and Clang both report the final promoted member's natural alignment even through a packed anonymous container, just as they ignore a named packed container and an explicitly aligned containing object. The final rule therefore uses the selected member declaration only. Finally, rewinding only expression vectors left decoded bytes from `sizeof("...")` and GNU alignment operands unreachable in the successful unit arena. Successful queries now rewind that arena scratch; a 3 MiB regression expands one 16 KiB string into 512 assertions, and deliberately disabling the rewind reproduces a deterministic storage-limit failure at query 27.
 
-The active non-Doom header frontier remains 147/152. Every remaining root still stops first at GNU inline assembly at `ports.h:8`, `cpu.h:23`, or `percpu.h:44` through the three SMP roots, so this expression capability does not justify a false header-frontier advance. It also transfers no production build ownership. The host compiler still builds the shared frontend and contract, the private in-kernel compiler still owns production parsing and code generation, and no kernel object, image, ABI output, runtime path, active C/assembly source, or `TempleOS/` reference file changes. No boot result follows from this hosted semantic slice.
+The active non-Doom header frontier remains 147/152. Every remaining root still stops first at GNU inline assembly at `ports.h:8`, `cpu.h:23`, or `percpu.h:44` through the three SMP roots, so this expression capability does not justify a false header-frontier advance. It also transfers no production build ownership. The host compiler still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No kernel object, image, ABI output, runtime path, active C/assembly source, or `TempleOS/` reference file changes. No boot result follows from this hosted semantic slice.
 
 ### Verification status
 
@@ -1580,7 +1580,7 @@ A read-only public-parser probe over the ten unchanged shared Toolchain `.c` fil
 | Full repository gate | PASS | The final `make test` runs 263 tests in 391.317 seconds: 262 pass and the one expected platform case skips. Its deterministic audit check passes, and the enclosing command completes in 422.9 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only change alters no OS object, ABI output, image, or runtime path, so no boot result will be attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No kernel object, image, runtime path, active C/assembly source, or `TempleOS/` reference file changed. Issue #25 remains open for initialized declarations, remaining expressions/statements and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel object, image, runtime path, active C/assembly source, or `TempleOS/` reference file changed. Issue #25 remains open for initialized declarations, remaining expressions/statements and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC typed scalar automatic initializers
 
@@ -1617,7 +1617,7 @@ Scalar braces are syntax wrappers around the same converted expression, not a se
 | Full repository gate | PASS | The final `make test` runs 264 tests in 406.388 seconds: 263 pass and the one expected Windows platform case skips. Its deterministic audit check passes, and the enclosing command completes successfully in 438.2 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no OS object, ABI output, image, or runtime path, so no boot result is attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. Hosted Toolchain C and its contract changed; no OS kernel, driver, application, Doom, assembly, linker-script, generated OS artifact, or `TempleOS/` reference source changed. Issue #25 remains open for aggregate and nonautomatic initialization, remaining expressions/statements and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. Hosted Toolchain C and its contract changed; no OS kernel, driver, application, Doom, assembly, linker-script, generated OS artifact, or `TempleOS/` reference source changed. Issue #25 remains open for aggregate and nonautomatic initialization, remaining expressions/statements and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC C11 bracket digraphs and constraint diagnostics
 
@@ -1649,7 +1649,7 @@ Compound and update validation now separates valid unimplemented arithmetic from
 | Full repository gate | PASS | The uninterrupted final `make test` runs 264 tests in 377.711 seconds: 263 pass and the one expected Windows platform case skips. Its deterministic audit check passes, and the enclosing command completes in 408.9 seconds. |
 | Boot gate | NOT RUN | This hosted parser/diagnostic correction changes no OS object, ABI output, image, or runtime path, so no boot result will be attributed to it. |
 
-This correction transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No OS C/assembly source, kernel artifact, Doom source, linker script, or `TempleOS/` reference source changed. Issue #25 remains open for the remaining C11/ABI semantics, IR, object lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
+This correction transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No OS C/assembly source, kernel artifact, Doom source, linker script, or `TempleOS/` reference source changed. Issue #25 remains open for the remaining C11/ABI semantics, IR, object lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC typed C11 `for` statements and loop jumps
 
@@ -1691,7 +1691,7 @@ Controlling-expression validation preserves the difference between unsupported i
 | Full repository gate | PASS AFTER STALE INVENTORY CORRECTION | The initial `make test` run failed only the two stale inventory expectations exposed by regeneration: `return` moved from 13,163 to the pre-review 13,216 count and `sizeof` from 1,873 to 1,882. Both targeted corrections and the first complete rerun pass. After review hardening moved the final `return` inventory to 13,219, the final-tree rerun executes 266 tests in 388.156 seconds, finishes green with the one existing skip, passes the deterministic audit check, and returns from the enclosing command in 421 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only change alters no production compiler path, ABI output, kernel object, image, or runtime path, so no boot result is attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No active OS C/assembly source, production ABI, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for conditional/comma and aggregate-valued expressions, remaining control statements, floating and null-pointer semantics, aggregate/nonautomatic initialization, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C/assembly source, production ABI, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for conditional/comma and aggregate-valued expressions, remaining control statements, floating and null-pointer semantics, aggregate/nonautomatic initialization, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC typed C11 `if`/`else` statements
 
@@ -1729,7 +1729,7 @@ Integer and pointer conditions are represented. A floating condition remains val
 | Full repository gate | PASS AFTER AUDIT REGENERATION | Final-tree `make test` runs 268 tests in 431.293 seconds, passes with one expected skip, passes the deterministic audit check, and returns from the enclosing command in 464.2 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only change alters no production compiler path, ABI output, kernel object, image, or runtime path, so no boot result is attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser/code generator still owns production compilation. No active OS C/assembly source, production ABI, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for conditional/comma and aggregate-valued expressions, pointer comparison and null-pointer semantics, remaining control statements, aggregate/nonautomatic initialization, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C/assembly source, production ABI, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for conditional/comma and aggregate-valued expressions, pointer comparison and null-pointer semantics, remaining control statements, aggregate/nonautomatic initialization, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting; no issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC typed pointer comparisons and conversions
 
@@ -1768,7 +1768,7 @@ The exact strict hosted-source gate still has zero complete files. `ctool.c` sto
 | Full repository gate | PASS | Final-tree `make test` runs 269 tests in 416.398 seconds, passes with one expected skip, passes its deterministic audit check, and returns from the enclosing target in 449.6 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only change alters no production compiler path, ABI output, kernel object, image, or runtime behavior, so no boot result is attributed to it. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for full null-pointer conversion and constant evaluation, conditional and comma expressions, aggregate values and initialization, remaining control and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment alone.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for full null-pointer conversion and constant evaluation, conditional and comma expressions, aggregate values and initialization, remaining control and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC runtime and constant conditional expressions
 
@@ -1813,7 +1813,7 @@ The exact strict hosted-source gate still has zero complete files. `ctool.c` pas
 | Full repository gate | PASS | Final-tree `make test` runs 270 tests in 411.886 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 447.3 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, or runtime behavior. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for full null-pointer conversion, floating and aggregate-valued expressions, comma expressions, aggregate and nonautomatic initialization, remaining control and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment alone.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for full null-pointer conversion, floating and aggregate-valued expressions, comma expressions, aggregate and nonautomatic initialization, remaining control and ABI semantics, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment alone.
 
 ## 2026-07-12: CupidC typed while statements
 
@@ -1857,7 +1857,7 @@ The final generated audit still contains 681 active sources, 39 unreachable sour
 | Full repository gate | PASS BEFORE REVIEW CLEANUP | `make test` runs 272 tests in 406.605 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 440 seconds. The later review cleanup changes reference prose and contract expectation organization; the final focused suite and audit replay pass afterward. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, or runtime behavior. |
 
-This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate and nonautomatic initialization, floating and null-pointer semantics, comma and aggregate-valued expressions, the remaining control and ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This slice transfers no production build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C or assembly source, kernel object, image, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate and nonautomatic initialization, floating and null-pointer semantics, comma and aggregate-valued expressions, the remaining control and ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-12: CupidC compatible aggregate value flow
 
@@ -1909,7 +1909,7 @@ The regenerated audit contains 681 active sources, 251 feature IDs, and 491 tran
 | Full repository gate | PASS | Final-tree `make test` runs 273 tests in 365.817 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 395.8 seconds. |
 | Boot gate | NOT RUN | This hosted frontend change alters no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate initializer lists, static-duration initialization, `switch` and `do`, static locals, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for aggregate initializer lists, static-duration initialization, `switch` and `do`, static locals, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: CupidC typed C11 switch statements
 
@@ -1965,7 +1965,7 @@ The regenerated audit still contains 681 active sources, 39 unreachable source-l
 | Full repository gate | PASS | `python -m unittest discover -s tests -p "test_*.py"` runs 275 tests in 435.293 seconds, passes with one expected skip, and returns from the enclosing command in 436.07 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for `do`, identifier labels, `goto`, static local and other nonautomatic initialization, aggregate initializer lists, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for `do`, identifier labels, `goto`, static local and other nonautomatic initialization, aggregate initializer lists, floating and null-pointer semantics, comma expressions, the remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: CupidC typed C11 do statements
 
@@ -2018,7 +2018,7 @@ The regenerated audit still contains 681 active sources, 39 unreachable source-l
 | Full repository gate | PASS | `make test` runs 277 tests in 458.015 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 494.5 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for static and aggregate initialization, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No active OS C or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for static and aggregate initialization, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: CupidC semantic block-static initializers
 
@@ -2080,7 +2080,7 @@ The regenerated audit contains 681 active sources, 39 unreachable source-like fi
 | Full repository gate | PASS | `make test` runs 278 tests in 517.480 seconds, passes with one expected skip, reproduces the audit, and returns from Make in 556.453 seconds. |
 | Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, ABI output, kernel object, image, runtime behavior, or build owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, while the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for address constants, general aggregate initializer lists, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for address constants, general aggregate initializer lists, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: CupidC static aggregate initializer forests
 
@@ -2138,7 +2138,7 @@ The regenerated audit still contains 681 active sources, 39 accounted unreachabl
 | Full repository gate | PASS | The review-fixed `make test` runs 279 tests in 455.347 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 493.8 seconds. |
 | Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, identifier labels, `goto`, floating and null-pointer semantics, comma expressions, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: CupidC function-scoped labels and direct goto
 
@@ -2196,7 +2196,7 @@ The active non-Doom header frontier remains 147/152 at GNU inline assembly. This
 | Full repository gate | PASS | Post-review `make test` runs 281 tests in 401.965 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 437.1 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating and null-pointer semantics, comma expressions, computed goto and GNU label addresses, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, or assembly source, production artifact, runtime path, or `TempleOS/` reference file changed. [Implement freestanding C11 and i386 cdecl semantics](https://github.com/cupidthecat/cupid-os/issues/25) remains open for automatic aggregate lists, designated and union or Cupid class static lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating and null-pointer semantics, comma expressions, computed goto and GNU label addresses, the private do-loop emitter correction, remaining ABI work, linear IR, deterministic ELF32 lowering, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: production CupidC do-loop continue target
 
@@ -2281,7 +2281,7 @@ The regenerated graph remains 682 active sources, 251 feature IDs, 492 transform
 | Formal two-axis review | PASS | Standards and Spec reviews report zero findings against fixed point `4136116`. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
-This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, or assembly source, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, null-pointer and floating semantics, non-string address constants, file-scope initialization, static-data and relocation lowering, complete IR and code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, or assembly source, runtime path, or `TempleOS/` reference file changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, null-pointer and floating semantics, non-string address constants, file-scope initialization, static-data and relocation lowering, complete IR and code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: C11 null pointer constants in the shared CupidC frontend
 
@@ -2328,7 +2328,7 @@ The first full repository run exposed one stale audit oracle: `test_build_graph_
 | Full repository gate | PASS AFTER STALE ORACLE | Final-tree `make test` runs all 282 tests in 440.744 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 478.1 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
-This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for designated initializer lists, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-13: CupidC direct designated initializer lists
 
@@ -2382,7 +2382,7 @@ All six unchanged hosted Toolchain source gates remain complete. The larger fron
 | Full repository gate | PASS AFTER ORACLE UPDATE | The first run found the stale drift guards above. The corrected `make test` rerun passes all 283 tests in 442.509 seconds with one expected skip, reproduces the checked audit, and returns from Make in 482.5 seconds. |
 | Boot gate | NOT RUN | This hosted AST-only slice changes no production compiler path, i386 ABI output, kernel object, disk image, runtime behavior, or build owner. |
 
-This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract, and the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for chained and overriding designators, promoted anonymous-member initialization, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for chained and overriding designators, promoted anonymous-member initialization, positional union or Cupid class lists, non-string address constants, file-scope initialization, static-data and relocation lowering, floating semantics, comma expressions, variadic promotions, variable-length arrays, complete AST and linear IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 ## 2026-07-14: CupidC file-scope object definitions and binding addresses
 
 ### Decision and representation
@@ -2423,7 +2423,7 @@ The regenerated graph records 682 active sources, 251 feature IDs, 492 transform
 | Full repository gate | PASS | Final-tree `make test` runs all 284 tests in 405.383 seconds, passes with one expected skip, reproduces the checked audit, and returns from Make in 437.3 seconds. |
 | Boot gate | NOT RUN | This hosted semantic slice changes no production compiler path, ABI bytes, kernel object, disk image, or runtime behavior. |
 
-This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and its contract, while the private in-kernel CupidC parser and code generator still own production compilation. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for the deferred address forms, static-data and relocation lowering, floating semantics, complete AST and IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
+This increment transfers no production source cohort, ABI path, artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend and its contract and produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. No kernel, user, assembly, or `TempleOS/` reference source changed. Issue #25 remains open for the deferred address forms, static-data and relocation lowering, floating semantics, complete AST and IR lowering, code generation, kernel integration, and staged self-hosting. No issue is ready to close from this increment.
 
 ## 2026-07-14: CupidC deterministic static object emission
 
@@ -2489,7 +2489,7 @@ The sanitizer builds repeated those commands in separate `gcc-sanitize` and `cla
 | Full repository gate | PASS AFTER ORACLE UPDATE | The first run reached all 285 tests and found two stale 652-source inventory guards. Updating those exact guards and the paired include totals made both focused checks pass. Final-tree `make test` passes all 285 tests in 422.056 seconds with one expected skip, reproduces the checked audit, and returns from Make in 455.2 seconds. |
 | Boot gate | NOT RUN | This is a hosted static-only object path. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or current ABI owner. |
 
-This increment transfers no production source cohort, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and code generator still own production C compilation, and the normal OS build does not consume these static-only objects. No kernel, user, assembly, or `TempleOS/` reference source changed.
+This increment transfers no production source cohort, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The host C compiler also produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. The normal OS build does not consume these static-only objects. No kernel, user, assembly, or `TempleOS/` reference source changed.
 
 Issue #25 remains open. Function IR and machine-code lowering, `.text`, `R_386_PC32`, remaining static address forms, whole-translation-unit output, kernel integration, and staged self-hosting still belong there. No issue is ready to close from this increment.
 
@@ -2539,7 +2539,7 @@ The regenerated graph records 685 active sources, 251 feature IDs, and 495 trans
 | Patch hygiene | PASS | `git diff --check` is clean, and the added Markdown contains no em or en dashes. |
 | Boot gate | NOT RUN | This hosted static-initializer slice changes no production compiler path, kernel object, disk image, boot path, or runtime behavior. |
 
-This increment transfers no production source cohort, ABI path, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and code generator still own production C compilation, and the normal OS build does not consume these objects. No kernel, application, assembly, or `TempleOS/` reference source changed.
+This increment transfers no production source cohort, ABI path, linked artifact, or build ownership and retires no host dependency. GCC or Clang still builds the shared frontend, emitter, ELF writer, and contracts. The host C compiler also produces the normal root and user C objects. The private in-kernel CupidC parser and code generator remain the embedded runtime JIT and AOT path. The normal OS build does not consume these objects. No kernel, application, assembly, or `TempleOS/` reference source changed.
 
 Issue #25 remains open. Member addresses, explicit address casts, addresses based on automatic or block-static objects, runtime offsets or subscripts, complete Doom parsing, function lowering, kernel integration, and staged self-hosting remain there. No issue is ready to close from this increment.
 
@@ -2614,7 +2614,7 @@ The regenerated graph records 688 active sources, 498 transforms, and 39 unreach
 | Patch hygiene | PASS | `git diff --check` passes with line-ending notices, and the new prose contains no em or en dashes. |
 | Boot gate | NOT RUN | The new path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or current ABI owner. |
 
-GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and their contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. No production source cohort, linked artifact, or host dependency changes ownership here, and no kernel, application, assembly, or `TempleOS/` reference source changed.
+GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and their contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC parser and backend remain the embedded runtime JIT and AOT path. No production source cohort, linked artifact, or host dependency changes ownership here, and no kernel, application, assembly, or `TempleOS/` reference source changed.
 
 Issue #25 remains open. External-inline finalization, calls, and `R_386_PC32` are the next useful leaf-function gates, followed by local objects, stack allocation, broader statement bodies, pointers, wider and aggregate values, production integration, and staged self-hosting. No issue is ready to close from this step.
 
@@ -2664,7 +2664,7 @@ The WSL checks used GCC 13.3.0 and Clang 18.1.3 with fresh build directories out
 | Full repository gate | PASS AFTER INVENTORY UPDATE | The first run found the stale lexical guards described above. Final-tree `make test` passes all 286 tests in 480.692 seconds with one expected skip, reproduces the checked audit, and returns from Make in 531.0 seconds. |
 | Boot gate | NOT RUN | The new path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or current ABI owner. |
 
-GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. This increment transfers no production source cohort, linked artifact, or host dependency, and it changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source.
+GCC or Clang still builds the shared frontend, IR, emitter, ELF writer, and contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC parser and backend remain the embedded runtime JIT and AOT path. This increment transfers no production source cohort, linked artifact, or host dependency, and it changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source.
 
 Issue #25 remains open. Indirect and variadic calls, call-site stack alignment, wider and aggregate arguments and results, local objects, stack allocation, broader statement lowering, linked call proof, production integration, and staged self-hosting remain there. No issue is ready to close from this step.
 
@@ -2718,7 +2718,7 @@ The regenerated graph still records 688 active sources, 251 feature IDs, 498 rea
 | Patch hygiene | PASS | `git diff --check` passes with checkout line-ending notices, and the changed prose contains no em or en dashes. |
 | Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC parser and backend still produce every normal OS C object. This increment transfers no production source cohort, linked artifact, or host dependency. It changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source because it adds no production or user-facing behavior.
+GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC parser and backend remain the embedded runtime JIT and AOT path. This increment transfers no production source cohort, linked artifact, or host dependency. It changes no kernel, application, assembly, wiki, CTXT manual, or `TempleOS/` reference source because it adds no production or user-facing behavior.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic local storage and stack allocation are the next source-driven lowering gate, followed by broader statements and expressions, remaining ABI work, production integration, and staged self-hosting. No issue is ready to close from this increment.
 
@@ -2777,7 +2777,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Patch hygiene | PASS | `git diff --check` passes, and the changed prose contains no em or en dashes. |
 | Boot gate | NOT RUN | This path is hosted only. It changes no kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still builds every normal OS C object. No kernel object, disk image, boot path, runtime behavior, production source cohort, ABI owner, or host dependency changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No kernel object, disk image, boot path, runtime behavior, production source cohort, ABI owner, or host dependency changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. File-object loads, greater-than-or-equal and other expressions, source assignments, nested blocks and general statements, other local types and storage durations, call-site alignment, broader ABI work, production integration, and staged self-hosting remain there. No issue is ready to close from this increment.
 
@@ -2843,7 +2843,7 @@ The hosted source gates publish 34 definitions, 857 statements, 7,473 expression
 
 Three cross-host harness mistakes were excluded from evidence: one shell-quoting error, one missing temporary analyzer directory, and one symbol probe that combined `grep -q` with `pipefail` and produced a false negative. Corrected fresh runs produced the results above. None was a compiler or product failure.
 
-This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, source cohort, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, source cohort, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Source assignments to file objects, member and subscript loads, pointer values, other widths and aggregates, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
 
@@ -2893,7 +2893,7 @@ The hosted source gates publish 34 definitions, 857 statements, 7,483 expression
 | Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 418.115 seconds with one expected skip and returns from Make in 451.7 seconds. |
 | Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production source cohort, build transform, host dependency, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86 and ELF32 modules, and their contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production source cohort, build transform, host dependency, or runtime behavior changes here. Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. File-object assignment, member and subscript loads, pointer values, division and other expressions, wider and aggregate values, nested blocks and general statements, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain. No issue is ready to close from this increment.
 
@@ -2953,7 +2953,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Patch hygiene | PASS | `git diff --check` passes with checkout line-ending notices. The changed prose contains no em or en dashes and no flagged humanizer filler phrases. |
 | Boot gate | NOT RUN | This path is hosted only. It changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production source cohort, build transform, ABI owner, host dependency, boot path, or runtime behavior changes here.
+This increment remains hosted. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production source cohort, build transform, ABI owner, host dependency, boot path, or runtime behavior changes here.
 
 Root README, wiki, and CTXT manuals remain unchanged because they describe production and user-visible behavior that this slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3013,7 +3013,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Patch hygiene | PASS | `git diff --check` passes with checkout line-ending notices. Added prose contains no em or en dashes and no humanizer filler flagged by the repository diff scan. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3068,7 +3068,7 @@ The regenerated graph still records 688 active sources, 251 feature IDs, 498 rea
 | Full repository gate | PASS | Final-tree `make test` passes all 286 tests in 472.622 seconds with one expected skip and returns from Make in 509.688 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3126,7 +3126,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Patch hygiene | PASS | `git diff --cached --check` passes. Added prose contains no em or en dashes and no humanizer filler phrases found by the staged-diff scan. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3190,7 +3190,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 449.919 seconds with one expected skip and returns from Make in 485.4 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3251,7 +3251,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | The final `make test` passes all 286 tests in 462.002 seconds with one expected skip and returns from Make in 499.1 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3310,7 +3310,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 467.635 seconds with one expected skip and returns from Make in 502.275 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3368,7 +3368,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER ORACLE REFRESH | The first run found the five stale inventory values described above. The reviewed-tree `make test` passes all 286 tests in 474.985 seconds with one expected skip and returns from Make in 509.446 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3428,7 +3428,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 427.734 seconds with one expected skip and returns from Make in 463.241 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs now describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3481,7 +3481,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 448.283 seconds with one expected skip and returns from Make in 483.961 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3537,7 +3537,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 437.871 seconds with one expected skip and returns from Make in 474.634 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3592,7 +3592,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER INVENTORY AND REVIEW FIXES | The first run found only the five stale guards described above. Post-review `make test` passes all 286 tests in 440.858 seconds with one expected skip and returns from Make in 475.736 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3658,7 +3658,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER REVIEW AND INVENTORY FIXES | `make test` passes all 286 tests in 447.186 seconds with one expected skip and returns from Make in 481.600 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3717,7 +3717,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER TRANSIENT RETRY | `make test` passes all 286 tests in 526.841 seconds with one expected skip and returns from Make in 567.569 seconds. The preceding cleanup-only failure and focused retry are recorded above. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they describe production or user-visible behavior that this hosted slice does not transfer. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3781,7 +3781,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 471.112 seconds with one expected skip and returns from Make in 507.227 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because they already describe production `do` behavior and this hosted slice changes no user-visible or production path. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3838,7 +3838,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER INVENTORY CORRECTION | `make test` passes all 286 tests in 473.282 seconds with one expected skip and returns from Make in 509.455 seconds. The earlier stale-inventory failure is recorded above. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3890,7 +3890,7 @@ The regenerated graph still records 688 active sources, 251 feature IDs, 498 rea
 | Full repository gate | PASS | `make test` runs 286 tests in 484.039 seconds, passes with one expected skip, and returns from Make in 520.6 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADRs describe the capability and its boundary. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3940,7 +3940,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 286 tests in 482.787 seconds with one expected skip and returns from Make in 519.702 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and related ADRs now describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -3994,7 +3994,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 289 tests in 422.666 seconds with one expected Windows `/dev/full` skip and returns from Make in 456.7 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and related ADRs describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -4050,7 +4050,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER INVENTORY CORRECTION | `make test` passes all 293 tests in 448.878 seconds with one expected Windows `/dev/full` skip and returns from Make in 484.574 seconds. The earlier stale inventory failure is recorded above. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object and still has its separate `continue` limitation inside a switch nested in a loop.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path and still has its separate `continue` limitation inside a switch nested in a loop.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0038 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, build rule, or `TempleOS/` reference source changed.
 
@@ -4105,7 +4105,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS | `make test` passes all 299 tests in 425.825 seconds with one expected skip and returns from Make in 459.3 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0039 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
@@ -4161,7 +4161,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Full repository gate | PASS AFTER ORACLE UPDATE | The first run identified six stale generated-count assertions. After those exact oracles were updated, the final `make test` run passes all 302 tests in 479.380 seconds with one expected skip and returns from Make in 517.5 seconds. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0040 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
@@ -4228,7 +4228,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Two-axis review | PASS AFTER FIX | Standards review found the malformed `void *` relational seam and the loose pointer-condition oracle. Both were fixed and reverified. Spec review found no mismatch, and both follow-up reviews are clean. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADR 0041 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
@@ -4292,7 +4292,7 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Two-axis review | PASS AFTER FIX | Standards and Spec review findings were addressed with exact coverage, current documentation, and behavior-based naming. Follow-up review found no remaining correctness or specification mismatch. |
 | Boot gate | NOT RUN | This hosted path changes no production compiler, kernel object, disk image, boot path, runtime behavior, or ABI owner. |
 
-This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+This increment transfers no production ownership and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, and ADR 0042 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
@@ -4361,8 +4361,67 @@ The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable
 | Production image build | PASS | `make all` rebuilds the normal CupidASM, CupidLD, CupidObj, kernel, and disk-image path in 21.328 seconds. |
 | Emulator gate | NOT RUN | This hosted capability changes no production compiler, kernel object, disk format, boot path, runtime behavior, or ABI owner. The production image build verifies the unaffected normal path without claiming runtime ownership. |
 
-This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC compiler still produces every normal OS C object.
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The same host compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 The bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, and ADR 0043 describe the capability and its limits. Root README, wiki, and CTXT manuals remain unchanged because this hosted slice changes no production or user-visible behavior. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Automatic array storage, atomic access and mutation, other widths, floating and aggregate values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-18: CupidC allocates fixed automatic arrays and records
+
+### Decision and active-source requirement
+
+The shared hosted CupidC path now allocates target-sized frame storage for referenced, uninitialized fixed automatic arrays and records. The active requirements remain unchanged in `toolchain/cupidc_emit.c` and `toolchain/cupidc_ir.c`:
+
+```c
+ctool_u32 section_map[CEMIT_SECTION_COUNT];
+ctool_u32 children[3];
+```
+
+The exact contract covers both indexed access to `section_map` and the active `&children[index]` call shape. No active source was split into scalar locals or otherwise rewritten to fit the compiler.
+
+Hosted IR accepts an automatic array or record when its target layout is complete, fixed, nonzero, and aligned to at most four bytes. The object remains an address, not an aggregate value. `LOCAL_ADDRESS` publishes its absolute frontend block-binding identity, while the i386 emitter keeps the frame offset private.
+
+Before emitting a function, the emitter marks each referenced binding and allocates those objects in ascending absolute binding order. Each object uses its target size and alignment. The final frame is rounded to four bytes. Unreferenced, uninitialized objects need no slot. This policy is deterministic even when instruction order changes.
+
+The emitter rejects a target object whose size cannot fit a positive signed i386 frame displacement. The size check happens before subtraction or addition can wrap. The failure reports the public object-emission limit diagnostic, publishes no object bytes, preserves the frozen translation unit, and restores operation storage.
+
+This slice does not add aggregate values, aggregate initialization or assignment, narrow element loads or stores, variable-length arrays, storage aligned above four bytes, 16-byte call-site alignment, or aggregate call and return rules. Focused negatives keep the closest boundaries explicit. No user question was needed because the active source, target layouts, existing IR address operations, and issue #25 already fix the required behavior.
+
+### Contract evidence and corrections
+
+- Five functions publish 47 exact IR instructions. The first four cover a four-element integer array, an eight-byte record, a three-byte array passed by pointer, and a mixed frame with three-byte and eight-byte arrays. The fifth reproduces `&children[index]` through `LOCAL_ADDRESS`, `ARRAY_TO_POINTER`, parameter load, `POINTER_BINARY`, `DEREFERENCE`, `ADDRESS_OF`, and `CALL_DIRECT`.
+- The deterministic ELF32 object contains five functions in 236 exact text bytes. Their offsets and sizes are 0/86, 86/48, 134/20, 154/38, and 192/44. Its nine symbols include three unresolved callees. Three `R_386_PC32` relocations start at offsets 145, 183, and 227 with addend `-4`.
+- Exact prologues reserve 16 bytes for `section_map`, 8 bytes for the record, a 4-byte frame for the 3-byte array, and 12 bytes for both the mixed frame and `children`. The mixed addresses are EBP minus 3 and EBP minus 12. The active `children` address is EBP minus 12.
+- Repeated object emission is byte-identical and leaves the translation unit and job arena unchanged. Shared decoding finds five returns and three calls across the complete text.
+- Negative IR contracts reject aggregate initialization and assignment, narrow indexed loads and stores, and an eight-byte-aligned automatic record. A mutated zero-sized layout fails as invalid frozen input. A referenced `unsigned char[4294967295u]` placed after another referenced local reports overflow and the object limit diagnostic with full rollback.
+- The first positive IR run stopped at the existing unsupported automatic-aggregate boundary. The first object run reached an internal failure because every local still assumed a four-byte slot. Those red results isolated the lowerer and frame allocator work.
+- The first oversized-frame negative exposed unsigned underflow before the signed displacement check. Rejecting sizes above `INT32_MAX` before subtraction changed that case from an internal error to the public limit result.
+- The first full repository run after audit regeneration failed six stale lexical inventory guards. The generated audit was correct; the Python expectations still held the previous `goto`, `if`, `for`, `while`, `return`, and `sizeof` totals. Those guards were updated and their focused rerun passed all six cases. The failed run is not counted as final evidence.
+- Spec review found that `children[3]` was protected only by source text and that adjacent narrow-element and aggregate-value boundaries lacked direct negatives. The fifth exact function and three focused rejection fixtures close those gaps. One narrow-load oracle initially expected the unsupported-type diagnostic, while the established conversion path correctly returned unsupported-conversion. The test now pins the existing diagnostic.
+- Standards review noted similar aggregate eligibility predicates in the lowerer and emitter and repeated source fixtures in the two standalone contracts. They remain separate here because each public operation validates a caller-supplied frozen unit independently, and each contract must prove its own complete input. A new shared policy layer would be broader than this storage increment.
+- The documentation audit found an older factual error across ADRs and log entries: the private in-kernel compiler was described as producing the normal OS C objects. The host compiler still produces the 245 normal root and user objects. The private compiler owns embedded runtime JIT and AOT compilation. The wording correction is included with this documentation sweep so the ownership record is accurate; it does not change historical implementation results or move a build transform.
+- Re-parsing the implementation keeps `cupidc_ir.c` at 126 definitions, 3,660 statements, 31,331 expressions, 455 block bindings, and 138 initializers. `cupidc_emit.c` publishes 83/1,823/16,430/257/137.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. Its lexical inventory contains 614 direct designated initializers across 18 files, 951 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,501 `while`, 1,699 `break`, 929 `continue`, 25,203 `if`, 3,455 `else`, 3,038 `for`, 15,434 `return`, and 3,068 `sizeof` occurrences. The active-source digest is `0855c4e40092dbc75644958df5da706f5401779851c46003a4e231661607a3a6`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Automatic arrays first failed at the semantic boundary, and object emission then failed at the fixed four-byte local assumption. The oversized-frame negative exposed and closed the unsigned-underflow path. |
+| Focused automatic-object contracts | PASS | The amended IR and object cases pass separately in 6.277 and 7.063 seconds. They publish 47 exact instructions and 236 exact text bytes, including the active `children` call shape and the new rejection boundaries. |
+| Windows hosted Toolchain | PASS | The complete amended suite passes in 13.1 seconds, including every hosted mode and all 22 assembly demos. An earlier fresh strict build passed in 24.808 seconds before the review-only contract additions. |
+| WSL strict compilers | PASS | Clean GCC 13.3 and Clang 18.1 builds each pass all 164 hosted checks, including both amended automatic-object modes, in 59.25 and 59.19 seconds with no skips. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds contain the expected instrumentation and pass both amended automatic-object modes without diagnostics. The builds take 46.69 and 47.52 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c`, `cupidc_emit.c`, and the three affected C contracts. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the checked records in 35.638 seconds. The final repository gate reproduces them exactly. |
+| Full repository gate | PASS | `make test` passes all 312 tests in 478.976 seconds with one expected Windows skip and returns from Make after the audit check in 522.871 seconds. |
+| Production image build | PASS | `make all` rebuilds the normal CupidASM, CupidLD, CupidObj, kernel, and disk-image path in 23.705 seconds. Review amendments after this build touch contracts and documentation only. |
+| Emulator gate | NOT RUN | The hosted capability changes no production compiler, kernel object, disk format, boot path, runtime behavior, or ABI owner. The normal image build verifies the unaffected production path without claiming runtime ownership. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules and produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
+
+The root README, bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, wiki, CTXT manual, and ADR 0044 now describe the capability and its limits. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Aggregate initialization and values, narrow element access, atomic access and mutation, other widths, floating semantics, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.

@@ -1697,12 +1697,32 @@ static ctool_bool cemit_ir_type_is_complete_aggregate_object(
   const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
   return type < context->unit->layout.type_count &&
                  node != (const ctool_c_type_node_t *)0 &&
-                 (node->kind == CTOOL_C_TYPE_ARRAY ||
+                 ((node->kind == CTOOL_C_TYPE_ARRAY &&
+                   node->array_bound_kind == CTOOL_C_ARRAY_FIXED) ||
                   (node->kind == CTOOL_C_TYPE_RECORD &&
                    node->record_complete == CTOOL_TRUE)) &&
                  context->unit->layout.types[type].is_object == CTOOL_TRUE &&
                  context->unit->layout.types[type].is_complete_object ==
                      CTOOL_TRUE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_type_is_automatic_object(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_layout_t *layout;
+  if (type >= context->unit->layout.type_count) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[type];
+  return (cemit_ir_type_is_i32_scalar(context, type) == CTOOL_TRUE ||
+          cemit_ir_type_is_complete_aggregate_object(context, type) ==
+              CTOOL_TRUE) &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size != 0u && layout->alignment != 0u &&
+                 layout->alignment <= 4u &&
+                 cemit_power_of_two(layout->alignment) == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -1911,6 +1931,7 @@ static ctool_status_t cemit_emit_ir_instruction(
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS) {
     const ctool_c_block_binding_t *binding;
+    const ctool_c_type_layout_t *layout;
     ctool_u32 offset;
     if (block_binding_offsets == (const ctool_u32 *)0 ||
         ir_instruction->reference >= context->unit->block_binding_count ||
@@ -1921,15 +1942,20 @@ static ctool_status_t cemit_emit_ir_instruction(
       return CTOOL_ERR_INTERNAL;
     }
     binding = &context->unit->block_bindings[ir_instruction->reference];
+    layout = ir_instruction->type < context->unit->layout.type_count
+                 ? &context->unit->layout.types[ir_instruction->type]
+                 : (const ctool_c_type_layout_t *)0;
     offset = block_binding_offsets[ir_instruction->reference];
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         (binding->storage != CTOOL_C_STORAGE_NONE &&
          binding->storage != CTOOL_C_STORAGE_AUTO &&
          binding->storage != CTOOL_C_STORAGE_REGISTER) ||
         binding->type != ir_instruction->type || offset == CTOOL_C_AST_NONE ||
-        offset == 0u ||
-        cemit_ir_type_is_i32_scalar(context, ir_instruction->type) ==
-            CTOOL_FALSE) {
+        offset == 0u || layout == (const ctool_c_type_layout_t *)0 ||
+        cemit_ir_type_is_automatic_object(context, ir_instruction->type) ==
+            CTOOL_FALSE ||
+        offset < layout->size || offset > 0x7fffffffu ||
+        (offset & (layout->alignment - 1u)) != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
     status = cemit_x86_lea_local(context, offset);
@@ -2741,24 +2767,18 @@ static ctool_status_t cemit_prepare_local_offsets(
         &context->ir.instructions[function->first_instruction + index];
     if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS) {
       const ctool_c_block_binding_t *binding;
-      const ctool_c_type_layout_t *layout;
       if (instruction->reference >= context->unit->block_binding_count ||
           instruction->type >= context->unit->layout.type_count) {
         return CTOOL_ERR_INTERNAL;
       }
       binding = &context->unit->block_bindings[instruction->reference];
-      layout = &context->unit->layout.types[instruction->type];
       if (binding->kind != CTOOL_C_BINDING_OBJECT ||
           (binding->storage != CTOOL_C_STORAGE_NONE &&
            binding->storage != CTOOL_C_STORAGE_AUTO &&
            binding->storage != CTOOL_C_STORAGE_REGISTER) ||
           binding->type != instruction->type ||
-          layout->is_complete_object == CTOOL_FALSE ||
-          layout->is_object == CTOOL_FALSE ||
-          cemit_ir_type_is_i32_scalar(context, instruction->type) ==
-              CTOOL_FALSE ||
-          layout->alignment == 0u || layout->alignment > 4u ||
-          cemit_power_of_two(layout->alignment) == CTOOL_FALSE) {
+          cemit_ir_type_is_automatic_object(context, instruction->type) ==
+              CTOOL_FALSE) {
         return CTOOL_ERR_INTERNAL;
       }
       context->block_binding_offsets[instruction->reference] = 0u;
@@ -2766,13 +2786,32 @@ static ctool_status_t cemit_prepare_local_offsets(
   }
   for (index = 0u; index < context->unit->block_binding_count; index++) {
     if (context->block_binding_offsets[index] == 0u) {
-      if (frame_size > 0x7fffffffu - 4u) {
+      const ctool_c_block_binding_t *binding =
+          &context->unit->block_bindings[index];
+      const ctool_c_type_layout_t *layout =
+          &context->unit->layout.types[binding->type];
+      ctool_u32 alignment_mask = layout->alignment - 1u;
+      ctool_u32 offset;
+      if (layout->size > 0x7fffffffu ||
+          frame_size > 0x7fffffffu - layout->size) {
         return CTOOL_ERR_OVERFLOW;
       }
-      frame_size += 4u;
-      context->block_binding_offsets[index] = frame_size;
+      offset = frame_size + layout->size;
+      if (offset > 0x7fffffffu - alignment_mask) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      offset = (offset + alignment_mask) & ~alignment_mask;
+      if (offset == 0u || offset > 0x7fffffffu) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      frame_size = offset;
+      context->block_binding_offsets[index] = offset;
     }
   }
+  if (frame_size > 0x7ffffffcu) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  frame_size = (frame_size + 3u) & ~3u;
   *frame_size_out = frame_size;
   return CTOOL_OK;
 }

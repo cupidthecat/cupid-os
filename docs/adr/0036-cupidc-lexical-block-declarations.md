@@ -36,7 +36,7 @@ Negative contracts keep the type boundary explicit. A `long long` declaration in
 
 Active-source guards pin the browser declaration loop and the nested declarations in `cir_validate_initializer_ownership`. Neither source file is changed.
 
-This is hosted bootstrap evidence. GCC or Clang still builds the shared modules and contracts, and the private in-kernel compiler still produces every normal OS C object. This decision transfers no production ownership and does not require an OS boot claim.
+This is hosted bootstrap evidence. GCC or Clang still builds the shared modules and contracts and produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. This decision transfers no production ownership and does not require an OS boot claim.
 
 Issue #25 remains open. `switch`, labels, `goto`, other local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain.
 

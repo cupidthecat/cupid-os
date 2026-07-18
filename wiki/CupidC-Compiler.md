@@ -192,6 +192,12 @@ Most of these are compatibility front-end features, not a promise of
 full hosted C semantics. Generated code still targets the 32-bit flat
 kernel ABI.
 
+### Self-hosting compiler path
+
+Cupid OS also has a shared CupidC frontend, linear IR, and ELF32 emitter for the self-hosting migration. That path is separate from the in-kernel JIT and AOT compiler described by the rest of this page. It now gives referenced uninitialized fixed arrays and records target-sized i386 stack storage with alignment up to four bytes. Its exact contracts cover indexed integer arrays, the active `&children[index]` call shape, record members, narrow array decay, and mixed-object padding.
+
+The normal OS build still uses a host C compiler for its C objects. The private in-kernel CupidC compiler still handles embedded runtime compilation. Focused negatives cover aggregate initialization and assignment, narrow indexed loads and stores, and alignment above four bytes. These features, 16-byte call-site alignment, and production integration remain unfinished in the shared path.
+
 ### Global Variables
 
 Variables declared outside functions are stored in the data section:

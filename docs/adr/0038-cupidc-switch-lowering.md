@@ -28,7 +28,7 @@ Represented integer constants now accept both zero-extended unsigned values and 
 
 The i386 emitter implements `DUPLICATE_VALUE` by moving the top 32-bit value through EAX and pushing it twice. Switch jumps remain function-relative and produce no relocation.
 
-This decision covers hosted IR and hosted ELF32 object emission only. The private in-kernel CupidC emitter still owns normal OS compilation. It still has its separate limitation for `continue` inside a switch nested in a loop. Narrow, wide, floating, pointer, and aggregate switch values remain outside the hosted slice, as do computed `goto`, GNU label addresses, production integration, and self-hosting.
+This decision covers hosted IR and hosted ELF32 object emission only. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC emitter remains part of the embedded runtime JIT and AOT path. It still has its separate limitation for `continue` inside a switch nested in a loop. Narrow, wide, floating, pointer, and aggregate switch values remain outside the hosted slice, as do computed `goto`, GNU label addresses, production integration, and self-hosting.
 
 ## Consequences and evidence
 

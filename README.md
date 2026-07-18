@@ -264,6 +264,10 @@ make HDD_MB=100
 
 `make bootstrap-baseline` records tool versions and hashes, runs the host tests plus explicit CupidC/CupidASM GUI smokes, and compares two clean builds artifact by artifact across the root, user, and hosted-toolchain roots. Checked revision `1e079d1` reproduces all 447 artifacts independently on Windows Clang/LLVM and Linux GCC/binutils; `make check-bootstrap-host-comparison` verifies the shared logical cohort and behavior/quality contract without requiring cross-toolchain byte equality. See `docs/bootstrap/BASELINE.md` for the evidence contract. Networking integration remains available through `make test-net-quick` and `make test-net`.
 
+### Self-hosting compiler status
+
+The normal image build still uses Clang or GCC for its C objects. The shared hosted CupidC path now lowers referenced uninitialized fixed arrays and records into target-sized i386 stack storage with alignment up to four bytes. Exact contracts cover array indexing, address-taking through `&children[index]`, record members, narrow array decay, mixed-object padding, deterministic ELF32 output, and checked failure rollback. Focused negatives keep aggregate initialization and assignment, narrow element access, and over-aligned storage at their documented unsupported boundaries. Those features, 16-byte call-site alignment, and production integration remain open. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md) and [ADR 0044](docs/adr/0044-cupidc-fixed-automatic-object-storage.md).
+
 ### Copying files into the disk image
 
 Cupid OS mounts FAT16 at `/disk` and persistent `homefs` at `/home`.

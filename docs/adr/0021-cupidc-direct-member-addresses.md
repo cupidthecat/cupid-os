@@ -32,6 +32,6 @@ The exact object function is 20 bytes. It contains `ADD EAX, 8`, defines the 20-
 
 Caller-mutated member identity and an out-of-record member layout receive the invalid-unit diagnostic without publishing partial IR. The existing constrained-output, repeat-emission, rollback, and same-job recovery contracts continue to apply. ADR 0022 records the later bit-field read contract and its separate negative cases.
 
-This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
+This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
 Issue #25 remains open. Bit-field writes and non-four-byte storage units, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.

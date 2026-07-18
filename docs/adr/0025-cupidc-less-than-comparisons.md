@@ -30,6 +30,6 @@ The exact object contains the 127-byte active helper plus three 39-byte function
 
 A 64-bit less-than-or-equal fixture receives the unsupported-type diagnostic and publishes no partial IR. Existing frozen-unit validation, output rollback, earlier-result preservation, and same-job recovery still apply.
 
-This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changes here.
+This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changes here.
 
 Issue #25 remains open. Bitwise OR and XOR, shifts, pointer and subscript addresses, bit-field writes, other value widths, general statements, broader calls, production integration, and staged self-hosting still remain.

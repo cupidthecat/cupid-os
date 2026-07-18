@@ -42,6 +42,6 @@ A focused edge fixture returns before an unreachable `if`, then defines a separa
 
 A copied reachable `if` node and a separate unreachable `if` node with invalid condition references both receive the invalid-unit diagnostic. A declaration after an unconditional return receives the unsupported-statement diagnostic instead of being mistaken for malformed local ownership. A `long long` condition receives the unsupported-type diagnostic. A `while` statement receives the unsupported-statement diagnostic. Both IR and object failures leave the frozen frontend unit unchanged, rewind temporary allocations, and publish no partial output.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Nested declarations, loops, `switch`, labels, `goto`, broader types and addresses, production integration, and staged self-hosting still remain.

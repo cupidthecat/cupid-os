@@ -23,7 +23,7 @@ The i386 emitter reads the pointed-to size from the frozen target layout. It mul
 
 The frontend already rewrites `pointer[index]` and `index[pointer]` as addition followed by dereference. The IR therefore needs no subscript-specific instruction. Both spellings use `POINTER_BINARY`, then `DEREFERENCE`, then the existing typed load.
 
-`ARRAY_TO_POINTER` records a complete array address becoming a pointer to its first element. It emits no machine instruction because both forms already contain the same address. Validation moves array qualification to the element comparison and rejects a pointer with missing element qualification. This increment enables linked file arrays. Automatic array storage still needs a broader local-layout contract.
+`ARRAY_TO_POINTER` records a complete array address becoming a pointer to its first element. It emits no machine instruction because both forms already contain the same address. Validation moves array qualification to the element comparison and rejects a pointer with missing element qualification. This increment enables linked file arrays. ADR 0044 later extends the private local-layout policy to referenced, uninitialized fixed automatic arrays and records.
 
 Pointer `+=`, `-=`, `++`, and `--` reuse `DUPLICATE_ADDRESS`. The destination is evaluated once, loaded once, updated with `POINTER_BINARY`, and stored once. Prefix forms produce the stored pointer. Postfix forms recover the earlier pointer with the inverse offset after the store, without loading the object again. A volatile pointer object follows that one-load, one-store path. Atomic pointer objects remain unsupported until the IR states an ordering contract.
 

@@ -34,7 +34,7 @@ The deterministic object contract combines the existing 107-byte browser loop wi
 
 Negative contracts reject a `break` statement with an expression payload and a structurally valid `continue` statement placed outside a loop. IR failure preserves the frontend unit. Object failure also leaves its output empty and rewinds temporary allocations.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object, so the change transfers no build ownership and does not require an OS boot claim.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. The change transfers no build ownership and does not require an OS boot claim.
 
 Issue #25 remains open. Declaration-initialized loops, declarations inside nested compounds, `switch`, labels, `goto`, broader values and addresses, production integration, and staged self-hosting remain.
 

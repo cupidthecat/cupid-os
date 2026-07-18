@@ -8802,6 +8802,312 @@ cleanup:
   return 1;
 }
 
+static int validate_automatic_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x10u, 0x8du, 0x45u,
+      0xf0u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
+      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
+      0xc8u, 0x50u, 0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u,
+      0x08u, 0x51u, 0x58u, 0x8du, 0x45u, 0xf0u, 0x50u, 0x8du,
+      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x04u, 0x00u, 0x00u,
+      0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u,
+      0x58u, 0x83u, 0xc0u, 0x04u, 0x50u, 0x8du, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x8du, 0x45u,
+      0xf8u, 0x50u, 0x58u, 0x83u, 0xc0u, 0x04u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u, 0x55u, 0x89u,
+      0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u, 0xfdu, 0x50u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u,
+      0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu,
+      0x8du, 0x45u, 0xfdu, 0x50u, 0x8du, 0x45u, 0xf4u, 0x50u,
+      0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u, 0x24u, 0x89u,
+      0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u,
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu, 0x8du, 0x45u,
+      0xf4u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
+      0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
+      0xc8u, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u,
+      0xc4u, 0x04u, 0xc9u, 0xc3u};
+  static const char *const function_names[] = {
+      "automatic_array", "automatic_record", "automatic_bytes",
+      "automatic_mixed", "automatic_children"};
+  static const ctool_u32 function_offsets[] = {0u, 86u, 134u, 154u,
+                                                192u};
+  static const ctool_u32 function_sizes[] = {86u, 48u, 20u, 38u, 44u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *consume =
+      find_symbol(object, "consume_bytes");
+  const ctool_elf32_symbol_t *consume_layout =
+      find_symbol(object, "consume_layout");
+  const ctool_elf32_symbol_t *consume_child =
+      find_symbol(object, "consume_child");
+  ctool_u32 cursor = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 index;
+  if (text == NULL || rel_text == NULL || consume == NULL ||
+      consume_layout == NULL || consume_child == NULL ||
+      text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
+      text->relocation_count != 3u || object->relocation_count != 3u ||
+      object->relocations == NULL || object->symbol_count != 9u ||
+      !symbol_matches(consume, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(consume_layout, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !symbol_matches(consume_child, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u)) {
+    (void)fprintf(stderr, "automatic object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    if (!symbol_matches(function, index + 4u,
+                        CTOOL_ELF32_BIND_GLOBAL,
+                        CTOOL_ELF32_SYMBOL_FUNCTION,
+                        CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                        function_offsets[index], function_sizes[index])) {
+      (void)fprintf(stderr, "automatic function %s differs\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  if (object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 145u ||
+      object->relocations[0].symbol_file_index != consume->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != -4 ||
+      object->relocations[1].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[1].entry_index != 1u ||
+      object->relocations[1].target_section_file_index != text->file_index ||
+      object->relocations[1].offset != 183u ||
+      object->relocations[1].symbol_file_index != consume_layout->file_index ||
+      object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[1].addend_known != CTOOL_TRUE ||
+      object->relocations[1].addend != -4 ||
+      object->relocations[2].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[2].entry_index != 2u ||
+      object->relocations[2].target_section_file_index != text->file_index ||
+      object->relocations[2].offset != 227u ||
+      object->relocations[2].symbol_file_index != consume_child->file_index ||
+      object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[2].addend_known != CTOOL_TRUE ||
+      object->relocations[2].addend != -4) {
+    (void)fprintf(stderr, "automatic object call relocation differs\n");
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "automatic object decode failed at %u (0x%02x)\n",
+                    (unsigned int)cursor,
+                    (unsigned int)text->contents.data[cursor]);
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      call_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || return_count != 5u ||
+      call_count != 3u) {
+    (void)fprintf(stderr, "automatic object instruction inventory differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_automatic_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef unsigned char ctool_u8;\n"
+      "typedef struct { ctool_u32 left; ctool_u32 right; } pair_t;\n"
+      "void consume_bytes(ctool_u8 *bytes);\n"
+      "void consume_layout(ctool_u8 *bytes, ctool_u32 *words);\n"
+      "void consume_child(ctool_u32 *child);\n"
+      "ctool_u32 automatic_array(ctool_u32 index, ctool_u32 value) {\n"
+      "  ctool_u32 section_map[4];\n"
+      "  section_map[index] = value;\n"
+      "  return section_map[index];\n"
+      "}\n"
+      "ctool_u32 automatic_record(ctool_u32 value) {\n"
+      "  pair_t pair;\n"
+      "  pair.right = value;\n"
+      "  return pair.right;\n"
+      "}\n"
+      "void automatic_bytes(void) {\n"
+      "  ctool_u8 bytes[3];\n"
+      "  consume_bytes(bytes);\n"
+      "}\n"
+      "void automatic_mixed(void) {\n"
+      "  ctool_u8 padding_bytes[3];\n"
+      "  ctool_u32 words[2];\n"
+      "  consume_layout(padding_bytes, words);\n"
+      "}\n"
+      "void automatic_children(ctool_u32 index) {\n"
+      "  ctool_u32 children[3];\n"
+      "  consume_child(&children[index]);\n"
+      "}\n";
+  static const char initialized_source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "ctool_u32 initialized_array(void) {\n"
+      "  ctool_u32 values[2] = {1u, 2u};\n"
+      "  return 0u;\n"
+      "}\n";
+  static const char oversized_source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef unsigned char ctool_u8;\n"
+      "void consume_word(ctool_u32 *value);\n"
+      "void consume_bytes(ctool_u8 *bytes);\n"
+      "void oversized_automatic(void) {\n"
+      "  ctool_u32 first;\n"
+      "  ctool_u8 bytes[4294967295u];\n"
+      "  consume_word(&first);\n"
+      "  consume_bytes(bytes);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t initialized_unit;
+  ctool_c_translation_unit_t oversized_unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_arena_mark_t mark;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&initialized_unit, 0, sizeof(initialized_unit));
+  (void)memset(&oversized_unit, 0, sizeof(oversized_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/automatic-object.c", source, &unit) ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "automatic object buffer")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "automatic object emission") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)first_object_size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "repeat automatic object emission") ||
+      bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "automatic object emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/automatic-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read automatic object") ||
+      !validate_automatic_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !parse_source(job, "/initialized-automatic-array-object.c",
+                    initialized_source, &initialized_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &initialized_unit, output, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "initialized automatic array object") ||
+      !parse_source(job, "/oversized-automatic-object.c", oversized_source,
+                    &oversized_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &oversized_unit, output, CTOOL_ERR_OVERFLOW,
+          CTOOL_C_EMIT_DIAG_LIMIT,
+          "CupidC object emission exceeded a configured resource limit",
+          "oversized automatic object")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  dispose_unit_snapshot(&snapshot);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("automatic-objects: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -8830,11 +9136,14 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "function-pointers") == 0) {
     return run_function_pointer_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
+    return run_automatic_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic|function-pointers "
+                "pointer-arithmetic|function-pointers|automatic-objects "
                 "HOST_ROOT\n");
   return 2;
 }

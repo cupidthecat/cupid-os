@@ -42,6 +42,6 @@ The exact `cemit_power_of_two` function remains 143 bytes with five checked rela
 
 A 64-bit logical OR fixture receives the unsupported-type diagnostic and publishes no partial IR. Count and fill lowering, constrained output, frozen-unit preservation, arena rollback, and same-job recovery remain in force.
 
-This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
+This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
 Issue #25 remains open. The remaining bitwise and comparison operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.

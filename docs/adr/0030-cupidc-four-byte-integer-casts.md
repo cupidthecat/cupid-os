@@ -28,6 +28,6 @@ A copied cast node carrying an assignment-conversion tag receives the invalid-un
 
 The deterministic ELF32 contract emits both functions in 52 text bytes. Their sizes are 35 and 17 bytes. The object has three symbols, no relocations, and decoded coverage for `NOT`, `ADD`, and `NEG`. The cast itself emits no target instruction. Repeated emission is byte-identical and leaves the frontend unit unchanged.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Loops, `switch`, labels, `goto`, the other cast families, broader object and ABI work, production integration, and staged self-hosting still remain.

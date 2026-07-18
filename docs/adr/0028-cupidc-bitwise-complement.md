@@ -28,6 +28,6 @@ The object contract emits one exact 73-byte local `align_up` function. Its ELF32
 
 A 64-bit complement fixture receives the unsupported-type diagnostic. A copied frozen unit whose complement result is changed from unsigned `uint32_t` to signed `int` receives the invalid-unit diagnostic at the unary node. Unary negation now supplies the ordinary unsupported-expression boundary.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Unary plus, negation, logical not, address and dereference lowering, wide integer and pointer operations, bit-field writes, broader statements and calls, production integration, and staged self-hosting still remain.

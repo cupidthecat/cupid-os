@@ -27,6 +27,18 @@ static const char active_power_of_two[] =
     "                                                     : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_conditional_children[] =
+    "  ctool_u32 children[3];\n";
+
+static const char active_conditional_child_access[] =
+    "                                  index, &children[index]);\n";
+
+static const char active_section_map[] =
+    "  ctool_u32 section_map[CEMIT_SECTION_COUNT];\n";
+
+static const char active_section_map_use[] =
+    "    section_map[logical] = CTOOL_ELF32_NO_SECTION;\n";
+
 static const char active_bool_valid[] =
     "static ctool_bool cfront_bool_valid(ctool_bool value) {\n"
     "  return value == CTOOL_FALSE || value == CTOOL_TRUE ? CTOOL_TRUE\n"
@@ -1027,6 +1039,9 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data,
              active_multiply_overflows) == NULL ||
       strstr((const char *)source.contents.data, active_power_of_two) ==
+          NULL ||
+      strstr((const char *)source.contents.data, active_section_map) == NULL ||
+      strstr((const char *)source.contents.data, active_section_map_use) ==
           NULL) {
     (void)fprintf(stderr, "an active emitter helper changed\n");
     return 0;
@@ -1059,6 +1074,18 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data,
              active_invocation_body_call) == NULL) {
     (void)fprintf(stderr, "an active CupidC source guard changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupidc_ir.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active IR source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_conditional_children) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_conditional_child_access) == NULL) {
+    (void)fprintf(stderr, "the active conditional child array changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupiddis.c");
@@ -6449,7 +6476,7 @@ static int run_active_leaf(const char *host_root) {
       "  return value;\n"
       "}\n";
   static const char array_local_source[] =
-      "int array_local(void) { int values[1]; return 0; }\n";
+      "int array_local(void) { int values[1] = {0}; return 0; }\n";
   static const char static_local_source[] =
       "int static_local(void) { static int value = 1; return value; }\n";
   static const char ownership_source[] =
@@ -8278,7 +8305,7 @@ static int run_active_leaf(const char *host_root) {
           job, &array_local_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "aggregate automatic local") ||
+          "aggregate automatic initializer") ||
       !parse_source(job, "/static-local.c", static_local_source,
                     &static_local_unit) ||
       !expect_ir_failure(
@@ -13083,6 +13110,357 @@ cleanup:
   return 1;
 }
 
+static int validate_automatic_object_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_ir_instruction_kind_t expected_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_POINTER_BINARY,
+      CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_DISCARD,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_POINTER_BINARY,
+      CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_DISCARD,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VOID,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VOID,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_POINTER_BINARY,
+      CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+      CTOOL_C_IR_INSTRUCTION_ADDRESS_OF,
+      CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VOID};
+  static const char *const function_names[] = {
+      "automatic_array", "automatic_record", "automatic_bytes",
+      "automatic_mixed", "automatic_children"};
+  static const ctool_u32 function_counts[] = {18u, 10u, 4u, 6u, 9u};
+  static const ctool_u32 stack_depths[] = {2u, 2u, 1u, 2u, 2u};
+  ctool_u32 array_binding = find_block_binding(unit, "section_map");
+  ctool_u32 record_binding = find_block_binding(unit, "pair");
+  ctool_u32 bytes_binding = find_block_binding(unit, "bytes");
+  ctool_u32 padding_binding = find_block_binding(unit, "padding_bytes");
+  ctool_u32 words_binding = find_block_binding(unit, "words");
+  ctool_u32 children_binding = find_block_binding(unit, "children");
+  ctool_u32 right_member = find_member(unit, "right");
+  ctool_u32 consume_binding = find_binding(unit, "consume_bytes");
+  ctool_u32 consume_layout_binding = find_binding(unit, "consume_layout");
+  ctool_u32 consume_child_binding = find_binding(unit, "consume_child");
+  ctool_u32 first = 0u;
+  ctool_u32 index;
+  if (array_binding == CTOOL_C_AST_NONE ||
+      record_binding == CTOOL_C_AST_NONE ||
+      bytes_binding == CTOOL_C_AST_NONE || right_member == CTOOL_C_AST_NONE ||
+      padding_binding == CTOOL_C_AST_NONE ||
+      words_binding == CTOOL_C_AST_NONE ||
+      children_binding == CTOOL_C_AST_NONE ||
+      consume_binding == CTOOL_C_AST_NONE ||
+      consume_layout_binding == CTOOL_C_AST_NONE ||
+      consume_child_binding == CTOOL_C_AST_NONE ||
+      ir->function_count != 5u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  if (unit->block_bindings[array_binding].type >=
+          unit->layout.type_count ||
+      unit->block_bindings[record_binding].type >=
+          unit->layout.type_count ||
+      unit->block_bindings[bytes_binding].type >= unit->layout.type_count ||
+      unit->block_bindings[padding_binding].type >=
+          unit->layout.type_count ||
+      unit->block_bindings[words_binding].type >= unit->layout.type_count ||
+      unit->block_bindings[children_binding].type >=
+          unit->layout.type_count ||
+      unit->layout.types[unit->block_bindings[array_binding].type].size !=
+          16u ||
+      unit->layout.types[unit->block_bindings[array_binding].type]
+              .alignment != 4u ||
+      unit->layout.types[unit->block_bindings[record_binding].type].size !=
+          8u ||
+      unit->layout.types[unit->block_bindings[record_binding].type]
+              .alignment != 4u ||
+      unit->layout.types[unit->block_bindings[bytes_binding].type].size != 3u ||
+      unit->layout.types[unit->block_bindings[bytes_binding].type]
+              .alignment != 1u ||
+      unit->layout.types[unit->block_bindings[padding_binding].type].size !=
+          3u ||
+      unit->layout.types[unit->block_bindings[padding_binding].type]
+              .alignment != 1u ||
+      unit->layout.types[unit->block_bindings[words_binding].type].size != 8u ||
+      unit->layout.types[unit->block_bindings[words_binding].type]
+              .alignment != 4u ||
+      unit->layout.types[unit->block_bindings[children_binding].type].size !=
+          12u ||
+      unit->layout.types[unit->block_bindings[children_binding].type]
+              .alignment != 4u ||
+      right_member >= unit->layout.member_count ||
+      unit->layout.members[right_member].byte_offset != 4u ||
+      unit->layout.members[right_member].size != 4u ||
+      unit->layout.members[right_member].alignment != 4u) {
+    (void)fprintf(stderr, "automatic object target layouts differ\n");
+    return 0;
+  }
+  if (ir->instruction_count !=
+      (ctool_u32)(sizeof(expected_kinds) / sizeof(expected_kinds[0]))) {
+    (void)fprintf(stderr, "automatic object IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    ctool_u32 function_binding = find_binding(unit, function_names[index]);
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    if (function_binding == CTOOL_C_AST_NONE ||
+        function->binding != function_binding ||
+        function->first_instruction != first ||
+        function->instruction_count != function_counts[index] ||
+        function->maximum_stack_depth != stack_depths[index]) {
+      (void)fprintf(stderr, "automatic object function %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+    first += function_counts[index];
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind != expected_kinds[index]) {
+      (void)fprintf(stderr, "automatic object IR instruction %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  if (ir->instructions[0].reference != array_binding ||
+      ir->instructions[10].reference != array_binding ||
+      ir->instructions[1].input_type !=
+          unit->block_bindings[array_binding].type ||
+      ir->instructions[11].input_type !=
+          unit->block_bindings[array_binding].type ||
+      ir->instructions[18].reference != record_binding ||
+      ir->instructions[24].reference != record_binding ||
+      ir->instructions[19].reference != right_member ||
+      ir->instructions[25].reference != right_member ||
+      ir->instructions[28].reference != bytes_binding ||
+      ir->instructions[29].input_type !=
+          unit->block_bindings[bytes_binding].type ||
+      ir->instructions[30].reference != consume_binding ||
+      ir->instructions[32].reference != padding_binding ||
+      ir->instructions[33].input_type !=
+          unit->block_bindings[padding_binding].type ||
+      ir->instructions[34].reference != words_binding ||
+      ir->instructions[35].input_type !=
+          unit->block_bindings[words_binding].type ||
+      ir->instructions[36].reference != consume_layout_binding ||
+      ir->instructions[38].reference != children_binding ||
+      ir->instructions[39].input_type !=
+          unit->block_bindings[children_binding].type ||
+      ir->instructions[45].reference != consume_child_binding) {
+    (void)fprintf(stderr, "automatic object address identity differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_automatic_objects(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef unsigned char ctool_u8;\n"
+      "typedef struct { ctool_u32 left; ctool_u32 right; } pair_t;\n"
+      "void consume_bytes(ctool_u8 *bytes);\n"
+      "void consume_layout(ctool_u8 *bytes, ctool_u32 *words);\n"
+      "void consume_child(ctool_u32 *child);\n"
+      "ctool_u32 automatic_array(ctool_u32 index, ctool_u32 value) {\n"
+      "  ctool_u32 section_map[4];\n"
+      "  section_map[index] = value;\n"
+      "  return section_map[index];\n"
+      "}\n"
+      "ctool_u32 automatic_record(ctool_u32 value) {\n"
+      "  pair_t pair;\n"
+      "  pair.right = value;\n"
+      "  return pair.right;\n"
+      "}\n"
+      "void automatic_bytes(void) {\n"
+      "  ctool_u8 bytes[3];\n"
+      "  consume_bytes(bytes);\n"
+      "}\n"
+      "void automatic_mixed(void) {\n"
+      "  ctool_u8 padding_bytes[3];\n"
+      "  ctool_u32 words[2];\n"
+      "  consume_layout(padding_bytes, words);\n"
+      "}\n"
+      "void automatic_children(ctool_u32 index) {\n"
+      "  ctool_u32 children[3];\n"
+      "  consume_child(&children[index]);\n"
+      "}\n";
+  static const char initialized_source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "ctool_u32 initialized_array(void) {\n"
+      "  ctool_u32 values[2] = {1u, 2u};\n"
+      "  return 0u;\n"
+      "}\n";
+  static const char aligned_source[] =
+      "typedef struct { unsigned int value; } aligned_record "
+      "__attribute__((aligned(8)));\n"
+      "unsigned int aligned_automatic(void) {\n"
+      "  aligned_record value;\n"
+      "  return 0u;\n"
+      "}\n";
+  static const char narrow_load_source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef unsigned char ctool_u8;\n"
+      "ctool_u32 narrow_load(ctool_u32 index) {\n"
+      "  ctool_u8 bytes[3];\n"
+      "  return bytes[index];\n"
+      "}\n";
+  static const char narrow_store_source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef unsigned char ctool_u8;\n"
+      "void narrow_store(ctool_u32 index) {\n"
+      "  ctool_u8 bytes[3];\n"
+      "  bytes[index] = 1u;\n"
+      "}\n";
+  static const char aggregate_assignment_source[] =
+      "typedef struct { unsigned int value; } record_t;\n"
+      "void aggregate_assignment(void) {\n"
+      "  record_t left;\n"
+      "  record_t right;\n"
+      "  left = right;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t initialized_unit;
+  ctool_c_translation_unit_t aligned_unit;
+  ctool_c_translation_unit_t narrow_load_unit;
+  ctool_c_translation_unit_t narrow_store_unit;
+  ctool_c_translation_unit_t aggregate_assignment_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_type_layout_t *invalid_layouts = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_u64 fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&initialized_unit, 0, sizeof(initialized_unit));
+  (void)memset(&aligned_unit, 0, sizeof(aligned_unit));
+  (void)memset(&narrow_load_unit, 0, sizeof(narrow_load_unit));
+  (void)memset(&narrow_store_unit, 0, sizeof(narrow_store_unit));
+  (void)memset(&aggregate_assignment_unit, 0,
+               sizeof(aggregate_assignment_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/automatic-objects.c", source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "automatic object lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_automatic_object_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  invalid_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*invalid_layouts));
+  if (invalid_layouts == NULL ||
+      find_block_binding(&unit, "section_map") == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*invalid_layouts));
+  invalid_layouts[unit.block_bindings[
+      find_block_binding(&unit, "section_map")].type].size = 0u;
+  invalid_unit = unit;
+  invalid_unit.layout.types = invalid_layouts;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "zero-sized automatic object layout")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/initialized-automatic-array.c",
+                    initialized_source, &initialized_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &initialized_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "initialized automatic array") ||
+      !parse_source_mode(job, "/aligned-automatic-record.c", aligned_source,
+                         CTOOL_TRUE, &aligned_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &aligned_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "over-aligned automatic record") ||
+      !parse_source(job, "/narrow-automatic-load.c", narrow_load_source,
+                    &narrow_load_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &narrow_load_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "narrow automatic element load") ||
+      !parse_source(job, "/narrow-automatic-store.c", narrow_store_source,
+                    &narrow_store_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &narrow_store_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow automatic element store") ||
+      !parse_source(job, "/automatic-aggregate-assignment.c",
+                    aggregate_assignment_source,
+                    &aggregate_assignment_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &aggregate_assignment_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "automatic aggregate assignment")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("automatic-objects: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -13137,6 +13515,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "function-pointers") == 0) {
     return run_function_pointers(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
+    return run_automatic_objects(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -13145,7 +13526,7 @@ int main(int argc, char **argv) {
                 "integer-update-conversions|"
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic|function-pointers "
+                "pointer-arithmetic|function-pointers|automatic-objects "
                 "HOST_ROOT\n");
   return 2;
 }

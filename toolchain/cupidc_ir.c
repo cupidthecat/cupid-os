@@ -1017,12 +1017,14 @@ static ctool_bool cir_type_is_complete_aggregate_object(
   const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
   return type < context->unit->layout.type_count &&
                  node != (const ctool_c_type_node_t *)0 &&
-                 (node->kind == CTOOL_C_TYPE_ARRAY ||
+                 ((node->kind == CTOOL_C_TYPE_ARRAY &&
+                   node->array_bound_kind == CTOOL_C_ARRAY_FIXED) ||
                   (node->kind == CTOOL_C_TYPE_RECORD &&
                    node->record_complete == CTOOL_TRUE)) &&
                  context->unit->layout.types[type].is_object == CTOOL_TRUE &&
                  context->unit->layout.types[type].is_complete_object ==
-                     CTOOL_TRUE
+                     CTOOL_TRUE &&
+                 context->unit->layout.types[type].size != 0u
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -3493,7 +3495,9 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     binding = &context->unit->block_bindings[expression->reference];
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         binding->type != expression->type ||
-        cir_type_is_i32_scalar(context, expression->type) == CTOOL_FALSE) {
+        (cir_type_is_i32_scalar(context, expression->type) == CTOOL_FALSE &&
+         cir_type_is_complete_aggregate_object(
+             context, expression->type) == CTOOL_FALSE)) {
       return cir_invalid_unit(context, &expression->location);
     }
     status = cir_append_instruction(
@@ -3645,11 +3649,14 @@ static ctool_status_t cir_lower_declaration(
     }
     layout = &context->unit->layout.types[binding->type];
     if (layout->is_complete_object == CTOOL_FALSE ||
-        layout->is_object == CTOOL_FALSE || layout->alignment == 0u ||
+        layout->is_object == CTOOL_FALSE || layout->size == 0u ||
+        layout->alignment == 0u ||
         (layout->alignment & (layout->alignment - 1u)) != 0u) {
       return cir_invalid_unit(context, &binding->location);
     }
-    if (cir_type_is_i32_scalar(context, binding->type) == CTOOL_FALSE ||
+    if ((cir_type_is_i32_scalar(context, binding->type) == CTOOL_FALSE &&
+         cir_type_is_complete_aggregate_object(context, binding->type) ==
+             CTOOL_FALSE) ||
         layout->alignment > 4u) {
       return cir_unsupported_type(context, &binding->location);
     }
@@ -3657,6 +3664,9 @@ static ctool_status_t cir_lower_declaration(
     context->visible_block_binding_end = context->block_binding_cursor;
     if (binding->initializer == CTOOL_C_AST_NONE) {
       continue;
+    }
+    if (cir_type_is_i32_scalar(context, binding->type) == CTOOL_FALSE) {
+      return cir_unsupported_type(context, &binding->location);
     }
     if (binding->initializer >= context->unit->initializer_count) {
       return cir_invalid_unit(context, &binding->location);

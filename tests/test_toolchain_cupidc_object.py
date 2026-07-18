@@ -134,6 +134,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "function-pointers: ok\n")
 
+    def test_fixed_automatic_objects_use_target_sized_i386_frames(self):
+        result = subprocess.run(
+            [str(self.contract_path), "automatic-objects", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "automatic-objects: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

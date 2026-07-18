@@ -32,6 +32,6 @@ The object contract covers four independent functions: signed quotient, signed r
 
 Separate 64-bit division and remainder fixtures receive the unsupported-type diagnostic. Left shift now serves as the unsupported four-byte binary-operation boundary, so successful division cannot hide a generic acceptance bug. Failure still publishes no partial IR or object and preserves rollback and same-job recovery.
 
-This is hosted bootstrap evidence only. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The private in-kernel CupidC path still produces every normal OS C object. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
+This is hosted bootstrap evidence only. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
 Issue #25 remains open. Wide integer operations, the remaining comparison and bitwise operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.

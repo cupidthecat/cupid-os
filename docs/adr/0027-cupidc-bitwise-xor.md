@@ -26,6 +26,6 @@ The object contract emits one exact 69-byte local function. Its ELF32 object has
 
 A 64-bit XOR fixture receives the unsupported-type diagnostic. A copied frozen unit whose XOR result type is changed from unsigned `uint32_t` to signed `int` receives the invalid-unit diagnostic before its parent expression can reinterpret the mismatch. Unary complement now supplies the ordinary unsupported-expression boundary, so accepting XOR does not hide fail-closed behavior for another valid frontend expression.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. GNU inline assembly, broader statement lowering, unary operations, bit-field writes, non-four-byte values, pointer and subscript addresses, broader calls, production integration, and staged self-hosting still remain.

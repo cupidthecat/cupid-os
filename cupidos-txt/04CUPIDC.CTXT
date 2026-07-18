@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-18
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -108,6 +108,25 @@ Current toolchain gaps:
 - Macro preprocessing and unsupported-form diagnostics remain incomplete.
 - The in-OS command compiles one translation unit per invocation; separate
   compilation and multi-file linking still need toolchain support.
+>endtree
+
+>h2 Self-Hosting Compiler Path
+>tree open Self-Hosting Compiler Path
+Cupid OS has a shared CupidC frontend, linear IR, and ELF32 emitter for the
+self-hosting migration. This path is separate from the in-OS JIT and AOT
+compiler described elsewhere in this guide.
+
+The shared path now allocates target-sized i386 stack storage for referenced,
+uninitialized fixed arrays and records with alignment up to four bytes. Its
+contracts cover indexed integer arrays, record members, narrow array decay,
+the active &children[index] call shape, mixed-object padding, deterministic
+ELF32 output, and failure rollback.
+
+The normal OS build still uses a host C compiler for C objects. The private
+in-kernel CupidC compiler continues to handle embedded runtime compilation.
+Focused negatives cover aggregate initialization and assignment, narrow
+indexed loads and stores, and alignment above four bytes. These features,
+16-byte call-site alignment, and production integration remain.
 >endtree
 
 >h2 C Compatibility Notes

@@ -35,6 +35,6 @@ The deterministic ELF32 object contains one 82-byte local function and 39 decode
 
 A `long long` condition receives `CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE` at both public seams. A post-test `do` statement remains the unsupported-statement fixture. Failed lowering rewinds temporary allocations and publishes no partial IR or object.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Other loop forms, loop-control statements, nested declarations, broader types and addresses, production integration, and staged self-hosting still remain.

@@ -22,6 +22,6 @@ The object contract emits those functions in one deterministic ELF32 object. Its
 
 Separate fixtures keep 64-bit unary plus, negation, logical not, and complement at the unsupported-type boundary. A copied logical-not node with an unsigned result receives the invalid-unit diagnostic. Object emission also proves that an unsupported 64-bit logical-not function leaves the output empty.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Narrow, wide, floating, and pointer unary operands, address and dereference lowering, bit-field writes, broader statements and calls, production integration, and staged self-hosting still remain.

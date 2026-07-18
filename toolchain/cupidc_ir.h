@@ -59,8 +59,10 @@ typedef struct {
    * an implicit conversion. */
   ctool_c_conversion_kind_t conversion;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
-   * LOCAL_ADDRESS uses an absolute frontend block-binding index. FILE_ADDRESS
-   * CALL_DIRECT, and FUNCTION_ADDRESS use an absolute file-binding index.
+   * LOCAL_ADDRESS uses an absolute frontend block-binding index for a
+   * represented scalar or a complete fixed array or record. The target frame
+   * offset stays private to the emitter. FILE_ADDRESS, CALL_DIRECT, and
+   * FUNCTION_ADDRESS use an absolute file-binding index.
    * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
    * POINTER_BINARY uses an absolute graph-type index for its right operand.
    * Branches use a function-relative instruction index. Other instructions
@@ -173,9 +175,12 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * targets are resolved before the immutable result is published.
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
- * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. DUPLICATE_ADDRESS
- * preserves an address while a represented scalar compound assignment or
- * update loads and stores the object. This evaluates the destination once.
+ * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. A referenced
+ * automatic scalar receives one represented slot. A referenced uninitialized
+ * fixed array or record receives its target size and alignment, up to four
+ * byte alignment. DUPLICATE_ADDRESS preserves an address while a represented
+ * scalar compound assignment or update loads and stores the object. This
+ * evaluates the destination once.
  * Integer compound assignments retain integer-promotion,
  * usual-arithmetic, and assignment conversions. Pointer compound
  * assignments and updates use POINTER_BINARY with a complete-object stride.

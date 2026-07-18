@@ -26,6 +26,6 @@ The object contract emits the exact 53-byte `rotw` function and a 33-byte signed
 
 Separate 64-bit left-shift, right-shift, and bitwise-OR fixtures receive the unsupported-type diagnostic. Bitwise XOR remains the unsupported represented four-byte binary operation and still produces no partial IR or object.
 
-This is hosted bootstrap evidence. The private in-kernel compiler still produces every normal OS C object, so no production artifact, build owner, host dependency, boot path, or runtime ABI changed.
+This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Bitwise XOR, bit-field writes, non-four-byte values, pointer and subscript addresses, broader statements and calls, production integration, and staged self-hosting still remain.

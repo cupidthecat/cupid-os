@@ -28,6 +28,6 @@ Malformed frozen units reject an out-of-range dereference result, an out-of-rang
 
 The first active-source contract stopped at the existing integer-only ABI diagnostic. The first address-of fixture then stopped at the unsupported-expression diagnostic. Review fixtures later exposed two structural-matching mistakes: top-level pointer-object qualifiers survived value conversion, and array qualifiers were compared before reaching their elements. Both valid programs now lower, while the pointed-to qualifiers still remain significant. Object emission later established the exact byte, symbol, relocation, function-size, and decoded-instruction contract recorded above. No active source was rewritten to avoid the missing feature.
 
-This change transfers no production build ownership, removes no host dependency, changes no kernel artifact, and makes no boot claim. The private in-kernel CupidC compiler still produces every normal OS C object.
+This change transfers no production build ownership, removes no host dependency, changes no kernel artifact, and makes no boot claim. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 Issue #25 remains open. The remaining pointer work includes arithmetic, subscripts, conditions, comparisons, casts, mutation, decay, indirect calls, atomics, production integration, staged self-hosting, and the fixed-point bootstrap.
