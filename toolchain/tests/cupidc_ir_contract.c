@@ -27,6 +27,62 @@ static const char active_power_of_two[] =
     "                                                     : CTOOL_FALSE;\n"
     "}\n";
 
+static const char active_asm_lower[] =
+    "static char asm_lower(char character) {\n"
+    "  if (character >= 'A' && character <= 'Z') {\n"
+    "    return (char)(character + ('a' - 'A'));\n"
+    "  }\n"
+    "  return character;\n"
+    "}\n";
+
+static const char active_x86_class_width[] =
+    "static ctool_u16 x86_class_width(x86_operand_class_t class_id) {\n"
+    "  switch (class_id) {\n"
+    "    case X86_OC_GPR8:\n"
+    "    case X86_OC_RM8:\n"
+    "    case X86_OC_MEM8:\n"
+    "    case X86_OC_IMM8:\n"
+    "    case X86_OC_REL8:\n"
+    "      return 8u;\n"
+    "    case X86_OC_GPR16:\n"
+    "    case X86_OC_RM16:\n"
+    "    case X86_OC_MEM16:\n"
+    "    case X86_OC_IMM16:\n"
+    "    case X86_OC_REL16:\n"
+    "    case X86_OC_FAR16_16:\n"
+    "      return 16u;\n"
+    "    case X86_OC_GPR32:\n"
+    "    case X86_OC_RM32:\n"
+    "    case X86_OC_MEM32:\n"
+    "    case X86_OC_MMX_RM32:\n"
+    "    case X86_OC_XMM_RM32:\n"
+    "    case X86_OC_IMM32:\n"
+    "    case X86_OC_REL32:\n"
+    "    case X86_OC_FAR16_32:\n"
+    "      return 32u;\n"
+    "    case X86_OC_MEM64:\n"
+    "    case X86_OC_MMX_RM64:\n"
+    "    case X86_OC_XMM_RM64:\n"
+    "      return 64u;\n"
+    "    case X86_OC_MEM48:\n"
+    "      return 48u;\n"
+    "    case X86_OC_MEM128:\n"
+    "    case X86_OC_XMM_RM128:\n"
+    "      return 128u;\n"
+    "    default:\n"
+    "      return 0u;\n"
+    "  }\n"
+    "}\n";
+
+static const char active_x86_set_memory_width[] =
+    "static void x86_set_memory_width(ctool_x86_operand_t *operand,\n"
+    "                                 x86_operand_class_t class_id) {\n"
+    "  operand->width_bits = x86_class_width(class_id);\n"
+    "  if (operand->width_bits == 0u && class_id == X86_OC_MEM) {\n"
+    "    operand->width_bits = 0u;\n"
+    "  }\n"
+    "}\n";
+
 static const char active_conditional_children[] =
     "  ctool_u32 children[3];\n";
 
@@ -145,6 +201,10 @@ static const char bit_field_compound_source[] =
 static const char narrow_update_source[] =
     "unsigned short state;\n"
     "unsigned int update_narrow(void) { return ++state; }\n";
+
+static const char narrow_compound_source[] =
+    "unsigned short state;\n"
+    "unsigned int add_narrow(void) { return state += 1u; }\n";
 
 static const char invalid_update_source[] =
     "int update_value(int value) { return ++value; }\n";
@@ -1139,8 +1199,21 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active assembler source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data, active_branch_fits) == NULL) {
-    (void)fprintf(stderr, "the active branch-range helper changed\n");
+      strstr((const char *)source.contents.data, active_branch_fits) == NULL ||
+      strstr((const char *)source.contents.data, active_asm_lower) == NULL) {
+    (void)fprintf(stderr, "an active assembler helper changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/x86.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active x86 source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, active_x86_class_width) ==
+          NULL ||
+      strstr((const char *)source.contents.data,
+             active_x86_set_memory_width) == NULL) {
+    (void)fprintf(stderr, "an active x86 width helper changed\n");
     return 0;
   }
   path.text = ctool_string("/kernel/crypto/aes.c");
@@ -1377,6 +1450,62 @@ static char *make_active_fixture(void) {
     (void)memcpy(text + sizeof(prefix) - 1u, active_helper,
                  sizeof(active_helper));
   }
+  return text;
+}
+
+static char *make_narrow_active_fixture(void) {
+  static const char prefix[] =
+      "typedef unsigned short ctool_u16;\n"
+      "typedef struct { ctool_u16 width_bits; } ctool_x86_operand_t;\n"
+      "typedef enum {\n"
+      "  X86_OC_NONE = 0,\n"
+      "  X86_OC_GPR8, X86_OC_GPR16, X86_OC_GPR32,\n"
+      "  X86_OC_RM8, X86_OC_RM16, X86_OC_RM32,\n"
+      "  X86_OC_MEM, X86_OC_MEM8, X86_OC_MEM16, X86_OC_MEM32,\n"
+      "  X86_OC_MEM48, X86_OC_MEM64, X86_OC_MEM128,\n"
+      "  X86_OC_SEGMENT, X86_OC_CONTROL, X86_OC_X87, X86_OC_MMX,\n"
+      "  X86_OC_MMX_RM32, X86_OC_MMX_RM64, X86_OC_XMM,\n"
+      "  X86_OC_XMM_RM32, X86_OC_XMM_RM64, X86_OC_XMM_RM128,\n"
+      "  X86_OC_IMM8, X86_OC_IMM16, X86_OC_IMM32,\n"
+      "  X86_OC_REL8, X86_OC_REL16, X86_OC_REL32,\n"
+      "  X86_OC_FAR16_16, X86_OC_FAR16_32\n"
+      "} x86_operand_class_t;\n";
+  static const char suffix[] =
+      "static unsigned short narrow_word;\n"
+      "unsigned short narrow_file(unsigned short input) {\n"
+      "  unsigned short local = input;\n"
+      "  narrow_word = local;\n"
+      "  return narrow_word;\n"
+      "}\n"
+      "typedef unsigned short (*narrow_callback_t)(signed char);\n"
+      "unsigned short narrow_indirect(narrow_callback_t callback,\n"
+      "                               signed char value) {\n"
+      "  return callback(value);\n"
+      "}\n"
+      "int narrow_logic(unsigned char left, unsigned short right) {\n"
+      "  return left && right;\n"
+      "}\n";
+  size_t prefix_size = sizeof(prefix) - 1u;
+  size_t asm_size = sizeof(active_asm_lower) - 1u;
+  size_t class_size = sizeof(active_x86_class_width) - 1u;
+  size_t setter_size = sizeof(active_x86_set_memory_width) - 1u;
+  size_t suffix_size = sizeof(suffix);
+  size_t size = prefix_size + asm_size + class_size + setter_size +
+                suffix_size;
+  char *text = (char *)malloc(size);
+  size_t offset = 0u;
+  if (text == NULL) {
+    return NULL;
+  }
+  (void)memcpy(text + offset, prefix, prefix_size);
+  offset += prefix_size;
+  (void)memcpy(text + offset, active_asm_lower, asm_size);
+  offset += asm_size;
+  (void)memcpy(text + offset, active_x86_class_width, class_size);
+  offset += class_size;
+  (void)memcpy(text + offset, active_x86_set_memory_width, setter_size);
+  offset += setter_size;
+  (void)memcpy(text + offset, suffix, suffix_size);
   return text;
 }
 
@@ -6424,8 +6553,6 @@ static int run_active_leaf(const char *host_root) {
       "inline int external_inline(void) { return 1; }\n";
   static const char extern_inline_source[] =
       "extern inline int extern_inline(void) { return 1; }\n";
-  static const char narrow_cast_source[] =
-      "int narrow_cast(int value) { return (signed char)value; }\n";
   static const char wide_cast_source[] =
       "int wide_cast(int value) { return (long long)value; }\n";
   static const char void_cast_source[] =
@@ -6467,8 +6594,6 @@ static int run_active_leaf(const char *host_root) {
       "void discard_value(void) { 1; }\n";
   static const char wide_local_source[] =
       "int wide_local(void) { long long value = 1; return 0; }\n";
-  static const char short_local_source[] =
-      "int short_local(void) { short value = 1; return 0; }\n";
   static const char overaligned_local_source[] =
       "typedef int aligned_int __attribute__((aligned(8)));\n"
       "int overaligned_local(void) {\n"
@@ -6509,9 +6634,6 @@ static int run_active_leaf(const char *host_root) {
   static const char external_file_object_source[] =
       "extern unsigned int external_clock;\n"
       "unsigned int read_external_clock(void) { return external_clock; }\n";
-  static const char narrow_file_object_source[] =
-      "extern unsigned short narrow_state;\n"
-      "int read_narrow_state(void) { return narrow_state; }\n";
   static const char enumerator_identifier_source[] =
       "enum E { E_ONE = 1 };\n"
       "int read_enumerator(void) { return E_ONE; }\n";
@@ -6567,7 +6689,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t extern_inline_unit;
   ctool_c_translation_unit_t conversion_unit;
   ctool_c_translation_unit_t signed_bits_unit;
-  ctool_c_translation_unit_t narrow_cast_unit;
   ctool_c_translation_unit_t wide_cast_unit;
   ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t call_unit;
@@ -6595,7 +6716,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t variadic_call_unit;
   ctool_c_translation_unit_t value_statement_unit;
   ctool_c_translation_unit_t wide_local_unit;
-  ctool_c_translation_unit_t short_local_unit;
   ctool_c_translation_unit_t overaligned_local_unit;
   ctool_c_translation_unit_t array_local_unit;
   ctool_c_translation_unit_t static_local_unit;
@@ -6604,7 +6724,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t void_initializer_unit;
   ctool_c_translation_unit_t global_frontier_unit;
   ctool_c_translation_unit_t external_file_object_unit;
-  ctool_c_translation_unit_t narrow_file_object_unit;
   ctool_c_translation_unit_t enumerator_identifier_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_function_definition_t invalid_definition;
@@ -6678,7 +6797,6 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&integer_unary_unit, 0, sizeof(integer_unary_unit));
   (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
   (void)memset(&signed_bits_unit, 0, sizeof(signed_bits_unit));
-  (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
   (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
   (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
@@ -8284,13 +8402,6 @@ static int run_active_leaf(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
            "CupidC IR lowering does not yet support this value type",
            "wide automatic local") ||
-      !parse_source(job, "/short-local.c", short_local_source,
-                    &short_local_unit) ||
-      !expect_ir_failure(
-          job, &short_local_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "narrow automatic local") ||
       !parse_source_mode(job, "/overaligned-local.c",
                          overaligned_local_source, CTOOL_TRUE,
                          &overaligned_local_unit) ||
@@ -8474,14 +8585,7 @@ static int run_active_leaf(const char *host_root) {
           "undefined internal file object")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/narrow-file-object.c",
-                    narrow_file_object_source, &narrow_file_object_unit) ||
-      !expect_ir_failure(
-          job, &narrow_file_object_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "narrow file-object load") ||
-      !parse_source(job, "/enumerator-identifier.c",
+  if (!parse_source(job, "/enumerator-identifier.c",
                     enumerator_identifier_source,
                     &enumerator_identifier_unit)) {
     goto cleanup;
@@ -8612,14 +8716,7 @@ static int run_active_leaf(const char *host_root) {
           "wide remainder expression")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/narrow-cast.c", narrow_cast_source,
-                    &narrow_cast_unit) ||
-      !expect_ir_failure(
-          job, &narrow_cast_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "narrow explicit integer cast") ||
-      !parse_source(job, "/wide-cast.c", wide_cast_source,
+  if (!parse_source(job, "/wide-cast.c", wide_cast_source,
                     &wide_cast_unit) ||
       !expect_ir_failure(
           job, &wide_cast_unit, CTOOL_ERR_UNSUPPORTED,
@@ -8640,8 +8737,9 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls "
-          "with 32-bit scalar arguments and void or 32-bit scalar results",
+          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "one-byte, two-byte, or four-byte scalar arguments and void or "
+          "represented scalar results",
           "wide direct call")) {
     goto cleanup;
   }
@@ -8650,8 +8748,9 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &variadic_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls "
-          "with 32-bit scalar arguments and void or 32-bit scalar results",
+          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "one-byte, two-byte, or four-byte scalar arguments and void or "
+          "represented scalar results",
           "variadic direct call")) {
     goto cleanup;
   }
@@ -8675,7 +8774,8 @@ static int run_active_leaf(const char *host_root) {
           job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic cdecl functions "
-          "with 32-bit scalar parameters and void or 32-bit scalar results",
+          "with one-byte, two-byte, or four-byte scalar parameters and void or "
+          "represented scalar results",
           "unsupported ABI")) {
     goto cleanup;
   }
@@ -10147,6 +10247,7 @@ static int run_integer_mutation_rejections(const char *host_root) {
   ctool_c_translation_unit_t bit_field_unit;
   ctool_c_translation_unit_t bit_field_compound_unit;
   ctool_c_translation_unit_t narrow_unit;
+  ctool_c_translation_unit_t narrow_compound_unit;
   ctool_c_translation_unit_t valid_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
@@ -10159,6 +10260,8 @@ static int run_integer_mutation_rejections(const char *host_root) {
   (void)memset(&bit_field_compound_unit, 0,
                sizeof(bit_field_compound_unit));
   (void)memset(&narrow_unit, 0, sizeof(narrow_unit));
+  (void)memset(&narrow_compound_unit, 0,
+               sizeof(narrow_compound_unit));
   (void)memset(&valid_unit, 0, sizeof(valid_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/atomic-update.c", atomic_update_source,
@@ -10197,6 +10300,13 @@ static int run_integer_mutation_rejections(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "narrow integer update") ||
+      !parse_source(job, "/narrow-compound.c", narrow_compound_source,
+                    &narrow_compound_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &narrow_compound_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow integer compound assignment") ||
       !parse_source(job, "/invalid-update.c", invalid_update_source,
                     &valid_unit)) {
     goto cleanup;
@@ -11622,7 +11732,8 @@ static int run_function_pointers(const char *host_root) {
       !expect_ir_failure_preserves_unit(
           job, &variadic_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "32-bit scalar arguments and void or 32-bit scalar results",
+          "one-byte, two-byte, or four-byte scalar arguments and void or "
+          "represented scalar results",
           "variadic indirect call")) {
     goto cleanup;
   }
@@ -11631,7 +11742,8 @@ static int run_function_pointers(const char *host_root) {
       !expect_ir_failure_preserves_unit(
           job, &wide_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "32-bit scalar arguments and void or 32-bit scalar results",
+          "one-byte, two-byte, or four-byte scalar arguments and void or "
+          "represented scalar results",
           "wide indirect call")) {
     goto cleanup;
   }
@@ -13330,20 +13442,6 @@ static int run_automatic_objects(const char *host_root) {
       "  aligned_record value;\n"
       "  return 0u;\n"
       "}\n";
-  static const char narrow_load_source[] =
-      "typedef unsigned int ctool_u32;\n"
-      "typedef unsigned char ctool_u8;\n"
-      "ctool_u32 narrow_load(ctool_u32 index) {\n"
-      "  ctool_u8 bytes[3];\n"
-      "  return bytes[index];\n"
-      "}\n";
-  static const char narrow_store_source[] =
-      "typedef unsigned int ctool_u32;\n"
-      "typedef unsigned char ctool_u8;\n"
-      "void narrow_store(ctool_u32 index) {\n"
-      "  ctool_u8 bytes[3];\n"
-      "  bytes[index] = 1u;\n"
-      "}\n";
   static const char aggregate_assignment_source[] =
       "typedef struct { unsigned int value; } record_t;\n"
       "void aggregate_assignment(void) {\n"
@@ -13357,8 +13455,6 @@ static int run_automatic_objects(const char *host_root) {
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t initialized_unit;
   ctool_c_translation_unit_t aligned_unit;
-  ctool_c_translation_unit_t narrow_load_unit;
-  ctool_c_translation_unit_t narrow_store_unit;
   ctool_c_translation_unit_t aggregate_assignment_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_type_layout_t *invalid_layouts = NULL;
@@ -13370,8 +13466,6 @@ static int run_automatic_objects(const char *host_root) {
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&initialized_unit, 0, sizeof(initialized_unit));
   (void)memset(&aligned_unit, 0, sizeof(aligned_unit));
-  (void)memset(&narrow_load_unit, 0, sizeof(narrow_load_unit));
-  (void)memset(&narrow_store_unit, 0, sizeof(narrow_store_unit));
   (void)memset(&aggregate_assignment_unit, 0,
                sizeof(aggregate_assignment_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
@@ -13423,20 +13517,6 @@ static int run_automatic_objects(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "over-aligned automatic record") ||
-      !parse_source(job, "/narrow-automatic-load.c", narrow_load_source,
-                    &narrow_load_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &narrow_load_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "narrow automatic element load") ||
-      !parse_source(job, "/narrow-automatic-store.c", narrow_store_source,
-                    &narrow_store_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &narrow_store_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "narrow automatic element store") ||
       !parse_source(job, "/automatic-aggregate-assignment.c",
                     aggregate_assignment_source,
                     &aggregate_assignment_unit) ||
@@ -13456,6 +13536,626 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("automatic-objects: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_narrow_load_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *pointer_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 first_parameter;
+  ctool_u32 byte_type;
+  ctool_u32 index_type;
+  ctool_u32 promoted_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 index;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instruction_count != 23u ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr,
+                  "narrow load IR inventory differs: definitions=%u "
+                  "functions=%u instructions=%u\n",
+                  (unsigned int)unit->function_definition_count,
+                  (unsigned int)ir->function_count,
+                  (unsigned int)ir->instruction_count);
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count - 2u) {
+    (void)fprintf(stderr, "narrow load function type differs\n");
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  pointer_type = &unit->graph.types[
+      unit->parameters[first_parameter].type];
+  index_type = unit->parameters[first_parameter + 1u].type;
+  if (pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+      pointer_type->referenced_type >= unit->layout.type_count ||
+      index_type >= unit->layout.type_count ||
+      function_type->referenced_type >= unit->layout.type_count) {
+    return 0;
+  }
+  byte_type = pointer_type->referenced_type;
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    if (unit->graph.types[index].kind == CTOOL_C_TYPE_SIGNED_INT &&
+        unit->graph.types[index].qualifiers == 0u &&
+        index < unit->layout.type_count &&
+        unit->layout.types[index].size == 4u) {
+      promoted_type = index;
+      break;
+    }
+  }
+  if (promoted_type == CTOOL_C_TYPE_NONE ||
+      unit->layout.types[byte_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[byte_type].size != 1u ||
+      unit->layout.types[byte_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[index_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[index_type].size != 4u ||
+      unit->layout.types[function_type->referenced_type].is_integer !=
+          CTOOL_TRUE ||
+      unit->layout.types[function_type->referenced_type].size != 4u) {
+    (void)fprintf(stderr, "narrow load target types differ\n");
+    return 0;
+  }
+  if (ir->functions[0].binding != definition->binding ||
+      ir->functions[0].declared_type != definition->declared_type ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 11u ||
+      ir->functions[0].maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "narrow load function record differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != unit->parameters[first_parameter].type ||
+      instructions[0].reference != first_parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != unit->parameters[first_parameter].type ||
+      instructions[1].input_type != unit->parameters[first_parameter].type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != index_type ||
+      instructions[2].reference != first_parameter + 1u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != index_type ||
+      instructions[3].input_type != index_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_POINTER_BINARY ||
+      instructions[4].type != unit->parameters[first_parameter].type ||
+      instructions[4].input_type != unit->parameters[first_parameter].type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[4].reference != index_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+      instructions[5].type != byte_type ||
+      instructions[5].input_type != unit->parameters[first_parameter].type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[6].type != byte_type ||
+      instructions[6].input_type != byte_type ||
+      instructions[6].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[7].type != promoted_type ||
+      instructions[7].input_type != byte_type ||
+      instructions[7].conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      promoted_type != function_type->referenced_type ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      instructions[8].type != promoted_type ||
+      instructions[8].integer_bits != 0u ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      instructions[9].type != promoted_type ||
+      instructions[9].input_type != promoted_type ||
+      instructions[9].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[10].type != function_type->referenced_type ||
+      instructions[10].input_type != function_type->referenced_type) {
+    (void)fprintf(stderr, "narrow load instruction stream differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!string_equal(instructions[index].location.path,
+                      "/narrow-values.c") ||
+        !string_equal(instructions[index].physical_location.path,
+                      "/narrow-values.c")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_narrow_store_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *pointer_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 first_parameter;
+  ctool_u32 byte_type;
+  ctool_u32 index_type;
+  ctool_u32 value_type;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instruction_count != 23u ||
+      ir->instructions == NULL) {
+    return 0;
+  }
+  definition = &unit->function_definitions[1];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 3u ||
+      function_type->first_parameter > unit->parameter_count - 3u) {
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  pointer_type =
+      &unit->graph.types[unit->parameters[first_parameter].type];
+  index_type = unit->parameters[first_parameter + 1u].type;
+  value_type = unit->parameters[first_parameter + 2u].type;
+  if (pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+      pointer_type->referenced_type >= unit->layout.type_count ||
+      index_type >= unit->layout.type_count ||
+      value_type >= unit->layout.type_count ||
+      function_type->referenced_type >= unit->layout.type_count) {
+    return 0;
+  }
+  byte_type = pointer_type->referenced_type;
+  function = &ir->functions[1];
+  instructions = &ir->instructions[function->first_instruction];
+  if (unit->layout.types[byte_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[byte_type].size != 1u ||
+      unit->layout.types[byte_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[index_type].size != 4u ||
+      unit->layout.types[value_type].size != 4u ||
+      function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 11u ||
+      function->instruction_count != 12u ||
+      function->maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "narrow store function record differs\n");
+    return 0;
+  }
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[0].type != unit->parameters[first_parameter].type ||
+      instructions[0].reference != first_parameter ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != unit->parameters[first_parameter].type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[2].type != index_type ||
+      instructions[2].reference != first_parameter + 1u ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[3].type != index_type ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_POINTER_BINARY ||
+      instructions[4].type != unit->parameters[first_parameter].type ||
+      instructions[4].input_type != unit->parameters[first_parameter].type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[4].reference != index_type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+      instructions[5].type != byte_type ||
+      instructions[5].input_type != unit->parameters[first_parameter].type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[6].type != value_type ||
+      instructions[6].reference != first_parameter + 2u ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[7].type != value_type ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[8].type != byte_type ||
+      instructions[8].input_type != value_type ||
+      instructions[8].conversion != CTOOL_C_CONVERSION_NONE ||
+      instructions[9].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      instructions[9].type != byte_type ||
+      instructions[9].input_type != byte_type ||
+      instructions[10].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      instructions[10].type != function_type->referenced_type ||
+      instructions[10].input_type != byte_type ||
+      instructions[10].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      instructions[11].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[11].type != function_type->referenced_type ||
+      instructions[11].input_type != function_type->referenced_type) {
+    (void)fprintf(stderr, "narrow store instruction stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_narrow_active_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *const function_names[] = {
+      "asm_lower", "x86_class_width", "x86_set_memory_width",
+      "narrow_file", "narrow_indirect", "narrow_logic"};
+  ctool_u32 narrow_parameters = 0u;
+  ctool_u32 signed_byte_loads = 0u;
+  ctool_u32 signed_byte_casts = 0u;
+  ctool_u32 signed_byte_returns = 0u;
+  ctool_u32 word_locals = 0u;
+  ctool_u32 word_files = 0u;
+  ctool_u32 word_loads = 0u;
+  ctool_u32 word_stores = 0u;
+  ctool_u32 word_promotions = 0u;
+  ctool_u32 word_direct_calls = 0u;
+  ctool_u32 word_indirect_calls = 0u;
+  ctool_u32 word_returns = 0u;
+  ctool_u32 narrow_branches = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != 6u || ir->function_count != 6u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "narrow active IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 6u; index++) {
+    ctool_u32 binding = find_binding(unit, function_names[index]);
+    if (binding == CTOOL_C_AST_NONE ||
+        unit->function_definitions[index].binding != binding ||
+        ir->functions[index].binding != binding ||
+        ir->functions[index].declared_type !=
+            unit->function_definitions[index].declared_type) {
+      (void)fprintf(stderr, "narrow active function %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    const ctool_c_type_layout_t *type_layout =
+        instruction->type < unit->layout.type_count
+            ? &unit->layout.types[instruction->type]
+            : NULL;
+    const ctool_c_type_layout_t *input_layout =
+        instruction->input_type < unit->layout.type_count
+            ? &unit->layout.types[instruction->input_type]
+            : NULL;
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        (type_layout->size == 1u || type_layout->size == 2u)) {
+      narrow_parameters++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 1u && type_layout->is_signed == CTOOL_TRUE) {
+      signed_byte_loads++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        type_layout != NULL && input_layout != NULL &&
+        type_layout->is_integer == CTOOL_TRUE && type_layout->size == 1u &&
+        type_layout->is_signed == CTOOL_TRUE && input_layout->size == 4u) {
+      signed_byte_casts++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 1u && type_layout->is_signed == CTOOL_TRUE) {
+      signed_byte_returns++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_locals++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_files++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_loads++;
+    }
+    if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE ||
+         instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_stores++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        type_layout != NULL && input_layout != NULL &&
+        type_layout->is_integer == CTOOL_TRUE && type_layout->size == 4u &&
+        input_layout->is_integer == CTOOL_TRUE && input_layout->size == 2u) {
+      word_promotions++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_direct_calls++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_indirect_calls++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+        type_layout != NULL && type_layout->is_integer == CTOOL_TRUE &&
+        type_layout->size == 2u) {
+      word_returns++;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO &&
+        input_layout != NULL && input_layout->is_integer == CTOOL_TRUE &&
+        (input_layout->size == 1u || input_layout->size == 2u)) {
+      narrow_branches++;
+    }
+  }
+  if (narrow_parameters < 3u || signed_byte_loads == 0u ||
+      signed_byte_casts == 0u || signed_byte_returns < 2u ||
+      word_locals == 0u || word_files < 2u || word_loads < 3u ||
+      word_stores < 2u || word_promotions == 0u ||
+      word_direct_calls == 0u || word_indirect_calls == 0u ||
+      word_returns < 2u || narrow_branches < 2u) {
+    (void)fprintf(stderr,
+                  "narrow active operations differ: params=%u load8=%u "
+                  "cast8=%u return8=%u local16=%u file16=%u load16=%u "
+                  "store16=%u promote16=%u direct16=%u indirect16=%u "
+                  "return16=%u branches=%u\n",
+                  (unsigned int)narrow_parameters,
+                  (unsigned int)signed_byte_loads,
+                  (unsigned int)signed_byte_casts,
+                  (unsigned int)signed_byte_returns,
+                  (unsigned int)word_locals, (unsigned int)word_files,
+                  (unsigned int)word_loads, (unsigned int)word_stores,
+                  (unsigned int)word_promotions,
+                  (unsigned int)word_direct_calls,
+                  (unsigned int)word_indirect_calls,
+                  (unsigned int)word_returns,
+                  (unsigned int)narrow_branches);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_narrow_values(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char ctool_u8;\n"
+      "typedef unsigned int ctool_u32;\n"
+      "int load_byte(ctool_u8 *values, ctool_u32 index) {\n"
+      "  return values[index] + 0;\n"
+      "}\n"
+      "int store_byte(ctool_u8 *values, ctool_u32 index, "
+      "ctool_u32 value) {\n"
+      "  return values[index] = (ctool_u8)value;\n"
+      "}\n";
+  static const char conversion_source[] =
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "u16 narrow_return(u32 value) { return value; }\n"
+      "u32 promoted_return(u16 value) { return value + 0u; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t active_unit;
+  ctool_c_translation_unit_t conversion_unit;
+  ctool_c_translation_unit_t invalid_conversion_unit;
+  ctool_c_translation_unit_t invalid_parameter_unit;
+  ctool_c_translation_unit_t invalid_binding_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t active_ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 *invalid_parameter_types = NULL;
+  ctool_c_binding_t *invalid_bindings = NULL;
+  char *active_fixture = NULL;
+  ctool_u64 fingerprint;
+  ctool_u32 conversion_index = CTOOL_C_AST_NONE;
+  ctool_u32 promotion_index = CTOOL_C_AST_NONE;
+  ctool_u32 conversion_unsigned_int_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 signed_int_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 asm_binding;
+  ctool_u32 other_binding;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&active_unit, 0, sizeof(active_unit));
+  (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/narrow-values.c", source, &unit) ||
+      !parse_source(job, "/narrow-conversion.c", conversion_source,
+                    &conversion_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "narrow integer load lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_narrow_load_ir(&unit, &ir) ||
+      !validate_narrow_store_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  active_fixture = make_narrow_active_fixture();
+  if (active_fixture == NULL ||
+      !parse_source(job, "/toolchain/narrow-active.c", active_fixture,
+                    &active_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&active_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&active_ir, 0xa5, sizeof(active_ir));
+  status = ctool_c_lower_ir(job, &active_unit, &active_ir);
+  if (!check_status(status, CTOOL_OK, "active narrow integer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&active_unit) != fingerprint ||
+      !validate_narrow_active_ir(&active_unit, &active_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < conversion_unit.expression_count; index++) {
+    if (conversion_index == CTOOL_C_AST_NONE &&
+        conversion_unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        conversion_unit.expressions[index].conversion ==
+            CTOOL_C_CONVERSION_ASSIGNMENT &&
+        conversion_unit.expressions[index].type <
+            conversion_unit.layout.type_count &&
+        conversion_unit
+                .layout.types[conversion_unit.expressions[index].type]
+                .size == 2u) {
+      conversion_index = index;
+    }
+    if (promotion_index == CTOOL_C_AST_NONE &&
+        conversion_unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        conversion_unit.expressions[index].conversion ==
+            CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+      promotion_index = index;
+    }
+  }
+  for (index = 0u; index < conversion_unit.graph.type_count; index++) {
+    if (conversion_unit.graph.types[index].kind ==
+            CTOOL_C_TYPE_UNSIGNED_INT &&
+        conversion_unit.graph.types[index].qualifiers == 0u &&
+        index < conversion_unit.layout.type_count &&
+        conversion_unit.layout.types[index].size == 4u) {
+      conversion_unsigned_int_type = index;
+      break;
+    }
+  }
+  if (conversion_index == CTOOL_C_AST_NONE ||
+      promotion_index == CTOOL_C_AST_NONE ||
+      conversion_unsigned_int_type == CTOOL_C_TYPE_NONE ||
+      conversion_unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)conversion_unit.expression_count) {
+    (void)fprintf(stderr,
+                  "narrow conversion fixture differs: assignment=%u "
+                  "promotion=%u unsigned-int=%u\n",
+                  (unsigned int)conversion_index,
+                  (unsigned int)promotion_index,
+                  (unsigned int)conversion_unsigned_int_type);
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)conversion_unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[conversion_index].conversion =
+      CTOOL_C_CONVERSION_INTEGER_PROMOTION;
+  invalid_conversion_unit = conversion_unit;
+  invalid_conversion_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_conversion_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrowing mislabeled as integer promotion")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[promotion_index].type =
+      conversion_unsigned_int_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_conversion_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "integer promotion with the wrong target")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[promotion_index].conversion =
+      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_conversion_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "usual arithmetic conversion before integer promotion")) {
+    goto cleanup;
+  }
+  if (active_unit.function_definition_count == 0u ||
+      active_unit.graph.parameter_type_count == 0u ||
+      active_unit.binding_count == 0u ||
+      sizeof(*invalid_parameter_types) >
+          SIZE_MAX / (size_t)active_unit.graph.parameter_type_count ||
+      sizeof(*invalid_bindings) >
+          SIZE_MAX / (size_t)active_unit.binding_count) {
+    goto cleanup;
+  }
+  for (index = 0u; index < active_unit.graph.type_count; index++) {
+    if (active_unit.graph.types[index].kind == CTOOL_C_TYPE_SIGNED_INT &&
+        active_unit.graph.types[index].qualifiers == 0u &&
+        index < active_unit.layout.type_count &&
+        active_unit.layout.types[index].size == 4u) {
+      signed_int_type = index;
+      break;
+    }
+  }
+  invalid_parameter_types = (ctool_u32 *)malloc(
+      (size_t)active_unit.graph.parameter_type_count *
+      sizeof(*invalid_parameter_types));
+  invalid_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)active_unit.binding_count * sizeof(*invalid_bindings));
+  asm_binding = find_binding(&active_unit, "asm_lower");
+  other_binding = find_binding(&active_unit, "x86_class_width");
+  if (signed_int_type == CTOOL_C_TYPE_NONE ||
+      invalid_parameter_types == NULL || invalid_bindings == NULL ||
+      asm_binding == CTOOL_C_AST_NONE || other_binding == CTOOL_C_AST_NONE ||
+      active_unit.function_definitions[0].declared_type >=
+          active_unit.graph.type_count ||
+      active_unit
+              .graph.types[active_unit.function_definitions[0].declared_type]
+              .kind != CTOOL_C_TYPE_FUNCTION ||
+      active_unit
+              .graph.types[active_unit.function_definitions[0].declared_type]
+              .parameter_count == 0u) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_parameter_types,
+               active_unit.graph.parameter_types,
+               (size_t)active_unit.graph.parameter_type_count *
+                   sizeof(*invalid_parameter_types));
+  index = active_unit
+              .graph.types[active_unit.function_definitions[0].declared_type]
+              .first_parameter;
+  invalid_parameter_types[index] = signed_int_type;
+  invalid_parameter_unit = active_unit;
+  invalid_parameter_unit.graph.parameter_types = invalid_parameter_types;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_parameter_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrow function parameter ABI mismatch")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_bindings, active_unit.bindings,
+               (size_t)active_unit.binding_count * sizeof(*invalid_bindings));
+  invalid_bindings[asm_binding].type =
+      active_unit.bindings[other_binding].type;
+  invalid_binding_unit = active_unit;
+  invalid_binding_unit.bindings = invalid_bindings;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_binding_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrow function binding ABI mismatch")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_bindings);
+  free(invalid_parameter_types);
+  free(invalid_expressions);
+  free(active_fixture);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("narrow-values: ok");
     return 0;
   }
   return 1;
@@ -13518,6 +14218,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_objects(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
+    return run_narrow_values(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -13526,7 +14229,8 @@ int main(int argc, char **argv) {
                 "integer-update-conversions|"
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic|function-pointers|automatic-objects "
+                "pointer-arithmetic|function-pointers|automatic-objects|"
+                "narrow-values "
                 "HOST_ROOT\n");
   return 2;
 }

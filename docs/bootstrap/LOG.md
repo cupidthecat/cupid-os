@@ -4425,3 +4425,51 @@ This increment transfers no production C object and retires no host dependency. 
 The root README, bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, wiki, CTXT manual, and ADR 0044 now describe the capability and its limits. No kernel, application, assembly, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Aggregate initialization and values, narrow element access, atomic access and mutation, other widths, floating semantics, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-18: CupidC carries narrow integer values
+
+### Decision and active-source requirement
+
+Hosted CupidC now carries complete one-, two-, and four-byte integer values through its represented IR and i386 emitter. The IR still uses a canonical 32-bit abstract word. Loads sign-extend signed bytes and words and zero-extend unsigned values and `_Bool`. Stores write the declared byte, word, or doubleword width. Integer promotions and explicit or implicit integer conversions preserve those rules, while conversion to `_Bool` compares the whole source word with zero.
+
+Fixed direct and indirect cdecl calls keep four-byte argument slots. Callers and callees normalize byte results through `AL` and word results through `AX`, so narrow return values cannot carry stale upper bits. Arithmetic remains a promoted 32-bit operation. Narrow compound assignments, increment and decrement, bit-fields, atomics, 64-bit integers, floating values, aggregates, variadic calls, pointer-to-narrow casts, pointer-to-`_Bool` casts, and 16-byte call alignment remain outside this increment.
+
+The active-source requirements came from `asm_lower`, `x86_class_width`, and `x86_set_memory_width`. Those functions remain unchanged. The compiler learned the needed operations instead of receiving rewritten input. No design question was left for the user: active source, the frontend type layout, the existing conversion records, and the established cdecl behavior fixed the required semantics.
+
+This is still hosted capability work. The production object graph and ownership map do not change. The only build-graph edit adds the new contract modes to the complete hosted toolchain test target.
+
+### Contract evidence and corrections
+
+The IR contract first failed on an indexed narrow load because its promotion was unsupported. After that path was opened, narrow assignment failed at the old four-byte type boundary. The object contract then reached the emitter's old four-byte internal boundary. Those failures were kept as the red evidence for the implementation sequence.
+
+The finished synthetic IR fixture checks 23 exact instructions across two functions. Its active-source fixture checks six functions: the three active requirements plus narrow file storage, an indirect call, and scalar logic. Negative mutations retain useful unsupported diagnostics for narrow update and compound assignment. Further mutations prove that a narrowing conversion mislabeled as promotion, a promotion with the wrong target, a usual arithmetic conversion that skips promotion, a mismatched function prototype, and an incompatible function binding are rejected as malformed units.
+
+The object contract contains 30 functions and decodes 31 return sequences. It covers signed and unsigned byte and word loads, exact-width stores, `_Bool` normalization, local and file objects, record members, indexed word access, scalar conditions, logical operators, and four direct and three register-indirect calls returning narrow values. Per-symbol byte checks distinguish each sign extension, zero extension, store width, and `AL` or `AX` result normalization. Signed and unsigned byte and word results plus `_Bool` have exact caller and callee checks, and a two-byte argument is verified in its four-byte cdecl slot. The ELF check also requires the two-byte file object to have two-byte alignment.
+
+The implementation review found four gaps after the first green pass. The IR and emitter now validate conversion-kind metadata instead of accepting every represented integer pair. Function lowering cross-checks prototype parameters, definition objects, and canonical binding types before exposing an ABI. `_Bool` storage and both direct and indirect `_Bool` results now have explicit coverage. Exact opcode checks now stay within each symbol instead of searching the object as one byte stream. The final standards pass also tightened promotion and usual-arithmetic metadata at both lowering seams. The final spec pass expanded call coverage to signed and unsigned byte and word results plus a two-byte argument slot.
+
+The first complete hosted toolchain run stopped at stale source-shape tuples for `cupidc_ir.c` and `cupidc_emit.c`. Only those exact expectations changed, and the complete suite then passed. That stopped run is recorded as a maintenance correction, not as test evidence.
+
+### Audit and verification
+
+The regenerated active-source audit covers 688 files and 251 feature identifiers. It records 498 transform edges, 39 unreachable files, 616 designated initializers across 18 files, 977 `goto` statements across 24 files, 61 `do` statements, 203 `switch` statements, 1,520 `case` labels, 134 `default` labels, 2,502 `while` statements, 1,704 `break` statements, 929 `continue` statements, 25,347 `if` statements, 3,467 `else` clauses, 3,049 `for` statements, 15,530 `return` statements, and 3,141 `sizeof` expressions. Its digest is `a52a381c1888bd68fa9e9655d5aa0ded3e141b8330d5b4ae49a354dc526a48a7`.
+
+The first repository-wide gate found six stale inventory expectations after all compiler contracts had passed. The checked manifest already contained the correct values. The `sizeof`, `return`, `for`, `while`, `if`, `else`, and `goto` expectations were brought into line with that manifest, and the six focused drift tests passed in 111.928 seconds before the complete gate was repeated.
+
+Three verification wrappers were discarded before they produced evidence. The first strict WSL wrapper misquoted shell file-descriptor syntax and never started Make. An instrumentation wrapper passed a Bash `||` through PowerShell incorrectly. The first Clang analysis command used the unsupported `-analyzer-warnings-as-errors` spelling; the successful command uses Clang 18's `-analyzer-werror` option. None of those attempts changed a tracked file.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | Indexed promotion, narrow assignment, and object emission first failed at the old boundary. Review tests then made a promotion with the wrong target and a usual arithmetic conversion before promotion fail before their validators were tightened. |
+| Focused CupidC contracts | PASS | `python -m unittest tests.test_toolchain_cupidc_ir tests.test_toolchain_cupidc_object` passes all 30 tests in 14.438 seconds on the final tree. |
+| Windows hosted toolchain | PASS | `make -C toolchain test` passes the complete hosted suite in 6.9 seconds, including both `narrow-values` modes, all other hosted modes, all 22 assembly demos, and the strict Clang warning policy. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each pass 166 hosted checks and all 22 assembly demos in 64.15 and 64.03 seconds. Both use the strict C11 warning policy and pass both `narrow-values` modes without warnings. |
+| Sanitizers | PASS AFTER WRAPPER CORRECTION | Fresh, visibly instrumented GCC and Clang ASan and UBSan builds pass both narrow-value contracts without diagnostics in 38.503 and 35.588 seconds. One wrapper lost its flags at the PowerShell-to-WSL boundary; its uninstrumented build is excluded. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` cover the two changed implementation files and three affected C contracts without diagnostics. They finish in 128.979 and 82.013 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards review led to source-aware conversion validation and matching negative tests. Spec review expanded the call proof and later found an unqualified narrow-mutation claim. The public header and cited bootstrap records now limit mutation to supported 32-bit integers and pointers. Both follow-up reviews are clean. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final checked records in 35.512 seconds, and `make check-bootstrap-audit` reproduces them in 35.757 seconds. |
+| Full repository gate | PASS | `make test` passes all 314 tests in 472.166 seconds with one expected skip and returns from Make in 508.635 seconds after reproducing the checked audit. |
+| Production image build | PASS | `make all` rebuilds the normal CupidASM, CupidLD, CupidObj, kernel, and disk-image path in 21.794 seconds. |
+| Emulator gate | NOT RUN | This hosted-only change does not alter a production object, image format, boot path, runtime behavior, or ABI owner, so it makes no boot claim. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler path, and the private in-kernel compiler remains the runtime JIT and AOT path. [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open because production ownership, the deferred value categories, staged self-hosting, and the fixed-point bootstrap are still unfinished.

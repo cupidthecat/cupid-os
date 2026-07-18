@@ -158,7 +158,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
 /* The typed translation unit is borrowed and remains unchanged. Success
  * publishes immutable function and instruction arrays in the job arena.
  * Each function owns a contiguous instruction slice and a typed abstract
- * stack that begins and ends empty. Branch targets are relative to that
+ * stack that begins and ends empty. Represented one-byte and two-byte integer
+ * values occupy canonical 32-bit stack words after signed or unsigned
+ * extension. Branch targets are relative to that
  * slice, and every join has the same address/value stack shape on each
  * incoming path. A pre-test while loop uses BRANCH_ZERO for its forward exit
  * and JUMP for its backward edge. A for loop evaluates its optional expression
@@ -176,12 +178,12 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
  * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. A referenced
- * automatic scalar receives one represented slot. A referenced uninitialized
+ * automatic scalar receives one target-sized slot. A referenced uninitialized
  * fixed array or record receives its target size and alignment, up to four
- * byte alignment. DUPLICATE_ADDRESS preserves an address while a represented
- * scalar compound assignment or update loads and stores the object. This
- * evaluates the destination once.
- * Integer compound assignments retain integer-promotion,
+ * byte alignment. DUPLICATE_ADDRESS preserves an address while a supported
+ * 32-bit integer or pointer compound assignment or update loads and stores
+ * the object. This evaluates the destination once.
+ * 32-bit integer compound assignments retain integer-promotion,
  * usual-arithmetic, and assignment conversions. Pointer compound
  * assignments and updates use POINTER_BINARY with a complete-object stride.
  * Prefix updates produce the stored value. Postfix updates produce the value
@@ -206,8 +208,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * CALL_DIRECT consumes its fixed arguments after they have been evaluated in
  * source order. CALL_INDIRECT also consumes the function pointer below those
  * arguments. Argument zero is deepest among the arguments, and the final
- * argument is on top. Either call pushes one result unless its result type is
- * void.
+ * argument is on top. Each fixed cdecl argument uses one four-byte stack slot.
+ * Either call pushes one result unless its result type is void. Narrow caller
+ * and callee results are normalized from the declared AL or AX lane.
  * Failure zeros the result, rewinds allocations made during the operation,
  * and keeps its structured diagnostic in the job. */
 

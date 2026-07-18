@@ -5158,8 +5158,6 @@ static int run_static_data(const char *host_root) {
       "int logical_not(unsigned int value) { return !value; }\n";
   static const char wide_logical_not_text[] =
       "int wide_logical_not(void) { return !1LL; }\n";
-  static const char narrow_cast_text[] =
-      "int narrow_cast(int value) { return (signed char)value; }\n";
   static const char wide_cast_text[] =
       "int wide_cast(int value) { return (long long)value; }\n";
   static const char void_cast_text[] =
@@ -5328,7 +5326,6 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
-  ctool_c_translation_unit_t narrow_cast_unit;
   ctool_c_translation_unit_t wide_cast_unit;
   ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t external_inline_unit;
@@ -5470,7 +5467,6 @@ static int run_static_data(const char *host_root) {
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
-  (void)memset(&narrow_cast_unit, 0, sizeof(narrow_cast_unit));
   (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
   (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
@@ -7133,13 +7129,6 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide logical-not object") ||
-      !parse_source(job, "/narrow-cast.c", narrow_cast_text,
-                    &narrow_cast_unit) ||
-      !expect_object_failure(
-          job, &narrow_cast_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "narrow integer cast object") ||
       !parse_source(job, "/wide-cast.c", wide_cast_text,
                     &wide_cast_unit) ||
       !expect_object_failure(
@@ -8771,7 +8760,8 @@ static int run_function_pointer_object(const char *host_root) {
           job, &variadic_unit, output, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "32-bit scalar arguments and void or 32-bit scalar results",
+          "one-byte, two-byte, or four-byte scalar arguments and void or "
+          "represented scalar results",
           "variadic function pointer object")) {
     goto cleanup;
   }
@@ -9108,6 +9098,561 @@ cleanup:
   return 1;
 }
 
+static int bytes_contain(ctool_bytes_t haystack, const ctool_u8 *needle,
+                         ctool_u32 needle_size) {
+  ctool_u32 offset;
+  if (needle == NULL || needle_size == 0u || needle_size > haystack.size ||
+      haystack.data == NULL) {
+    return 0;
+  }
+  for (offset = 0u; offset <= haystack.size - needle_size; offset++) {
+    if (memcmp(haystack.data + offset, needle, (size_t)needle_size) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int symbol_bytes_contain(const ctool_elf32_section_t *section,
+                                const ctool_elf32_symbol_t *symbol,
+                                const ctool_u8 *needle,
+                                ctool_u32 needle_size) {
+  ctool_bytes_t contents;
+  if (section == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->section_file_index != section->file_index ||
+      symbol->value > section->contents.size ||
+      symbol->size > section->contents.size - symbol->value) {
+    return 0;
+  }
+  contents = ctool_bytes(section->contents.data + symbol->value,
+                         symbol->size);
+  return bytes_contain(contents, needle, needle_size);
+}
+
+static int validate_narrow_value_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 bool_conversion[] = {
+      0x85u, 0xc0u, 0x0fu, 0x95u, 0xc0u, 0x0fu, 0xb6u, 0xc0u};
+  static const ctool_u8 signed_byte_load[] = {0x0fu, 0xbeu, 0x00u};
+  static const ctool_u8 unsigned_byte_load[] = {0x0fu, 0xb6u, 0x00u};
+  static const ctool_u8 signed_word_load[] = {0x0fu, 0xbfu, 0x00u};
+  static const ctool_u8 unsigned_word_load[] = {0x0fu, 0xb7u, 0x00u};
+  static const ctool_u8 byte_store[] = {0x88u, 0x08u};
+  static const ctool_u8 word_store[] = {0x66u, 0x89u, 0x08u};
+  static const ctool_u8 signed_byte_lane[] = {0x0fu, 0xbeu, 0xc0u};
+  static const ctool_u8 unsigned_byte_lane[] = {0x0fu, 0xb6u, 0xc0u};
+  static const ctool_u8 signed_word_lane[] = {0x0fu, 0xbfu, 0xc0u};
+  static const ctool_u8 unsigned_word_lane[] = {0x0fu, 0xb7u, 0xc0u};
+  static const ctool_u8 direct_u16_call_tail[] = {
+      0x83u, 0xc4u, 0x04u, 0x0fu, 0xb7u, 0xc0u, 0x50u};
+  static const ctool_u8 indirect_u16_call_tail[] = {
+      0x83u, 0xc4u, 0x08u, 0x0fu, 0xb7u, 0xc0u, 0x50u};
+  static const ctool_u8 direct_bool_call_tail[] = {
+      0x83u, 0xc4u, 0x04u, 0x0fu, 0xb6u, 0xc0u, 0x50u};
+  static const ctool_u8 indirect_bool_call_tail[] = {
+      0x83u, 0xc4u, 0x08u, 0x0fu, 0xb6u, 0xc0u, 0x50u};
+  static const ctool_u8 direct_i8_call_tail[] = {
+      0x83u, 0xc4u, 0x04u, 0x0fu, 0xbeu, 0xc0u, 0x50u};
+  static const ctool_u8 indirect_i16_call_tail[] = {
+      0x83u, 0xc4u, 0x08u, 0x0fu, 0xbfu, 0xc0u, 0x50u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_symbol_t *word = find_symbol(object, "narrow_word");
+  const ctool_elf32_symbol_t *asm_lower =
+      find_symbol(object, "asm_lower");
+  const ctool_elf32_symbol_t *load_i8 = find_symbol(object, "load_i8");
+  const ctool_elf32_symbol_t *load_u8 = find_symbol(object, "load_u8");
+  const ctool_elf32_symbol_t *load_i16 = find_symbol(object, "load_i16");
+  const ctool_elf32_symbol_t *load_u16 = find_symbol(object, "load_u16");
+  const ctool_elf32_symbol_t *store_i8 = find_symbol(object, "store_i8");
+  const ctool_elf32_symbol_t *store_u8 = find_symbol(object, "store_u8");
+  const ctool_elf32_symbol_t *store_i16 = find_symbol(object, "store_i16");
+  const ctool_elf32_symbol_t *store_u16 = find_symbol(object, "store_u16");
+  const ctool_elf32_symbol_t *load_bool = find_symbol(object, "load_bool");
+  const ctool_elf32_symbol_t *store_bool = find_symbol(object, "store_bool");
+  const ctool_elf32_symbol_t *bool_target =
+      find_symbol(object, "bool_target");
+  const ctool_elf32_symbol_t *narrow_target =
+      find_symbol(object, "narrow_target");
+  const ctool_elf32_symbol_t *direct_narrow =
+      find_symbol(object, "direct_narrow");
+  const ctool_elf32_symbol_t *indirect_narrow =
+      find_symbol(object, "indirect_narrow");
+  const ctool_elf32_symbol_t *direct_bool =
+      find_symbol(object, "direct_bool");
+  const ctool_elf32_symbol_t *indirect_bool =
+      find_symbol(object, "indirect_bool");
+  const ctool_elf32_symbol_t *i8_target =
+      find_symbol(object, "i8_target");
+  const ctool_elf32_symbol_t *direct_i8 =
+      find_symbol(object, "direct_i8");
+  const ctool_elf32_symbol_t *u8_target =
+      find_symbol(object, "u8_target");
+  const ctool_elf32_symbol_t *direct_u8 =
+      find_symbol(object, "direct_u8");
+  const ctool_elf32_symbol_t *i16_target =
+      find_symbol(object, "i16_target");
+  const ctool_elf32_symbol_t *indirect_i16 =
+      find_symbol(object, "indirect_i16");
+  ctool_u32 signed_byte_loads = 0u;
+  ctool_u32 unsigned_byte_loads = 0u;
+  ctool_u32 signed_word_loads = 0u;
+  ctool_u32 unsigned_word_loads = 0u;
+  ctool_u32 byte_stores = 0u;
+  ctool_u32 word_stores = 0u;
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 function_symbols = 0u;
+  ctool_u32 symbol_index;
+  ctool_u32 cursor = 0u;
+  int direct_call_abi = 0;
+  int indirect_call_abi = 0;
+  if (text != NULL) {
+    for (symbol_index = 0u; symbol_index < object->symbol_count;
+         symbol_index++) {
+      const ctool_elf32_symbol_t *symbol =
+          &object->symbols[symbol_index];
+      if (symbol->type == CTOOL_ELF32_SYMBOL_FUNCTION &&
+          symbol->placement == CTOOL_ELF32_SYMBOL_DEFINED &&
+          symbol->section_file_index == text->file_index) {
+        function_symbols++;
+      }
+    }
+  }
+  if (text == NULL || bss == NULL || word == NULL ||
+      text->contents.data == NULL || text->contents.size == 0u ||
+      function_symbols != 30u ||
+      bss->alignment != 2u || bss->size != 2u ||
+      word->binding != CTOOL_ELF32_BIND_LOCAL ||
+      word->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      word->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      word->section_file_index != bss->file_index || word->value != 0u ||
+      word->size != 2u ||
+      !bytes_contain(text->contents, bool_conversion,
+                     (ctool_u32)sizeof(bool_conversion)) ||
+      !bytes_contain(text->contents, signed_byte_load,
+                     (ctool_u32)sizeof(signed_byte_load)) ||
+      !bytes_contain(text->contents, unsigned_byte_load,
+                     (ctool_u32)sizeof(unsigned_byte_load)) ||
+      !bytes_contain(text->contents, signed_word_load,
+                     (ctool_u32)sizeof(signed_word_load)) ||
+      !bytes_contain(text->contents, unsigned_word_load,
+                     (ctool_u32)sizeof(unsigned_word_load)) ||
+      !bytes_contain(text->contents, byte_store,
+                     (ctool_u32)sizeof(byte_store)) ||
+      !bytes_contain(text->contents, word_store,
+                     (ctool_u32)sizeof(word_store)) ||
+      !bytes_contain(text->contents, signed_byte_lane,
+                     (ctool_u32)sizeof(signed_byte_lane)) ||
+      !bytes_contain(text->contents, unsigned_byte_lane,
+                     (ctool_u32)sizeof(unsigned_byte_lane)) ||
+      !bytes_contain(text->contents, signed_word_lane,
+                     (ctool_u32)sizeof(signed_word_lane)) ||
+      !bytes_contain(text->contents, unsigned_word_lane,
+                      (ctool_u32)sizeof(unsigned_word_lane)) ||
+      !symbol_bytes_contain(text, asm_lower, signed_byte_load,
+                            (ctool_u32)sizeof(signed_byte_load)) ||
+      !symbol_bytes_contain(text, asm_lower, signed_byte_lane,
+                            (ctool_u32)sizeof(signed_byte_lane)) ||
+      !symbol_bytes_contain(text, load_i8, signed_byte_load,
+                            (ctool_u32)sizeof(signed_byte_load)) ||
+      !symbol_bytes_contain(text, load_u8, unsigned_byte_load,
+                            (ctool_u32)sizeof(unsigned_byte_load)) ||
+      !symbol_bytes_contain(text, load_i16, signed_word_load,
+                            (ctool_u32)sizeof(signed_word_load)) ||
+      !symbol_bytes_contain(text, load_u16, unsigned_word_load,
+                            (ctool_u32)sizeof(unsigned_word_load)) ||
+      !symbol_bytes_contain(text, store_i8, byte_store,
+                            (ctool_u32)sizeof(byte_store)) ||
+      !symbol_bytes_contain(text, store_i8, signed_byte_lane,
+                            (ctool_u32)sizeof(signed_byte_lane)) ||
+      !symbol_bytes_contain(text, store_u8, byte_store,
+                            (ctool_u32)sizeof(byte_store)) ||
+      !symbol_bytes_contain(text, store_u8, unsigned_byte_lane,
+                            (ctool_u32)sizeof(unsigned_byte_lane)) ||
+      !symbol_bytes_contain(text, store_i16, word_store,
+                            (ctool_u32)sizeof(word_store)) ||
+      !symbol_bytes_contain(text, store_i16, signed_word_lane,
+                            (ctool_u32)sizeof(signed_word_lane)) ||
+      !symbol_bytes_contain(text, store_u16, word_store,
+                            (ctool_u32)sizeof(word_store)) ||
+      !symbol_bytes_contain(text, store_u16, unsigned_word_lane,
+                            (ctool_u32)sizeof(unsigned_word_lane)) ||
+      !symbol_bytes_contain(text, load_bool, unsigned_byte_load,
+                            (ctool_u32)sizeof(unsigned_byte_load)) ||
+      !symbol_bytes_contain(text, store_bool, bool_conversion,
+                            (ctool_u32)sizeof(bool_conversion)) ||
+      !symbol_bytes_contain(text, store_bool, byte_store,
+                            (ctool_u32)sizeof(byte_store)) ||
+      !symbol_bytes_contain(text, bool_target, unsigned_byte_lane,
+                            (ctool_u32)sizeof(unsigned_byte_lane)) ||
+      !symbol_bytes_contain(text, narrow_target, unsigned_word_lane,
+                            (ctool_u32)sizeof(unsigned_word_lane)) ||
+      !symbol_bytes_contain(text, direct_narrow, direct_u16_call_tail,
+                            (ctool_u32)sizeof(direct_u16_call_tail)) ||
+      !symbol_bytes_contain(text, indirect_narrow, indirect_u16_call_tail,
+                            (ctool_u32)sizeof(indirect_u16_call_tail)) ||
+      !symbol_bytes_contain(text, direct_bool, direct_bool_call_tail,
+                            (ctool_u32)sizeof(direct_bool_call_tail)) ||
+      !symbol_bytes_contain(text, indirect_bool, indirect_bool_call_tail,
+                            (ctool_u32)sizeof(indirect_bool_call_tail)) ||
+      !symbol_bytes_contain(text, i8_target, signed_byte_lane,
+                            (ctool_u32)sizeof(signed_byte_lane)) ||
+      !symbol_bytes_contain(text, direct_i8, unsigned_word_load,
+                            (ctool_u32)sizeof(unsigned_word_load)) ||
+      !symbol_bytes_contain(text, direct_i8, direct_i8_call_tail,
+                            (ctool_u32)sizeof(direct_i8_call_tail)) ||
+      !symbol_bytes_contain(text, u8_target, unsigned_byte_lane,
+                            (ctool_u32)sizeof(unsigned_byte_lane)) ||
+      !symbol_bytes_contain(text, direct_u8, direct_bool_call_tail,
+                            (ctool_u32)sizeof(direct_bool_call_tail)) ||
+      !symbol_bytes_contain(text, i16_target, signed_word_lane,
+                            (ctool_u32)sizeof(signed_word_lane)) ||
+      !symbol_bytes_contain(text, indirect_i16,
+                            indirect_i16_call_tail,
+                            (ctool_u32)sizeof(indirect_i16_call_tail))) {
+    (void)fprintf(stderr, "narrow value object inventory differs\n");
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    const ctool_x86_instruction_t *instruction;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "narrow value decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if ((instruction->mnemonic == CTOOL_X86_MN_MOVSX ||
+         instruction->mnemonic == CTOOL_X86_MN_MOVZX) &&
+        instruction->operand_count == 2u &&
+        instruction->operands[1].kind == CTOOL_X86_OPERAND_MEMORY) {
+      if (instruction->mnemonic == CTOOL_X86_MN_MOVSX &&
+          instruction->operands[1].width_bits == 8u) {
+        signed_byte_loads++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MOVZX &&
+                 instruction->operands[1].width_bits == 8u) {
+        unsigned_byte_loads++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MOVSX &&
+                 instruction->operands[1].width_bits == 16u) {
+        signed_word_loads++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MOVZX &&
+                 instruction->operands[1].width_bits == 16u) {
+        unsigned_word_loads++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+               instruction->operands[1].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      if (instruction->operands[0].width_bits == 8u &&
+          instruction->operands[1].as.reg.class_id == CTOOL_X86_REG_GPR8) {
+        byte_stores++;
+      } else if (instruction->operands[0].width_bits == 16u &&
+                 instruction->operands[1].as.reg.class_id ==
+                     CTOOL_X86_REG_GPR16) {
+        word_stores++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_CALL &&
+               instruction->operand_count == 1u) {
+      if (instruction->operands[0].kind == CTOOL_X86_OPERAND_RELATIVE) {
+        direct_calls++;
+        if (cursor + decoded.consumed <= text->contents.size &&
+            text->contents.size - cursor - decoded.consumed >=
+                (ctool_u32)sizeof(direct_u16_call_tail) &&
+            memcmp(text->contents.data + cursor + decoded.consumed,
+                   direct_u16_call_tail,
+                   sizeof(direct_u16_call_tail)) == 0) {
+          direct_call_abi = 1;
+        }
+      } else if (instruction->operands[0].kind ==
+                 CTOOL_X86_OPERAND_REGISTER) {
+        indirect_calls++;
+        if (cursor + decoded.consumed <= text->contents.size &&
+            text->contents.size - cursor - decoded.consumed >=
+                (ctool_u32)sizeof(indirect_u16_call_tail) &&
+            memcmp(text->contents.data + cursor + decoded.consumed,
+                   indirect_u16_call_tail,
+                   sizeof(indirect_u16_call_tail)) == 0) {
+          indirect_call_abi = 1;
+        }
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+      returns++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || signed_byte_loads == 0u ||
+      unsigned_byte_loads == 0u || signed_word_loads == 0u ||
+      unsigned_word_loads == 0u || byte_stores == 0u || word_stores == 0u ||
+      direct_calls != 4u || indirect_calls != 3u || returns != 31u ||
+      direct_call_abi == 0 || indirect_call_abi == 0) {
+    (void)fprintf(stderr,
+                  "narrow operation inventory differs: sx8=%u zx8=%u "
+                  "sx16=%u zx16=%u store8=%u store16=%u direct=%u "
+                  "indirect=%u returns=%u\n",
+                  (unsigned int)signed_byte_loads,
+                  (unsigned int)unsigned_byte_loads,
+                  (unsigned int)signed_word_loads,
+                  (unsigned int)unsigned_word_loads,
+                  (unsigned int)byte_stores, (unsigned int)word_stores,
+                  (unsigned int)direct_calls, (unsigned int)indirect_calls,
+                  (unsigned int)returns);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_narrow_value_object(const char *host_root) {
+  static const char source[] =
+      "typedef signed char i8;\n"
+      "typedef unsigned char u8;\n"
+      "typedef signed short i16;\n"
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "static char asm_lower(char character) {\n"
+      "  if (character >= 'A' && character <= 'Z') {\n"
+      "    return (char)(character + ('a' - 'A'));\n"
+      "  }\n"
+      "  return character;\n"
+      "}\n"
+      "int load_i8(i8 *value) { return *value; }\n"
+      "int load_u8(u8 *value) { return *value; }\n"
+      "int load_i16(i16 *value) { return *value; }\n"
+      "int load_u16(u16 *value) { return *value; }\n"
+      "i8 store_i8(i8 *target, u32 value) {\n"
+      "  return *target = (i8)value;\n"
+      "}\n"
+      "u8 store_u8(u8 *target, u32 value) {\n"
+      "  return *target = (u8)value;\n"
+      "}\n"
+      "i16 store_i16(i16 *target, u32 value) {\n"
+      "  return *target = (i16)value;\n"
+      "}\n"
+      "u16 store_u16(u16 *target, u32 value) {\n"
+      "  return *target = (u16)value;\n"
+      "}\n"
+      "_Bool to_bool(u32 value) { return (_Bool)value; }\n"
+      "_Bool load_bool(_Bool *value) { return *value; }\n"
+      "_Bool store_bool(_Bool *target, u32 value) {\n"
+      "  return *target = value;\n"
+      "}\n"
+      "_Bool bool_target(u32 value) { return value; }\n"
+      "_Bool direct_bool(u32 value) { return bool_target(value); }\n"
+      "typedef _Bool (*bool_callback_t)(u32);\n"
+      "_Bool indirect_bool(bool_callback_t callback, u32 value) {\n"
+      "  return callback(value);\n"
+      "}\n"
+      "u16 narrow_target(i8 value) { return (u16)value; }\n"
+      "u16 direct_narrow(i8 value) { return narrow_target(value); }\n"
+      "typedef u16 (*narrow_callback_t)(i8);\n"
+      "u16 indirect_narrow(narrow_callback_t callback, i8 value) {\n"
+      "  return callback(value);\n"
+      "}\n"
+      "i8 i8_target(u16 value) { return (i8)value; }\n"
+      "i8 direct_i8(u16 value) { return i8_target(value); }\n"
+      "u8 u8_target(u16 value) { return (u8)value; }\n"
+      "u8 direct_u8(u16 value) { return u8_target(value); }\n"
+      "i16 i16_target(u16 value) { return (i16)value; }\n"
+      "typedef i16 (*i16_callback_t)(u16);\n"
+      "i16 indirect_i16(i16_callback_t callback, u16 value) {\n"
+      "  return callback(value);\n"
+      "}\n"
+      "static u16 narrow_word;\n"
+      "u16 narrow_local_file(u16 input) {\n"
+      "  u16 local = input;\n"
+      "  narrow_word = local;\n"
+      "  return narrow_word;\n"
+      "}\n"
+      "int narrow_truth(u8 value) { return value ? 1 : 0; }\n"
+      "int narrow_not(u8 value) { return !value; }\n"
+      "int narrow_logic(u8 left, u16 right) { return left && right; }\n"
+      "struct narrow_pair { i8 byte_value; u16 word_value; };\n"
+      "int narrow_record(struct narrow_pair *pair, u32 value) {\n"
+      "  pair->byte_value = (i8)value;\n"
+      "  pair->word_value = (u16)value;\n"
+      "  return pair->byte_value + pair->word_value;\n"
+      "}\n"
+      "u16 narrow_auto(u32 index, u16 value) {\n"
+      "  u16 values[2];\n"
+      "  values[index] = value;\n"
+      "  return values[index];\n"
+      "}\n";
+  static const char conversion_source[] =
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "u32 promoted_return(u16 value) { return value + 0u; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t conversion_unit;
+  ctool_c_translation_unit_t invalid_conversion_unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_u32 promotion_index = CTOOL_C_AST_NONE;
+  ctool_u32 unsigned_int_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 index;
+  ctool_arena_mark_t mark;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/narrow-values.c", source, &unit) ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  if (unit.function_definition_count != 30u) {
+    (void)fprintf(stderr, "narrow value function inventory differs\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "narrow value object buffer")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "narrow value object emission") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)first_object_size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, output);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "repeat narrow value emission") ||
+      bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "narrow value object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/narrow-values.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read narrow value object") ||
+      !validate_narrow_value_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !parse_source(job, "/narrow-object-conversion.c",
+                    conversion_source, &conversion_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < conversion_unit.expression_count; index++) {
+    if (conversion_unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        conversion_unit.expressions[index].conversion ==
+            CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+      promotion_index = index;
+      break;
+    }
+  }
+  for (index = 0u; index < conversion_unit.graph.type_count; index++) {
+    if (conversion_unit.graph.types[index].kind ==
+            CTOOL_C_TYPE_UNSIGNED_INT &&
+        conversion_unit.graph.types[index].qualifiers == 0u &&
+        index < conversion_unit.layout.type_count &&
+        conversion_unit.layout.types[index].size == 4u) {
+      unsigned_int_type = index;
+      break;
+    }
+  }
+  if (promotion_index == CTOOL_C_AST_NONE ||
+      unsigned_int_type == CTOOL_C_TYPE_NONE ||
+      conversion_unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)conversion_unit.expression_count) {
+    (void)fprintf(stderr, "narrow object conversion fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)conversion_unit.expression_count *
+      sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[promotion_index].type = unsigned_int_type;
+  invalid_conversion_unit = conversion_unit;
+  invalid_conversion_unit.expressions = invalid_expressions;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_conversion_unit, output, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "object integer promotion with the wrong target")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[promotion_index].conversion =
+      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_conversion_unit, output, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "object usual conversion before integer promotion")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  free(first_object);
+  dispose_unit_snapshot(&snapshot);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("narrow-values: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -9139,11 +9684,15 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
+    return run_narrow_value_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic|function-pointers|automatic-objects "
+                "pointer-arithmetic|function-pointers|automatic-objects|"
+                "narrow-values "
                 "HOST_ROOT\n");
   return 2;
 }

@@ -22,9 +22,10 @@ ctool_status_t ctool_c_emit_object(
  * must be empty. Success writes one deterministic i386 ELF relocatable
  * object. A failure after argument validation restores the output, rewinds
  * allocations made during the operation, and retains a structured
- * diagnostic. The emitter lowers represented functions, including fixed
- * local frames and linked 32-bit file-object loads, through CupidC linear IR
- * and the shared x86 model. Direct object addresses use text `R_386_32`
+ * diagnostic. The emitter lowers represented functions, including
+ * target-sized fixed local frames, one-byte, two-byte, or four-byte integer
+ * loads and stores, and four-byte pointer values, through CupidC linear IR and
+ * the shared x86 model. Direct object addresses use text `R_386_32`
  * relocations, while direct calls use `R_386_PC32`. The emitter writes those
  * functions beside static definitions in the same object. */
 

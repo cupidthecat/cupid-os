@@ -117,16 +117,18 @@ self-hosting migration. This path is separate from the in-OS JIT and AOT
 compiler described elsewhere in this guide.
 
 The shared path now allocates target-sized i386 stack storage for referenced,
-uninitialized fixed arrays and records with alignment up to four bytes. Its
-contracts cover indexed integer arrays, record members, narrow array decay,
-the active &children[index] call shape, mixed-object padding, deterministic
-ELF32 output, and failure rollback.
+uninitialized fixed arrays and records with alignment up to four bytes. It
+also carries one-byte, two-byte, and four-byte integers through locals, file
+objects, members, indexed access, conditions, conversions, assignment, and
+fixed direct or indirect calls. Narrow loads extend into canonical 32-bit
+values. Stores use the declared byte or word width. Fixed cdecl arguments keep
+four-byte stack slots, and callers and callees normalize narrow results.
 
 The normal OS build still uses a host C compiler for C objects. The private
 in-kernel CupidC compiler continues to handle embedded runtime compilation.
-Focused negatives cover aggregate initialization and assignment, narrow
-indexed loads and stores, and alignment above four bytes. These features,
-16-byte call-site alignment, and production integration remain.
+Aggregate values and initialization, narrow compound assignments and updates,
+atomic access, 64-bit integers and floating-point values, variadic calls, 16-byte call-site
+alignment, and production integration remain.
 >endtree
 
 >h2 C Compatibility Notes

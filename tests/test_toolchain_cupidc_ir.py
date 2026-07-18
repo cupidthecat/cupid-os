@@ -240,6 +240,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "automatic-objects: ok\n")
 
+    def test_narrow_integer_values_preserve_width_promotion_and_fixed_abi(self):
+        result = subprocess.run(
+            [str(self.contract_path), "narrow-values", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "narrow-values: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()
