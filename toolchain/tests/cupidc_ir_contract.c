@@ -8529,13 +8529,36 @@ static int run_active_leaf(const char *host_root) {
           "CupidC IR lowering does not yet support this value type",
           "over-aligned automatic local") ||
       !parse_source(job, "/array-local.c", array_local_source,
-                    &array_local_unit) ||
-      !expect_ir_failure(
-          job, &array_local_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "automatic string initializer")) {
+                    &array_local_unit)) {
     goto cleanup;
+  }
+  {
+    ctool_u32 value_binding = find_block_binding(&array_local_unit, "value");
+    fingerprint = unit_fingerprint(&array_local_unit);
+    diagnostic_count = ctool_job_diagnostic_count(job);
+    (void)memset(&ir, 0xa5, sizeof(ir));
+    status = ctool_c_lower_ir(job, &array_local_unit, &ir);
+    if (!check_status(status, CTOOL_OK, "automatic string initializer") ||
+        ctool_job_diagnostic_count(job) != diagnostic_count ||
+        unit_fingerprint(&array_local_unit) != fingerprint ||
+        value_binding == CTOOL_C_AST_NONE || ir.function_count != 1u ||
+        ir.instruction_count != 6u || ir.instructions == NULL ||
+        ir.instructions[0].kind !=
+            CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+        ir.instructions[0].reference != value_binding ||
+        ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT ||
+        ir.instructions[2].kind !=
+            CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+        ir.instructions[2].reference != value_binding ||
+        ir.instructions[3].kind != CTOOL_C_IR_INSTRUCTION_COPY_STRING ||
+        ir.instructions[3].reference !=
+            array_local_unit.block_bindings[value_binding].initializer ||
+        ir.instructions[4].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+        ir.instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+      (void)ctool_job_render_diagnostics(job);
+      (void)fprintf(stderr, "automatic string initializer IR differs\n");
+      goto cleanup;
+    }
   }
   if (!parse_source(job, "/static-local.c", static_local_source,
                     &static_local_unit)) {
@@ -16700,6 +16723,212 @@ static int validate_string_compound_literal_frontend(
   return 1;
 }
 
+static int validate_string_compound_literal_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 compound_identity = CTOOL_C_AST_NONE;
+  ctool_u32 string_identity = CTOOL_C_AST_NONE;
+  ctool_u32 compound_function = CTOOL_C_AST_NONE;
+  ctool_u32 address_function = CTOOL_C_AST_NONE;
+  ctool_u32 compound_binding = find_binding(unit, "string_literal");
+  ctool_u32 address_binding = find_binding(unit, "string_address");
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || compound_binding == CTOOL_C_AST_NONE ||
+      address_binding == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+      if (compound_identity != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      compound_identity = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_STRING) {
+      if (string_identity != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      string_identity = index;
+    }
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    if (ir->functions[index].binding == compound_binding) {
+      compound_function = index;
+    } else if (ir->functions[index].binding == address_binding) {
+      address_function = index;
+    }
+  }
+  if (compound_identity == CTOOL_C_AST_NONE ||
+      string_identity == CTOOL_C_AST_NONE ||
+      compound_function == CTOOL_C_AST_NONE ||
+      address_function == CTOOL_C_AST_NONE ||
+      unit->expressions[compound_identity].reference >=
+          unit->initializer_count ||
+      unit->initializers[unit->expressions[compound_identity].reference]
+              .kind != CTOOL_C_INITIALIZER_STRING) {
+    (void)fprintf(stderr, "runtime string IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    ctool_u32 compound_address_count = 0u;
+    ctool_u32 string_address_count = 0u;
+    ctool_u32 zero_count = 0u;
+    ctool_u32 copy_count = 0u;
+    ctool_u32 decay_count = 0u;
+    ctool_u32 return_count = 0u;
+    ctool_u32 offset;
+    if (function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction) {
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[function->first_instruction + offset];
+      if (!string_equal(instruction->location.path,
+                        "/compound-literal-string.c") ||
+          !string_equal(instruction->physical_location.path,
+                        "/compound-literal-string.c")) {
+        return 0;
+      }
+      if (instruction->kind ==
+          CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_ADDRESS) {
+        if (instruction->reference != compound_identity ||
+            instruction->type != unit->expressions[compound_identity].type) {
+          return 0;
+        }
+        compound_address_count++;
+      } else if (instruction->kind ==
+                 CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS) {
+        if (instruction->reference != string_identity ||
+            instruction->type != unit->expressions[string_identity].type ||
+            instruction->input_type != CTOOL_C_TYPE_NONE) {
+          return 0;
+        }
+        string_address_count++;
+      } else if (instruction->kind ==
+                 CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT) {
+        if (instruction->type != unit->expressions[compound_identity].type ||
+            instruction->input_type != instruction->type) {
+          return 0;
+        }
+        zero_count++;
+      } else if (instruction->kind ==
+                 CTOOL_C_IR_INSTRUCTION_COPY_STRING) {
+        ctool_u32 initializer =
+            unit->expressions[compound_identity].reference;
+        if (instruction->reference != initializer ||
+            instruction->type != unit->initializers[initializer].type ||
+            instruction->input_type != instruction->type) {
+          return 0;
+        }
+        copy_count++;
+      } else if (instruction->kind ==
+                 CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER) {
+        decay_count++;
+      } else if (instruction->kind ==
+                 CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+        return_count++;
+      }
+    }
+    if (index == compound_function) {
+      if (compound_address_count != 3u || string_address_count != 0u ||
+          zero_count != 1u || copy_count != 1u || decay_count != 1u ||
+          return_count != 1u) {
+        (void)fprintf(stderr,
+                      "string compound literal lowering differs\n");
+        return 0;
+      }
+    } else if (index == address_function) {
+      if (compound_address_count != 0u || string_address_count != 1u ||
+          zero_count != 0u || copy_count != 0u || decay_count != 1u ||
+          return_count != 1u) {
+        (void)fprintf(stderr, "runtime string address lowering differs\n");
+        return 0;
+      }
+    } else {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int expect_runtime_string_payload_rejections(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit) {
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *expressions = NULL;
+  ctool_c_initializer_t *initializers = NULL;
+  ctool_u32 compound_identity = CTOOL_C_AST_NONE;
+  ctool_u32 string_identity = CTOOL_C_AST_NONE;
+  ctool_u32 initializer_identity;
+  ctool_u32 index;
+  int passed = 0;
+  if (unit == NULL || unit->expression_count == 0u ||
+      unit->initializer_count == 0u ||
+      sizeof(*expressions) > SIZE_MAX / (size_t)unit->expression_count ||
+      sizeof(*initializers) > SIZE_MAX / (size_t)unit->initializer_count) {
+    return 0;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    if (unit->expressions[index].kind ==
+        CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+      compound_identity = index;
+    } else if (unit->expressions[index].kind == CTOOL_C_EXPRESSION_STRING) {
+      string_identity = index;
+    }
+  }
+  if (compound_identity == CTOOL_C_AST_NONE ||
+      string_identity == CTOOL_C_AST_NONE ||
+      unit->expressions[compound_identity].reference >=
+          unit->initializer_count) {
+    return 0;
+  }
+  initializer_identity = unit->expressions[compound_identity].reference;
+  expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit->expression_count * sizeof(*expressions));
+  initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)unit->initializer_count * sizeof(*initializers));
+  if (expressions == NULL || initializers == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = *unit;
+  invalid_unit.expressions = expressions;
+  invalid_unit.initializers = initializers;
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(initializers, unit->initializers,
+               (size_t)unit->initializer_count * sizeof(*initializers));
+  initializers[initializer_identity].string_bytes.size++;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "oversized automatic string initializer payload")) {
+    goto cleanup;
+  }
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(initializers, unit->initializers,
+               (size_t)unit->initializer_count * sizeof(*initializers));
+  expressions[string_identity].string_bytes.size--;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "undersized runtime string expression payload")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(initializers);
+  free(expressions);
+  return passed;
+}
+
 static int run_compound_literals(const char *host_root) {
   static const char source[] =
       "typedef unsigned int ctool_u32;\n"
@@ -16749,6 +16978,9 @@ static int run_compound_literals(const char *host_root) {
   static const char string_source[] =
       "char *string_literal(void) {\n"
       "  return (char[]){\"Cupid\"};\n"
+      "}\n"
+      "char *string_address(void) {\n"
+      "  return \"Cupid\";\n"
       "}\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -16764,6 +16996,7 @@ static int run_compound_literals(const char *host_root) {
   ctool_c_ir_unit_t repeated_ir;
   ctool_c_ir_unit_t array_ir;
   ctool_c_ir_unit_t alias_ir;
+  ctool_c_ir_unit_t string_ir;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_u32 identities[4];
@@ -16785,6 +17018,7 @@ static int run_compound_literals(const char *host_root) {
   (void)memset(&repeated_ir, 0xa5, sizeof(repeated_ir));
   (void)memset(&array_ir, 0xa5, sizeof(array_ir));
   (void)memset(&alias_ir, 0xa5, sizeof(alias_ir));
+  (void)memset(&string_ir, 0xa5, sizeof(string_ir));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/compound-literals.c", source, &unit)) {
     goto cleanup;
@@ -16929,12 +17163,13 @@ static int run_compound_literals(const char *host_root) {
   if (!parse_source(job, "/compound-literal-string.c", string_source,
                     &string_unit) ||
       !validate_string_compound_literal_frontend(&string_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &string_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support string-initialized "
-          "compound literals",
-          "string-initialized compound literal")) {
+      (status = ctool_c_lower_ir(job, &string_unit, &string_ir)) !=
+          CTOOL_OK ||
+      !validate_string_compound_literal_ir(&string_unit, &string_ir) ||
+      !expect_runtime_string_payload_rejections(job, &string_unit)) {
+    if (status != CTOOL_OK) {
+      (void)ctool_job_render_diagnostics(job);
+    }
     goto cleanup;
   }
   passed = 1;

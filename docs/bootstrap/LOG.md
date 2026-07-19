@@ -4828,3 +4828,51 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0052, the earlier frontend, storage, initializer, and structure-value ADR extensions, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its limits. No active OS C or assembly source was reduced, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for static-duration compound literals, named automatic aggregate reentry through an escaped alias, remaining runtime values and initializer forms, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC lowers runtime narrow strings
+
+### Decision and active requirement
+
+Hosted CupidC now lowers and emits narrow string values inside function bodies. The existing frontend already represented a runtime literal as a typed `char[N]` expression and a character-array initializer as a semantic `STRING` record. Linear IR previously rejected both forms.
+
+The unchanged active-source guard is `const char hex[] = "0123456789abcdef";` in `drivers/serial.c`. The lowerer now accepts complete fixed arrays whose one-byte element type is `char`, `signed char`, or `unsigned char`. A named automatic array is zeroed first, then receives the exact retained bytes through `COPY_STRING`. Nested string leaves reuse the initializer path for their containing record or array. This preserves implicit zero bytes when an explicit bound is longer than the string.
+
+A normal runtime literal uses `STRING_LITERAL_ADDRESS` and follows the frontend's existing array decay. A string-initialized block-scope compound literal zeroes its persistent object and copies the retained bytes each time the expression is evaluated. These cases do not need aggregate staging because the immutable literal cannot observe the prior automatic object.
+
+The i386 emitter places every runtime use in `.rodata`, gives it a deterministic local `.LCn` symbol, and emits an `R_386_32` text relocation with addend zero. Literal addresses do not reserve frame storage. String copies preserve ESI and EDI, clear the direction flag, and use the existing checked `REP MOVSB` path. Literal pooling remains deferred, so repeated uses receive distinct deterministic symbols.
+
+Malformed retained-byte records fail at the IR boundary. The checks reject missing bytes, inconsistent character-array layouts, unused payload fields, runtime expression lengths that disagree with their type, and initializers that exceed their destination. Failure publishes no partial IR or object, preserves the frozen translation unit, rewinds job storage, and leaves the caller's output empty.
+
+Wide strings, static-duration compound literals, variable-length objects, unions, Cupid classes, stored volatile or atomic graphs, over-alignment, wide runtime scalars, floating values, and explicit bit-field objects remain outside this hosted path. This increment transfers no production object and retires no host dependency. GCC or Clang still builds the shared compiler and normal Cupid OS C objects.
+
+### Contract evidence and corrections
+
+- The former automatic-string negative became an exact six-instruction proof: `LOCAL_ADDRESS`, `ZERO_OBJECT`, `LOCAL_ADDRESS`, `COPY_STRING`, the following integer expression, and `RETURN_VALUE`.
+- The compound-literal contract checks three persistent addresses, zeroing, one exact string copy, array decay, and return. A separate function checks a runtime `STRING_LITERAL_ADDRESS`, array decay, and return.
+- The deterministic ELF32 fixture has four functions, four local literal symbols, nine symbols in total, four `R_386_32` text relocations, and 19 exact `.rodata` bytes. It covers a nested `"abc"` leaf, an explicitly bounded `"hi"` array with a zero tail, a normal `"Cupid"` address, and `(char[]){"Cupid"}`.
+- Repeat emission is byte-identical. The IR and object fixtures also mutate retained-byte payloads and prove that an oversized initializer or undersized runtime expression fails transactionally.
+- The first complete strict hosted run found stale self-source tuples rather than a compiler defect. The measured `cupidc_ir.c` and `cupidc_emit.c` values were refreshed, then Windows Clang, WSL GCC, and WSL Clang passed the complete suite.
+- A declaration added to the repeat-emission fixture first landed in the function-pointer test mode. Strict compilation caught the misplaced state before a contract ran. Moving it into the aggregate-initializer mode restored the intended ownership.
+- Adding the repeat fixture changed the lexical inventory by three `goto` and three `if` occurrences. Regeneration now records 1,128 `goto` and 26,476 `if` occurrences, and the drift gates match those measured values.
+- A combined frontend command reached its 244-second wrapper limit without an assertion failure. That partial run is excluded. The same 92-test frontend and audit selection passed under a longer limit in 389.630 seconds.
+- The rebuilt image could not receive its GUI terminal smoke because this session had no in-app browser backend attached. The connection returned an empty browser inventory. No alternate browser controller was substituted, and this unavailable gate is recorded below.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_ir.c` has 154/4,636/40,009/565/183, and `cupidc_emit.c` has 118/2,995/26,495/408/202. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 designated initializers across 18 files, 1,128 `goto`, 62 `do`, 206 `switch`, 1,579 `case`, 137 `default`, 2,518 `while`, 1,730 `break`, 968 `continue`, 26,476 `if`, 3,624 `else`, 3,149 `for`, 16,200 `return`, and 3,341 `sizeof` occurrences. The audit JSON digest is `aa4e69ca199392cca697bc676299a3cb7d821f863f825fdb33c54f8fddcf8530`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC modules | PASS | The final IR and object selection passes all 42 tests in 18.375 seconds. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes every hosted mode and all 22 assembly demos. The final run takes 9.2 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted suite in 40.3 and 40.2 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass the complete hosted suite with leak detection, strict string checks, and halt-on-error enabled. The runs take 200.7 and 229.9 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze -analyzer-werror` report no diagnostics for the lowerer, emitter, IR contract, and object contract. The final amended object fixture passes both analyzers again in 21.1 and 19.6 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the checked records, and `make check-bootstrap-audit` reproduces them in 47.8 seconds. |
+| Full repository gate | PASS | `make test` passes all 327 tests in 635.598 seconds with one expected platform skip; Make returns in 676.8 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the production image in 26.7 seconds. |
+| Emulator gate | UNAVAILABLE | The in-app browser inventory was empty, so the GUI terminal `/bin/ls.cc` smoke could not run in this session. |
+
+ADR 0053, the earlier frontend, IR, initializer, and compound-literal ADR extensions, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for the remaining C11 and i386 ABI gaps, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.

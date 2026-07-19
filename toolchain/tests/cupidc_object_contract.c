@@ -51,6 +51,9 @@ static const char active_host_release[] =
 static const char active_zero_record_initializer[] =
     "  ctool_c_type_node_t node = {0};";
 
+static const char active_serial_hex_initializer[] =
+    "    const char hex[] = \"0123456789abcdef\";";
+
 static const char active_compound_literal_call[] =
     "  return pp_string_equal(value, (ctool_string_t){literal, size});";
 
@@ -9303,6 +9306,271 @@ static int validate_aggregate_initializer_object(
              0u, "active_zero_record");
 }
 
+static int validate_runtime_string_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, ctool_u32 expected_zero_bytes,
+    ctool_u32 expected_copy_bytes, const char *context) {
+  aggregate_symbolic_value_t registers[8];
+  aggregate_symbolic_value_t stack[AGGREGATE_SYMBOLIC_STACK_LIMIT];
+  ctool_u32 stack_depth = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 zero_count = 0u;
+  ctool_u32 copy_count = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 edi_push_count = 0u;
+  ctool_u32 edi_pop_count = 0u;
+  ctool_u32 esi_push_count = 0u;
+  ctool_u32 esi_pop_count = 0u;
+  int cld_ready = 0;
+  ctool_u32 index;
+  if (job == (ctool_job_t *)0 || text == NULL || function == NULL ||
+      text->contents.data == NULL ||
+      function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      function->section_file_index != text->file_index ||
+      function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    return 0;
+  }
+  for (index = 0u; index < 8u; index++) {
+    registers[index] = aggregate_unknown_value();
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: decode failed at byte %u\n", context,
+                    cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_PUSH &&
+        instruction->operand_count == 1u) {
+      if (stack_depth >= AGGREGATE_SYMBOLIC_STACK_LIMIT) {
+        (void)fprintf(stderr, "%s: symbolic stack overflowed\n", context);
+        return 0;
+      }
+      stack[stack_depth++] =
+          aggregate_read_operand(&instruction->operands[0], registers);
+      if (instruction->operands[0].kind ==
+          CTOOL_X86_OPERAND_REGISTER) {
+        if (aggregate_register_is(instruction->operands[0].as.reg, 7u)) {
+          edi_push_count++;
+        } else if (aggregate_register_is(instruction->operands[0].as.reg,
+                                         6u)) {
+          esi_push_count++;
+        }
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_POP &&
+               instruction->operand_count == 1u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      ctool_u32 destination;
+      if (stack_depth == 0u ||
+          aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) == 0) {
+        (void)fprintf(stderr, "%s: symbolic stack underflowed\n", context);
+        return 0;
+      }
+      registers[destination] = stack[--stack_depth];
+      if (destination == 7u) {
+        edi_pop_count++;
+      } else if (destination == 6u) {
+        esi_pop_count++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_LEA &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[1].kind == CTOOL_X86_OPERAND_MEMORY) {
+      ctool_u32 destination;
+      ctool_i32 frame_offset;
+      if (aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) == 0) {
+        return 0;
+      }
+      if (aggregate_memory_frame_offset(
+              &instruction->operands[1].as.memory, registers,
+              &frame_offset) != 0) {
+        registers[destination].kind = AGGREGATE_SYMBOLIC_FRAME_ADDRESS;
+        registers[destination].frame_offset = frame_offset;
+        registers[destination].bits = 0u;
+      } else {
+        registers[destination] = aggregate_unknown_value();
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      ctool_u32 destination;
+      if (aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) != 0) {
+        registers[destination] =
+            aggregate_read_operand(&instruction->operands[1], registers);
+      }
+    } else if ((instruction->mnemonic == CTOOL_X86_MN_ADD ||
+                instruction->mnemonic == CTOOL_X86_MN_SUB) &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      ctool_u32 destination;
+      aggregate_symbolic_value_t amount =
+          aggregate_read_operand(&instruction->operands[1], registers);
+      if (aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) != 0) {
+        if (instruction->mnemonic == CTOOL_X86_MN_SUB &&
+            instruction->operands[1].kind ==
+                CTOOL_X86_OPERAND_REGISTER &&
+            aggregate_register_is(instruction->operands[1].as.reg,
+                                  destination)) {
+          registers[destination].kind = AGGREGATE_SYMBOLIC_CONSTANT;
+          registers[destination].bits = 0u;
+        } else if (amount.kind == AGGREGATE_SYMBOLIC_CONSTANT) {
+          if (aggregate_adjust_symbolic_value(
+                  &registers[destination],
+                  instruction->mnemonic == CTOOL_X86_MN_ADD
+                      ? (ctool_i32)amount.bits
+                      : -(ctool_i32)amount.bits) == 0) {
+            return 0;
+          }
+        } else {
+          registers[destination] = aggregate_unknown_value();
+        }
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_XOR &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[1].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      ctool_u32 destination;
+      if (aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) != 0) {
+        if (aggregate_register_is(instruction->operands[1].as.reg,
+                                  destination)) {
+          registers[destination].kind = AGGREGATE_SYMBOLIC_CONSTANT;
+          registers[destination].bits = 0u;
+        } else {
+          registers[destination] = aggregate_unknown_value();
+        }
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_CLD) {
+      cld_ready = 1;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_STOSB) {
+      if (instruction->prefixes != CTOOL_X86_PREFIX_REP || cld_ready == 0 ||
+          expected_zero_bytes == 0u || zero_count != 0u ||
+          registers[7].kind != AGGREGATE_SYMBOLIC_FRAME_ADDRESS ||
+          registers[1].kind != AGGREGATE_SYMBOLIC_CONSTANT ||
+          registers[1].bits != expected_zero_bytes ||
+          registers[0].kind != AGGREGATE_SYMBOLIC_CONSTANT ||
+          registers[0].bits != 0u) {
+        (void)fprintf(stderr, "%s: string destination zeroing differs\n",
+                      context);
+        return 0;
+      }
+      zero_count++;
+      cld_ready = 0;
+      registers[1].bits = 0u;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOVSB) {
+      if (instruction->prefixes != CTOOL_X86_PREFIX_REP || cld_ready == 0 ||
+          expected_copy_bytes == 0u || copy_count != 0u ||
+          registers[1].kind != AGGREGATE_SYMBOLIC_CONSTANT ||
+          registers[1].bits != expected_copy_bytes ||
+          (expected_zero_bytes != 0u && zero_count != 1u)) {
+        (void)fprintf(stderr, "%s: retained string copy differs\n", context);
+        return 0;
+      }
+      copy_count++;
+      cld_ready = 0;
+      registers[1].bits = 0u;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != function->size || return_count != 1u ||
+      zero_count != (expected_zero_bytes == 0u ? 0u : 1u) ||
+      copy_count != (expected_copy_bytes == 0u ? 0u : 1u) ||
+      edi_push_count != zero_count + copy_count ||
+      edi_pop_count != edi_push_count || esi_push_count != copy_count ||
+      esi_pop_count != esi_push_count) {
+    (void)fprintf(stderr, "%s: runtime string inventory differs\n",
+                  context);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_runtime_string_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_rodata[] = {
+      'a', 'b', 'c', 0u, 'h', 'i', 0u, 'C', 'u', 'p',
+      'i', 'd', 0u, 'C', 'u', 'p', 'i', 'd', 0u};
+  static const char *const function_names[] = {
+      "string_leaf", "string_tail", "string_address", "string_compound"};
+  static const char *const literal_names[] = {
+      ".LC0", ".LC1", ".LC2", ".LC3"};
+  static const ctool_u32 literal_offsets[] = {0u, 4u, 7u, 13u};
+  static const ctool_u32 literal_sizes[] = {4u, 3u, 6u, 6u};
+  static const ctool_u32 zero_sizes[] = {8u, 6u, 0u, 6u};
+  static const ctool_u32 copy_sizes[] = {4u, 3u, 0u, 6u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  ctool_u32 index;
+  if (job == (ctool_job_t *)0 || text == NULL || rodata == NULL ||
+      rel_text == NULL || text->contents.data == NULL ||
+      rodata->contents.data == NULL || object->symbol_count != 9u ||
+      object->relocation_count != 4u || object->relocations == NULL ||
+      text->relocation_count != 4u ||
+      rodata->contents.size != (ctool_u32)sizeof(expected_rodata) ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0) {
+    (void)fprintf(stderr, "runtime string object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 4u; index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    const ctool_elf32_symbol_t *literal =
+        find_symbol(object, literal_names[index]);
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (function == NULL || literal == NULL || function->size == 0u ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        literal->binding != CTOOL_ELF32_BIND_LOCAL ||
+        literal->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+        literal->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        literal->section_file_index != rodata->file_index ||
+        literal->value != literal_offsets[index] ||
+        literal->size != literal_sizes[index] ||
+        relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset < function->value ||
+        relocation->offset > function->value + function->size - 4u ||
+        relocation->symbol_file_index != literal->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE || relocation->addend != 0 ||
+        !validate_runtime_string_function(
+            job, text, function, zero_sizes[index], copy_sizes[index],
+            function_names[index])) {
+      (void)fprintf(stderr, "runtime string object %u differs\n", index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int run_aggregate_initializer_object(const char *host_root) {
   static const char source[] =
       "typedef unsigned int ctool_u32;\n"
@@ -9337,7 +9605,17 @@ static int run_aggregate_initializer_object(const char *host_root) {
       "typedef struct { char text[4]; ctool_u32 value; } string_record_t;\n"
       "ctool_u32 string_leaf(void) {\n"
       "  string_record_t record = {\"abc\", 1u};\n"
-      "  return record.value;\n"
+      "  return record.value + record.text[3];\n"
+      "}\n"
+      "ctool_u32 string_tail(void) {\n"
+      "  char text[6] = \"hi\";\n"
+      "  return text[5];\n"
+      "}\n"
+      "char *string_address(void) {\n"
+      "  return \"Cupid\";\n"
+      "}\n"
+      "char *string_compound(void) {\n"
+      "  return (char[]){\"Cupid\"};\n"
       "}\n";
   static const char bit_field_source[] =
       "typedef unsigned int ctool_u32;\n"
@@ -9361,6 +9639,7 @@ static int run_aggregate_initializer_object(const char *host_root) {
   ctool_buffer_t *output = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t string_unit;
+  ctool_c_translation_unit_t invalid_string_unit;
   ctool_c_translation_unit_t bit_field_unit;
   ctool_c_translation_unit_t record_expression_unit;
   unit_snapshot_t snapshot;
@@ -9368,13 +9647,21 @@ static int run_aggregate_initializer_object(const char *host_root) {
   ctool_elf32_object_t object;
   ctool_bytes_t bytes;
   ctool_u8 *first_object = NULL;
+  ctool_u8 *string_object = NULL;
+  ctool_c_initializer_t *invalid_string_initializers = NULL;
+  ctool_c_expression_t *invalid_string_expressions = NULL;
   ctool_u32 first_object_size = 0u;
+  ctool_u32 string_object_size = 0u;
+  ctool_u32 string_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 string_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
   ctool_arena_mark_t mark;
   ctool_u32 diagnostic_count;
   ctool_status_t status;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&string_unit, 0, sizeof(string_unit));
+  (void)memset(&invalid_string_unit, 0, sizeof(invalid_string_unit));
   (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
   (void)memset(&record_expression_unit, 0,
                sizeof(record_expression_unit));
@@ -9444,14 +9731,107 @@ static int run_aggregate_initializer_object(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !active_source_contains(
+          job, "/drivers/serial.c", "load active serial source",
+          "the active automatic hexadecimal string changed",
+          active_serial_hex_initializer, NULL) ||
       !parse_source(job, "/aggregate-string-leaf.c", string_source,
                     &string_unit) ||
+      string_unit.function_definition_count != 4u ||
+      !expect_object_success_preserves_unit(
+          job, &string_unit, output, "runtime automatic strings")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  string_object_size = bytes.size;
+  string_object = (ctool_u8 *)malloc((size_t)string_object_size);
+  if (string_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(string_object, bytes.data, (size_t)string_object_size);
+  object_source.path.text = ctool_string("/runtime-automatic-strings.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read runtime string object") ||
+      !validate_runtime_string_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &string_unit, output, "repeat runtime automatic strings")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  if (bytes.size != string_object_size ||
+      memcmp(bytes.data, string_object, (size_t)bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "runtime automatic string object is not deterministic\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < string_unit.initializer_count; index++) {
+    if (string_unit.initializers[index].kind ==
+            CTOOL_C_INITIALIZER_STRING &&
+        string_initializer == CTOOL_C_AST_NONE) {
+      string_initializer = index;
+    }
+  }
+  for (index = 0u; index < string_unit.expression_count; index++) {
+    if (string_unit.expressions[index].kind == CTOOL_C_EXPRESSION_STRING &&
+        string_expression == CTOOL_C_AST_NONE) {
+      string_expression = index;
+    }
+  }
+  if (string_initializer == CTOOL_C_AST_NONE ||
+      string_expression == CTOOL_C_AST_NONE ||
+      sizeof(*invalid_string_initializers) >
+          SIZE_MAX / (size_t)string_unit.initializer_count ||
+      sizeof(*invalid_string_expressions) >
+          SIZE_MAX / (size_t)string_unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_string_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)string_unit.initializer_count *
+      sizeof(*invalid_string_initializers));
+  invalid_string_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)string_unit.expression_count *
+      sizeof(*invalid_string_expressions));
+  if (invalid_string_initializers == NULL ||
+      invalid_string_expressions == NULL) {
+    goto cleanup;
+  }
+  invalid_string_unit = string_unit;
+  invalid_string_unit.initializers = invalid_string_initializers;
+  invalid_string_unit.expressions = invalid_string_expressions;
+  (void)memcpy(invalid_string_initializers, string_unit.initializers,
+               (size_t)string_unit.initializer_count *
+                   sizeof(*invalid_string_initializers));
+  (void)memcpy(invalid_string_expressions, string_unit.expressions,
+               (size_t)string_unit.expression_count *
+                   sizeof(*invalid_string_expressions));
+  invalid_string_initializers[string_initializer].string_bytes.size++;
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
       !expect_object_failure_preserves_unit(
-          job, &string_unit, output, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support string leaves in "
-          "automatic aggregate initializer lists",
-          "automatic aggregate string leaf") ||
+          job, &invalid_string_unit, output, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "oversized automatic string initializer object")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_string_initializers, string_unit.initializers,
+               (size_t)string_unit.initializer_count *
+                   sizeof(*invalid_string_initializers));
+  (void)memcpy(invalid_string_expressions, string_unit.expressions,
+               (size_t)string_unit.expression_count *
+                   sizeof(*invalid_string_expressions));
+  invalid_string_expressions[string_expression].string_bytes.size--;
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_string_unit, output, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "undersized runtime string expression object") ||
       ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
       !parse_source(job, "/aggregate-bit-field-leaf.c", bit_field_source,
                     &bit_field_unit) ||
@@ -9472,6 +9852,9 @@ static int run_aggregate_initializer_object(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_string_expressions);
+  free(invalid_string_initializers);
+  free(string_object);
   free(first_object);
   dispose_unit_snapshot(&snapshot);
   if (output != (ctool_buffer_t *)0) {

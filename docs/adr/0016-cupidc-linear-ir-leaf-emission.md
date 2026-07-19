@@ -81,3 +81,7 @@ ADR 0037 adds direct identifier labels and `goto`. It validates each function's 
 ### Structure-value ABI extension
 
 A later hosted extension carries complete supported structures through the same typed address/value stack. One structure value occupies one abstract handle. `LOAD` captures an lvalue in instruction-owned frame storage, and structure-returning calls receive their own result slots. `STORE`, `STORE_VALUE`, `DISCARD`, conditional joins, and `RETURN_VALUE` retain their public instruction kinds while applying complete-object copy semantics. The i386 emitter uses `CLD` plus `REP MOVSB`, preserves ESI and EDI, and sends a hidden structure-return pointer at `EBP + 8`. The callee returns that pointer in EAX and selects the shared x86 `RET imm16` form for `RET 4`. The original scalar byte contracts remain unchanged. This extension remains hosted evidence and transfers no production ownership.
+
+### Runtime narrow string extension
+
+ADR 0053 adds `STRING_LITERAL_ADDRESS` and `COPY_STRING`. A runtime literal address retains its absolute frontend expression index, while a copy retains its semantic initializer index and consumes a selected character-array address. The i386 emitter owns each local `.rodata` symbol, emits its `R_386_32` use, and copies initializer bytes with `CLD` plus `REP MOVSB`. Automatic destinations are zeroed first, so bytes beyond the retained string keep their implicit zero value.

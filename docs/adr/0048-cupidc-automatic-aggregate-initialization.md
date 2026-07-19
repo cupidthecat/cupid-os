@@ -46,6 +46,10 @@ Supported structure-valued expression leaves later gained runtime lowering. The 
 
 ## Extension: compound-literal initializers
 
-ADR 0052 reuses the same zero, path, and store walker for a block-scope compound literal, but an aggregate list targets `COMPOUND_LITERAL_STAGING_ADDRESS`. After every explicit initializer expression has run, `COPY_OBJECT` replaces the persistent object named by `COMPOUND_LITERAL_ADDRESS`. This prevents a repeated literal's initializer from erasing the prior object before it reads through an escaped pointer. Scalar and whole-structure expression roots already evaluate before their store and continue to use the expression-initialization path. String-initialized compound literals remain deferred at IR lowering.
+ADR 0052 reuses the same zero, path, and store walker for a block-scope compound literal, but an aggregate list targets `COMPOUND_LITERAL_STAGING_ADDRESS`. After every explicit initializer expression has run, `COPY_OBJECT` replaces the persistent object named by `COMPOUND_LITERAL_ADDRESS`. This prevents a repeated literal's initializer from erasing the prior object before it reads through an escaped pointer. Scalar and whole-structure expression roots already evaluate before their store and continue to use the expression-initialization path. ADR 0053 later adds narrow string roots and leaves through `COPY_STRING`.
 
 Named automatic aggregate declarations still target `LOCAL_ADDRESS` directly. A backward jump over such a declaration can therefore expose the older alias corner case when its initializer reads the prior object through an escaped pointer. Fixing that wider declaration behavior remains separate work under issue #25.
+
+## Extension: runtime narrow strings
+
+ADR 0053 accepts `STRING` roots for automatic character arrays and `STRING` leaves inside supported lists. The complete destination is still zeroed once. Each explicit string path then consumes its selected address through `COPY_STRING`, which copies only the frontend-retained bytes. This keeps trailing array elements zero and preserves the source-order rule for neighboring leaves. The i386 emitter reads the immutable bytes from a deterministic local `.rodata` symbol and uses `CLD` plus `REP MOVSB` while preserving ESI and EDI.

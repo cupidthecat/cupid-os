@@ -35,7 +35,9 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_STAGING_ADDRESS,
-  CTOOL_C_IR_INSTRUCTION_COPY_OBJECT
+  CTOOL_C_IR_INSTRUCTION_COPY_OBJECT,
+  CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COPY_STRING
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -43,6 +45,7 @@ typedef struct {
   /* Value-producing instructions use type for their result. Object-address
    * instructions, aggregate LOAD, STORE, and ZERO_OBJECT use the object type.
    * FUNCTION_ADDRESS retains its function-designator type.
+   * STRING_LITERAL_ADDRESS retains its character-array type.
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
    * result type. */
@@ -56,8 +59,9 @@ typedef struct {
    * retains the duplicated object's type. DEREFERENCE retains its pointer
    * operand type. ADDRESS_OF retains its object or function operand type.
    * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT and
-   * COPY_OBJECT retain aggregate address operand types. ELEMENT_ADDRESS
-   * retains its fixed-array operand type. CALL_DIRECT retains the function
+   * COPY_OBJECT retain aggregate address operand types. COPY_STRING retains
+   * its character-array address operand type. ELEMENT_ADDRESS retains its
+   * fixed-array operand type. CALL_DIRECT retains the function
    * type, while
    * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
    * consumed condition type. */
@@ -73,7 +77,9 @@ typedef struct {
    * absolute frontend expression index of the unnamed automatic object. The
    * staging address is private storage used to finish aggregate initialization
    * before replacing the persistent object. Object offsets and structure
-   * snapshot storage stay private to the emitter. FILE_ADDRESS,
+   * snapshot storage stay private to the emitter. STRING_LITERAL_ADDRESS uses
+   * an absolute frontend expression index. COPY_STRING uses an absolute
+   * semantic initializer index. FILE_ADDRESS,
    * CALL_DIRECT, and
    * FUNCTION_ADDRESS use an absolute file-binding index.
    * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
@@ -195,7 +201,8 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
  * LOCAL_ADDRESS, COMPOUND_LITERAL_ADDRESS,
- * COMPOUND_LITERAL_STAGING_ADDRESS, and FILE_ADDRESS push object addresses.
+ * COMPOUND_LITERAL_STAGING_ADDRESS, STRING_LITERAL_ADDRESS, and FILE_ADDRESS
+ * push object addresses.
  * A referenced automatic scalar receives one target-sized slot.
  * A referenced fixed array or record receives its target size and alignment,
  * up to four-byte alignment. Each compound-literal source site keeps one
@@ -205,6 +212,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * representation after every explicit initializer expression has run.
  * ZERO_OBJECT consumes an aggregate address of input_type and performs
  * semantic zero initialization for the complete object named by type.
+ * COPY_STRING consumes a character-array address and copies the exact bytes
+ * retained by its semantic initializer. The enclosing automatic initializer
+ * first zeroes the complete destination, so array elements beyond the copied
+ * bytes retain C's implicit zero initialization.
  * ELEMENT_ADDRESS consumes a fixed-array address and produces one direct
  * element address. COPY_OBJECT consumes destination and source aggregate
  * addresses. Automatic array and structure

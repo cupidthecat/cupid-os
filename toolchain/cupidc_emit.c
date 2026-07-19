@@ -269,7 +269,7 @@ static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
   return CTOOL_OK;
 }
 
-static ctool_bool cemit_has_text_relocation(
+static ctool_bool cemit_has_binding_text_relocation(
     ctool_c_ir_instruction_kind_t kind) {
   return kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
                  kind == CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
@@ -349,7 +349,7 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
   for (index = 0u; index < context->ir.instruction_count; index++) {
     const ctool_c_ir_instruction_t *instruction =
         &context->ir.instructions[index];
-    if (cemit_has_text_relocation(instruction->kind) == CTOOL_TRUE) {
+    if (cemit_has_binding_text_relocation(instruction->kind) == CTOOL_TRUE) {
       const ctool_c_binding_t *binding;
       if (instruction->reference >= context->unit->binding_count) {
         return cemit_invalid_unit(context, &instruction->location);
@@ -860,8 +860,8 @@ static ctool_status_t cemit_add_relocation(
   return CTOOL_OK;
 }
 
-static ctool_status_t cemit_add_string_literal(
-    cemit_context_t *context, const ctool_c_initializer_t *initializer,
+static ctool_status_t cemit_add_literal_bytes(
+    cemit_context_t *context, ctool_bytes_t bytes,
     ctool_u32 *symbol_out) {
   ctool_elf32_symbol_spec_t *symbol;
   ctool_u32 offset = ctool_buffer_view(context->rodata).size;
@@ -869,7 +869,10 @@ static ctool_status_t cemit_add_string_literal(
   if (context->symbol_count >= context->symbol_capacity) {
     return CTOOL_ERR_INTERNAL;
   }
-  status = ctool_buffer_append(context->rodata, initializer->string_bytes);
+  if (bytes.data == (const ctool_u8 *)0 || bytes.size == 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = ctool_buffer_append(context->rodata, bytes);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -884,13 +887,20 @@ static ctool_status_t cemit_add_string_literal(
   symbol->placement = CTOOL_ELF32_SYMBOL_DEFINED;
   symbol->section = CEMIT_SECTION_RODATA;
   symbol->value = offset;
-  symbol->size = initializer->string_bytes.size;
+  symbol->size = bytes.size;
   symbol->alignment = 0u;
   *symbol_out = context->symbol_count++;
   if (context->section_alignment[CEMIT_SECTION_RODATA] < 1u) {
     context->section_alignment[CEMIT_SECTION_RODATA] = 1u;
   }
   return CTOOL_OK;
+}
+
+static ctool_status_t cemit_add_string_literal(
+    cemit_context_t *context, const ctool_c_initializer_t *initializer,
+    ctool_u32 *symbol_out) {
+  return cemit_add_literal_bytes(context, initializer->string_bytes,
+                                 symbol_out);
 }
 
 static ctool_status_t cemit_encode_initializer(
@@ -2484,6 +2494,43 @@ static ctool_bool cemit_ir_type_is_initializable_aggregate_object(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_type_is_character_array(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *array = cemit_unwrapped_type(context, type);
+  const ctool_c_type_node_t *element =
+      array != (const ctool_c_type_node_t *)0 &&
+              array->kind == CTOOL_C_TYPE_ARRAY
+          ? cemit_unwrapped_type(context, array->referenced_type)
+          : (const ctool_c_type_node_t *)0;
+  const ctool_c_type_layout_t *array_layout =
+      type < context->unit->layout.type_count
+          ? &context->unit->layout.types[type]
+          : (const ctool_c_type_layout_t *)0;
+  const ctool_c_type_layout_t *element_layout =
+      array != (const ctool_c_type_node_t *)0 &&
+              array->referenced_type < context->unit->layout.type_count
+          ? &context->unit->layout.types[array->referenced_type]
+          : (const ctool_c_type_layout_t *)0;
+  return array != (const ctool_c_type_node_t *)0 &&
+                 element != (const ctool_c_type_node_t *)0 &&
+                 array_layout != (const ctool_c_type_layout_t *)0 &&
+                 element_layout != (const ctool_c_type_layout_t *)0 &&
+                 array->kind == CTOOL_C_TYPE_ARRAY &&
+                 array->array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+                 array->element_count != 0u &&
+                 (element->kind == CTOOL_C_TYPE_CHAR ||
+                  element->kind == CTOOL_C_TYPE_SIGNED_CHAR ||
+                  element->kind == CTOOL_C_TYPE_UNSIGNED_CHAR) &&
+                 element_layout->is_object == CTOOL_TRUE &&
+                 element_layout->is_complete_object == CTOOL_TRUE &&
+                 element_layout->size == 1u &&
+                 array_layout->is_object == CTOOL_TRUE &&
+                 array_layout->is_complete_object == CTOOL_TRUE &&
+                 array_layout->size == array->element_count
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_ir_type_is_void(
     const cemit_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
@@ -3076,6 +3123,37 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return status;
   }
+  if (ir_instruction->kind ==
+      CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS) {
+    const ctool_c_expression_t *expression;
+    ctool_u32 symbol;
+    if (ir_instruction->reference >= context->unit->expression_count ||
+        ir_instruction->input_type != CTOOL_C_TYPE_NONE ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    expression = &context->unit->expressions[ir_instruction->reference];
+    if (expression->kind != CTOOL_C_EXPRESSION_STRING ||
+        expression->type != ir_instruction->type ||
+        expression->child_count != 0u ||
+        expression->first_child != CTOOL_C_AST_NONE ||
+        expression->reference != CTOOL_C_AST_NONE ||
+        expression->string_bytes.data == (const ctool_u8 *)0 ||
+        expression->string_bytes.size == 0u ||
+        cemit_ir_type_is_character_array(
+            context, ir_instruction->type) == CTOOL_FALSE ||
+        ir_instruction->type >= context->unit->layout.type_count ||
+        expression->string_bytes.size !=
+            context->unit->layout.types[ir_instruction->type].size) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_add_literal_bytes(
+        context, expression->string_bytes, &symbol);
+    return status == CTOOL_OK ? cemit_x86_push_symbol(context, symbol)
+                              : status;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT) {
     const ctool_c_type_layout_t *layout =
         ir_instruction->type < context->unit->layout.type_count
@@ -3147,6 +3225,56 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     if (status == CTOOL_OK) {
       status = cemit_x86_copy_edx_to_eax(context, layout->size);
+    }
+    return status;
+  }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_COPY_STRING) {
+    const ctool_c_initializer_t *initializer;
+    const ctool_c_type_layout_t *layout;
+    ctool_u32 symbol;
+    if (ir_instruction->reference >= context->unit->initializer_count ||
+        ir_instruction->input_type != ir_instruction->type ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->integer_bits != 0u ||
+        cemit_ir_type_is_character_array(
+            context, ir_instruction->type) == CTOOL_FALSE ||
+        ir_instruction->type >= context->unit->layout.type_count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    initializer =
+        &context->unit->initializers[ir_instruction->reference];
+    layout = &context->unit->layout.types[ir_instruction->type];
+    if (initializer->kind != CTOOL_C_INITIALIZER_STRING ||
+        initializer->type != ir_instruction->type ||
+        initializer->expression != CTOOL_C_AST_NONE ||
+        initializer->integer_bits != 0u ||
+        initializer->string_bytes.data == (const ctool_u8 *)0 ||
+        initializer->string_bytes.size == 0u ||
+        initializer->string_bytes.size > layout->size ||
+        initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+        initializer->address_reference != CTOOL_C_AST_NONE ||
+        initializer->address_addend != 0 ||
+        initializer->first_element != CTOOL_C_AST_NONE ||
+        initializer->element_count != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_add_literal_bytes(
+        context, initializer->string_bytes, &symbol);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_push_symbol(context, symbol);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_copy_edx_to_eax(
+          context, initializer->string_bytes.size);
     }
     return status;
   }
@@ -4118,6 +4246,7 @@ static ctool_status_t cemit_ir_stack_effect(
     case CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS:
     case CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_ADDRESS:
     case CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_STAGING_ADDRESS:
+    case CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS:
     case CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS:
     case CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS:
       produced = 1u;
@@ -4172,6 +4301,7 @@ static ctool_status_t cemit_ir_stack_effect(
     case CTOOL_C_IR_INSTRUCTION_RETURN_VALUE:
     case CTOOL_C_IR_INSTRUCTION_DISCARD:
     case CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT:
+    case CTOOL_C_IR_INSTRUCTION_COPY_STRING:
       consumed = 1u;
       break;
     case CTOOL_C_IR_INSTRUCTION_JUMP:
@@ -4846,7 +4976,11 @@ ctool_status_t ctool_c_emit_object(
     for (index = 0u; index < context.ir.instruction_count; index++) {
       const ctool_c_ir_instruction_t *instruction =
           &context.ir.instructions[index];
-      if (cemit_has_text_relocation(instruction->kind) == CTOOL_TRUE ||
+      if (cemit_has_binding_text_relocation(instruction->kind) ==
+              CTOOL_TRUE ||
+          instruction->kind ==
+              CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS ||
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_COPY_STRING ||
           (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS &&
            instruction->reference < unit->block_binding_count &&
            unit->block_bindings[instruction->reference].storage ==
@@ -4862,6 +4996,12 @@ ctool_status_t ctool_c_emit_object(
   }
   if (status == CTOOL_OK &&
       cemit_add_overflows(unit->binding_count + unit->initializer_count,
+                          unit->expression_count) == CTOOL_TRUE) {
+    status = CTOOL_ERR_OVERFLOW;
+  }
+  if (status == CTOOL_OK &&
+      cemit_add_overflows(unit->binding_count + unit->initializer_count +
+                              unit->expression_count,
                           block_static_count) == CTOOL_TRUE) {
     status = CTOOL_ERR_OVERFLOW;
   }
@@ -4872,7 +5012,7 @@ ctool_status_t ctool_c_emit_object(
   }
   symbol_capacity = status == CTOOL_OK
                         ? unit->binding_count + unit->initializer_count +
-                              block_static_count
+                              unit->expression_count + block_static_count
                         : 0u;
   context.symbol_capacity = symbol_capacity;
   context.relocation_capacity =
