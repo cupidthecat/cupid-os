@@ -4526,3 +4526,50 @@ This increment transfers no production C object and retires no host dependency. 
 The root README, bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, wiki, CTXT manual, and ADR 0046 describe the capability and its limits. No active OS C or assembly source, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Boolean mutation, aggregate initialization and values, narrow bit fields, atomic access, 64-bit integers, floating values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-18: CupidC lowers explicit casts to void
+
+### Decision and active-source requirement
+
+Hosted CupidC now lowers an explicit cast to `void` after evaluating its operand once. A represented integer, object pointer, or function pointer leaves one value for typed `DISCARD`. A `void` operand leaves no value, so the cast publishes no extra instruction. In both cases the cast finishes at its incoming abstract-stack depth and has no result.
+
+The complete unchanged `ctool_host_allocate` and `ctool_host_release` helpers guard the active requirement. Their `(void)context` and `(void)bytes` statements remain ordinary C. CupidC accepts those functions without source changes.
+
+This rule does not create a target conversion policy for function pointers. Explicit function pointer casts that produce values remain unsupported. Wide integer, floating, aggregate, and atomic operands still stop at their existing evaluation boundaries because a cast to `void` cannot skip the operand.
+
+No user question was needed. The active source, frozen frontend types, abstract-stack contract, and existing `DISCARD` instruction determine the behavior.
+
+### Contract evidence and corrections
+
+- The first focused IR test stopped at the former unsupported-type diagnostic for `(void)sink()`. This is the red semantic result. The object test first returned its usage error because the `void-casts` mode did not exist, which is the red object-contract result.
+- The focused fixture publishes 16 exact IR instructions with a maximum stack depth of one. It covers a four-byte integer parameter, object pointer, function pointer, volatile byte object, scalar-returning direct call, and void-returning direct call. Every public instruction field and both exact source locations are pinned.
+- The complete unchanged host-allocation functions publish 18 IR instructions, including three typed discards, two direct calls, and one integer conversion. Both functions finish at a maximum stack depth of one.
+- The deterministic object contains one 46-byte function, three symbols, and one `R_386_PC32` relocation at text offset 40. The relocation names `sink` with addend `-4`. Shared decoding pins all 23 instructions, and repeated emission is byte-identical.
+- Wide, floating, record, and atomic operands keep the unsupported-type diagnostic and transactional rollback. A copied cast node with an operator payload receives the invalid-unit diagnostic without changing the frozen frontend unit.
+- Initial Spec review found that the volatile load and discard locations were not pinned as fully as the exact-IR claim required. The contract now checks the qualified input type, unqualified value type, every public field, and exact logical and physical locations. Follow-up Spec review found no remaining mismatch.
+- Initial Standards and Spec review both found the missing chronological entry. This entry closes that finding. The expanded focused run also exposed stale lexical inventory assertions for `return`, `for`, `if`, `else`, `goto`, and `sizeof`; those drift gates now match the regenerated manifest. Follow-up Standards review is clean.
+- Re-parsing the changed implementation updates the `cupidc_ir.c` source-shape tuple to 134 definitions, 3,786 statements, 32,263 expressions, 468 block bindings, and 147 initializers.
+
+### Audit and verification
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. Its lexical inventory contains 616 direct designated initializers across 18 files, 1,009 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,504 `while`, 1,706 `break`, 929 `continue`, 25,521 `if`, 3,488 `else`, 3,062 `for`, 15,656 `return`, and 3,178 `sizeof` occurrences. The active-source digest is `0a6e6b65a7fc990ca3f895577f381d54ca293aee884a1265c396b31d2fe014e0`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red tests | PASS | The IR test first stopped at the old unsupported-type boundary for `(void)sink()`. The object test first stopped because its new contract mode was absent. |
+| Focused CupidC contracts | PASS AFTER DRIFT CORRECTION | The frontend, IR, and object modules pass all 76 tests in 22.558 seconds. The focused audit-drift fixture passes separately in 118.470 seconds after its checked counts were refreshed. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes the complete strict Clang suite, including both `void-casts` modes and all 22 assembly demos. The final repository gate below reruns the reviewed contract. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted suite in 75.04 and 73.19 seconds. After review, both compilers rebuild the amended IR contract and pass `void-casts` again in 2.98 and 3.08 seconds including the focused run. |
+| Sanitizers | PASS AFTER ONE EXCLUDED TIMEOUT | Fresh, visibly instrumented GCC and Clang ASan and UBSan builds pass both affected modes without diagnostics. After review, both instrumented trees rebuild the amended IR contract in 19.46 and 21.40 seconds and pass it again in 0.05 and 0.04 seconds. An earlier Clang wrapper reached the end of Make output but returned 124 at its 60-second deadline, so it is excluded from evidence. |
+| Static analysis | PASS | Real GCC `-fanalyzer` compiles and Clang `--analyze` runs cover `cupidc_ir.c` plus both affected C contracts without diagnostics. Their per-file totals are 112.15 and 43.66 seconds. The amended IR contract passes final rechecks in 60.66 and 4.45 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards and Spec review required this chronological entry and complete IR location evidence. Both findings are fixed, and both follow-up reviews report no remaining issue. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the checked records in 36.589 seconds. `make check-bootstrap-audit` reproduces them in 38.526 seconds. |
+| Full repository gate | PASS | `make test` passes all 318 tests in 539.917 seconds with one expected skip and returns from Make in 579.945 seconds after reproducing the checked audit. |
+| Production image build | PASS | `make all` rebuilds the normal CupidASM, CupidLD, CupidObj, kernel, embedded documentation, and disk-image path in 25.833 seconds. |
+| Emulator gate | NOT RUN | This hosted capability changes no production compiler, kernel object, image format, boot path, runtime behavior, or ABI owner. The production image build checks the unaffected normal path without making a runtime claim. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler path and the normal root and user C objects. The private in-kernel compiler remains the runtime JIT and AOT path.
+
+The root README, bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, wiki, CTXT manual, and ADR 0047 describe the capability and its limits. Four earlier ADRs now distinguish this discard-only cast from value-producing conversions. No active OS C or assembly source, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Boolean mutation, aggregate initialization and values, narrow bit fields, atomic access, 64-bit integers, floating values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.

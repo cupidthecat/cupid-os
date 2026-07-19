@@ -164,6 +164,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "narrow-values: ok\n")
 
+    def test_explicit_void_casts_emit_exact_discard_code(self):
+        result = subprocess.run(
+            [str(self.contract_path), "void-casts", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "void-casts: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

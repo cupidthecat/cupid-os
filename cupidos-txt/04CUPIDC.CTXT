@@ -128,6 +128,10 @@ declared width. Signed byte and word mutation wraps through the low i386 lane
 and then sign-extends the result. Fixed cdecl arguments keep four-byte stack
 slots, and callers and callees normalize narrow results.
 
+An explicit cast to void evaluates its operand once. The shared IR discards a
+represented integer, object pointer, or function pointer value. A void operand
+leaves no value on the abstract stack.
+
 The normal OS build still uses a host C compiler for C objects. The private
 in-kernel CupidC compiler continues to handle embedded runtime compilation.
 Aggregate values and initialization, Boolean mutation, atomic access, 64-bit

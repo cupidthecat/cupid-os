@@ -196,6 +196,8 @@ kernel ABI.
 
 Cupid OS also has a shared CupidC frontend, linear IR, and ELF32 emitter for the self-hosting migration. That path is separate from the in-kernel JIT and AOT compiler described by the rest of this page. It gives referenced uninitialized fixed arrays and records target-sized i386 stack storage with alignment up to four bytes. It also carries one-byte, two-byte, and four-byte integers through locals, file objects, members, indexed access, conditions, conversions, assignment, mutation, and fixed direct or indirect calls. Narrow loads extend into canonical 32-bit values, while stores use the declared byte or word width. Byte and word compound assignments and increment or decrement compute through 32-bit integer promotion, evaluate their destination once, and store once at the declared width. Signed byte and word mutation wraps through the low i386 lane and then sign-extends the result. Fixed cdecl arguments keep four-byte stack slots, and callers and callees normalize narrow results.
 
+The shared path also lowers explicit casts to `void`. It evaluates the operand once, discards a represented integer, object pointer, or function pointer value, and leaves a `void` operand off the abstract stack.
+
 The normal OS build still uses a host C compiler for its C objects. The private in-kernel CupidC compiler still handles embedded runtime compilation. Aggregate values and initialization, Boolean mutation, atomic access, 64-bit integers and floating-point values, narrow bit fields, variadic calls, 16-byte call-site alignment, and production integration remain unfinished in the shared path.
 
 ### Global Variables

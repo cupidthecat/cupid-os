@@ -31,6 +31,25 @@ static const char active_signed_bits[] =
     "  return -(ctool_i32)((~value) + 1u);\n"
     "}";
 
+static const char active_host_release[] =
+    "static void ctool_host_release(void *context, void *allocation,\n"
+    "                               ctool_u32 bytes) {\n"
+    "  (void)context;\n"
+    "  (void)bytes;\n"
+    "  free(allocation);\n"
+    "}\n";
+
+static const char void_cast_object_source[] =
+    "typedef unsigned int u32;\n"
+    "typedef u32 (*callback_t)(u32);\n"
+    "extern void sink(void);\n"
+    "void discard_values(u32 value, u32 *pointer, callback_t callback) {\n"
+    "  (void)value;\n"
+    "  (void)pointer;\n"
+    "  (void)callback;\n"
+    "  (void)sink();\n"
+    "}\n";
+
 static const char switch_object_source[] =
     "typedef enum {\n"
     "  CTOOL_C_STORAGE_NONE = 0,\n"
@@ -452,7 +471,11 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
          active_source_contains(
              job, "/toolchain/cupidld.c", "load active linker source",
              "the active linker selector callback changed",
-             active_linker_selector_call, NULL);
+             active_linker_selector_call, NULL) &&
+         active_source_contains(
+             job, "/toolchain/ctool_host.c", "load active host source",
+             "the active host release helper changed", active_host_release,
+             NULL);
 }
 
 static char *make_align_up_fixture(void) {
@@ -5160,9 +5183,6 @@ static int run_static_data(const char *host_root) {
       "int wide_logical_not(void) { return !1LL; }\n";
   static const char wide_cast_text[] =
       "int wide_cast(int value) { return (long long)value; }\n";
-  static const char void_cast_text[] =
-      "extern void sink(void);\n"
-      "void discard_sink(void) { (void)sink(); }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -5327,7 +5347,6 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t wide_cast_unit;
-  ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
   ctool_c_translation_unit_t invalid_unit;
@@ -5468,7 +5487,6 @@ static int run_static_data(const char *host_root) {
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
   (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
-  (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
@@ -7136,13 +7154,6 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide integer cast object") ||
-      !parse_source(job, "/void-cast.c", void_cast_text,
-                    &void_cast_unit) ||
-      !expect_object_failure(
-          job, &void_cast_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "void cast of void call object") ||
       !parse_source(job, "/external-inline.c", external_inline_text,
                     &external_inline_unit) ||
       !expect_object_failure(
@@ -10415,6 +10426,202 @@ cleanup:
   return 1;
 }
 
+static int validate_void_cast_object(ctool_job_t *job,
+                                     const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u,
+      0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0x50u, 0x58u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *sink = find_symbol(object, "sink");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "discard_values");
+  if (text == NULL || rel_text == NULL || sink == NULL || function == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_count != 1u || object->symbol_count != 3u ||
+      object->relocation_count != 1u ||
+      !symbol_matches(sink, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED,
+                      CTOOL_ELF32_NO_SECTION, 0u, 0u) ||
+      !symbol_matches(function, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      (ctool_u32)sizeof(function_bytes)) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 40u ||
+      object->relocations[0].symbol_file_index != sink->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != -4 ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes),
+          (const ctool_u32 *)0, 0u, "void-cast discard_values")) {
+    (void)fprintf(stderr, "void-cast object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_void_cast_object(const char *host_root) {
+  static const char wide_source[] =
+      "void discard_wide(long long *value) { (void)*value; }\n";
+  static const char float_source[] =
+      "void discard_float(volatile float *value) { (void)*value; }\n";
+  static const char record_source[] =
+      "struct pair { unsigned int left; unsigned int right; };\n"
+      "void discard_record(struct pair *value) { (void)*value; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t float_unit;
+  ctool_c_translation_unit_t record_unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 expected_object_size = 0u;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_object_sources_are_unchanged(job) ||
+      !parse_source(job, "/void-cast-object.c", void_cast_object_source,
+                    &unit) ||
+      unit.function_definition_count != 1u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "void-cast object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "void-cast object buffers")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first void-cast object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "first void-cast object emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr, "void-cast object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat void-cast object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "void-cast object emission is not deterministic\n");
+    goto cleanup;
+  }
+
+  object_source.path.text = ctool_string("/void-cast-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read void-cast object") ||
+      !validate_void_cast_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/wide-void-cast-object.c", wide_source,
+                    &wide_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &wide_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide void-cast object operand") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/float-void-cast-object.c", float_source,
+                    &float_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &float_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating void-cast object operand") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/record-void-cast-object.c", record_source,
+                    &record_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &record_unit, second, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "record void-cast object operand")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("void-casts: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -10452,12 +10659,15 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_value_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "void-casts") == 0) {
+    return run_void_cast_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "narrow-mutations|narrow-values "
+                "narrow-mutations|narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;
 }

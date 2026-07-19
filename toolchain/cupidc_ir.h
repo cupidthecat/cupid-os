@@ -206,7 +206,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * STORE consumes the value on top of the stack and the destination address
  * below it, without producing a result.
  * STORE_VALUE consumes the same pair and pushes the stored assignment result.
- * DISCARD consumes one value.
+ * DISCARD consumes one value. An explicit cast to void evaluates its operand
+ * once and produces no result. A represented integer, object pointer, or
+ * function pointer operand emits DISCARD. A void operand leaves the abstract
+ * stack at its incoming depth and emits no extra instruction.
  * CALL_DIRECT consumes its fixed arguments after they have been evaluated in
  * source order. CALL_INDIRECT also consumes the function pointer below those
  * arguments. Argument zero is deepest among the arguments, and the final

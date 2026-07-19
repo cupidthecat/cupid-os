@@ -1767,7 +1767,9 @@ static ctool_status_t cir_lower_cast(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   cir_stack_entry_t source;
+  ctool_u32 base_depth = context->stack_depth;
   ctool_u32 child;
+  ctool_u32 source_type;
   ctool_status_t status;
   if (expression->reference != CTOOL_C_AST_NONE ||
       expression->conversion != CTOOL_C_CONVERSION_NONE ||
@@ -1785,8 +1787,41 @@ static ctool_status_t cir_lower_cast(
       expression->type >= context->unit->layout.type_count) {
     return cir_invalid_unit(context, &expression->location);
   }
+  source_type = context->unit->expressions[child].type;
+  if (cir_type_is_void(context, expression->type) == CTOOL_TRUE) {
+    if (cir_type_is_void(context, source_type) == CTOOL_FALSE &&
+        cir_type_is_represented_scalar(context, source_type) == CTOOL_FALSE) {
+      return cir_unsupported_type(context, &expression->location);
+    }
+    status = cir_lower_expression(context, child, depth + 1u);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cir_type_is_void(context, source_type) == CTOOL_TRUE) {
+      return context->stack_depth == base_depth
+                 ? CTOOL_OK
+                 : cir_invalid_unit(context, &expression->location);
+    }
+    if (context->stack_depth != base_depth + 1u) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_pop(context, &source);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (source.kind != CIR_STACK_VALUE || source.type != source_type ||
+        context->stack_depth != base_depth) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE,
+        source.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  }
   if (cir_type_is_i32_function_pointer(
-          context, context->unit->expressions[child].type) == CTOOL_TRUE ||
+          context, source_type) == CTOOL_TRUE ||
       cir_type_is_i32_function_pointer(context, expression->type) ==
           CTOOL_TRUE) {
     return cir_unsupported_conversion(context, &expression->location);
@@ -1795,7 +1830,7 @@ static ctool_status_t cir_lower_cast(
              context, context->unit->expressions[child].type) == CTOOL_TRUE &&
          cir_type_is_i32_scalar(context, expression->type) == CTOOL_TRUE) ||
         (cir_type_is_represented_integer(
-             context, context->unit->expressions[child].type) == CTOOL_TRUE &&
+             context, source_type) == CTOOL_TRUE &&
          cir_type_is_represented_integer(context, expression->type) ==
              CTOOL_TRUE))) {
     return cir_unsupported_type(context, &expression->location);

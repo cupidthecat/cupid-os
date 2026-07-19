@@ -18,13 +18,13 @@ The `NONE` tag distinguishes an explicit source cast from qualification, integer
 
 The i386 emitter validates the same represented integer boundary and emits no instruction for the cast. Both values already occupy one 32-bit stack slot. Changing signedness changes how later operations interpret those bits, not the bits themselves. Truncation, sign extension, and zero extension would be redundant or incorrect for this same-width case.
 
-Narrow, wide, floating, pointer, and `void` casts remain outside this slice.
+Narrow, wide, floating, pointer, and `void` casts remained outside this slice when it was accepted. ADR 0041 later added represented object-pointer casts, ADR 0045 added represented narrow integer casts, and ADR 0047 adds explicit casts to `void` for represented scalar and `void` operands. Wide, floating, and the remaining value-producing pointer casts are still unsupported.
 
 ## Consequences and evidence
 
 The IR contract composes its fixture from the exact active expression and a reverse signed-to-unsigned cast. The two functions lower to 12 instructions. The first contains complement, addition, the explicit conversion, negation, and return. The reverse cast proves that the rule is not specific to one signedness direction.
 
-A copied cast node carrying an assignment-conversion tag receives the invalid-unit diagnostic without changing the frozen frontend unit. Separate narrow and wide cast fixtures receive the unsupported-type diagnostic. A cast of a void-returning direct call to `void` receives the same public unsupported-type diagnostic without trying to pop a value that the call does not produce.
+A copied cast node carrying an assignment-conversion tag receives the invalid-unit diagnostic without changing the frozen frontend unit. Separate narrow and wide cast fixtures receive the unsupported-type diagnostic. The original contract also rejected a cast of a void-returning direct call to `void`. ADR 0047 replaces that negative case with positive IR and object coverage.
 
 The deterministic ELF32 contract emits both functions in 52 text bytes. Their sizes are 35 and 17 bytes. The object has three symbols, no relocations, and decoded coverage for `NOT`, `ADD`, and `NEG`. The cast itself emits no target instruction. Repeated emission is byte-identical and leaves the frontend unit unchanged.
 

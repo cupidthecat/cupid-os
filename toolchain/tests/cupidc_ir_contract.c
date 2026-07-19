@@ -6635,9 +6635,6 @@ static int run_active_leaf(const char *host_root) {
       "extern inline int extern_inline(void) { return 1; }\n";
   static const char wide_cast_source[] =
       "int wide_cast(int value) { return (long long)value; }\n";
-  static const char void_cast_source[] =
-      "extern void sink(void);\n"
-      "void discard_sink(void) { (void)sink(); }\n";
   static const char wide_call_source[] =
       "int wide_target(long long value);\n"
       "int call_wide(void) { return wide_target(1); }\n";
@@ -6770,7 +6767,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t conversion_unit;
   ctool_c_translation_unit_t signed_bits_unit;
   ctool_c_translation_unit_t wide_cast_unit;
-  ctool_c_translation_unit_t void_cast_unit;
   ctool_c_translation_unit_t call_unit;
   ctool_c_translation_unit_t wide_call_unit;
   ctool_c_translation_unit_t wide_comparison_unit;
@@ -6878,7 +6874,6 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
   (void)memset(&signed_bits_unit, 0, sizeof(signed_bits_unit));
   (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
-  (void)memset(&void_cast_unit, 0, sizeof(void_cast_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
   (void)memset(&wide_bitwise_not_unit, 0,
                sizeof(wide_bitwise_not_unit));
@@ -8802,14 +8797,7 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_cast_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide explicit integer cast") ||
-      !parse_source(job, "/void-cast.c", void_cast_source,
-                    &void_cast_unit) ||
-      !expect_ir_failure(
-          job, &void_cast_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "void cast of void call")) {
+          "wide explicit integer cast")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-call.c", wide_call_source,
@@ -14667,6 +14655,393 @@ cleanup:
   return 1;
 }
 
+static int void_cast_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction, const char *path,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_conversion_kind_t conversion,
+    ctool_u32 reference, ctool_u32 line, ctool_u32 column) {
+  if (instruction->kind == kind && instruction->type == type &&
+      instruction->input_type == input_type &&
+      instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_NONE &&
+      instruction->conversion == conversion &&
+      instruction->reference == reference &&
+      instruction->integer_bits == 0u &&
+      string_equal(instruction->location.path, path) != 0 &&
+      string_equal(instruction->physical_location.path, path) != 0 &&
+      instruction->location.line == line &&
+      instruction->location.column == column &&
+      instruction->physical_location.line == line &&
+      instruction->physical_location.column == column) {
+    return 1;
+  }
+  (void)fprintf(
+      stderr,
+      "void-cast instruction differs: kind %u/%u type %u/%u input %u/%u "
+      "location %u:%u/%u:%u\n",
+      (ctool_u32)instruction->kind, (ctool_u32)kind, instruction->type, type,
+      instruction->input_type, input_type, instruction->location.line,
+      instruction->location.column, line, column);
+  return 0;
+}
+
+static int validate_void_cast_ir(const ctool_c_translation_unit_t *unit,
+                                 const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 byte_binding = find_binding(unit, "byte_state");
+  ctool_u32 byte_type;
+  ctool_u32 byte_value_type;
+  ctool_u32 function_binding = find_binding(unit, "discard_values");
+  ctool_u32 produce_binding = find_binding(unit, "produce");
+  ctool_u32 sink_binding = find_binding(unit, "sink");
+  ctool_u32 first_parameter;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instruction_count != 16u ||
+      ir->instructions == NULL || byte_binding >= unit->binding_count ||
+      function_binding >= unit->binding_count ||
+      produce_binding >= unit->binding_count ||
+      sink_binding >= unit->binding_count) {
+    (void)fprintf(stderr, "void-cast IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->binding != function_binding ||
+      definition->declared_type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "void-cast function definition differs\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  byte_type = unit->bindings[byte_binding].type;
+  if (byte_type >= unit->graph.type_count ||
+      unit->graph.types[byte_type].kind != CTOOL_C_TYPE_QUALIFIED ||
+      unit->graph.types[byte_type].referenced_type >=
+          unit->graph.type_count) {
+    (void)fprintf(stderr, "void-cast volatile byte type differs\n");
+    return 0;
+  }
+  byte_value_type = unit->graph.types[byte_type].referenced_type;
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 3u ||
+      function_type->first_parameter > unit->parameter_count - 3u) {
+    (void)fprintf(stderr, "void-cast function type differs\n");
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  function = &ir->functions[0];
+  instructions = ir->instructions + function->first_instruction;
+  if (function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 16u ||
+      function->maximum_stack_depth != 1u ||
+      string_equal(function->location.path, "/void-casts.c") == 0 ||
+      string_equal(function->physical_location.path, "/void-casts.c") == 0) {
+    (void)fprintf(stderr, "void-cast function record differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 3u; index++) {
+    ctool_u32 base = index * 3u;
+    ctool_u32 type = unit->parameters[first_parameter + index].type;
+    if (!void_cast_instruction_matches(
+            &instructions[base], "/void-casts.c",
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, type,
+            CTOOL_C_TYPE_NONE, CTOOL_C_CONVERSION_NONE,
+            first_parameter + index, 8u + index, 9u) ||
+        !void_cast_instruction_matches(
+            &instructions[base + 1u], "/void-casts.c",
+            CTOOL_C_IR_INSTRUCTION_LOAD, type, type,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE,
+            8u + index, 9u) ||
+        !void_cast_instruction_matches(
+            &instructions[base + 2u], "/void-casts.c",
+            CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE, type,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 8u + index, 3u)) {
+      (void)fprintf(stderr, "void-cast parameter discard %u differs\n",
+                    index);
+      return 0;
+    }
+  }
+  if (!void_cast_instruction_matches(
+          &instructions[9], "/void-casts.c",
+          CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+          byte_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_CONVERSION_NONE, byte_binding, 11u, 9u) ||
+      !void_cast_instruction_matches(
+          &instructions[10], "/void-casts.c", CTOOL_C_IR_INSTRUCTION_LOAD,
+          byte_value_type, byte_type,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 11u, 9u) ||
+      !void_cast_instruction_matches(
+          &instructions[11], "/void-casts.c",
+          CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE,
+          byte_value_type, CTOOL_C_CONVERSION_NONE,
+          CTOOL_C_AST_NONE, 11u, 3u) ||
+      !void_cast_instruction_matches(
+          &instructions[12], "/void-casts.c",
+          CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          unit->graph.types[unit->bindings[produce_binding].type]
+              .referenced_type,
+          unit->bindings[produce_binding].type, CTOOL_C_CONVERSION_NONE,
+          produce_binding, 12u, 16u) ||
+      !void_cast_instruction_matches(
+          &instructions[13], "/void-casts.c",
+          CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE,
+          unit->graph.types[unit->bindings[produce_binding].type]
+              .referenced_type,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 12u, 3u) ||
+      !void_cast_instruction_matches(
+          &instructions[14], "/void-casts.c",
+          CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          unit->graph.types[unit->bindings[sink_binding].type]
+              .referenced_type,
+          unit->bindings[sink_binding].type, CTOOL_C_CONVERSION_NONE,
+          sink_binding, 13u, 13u) ||
+      !void_cast_instruction_matches(
+          &instructions[15], "/void-casts.c",
+          CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+          CTOOL_C_TYPE_NONE, CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 7u,
+          67u)) {
+    (void)fprintf(stderr, "void-cast side-effect stream differs\n");
+    return 0;
+  }
+  if (unit->layout.types[instructions[10].type].size != 1u) {
+    (void)fprintf(stderr, "void-cast volatile byte lost its width\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_active_host_void_cast_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  ctool_u32 calls = 0u;
+  ctool_u32 converts = 0u;
+  ctool_u32 discards = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instruction_count != 18u ||
+      ir->instructions == NULL ||
+      ir->functions[0].instruction_count != 8u ||
+      ir->functions[1].instruction_count != 10u ||
+      ir->functions[0].maximum_stack_depth != 1u ||
+      ir->functions[1].maximum_stack_depth != 1u) {
+    (void)fprintf(stderr, "active host void-cast IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      calls++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
+      converts++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD) {
+      discards++;
+    }
+    if (string_equal(instruction->location.path,
+                     "/active-ctool-host-void-casts.c") == 0 ||
+        string_equal(instruction->physical_location.path,
+                     "/active-ctool-host-void-casts.c") == 0) {
+      (void)fprintf(stderr, "active host void-cast location differs\n");
+      return 0;
+    }
+  }
+  if (calls != 2u || converts != 1u || discards != 3u ||
+      ir->instructions[7].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      ir->instructions[17].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "active host void-cast instruction mix differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_void_casts(const char *host_root) {
+  static const char source_text[] =
+      "typedef unsigned char u8;\n"
+      "typedef unsigned int u32;\n"
+      "typedef u32 (*callback_t)(u32);\n"
+      "extern void sink(void);\n"
+      "extern u32 produce(void);\n"
+      "volatile u8 byte_state;\n"
+      "void discard_values(u32 value, u32 *pointer, callback_t callback) {\n"
+      "  (void)value;\n"
+      "  (void)pointer;\n"
+      "  (void)callback;\n"
+      "  (void)byte_state;\n"
+      "  (void)produce();\n"
+      "  (void)sink();\n"
+      "}\n";
+  static const char active_allocate[] =
+      "static void *ctool_host_allocate(void *context, ctool_u32 bytes) {\n"
+      "  (void)context;\n"
+      "  return malloc((size_t)bytes);\n"
+      "}\n";
+  static const char active_release[] =
+      "static void ctool_host_release(void *context, void *allocation,\n"
+      "                               ctool_u32 bytes) {\n"
+      "  (void)context;\n"
+      "  (void)bytes;\n"
+      "  free(allocation);\n"
+      "}\n";
+  static const char active_source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef unsigned int size_t;\n"
+      "void *malloc(size_t bytes);\n"
+      "void free(void *allocation);\n"
+      "static void *ctool_host_allocate(void *context, ctool_u32 bytes) {\n"
+      "  (void)context;\n"
+      "  return malloc((size_t)bytes);\n"
+      "}\n"
+      "static void ctool_host_release(void *context, void *allocation,\n"
+      "                               ctool_u32 bytes) {\n"
+      "  (void)context;\n"
+      "  (void)bytes;\n"
+      "  free(allocation);\n"
+      "}\n";
+  static const char wide_source[] =
+      "void discard_wide(void) { (void)1LL; }\n";
+  static const char record_source[] =
+      "struct pair { int left; int right; };\n"
+      "struct pair record_state;\n"
+      "void discard_record(void) { (void)record_state; }\n";
+  static const char atomic_source[] =
+      "_Atomic int state;\n"
+      "void discard_atomic(void) { (void)state; }\n";
+  static const char malformed_source[] =
+      "void discard_value(int value) { (void)value; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_path_t active_path;
+  ctool_source_t active_file;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t active_unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t record_unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t malformed_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 diagnostic_count;
+  ctool_u32 cast_index = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job)) {
+    goto cleanup;
+  }
+  active_path.text = ctool_string("/toolchain/ctool_host.c");
+  (void)memset(&active_file, 0xa5, sizeof(active_file));
+  status = ctool_job_load_source(job, &active_path, &active_file);
+  if (!check_status(status, CTOOL_OK, "load active host source") ||
+      active_file.contents.data == NULL ||
+      strstr((const char *)active_file.contents.data, active_allocate) ==
+          NULL ||
+      strstr((const char *)active_file.contents.data, active_release) ==
+          NULL ||
+      !parse_source(job, "/void-casts.c", source_text, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "void cast lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_void_cast_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/active-ctool-host-void-casts.c", active_source,
+                    &active_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&active_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &active_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "active host void casts") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&active_unit) != fingerprint ||
+      !validate_active_host_void_cast_ir(&active_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-void-cast.c", wide_source, &wide_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide void-cast operand") ||
+      !parse_source(job, "/record-void-cast.c", record_source,
+                    &record_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &record_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "record void-cast operand") ||
+      !parse_source(job, "/atomic-void-cast.c", atomic_source,
+                    &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic void-cast operand") ||
+      !parse_source(job, "/malformed-void-cast.c", malformed_source,
+                    &malformed_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < malformed_unit.expression_count; index++) {
+    if (malformed_unit.expressions[index].kind == CTOOL_C_EXPRESSION_CAST) {
+      cast_index = index;
+      break;
+    }
+  }
+  if (cast_index == CTOOL_C_AST_NONE ||
+      (malformed_unit.expression_count != 0u &&
+       sizeof(*invalid_expressions) >
+           SIZE_MAX / (size_t)malformed_unit.expression_count)) {
+    (void)fprintf(stderr, "malformed void-cast fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)malformed_unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "malformed void-cast fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, malformed_unit.expressions,
+               (size_t)malformed_unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[cast_index].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_ADD;
+  invalid_unit = malformed_unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "void cast with an operator payload")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("void-casts: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -14730,6 +15105,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_values(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "void-casts") == 0) {
+    return run_void_casts(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -14739,7 +15117,7 @@ int main(int argc, char **argv) {
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "narrow-values "
+                "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;
 }

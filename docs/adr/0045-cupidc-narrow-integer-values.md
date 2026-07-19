@@ -16,7 +16,7 @@ Loads use `MOVSX` or `MOVZX` from an 8-bit or 16-bit memory operand. Stores use 
 
 Fixed cdecl arguments still occupy four-byte stack slots. A caller canonicalizes a narrow result from AL or AX after either a direct or register-indirect call. A callee canonicalizes its return value before `LEAVE` and `RET`. Keeping the same four-byte slot shape preserves the existing call cleanup and indirect-callee layout while retaining the declared parameter and result types in IR.
 
-Narrow mutation remained outside this decision when it was accepted. ADR 0046 later extends compound assignment and prefix or postfix updates to represented, non-Boolean byte and word objects. Narrow bit-field storage, atomic access, 64-bit integers and floating-point values, aggregate values and initialization, variadic calls, casts involving function pointers, object-pointer casts to or from narrow integers, pointer-to-`_Bool` casts, and 16-byte call-site alignment remain unsupported.
+Narrow mutation remained outside this decision when it was accepted. ADR 0046 later extends compound assignment and prefix or postfix updates to represented, non-Boolean byte and word objects. Narrow bit-field storage, atomic access, 64-bit integers and floating-point values, aggregate values and initialization, variadic calls, value-producing casts involving function pointers, object-pointer casts to or from narrow integers, pointer-to-`_Bool` casts, and 16-byte call-site alignment remain unsupported. ADR 0047 permits a represented function pointer operand only when the cast target is `void`.
 
 ## Consequences and evidence
 
