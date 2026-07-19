@@ -38,7 +38,7 @@ typedef enum {
 typedef struct {
   ctool_c_ir_instruction_kind_t kind;
   /* Value-producing instructions use type for their result. Object-address
-   * instructions, STORE, and ZERO_OBJECT use the destination object type.
+   * instructions, aggregate LOAD, STORE, and ZERO_OBJECT use the object type.
    * FUNCTION_ADDRESS retains its function-designator type.
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
@@ -54,9 +54,9 @@ typedef struct {
    * operand type. ADDRESS_OF retains its object or function operand type.
    * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT
    * retains the aggregate address operand type. ELEMENT_ADDRESS retains its
-   * fixed-array operand type. CALL_DIRECT
-   * retains the function type, while CALL_INDIRECT retains the function
-   * pointer type. BRANCH_ZERO retains its consumed condition type. */
+   * fixed-array operand type. CALL_DIRECT retains the function type, while
+   * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
+   * consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
@@ -64,8 +64,9 @@ typedef struct {
   ctool_c_conversion_kind_t conversion;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index for a
-   * represented scalar or a complete fixed array or record. The target frame
-   * offset stays private to the emitter. FILE_ADDRESS, CALL_DIRECT, and
+   * represented scalar or a complete fixed array or record. Object offsets
+   * and structure snapshot storage stay private to the emitter. FILE_ADDRESS,
+   * CALL_DIRECT, and
    * FUNCTION_ADDRESS use an absolute file-binding index.
    * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
    * ELEMENT_ADDRESS uses a direct fixed-array element index.
@@ -165,9 +166,12 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * Each function owns a contiguous instruction slice and a typed abstract
  * stack that begins and ends empty. Represented one-byte and two-byte integer
  * values occupy canonical 32-bit stack words after signed or unsigned
- * extension. Branch targets are relative to that
- * slice, and every join has the same address/value stack shape on each
- * incoming path. A pre-test while loop uses BRANCH_ZERO for its forward exit
+ * extension. A supported structure value also occupies one abstract stack
+ * entry. The i386 emitter stores its copied bytes in private frame storage,
+ * so temporary addresses do not become part of the public IR. Branch targets
+ * are relative to that slice, and every join has the same address/value stack
+ * shape on each incoming path. A pre-test while loop uses BRANCH_ZERO for its
+ * forward exit
  * and JUMP for its backward edge. A for loop evaluates its optional expression
  * or declaration initializer once, then its optional condition, body, and
  * optional iteration expression in C source order. Declarations in supported
@@ -189,9 +193,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * performs semantic zero initialization for the complete object named by
  * type. ELEMENT_ADDRESS consumes a fixed-array address and produces one
  * direct element address. Automatic array and structure initializer lists
- * zero the complete object once, then evaluate represented scalar expression
- * leaves in source order and store them through ELEMENT_ADDRESS and
- * MEMBER_ADDRESS paths. DUPLICATE_ADDRESS preserves an address while a
+ * zero the complete object once, then evaluate represented scalar or supported
+ * structure expression leaves in source order and store them through
+ * ELEMENT_ADDRESS and MEMBER_ADDRESS paths. DUPLICATE_ADDRESS preserves an
+ * address while a
  * supported integer or pointer compound assignment or update loads and stores
  * the object. This evaluates the destination once. Integer mutation supports
  * non-Boolean scalar objects that occupy one, two, or four bytes. Narrow
@@ -214,19 +219,29 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * first element without emitting a target instruction. POINTER_BINARY scales
  * an integer operand by the pointed-to object size. Pointer subtraction
  * divides the byte difference by that size and produces signed int.
- * STORE consumes the value on top of the stack and the destination address
- * below it, without producing a result.
- * STORE_VALUE consumes the same pair and pushes the stored assignment result.
- * DISCARD consumes one value. An explicit cast to void evaluates its operand
- * once and produces no result. A represented integer, object pointer, or
- * function pointer operand emits DISCARD. A void operand leaves the abstract
- * stack at its incoming depth and emits no extra instruction.
+ * LOAD consumes an object address. A scalar load pushes the loaded value. A
+ * structure load snapshots the complete object and pushes one handle to that
+ * snapshot. STORE consumes the value on top of the stack and the destination
+ * address below it, without producing a result. Structure STORE copies the
+ * complete object. STORE_VALUE consumes the same pair and pushes the stored
+ * scalar value or preserved structure snapshot. DISCARD consumes one value.
+ * An explicit cast to void evaluates its operand once and produces no result.
+ * A represented integer, object pointer, function pointer, or supported
+ * structure operand emits DISCARD. A void operand leaves the abstract stack at
+ * its incoming depth and emits no extra instruction.
  * CALL_DIRECT consumes its fixed arguments after they have been evaluated in
  * source order. CALL_INDIRECT also consumes the function pointer below those
  * arguments. Argument zero is deepest among the arguments, and the final
- * argument is on top. Each fixed cdecl argument uses one four-byte stack slot.
- * Either call pushes one result unless its result type is void. Narrow caller
- * and callee results are normalized from the declared AL or AX lane.
+ * argument is on top. Each argument occupies one abstract stack entry. The
+ * i386 emitter gives scalar arguments one four-byte slot and copies structure
+ * arguments inline, rounded up to four bytes. A structure result uses a hidden
+ * pointer before the explicit arguments. The callee copies into that storage,
+ * returns its address in EAX, and removes the hidden pointer with RET 4. Either
+ * call pushes one result unless its result type is void. Narrow caller and
+ * callee results are normalized from the declared AL or AX lane. Supported
+ * structure values are complete, nonvolatile, nonatomic structures whose
+ * alignment does not exceed four bytes. Structure RETURN_VALUE copies into
+ * the caller-provided result object.
  * Failure zeros the result, rewinds allocations made during the operation,
  * and keeps its structured diagnostic in the job. */
 

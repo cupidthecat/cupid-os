@@ -233,9 +233,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 546u && info.mnemonic_count == 226u &&
+  if (!check_true(info.form_count == 547u && info.mnemonic_count == 226u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x3159218eu,
+                      info.fingerprint == 0x72594e70u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -318,6 +318,7 @@ static int run_integer(void) {
   static const ctool_u8 add_bytes[] = {0x01u, 0xd8u};
   static const ctool_u8 lock_add_bytes[] = {0xf0u, 0x01u, 0x18u};
   static const ctool_u8 call_bytes[] = {0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu};
+  static const ctool_u8 ret_bytes[] = {0xc2u, 0x04u, 0x00u};
   ctool_host_adapter_t adapter;
   ctool_job_t *job;
   ctool_x86_instruction_t insn;
@@ -453,6 +454,34 @@ static int run_integer(void) {
                       encoding.fields[0].reference == 7u &&
                       encoding.fields[0].encoded_addend == -4,
                   "call relocation field")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_RET, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 16u, 16u, constant(4u));
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "return with stack cleanup") ||
+      !bytes_equal(&encoding, ret_bytes, (ctool_u8)sizeof(ret_bytes),
+                   "return cleanup bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(ret_bytes, (ctool_u32)sizeof(ret_bytes)), 0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "return cleanup decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_RET &&
+                      decoded.instruction.operand_count == 1u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_IMMEDIATE &&
+                      decoded.instruction.operands[0].width_bits == 16u &&
+                      decoded.instruction.operands[0].encoding_bits == 16u &&
+                      decoded.instruction.operands[0].as.value.bits == 4u &&
+                      decoded.consumed == sizeof(ret_bytes),
+                  "return cleanup semantics")) {
     ctool_job_close(job);
     return 1;
   }
@@ -1295,6 +1324,7 @@ static int run_active_surface(void) {
 
 static int run_errors(void) {
   static const ctool_u8 truncated[] = {0x0fu};
+  static const ctool_u8 trunc_ret[] = {0xc2u, 0x04u, 0x00u};
   static const ctool_u8 unknown[] = {0xd6u};
   static const ctool_u8 unknown_psraw[] = {0x66u, 0x0fu, 0x71u, 0xe0u,
                                            0x04u};
@@ -1341,7 +1371,8 @@ static int run_errors(void) {
       {trunc_sib, (ctool_u32)sizeof(trunc_sib)},
       {trunc_sse, (ctool_u32)sizeof(trunc_sse)},
       {trunc_far, (ctool_u32)sizeof(trunc_far)},
-      {trunc_group, (ctool_u32)sizeof(trunc_group)}};
+      {trunc_group, (ctool_u32)sizeof(trunc_group)},
+      {trunc_ret, (ctool_u32)sizeof(trunc_ret)}};
   static const struct {
     const char *name;
     const ctool_u8 *bytes;
@@ -1473,6 +1504,30 @@ static int run_errors(void) {
   if (!check_status(status, CTOOL_ERR_INPUT, "psrlw memory") ||
       !check_true(encoding_is_zero(&encoding),
                   "psrlw memory zeroed output")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_RET, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 16u, 16u, constant(0x10000u));
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "return cleanup overflow") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "return cleanup overflow zeroed output")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn.operands[0] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 32u, constant(4u));
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "return cleanup width") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "return cleanup width zeroed output")) {
     ctool_job_close(job);
     return 1;
   }

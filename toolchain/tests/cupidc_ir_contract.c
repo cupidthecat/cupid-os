@@ -8809,8 +8809,8 @@ static int run_active_leaf(const char *host_root) {
           job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "one-byte, two-byte, or four-byte scalar arguments and void or "
-          "represented scalar results",
+          "represented scalar or structure arguments and void, scalar, or "
+          "structure results",
           "wide direct call")) {
     goto cleanup;
   }
@@ -8820,8 +8820,8 @@ static int run_active_leaf(const char *host_root) {
           job, &variadic_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "one-byte, two-byte, or four-byte scalar arguments and void or "
-          "represented scalar results",
+          "represented scalar or structure arguments and void, scalar, or "
+          "structure results",
           "variadic direct call")) {
     goto cleanup;
   }
@@ -8845,8 +8845,8 @@ static int run_active_leaf(const char *host_root) {
           job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic cdecl functions "
-          "with one-byte, two-byte, or four-byte scalar parameters and void or "
-          "represented scalar results",
+          "with represented scalar or structure parameters and void, scalar, "
+          "or structure results",
           "unsupported ABI")) {
     goto cleanup;
   }
@@ -12229,8 +12229,8 @@ static int run_function_pointers(const char *host_root) {
       !expect_ir_failure_preserves_unit(
           job, &variadic_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "one-byte, two-byte, or four-byte scalar arguments and void or "
-          "represented scalar results",
+          "represented scalar or structure arguments and void, scalar, or "
+          "structure results",
           "variadic indirect call")) {
     goto cleanup;
   }
@@ -12239,8 +12239,8 @@ static int run_function_pointers(const char *host_root) {
       !expect_ir_failure_preserves_unit(
           job, &wide_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "one-byte, two-byte, or four-byte scalar arguments and void or "
-          "represented scalar results",
+          "represented scalar or structure arguments and void, scalar, or "
+          "structure results",
           "wide indirect call")) {
     goto cleanup;
   }
@@ -13956,6 +13956,7 @@ static int run_automatic_objects(const char *host_root) {
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t aggregate_assignment_ir;
   ctool_u64 fingerprint;
   ctool_u32 diagnostic_count;
   ctool_status_t status;
@@ -13966,6 +13967,8 @@ static int run_automatic_objects(const char *host_root) {
   (void)memset(&aligned_unit, 0, sizeof(aligned_unit));
   (void)memset(&aggregate_assignment_unit, 0,
                sizeof(aggregate_assignment_unit));
+  (void)memset(&aggregate_assignment_ir, 0xa5,
+               sizeof(aggregate_assignment_ir));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job) ||
       !parse_source(job, "/automatic-objects.c", source, &unit)) {
@@ -14018,12 +14021,33 @@ static int run_automatic_objects(const char *host_root) {
           "over-aligned automatic record") ||
       !parse_source(job, "/automatic-aggregate-assignment.c",
                     aggregate_assignment_source,
-                    &aggregate_assignment_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &aggregate_assignment_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "automatic aggregate assignment")) {
+                    &aggregate_assignment_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&aggregate_assignment_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &aggregate_assignment_unit,
+                            &aggregate_assignment_ir);
+  if (!check_status(status, CTOOL_OK, "automatic aggregate assignment") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&aggregate_assignment_unit) != fingerprint ||
+      aggregate_assignment_ir.function_count != 1u ||
+      aggregate_assignment_ir.instruction_count != 6u ||
+      aggregate_assignment_ir.instructions == NULL ||
+      aggregate_assignment_ir.instructions[0].kind !=
+          CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      aggregate_assignment_ir.instructions[1].kind !=
+          CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      aggregate_assignment_ir.instructions[2].kind !=
+          CTOOL_C_IR_INSTRUCTION_LOAD ||
+      aggregate_assignment_ir.instructions[3].kind !=
+          CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      aggregate_assignment_ir.instructions[4].kind !=
+          CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      aggregate_assignment_ir.instructions[5].kind !=
+          CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)ctool_job_render_diagnostics(job);
+    (void)fprintf(stderr, "automatic aggregate assignment IR differs\n");
     goto cleanup;
   }
   passed = 1;
@@ -15488,6 +15512,7 @@ static int run_void_casts(const char *host_root) {
   ctool_c_translation_unit_t malformed_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t record_ir;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_u32 diagnostic_count;
   ctool_u32 cast_index = CTOOL_C_AST_NONE;
@@ -15496,6 +15521,7 @@ static int run_void_casts(const char *host_root) {
   uint64_t fingerprint;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&record_ir, 0xa5, sizeof(record_ir));
   if (!open_job(host_root, &adapter, &config, &job)) {
     goto cleanup;
   }
@@ -15544,13 +15570,26 @@ static int run_void_casts(const char *host_root) {
           "CupidC IR lowering does not yet support this value type",
           "wide void-cast operand") ||
       !parse_source(job, "/record-void-cast.c", record_source,
-                    &record_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &record_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "record void-cast operand") ||
-      !parse_source(job, "/atomic-void-cast.c", atomic_source,
+                    &record_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&record_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &record_unit, &record_ir);
+  if (!check_status(status, CTOOL_OK, "record void-cast operand") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&record_unit) != fingerprint ||
+      record_ir.function_count != 1u || record_ir.instruction_count != 4u ||
+      record_ir.instructions == NULL ||
+      record_ir.instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      record_ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      record_ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      record_ir.instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)ctool_job_render_diagnostics(job);
+    (void)fprintf(stderr, "record void-cast IR differs\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-void-cast.c", atomic_source,
                     &atomic_unit) ||
       !expect_ir_failure_preserves_unit(
           job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
@@ -15603,6 +15642,222 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("void-casts: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_structure_values(const char *host_root) {
+  static const char source[] =
+      "typedef struct { int left; int right; } pair_t;\n"
+      "pair_t copy_pair(pair_t value) { return value; }\n"
+      "pair_t choose_pair(int condition, pair_t left, pair_t right) {\n"
+      "  return condition ? left : right;\n"
+      "}\n"
+      "pair_t assign_pair(pair_t *target, pair_t value) {\n"
+      "  return *target = value;\n"
+      "}\n"
+      "pair_t chain_pair(pair_t *first, pair_t *second, pair_t value) {\n"
+      "  return *first = *second = value;\n"
+      "}\n"
+      "pair_t initialize_pair(pair_t value) {\n"
+      "  pair_t local = value;\n"
+      "  return copy_pair(local);\n"
+      "}\n"
+      "pair_t indirect_pair(pair_t (*function)(pair_t), pair_t value) {\n"
+      "  return function(value);\n"
+      "}\n"
+      "void discard_pair(pair_t value) { value; }\n";
+  static const char union_source[] =
+      "typedef union { int word; unsigned int bits; } choice_t;\n"
+      "choice_t copy_choice(choice_t value) { return value; }\n";
+  static const char volatile_source[] =
+      "typedef struct { int left; int right; } pair_t;\n"
+      "pair_t read_pair(volatile pair_t *value) { return *value; }\n";
+  static const char aligned_source[] =
+      "typedef struct { int left; int right; } aligned_pair "
+      "__attribute__((aligned(8)));\n"
+      "aligned_pair copy_aligned(aligned_pair value) { return value; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t union_unit;
+  ctool_c_translation_unit_t volatile_unit;
+  ctool_c_translation_unit_t aligned_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 aggregate_loads = 0u;
+  ctool_u32 aggregate_stores = 0u;
+  ctool_u32 aggregate_calls = 0u;
+  ctool_u32 aggregate_returns = 0u;
+  ctool_u32 aggregate_parameters = 0u;
+  ctool_u32 aggregate_discards = 0u;
+  ctool_u32 aggregate_value_stores = 0u;
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_bool aggregate_payloads_valid = CTOOL_TRUE;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&union_unit, 0, sizeof(union_unit));
+  (void)memset(&volatile_unit, 0, sizeof(volatile_unit));
+  (void)memset(&aligned_unit, 0, sizeof(aligned_unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/structure-values.c", source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "structure value lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint || ir.function_count != 7u ||
+      ir.functions == NULL || ir.instructions == NULL) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < ir.instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir.instructions[index];
+    const ctool_c_type_node_t *type =
+        instruction->type < unit.graph.type_count
+            ? &unit.graph.types[instruction->type]
+            : NULL;
+    const ctool_c_type_node_t *input_type =
+        instruction->input_type < unit.graph.type_count
+            ? &unit.graph.types[instruction->input_type]
+            : NULL;
+    while (type != NULL &&
+           (type->kind == CTOOL_C_TYPE_ALIGNED ||
+            type->kind == CTOOL_C_TYPE_QUALIFIED)) {
+      type = type->referenced_type < unit.graph.type_count
+                 ? &unit.graph.types[type->referenced_type]
+                 : NULL;
+    }
+    while (input_type != NULL &&
+           (input_type->kind == CTOOL_C_TYPE_ALIGNED ||
+            input_type->kind == CTOOL_C_TYPE_QUALIFIED)) {
+      input_type = input_type->referenced_type < unit.graph.type_count
+                       ? &unit.graph.types[input_type->referenced_type]
+                       : NULL;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS &&
+        type != NULL && type->kind == CTOOL_C_TYPE_RECORD) {
+      aggregate_parameters++;
+      if (instruction->input_type != CTOOL_C_TYPE_NONE ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference == CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        aggregate_payloads_valid = CTOOL_FALSE;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+               type != NULL && type->kind == CTOOL_C_TYPE_RECORD) {
+      aggregate_loads++;
+      if (input_type != type ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        aggregate_payloads_valid = CTOOL_FALSE;
+      }
+    } else if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE ||
+                instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) &&
+               type != NULL && type->kind == CTOOL_C_TYPE_RECORD) {
+      aggregate_stores++;
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) {
+        aggregate_value_stores++;
+      }
+      if (input_type != type ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        aggregate_payloads_valid = CTOOL_FALSE;
+      }
+    } else if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+                instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) &&
+               type != NULL && type->kind == CTOOL_C_TYPE_RECORD) {
+      aggregate_calls++;
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+        direct_calls++;
+      } else {
+        indirect_calls++;
+      }
+      if (instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT
+               ? instruction->reference == CTOOL_C_AST_NONE
+               : instruction->reference != CTOOL_C_AST_NONE) ||
+          instruction->integer_bits != 0u) {
+        aggregate_payloads_valid = CTOOL_FALSE;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+               type != NULL && type->kind == CTOOL_C_TYPE_RECORD) {
+      aggregate_returns++;
+      if (input_type != type ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        aggregate_payloads_valid = CTOOL_FALSE;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD &&
+               input_type != NULL &&
+               input_type->kind == CTOOL_C_TYPE_RECORD) {
+      aggregate_discards++;
+      if (instruction->type != CTOOL_C_TYPE_NONE ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        aggregate_payloads_valid = CTOOL_FALSE;
+      }
+    }
+  }
+  if (aggregate_payloads_valid == CTOOL_FALSE || aggregate_parameters != 8u ||
+      aggregate_loads != 9u || aggregate_stores != 4u ||
+      aggregate_value_stores != 3u || aggregate_calls != 2u ||
+      direct_calls != 1u || indirect_calls != 1u ||
+      aggregate_returns != 6u || aggregate_discards != 1u) {
+    (void)fprintf(stderr, "structure value IR inventory differs\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/union-value.c", union_source, &union_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &union_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports only fixed, nonvariadic cdecl "
+          "functions with represented scalar or structure parameters and "
+          "void, scalar, or structure results",
+          "union value ABI") ||
+      !parse_source(job, "/volatile-structure-value.c", volatile_source,
+                    &volatile_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &volatile_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "volatile structure value") ||
+      !parse_source_mode(job, "/aligned-structure-value.c", aligned_source,
+                         CTOOL_TRUE, &aligned_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &aligned_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "over-aligned structure value")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("structure-values: ok");
     return 0;
   }
   return 1;
@@ -15671,6 +15926,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializers(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
+    return run_structure_values(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_values(argv[2]);
   }
@@ -15686,7 +15944,7 @@ int main(int argc, char **argv) {
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "aggregate-initializers|"
+                "aggregate-initializers|structure-values|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;

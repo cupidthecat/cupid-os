@@ -196,11 +196,17 @@ kernel ABI.
 
 Cupid OS has a shared CupidC frontend, linear IR, and ELF32 emitter for the self-hosting migration. This path is separate from the in-kernel JIT and AOT compiler described elsewhere on this page. It assigns target-sized i386 stack storage to referenced fixed arrays and records with alignment up to four bytes. One-byte, two-byte, and four-byte integers work across locals, file objects, members, indexed access, conditions, conversions, assignment, mutation, and fixed direct or indirect calls. Narrow loads produce canonical 32-bit values, while stores use the declared byte or word width. Fixed cdecl arguments keep four-byte stack slots, and callers and callees normalize narrow results.
 
-The shared path lowers explicit casts to `void`. It evaluates the operand once, discards a represented integer or pointer result, and leaves a `void` operand off the abstract stack.
+The shared path lowers explicit casts to `void`. It evaluates the operand once, discards a represented integer, pointer, or supported structure result, and leaves a `void` operand off the abstract stack.
 
 Automatic initializer lists now work for fixed arrays and complete structures whose alignment does not exceed four bytes. The lowerer zero-initializes the full object once, evaluates each explicit integer or pointer leaf in source order, and stores it through the selected array and member path. Nested lists, direct designators, and omitted subobjects retain their frontend meaning. The i386 emitter performs the initial zeroing with `REP STOSB`.
 
-The normal OS build still uses a host C compiler for its C objects. The private in-kernel CupidC compiler still handles embedded runtime compilation. Whole-record values, string leaves, explicit bit-field leaves, volatile or atomic aggregate initialization, unions, classes, Boolean mutation, 64-bit and floating-point values, variadic calls, 16-byte call-site alignment, and production integration remain unfinished in the shared path.
+The shared path carries compatible, complete structure values through lvalue conversion, automatic expression initialization, plain and chained assignment, matching conditional expressions, casts to `void` and other discarded expressions, fixed direct and indirect calls, parameters, and returns. Each lvalue conversion and structure call result receives its own frame snapshot. Copies cover the full target object size, so a supported structure may contain wide or floating members even though those members do not yet work as separate runtime values.
+
+Structure arguments occupy inline cdecl stack storage in parameter order, and each argument is rounded up to four bytes. The caller clears ABI padding before it copies arguments. A structure-returning call passes a hidden destination pointer before the explicit arguments. The callee reads that pointer at `[ebp+8]`, reads its first explicit argument at `[ebp+12]`, copies the result into the destination, returns the pointer in `eax`, and uses `ret 4`. The caller cleans the explicit argument bytes.
+
+Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Automatic string leaves, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, variadic calls, and 16-byte call-site alignment also remain unfinished in the shared path.
+
+Production ownership is unchanged. The normal OS build still uses a host C compiler for its C objects, and the private in-kernel CupidC compiler still handles embedded runtime compilation. The hosted structure-value path does not produce a normal Cupid OS object or change a boot or runtime artifact.
 
 ### Global Variables
 

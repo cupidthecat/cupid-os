@@ -1084,6 +1084,69 @@ static ctool_bool cir_type_is_complete_aggregate_object(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_type_is_structure_value(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  if (cir_underlying_type(context, type, &base, &qualifiers, &node) ==
+          CTOOL_FALSE ||
+      type >= context->unit->layout.type_count ||
+      base >= context->unit->layout.type_count ||
+      node->kind != CTOOL_C_TYPE_RECORD ||
+      node->record_kind != CTOOL_C_RECORD_STRUCT ||
+      node->record_complete == CTOOL_FALSE ||
+      (qualifiers & (CTOOL_C_QUAL_VOLATILE | CTOOL_C_QUAL_ATOMIC)) != 0u ||
+      (node->qualifiers &
+       (CTOOL_C_QUAL_VOLATILE | CTOOL_C_QUAL_ATOMIC)) != 0u) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[type];
+  return layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size != 0u && layout->alignment != 0u &&
+                 layout->alignment <= 4u &&
+                 (layout->alignment & (layout->alignment - 1u)) == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_is_structure_candidate(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
+  return node != (const ctool_c_type_node_t *)0 &&
+                 node->kind == CTOOL_C_TYPE_RECORD &&
+                 node->record_kind == CTOOL_C_RECORD_STRUCT
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_structure_value_types_match(
+    const cir_context_t *context, ctool_u32 left, ctool_u32 right) {
+  const ctool_c_type_node_t *left_node;
+  const ctool_c_type_node_t *right_node;
+  ctool_u32 left_base;
+  ctool_u32 left_qualifiers;
+  ctool_u32 right_base;
+  ctool_u32 right_qualifiers;
+  if (cir_type_is_structure_value(context, left) == CTOOL_FALSE ||
+      cir_type_is_structure_value(context, right) == CTOOL_FALSE ||
+      cir_underlying_type(context, left, &left_base, &left_qualifiers,
+                          &left_node) == CTOOL_FALSE ||
+      cir_underlying_type(context, right, &right_base, &right_qualifiers,
+                          &right_node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)left_qualifiers;
+  (void)right_qualifiers;
+  return left_base == right_base && left_node == right_node &&
+                 context->unit->layout.types[left].size ==
+                     context->unit->layout.types[right].size
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_integer_value_types_match(
     const cir_context_t *context, ctool_u32 object_type,
     ctool_u32 value_type) {
@@ -1449,6 +1512,14 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
                                            ctool_u32 expression_index,
                                            ctool_u32 depth);
 
+static ctool_status_t cir_require_initializable_aggregate(
+    cir_context_t *context, ctool_u32 root_type,
+    const ctool_c_pp_location_t *location);
+
+static ctool_status_t cir_require_structure_value(
+    cir_context_t *context, ctool_u32 type,
+    const ctool_c_pp_location_t *location);
+
 typedef struct {
   const ctool_c_expression_t *record_expression;
   const ctool_c_record_member_t *member;
@@ -1686,12 +1757,30 @@ static ctool_status_t cir_lower_conversion(
         CTOOL_TRUE) {
       return cir_unsupported_type(context, &expression->location);
     }
-    if (source.kind != CIR_STACK_ADDRESS || source.type !=
-                                                   context->unit
-                                                       ->expressions[child]
-                                                       .type ||
-        cir_scalar_value_types_match(context, source.type,
+    if (source.kind != CIR_STACK_ADDRESS ||
+        source.type != context->unit->expressions[child].type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (cir_scalar_value_types_match(context, source.type,
                                      expression->type) == CTOOL_FALSE) {
+      status = cir_require_structure_value(
+          context, source.type, &expression->location);
+      if (status == CTOOL_OK) {
+        status = cir_require_structure_value(
+            context, expression->type, &expression->location);
+      }
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      if (cir_structure_value_types_match(
+              context, source.type, expression->type) == CTOOL_FALSE) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+    }
+    if (cir_type_is_represented_scalar(context, expression->type) ==
+            CTOOL_FALSE &&
+        cir_type_is_structure_value(context, expression->type) ==
+            CTOOL_FALSE) {
       return cir_unsupported_conversion(context, &expression->location);
     }
     status = cir_append_instruction(
@@ -1822,7 +1911,11 @@ static ctool_status_t cir_lower_cast(
   if (cir_type_is_void(context, expression->type) == CTOOL_TRUE) {
     if (cir_type_is_void(context, source_type) == CTOOL_FALSE &&
         cir_type_is_represented_scalar(context, source_type) == CTOOL_FALSE) {
-      return cir_unsupported_type(context, &expression->location);
+      status = cir_require_structure_value(
+          context, source_type, &expression->location);
+      if (status != CTOOL_OK) {
+        return status;
+      }
     }
     status = cir_lower_expression(context, child, depth + 1u);
     if (status != CTOOL_OK) {
@@ -2853,7 +2946,11 @@ static ctool_status_t cir_lower_assignment(
   }
   if (cir_type_is_represented_scalar(context, expression->type) ==
       CTOOL_FALSE) {
-    return cir_unsupported_type(context, &expression->location);
+    status = cir_require_structure_value(
+        context, expression->type, &expression->location);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   status = cir_expression_child(context, expression_index, expression, 0u,
                                 &left_child);
@@ -2866,6 +2963,27 @@ static ctool_status_t cir_lower_assignment(
           context, context->unit->expressions[left_child].type) ==
           CTOOL_TRUE) {
     return cir_unsupported_type(context, &expression->location);
+  }
+  if (status == CTOOL_OK &&
+      cir_type_is_represented_scalar(context, expression->type) ==
+          CTOOL_FALSE) {
+    status = cir_require_structure_value(
+        context, context->unit->expressions[left_child].type,
+        &expression->location);
+    if (status == CTOOL_OK) {
+      status = cir_require_structure_value(
+          context, context->unit->expressions[right_child].type,
+          &expression->location);
+    }
+    if (status == CTOOL_OK &&
+        (cir_structure_value_types_match(
+             context, context->unit->expressions[left_child].type,
+             expression->type) == CTOOL_FALSE ||
+         cir_structure_value_types_match(
+             context, context->unit->expressions[right_child].type,
+             expression->type) == CTOOL_FALSE)) {
+      return cir_invalid_unit(context, &expression->location);
+    }
   }
   if (status == CTOOL_OK) {
     status = cir_lower_expression(context, left_child, depth + 1u);
@@ -2894,12 +3012,20 @@ static ctool_status_t cir_lower_assignment(
     return status;
   }
   if (address.kind != CIR_STACK_ADDRESS || value.kind != CIR_STACK_VALUE ||
-      cir_type_is_represented_scalar(context, address.type) == CTOOL_FALSE ||
-      cir_type_is_represented_scalar(context, value.type) == CTOOL_FALSE ||
-      cir_scalar_value_types_match(context, address.type,
-                                   expression->type) == CTOOL_FALSE ||
-      cir_scalar_value_types_match(context, value.type,
-                                   expression->type) == CTOOL_FALSE) {
+      ((cir_type_is_represented_scalar(context, expression->type) ==
+            CTOOL_TRUE &&
+        (cir_type_is_represented_scalar(context, address.type) ==
+             CTOOL_FALSE ||
+         cir_type_is_represented_scalar(context, value.type) == CTOOL_FALSE ||
+         cir_scalar_value_types_match(context, address.type,
+                                      expression->type) == CTOOL_FALSE ||
+         cir_scalar_value_types_match(context, value.type,
+                                      expression->type) == CTOOL_FALSE)) ||
+       (cir_type_is_structure_value(context, expression->type) == CTOOL_TRUE &&
+        (cir_structure_value_types_match(
+             context, address.type, expression->type) == CTOOL_FALSE ||
+         cir_structure_value_types_match(
+             context, value.type, expression->type) == CTOOL_FALSE)))) {
     return cir_invalid_unit(context, &expression->location);
   }
   status = cir_append_instruction(
@@ -3360,6 +3486,14 @@ static ctool_status_t cir_lower_conditional(
         CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
         "CupidC IR lowering does not yet support this value type");
   }
+  if (cir_type_is_represented_scalar(context, expression->type) ==
+      CTOOL_FALSE) {
+    status = cir_require_structure_value(
+        context, expression->type, &expression->location);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
   base_depth = context->stack_depth;
   status = cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
@@ -3395,13 +3529,34 @@ static ctool_status_t cir_lower_conditional(
   if (status == CTOOL_OK) {
     when_zero = context->stack[context->stack_depth - 1u];
     if (when_nonzero.kind != CIR_STACK_VALUE ||
-        when_zero.kind != CIR_STACK_VALUE ||
-        (when_nonzero.type != expression->type &&
-         cir_pointer_value_types_match(context, expression->type,
-                                       when_nonzero.type) == CTOOL_FALSE) ||
-        (when_zero.type != expression->type &&
-         cir_pointer_value_types_match(context, expression->type,
-                                       when_zero.type) == CTOOL_FALSE)) {
+        when_zero.kind != CIR_STACK_VALUE) {
+      status = cir_invalid_unit(context, &expression->location);
+    } else if (cir_type_is_structure_value(context, expression->type) ==
+               CTOOL_TRUE) {
+      status = cir_require_structure_value(
+          context, when_nonzero.type, &expression->location);
+      if (status == CTOOL_OK) {
+        status = cir_require_structure_value(
+            context, when_zero.type, &expression->location);
+      }
+      if (status == CTOOL_OK &&
+          (cir_structure_value_types_match(
+               context, expression->type, when_nonzero.type) == CTOOL_FALSE ||
+           cir_structure_value_types_match(
+               context, expression->type, when_zero.type) == CTOOL_FALSE)) {
+        status = cir_invalid_unit(context, &expression->location);
+      }
+      if (status == CTOOL_OK) {
+        context->stack[context->stack_depth - 1u].type = expression->type;
+      }
+    } else if ((when_nonzero.type != expression->type &&
+                cir_pointer_value_types_match(
+                    context, expression->type,
+                    when_nonzero.type) == CTOOL_FALSE) ||
+               (when_zero.type != expression->type &&
+                cir_pointer_value_types_match(
+                    context, expression->type,
+                    when_zero.type) == CTOOL_FALSE)) {
       status = cir_invalid_unit(context, &expression->location);
     } else {
       context->stack[context->stack_depth - 1u].type = expression->type;
@@ -3484,16 +3639,31 @@ static ctool_status_t cir_lower_call(
     }
   }
   if (function_type->has_prototype == CTOOL_FALSE ||
-      function_type->variadic == CTOOL_TRUE ||
-      (cir_type_is_void(context, expression->type) == CTOOL_FALSE &&
-       cir_type_is_represented_scalar(context, expression->type) ==
-           CTOOL_FALSE)) {
+      function_type->variadic == CTOOL_TRUE) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
         &expression->location,
         "CupidC IR lowering supports only fixed, nonvariadic calls with "
-        "one-byte, two-byte, or four-byte scalar arguments and void or "
-        "represented scalar results");
+        "represented scalar or structure arguments and void, scalar, or "
+        "structure results");
+  }
+  if (cir_type_is_void(context, expression->type) == CTOOL_FALSE &&
+      cir_type_is_represented_scalar(context, expression->type) ==
+          CTOOL_FALSE) {
+    if (cir_type_is_structure_candidate(context, expression->type) ==
+        CTOOL_FALSE) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          &expression->location,
+          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "represented scalar or structure arguments and void, scalar, or "
+          "structure results");
+    }
+    status = cir_require_structure_value(
+        context, expression->type, &expression->location);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   if (direct == CTOOL_FALSE) {
     status = cir_lower_expression(context, callee_index, depth + 1u);
@@ -3514,15 +3684,25 @@ static ctool_status_t cir_lower_call(
     ctool_u32 parameter_type =
         context->unit->graph
             .parameter_types[function_type->first_parameter + argument];
-    if (parameter_type >= context->unit->graph.type_count ||
-        cir_type_is_represented_scalar(context, parameter_type) ==
-            CTOOL_FALSE) {
-      return cir_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-          &expression->location,
-          "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "one-byte, two-byte, or four-byte scalar arguments and void or "
-          "represented scalar results");
+    if (parameter_type >= context->unit->graph.type_count) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (cir_type_is_represented_scalar(context, parameter_type) ==
+        CTOOL_FALSE) {
+      if (cir_type_is_structure_candidate(context, parameter_type) ==
+          CTOOL_FALSE) {
+        return cir_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+            &expression->location,
+            "CupidC IR lowering supports only fixed, nonvariadic calls with "
+            "represented scalar or structure arguments and void, scalar, or "
+            "structure results");
+      }
+      status = cir_require_structure_value(
+          context, parameter_type, &expression->location);
+      if (status != CTOOL_OK) {
+        return status;
+      }
     }
     status = cir_expression_child(context, expression_index, expression,
                                   argument + 1u, &child);
@@ -3534,10 +3714,18 @@ static ctool_status_t cir_lower_call(
     }
     if (context->stack_depth != argument_base + argument + 1u ||
         context->stack[argument_base + argument].kind != CIR_STACK_VALUE ||
-        (context->stack[argument_base + argument].type != parameter_type &&
-         cir_scalar_value_types_match(
-             context, parameter_type,
-             context->stack[argument_base + argument].type) == CTOOL_FALSE)) {
+        (cir_type_is_represented_scalar(context, parameter_type) ==
+                 CTOOL_TRUE
+             ? (context->stack[argument_base + argument].type !=
+                        parameter_type &&
+                cir_scalar_value_types_match(
+                    context, parameter_type,
+                    context->stack[argument_base + argument].type) ==
+                    CTOOL_FALSE)
+             : cir_structure_value_types_match(
+                   context, parameter_type,
+                   context->stack[argument_base + argument].type) ==
+                   CTOOL_FALSE)) {
       return cir_invalid_unit(context, &expression->location);
     }
   }
@@ -3587,10 +3775,16 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         expression->reference >= parameter_end ||
         expression->reference >= context->unit->parameter_count ||
         context->unit->parameters[expression->reference].type !=
-            expression->type ||
-        cir_type_is_represented_scalar(context, expression->type) ==
-            CTOOL_FALSE) {
+            expression->type) {
       return cir_invalid_unit(context, &expression->location);
+    }
+    if (cir_type_is_represented_scalar(context, expression->type) ==
+        CTOOL_FALSE) {
+      status = cir_require_structure_value(
+          context, expression->type, &expression->location);
+      if (status != CTOOL_OK) {
+        return status;
+      }
     }
     status = cir_append_instruction(
         context, CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, expression->type,
@@ -4221,6 +4415,19 @@ static ctool_status_t cir_require_initializable_aggregate(
                                    : CTOOL_OK;
 }
 
+static ctool_status_t cir_require_structure_value(
+    cir_context_t *context, ctool_u32 type,
+    const ctool_c_pp_location_t *location) {
+  ctool_status_t status =
+      cir_require_initializable_aggregate(context, type, location);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_type_is_structure_value(context, type) == CTOOL_TRUE
+             ? CTOOL_OK
+             : cir_unsupported_type(context, location);
+}
+
 static ctool_status_t cir_append_local_address(
     cir_context_t *context, ctool_u32 binding_index,
     const ctool_c_block_binding_t *binding,
@@ -4293,19 +4500,39 @@ static ctool_status_t cir_lower_aggregate_initializer_leaf(
     return cir_invalid_unit(context, &initializer->location);
   }
   if (cir_type_is_represented_scalar(context, initializer->type) ==
-          CTOOL_FALSE ||
-      cir_type_has_atomic_qualification(context, initializer->type) ==
-          CTOOL_TRUE) {
+      CTOOL_FALSE) {
     const ctool_c_type_node_t *type =
         cir_unwrapped_type(context, initializer->type);
+    if (type == (const ctool_c_type_node_t *)0 ||
+        type->kind != CTOOL_C_TYPE_RECORD) {
+      return cir_unsupported_initializer_leaf(
+          context, &initializer->location,
+          "CupidC IR lowering does not yet support this value type in "
+          "automatic aggregate initializer lists");
+    }
+    status = cir_require_structure_value(
+        context, initializer->type, &initializer->location);
+    if (status == CTOOL_OK) {
+      status = cir_require_structure_value(
+          context,
+          context->unit->expressions[initializer->expression].type,
+          &initializer->location);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cir_structure_value_types_match(
+            context, initializer->type,
+            context->unit->expressions[initializer->expression].type) ==
+        CTOOL_FALSE) {
+      return cir_invalid_unit(context, &initializer->location);
+    }
+  } else if (cir_type_has_atomic_qualification(
+                 context, initializer->type) == CTOOL_TRUE) {
     return cir_unsupported_initializer_leaf(
         context, &initializer->location,
-        type != (const ctool_c_type_node_t *)0 &&
-                type->kind == CTOOL_C_TYPE_RECORD
-            ? "CupidC IR lowering does not yet support record-valued "
-              "expression leaves in automatic aggregate initializer lists"
-            : "CupidC IR lowering does not yet support this value type in "
-              "automatic aggregate initializer lists");
+        "CupidC IR lowering does not yet support this value type in "
+        "automatic aggregate initializer lists");
   }
   status = cir_append_initializer_path(
       context, binding_index, binding, path_count, &initializer->location,
@@ -4331,8 +4558,11 @@ static ctool_status_t cir_lower_aggregate_initializer_leaf(
   if (value.kind != CIR_STACK_VALUE ||
       address.kind != CIR_STACK_ADDRESS ||
       address.type != initializer->type ||
-      cir_scalar_value_types_match(context, initializer->type, value.type) ==
-          CTOOL_FALSE) {
+      (cir_type_is_represented_scalar(context, initializer->type) == CTOOL_TRUE
+           ? cir_scalar_value_types_match(
+                 context, initializer->type, value.type) == CTOOL_FALSE
+           : cir_structure_value_types_match(
+                 context, initializer->type, value.type) == CTOOL_FALSE)) {
     return cir_invalid_unit(context, &initializer->location);
   }
   return cir_append_instruction(
@@ -4558,8 +4788,13 @@ static ctool_status_t cir_lower_declaration(
     if (binding->initializer == CTOOL_C_AST_NONE) {
       continue;
     }
+    if (binding->initializer >= context->unit->initializer_count) {
+      return cir_invalid_unit(context, &binding->location);
+    }
+    initializer = &context->unit->initializers[binding->initializer];
     if (cir_type_is_represented_scalar(context, binding->type) ==
-        CTOOL_FALSE) {
+            CTOOL_FALSE &&
+        initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION) {
       status = cir_lower_aggregate_initializer(context, binding_index,
                                                binding);
       if (status != CTOOL_OK) {
@@ -4567,10 +4802,6 @@ static ctool_status_t cir_lower_declaration(
       }
       continue;
     }
-    if (binding->initializer >= context->unit->initializer_count) {
-      return cir_invalid_unit(context, &binding->location);
-    }
-    initializer = &context->unit->initializers[binding->initializer];
     if (initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
         initializer->type != binding->type ||
         initializer->expression >= context->unit->expression_count ||
@@ -4581,12 +4812,35 @@ static ctool_status_t cir_lower_declaration(
         initializer->address_reference != CTOOL_C_AST_NONE ||
         initializer->address_addend != 0 ||
         initializer->first_element != CTOOL_C_AST_NONE ||
-        initializer->element_count != 0u ||
-        cir_scalar_value_types_match(
-            context, initializer->type,
-            context->unit->expressions[initializer->expression].type) ==
-            CTOOL_FALSE) {
+        initializer->element_count != 0u) {
       return cir_invalid_unit(context, &initializer->location);
+    }
+    if (cir_type_is_represented_scalar(context, binding->type) ==
+        CTOOL_TRUE) {
+      if (cir_scalar_value_types_match(
+              context, initializer->type,
+              context->unit->expressions[initializer->expression].type) ==
+          CTOOL_FALSE) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
+    } else {
+      status = cir_require_structure_value(
+          context, binding->type, &initializer->location);
+      if (status == CTOOL_OK) {
+        status = cir_require_structure_value(
+            context,
+            context->unit->expressions[initializer->expression].type,
+            &initializer->location);
+      }
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      if (cir_structure_value_types_match(
+              context, binding->type,
+              context->unit->expressions[initializer->expression].type) ==
+          CTOOL_FALSE) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
     }
     status = cir_append_instruction(
         context, CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, binding->type,
@@ -4616,9 +4870,13 @@ static ctool_status_t cir_lower_declaration(
     }
     if (value.kind != CIR_STACK_VALUE ||
         address.kind != CIR_STACK_ADDRESS || address.type != binding->type ||
-        cir_type_is_represented_scalar(context, value.type) == CTOOL_FALSE ||
-        cir_scalar_value_types_match(context, binding->type, value.type) ==
-            CTOOL_FALSE) {
+        (cir_type_is_represented_scalar(context, binding->type) == CTOOL_TRUE
+             ? (cir_type_is_represented_scalar(context, value.type) ==
+                    CTOOL_FALSE ||
+                cir_scalar_value_types_match(
+                    context, binding->type, value.type) == CTOOL_FALSE)
+             : cir_structure_value_types_match(
+                   context, binding->type, value.type) == CTOOL_FALSE)) {
       return cir_invalid_unit(context, &initializer->location);
     }
     status = cir_append_instruction(
@@ -4661,12 +4919,32 @@ static ctool_status_t cir_lower_return(
   if (status != CTOOL_OK) {
     return status;
   }
-  if (result.kind != CIR_STACK_VALUE ||
-      (result.type != context->function_result_type &&
-       cir_scalar_value_types_match(context, context->function_result_type,
-                                    result.type) == CTOOL_FALSE) ||
-      context->stack_depth != 0u) {
+  if (result.kind != CIR_STACK_VALUE || context->stack_depth != 0u) {
     return cir_invalid_unit(context, &statement->location);
+  }
+  if (cir_type_is_represented_scalar(context,
+                                     context->function_result_type) ==
+      CTOOL_TRUE) {
+    if (result.type != context->function_result_type &&
+        cir_scalar_value_types_match(context, context->function_result_type,
+                                     result.type) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &statement->location);
+    }
+  } else {
+    status = cir_require_structure_value(
+        context, context->function_result_type, &statement->location);
+    if (status == CTOOL_OK) {
+      status = cir_require_structure_value(
+          context, result.type, &statement->location);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cir_structure_value_types_match(
+            context, context->function_result_type,
+            result.type) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &statement->location);
+    }
   }
   return cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
@@ -6227,6 +6505,20 @@ static ctool_status_t cir_append_unreachable_exit(
         CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
         &body->physical_location, (ctool_u32 *)0);
   }
+  if (cir_type_is_represented_scalar(context,
+                                     context->function_result_type) ==
+      CTOOL_FALSE) {
+    status = cir_require_structure_value(
+        context, context->function_result_type, &body->location);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_RETURN_VOID, CTOOL_C_TYPE_NONE,
+        CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
+        &body->physical_location, (ctool_u32 *)0);
+  }
   status = cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_INTEGER, context->function_result_type,
       CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
@@ -6779,18 +7071,32 @@ static ctool_status_t cir_lower_function(
         "lowering this definition");
   }
   if (function_type->has_prototype == CTOOL_FALSE ||
-      function_type->variadic == CTOOL_TRUE ||
-      (cir_type_is_void(context, function_type->referenced_type) ==
-           CTOOL_FALSE &&
-       cir_type_is_represented_scalar(context,
-                                      function_type->referenced_type) ==
-           CTOOL_FALSE)) {
+      function_type->variadic == CTOOL_TRUE) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
         &definition->location,
         "CupidC IR lowering supports only fixed, nonvariadic cdecl functions "
-        "with one-byte, two-byte, or four-byte scalar parameters and void or "
-        "represented scalar results");
+        "with represented scalar or structure parameters and void, scalar, "
+        "or structure results");
+  }
+  if (cir_type_is_void(context, function_type->referenced_type) ==
+          CTOOL_FALSE &&
+      cir_type_is_represented_scalar(
+          context, function_type->referenced_type) == CTOOL_FALSE) {
+    if (cir_type_is_structure_candidate(
+            context, function_type->referenced_type) == CTOOL_FALSE) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          &definition->location,
+          "CupidC IR lowering supports only fixed, nonvariadic cdecl "
+          "functions with represented scalar or structure parameters and "
+          "void, scalar, or structure results");
+    }
+    status = cir_require_structure_value(
+        context, function_type->referenced_type, &definition->location);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   for (parameter = 0u; parameter < function_type->parameter_count;
        parameter++) {
@@ -6803,22 +7109,45 @@ static ctool_status_t cir_lower_function(
       return cir_invalid_unit(
           context, &context->unit->parameters[absolute].location);
     }
-    if (cir_type_is_represented_scalar(context, declared_type) == CTOOL_TRUE &&
-        cir_type_is_represented_scalar(context, object_type) == CTOOL_TRUE &&
-        cir_scalar_value_types_match(context, declared_type, object_type) ==
-            CTOOL_FALSE) {
-      return cir_invalid_unit(
-          context, &context->unit->parameters[absolute].location);
+    if (cir_type_is_represented_scalar(context, declared_type) == CTOOL_TRUE ||
+        cir_type_is_represented_scalar(context, object_type) == CTOOL_TRUE) {
+      if (cir_type_is_represented_scalar(context, declared_type) ==
+              CTOOL_FALSE ||
+          cir_type_is_represented_scalar(context, object_type) ==
+              CTOOL_FALSE ||
+          cir_scalar_value_types_match(context, declared_type, object_type) ==
+              CTOOL_FALSE) {
+        return cir_invalid_unit(
+            context, &context->unit->parameters[absolute].location);
+      }
+      continue;
     }
-    if (cir_type_is_represented_scalar(context, declared_type) == CTOOL_FALSE ||
-        cir_type_is_represented_scalar(
-            context, object_type) == CTOOL_FALSE) {
+    if (cir_type_is_structure_candidate(context, declared_type) ==
+            CTOOL_FALSE ||
+        cir_type_is_structure_candidate(context, object_type) ==
+            CTOOL_FALSE) {
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           &context->unit->parameters[absolute].location,
-          "CupidC IR lowering supports only fixed, nonvariadic cdecl functions "
-          "with one-byte, two-byte, or four-byte scalar parameters and void or "
-          "represented scalar results");
+          "CupidC IR lowering supports only fixed, nonvariadic cdecl "
+          "functions with represented scalar or structure parameters and "
+          "void, scalar, or structure results");
+    }
+    status = cir_require_structure_value(
+        context, declared_type,
+        &context->unit->parameters[absolute].location);
+    if (status == CTOOL_OK) {
+      status = cir_require_structure_value(
+          context, object_type,
+          &context->unit->parameters[absolute].location);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cir_structure_value_types_match(context, declared_type,
+                                        object_type) == CTOOL_FALSE) {
+      return cir_invalid_unit(
+          context, &context->unit->parameters[absolute].location);
     }
   }
   context->function_first_instruction = context->instruction_count;

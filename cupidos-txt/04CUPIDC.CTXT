@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-18
+Verified against source on: 2026-07-19
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -129,8 +129,8 @@ and then sign-extends the result. Fixed cdecl arguments keep four-byte stack
 slots, and callers and callees normalize narrow results.
 
 An explicit cast to void evaluates its operand once. The shared IR discards a
-represented integer, object pointer, or function pointer value. A void operand
-leaves no value on the abstract stack.
+represented integer, object pointer, function pointer, or supported structure
+value. A void operand leaves no value on the abstract stack.
 
 Automatic initializer lists work for fixed arrays and complete structures
 whose alignment does not exceed four bytes. The lowerer zero-initializes the
@@ -139,12 +139,34 @@ source order and stores it through the selected array and member path. Nested
 lists, direct designators, and omitted subobjects keep their frontend meaning.
 The i386 emitter uses REP STOSB for the initial zeroing pass.
 
-The normal OS build still uses a host C compiler for C objects. The private
-in-kernel CupidC compiler continues to handle embedded runtime compilation.
-Whole-record values, string leaves, explicit bit-field leaves, volatile or
-atomic aggregate initialization, unions, classes, Boolean mutation, 64-bit
-and floating-point values, variadic calls, 16-byte call-site alignment, and
-production integration remain.
+The shared path carries compatible, complete structure values through lvalue
+conversion, automatic expression initialization, plain and chained
+assignment, matching conditional expressions, discarded expressions, fixed
+direct and indirect calls, parameters, and returns. This includes casts to
+void and other discarded structure expressions. Each lvalue conversion and
+structure call result receives its own frame snapshot. Copies cover the full
+target object size, so a supported structure may contain wide or floating
+members even though those members do not yet work as separate runtime values.
+
+Structure arguments occupy inline cdecl stack storage in parameter order, and
+each argument is rounded up to four bytes. The caller clears ABI padding before
+copying arguments. A structure-returning call passes a hidden destination
+pointer before the explicit arguments. The callee reads that pointer at EBP+8,
+reads its first explicit argument at EBP+12, copies the result into the
+destination, returns the pointer in EAX, and uses RET 4. The caller cleans the
+explicit argument bytes.
+
+Supported structure graphs have alignment no greater than four bytes and
+contain no stored volatile or atomic subobjects. Graphs containing a union or
+class remain unsupported. Automatic string leaves, explicit bit-field leaves,
+Boolean mutation, separate 64-bit and floating-point runtime values, variadic
+calls, and 16-byte call-site alignment also remain unfinished in the shared
+path.
+
+Production ownership is unchanged. The normal OS build still uses a host C
+compiler for its C objects, and the private in-kernel CupidC compiler still
+handles embedded runtime compilation. The hosted structure-value path does
+not produce a normal Cupid OS object or change a boot or runtime artifact.
 >endtree
 
 >h2 C Compatibility Notes

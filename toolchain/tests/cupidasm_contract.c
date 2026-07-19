@@ -348,12 +348,12 @@ static int run_object_basic(void) {
       "entry:\n"
       " call target\n"
       " mov eax, [value]\n"
-      " ret\n"
+      " ret 4\n"
       "section .data\n"
       "value: dd entry\n";
   static const ctool_u8 expected_text[] = {
       0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0xa1u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0xc3u};
+      0x00u, 0x00u, 0x00u, 0x00u, 0xc2u, 0x04u, 0x00u};
   static const ctool_u8 expected_data[] = {0u, 0u, 0u, 0u};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -1140,6 +1140,10 @@ static int run_error_contracts(void) {
       !expect_assembly_failure(
           "invalid bits mode", config, "/bits.asm", "BITS 64\n", &raw,
           CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_MODE, "/bits.asm") ||
+      !expect_assembly_failure(
+          "return cleanup overflow", config, "/ret-overflow.asm",
+          "BITS 32\nret 65536\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/ret-overflow.asm") ||
       !expect_assembly_failure(
           "instruction in bss", config, "/bss-instruction.asm",
           "BITS 32\nsection .bss\nmain: ret\n", &fixed,

@@ -53,8 +53,12 @@ The compiler for C and Cupid C source.
 _Avoid_: Cupid C when referring to the compiler
 
 **Linear IR**:
-The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from values. Branch targets stay relative to one function, while parameters, represented scalar locals, fixed automatic arrays and records, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, and frame offsets remain private to target emission.
+The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from scalar and structure values. Branch targets stay relative to one function, while parameters, represented scalar locals, fixed automatic arrays and records, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, frame offsets, and structure snapshot storage remain private to target emission.
 _Avoid_: AST, x86 bytecode, machine code
+
+**Structure value**:
+A complete Cupid C `struct` carried by value through Linear IR. One abstract stack entry represents an emitter-owned snapshot of the target bytes, not an address that aliases the source object.
+_Avoid_: aggregate scalar, borrowed object address
 
 **C mode**:
 The CupidC language mode for freestanding C source.

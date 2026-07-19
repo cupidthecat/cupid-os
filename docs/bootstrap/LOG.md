@@ -4625,3 +4625,53 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0048 and the bootstrap records describe the capability and its limits. No active OS C or assembly source, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Aggregate values and assignment, the deferred initializer leaves, Boolean mutation, narrow bit fields, atomic access, 64-bit and floating runtime values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC lowers structure values through i386 cdecl
+
+### Decision and capability
+
+Hosted CupidC now represents one complete structure value as one abstract IR stack entry. A load takes a snapshot into instruction-owned frame storage instead of leaving an alias to the source object. Assignment and expression initialization copy the snapshot into the destination, and value-producing assignment preserves the source snapshot for chaining. The same rule covers compatible conditional arms, record-valued initializer leaves, and casts to `void`.
+
+Fixed direct and indirect calls now carry supported structures across the i386 cdecl boundary. Each structure argument is copied inline into a four-byte-rounded outgoing span. Padding bytes are cleared before the copy, which makes a three-byte structure deterministic. A structure-returning call passes a hidden result pointer. In the callee, that pointer is at `[EBP+8]` and explicit parameters begin at `[EBP+12]`. The callee copies the return value into the caller's slot, places the hidden pointer in EAX, and emits `RET 4`. The caller removes its explicit argument bytes and semantic placeholders after the callee has removed the hidden slot.
+
+Structure snapshots and call results use private frame slots. Byte copies use `CLD` and `REP MOVSB` while preserving ESI and EDI. The initial copy helper accepted arbitrary source and destination registers, but that interface made an ESI alias unsafe. The final helper states the emitter's real invariant directly: copy from the address in EDX to the address in EAX. Parameter-size validation now uses one `0x1fffffff` bound, and temporary-frame overflow reports an internal error instead of returning a wrapped offset.
+
+This step supports complete compatible structures whose by-value type graph is nonvolatile, non-atomic, and aligned to at most four bytes. Array and wide members may travel inside the bytewise structure representation. Unions, classes, arrays as values, over-aligned structures, variadic structure calls, direct floating or wide scalar values, atomic graphs, and a 16-byte call-site alignment policy remain outside the boundary.
+
+The shared x86 catalogue gained `RET imm16`, bringing it to 547 forms, 226 mnemonics, 64 registers, and fingerprint `72594E70`. CupidASM assembles `ret 4` as `C2 04 00` and rejects `ret 65536`. CupidDis renders those valid bytes as `ret 0x4`. The ordinary scalar call path remains byte-identical.
+
+No user question was needed. The frozen frontend types, ordinary C structure semantics, and the repository's i386 cdecl target fix the behavior for this increment.
+
+### Contract evidence and corrections
+
+- The `structure-values` IR fixture covers copies, assignment results, chaining, conditional joins, expression initialization, direct and indirect calls, returns, and discard. It pins eight aggregate parameter addresses, nine aggregate loads, four aggregate stores, three value-producing stores, two calls, six returns, and one discard. The contract also checks the aggregate payload carried by every relevant instruction.
+- The object fixture covers three-byte, eight-byte, and twelve-byte structures. It locks all 928 text bytes with FNV-1a fingerprint `39A8B114`, thirteen symbols, and four `R_386_PC32` relocations. Decoder-driven checks cover every positive EBP displacement, direct and indirect calls, caller cleanup, plain returns, `RET 4`, `REP MOVSB`, `REP STOSB`, and zeroed outbound padding.
+- Negative contracts reject union values, volatile structure graphs, GNU over-alignment, variadic structure calls, and out-of-range `ret` immediates without publishing partial IR or object output. The former aggregate-assignment, record-initialization, and record-discard negatives are now positive coverage.
+- The frontend self-source gates moved to 149 definitions, 4,416 statements, 37,727 expressions, 538 block bindings, and 176 initializers for `cupidc_ir.c`; and 105/2,404/21,434/328/174 for `cupidc_emit.c`.
+- The first repository run reached six stale lexical audit assertions after all functional tests passed. Updating those measured values exposed two secondary assertions for `else` occurrences and the number of files containing `while`. The regenerated gates now record 1,049 `goto`, 2,510 `while`, 948 `continue`, 25,924 `if`, 3,535 `else`, 3,087 `for`, 15,868 `return`, and 3,234 `sizeof` occurrences.
+- The first sanitizer wrapper lost its flag list at the Windows-to-WSL boundary and only produced ordinary builds. That run is excluded. An encoded Bash script preserved the ASan and UBSan flags on the corrected builds. A later combined probe assumed both compilers would leave ASan imports undefined. GCC does, while Clang links its ASan runtime into the executable. Separate suite runs and compiler-appropriate symbol checks produced the accepted evidence.
+- Clang analysis found that an existing CupidDis error fixture initialized `capture.size` only inside the expected-success branch. The runtime short-circuit was safe, but the fixture now states its zero-size precondition before the branch. GCC and Clang analysis and all thirteen CupidDis tests pass after that change.
+- Standards and Spec review found no code or ABI defect. Both reviews found stale current-state figures in the bootstrap records, and Standards review also required this chronological entry. The current records now match the generated audit; older log entries keep their historical measurements.
+
+The final graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. It contains 617 direct designated initializers across 18 files and has active-source digest `50a77d033fedba153221a598a68faa3734497333962de5ddcc33c63ec1894509`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused structure contracts | PASS | The IR, object, and shared x86 modules pass 46 Python tests. Direct CupidASM and CupidDis contract runs also pass the new `RET 4` cases. |
+| Windows hosted Toolchain | PASS | Final-tree `make -C toolchain test` passes every hosted contract and all 22 assembly demos in 10.5 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted Toolchain suite. The parallel run finishes in 62.5 seconds. |
+| Sanitizers | PASS AFTER WRAPPER CORRECTION | Fresh GCC and Clang ASan and UBSan builds visibly contain sanitizer instrumentation and pass the complete hosted suite with leak detection and halt-on-error enabled. The accepted separate runs take 67.8 and 53.3 seconds. |
+| Static analysis | PASS AFTER FIXTURE HARDENING | GCC `-fanalyzer` and Clang `--analyze` cover the three implementation files and six changed C contracts. Clang found the CupidDis fixture gap described above; both analyzers pass its final form. |
+| Two-axis review | PASS AFTER DOCUMENTATION FIXES | Standards and Spec review found no implementation or ABI defect. Their stale-evidence and missing-log findings are fixed in the current records. |
+| Active-source audit | PASS | Final-tree `make bootstrap-audit` regenerates the records in 41.1 seconds, and `make check-bootstrap-audit` reproduces them in 36.3 seconds. |
+| Full repository gate | PASS | Final-tree `make test` passes all 322 tests in 474.116 seconds with one existing skip and returns from Make in 512.6 seconds. |
+| Production image build | PASS | `make all` rebuilds the compiler, CupidASM, CupidLD, CupidObj, kernel, embedded documentation, and disk image in 21.8 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke boots the rebuilt image and runs `/bin/ls.cc` successfully in 20.3 seconds. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler and the normal C objects. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel compiler remains the runtime JIT and AOT path.
+
+ADR 0049, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manuals describe the capability and its limits. The related earlier ADRs now distinguish their former aggregate-value boundary from this supported structure subset. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Union and class values, arrays as values, volatile and atomic graphs, over-alignment, wide and floating runtime values, variadic calls, 16-byte call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.

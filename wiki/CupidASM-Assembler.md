@@ -127,10 +127,19 @@ Include depth is capped to prevent recursive include loops.
 CupidASM uses the **cdecl** calling convention:
 
 - Arguments pushed right-to-left onto the stack
-- Caller cleans up the stack after the call
+- Caller cleans up explicit arguments after the call
 - Return value in `eax`
 - `eax`, `ecx`, `edx` are caller-saved (may be clobbered)
 - `ebx`, `esi`, `edi`, `ebp` are callee-saved
+
+`ret` accepts an optional unsigned 16-bit byte count. `ret 4` pops the return
+address and then advances `esp` by four bytes. The hosted CupidC
+structure-return ABI uses this form to remove its hidden result pointer. The
+caller still cleans ordinary explicit cdecl arguments.
+
+CupidASM encodes `ret 4` as `C2 04 00` and rejects `ret 65536` because the
+operand does not fit the 16-bit field. CupidDis renders `C2 04 00` as
+`ret 0x4`.
 
 ### Function Example
 
@@ -216,6 +225,10 @@ section .data
 
 ## Instruction Reference
 
+CupidASM uses the shared Cupid Toolchain x86 catalogue. It contains 547 forms,
+226 canonical mnemonics, and 64 register names. The same catalogue drives
+instruction encoding and decoding.
+
 ### Data Movement
 
 | Instruction | Description | Example |
@@ -269,7 +282,7 @@ section .data
 |-------------|-------------|-----------|
 | `jmp` | Unconditional jump | - |
 | `call` | Call function | - |
-| `ret` | Return from function | - |
+| `ret` / `ret imm16` | Return, optionally releasing stack bytes such as `ret 4` | - |
 | `je` / `jz` | Jump if equal / zero | ZF=1 |
 | `jne` / `jnz` | Jump if not equal / not zero | ZF=0 |
 | `jl` | Jump if less (signed) | SF≠OF |

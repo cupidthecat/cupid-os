@@ -139,6 +139,7 @@ static int run_raw(void) {
   static const ctool_u8 raw16[] = {0xb8u, 0x34u, 0x12u, 0xc3u};
   static const ctool_u8 raw32[] = {0xb8u, 0x78u, 0x56u, 0x34u,
                                     0x12u, 0xc3u};
+  static const ctool_u8 return_cleanup[] = {0xc2u, 0x04u, 0x00u};
   static const ctool_u8 direct[] = {0xa1u, 0u, 0u, 0u, 0xf0u, 0xc3u};
   static const ctool_u8 relative[] = {0xebu, 0u, 0xc3u};
   static const ctool_u8 relative16_short[] = {0xebu, 0u};
@@ -188,6 +189,22 @@ static int run_raw(void) {
   if (!check_status(status, CTOOL_OK, "raw32 inspection") ||
       !contains(&capture, "00400000", "raw32 base") ||
       !contains(&capture, "mov eax, 0x12345678", "raw32 operands")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/return-cleanup.bin");
+  source.contents = ctool_bytes(
+      return_cleanup, (ctool_u32)sizeof(return_cleanup));
+  request = raw_request(CTOOL_X86_MODE_32, 0u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, "return cleanup inspection") ||
+      !contains(&capture, "ret 0x4", "return cleanup operand")) {
     ctool_job_close(job);
     return 1;
   }
@@ -848,6 +865,7 @@ static int run_errors(void) {
   ctool_dis_report_t report;
   capture_t capture;
   ctool_status_t status;
+  capture.size = 0u;
   if (!open_job(&adapter, &job)) {
     return 1;
   }
