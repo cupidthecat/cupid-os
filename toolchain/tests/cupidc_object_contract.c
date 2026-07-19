@@ -1375,9 +1375,10 @@ static int validate_pointer_value_object(
       0x00u, 0x00u, 0x00u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u,
       0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u,
       0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
-      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0x50u, 0x58u,
-      0xc9u, 0xc3u};
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x83u, 0xecu,
+      0x04u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u,
+      0x50u, 0x58u, 0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "read_indirect",        "address_member",     "write_indirect",
       "pass_pointer",         "qualify_pointer",    "erase_pointer",
@@ -1386,9 +1387,9 @@ static int validate_pointer_value_object(
   static const ctool_u32 function_offsets[] = {
       0u, 21u, 34u, 67u, 84u, 101u, 118u, 135u, 171u, 198u, 219u, 240u};
   static const ctool_u32 function_sizes[] = {
-      21u, 13u, 33u, 17u, 17u, 17u, 17u, 36u, 27u, 21u, 21u, 26u};
+      21u, 13u, 33u, 17u, 17u, 17u, 17u, 36u, 27u, 21u, 21u, 36u};
   static const ctool_u32 relocation_offsets[] = {
-      25u, 175u, 202u, 223u, 255u};
+      25u, 175u, 202u, 223u, 265u};
   static const char *const relocation_symbols[] = {
       "global_value", "global_pointer", "global_pointer",
       "global_pointer", "pass_pointer"};
@@ -3115,20 +3116,22 @@ static int validate_while_object(ctool_job_t *job,
   static const ctool_u8 function_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x04u, 0x8du, 0x45u,
       0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
-      0x59u, 0x58u, 0x89u, 0x08u, 0xe8u, 0xfcu, 0xffu, 0xffu,
-      0xffu, 0x50u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x8du,
-      0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u,
-      0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u,
-      0x0fu, 0x84u, 0x0au, 0x00u, 0x00u, 0x00u, 0xe8u, 0xfcu,
-      0xffu, 0xffu, 0xffu, 0xe9u, 0xc4u, 0xffu, 0xffu, 0xffu,
-      0xc9u, 0xc3u};
+      0x59u, 0x58u, 0x89u, 0x08u, 0x83u, 0xecu, 0x04u, 0xe8u,
+      0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0x50u,
+      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x59u, 0x58u, 0x29u, 0xc8u, 0x50u, 0x8du, 0x85u, 0x08u,
+      0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x92u, 0xc0u, 0x0fu,
+      0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u, 0x0fu, 0x84u,
+      0x10u, 0x00u, 0x00u, 0x00u, 0x83u, 0xecu, 0x04u, 0xe8u,
+      0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0xe9u,
+      0xb8u, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
       CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_CALL,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,   CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,   CTOOL_X86_MN_PUSH,
@@ -3136,9 +3139,10 @@ static int validate_while_object(ctool_job_t *job,
       CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,   CTOOL_X86_MN_SETB,
       CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 branch_targets[] = {80u, 20u};
+      CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,    CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,   CTOOL_X86_MN_JMP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 branch_targets[] = {92u, 20u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -3175,7 +3179,7 @@ static int validate_while_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 21u ||
+      object->relocations[1].offset != 24u ||
       object->relocations[1].symbol_file_index != timer->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -3184,7 +3188,7 @@ static int validate_while_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[2].entry_index != 2u ||
       object->relocations[2].target_section_file_index != text->file_index ||
-      object->relocations[2].offset != 71u ||
+      object->relocations[2].offset != 80u ||
       object->relocations[2].symbol_file_index != yield->file_index ||
       object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[2].addend_known != CTOOL_TRUE ||
@@ -3205,23 +3209,26 @@ static int validate_do_object(ctool_job_t *job,
                               const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x45u,
-      0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
-      0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x8du, 0x45u,
-      0xf8u, 0x50u, 0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu,
-      0x00u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
-      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u,
-      0xc8u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u,
-      0x68u, 0x01u, 0x00u, 0x00u, 0x00u, 0xe8u, 0xfcu, 0xffu,
-      0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0x8du, 0x45u, 0xf8u,
+      0xfcu, 0x50u, 0x83u, 0xecu, 0x0cu, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x51u, 0x58u, 0x8du, 0x45u, 0xf8u, 0x50u,
+      0x8du, 0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x29u, 0xc8u, 0x50u,
+      0x59u, 0x58u, 0x89u, 0x08u, 0x51u, 0x58u, 0x68u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0x83u, 0xecu, 0x0cu, 0x8bu, 0x4cu,
+      0x24u, 0x0cu, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x10u, 0x8du, 0x45u, 0xf8u,
       0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x00u, 0x00u,
       0x00u, 0x00u, 0x59u, 0x58u, 0x39u, 0xc8u, 0x0fu, 0x9eu,
       0xc0u, 0x0fu, 0xb6u, 0xc0u, 0x50u, 0x58u, 0x85u, 0xc0u,
-      0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x9bu,
+      0x0fu, 0x84u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x8bu,
       0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
       CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
@@ -3230,14 +3237,15 @@ static int validate_do_object(ctool_job_t *job,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SUB,
       CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_SUB,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_CALL,  CTOOL_X86_MN_ADD,
       CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_CMP,
       CTOOL_X86_MN_SETLE, CTOOL_X86_MN_MOVZX, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP,   CTOOL_X86_MN_TEST,  CTOOL_X86_MN_JE,
       CTOOL_X86_MN_JMP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
-  static const ctool_u32 branch_targets[] = {107u, 6u};
+  static const ctool_u32 branch_targets[] = {123u, 6u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *function =
@@ -3265,7 +3273,7 @@ static int validate_do_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 11u ||
+      object->relocations[0].offset != 14u ||
       object->relocations[0].symbol_file_index != time->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -3274,7 +3282,7 @@ static int validate_do_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 62u ||
+      object->relocations[1].offset != 78u ||
       object->relocations[1].symbol_file_index != sleep->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -3914,8 +3922,9 @@ static int validate_function_object(ctool_job_t *job,
       0x55u, 0x89u, 0xe5u, 0x68u, 0x09u, 0x00u,
       0x00u, 0x00u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 call_local_bytes[] = {
-      0x55u, 0x89u, 0xe5u, 0xe8u, 0xfcu, 0xffu,
-      0xffu, 0xffu, 0x50u, 0x58u, 0xc9u, 0xc3u};
+      0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0xe8u, 0xfcu,
+      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0x50u, 0x58u,
+      0xc9u, 0xc3u};
   static const ctool_u8 call_external_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
@@ -3926,17 +3935,23 @@ static int validate_function_object(ctool_job_t *job,
       0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 call_nested_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
-      0xffu, 0xffu, 0xffu, 0x50u, 0x8du, 0x85u, 0x10u, 0x00u,
-      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu,
-      0x4cu, 0x24u, 0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u,
-      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu,
-      0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu, 0x50u, 0x58u, 0xc9u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x83u, 0xecu,
+      0x04u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u,
+      0x04u, 0x50u, 0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u,
+      0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu, 0x4cu, 0x24u,
+      0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u, 0x24u, 0x08u,
+      0x89u, 0x0cu, 0x24u, 0x83u, 0xecu, 0x0cu, 0x8bu, 0x4cu,
+      0x24u, 0x0cu, 0x89u, 0x0cu, 0x24u, 0x8bu, 0x4cu, 0x24u,
+      0x10u, 0x89u, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x4cu, 0x24u,
+      0x14u, 0x89u, 0x4cu, 0x24u, 0x08u, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x18u, 0x50u, 0x58u, 0xc9u,
       0xc3u};
   static const ctool_u8 call_void_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
-      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0xe8u, 0xfcu,
-      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x04u, 0xc9u, 0xc3u};
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x83u, 0xecu,
+      0x04u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u,
+      0xc9u, 0xc3u};
   static const ctool_u8 add2_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
       0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
@@ -3945,8 +3960,9 @@ static int validate_function_object(ctool_job_t *job,
       0xc3u};
   static const ctool_u8 local_round_trip_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x08u, 0x8du, 0x45u,
-      0xfcu, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x50u,
-      0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u,
+      0xfcu, 0x50u, 0x83u, 0xecu, 0x0cu, 0xe8u, 0xfcu, 0xffu,
+      0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu, 0x50u, 0x59u, 0x58u,
+      0x89u, 0x08u, 0x8du, 0x45u, 0xf8u, 0x50u,
       0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
       0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du,
       0x45u, 0xfcu, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du,
@@ -3958,7 +3974,10 @@ static int validate_function_object(ctool_job_t *job,
       0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u, 0x02u, 0x00u,
       0x00u, 0x00u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u,
       0x24u, 0x89u, 0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
-      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u,
+      0x83u, 0xecu, 0x08u, 0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u,
+      0x0cu, 0x24u, 0x8bu, 0x4cu, 0x24u, 0x0cu, 0x89u, 0x4cu,
+      0x24u, 0x04u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u,
+      0xc4u, 0x10u,
       0x50u, 0x59u, 0x58u, 0x89u, 0x08u, 0x8du, 0x45u, 0xfcu,
       0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u8 uninitialized_local_bytes[] = {
@@ -4045,9 +4064,9 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t call_local_instructions[] = {
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE,
-      CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t call_external_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
@@ -4060,16 +4079,21 @@ static int validate_function_object(ctool_job_t *job,
   static const ctool_x86_mnemonic_t call_nested_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB,  CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_SUB,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP,  CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t call_void_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP, CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
       CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t add2_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,
@@ -4081,8 +4105,9 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_RET};
   static const ctool_x86_mnemonic_t local_round_trip_instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_SUB,
-      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_CALL,
-      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
@@ -4099,7 +4124,9 @@ static int validate_function_object(ctool_job_t *job,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
-      CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_SUB,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,  CTOOL_X86_MN_MOV,  CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_ADD,  CTOOL_X86_MN_PUSH,
       CTOOL_X86_MN_POP,  CTOOL_X86_MN_POP,  CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
@@ -4287,56 +4314,56 @@ static int validate_function_object(ctool_job_t *job,
       !symbol_matches(call_local, call_local->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 139u,
-                      12u) ||
+                      18u) ||
       !symbol_matches(call_external, call_external->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 151u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 157u,
                       51u) ||
       !symbol_matches(call_nested, call_nested->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 202u,
-                      57u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 208u,
+                      89u) ||
       !symbol_matches(call_void, call_void->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 259u,
-                      24u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 297u,
+                      34u) ||
       !symbol_matches(add2, add2->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 283u,
+                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 331u,
                        33u) ||
       !symbol_matches(local_round_trip, local_round_trip->file_index,
                       CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 316u,
-                       63u) ||
+                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 364u,
+                       69u) ||
       !symbol_matches(local_call, local_call->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 379u,
-                      64u) ||
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 433u,
+                      82u) ||
       !symbol_matches(uninitialized_local, uninitialized_local->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 443u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 515u,
                       17u) ||
       !symbol_matches(vga_flip_ready, vga_flip_ready->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 460u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 532u,
                       61u) ||
       !symbol_matches(read_external_clock, read_external_clock->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 521u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 593u,
                       15u) ||
       !symbol_matches(signed_greater_equal,
                       signed_greater_equal->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 536u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 608u,
                       39u) ||
       !symbol_matches(power_of_two, power_of_two->file_index,
                       CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 575u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 647u,
                       (ctool_u32)sizeof(power_of_two_bytes)) ||
       !symbol_matches(bool_valid, bool_valid->file_index,
                       CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 718u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 790u,
                       (ctool_u32)sizeof(bool_valid_bytes)) ||
       !symbol_matches(external_sum, external_sum->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
@@ -4373,12 +4400,12 @@ static int validate_function_object(ctool_job_t *job,
       data->contents.data[2] != 0u || data->contents.data[3] != 0u ||
       implemented->size == 0u || helper->size == 0u ||
       signed_greater->size == 0u || idle->size == 0u ||
-      bool_valid->size == 0u || text->contents.size != 845u ||
+      bool_valid->size == 0u || text->contents.size != 917u ||
       object->relocations[0].relocation_section_file_index !=
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 143u ||
+      object->relocations[0].offset != 146u ||
       object->relocations[0].symbol_file_index != local_target->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -4387,7 +4414,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 191u ||
+      object->relocations[1].offset != 197u ||
       object->relocations[1].symbol_file_index != external_sum->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -4396,7 +4423,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[2].entry_index != 2u ||
       object->relocations[2].target_section_file_index != text->file_index ||
-      object->relocations[2].offset != 217u ||
+      object->relocations[2].offset != 226u ||
       object->relocations[2].symbol_file_index != call_local->file_index ||
       object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[2].addend_known != CTOOL_TRUE ||
@@ -4405,7 +4432,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[3].entry_index != 3u ||
       object->relocations[3].target_section_file_index != text->file_index ||
-      object->relocations[3].offset != 248u ||
+      object->relocations[3].offset != 286u ||
       object->relocations[3].symbol_file_index != external_three->file_index ||
       object->relocations[3].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[3].addend_known != CTOOL_TRUE ||
@@ -4414,7 +4441,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[4].entry_index != 4u ||
       object->relocations[4].target_section_file_index != text->file_index ||
-      object->relocations[4].offset != 274u ||
+      object->relocations[4].offset != 322u ||
       object->relocations[4].symbol_file_index != external_sink->file_index ||
       object->relocations[4].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[4].addend_known != CTOOL_TRUE ||
@@ -4423,7 +4450,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[5].entry_index != 5u ||
       object->relocations[5].target_section_file_index != text->file_index ||
-      object->relocations[5].offset != 327u ||
+      object->relocations[5].offset != 378u ||
       object->relocations[5].symbol_file_index !=
           timer_get_uptime_ms->file_index ||
       object->relocations[5].type != CTOOL_ELF32_R_386_PC32 ||
@@ -4433,7 +4460,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[6].entry_index != 6u ||
       object->relocations[6].target_section_file_index != text->file_index ||
-      object->relocations[6].offset != 420u ||
+      object->relocations[6].offset != 492u ||
       object->relocations[6].symbol_file_index != initializer_sum->file_index ||
       object->relocations[6].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[6].addend_known != CTOOL_TRUE ||
@@ -4442,7 +4469,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[7].entry_index != 7u ||
       object->relocations[7].target_section_file_index != text->file_index ||
-      object->relocations[7].offset != 471u ||
+      object->relocations[7].offset != 543u ||
       object->relocations[7].symbol_file_index !=
           timer_get_uptime_ms->file_index ||
       object->relocations[7].type != CTOOL_ELF32_R_386_PC32 ||
@@ -4452,7 +4479,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[8].entry_index != 8u ||
       object->relocations[8].target_section_file_index != text->file_index ||
-      object->relocations[8].offset != 489u ||
+      object->relocations[8].offset != 561u ||
       object->relocations[8].symbol_file_index != last_flip_ms->file_index ||
       object->relocations[8].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[8].addend_known != CTOOL_TRUE ||
@@ -4461,7 +4488,7 @@ static int validate_function_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[9].entry_index != 9u ||
       object->relocations[9].target_section_file_index != text->file_index ||
-      object->relocations[9].offset != 525u ||
+      object->relocations[9].offset != 597u ||
       object->relocations[9].symbol_file_index != external_clock->file_index ||
       object->relocations[9].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[9].addend_known != CTOOL_TRUE ||
@@ -8390,11 +8417,14 @@ static int validate_function_pointer_call_object(
       0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x14u, 0x00u,
       0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8bu,
       0x4cu, 0x24u, 0x08u, 0x8bu, 0x14u, 0x24u, 0x89u, 0x54u,
-      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x8bu, 0x44u, 0x24u,
-      0x0cu, 0xffu, 0xd0u, 0x83u, 0xc4u, 0x10u, 0x50u, 0x58u,
-      0xc9u, 0xc3u};
+      0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x83u, 0xecu, 0x08u,
+      0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u, 0x0cu, 0x24u, 0x8bu,
+      0x4cu, 0x24u, 0x0cu, 0x89u, 0x4cu, 0x24u, 0x04u, 0x8bu,
+      0x4cu, 0x24u, 0x10u, 0x89u, 0x4cu, 0x24u, 0x08u, 0x8bu,
+      0x44u, 0x24u, 0x14u, 0xffu, 0xd0u, 0x83u, 0xc4u, 0x18u,
+      0x50u, 0x58u, 0xc9u, 0xc3u};
   static const ctool_u32 relocation_offsets[] = {
-      42u, 53u, 234u, 253u, 304u, 424u, 429u, 440u, 466u, 0u};
+      42u, 53u, 260u, 279u, 330u, 450u, 455u, 466u, 502u, 0u};
   static const ctool_u32 relocation_types[] = {
       CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
       CTOOL_ELF32_R_386_32,   CTOOL_ELF32_R_386_32,
@@ -8449,7 +8479,7 @@ static int validate_function_pointer_call_object(
       missing == NULL || present == NULL || install == NULL || forward == NULL ||
       object->relocations == NULL || object->relocation_count != 10u ||
       text->relocation_count != 9u || data->relocation_count != 1u ||
-      object->symbol_count != 17u || text->contents.size != 477u ||
+      object->symbol_count != 17u || text->contents.size != 513u ||
       memcmp(text->contents.data, expected_text, sizeof(expected_text)) != 0 ||
       data->type != CTOOL_ELF32_SHT_PROGBITS || data->alignment != 4u ||
       data->size != 4u || data->contents.size != 4u ||
@@ -8479,7 +8509,7 @@ static int validate_function_pointer_call_object(
       !symbol_matches(three, three->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
-                      134u, 74u) ||
+                      134u, 100u) ||
       !symbol_matches(target, target->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
@@ -8493,32 +8523,32 @@ static int validate_function_pointer_call_object(
                       0u, 0u) ||
       !symbol_matches(round_trip, round_trip->file_index,
                       CTOOL_ELF32_BIND_GLOBAL, CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 208u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 234u,
                       56u) ||
       !symbol_matches(select, select->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 264u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 290u,
                       47u) ||
       !symbol_matches(equal, equal->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 311u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 337u,
                       39u) ||
       !symbol_matches(missing, missing->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 350u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 376u,
                       33u) ||
       !symbol_matches(present, present->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 383u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 409u,
                       37u) ||
       !symbol_matches(install, install->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 420u,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 446u,
                       31u) ||
       !symbol_matches(forward, forward->file_index, CTOOL_ELF32_BIND_GLOBAL,
                       CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 451u,
-                      26u)) {
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 477u,
+                      36u)) {
     (void)fprintf(stderr, "function pointer object inventory differs\n");
     return 0;
   }
@@ -9465,20 +9495,24 @@ static int validate_automatic_object(
       0xc9u, 0xc3u, 0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu,
       0x8du, 0x45u, 0xfdu, 0x50u, 0x8du, 0x45u, 0xf4u, 0x50u,
       0x8bu, 0x4cu, 0x24u, 0x04u, 0x8bu, 0x14u, 0x24u, 0x89u,
-      0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu,
-      0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u,
+      0x54u, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u, 0x83u, 0xecu,
+      0x04u, 0x8bu, 0x4cu, 0x24u, 0x04u, 0x89u, 0x0cu, 0x24u,
+      0x8bu, 0x4cu, 0x24u, 0x08u, 0x89u, 0x4cu, 0x24u, 0x04u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u, 0xc4u, 0x0cu,
+      0xc9u, 0xc3u,
       0x55u, 0x89u, 0xe5u, 0x83u, 0xecu, 0x0cu, 0x8du, 0x45u,
       0xf4u, 0x50u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u,
       0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau,
       0x04u, 0x00u, 0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u,
-      0xc8u, 0x50u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x83u,
-      0xc4u, 0x04u, 0xc9u, 0xc3u};
+      0xc8u, 0x50u, 0x83u, 0xecu, 0x08u, 0x8bu, 0x4cu, 0x24u,
+      0x08u, 0x89u, 0x0cu, 0x24u, 0xe8u, 0xfcu, 0xffu, 0xffu,
+      0xffu, 0x83u, 0xc4u, 0x0cu, 0xc9u, 0xc3u};
   static const char *const function_names[] = {
       "automatic_array", "automatic_record", "automatic_bytes",
       "automatic_mixed", "automatic_children"};
   static const ctool_u32 function_offsets[] = {0u, 86u, 134u, 154u,
-                                                192u};
-  static const ctool_u32 function_sizes[] = {86u, 48u, 20u, 38u, 44u};
+                                                210u};
+  static const ctool_u32 function_sizes[] = {86u, 48u, 20u, 56u, 54u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
   const ctool_elf32_symbol_t *consume =
@@ -9541,7 +9575,7 @@ static int validate_automatic_object(
           rel_text->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != text->file_index ||
-      object->relocations[1].offset != 183u ||
+      object->relocations[1].offset != 201u ||
       object->relocations[1].symbol_file_index != consume_layout->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -9550,7 +9584,7 @@ static int validate_automatic_object(
           rel_text->file_index ||
       object->relocations[2].entry_index != 2u ||
       object->relocations[2].target_section_file_index != text->file_index ||
-      object->relocations[2].offset != 227u ||
+      object->relocations[2].offset != 255u ||
       object->relocations[2].symbol_file_index != consume_child->file_index ||
       object->relocations[2].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[2].addend_known != CTOOL_TRUE ||
@@ -9778,15 +9812,15 @@ static int validate_narrow_value_object(
   static const ctool_u8 signed_word_lane[] = {0x0fu, 0xbfu, 0xc0u};
   static const ctool_u8 unsigned_word_lane[] = {0x0fu, 0xb7u, 0xc0u};
   static const ctool_u8 direct_u16_call_tail[] = {
-      0x83u, 0xc4u, 0x04u, 0x0fu, 0xb7u, 0xc0u, 0x50u};
+      0x83u, 0xc4u, 0x08u, 0x0fu, 0xb7u, 0xc0u, 0x50u};
   static const ctool_u8 indirect_u16_call_tail[] = {
       0x83u, 0xc4u, 0x08u, 0x0fu, 0xb7u, 0xc0u, 0x50u};
   static const ctool_u8 direct_bool_call_tail[] = {
-      0x83u, 0xc4u, 0x04u, 0x0fu, 0xb6u, 0xc0u, 0x50u};
+      0x83u, 0xc4u, 0x08u, 0x0fu, 0xb6u, 0xc0u, 0x50u};
   static const ctool_u8 indirect_bool_call_tail[] = {
       0x83u, 0xc4u, 0x08u, 0x0fu, 0xb6u, 0xc0u, 0x50u};
   static const ctool_u8 direct_i8_call_tail[] = {
-      0x83u, 0xc4u, 0x04u, 0x0fu, 0xbeu, 0xc0u, 0x50u};
+      0x83u, 0xc4u, 0x08u, 0x0fu, 0xbeu, 0xc0u, 0x50u};
   static const ctool_u8 indirect_i16_call_tail[] = {
       0x83u, 0xc4u, 0x08u, 0x0fu, 0xbfu, 0xc0u, 0x50u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -11058,7 +11092,8 @@ static int validate_void_cast_object(ctool_job_t *job,
       0x00u, 0x50u, 0x58u,
       0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu,
       0x00u, 0x50u, 0x58u,
-      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0xc9u, 0xc3u};
+      0x83u, 0xecu, 0x08u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x08u, 0xc9u, 0xc3u};
   static const ctool_x86_mnemonic_t instructions[] = {
       CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
@@ -11067,7 +11102,8 @@ static int validate_void_cast_object(ctool_job_t *job,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_LEA,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
       CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,
-      CTOOL_X86_MN_CALL, CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_CALL, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
       find_section(object, ".rel.text");
@@ -11090,7 +11126,7 @@ static int validate_void_cast_object(ctool_job_t *job,
           rel_text->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != text->file_index ||
-      object->relocations[0].offset != 40u ||
+      object->relocations[0].offset != 43u ||
       object->relocations[0].symbol_file_index != sink->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_PC32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -11437,11 +11473,11 @@ static int validate_structure_value_object(
   static const ctool_i32 assign_frame[] = {16, 12, 8};
   static const structure_function_expectation_t functions[] = {
       {"call8", 0u, 114u, call8_frame, 1u, 2u, 1u, 1u, 0u, 1u, 0u,
-       28u},
+       32u},
       {"call12", 114u, 114u, call12_frame, 1u, 2u, 1u, 1u, 0u, 1u,
-       0u, 32u},
+       0u, 44u},
       {"call3", 228u, 114u, call3_frame, 1u, 2u, 1u, 1u, 0u, 1u, 0u,
-       24u},
+       36u},
       {"copy8", 342u, 61u, copy8_frame, 2u, 2u, 0u, 0u, 0u, 0u, 1u,
        0u},
       {"copy12", 403u, 61u, copy12_frame, 2u, 2u, 0u, 0u, 0u, 0u,
@@ -11449,7 +11485,7 @@ static int validate_structure_value_object(
       {"bridge", 464u, 157u, bridge_frame, 4u, 3u, 1u, 1u, 0u, 0u,
        1u, 32u},
       {"indirect_bridge", 621u, 169u, indirect_frame, 5u, 3u, 1u, 0u,
-       1u, 0u, 1u, 36u},
+       1u, 0u, 1u, 48u},
       {"assign8", 790u, 138u, assign_frame, 3u, 5u, 0u, 0u, 0u, 0u,
        1u, 0u}};
   static const ctool_u32 relocation_offsets[] = {
@@ -11463,7 +11499,7 @@ static int validate_structure_value_object(
   if (text == (const ctool_elf32_section_t *)0 ||
       rel_text == (const ctool_elf32_section_t *)0 ||
       text->contents.size != 928u ||
-      structure_text_fingerprint(text->contents) != 0x39a8b114u ||
+      structure_text_fingerprint(text->contents) != 0x31d58b50u ||
       text->relocation_count != 4u || text->relocation_first != 0u ||
       object->relocation_count != 4u || object->relocations == NULL ||
       object->symbol_count != 13u || object->symbols == NULL ||
@@ -11650,6 +11686,765 @@ cleanup:
   return 1;
 }
 
+static int call_alignment_adjust_stack(
+    const ctool_x86_instruction_t *instruction, ctool_u32 *esp_residue,
+    ctool_u32 *ebp_residue, int *ebp_known) {
+  const ctool_x86_operand_t *left;
+  const ctool_x86_operand_t *right;
+  if (instruction == NULL || esp_residue == NULL || ebp_residue == NULL ||
+      ebp_known == NULL) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_PUSH) {
+    *esp_residue = (*esp_residue + 12u) & 15u;
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_POP) {
+    if (instruction->operand_count == 1u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_REGISTER &&
+        aggregate_register_is(instruction->operands[0].as.reg, 4u) != 0) {
+      return 0;
+    }
+    *esp_residue = (*esp_residue + 4u) & 15u;
+    if (instruction->operand_count == 1u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_REGISTER &&
+        aggregate_register_is(instruction->operands[0].as.reg, 5u) != 0) {
+      *ebp_known = 0;
+    }
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_LEAVE) {
+    if (*ebp_known == 0) {
+      return 0;
+    }
+    *esp_residue = (*ebp_residue + 4u) & 15u;
+    *ebp_known = 0;
+    return 1;
+  }
+  if (instruction->operand_count == 2u) {
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+        left->kind == CTOOL_X86_OPERAND_REGISTER &&
+        right->kind == CTOOL_X86_OPERAND_REGISTER &&
+        aggregate_register_is(left->as.reg, 5u) != 0 &&
+        aggregate_register_is(right->as.reg, 4u) != 0) {
+      *ebp_residue = *esp_residue;
+      *ebp_known = 1;
+      return 1;
+    }
+    if ((instruction->mnemonic == CTOOL_X86_MN_ADD ||
+         instruction->mnemonic == CTOOL_X86_MN_SUB) &&
+        left->kind == CTOOL_X86_OPERAND_REGISTER &&
+        aggregate_register_is(left->as.reg, 4u) != 0 &&
+        right->kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+        right->as.value.kind == CTOOL_X86_VALUE_CONSTANT) {
+      ctool_u32 amount = right->as.value.bits & 15u;
+      *esp_residue = instruction->mnemonic == CTOOL_X86_MN_ADD
+                         ? (*esp_residue + amount) & 15u
+                         : (*esp_residue + 16u - amount) & 15u;
+      return 1;
+    }
+    if (left->kind == CTOOL_X86_OPERAND_REGISTER &&
+        (aggregate_register_is(left->as.reg, 4u) != 0 ||
+         aggregate_register_is(left->as.reg, 5u) != 0) &&
+        instruction->mnemonic != CTOOL_X86_MN_CMP &&
+        instruction->mnemonic != CTOOL_X86_MN_TEST) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_XCHG &&
+        right->kind == CTOOL_X86_OPERAND_REGISTER &&
+        (aggregate_register_is(right->as.reg, 4u) != 0 ||
+         aggregate_register_is(right->as.reg, 5u) != 0)) {
+      return 0;
+    }
+  } else if (instruction->operand_count == 1u &&
+             instruction->operands[0].kind ==
+                 CTOOL_X86_OPERAND_REGISTER &&
+             (aggregate_register_is(instruction->operands[0].as.reg, 4u) !=
+                  0 ||
+              aggregate_register_is(instruction->operands[0].as.reg, 5u) !=
+                  0) &&
+             instruction->mnemonic != CTOOL_X86_MN_CALL &&
+             instruction->mnemonic != CTOOL_X86_MN_JMP) {
+    return 0;
+  }
+  switch (instruction->mnemonic) {
+    case CTOOL_X86_MN_PUSHA:
+    case CTOOL_X86_MN_PUSHAD:
+    case CTOOL_X86_MN_PUSHF:
+    case CTOOL_X86_MN_PUSHFD:
+    case CTOOL_X86_MN_POPA:
+    case CTOOL_X86_MN_POPAD:
+    case CTOOL_X86_MN_POPF:
+    case CTOOL_X86_MN_POPFD:
+      return 0;
+    default:
+      break;
+  }
+  return 1;
+}
+
+typedef struct {
+  ctool_u32 esp_residue;
+  ctool_u32 ebp_residue;
+  int ebp_known;
+  int reached;
+} call_alignment_state_t;
+
+static int call_alignment_is_conditional_jump(
+    ctool_x86_mnemonic_t mnemonic) {
+  switch (mnemonic) {
+    case CTOOL_X86_MN_JA:
+    case CTOOL_X86_MN_JAE:
+    case CTOOL_X86_MN_JB:
+    case CTOOL_X86_MN_JBE:
+    case CTOOL_X86_MN_JE:
+    case CTOOL_X86_MN_JG:
+    case CTOOL_X86_MN_JGE:
+    case CTOOL_X86_MN_JL:
+    case CTOOL_X86_MN_JLE:
+    case CTOOL_X86_MN_JNE:
+    case CTOOL_X86_MN_JNO:
+    case CTOOL_X86_MN_JNP:
+    case CTOOL_X86_MN_JNS:
+    case CTOOL_X86_MN_JO:
+    case CTOOL_X86_MN_JP:
+    case CTOOL_X86_MN_JS:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+static int call_alignment_branch_target(
+    const ctool_x86_decoded_t *decoded, ctool_u32 cursor,
+    ctool_u32 function_size, ctool_u32 *target_out) {
+  int64_t target;
+  int32_t displacement;
+  if (decoded == NULL || target_out == NULL ||
+      decoded->instruction.operand_count != 1u ||
+      decoded->instruction.operands[0].kind !=
+          CTOOL_X86_OPERAND_RELATIVE ||
+      decoded->instruction.operands[0].as.value.kind !=
+          CTOOL_X86_VALUE_CONSTANT) {
+    return 0;
+  }
+  displacement =
+      (int32_t)decoded->instruction.operands[0].as.value.bits;
+  target = (int64_t)cursor + (int64_t)decoded->consumed +
+           (int64_t)displacement;
+  if (target < 0 || target >= (int64_t)function_size) {
+    return 0;
+  }
+  *target_out = (ctool_u32)target;
+  return 1;
+}
+
+static int call_alignment_record_state(
+    ctool_u32 function_size, ctool_u32 target,
+    const ctool_u8 *instruction_starts,
+    const call_alignment_state_t *incoming,
+    call_alignment_state_t *states, ctool_u32 *worklist,
+    ctool_u32 *worklist_count, ctool_u32 *join_count,
+    const char *context) {
+  call_alignment_state_t *state;
+  if (instruction_starts == NULL || incoming == NULL || states == NULL ||
+      worklist == NULL || worklist_count == NULL || join_count == NULL ||
+      context == NULL || target >= function_size ||
+      instruction_starts[target] == 0u) {
+    (void)fprintf(stderr, "%s: control-flow target %u differs\n", context,
+                  (unsigned int)target);
+    return 0;
+  }
+  state = &states[target];
+  if (state->reached == 0) {
+    if (*worklist_count >= function_size) {
+      (void)fprintf(stderr, "%s: control-flow worklist overflowed\n",
+                    context);
+      return 0;
+    }
+    *state = *incoming;
+    state->reached = 1;
+    worklist[(*worklist_count)++] = target;
+    return 1;
+  }
+  if (state->esp_residue != incoming->esp_residue ||
+      state->ebp_known != incoming->ebp_known ||
+      (state->ebp_known != 0 &&
+       state->ebp_residue != incoming->ebp_residue)) {
+    (void)fprintf(stderr,
+                  "%s: stack state differs at control-flow join %u\n",
+                  context, (unsigned int)target);
+    return 0;
+  }
+  (*join_count)++;
+  return 1;
+}
+
+static int validate_call_alignment_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, ctool_u32 expected_calls,
+    ctool_u32 callee_cleanup_call_mask,
+    ctool_u32 minimum_conditional_jumps, ctool_u32 minimum_joins,
+    ctool_u32 minimum_back_edges,
+    const char *context) {
+  ctool_u8 *instruction_starts = NULL;
+  call_alignment_state_t *states = NULL;
+  ctool_u32 *worklist = NULL;
+  ctool_u32 decode_cursor = 0u;
+  ctool_u32 worklist_count = 0u;
+  ctool_u32 worklist_cursor = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 conditional_jump_count = 0u;
+  ctool_u32 join_count = 0u;
+  ctool_u32 back_edge_count = 0u;
+  int passed = 0;
+  if (job == NULL || text == NULL || function == NULL || context == NULL ||
+      function->size == 0u ||
+      function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    goto cleanup;
+  }
+  instruction_starts = (ctool_u8 *)calloc((size_t)function->size,
+                                          sizeof(*instruction_starts));
+  states = (call_alignment_state_t *)calloc((size_t)function->size,
+                                             sizeof(*states));
+  worklist = (ctool_u32 *)calloc((size_t)function->size,
+                                 sizeof(*worklist));
+  if (instruction_starts == NULL || states == NULL || worklist == NULL) {
+    (void)fprintf(stderr, "%s: control-flow allocation failed\n", context);
+    goto cleanup;
+  }
+  while (decode_cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + decode_cursor,
+        function->size - decode_cursor);
+    ctool_status_t status;
+    instruction_starts[decode_cursor] = 1u;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: decode failed at %u\n", context,
+                    (unsigned int)decode_cursor);
+      goto cleanup;
+    }
+    decode_cursor += decoded.consumed;
+  }
+  if (decode_cursor != function->size) {
+    (void)fprintf(stderr, "%s: decoded function size differs\n", context);
+    goto cleanup;
+  }
+  states[0].esp_residue = 12u;
+  states[0].ebp_residue = 0u;
+  states[0].ebp_known = 0;
+  states[0].reached = 1;
+  worklist[worklist_count++] = 0u;
+  while (worklist_cursor < worklist_count) {
+    ctool_u32 cursor = worklist[worklist_cursor++];
+    call_alignment_state_t outgoing = states[cursor];
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_u32 fallthrough;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: reachable decode failed at %u\n", context,
+                    (unsigned int)cursor);
+      goto cleanup;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      if (outgoing.esp_residue != 0u) {
+        (void)fprintf(stderr,
+                      "%s: call %u has ESP residue %u instead of zero\n",
+                      context, (unsigned int)call_count,
+                      (unsigned int)outgoing.esp_residue);
+        goto cleanup;
+      }
+      if (call_count < 32u &&
+          (callee_cleanup_call_mask & (1u << call_count)) != 0u) {
+        outgoing.esp_residue = (outgoing.esp_residue + 4u) & 15u;
+      }
+      call_count++;
+    }
+    if (!call_alignment_adjust_stack(
+            &decoded.instruction, &outgoing.esp_residue,
+            &outgoing.ebp_residue, &outgoing.ebp_known)) {
+      (void)fprintf(stderr, "%s: stack model failed at %u\n", context,
+                    (unsigned int)cursor);
+      goto cleanup;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      continue;
+    }
+    fallthrough = cursor + decoded.consumed;
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_JMP ||
+        call_alignment_is_conditional_jump(
+            decoded.instruction.mnemonic) != 0) {
+      ctool_u32 target;
+      if (call_alignment_is_conditional_jump(
+              decoded.instruction.mnemonic) != 0) {
+        conditional_jump_count++;
+      }
+      if (!call_alignment_branch_target(&decoded, cursor, function->size,
+                                        &target) ||
+          !call_alignment_record_state(
+              function->size, target, instruction_starts, &outgoing,
+              states, worklist, &worklist_count, &join_count,
+              context)) {
+        goto cleanup;
+      }
+      if (target <= cursor) {
+        back_edge_count++;
+      }
+      if (decoded.instruction.mnemonic == CTOOL_X86_MN_JMP) {
+        continue;
+      }
+    }
+    if (fallthrough >= function->size ||
+        !call_alignment_record_state(
+            function->size, fallthrough, instruction_starts, &outgoing,
+            states, worklist, &worklist_count, &join_count, context)) {
+      goto cleanup;
+    }
+  }
+  if (call_count != expected_calls ||
+      conditional_jump_count < minimum_conditional_jumps ||
+      join_count < minimum_joins || back_edge_count < minimum_back_edges) {
+    (void)fprintf(stderr,
+                  "%s: CFG inventory differs: calls=%u conditional=%u "
+                  "joins=%u back_edges=%u\n",
+                  context, (unsigned int)call_count,
+                  (unsigned int)conditional_jump_count,
+                  (unsigned int)join_count,
+                  (unsigned int)back_edge_count);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(worklist);
+  free(states);
+  free(instruction_starts);
+  return passed;
+}
+
+#define CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT 128u
+#define CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT \
+  (CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT / 2u)
+#define CALL_ALIGNMENT_SYMBOLIC_SAVED_FRAME_SLOTS 1u
+#define CALL_ALIGNMENT_SYMBOLIC_PADDING_SLOTS 3u
+
+static int call_alignment_symbolic_stack_slot(
+    const ctool_x86_memory_t *memory, ctool_u32 esp_slot,
+    ctool_u32 *slot_out) {
+  int64_t slot;
+  ctool_i32 displacement;
+  if (memory == NULL || slot_out == NULL || memory->address_bits != 32u ||
+      aggregate_register_is(memory->base, 4u) == 0 ||
+      memory->index.class_id != CTOOL_X86_REG_NONE ||
+      memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT) {
+    return 0;
+  }
+  displacement = (ctool_i32)memory->displacement.bits;
+  if ((displacement % 4) != 0) {
+    return 0;
+  }
+  slot = (int64_t)esp_slot + (int64_t)(displacement / 4);
+  if (slot < 0 || slot >= (int64_t)CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT) {
+    return 0;
+  }
+  *slot_out = (ctool_u32)slot;
+  return 1;
+}
+
+static aggregate_symbolic_value_t call_alignment_read_symbolic_operand(
+    const ctool_x86_operand_t *operand,
+    const aggregate_symbolic_value_t registers[8],
+    const aggregate_symbolic_value_t stack[CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT],
+    ctool_u32 esp_slot) {
+  ctool_u32 slot;
+  if (operand != NULL && operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+      call_alignment_symbolic_stack_slot(&operand->as.memory, esp_slot,
+                                         &slot)) {
+    return stack[slot];
+  }
+  return aggregate_read_operand(operand, registers);
+}
+
+static int validate_call_alignment_arguments(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, const char *context) {
+  static const ctool_u32 expected_arguments[] = {
+      0x11223344u, 0x55667788u, 0x99aabbccu};
+  aggregate_symbolic_value_t registers[8];
+  aggregate_symbolic_value_t stack[CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT];
+  ctool_u32 argument_count =
+      (ctool_u32)(sizeof(expected_arguments) /
+                  sizeof(expected_arguments[0]));
+  ctool_u32 expected_call_slot =
+      CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT -
+      CALL_ALIGNMENT_SYMBOLIC_SAVED_FRAME_SLOTS - argument_count -
+      CALL_ALIGNMENT_SYMBOLIC_PADDING_SLOTS;
+  ctool_u32 esp_slot = CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (job == NULL || text == NULL || function == NULL || context == NULL ||
+      text->contents.data == NULL ||
+      function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      function->section_file_index != text->file_index ||
+      function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    return 0;
+  }
+  for (index = 0u; index < 8u; index++) {
+    registers[index] = aggregate_unknown_value();
+  }
+  for (index = 0u; index < CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT; index++) {
+    stack[index] = aggregate_unknown_value();
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: argument decode failed at %u\n", context,
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_PUSH &&
+        instruction->operand_count == 1u) {
+      if (esp_slot == 0u) {
+        (void)fprintf(stderr, "%s: symbolic stack overflowed\n", context);
+        return 0;
+      }
+      esp_slot--;
+      stack[esp_slot] = call_alignment_read_symbolic_operand(
+          &instruction->operands[0], registers, stack, esp_slot + 1u);
+    } else if (instruction->mnemonic == CTOOL_X86_MN_POP &&
+               instruction->operand_count == 1u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER) {
+      ctool_u32 destination;
+      if (esp_slot >= CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT ||
+          aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) == 0) {
+        (void)fprintf(stderr, "%s: symbolic stack underflowed\n", context);
+        return 0;
+      }
+      registers[destination] = stack[esp_slot++];
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u) {
+      const ctool_x86_operand_t *destination = &instruction->operands[0];
+      aggregate_symbolic_value_t source =
+          call_alignment_read_symbolic_operand(
+              &instruction->operands[1], registers, stack, esp_slot);
+      if (destination->kind == CTOOL_X86_OPERAND_REGISTER) {
+        ctool_u32 destination_index;
+        if (aggregate_gpr_index(destination->as.reg,
+                                &destination_index) == 0) {
+          return 0;
+        }
+        registers[destination_index] = source;
+      } else if (destination->kind == CTOOL_X86_OPERAND_MEMORY) {
+        ctool_u32 destination_slot;
+        if (!call_alignment_symbolic_stack_slot(
+                &destination->as.memory, esp_slot, &destination_slot)) {
+          return 0;
+        }
+        stack[destination_slot] = source;
+      } else {
+        return 0;
+      }
+    } else if ((instruction->mnemonic == CTOOL_X86_MN_ADD ||
+                instruction->mnemonic == CTOOL_X86_MN_SUB) &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               aggregate_register_is(
+                   instruction->operands[0].as.reg, 4u) != 0 &&
+               instruction->operands[1].kind ==
+                   CTOOL_X86_OPERAND_IMMEDIATE &&
+               instruction->operands[1].as.value.kind ==
+                   CTOOL_X86_VALUE_CONSTANT) {
+      ctool_u32 byte_count = instruction->operands[1].as.value.bits;
+      ctool_u32 slots;
+      if ((byte_count & 3u) != 0u) {
+        return 0;
+      }
+      slots = byte_count / 4u;
+      if (instruction->mnemonic == CTOOL_X86_MN_SUB) {
+        ctool_u32 previous = esp_slot;
+        if (slots > esp_slot) {
+          return 0;
+        }
+        esp_slot -= slots;
+        for (index = esp_slot; index < previous; index++) {
+          stack[index] = aggregate_unknown_value();
+        }
+      } else {
+        if (slots > CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT - esp_slot) {
+          return 0;
+        }
+        esp_slot += slots;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      if (esp_slot != expected_call_slot) {
+        (void)fprintf(stderr,
+                      "%s: expected three scalar arguments and three "
+                      "padding slots at the call\n",
+                      context);
+        return 0;
+      }
+      for (index = 0u; index < argument_count; index++) {
+        if (esp_slot + index >= CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT ||
+            stack[esp_slot + index].kind !=
+                AGGREGATE_SYMBOLIC_CONSTANT ||
+            stack[esp_slot + index].bits != expected_arguments[index]) {
+          (void)fprintf(stderr,
+                        "%s: argument %u was not preserved across padding\n",
+                        context, (unsigned int)index);
+          return 0;
+        }
+      }
+      return 1;
+    } else {
+      (void)fprintf(stderr,
+                    "%s: unsupported symbolic instruction at %u\n",
+                    context, (unsigned int)cursor);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  (void)fprintf(stderr, "%s: expected call was not found\n", context);
+  return 0;
+}
+
+static int validate_call_alignment_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  typedef struct {
+    const char *name;
+    ctool_u32 calls;
+    ctool_u32 callee_cleanup_call_mask;
+    ctool_u32 conditional_jumps;
+    ctool_u32 joins;
+    ctool_u32 back_edges;
+  } call_alignment_case_t;
+  static const call_alignment_case_t cases[] = {
+      {"aligned_zero", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_one", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_nested", 2u, 0u, 0u, 0u, 0u},
+      {"aligned_indirect", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_arguments", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_branch", 3u, 0u, 1u, 1u, 0u},
+      {"aligned_loop", 1u, 0u, 1u, 1u, 1u},
+      {"aligned_structure", 2u, 1u, 0u, 0u, 0u},
+      {"aligned_structure_indirect", 1u, 1u, 0u, 0u, 0u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  if (text == NULL || text->contents.data == NULL) {
+    (void)fprintf(stderr, "call alignment text section differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0])); index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, cases[index].name);
+    if (!validate_call_alignment_function(job, text, function,
+                                           cases[index].calls,
+                                           cases[index].callee_cleanup_call_mask,
+                                           cases[index].conditional_jumps,
+                                           cases[index].joins,
+                                           cases[index].back_edges,
+                                           cases[index].name)) {
+      return 0;
+    }
+  }
+  return validate_call_alignment_arguments(
+      job, text, find_symbol(object, "aligned_arguments"),
+      "aligned_arguments");
+}
+
+static int run_call_alignment_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "typedef struct { u32 first; u32 second; } pair_t;\n"
+      "extern u32 no_args(void);\n"
+      "extern u32 scalar1(u32 value);\n"
+      "extern u32 scalar3(u32 first, u32 second, u32 third);\n"
+      "extern pair_t pair_call(u32 before, pair_t value, u32 after);\n"
+      "u32 aligned_zero(void) { return no_args(); }\n"
+      "u32 aligned_one(u32 value) { return scalar1(value); }\n"
+      "u32 aligned_nested(u32 value) {\n"
+      "  u32 local = value;\n"
+      "  return scalar3(local, no_args(), local);\n"
+      "}\n"
+      "u32 aligned_indirect(u32 (*function)(u32, u32), u32 value) {\n"
+      "  return function(value, value);\n"
+      "}\n"
+      "u32 aligned_arguments(void) {\n"
+      "  return scalar3(0x11223344u, 0x55667788u, 0x99aabbccu);\n"
+      "}\n"
+      "u32 aligned_branch(u32 value) {\n"
+      "  u32 selected;\n"
+      "  if (value) selected = scalar1(value);\n"
+      "  else selected = no_args();\n"
+      "  return scalar1(selected);\n"
+      "}\n"
+      "u32 aligned_loop(u32 count) {\n"
+      "  u32 result = 0u;\n"
+      "  while (count) {\n"
+      "    result = scalar1(result);\n"
+      "    count = count - 1u;\n"
+      "  }\n"
+      "  return result;\n"
+      "}\n"
+      "pair_t aligned_structure(pair_t value) {\n"
+      "  pair_t result = pair_call(1u, value, 2u);\n"
+      "  result.first = scalar1(result.first);\n"
+      "  return result;\n"
+      "}\n"
+      "pair_t aligned_structure_indirect(\n"
+      "    pair_t (*function)(u32, pair_t, u32), pair_t value) {\n"
+      "  return function(1u, value, 2u);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_arena_mark_t mark;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/call-alignment.c", source, &unit) ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "call alignment buffers")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  if (!check_status(status, CTOOL_OK, "first call alignment object") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  if (!check_status(status, CTOOL_OK, "repeat call alignment object") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size == 0u || second_bytes.size != first_bytes.size ||
+      memcmp(second_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "call alignment object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/call-alignment.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read call alignment object") ||
+      !validate_call_alignment_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, limited);
+  if (!check_status(status, CTOOL_ERR_LIMIT,
+                    "limited call alignment object") ||
+      ctool_buffer_view(limited).size != 0u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      !expect_new_diagnostic(job, diagnostic_count, CTOOL_C_EMIT_DIAG_LIMIT,
+                             NULL, "limited call alignment object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(first, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  first_bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "recovered call alignment object") ||
+      first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)second_bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("call-alignment: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -11696,13 +12491,16 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "call-alignment") == 0) {
+    return run_call_alignment_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|narrow-mutations|narrow-values|"
-                "void-casts|structure-values "
+                "void-casts|structure-values|call-alignment "
                 "HOST_ROOT\n");
   return 2;
 }

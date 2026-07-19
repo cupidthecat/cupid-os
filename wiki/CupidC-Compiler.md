@@ -204,7 +204,9 @@ The shared path carries compatible, complete structure values through lvalue con
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and each argument is rounded up to four bytes. The caller clears ABI padding before it copies arguments. A structure-returning call passes a hidden destination pointer before the explicit arguments. The callee reads that pointer at `[ebp+8]`, reads its first explicit argument at `[ebp+12]`, copies the result into the destination, returns the pointer in `eax`, and uses `ret 4`. The caller cleans the explicit argument bytes.
 
-Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Automatic string leaves, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, variadic calls, and 16-byte call-site alignment also remain unfinished in the shared path.
+Supported fixed direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing structure area. Nested calls and structure-result calls follow the same rule.
+
+Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Automatic string leaves, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, and variadic calls also remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C compiler for its C objects, and the private in-kernel CupidC compiler still handles embedded runtime compilation. The hosted structure-value path does not produce a normal Cupid OS object or change a boot or runtime artifact.
 

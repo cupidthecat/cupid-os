@@ -60,6 +60,10 @@ _Avoid_: AST, x86 bytecode, machine code
 A complete Cupid C `struct` carried by value through Linear IR. One abstract stack entry represents an emitter-owned snapshot of the target bytes, not an address that aliases the source object.
 _Avoid_: aggregate scalar, borrowed object address
 
+**Aligned call site**:
+An i386 call instruction emitted with ESP on a sixteen-byte boundary before the CPU pushes the return address. Hosted CupidC derives the required padding from the fixed frame, live Linear IR stack depth, and outgoing ABI storage.
+_Avoid_: sixteen-byte function frame, aligned callee entry
+
 **C mode**:
 The CupidC language mode for freestanding C source.
 _Avoid_: Cupid mode

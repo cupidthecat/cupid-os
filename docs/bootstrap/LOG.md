@@ -4675,3 +4675,51 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0049, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manuals describe the capability and its limits. The related earlier ADRs now distinguish their former aggregate-value boundary from this supported structure subset. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Union and class values, arrays as values, volatile and atomic graphs, over-alignment, wide and floating runtime values, variadic calls, 16-byte call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC aligns i386 call sites to sixteen bytes
+
+### Decision and ABI rule
+
+Hosted CupidC now places ESP on a sixteen-byte boundary immediately before every represented i386 `CALL`. The rule applies to direct and register-indirect calls, nested expressions, calls reached through branches or loops, scalar arguments and results, inline structure arguments, and hidden structure-result pointers.
+
+The implementation stays private to the i386 emitter. A control-flow pass derives the semantic stack depth at every reachable Linear IR instruction and requires matching depths at joins. The emitter combines that live depth with the function's fixed frame and any outgoing structure block, then reserves zero, four, eight, or twelve padding bytes. Scalar calls shift completed argument words into the padded area without changing cdecl order. Indirect callees and structure-call temporaries keep their established locations, and caller cleanup removes the same explicit arguments and padding it reserved.
+
+This does not add a public padding instruction. Stack alignment belongs to the target ABI, while Linear IR continues to describe C evaluation and values. A conforming callee enters with ESP at residue twelve after the return address is pushed; `PUSH EBP` leaves residue eight before the fixed frame is allocated. ADR 0050 records this invariant and the choice to calculate padding from each reachable call rather than from the function's maximum depth.
+
+Variadic calls, floating calls, over-aligned structure values, and the other deferred value categories remain unsupported. This is still a hosted emission capability. It changes no production C object, build owner, or host dependency.
+
+### Contract evidence and corrections
+
+- The first focused fixture reached `aligned_zero` with ESP residue eight at its call. That failure is the red result for the former unaligned path.
+- The final decoder builds an instruction-boundary control-flow graph and checks every reachable call. Dedicated functions cover all four padding amounts, direct and indirect calls, nested evaluation, a conditional join, a loop back edge, structure arguments, and hidden structure results. Unmodeled ESP or EBP writes fail the oracle instead of leaving a stale residue.
+- A symbolic executor follows the three-argument scalar case. It proves that a twelve-byte padding shift leaves `0x11223344`, `0x55667788`, and `0x99aabbcc` in cdecl order at the call.
+- Review found that the first control-flow oracle treated every call as stack-neutral. Structure-return callees remove the hidden result word with `RET 4`, so that model could be four bytes wrong until `LEAVE` hid the difference. The corrected oracle applies that cleanup and checks a scalar call after a structure-returning call.
+- Repeat emission is byte-identical and leaves the frozen translation unit and job arena unchanged. A 64-byte output limit returns `CTOOL_ERR_LIMIT`, publishes an empty buffer, rewinds storage, and permits a successful call on the same job.
+- Correct alignment changed the established byte oracles and relocation offsets. The combined object now has 917 text bytes, with call relocations at offsets 146, 197, 226, 286, 322, 378, 492, 543, 561, and 597. The structure object remains 928 bytes and now has fingerprint `31D58B50`. The loop, Doom `do` loop, function-pointer, automatic-object, and void-cast oracles were refreshed to their measured aligned encodings.
+- The first dedicated test only covered straight-line calls and did not prove that argument values survived the padding move. The control-flow and symbolic checks replaced that incomplete proof. GCC then rejected two always-false `SIZE_MAX` comparisons in the test allocator; using `calloc` removed the warning and kept zero-initialized state explicit.
+- The first full repository run passed the compiler contracts but found seven stale lexical inventory gates. The generated manifest already held the new counts. Updating those exact expectations made the seven focused tests pass before the complete gate was repeated.
+- One sanitizer wrapper lost its flags between PowerShell and WSL and linked instrumented objects without the required runtimes. That run is excluded. Base64-encoded Bash payloads preserved the visible sanitizer flags for the accepted runs.
+
+The hosted emitter source gate now publishes 110 definitions, 2,627 statements, 22,631 expressions, 353 block bindings, and 185 initializers. The final source graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 1,068 `goto`, 61 `do`, 206 `switch`, 1,573 `case`, 137 `default`, 2,514 `while`, 1,725 `break`, 952 `continue`, 26,034 `if`, 3,545 `else`, 3,095 `for`, 15,947 `return`, and 3,249 `sizeof` occurrences. Its digest is `9a9237a832b1948dc720595a88563b5d9f0a3ea8fff86dc47153dfc0bd8fe458`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red contract | PASS | The initial call-alignment fixture reported ESP residue eight at `aligned_zero` before target padding was implemented. |
+| Focused CupidC object contract | PASS | The final object module passes all 16 Python tests in 12.366 seconds. The dedicated final-tree alignment test passes again in 10.828 seconds after the structure-return model was strengthened. |
+| Windows hosted Toolchain | PASS | The complete hosted suite passes every mode and all 22 assembly demos in 11.2 seconds. The final repository gate rebuilds and passes the amended object contract. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted suite in 42.0 and 41.3 seconds. Final-tree strict rebuilds pass the amended alignment mode in 4.5 and 5.0 seconds. |
+| Sanitizers | PASS AFTER WRAPPER CORRECTION | Fresh GCC and Clang ASan and UBSan builds pass the complete hosted suite in 185.9 and 211.5 seconds with leak detection and halt-on-error enabled. Final-tree instrumented rebuilds pass the amended alignment mode in 20.7 and 17.3 seconds. The wrapper that lost its flags is excluded. |
+| Static analysis | PASS AFTER FIXTURE HARDENING | GCC `-fanalyzer` and Clang `--analyze -analyzer-werror` report no diagnostics for the emitter and object contract. The final contract passes again after the structure-return cleanup fix. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final checked records in 46.5 seconds. `make check-bootstrap-audit` reproduces them in 44.3 seconds. |
+| Full repository gate | PASS AFTER INVENTORY UPDATE | The first run identified seven stale inventory assertions. The final `make test` passes all 323 tests in 532.347 seconds with one existing skip and returns from Make in 575.3 seconds. |
+| Production image build | PASS | `make all` rebuilds CupidASM, CupidLD, CupidObj, the kernel, embedded documentation, and the disk image in 25.6 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke boots the rebuilt image and runs `/bin/ls.cc` successfully in 19 seconds. |
+| Two-axis review | PASS | Standards found no hard violation. It noted the target-private second IR dispatch and parallel direct/indirect scalar-call setup as defensible maintenance judgments. Spec found no missing requirement, scope creep, or implementation error in this increment. |
+
+This increment transfers no production object and retires no host dependency. GCC or Clang still builds the hosted compiler and normal C objects. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, and the private in-kernel compiler remains the runtime JIT and AOT path.
+
+ADR 0050, the root context, README files, bootstrap records, active-source audit, wiki, and CTXT manual describe the rule and its limits. No active OS C or assembly source was reduced, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block-scope static object emission, union and class values, arrays as values, volatile and atomic graphs, over-alignment, wide and floating runtime values, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.

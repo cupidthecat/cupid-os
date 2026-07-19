@@ -156,12 +156,16 @@ reads its first explicit argument at EBP+12, copies the result into the
 destination, returns the pointer in EAX, and uses RET 4. The caller cleans the
 explicit argument bytes.
 
+Supported fixed direct and indirect calls place ESP on a sixteen-byte boundary
+immediately before CALL. The emitter chooses zero, four, eight, or twelve bytes
+of padding from the function frame, live Linear IR stack, and outgoing
+structure area. Nested calls and structure-result calls follow the same rule.
+
 Supported structure graphs have alignment no greater than four bytes and
 contain no stored volatile or atomic subobjects. Graphs containing a union or
 class remain unsupported. Automatic string leaves, explicit bit-field leaves,
-Boolean mutation, separate 64-bit and floating-point runtime values, variadic
-calls, and 16-byte call-site alignment also remain unfinished in the shared
-path.
+Boolean mutation, separate 64-bit and floating-point runtime values, and
+variadic calls also remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C
 compiler for its C objects, and the private in-kernel CupidC compiler still

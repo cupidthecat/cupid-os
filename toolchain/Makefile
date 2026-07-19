@@ -423,6 +423,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) automatic-objects ..
 	$(CUPIDC_OBJECT_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_OBJECT_CONTRACT) structure-values ..
+	$(CUPIDC_OBJECT_CONTRACT) call-alignment ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..
 	$(CUPIDC_OBJECT_CONTRACT) void-casts ..

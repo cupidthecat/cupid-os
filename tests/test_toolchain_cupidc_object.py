@@ -198,6 +198,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "structure-values: ok\n")
 
+    def test_calls_align_the_i386_stack_to_sixteen_bytes(self):
+        result = subprocess.run(
+            [str(self.contract_path), "call-alignment", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "call-alignment: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()
