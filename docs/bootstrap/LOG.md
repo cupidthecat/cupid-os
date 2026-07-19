@@ -4723,3 +4723,51 @@ This increment transfers no production object and retires no host dependency. GC
 ADR 0050, the root context, README files, bootstrap records, active-source audit, wiki, and CTXT manual describe the rule and its limits. No active OS C or assembly source was reduced, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block-scope static object emission, union and class values, arrays as values, volatile and atomic graphs, over-alignment, wide and floating runtime values, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC emits block-static objects
+
+### Decision and active requirement
+
+Hosted CupidC now lowers and emits block-scope objects with static storage duration. A static declaration validates its complete target layout and constant initializer root, advances the normal block-binding visibility boundary, and publishes no runtime initializer instructions. Runtime references keep the existing absolute block-binding identity in `LOCAL_ADDRESS`.
+
+The i386 emitter maps that identity according to storage duration. Automatic objects still use private EBP-relative slots. Block statics receive local, default-visible `STT_OBJECT` symbols named `.LBS<absolute-block-binding-index>.<source-name>`, and their runtime addresses use `R_386_32`. Shadowed source names remain distinct because the absolute binding index is part of the symbol. Block statics never consume frame storage.
+
+File definitions are placed first, every block static follows in absolute block-binding order, and functions come last. File and block-static objects share the same initializer encoder and section policy: top-level `const` goes to `.rodata`, writable all-zero storage goes to `.bss`, and other writable storage goes to `.data`. Unused block statics and declarations after an unconditional return still receive storage.
+
+The unchanged active source is `dis_hex_fixed` in `toolchain/cupiddis.c`, which declares `static const char hex[] = "0123456789ABCDEF";`. Moving that array or rebuilding it at runtime would weaken ordinary C source to fit an incomplete compiler, so the source remains unchanged.
+
+Static initializer addresses based on another block static remain unsupported because the frontend does not yet publish that address form. The emitter can serialize a complete unused eight-byte static image, but loading the same object as a runtime scalar still receives the useful unsupported-type diagnostic. No user question was needed; the existing initializer forest, block-binding identity, and i386 ELF rules determine this increment.
+
+### Contract evidence and corrections
+
+- The first IR run expected a static integer declaration to lower successfully and received the former unsupported diagnostic `CTD000004`. After the lowerer learned the storage-duration rule, the exact function contains only `LOCAL_ADDRESS`, `LOAD`, and `RETURN_VALUE`, with maximum stack depth one.
+- The first object run reached the newly valid IR and then received the emitter's internal diagnostic `CTC000008`. The emitter now maintains a block-binding symbol map separate from automatic frame offsets and uses one checked static-object placement helper for file and block storage.
+- The exact object has eleven local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of `.rodata`, 56 bytes of `.data`, and 4 bytes of `.bss`. Ten text, one read-only-data, and five data relocations are all `R_386_32` with addend zero.
+- The fixture covers constant character arrays, initialized and zero integers, arrays, structures, string-backed pointers, defined file-object and function addresses, an unresolved external object, runtime reads and writes, two shadowed `same` objects, an unused eight-byte object, and an unreachable character array. Functions that only use block statics reserve no frame bytes for them.
+- Negative cases cover missing and out-of-range roots, mismatched initializer types, a runtime expression root in static storage, a referenced wide scalar, constrained output, rollback, deterministic repeat emission, frozen-unit preservation, and same-job recovery.
+- An early combined frontend command reached its 244-second command deadline without reporting a test failure. Direct self-source parses then passed for the complete `cupidc_ir.c` and `cupidc_emit.c` gates, and the final focused and repository suites passed. The timed-out command is not accepted evidence.
+- The first static-analysis timing wrapper nested its quotes incorrectly and invoked GCC without an input file. That result is discarded. The corrected commands name every implementation and contract file directly; both analyzers pass.
+- Precommit correctness and standards audits found no code fix. The formal two-axis review found one vocabulary violation: a Python test and several headings used "block-scope static object" instead of the glossary term "block-static object." Those names now match `CONTEXT.md`. The review also noted that the symbol-name builder repeats a small checked decimal-formatting loop and that four parallel expectation arrays could become one record table. Both are limited judgment calls, not correctness defects. A separate optional hardening note suggested proving that each text relocation offset points at a `PUSH imm32` field. The shared symbol-push helper already has instruction-form coverage, so the object oracle stays at the public relocation seam.
+
+The hosted source gates now publish 149 definitions, 4,431 statements, 37,853 expressions, 538 block bindings, and 176 initializers for `cupidc_ir.c`; and 115/2,809/24,041/380/187 for `cupidc_emit.c`. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 designated initializers, 1,084 `goto`, 62 `do`, 206 `switch`, 1,573 `case`, 137 `default`, 2,515 `while`, 1,726 `break`, 955 `continue`, 26,101 `if`, 3,545 `else`, 3,106 `for`, 15,993 `return`, and 3,267 `sizeof` occurrences. The audit JSON digest is `36cfa9462dd9a3561f022e8942a41742b2cf0a698166c08f1f96360a56b0c9bd`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red contracts | PASS | IR first returned `CTD000004`; object emission then returned `CTC000008`. Both cases became positive without changing active source. |
+| Focused CupidC modules | PASS | Frontend, IR, and object modules pass all 82 tests in 21.581 seconds. The object suite includes the new `block-statics` mode. |
+| Windows hosted Toolchain | PASS | A fresh strict Clang build passes the complete hosted suite and all 22 assembly demos in 26.565 seconds. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds pass the complete hosted suite in about 58 seconds each. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass the complete hosted suite with leak detection and halt-on-error enabled. Runtime checks confirm that the GCC binary imports ASan and the Clang binary contains `__asan_init`. |
+| Static analysis | PASS AFTER WRAPPER CORRECTION | GCC `-fanalyzer` and Clang `--analyze -analyzer-werror` cover both changed implementations and all three changed C contracts. The corrected runs finish in 232.212 and 86.823 seconds without diagnostics. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the records in 35.534 seconds, and `make check-bootstrap-audit` reproduces them in 35.732 seconds. |
+| Full repository gate | PASS | `make test` passes all 324 tests in 452.729 seconds with one existing skip; Make returns in 488.772 seconds. |
+| Production image build | PASS | `make all` rebuilds the hosted tools, embedded manuals, kernel, and disk image in 20.200 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke boots the rebuilt image and runs `/bin/ls.cc` successfully in 18.420 seconds. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler and normal C objects, and the native linker still links the hosted proof. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles. The private in-kernel compiler remains the embedded JIT and AOT path.
+
+ADR 0051, the earlier declaration and storage ADR extensions, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was reduced, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for wider runtime values, remaining initializer address forms, deferred aggregate categories, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.

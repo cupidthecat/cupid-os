@@ -208,6 +208,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "call-alignment: ok\n")
 
+    def test_block_static_objects_use_static_elf_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-statics", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-statics: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

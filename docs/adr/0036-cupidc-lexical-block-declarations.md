@@ -43,3 +43,5 @@ Issue #25 remains open. `switch`, labels, `goto`, other local representations an
 ## Extension
 
 ADR 0037 lowers direct identifier labels and `goto` through the same function body. The declaration scan follows a label's body, and count-only validation no longer changes live label targets. `switch`, other local representations and storage durations, pointer and aggregate values, broader calls and ABI work, production integration, and staged self-hosting remain.
+
+ADR 0051 lets static declarations in supported nested or unreachable declaration positions reach object emission. The existing block-binding order still controls declaration visibility and gives each static object its stable target identity.

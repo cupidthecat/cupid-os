@@ -1,5 +1,7 @@
 # Build CupidC declarations directly from the typed preprocessing tape
 
+ADR 0051 extends the consumer side of this record: the object emitter now consumes the existing block-static initializer roots and absolute block-binding identities. The frontend still publishes no target section, symbol index, or frame offset.
+
 File-scope object state lives in a public definition table beside the canonical binding table. A canonical binding still keeps the first declaration's storage spelling and source location. Each object definition separately keeps its binding index, definition type, storage, explicit or tentative kind, dual source location, and initializer root. A finalized tentative definition uses the merged binding type. A later definition therefore does not rewrite facts from the first declaration.
 
 An explicit definition reuses the semantic static initializer forest that already serves block-scope static objects. Tentative declarations for one binding coalesce into one definition record as they are parsed. Translation-unit finalization gives that record the merged binding type and a destination-typed `ZERO` root. An incomplete external array is completed to one element at that point. An incomplete internal array or incomplete record receives a precise diagnostic. A declaration that only uses `extern` creates no definition unless it also has an initializer.

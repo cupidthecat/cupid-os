@@ -3927,12 +3927,14 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     }
     binding = &context->unit->block_bindings[expression->reference];
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
-        binding->type != expression->type ||
-        (cir_type_is_represented_scalar(context, expression->type) ==
-             CTOOL_FALSE &&
-         cir_type_is_complete_aggregate_object(
-             context, expression->type) == CTOOL_FALSE)) {
+        binding->type != expression->type) {
       return cir_invalid_unit(context, &expression->location);
+    }
+    if (cir_type_is_represented_scalar(context, expression->type) ==
+            CTOOL_FALSE &&
+        cir_type_is_complete_aggregate_object(
+            context, expression->type) == CTOOL_FALSE) {
+      return cir_unsupported_type(context, &expression->location);
     }
     status = cir_append_instruction(
         context, CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, expression->type,
@@ -4763,7 +4765,8 @@ static ctool_status_t cir_lower_declaration(
     }
     if (binding->storage != CTOOL_C_STORAGE_NONE &&
         binding->storage != CTOOL_C_STORAGE_AUTO &&
-        binding->storage != CTOOL_C_STORAGE_REGISTER) {
+        binding->storage != CTOOL_C_STORAGE_REGISTER &&
+        binding->storage != CTOOL_C_STORAGE_STATIC) {
       return cir_unsupported_statement(context, &binding->location);
     }
     if (binding->type >= context->unit->layout.type_count) {
@@ -4775,6 +4778,20 @@ static ctool_status_t cir_lower_declaration(
         layout->alignment == 0u ||
         (layout->alignment & (layout->alignment - 1u)) != 0u) {
       return cir_invalid_unit(context, &binding->location);
+    }
+    if (binding->storage == CTOOL_C_STORAGE_STATIC) {
+      if (binding->initializer >= context->unit->initializer_count) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      initializer = &context->unit->initializers[binding->initializer];
+      if (initializer->type != binding->type ||
+          initializer->kind < CTOOL_C_INITIALIZER_ZERO ||
+          initializer->kind > CTOOL_C_INITIALIZER_LIST) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
+      context->block_binding_cursor++;
+      context->visible_block_binding_end = context->block_binding_cursor;
+      continue;
     }
     if ((cir_type_is_represented_scalar(context, binding->type) ==
              CTOOL_FALSE &&

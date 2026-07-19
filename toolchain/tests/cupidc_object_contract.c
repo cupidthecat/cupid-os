@@ -31,6 +31,15 @@ static const char active_signed_bits[] =
     "  return -(ctool_i32)((~value) + 1u);\n"
     "}";
 
+static const char active_dis_hex_body[] =
+    "  static const char hex[] = \"0123456789ABCDEF\";\n"
+    "  char text[8];\n"
+    "  ctool_u32 index;\n"
+    "  for (index = 0u; index < digits; index++) {\n"
+    "    ctool_u32 shift = (digits - index - 1u) * 4u;\n"
+    "    text[index] = hex[(value >> shift) & 0x0fu];\n"
+    "  }";
+
 static const char active_host_release[] =
     "static void ctool_host_release(void *context, void *allocation,\n"
     "                               ctool_u32 bytes) {\n"
@@ -419,10 +428,15 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "the active memory alignment helper changed", active_align_up,
              NULL) &&
          active_source_contains(
+              job, "/toolchain/cupiddis.c",
+              "load active disassembler source",
+              "the active signed-bit conversion changed", active_signed_bits,
+              NULL) &&
+         active_source_contains(
              job, "/toolchain/cupiddis.c",
              "load active disassembler source",
-             "the active signed-bit conversion changed", active_signed_bits,
-             NULL) &&
+             "the active fixed-width hexadecimal helper changed",
+             active_dis_hex_body, NULL) &&
          active_source_contains(
              job, "/bin/cupidc_parse.c", "load active CupidC source",
              "the active initializer result changed",
@@ -12445,6 +12459,408 @@ cleanup:
   return 1;
 }
 
+static const ctool_elf32_relocation_t *find_relocation_at(
+    const ctool_elf32_object_t *object, ctool_u32 target_section,
+    ctool_u32 offset) {
+  ctool_u32 index;
+  for (index = 0u; index < object->relocation_count; index++) {
+    if (object->relocations[index].target_section_file_index ==
+            target_section &&
+        object->relocations[index].offset == offset) {
+      return &object->relocations[index];
+    }
+  }
+  return (const ctool_elf32_relocation_t *)0;
+}
+
+static int block_static_relocation_matches(
+    const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *target_section, ctool_u32 offset,
+    const ctool_elf32_symbol_t *symbol) {
+  const ctool_elf32_relocation_t *relocation =
+      target_section == (const ctool_elf32_section_t *)0
+          ? (const ctool_elf32_relocation_t *)0
+          : find_relocation_at(object, target_section->file_index, offset);
+  return relocation != (const ctool_elf32_relocation_t *)0 &&
+                 symbol != (const ctool_elf32_symbol_t *)0 &&
+                 relocation->symbol_file_index == symbol->file_index &&
+                 relocation->type == CTOOL_ELF32_R_386_32 &&
+                 relocation->addend_known == CTOOL_TRUE &&
+                 relocation->addend == 0
+             ? 1
+             : 0;
+}
+
+static int validate_block_static_object(const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_rodata[] = {
+      '0', '1', '2', '3', 0u, 'o', 'k', 0u, 0u, 0u, 0u,
+      0u,  't', 'a', 'g', 0u,  'd', 'e', 'a', 'd', 0u};
+  static const ctool_u8 expected_data[] = {
+      9u,   0u,   0u,   0u,   5u,   0u,   0u,   0u,
+      7u,   0u,   0u,   0u,   8u,   0u,   0u,   0u,
+      3u,   0u,   0u,   0u,   0u,   0u,   0u,   0u,
+      0u,   0u,   0u,   0u,   0u,   0u,   0u,   0u,
+      0u,   0u,   0u,   0u,   0u,   0u,   0u,   0u,
+      0x88u, 0x77u, 0x66u, 0x55u, 0x44u, 0x33u, 0x22u, 0x11u,
+      11u,  0u,   0u,   0u,   22u,  0u,   0u,   0u};
+  static const char *const static_names[] = {
+      ".LBS0.hex",    ".LBS1.value", ".LBS2.zero",  ".LBS3.values",
+      ".LBS4.holder", ".LBS5.label", ".LBS6.refs",  ".LBS7.wide",
+      ".LBS8.same",   ".LBS9.same",  ".LBS10.unused"};
+  static const ctool_u32 static_values[] = {0u,  4u, 0u, 8u, 16u, 8u,
+                                            32u, 40u, 48u, 52u, 16u};
+  static const ctool_u32 static_sizes[] = {5u, 4u, 4u, 8u, 16u, 4u,
+                                           8u, 8u, 4u, 4u,  5u};
+  static const ctool_u32 text_reference_counts[] = {1u, 2u, 2u, 1u, 1u, 0u,
+                                                    1u, 0u, 1u, 1u, 0u};
+  static const ctool_u8 short_frame_reservation[] = {0x83u, 0xecu};
+  static const ctool_u8 long_frame_reservation[] = {0x81u, 0xecu};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_section_t *rel_rodata =
+      find_section(object, ".rel.rodata");
+  const ctool_elf32_section_t *rel_data = find_section(object, ".rel.data");
+  const ctool_elf32_symbol_t *file_state = find_symbol(object, "file_state");
+  const ctool_elf32_symbol_t *callback = find_symbol(object, "callback");
+  const ctool_elf32_symbol_t *external_state =
+      find_symbol(object, "external_state");
+  const ctool_elf32_symbol_t *literal_ok = find_symbol(object, ".LC0");
+  const ctool_elf32_symbol_t *literal_tag = find_symbol(object, ".LC1");
+  const ctool_elf32_symbol_t *bump = find_symbol(object, "bump");
+  const ctool_elf32_symbol_t *shadow = find_symbol(object, "shadow");
+  const ctool_elf32_symbol_t *dead = find_symbol(object, "dead");
+  const ctool_elf32_symbol_t *static_symbols[11];
+  ctool_u32 seen_text_references[11];
+  ctool_u32 index;
+  if (text == (const ctool_elf32_section_t *)0 ||
+      rodata == (const ctool_elf32_section_t *)0 ||
+      data == (const ctool_elf32_section_t *)0 ||
+      bss == (const ctool_elf32_section_t *)0 ||
+      rel_text == (const ctool_elf32_section_t *)0 ||
+      rel_rodata == (const ctool_elf32_section_t *)0 ||
+      rel_data == (const ctool_elf32_section_t *)0 ||
+      rodata->contents.size != (ctool_u32)sizeof(expected_rodata) ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      data->contents.size != (ctool_u32)sizeof(expected_data) ||
+      memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
+      bss->size != 4u || bss->alignment != 4u ||
+      text->relocation_count != 10u || rodata->relocation_count != 1u ||
+      data->relocation_count != 5u || object->relocation_count != 16u ||
+      file_state == (const ctool_elf32_symbol_t *)0 ||
+      file_state->binding != CTOOL_ELF32_BIND_LOCAL ||
+      file_state->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      file_state->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      file_state->section_file_index != data->file_index ||
+      file_state->value != 0u || file_state->size != 4u ||
+      callback == (const ctool_elf32_symbol_t *)0 ||
+      callback->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      external_state == (const ctool_elf32_symbol_t *)0 ||
+      external_state->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      literal_ok == (const ctool_elf32_symbol_t *)0 ||
+      literal_ok->section_file_index != rodata->file_index ||
+      literal_ok->value != 5u || literal_ok->size != 3u ||
+      literal_tag == (const ctool_elf32_symbol_t *)0 ||
+      literal_tag->section_file_index != rodata->file_index ||
+      literal_tag->value != 12u || literal_tag->size != 4u ||
+      bump == (const ctool_elf32_symbol_t *)0 ||
+      shadow == (const ctool_elf32_symbol_t *)0 ||
+      dead == (const ctool_elf32_symbol_t *)0 ||
+      symbol_bytes_contain(text, bump, short_frame_reservation,
+                           (ctool_u32)sizeof(short_frame_reservation)) != 0 ||
+      symbol_bytes_contain(text, bump, long_frame_reservation,
+                           (ctool_u32)sizeof(long_frame_reservation)) != 0 ||
+      symbol_bytes_contain(text, shadow, short_frame_reservation,
+                           (ctool_u32)sizeof(short_frame_reservation)) != 0 ||
+      symbol_bytes_contain(text, dead, short_frame_reservation,
+                           (ctool_u32)sizeof(short_frame_reservation)) != 0) {
+    (void)fprintf(
+        stderr,
+        "block-static ELF inventory differs: sections=%d/%d/%d/%d rel=%d/%d/%d "
+        "sizes=%lu/%lu/%lu relocs=%lu/%lu/%lu/%lu\n",
+        text != NULL, rodata != NULL, data != NULL, bss != NULL,
+        rel_text != NULL, rel_rodata != NULL, rel_data != NULL,
+        rodata != NULL ? (unsigned long)rodata->contents.size : 0ul,
+        data != NULL ? (unsigned long)data->contents.size : 0ul,
+        bss != NULL ? (unsigned long)bss->size : 0ul,
+        text != NULL ? (unsigned long)text->relocation_count : 0ul,
+        rodata != NULL ? (unsigned long)rodata->relocation_count : 0ul,
+        data != NULL ? (unsigned long)data->relocation_count : 0ul,
+        (unsigned long)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u; index < 11u; index++) {
+    const ctool_elf32_section_t *section =
+        index == 0u || index == 5u || index == 10u
+            ? rodata
+            : (index == 2u ? bss : data);
+    static_symbols[index] = find_symbol(object, static_names[index]);
+    seen_text_references[index] = 0u;
+    if (static_symbols[index] == (const ctool_elf32_symbol_t *)0 ||
+        static_symbols[index]->binding != CTOOL_ELF32_BIND_LOCAL ||
+        static_symbols[index]->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+        static_symbols[index]->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+        static_symbols[index]->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        static_symbols[index]->section_file_index != section->file_index ||
+        static_symbols[index]->value != static_values[index] ||
+        static_symbols[index]->size != static_sizes[index]) {
+      (void)fprintf(stderr, "block-static symbol %s differs\n",
+                    static_names[index]);
+      return 0;
+    }
+  }
+  if (!block_static_relocation_matches(object, data, 20u, file_state) ||
+      !block_static_relocation_matches(object, data, 24u, callback) ||
+      !block_static_relocation_matches(object, data, 28u, literal_ok) ||
+      !block_static_relocation_matches(object, data, 32u, file_state) ||
+      !block_static_relocation_matches(object, data, 36u, external_state) ||
+      !block_static_relocation_matches(object, rodata, 8u, literal_tag)) {
+    (void)fprintf(stderr, "block-static initializer relocations differ\n");
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation = &object->relocations[index];
+    ctool_u32 symbol_index;
+    if (relocation->target_section_file_index != text->file_index) {
+      continue;
+    }
+    if (relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE || relocation->addend != 0) {
+      (void)fprintf(stderr, "block-static text relocation differs\n");
+      return 0;
+    }
+    for (symbol_index = 0u; symbol_index < 11u; symbol_index++) {
+      if (relocation->symbol_file_index ==
+          static_symbols[symbol_index]->file_index) {
+        seen_text_references[symbol_index]++;
+        break;
+      }
+    }
+    if (symbol_index == 11u) {
+      (void)fprintf(stderr, "block-static text target differs\n");
+      return 0;
+    }
+  }
+  for (index = 0u; index < 11u; index++) {
+    if (seen_text_references[index] != text_reference_counts[index]) {
+      (void)fprintf(stderr, "block-static text count for %s differs\n",
+                    static_names[index]);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_block_static_object(const char *host_root) {
+  static const char source[] =
+      "typedef int callback_t(int);\n"
+      "typedef struct {\n"
+      "  int count; int *state; callback_t *call; const char *name;\n"
+      "} holder_t;\n"
+      "extern int external_state;\n"
+      "extern int callback(int);\n"
+      "static int file_state = 9;\n"
+      "int bump(int delta) {\n"
+      "  static const char hex[] = \"0123\";\n"
+      "  static int value = 5;\n"
+      "  static int zero;\n"
+      "  static int values[2] = {7, 8};\n"
+      "  static holder_t holder = {3, &file_state, callback, \"ok\"};\n"
+      "  static const char *const label = \"tag\";\n"
+      "  static int *refs[2] = {&file_state, &external_state};\n"
+      "  static unsigned long long wide = 0x1122334455667788ULL;\n"
+      "  value += delta;\n"
+      "  zero = value;\n"
+      "  return hex[zero & 3] + values[1] + holder.count + *refs[0];\n"
+      "}\n"
+      "int shadow(int choose) {\n"
+      "  static int same = 11;\n"
+      "  if (choose) { static int same = 22; return same; }\n"
+      "  return same;\n"
+      "}\n"
+      "int dead(void) { return 0; static const char unused[] = \"dead\"; }\n";
+  static const char referenced_wide_source[] =
+      "int read_wide(void) {\n"
+      "  static long long wide = 7;\n"
+      "  return wide;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t referenced_wide_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_block_binding_t *invalid_block_bindings = NULL;
+  ctool_c_initializer_t *invalid_initializers = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_arena_mark_t mark;
+  ctool_u32 diagnostic_count;
+  ctool_u32 root;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&referenced_wide_unit, 0, sizeof(referenced_wide_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-static.c", source, &unit) ||
+      unit.block_binding_count != 11u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "block-static object buffer")) {
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &unit, first, "first block-static object")) {
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  if (!expect_object_success_preserves_unit(
+          job, &unit, second, "repeat block-static object")) {
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "block-static object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/block-static.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read block-static object") ||
+      !validate_block_static_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          "CupidC object emission exceeded a configured resource limit",
+          "limited block-static object")) {
+    goto cleanup;
+  }
+  invalid_block_bindings = (ctool_c_block_binding_t *)malloc(
+      (size_t)unit.block_binding_count * sizeof(*invalid_block_bindings));
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)unit.initializer_count * sizeof(*invalid_initializers));
+  if (invalid_block_bindings == NULL || invalid_initializers == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, unit.block_bindings,
+               (size_t)unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count * sizeof(*invalid_initializers));
+  invalid_unit = unit;
+  invalid_unit.block_bindings = invalid_block_bindings;
+  invalid_block_bindings[0].initializer = CTOOL_C_AST_NONE;
+  if (ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, first, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "missing block-static initializer")) {
+    goto cleanup;
+  }
+  invalid_block_bindings[0] = unit.block_bindings[0];
+  invalid_block_bindings[0].initializer = unit.initializer_count;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, first, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "out-of-range block-static initializer")) {
+    goto cleanup;
+  }
+  invalid_block_bindings[0] = unit.block_bindings[0];
+  invalid_unit.block_bindings = unit.block_bindings;
+  invalid_unit.initializers = invalid_initializers;
+  root = unit.block_bindings[0].initializer;
+  invalid_initializers[root].type = unit.block_bindings[1].type;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, first, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "mismatched block-static initializer type")) {
+    goto cleanup;
+  }
+  invalid_initializers[root] = unit.initializers[root];
+  invalid_initializers[root].kind = CTOOL_C_INITIALIZER_EXPRESSION;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, first, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "runtime block-static initializer")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/referenced-wide-static.c", referenced_wide_source,
+                    &referenced_wide_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &referenced_wide_unit, first, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "referenced wide block-static object")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  first_bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "recovered block-static object") ||
+      first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)second_bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_initializers);
+  free(invalid_block_bindings);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-statics: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -12494,13 +12910,16 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "call-alignment") == 0) {
     return run_call_alignment_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-statics") == 0) {
+    return run_block_static_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|narrow-mutations|narrow-values|"
-                "void-casts|structure-values|call-alignment "
+                "void-casts|structure-values|call-alignment|block-statics "
                 "HOST_ROOT\n");
   return 2;
 }

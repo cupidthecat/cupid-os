@@ -30,6 +30,7 @@ typedef struct {
   ctool_u32 *binding_symbols;
   ctool_u32 *binding_object_definitions;
   ctool_u32 *binding_function_definitions;
+  ctool_u32 *block_binding_symbols;
   ctool_u32 *block_binding_offsets;
   ctool_u32 *aggregate_temporary_offsets;
   ctool_bool *binding_needed;
@@ -596,6 +597,58 @@ static ctool_status_t cemit_make_literal_name(cemit_context_t *context,
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_make_block_static_name(
+    cemit_context_t *context, ctool_u32 block_binding_index,
+    ctool_string_t *name_out) {
+  const ctool_c_block_binding_t *binding;
+  char reversed[10];
+  char *name;
+  ctool_u32 value = block_binding_index;
+  ctool_u32 digits = 0u;
+  ctool_u32 prefix_size;
+  ctool_u32 name_size;
+  ctool_u32 index;
+  ctool_status_t status;
+  if (block_binding_index >= context->unit->block_binding_count ||
+      name_out == (ctool_string_t *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  binding = &context->unit->block_bindings[block_binding_index];
+  if (binding->name.data == (const char *)0 || binding->name.size == 0u) {
+    return cemit_invalid_unit(context, &binding->location);
+  }
+  do {
+    reversed[digits++] = (char)('0' + (char)(value % 10u));
+    value /= 10u;
+  } while (value != 0u);
+  prefix_size = 5u + digits;
+  if (cemit_add_overflows(prefix_size, binding->name.size) == CTOOL_TRUE ||
+      prefix_size + binding->name.size == 0xffffffffu) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  name_size = prefix_size + binding->name.size;
+  status = ctool_arena_alloc(context->arena, name_size + 1u, 1u,
+                             (void **)&name);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  name[0] = '.';
+  name[1] = 'L';
+  name[2] = 'B';
+  name[3] = 'S';
+  for (index = 0u; index < digits; index++) {
+    name[4u + index] = reversed[digits - 1u - index];
+  }
+  name[4u + digits] = '.';
+  for (index = 0u; index < binding->name.size; index++) {
+    name[prefix_size + index] = binding->name.data[index];
+  }
+  name[name_size] = '\0';
+  name_out->data = name;
+  name_out->size = name_size;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_ensure_binding_symbol(
     cemit_context_t *context, ctool_u32 binding_index,
     ctool_u32 *symbol_out) {
@@ -641,6 +694,51 @@ static ctool_status_t cemit_ensure_binding_symbol(
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_ensure_block_binding_symbol(
+    cemit_context_t *context, ctool_u32 block_binding_index,
+    ctool_u32 *symbol_out) {
+  const ctool_c_block_binding_t *binding;
+  ctool_elf32_symbol_spec_t *symbol;
+  ctool_u32 symbol_index;
+  ctool_status_t status;
+  if (block_binding_index >= context->unit->block_binding_count ||
+      symbol_out == (ctool_u32 *)0 ||
+      context->block_binding_symbols == (ctool_u32 *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (context->block_binding_symbols[block_binding_index] !=
+      CTOOL_C_AST_NONE) {
+    *symbol_out = context->block_binding_symbols[block_binding_index];
+    return CTOOL_OK;
+  }
+  binding = &context->unit->block_bindings[block_binding_index];
+  if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+      binding->storage != CTOOL_C_STORAGE_STATIC ||
+      binding->initializer >= context->unit->initializer_count ||
+      binding->type >= context->unit->layout.type_count) {
+    return cemit_invalid_unit(context, &binding->location);
+  }
+  if (context->symbol_count >= context->symbol_capacity) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  symbol_index = context->symbol_count;
+  symbol = &context->symbols[symbol_index];
+  status = cemit_make_block_static_name(context, block_binding_index,
+                                        &symbol->name);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  symbol->binding = CTOOL_ELF32_BIND_LOCAL;
+  symbol->type = CTOOL_ELF32_SYMBOL_OBJECT;
+  symbol->visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbol->placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
+  symbol->section = CTOOL_ELF32_NO_SECTION;
+  context->block_binding_symbols[block_binding_index] = symbol_index;
+  context->symbol_count++;
+  *symbol_out = symbol_index;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_index_symbols(cemit_context_t *context) {
   ctool_u32 binding;
   for (binding = 0u; binding < context->unit->binding_count; binding++) {
@@ -648,6 +746,30 @@ static ctool_status_t cemit_index_symbols(cemit_context_t *context) {
       ctool_u32 symbol;
       ctool_status_t status =
           cemit_ensure_binding_symbol(context, binding, &symbol);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cemit_index_block_static_symbols(
+    cemit_context_t *context) {
+  ctool_u32 index;
+  if (context->unit->block_binding_count != 0u &&
+      context->block_binding_symbols == (ctool_u32 *)0) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  for (index = 0u; index < context->unit->block_binding_count; index++) {
+    context->block_binding_symbols[index] = CTOOL_C_AST_NONE;
+  }
+  for (index = 0u; index < context->unit->block_binding_count; index++) {
+    if (context->unit->block_bindings[index].storage ==
+        CTOOL_C_STORAGE_STATIC) {
+      ctool_u32 symbol;
+      ctool_status_t status =
+          cemit_ensure_block_binding_symbol(context, index, &symbol);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -957,34 +1079,40 @@ static ctool_status_t cemit_encode_initializer(
   return cemit_invalid_unit(context, &initializer->location);
 }
 
-static ctool_status_t cemit_place_definition(
-    cemit_context_t *context, ctool_u32 definition_index) {
-  const ctool_c_object_definition_t *definition =
-      &context->unit->object_definitions[definition_index];
-  const ctool_c_binding_t *binding =
-      &context->unit->bindings[definition->binding];
-  const ctool_c_type_layout_t *layout =
-      &context->unit->layout.types[definition->declared_type];
-  ctool_u32 alignment = layout->alignment;
+static ctool_status_t cemit_place_static_object(
+    cemit_context_t *context, ctool_u32 type, ctool_u32 initializer_index,
+    ctool_u32 alignment, ctool_u32 symbol_index,
+    const ctool_c_pp_location_t *location) {
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_initializer_t *initializer;
+  ctool_elf32_symbol_spec_t *symbol;
   ctool_u32 section;
   ctool_u32 offset;
-  ctool_u32 symbol_index = CTOOL_C_AST_NONE;
   ctool_status_t status;
   ctool_mut_bytes_t reserved;
+  if (type >= context->unit->layout.type_count ||
+      initializer_index >= context->unit->initializer_count ||
+      symbol_index >= context->symbol_count) {
+    return cemit_invalid_unit(context, location);
+  }
+  layout = &context->unit->layout.types[type];
+  initializer = &context->unit->initializers[initializer_index];
+  symbol = &context->symbols[symbol_index];
   if (layout->is_complete_object == CTOOL_FALSE ||
-      layout->is_object == CTOOL_FALSE ||
-      layout->size == 0u || cemit_power_of_two(alignment) == CTOOL_FALSE) {
-    return cemit_invalid_unit(context, &definition->location);
+      layout->is_object == CTOOL_FALSE || layout->size == 0u ||
+      layout->alignment == 0u ||
+      cemit_power_of_two(layout->alignment) == CTOOL_FALSE ||
+      alignment < layout->alignment ||
+      cemit_power_of_two(alignment) == CTOOL_FALSE ||
+      initializer->type != type ||
+      symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      symbol->section != CTOOL_ELF32_NO_SECTION) {
+    return cemit_invalid_unit(context, location);
   }
-  if (binding->minimum_alignment > alignment) {
-    alignment = binding->minimum_alignment;
-  }
-  if (cemit_power_of_two(alignment) == CTOOL_FALSE) {
-    return cemit_invalid_unit(context, &definition->location);
-  }
-  if (cemit_type_is_const(context, definition->declared_type) == CTOOL_TRUE) {
+  if (cemit_type_is_const(context, type) == CTOOL_TRUE) {
     section = CEMIT_SECTION_RODATA;
-  } else if (context->initializer_is_zero[definition->initializer] ==
+  } else if (context->initializer_is_zero[initializer_index] ==
              CTOOL_TRUE) {
     section = CEMIT_SECTION_BSS;
   } else {
@@ -1015,24 +1143,76 @@ static ctool_status_t cemit_place_definition(
   if (context->section_alignment[section] < alignment) {
     context->section_alignment[section] = alignment;
   }
+  symbol->placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbol->section = section;
+  symbol->value = offset;
+  symbol->size = layout->size;
+  symbol->alignment = 0u;
+  if (section != CEMIT_SECTION_BSS) {
+    status = cemit_encode_initializer(context, initializer_index, section,
+                                      offset, 0u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_place_definition(
+    cemit_context_t *context, ctool_u32 definition_index) {
+  const ctool_c_object_definition_t *definition;
+  const ctool_c_binding_t *binding;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 alignment;
+  ctool_u32 symbol_index = CTOOL_C_AST_NONE;
+  ctool_status_t status;
+  if (definition_index >= context->unit->object_definition_count) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  definition = &context->unit->object_definitions[definition_index];
+  if (definition->binding >= context->unit->binding_count ||
+      definition->declared_type >= context->unit->layout.type_count) {
+    return cemit_invalid_unit(context, &definition->location);
+  }
+  binding = &context->unit->bindings[definition->binding];
+  layout = &context->unit->layout.types[definition->declared_type];
+  alignment = layout->alignment;
+  if (binding->minimum_alignment > alignment) {
+    alignment = binding->minimum_alignment;
+  }
   status = cemit_ensure_binding_symbol(context, definition->binding,
-                                       &symbol_index);
+                                        &symbol_index);
   if (status != CTOOL_OK) {
     return status;
   }
-  if (symbol_index == CTOOL_C_AST_NONE) {
-    return CTOOL_ERR_INTERNAL;
+  return cemit_place_static_object(
+      context, definition->declared_type, definition->initializer, alignment,
+      symbol_index, &definition->location);
+}
+
+static ctool_status_t cemit_place_block_static(
+    cemit_context_t *context, ctool_u32 block_binding_index) {
+  const ctool_c_block_binding_t *binding;
+  ctool_u32 symbol_index = CTOOL_C_AST_NONE;
+  ctool_status_t status;
+  if (block_binding_index >= context->unit->block_binding_count) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
   }
-  context->symbols[symbol_index].placement = CTOOL_ELF32_SYMBOL_DEFINED;
-  context->symbols[symbol_index].section = section;
-  context->symbols[symbol_index].value = offset;
-  context->symbols[symbol_index].size = layout->size;
-  context->symbols[symbol_index].alignment = 0u;
-  if (section != CEMIT_SECTION_BSS) {
-    status = cemit_encode_initializer(
-        context, definition->initializer, section, offset, 0u);
+  binding = &context->unit->block_bindings[block_binding_index];
+  if (binding->storage != CTOOL_C_STORAGE_STATIC) {
+    return CTOOL_OK;
   }
-  return status;
+  if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+      binding->type >= context->unit->layout.type_count ||
+      binding->initializer >= context->unit->initializer_count) {
+    return cemit_invalid_unit(context, &binding->location);
+  }
+  status = cemit_ensure_block_binding_symbol(
+      context, block_binding_index, &symbol_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cemit_place_static_object(
+      context, binding->type, binding->initializer,
+      context->unit->layout.types[binding->type].alignment, symbol_index,
+      &binding->location);
 }
 
 static ctool_x86_reg_t cemit_x86_register(
@@ -2780,6 +2960,33 @@ static ctool_status_t cemit_emit_ir_instruction(
     layout = ir_instruction->type < context->unit->layout.type_count
                  ? &context->unit->layout.types[ir_instruction->type]
                  : (const ctool_c_type_layout_t *)0;
+    if (binding->storage == CTOOL_C_STORAGE_STATIC) {
+      ctool_u32 symbol;
+      if (context->block_binding_symbols == (ctool_u32 *)0 ||
+          binding->kind != CTOOL_C_BINDING_OBJECT ||
+          binding->type != ir_instruction->type ||
+          layout == (const ctool_c_type_layout_t *)0 ||
+          layout->is_object == CTOOL_FALSE ||
+          layout->is_complete_object == CTOOL_FALSE || layout->size == 0u ||
+          layout->alignment == 0u ||
+          cemit_power_of_two(layout->alignment) == CTOOL_FALSE ||
+          (cemit_ir_type_is_represented_scalar(
+               context, ir_instruction->type) == CTOOL_FALSE &&
+           cemit_ir_type_is_complete_aggregate_object(
+               context, ir_instruction->type) == CTOOL_FALSE)) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      symbol =
+          context->block_binding_symbols[ir_instruction->reference];
+      if (symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count ||
+          context->symbols[symbol].binding != CTOOL_ELF32_BIND_LOCAL ||
+          context->symbols[symbol].type != CTOOL_ELF32_SYMBOL_OBJECT ||
+          context->symbols[symbol].placement !=
+              CTOOL_ELF32_SYMBOL_DEFINED) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      return cemit_x86_push_symbol(context, symbol);
+    }
     offset = block_binding_offsets[ir_instruction->reference];
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         (binding->storage != CTOOL_C_STORAGE_NONE &&
@@ -4032,10 +4239,27 @@ static ctool_status_t cemit_prepare_local_offsets(
       }
       binding = &context->unit->block_bindings[instruction->reference];
       if (binding->kind != CTOOL_C_BINDING_OBJECT ||
-          (binding->storage != CTOOL_C_STORAGE_NONE &&
+          binding->type != instruction->type) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      if (binding->storage == CTOOL_C_STORAGE_STATIC) {
+        ctool_u32 symbol;
+        if (context->block_binding_symbols == (ctool_u32 *)0 ||
+            (cemit_ir_type_is_represented_scalar(
+                 context, instruction->type) == CTOOL_FALSE &&
+             cemit_ir_type_is_complete_aggregate_object(
+                 context, instruction->type) == CTOOL_FALSE)) {
+          return CTOOL_ERR_INTERNAL;
+        }
+        symbol = context->block_binding_symbols[instruction->reference];
+        if (symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count) {
+          return CTOOL_ERR_INTERNAL;
+        }
+        continue;
+      }
+      if ((binding->storage != CTOOL_C_STORAGE_NONE &&
            binding->storage != CTOOL_C_STORAGE_AUTO &&
            binding->storage != CTOOL_C_STORAGE_REGISTER) ||
-          binding->type != instruction->type ||
           cemit_ir_type_is_automatic_object(context, instruction->type) ==
               CTOOL_FALSE) {
         return CTOOL_ERR_INTERNAL;
@@ -4352,6 +4576,7 @@ ctool_status_t ctool_c_emit_object(
   ctool_elf32_section_spec_t sections[CEMIT_SECTION_COUNT];
   ctool_elf32_object_spec_t object;
   ctool_u32 text_relocation_count = 0u;
+  ctool_u32 block_static_count = 0u;
   ctool_u32 section_count = 0u;
   ctool_u32 symbol_capacity;
   ctool_u32 index;
@@ -4376,9 +4601,19 @@ ctool_status_t ctool_c_emit_object(
     status = ctool_c_lower_ir(job, unit, &context.ir);
   }
   if (status == CTOOL_OK) {
+    for (index = 0u; index < unit->block_binding_count; index++) {
+      if (unit->block_bindings[index].storage == CTOOL_C_STORAGE_STATIC) {
+        block_static_count++;
+      }
+    }
     for (index = 0u; index < context.ir.instruction_count; index++) {
-      if (cemit_has_text_relocation(context.ir.instructions[index].kind) ==
-          CTOOL_TRUE) {
+      const ctool_c_ir_instruction_t *instruction =
+          &context.ir.instructions[index];
+      if (cemit_has_text_relocation(instruction->kind) == CTOOL_TRUE ||
+          (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS &&
+           instruction->reference < unit->block_binding_count &&
+           unit->block_bindings[instruction->reference].storage ==
+               CTOOL_C_STORAGE_STATIC)) {
         text_relocation_count++;
       }
     }
@@ -4389,12 +4624,18 @@ ctool_status_t ctool_c_emit_object(
     status = CTOOL_ERR_OVERFLOW;
   }
   if (status == CTOOL_OK &&
+      cemit_add_overflows(unit->binding_count + unit->initializer_count,
+                          block_static_count) == CTOOL_TRUE) {
+    status = CTOOL_ERR_OVERFLOW;
+  }
+  if (status == CTOOL_OK &&
       cemit_add_overflows(unit->initializer_count,
                           text_relocation_count) == CTOOL_TRUE) {
     status = CTOOL_ERR_OVERFLOW;
   }
   symbol_capacity = status == CTOOL_OK
-                        ? unit->binding_count + unit->initializer_count
+                        ? unit->binding_count + unit->initializer_count +
+                              block_static_count
                         : 0u;
   context.symbol_capacity = symbol_capacity;
   context.relocation_capacity =
@@ -4441,6 +4682,11 @@ ctool_status_t ctool_c_emit_object(
   if (status == CTOOL_OK) {
     status = cemit_alloc_array(&context, unit->block_binding_count,
                                (ctool_u32)sizeof(ctool_u32),
+                               (void **)&context.block_binding_symbols);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_alloc_array(&context, unit->block_binding_count,
+                               (ctool_u32)sizeof(ctool_u32),
                                (void **)&context.block_binding_offsets);
   }
   if (status == CTOOL_OK) {
@@ -4459,12 +4705,20 @@ ctool_status_t ctool_c_emit_object(
     status = cemit_index_symbols(&context);
   }
   if (status == CTOOL_OK) {
+    status = cemit_index_block_static_symbols(&context);
+  }
+  if (status == CTOOL_OK) {
     status = cemit_open_buffers(&context);
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->object_definition_count;
        index++) {
     status = cemit_place_definition(&context, index);
+  }
+  for (index = 0u; status == CTOOL_OK &&
+                     index < unit->block_binding_count;
+       index++) {
+    status = cemit_place_block_static(&context, index);
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->function_definition_count;

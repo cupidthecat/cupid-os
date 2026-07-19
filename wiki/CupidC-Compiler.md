@@ -206,9 +206,11 @@ Structure arguments occupy inline cdecl stack storage in parameter order, and ea
 
 Supported fixed direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing structure area. Nested calls and structure-result calls follow the same rule.
 
-Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Automatic string leaves, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, and variadic calls also remain unfinished in the shared path.
+Block-static objects use static storage in the shared ELF32 path. The emitter places top-level `const` objects in `.rodata`, writable zero-filled objects in `.bss`, and other writable objects in `.data`. Each object receives a local symbol derived from its absolute block-binding index, so shadowed names remain distinct. `LOCAL_ADDRESS` reaches that symbol through an `R_386_32` relocation instead of an EBP-relative frame slot, and the declaration emits no runtime initialization code. Unused and unreachable block statics still receive storage.
 
-Production ownership is unchanged. The normal OS build still uses a host C compiler for its C objects, and the private in-kernel CupidC compiler still handles embedded runtime compilation. The hosted structure-value path does not produce a normal Cupid OS object or change a boot or runtime artifact.
+Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Automatic string leaves, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, variadic calls, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
+
+Production ownership is unchanged. The normal OS build still uses a host C compiler for its C objects, and the private in-kernel CupidC compiler still handles embedded runtime compilation. The hosted shared path does not produce a normal Cupid OS object or change a boot or runtime artifact.
 
 ### Global Variables
 

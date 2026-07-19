@@ -45,3 +45,5 @@ ADR 0019 closes the file-object load and greater-than-or-equal frontier named ab
 ADR 0036 removes the outer declaration-prefix restriction. The same represented automatic objects can now be declared in supported nested compound statements and in `for` initializers. The fixed-slot emitter and public IR records do not change.
 
 ADR 0044 extends the same private frame policy to referenced, uninitialized fixed arrays and records. Their slots use the target layout's size and alignment, up to four-byte alignment, while `LOCAL_ADDRESS` continues to expose only the frontend binding identity. Automatic aggregate initialization, variable-length arrays, and over-aligned locals remain open.
+
+ADR 0051 gives `LOCAL_ADDRESS` a storage-duration-aware target meaning. Automatic objects still map to private EBP-relative slots, while block statics map to deterministic local ELF symbols and `R_386_32` address relocations. A block static never receives a frame slot.

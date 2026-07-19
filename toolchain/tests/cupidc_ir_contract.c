@@ -450,6 +450,15 @@ static const char active_signed_bits[] =
     "  return -(ctool_i32)((~value) + 1u);\n"
     "}";
 
+static const char active_dis_hex_body[] =
+    "  static const char hex[] = \"0123456789ABCDEF\";\n"
+    "  char text[8];\n"
+    "  ctool_u32 index;\n"
+    "  for (index = 0u; index < digits; index++) {\n"
+    "    ctool_u32 shift = (digits - index - 1u) * 4u;\n"
+    "    text[index] = hex[(value >> shift) & 0x0fu];\n"
+    "  }";
+
 static const char active_initializer_success[] =
     "  return !cc->error;";
 
@@ -1175,8 +1184,9 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active disassembler source") ||
       source.contents.data == NULL ||
-      strstr((const char *)source.contents.data, active_signed_bits) == NULL) {
-    (void)fprintf(stderr, "the active signed-bit conversion changed\n");
+      strstr((const char *)source.contents.data, active_signed_bits) == NULL ||
+      strstr((const char *)source.contents.data, active_dis_hex_body) == NULL) {
+    (void)fprintf(stderr, "an active disassembler helper changed\n");
     return 0;
   }
   path.text = ctool_string("/toolchain/cupidobj.c");
@@ -6137,6 +6147,36 @@ static int validate_point_of_declaration_ir(
   return 1;
 }
 
+static int validate_static_local_ir(const ctool_c_translation_unit_t *unit,
+                                    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 value = find_block_binding(unit, "value");
+  if (unit->function_definition_count != 1u ||
+      unit->block_binding_count != 1u || value == CTOOL_C_AST_NONE ||
+      unit->block_bindings[value].storage != CTOOL_C_STORAGE_STATIC ||
+      unit->block_bindings[value].initializer >= unit->initializer_count ||
+      ir->function_count != 1u || ir->instruction_count != 3u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 3u ||
+      ir->functions[0].maximum_stack_depth != 1u) {
+    (void)fprintf(stderr, "static-local IR inventory differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  if (instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      instructions[0].type != unit->block_bindings[value].type ||
+      instructions[0].reference != value ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != unit->block_bindings[value].type ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[2].type != unit->block_bindings[value].type) {
+    (void)fprintf(stderr, "static-local IR stream differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_inline_ir(const ctool_c_translation_unit_t *unit,
                               const ctool_c_ir_unit_t *ir) {
   const ctool_c_function_definition_t *local;
@@ -8494,14 +8534,22 @@ static int run_active_leaf(const char *host_root) {
           job, &array_local_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "automatic string initializer") ||
-      !parse_source(job, "/static-local.c", static_local_source,
-                    &static_local_unit) ||
-      !expect_ir_failure(
-          job, &static_local_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
-          "CupidC IR lowering does not yet support this statement",
-          "static block local")) {
+          "automatic string initializer")) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/static-local.c", static_local_source,
+                    &static_local_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&static_local_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &static_local_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "static block-local lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&static_local_unit) != fingerprint ||
+      !validate_static_local_ir(&static_local_unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   if (!parse_source(job, "/local-ownership.c", ownership_source,
