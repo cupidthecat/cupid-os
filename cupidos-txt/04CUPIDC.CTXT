@@ -116,9 +116,9 @@ Cupid OS has a shared CupidC frontend, linear IR, and ELF32 emitter for the
 self-hosting migration. This path is separate from the in-OS JIT and AOT
 compiler described elsewhere in this guide.
 
-The shared path now allocates target-sized i386 stack storage for referenced,
-uninitialized fixed arrays and records with alignment up to four bytes. It
-also carries one-byte, two-byte, and four-byte integers through locals, file
+The shared path allocates target-sized i386 stack storage for referenced fixed
+arrays and records with alignment up to four bytes. It carries one-byte,
+two-byte, and four-byte integers through locals, file
 objects, members, indexed access, conditions, conversions, assignment,
 mutation, and fixed direct or indirect calls. Narrow loads extend into
 canonical 32-bit values. Stores use the declared byte or word width. Byte and
@@ -132,11 +132,19 @@ An explicit cast to void evaluates its operand once. The shared IR discards a
 represented integer, object pointer, or function pointer value. A void operand
 leaves no value on the abstract stack.
 
+Automatic initializer lists work for fixed arrays and complete structures
+whose alignment does not exceed four bytes. The lowerer zero-initializes the
+full object once. It then evaluates each explicit integer or pointer leaf in
+source order and stores it through the selected array and member path. Nested
+lists, direct designators, and omitted subobjects keep their frontend meaning.
+The i386 emitter uses REP STOSB for the initial zeroing pass.
+
 The normal OS build still uses a host C compiler for C objects. The private
 in-kernel CupidC compiler continues to handle embedded runtime compilation.
-Aggregate values and initialization, Boolean mutation, atomic access, 64-bit
-integers and floating-point values, narrow bit fields, variadic calls, 16-byte
-call-site alignment, and production integration remain.
+Whole-record values, string leaves, explicit bit-field leaves, volatile or
+atomic aggregate initialization, unions, classes, Boolean mutation, 64-bit
+and floating-point values, variadic calls, 16-byte call-site alignment, and
+production integration remain.
 >endtree
 
 >h2 C Compatibility Notes

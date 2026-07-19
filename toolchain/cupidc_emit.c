@@ -1136,6 +1136,17 @@ static ctool_status_t cemit_x86_no_operand(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_repeat_string(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u16 operand_bits) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, operand_bits);
+  instruction.prefixes = CTOOL_X86_PREFIX_REP;
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_one_register(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_x86_reg_class_t class_id, ctool_u8 index,
@@ -2256,6 +2267,53 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return status;
   }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT) {
+    const ctool_c_type_layout_t *layout =
+        ir_instruction->type < context->unit->layout.type_count
+            ? &context->unit->layout.types[ir_instruction->type]
+            : (const ctool_c_type_layout_t *)0;
+    if (layout == (const ctool_c_type_layout_t *)0 ||
+        cemit_ir_type_is_complete_aggregate_object(
+            context, ir_instruction->type) == CTOOL_FALSE ||
+        layout->size == 0u ||
+        ir_instruction->input_type != ir_instruction->type ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 7u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 7u,
+          CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_move_register_constant(context, 1u, layout->size);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_no_operand(context, CTOOL_X86_MN_CLD);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_repeat_string(context, CTOOL_X86_MN_STOSB, 8u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 7u, 32u);
+    }
+    return status;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS) {
     const ctool_c_binding_t *binding;
     ctool_u32 symbol;
@@ -2302,6 +2360,56 @@ static ctool_status_t cemit_emit_ir_instruction(
       return CTOOL_ERR_INTERNAL;
     }
     return cemit_x86_push_symbol(context, symbol);
+  }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS) {
+    const ctool_c_type_node_t *array =
+        cemit_unwrapped_type(context, ir_instruction->input_type);
+    const ctool_c_type_layout_t *array_layout =
+        ir_instruction->input_type < context->unit->layout.type_count
+            ? &context->unit->layout.types[ir_instruction->input_type]
+            : (const ctool_c_type_layout_t *)0;
+    const ctool_c_type_layout_t *element_layout =
+        ir_instruction->type < context->unit->layout.type_count
+            ? &context->unit->layout.types[ir_instruction->type]
+            : (const ctool_c_type_layout_t *)0;
+    ctool_u32 offset;
+    if (array == (const ctool_c_type_node_t *)0 ||
+        array_layout == (const ctool_c_type_layout_t *)0 ||
+        element_layout == (const ctool_c_type_layout_t *)0 ||
+        array->kind != CTOOL_C_TYPE_ARRAY ||
+        array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        array->referenced_type != ir_instruction->type ||
+        ir_instruction->reference >= array->element_count ||
+        array_layout->is_object == CTOOL_FALSE ||
+        array_layout->is_complete_object == CTOOL_FALSE ||
+        element_layout->is_object == CTOOL_FALSE ||
+        element_layout->is_complete_object == CTOOL_FALSE ||
+        element_layout->size == 0u ||
+        cemit_multiply_overflows(array->element_count,
+                                 element_layout->size) == CTOOL_TRUE ||
+        array->element_count * element_layout->size != array_layout->size ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->integer_bits != 0u ||
+        cemit_multiply_overflows(ir_instruction->reference,
+                                 element_layout->size) == CTOOL_TRUE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    offset = ir_instruction->reference * element_layout->size;
+    if (offset > array_layout->size ||
+        element_layout->size > array_layout->size - offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_add_eax_constant(context, offset);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS) {
     cemit_member_info_t info;

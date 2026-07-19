@@ -18,6 +18,18 @@ typedef struct {
   ctool_u32 type;
 } cir_stack_entry_t;
 
+typedef enum {
+  CIR_INITIALIZER_ARRAY_ELEMENT = 1,
+  CIR_INITIALIZER_RECORD_MEMBER
+} cir_initializer_path_kind_t;
+
+typedef struct {
+  cir_initializer_path_kind_t kind;
+  ctool_u32 parent_type;
+  ctool_u32 child_type;
+  ctool_u32 subobject;
+} cir_initializer_path_t;
+
 typedef struct {
   ctool_u32 left;
   ctool_u32 right;
@@ -84,6 +96,8 @@ typedef struct {
   cir_stack_entry_t stack[CIR_STACK_LIMIT];
   ctool_u32 stack_depth;
   ctool_u32 maximum_stack_depth;
+  cir_initializer_path_t
+      initializer_path[CTOOL_C_PARSE_NESTING_LIMIT];
   cir_control_frame_t control_frames[CTOOL_C_PARSE_NESTING_LIMIT];
   ctool_u32 control_depth;
   cir_reach_control_frame_t
@@ -117,6 +131,12 @@ static void cir_zero_result(ctool_c_ir_unit_t *result) {
 
 static ctool_bool cir_add_overflows(ctool_u32 left, ctool_u32 right) {
   return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_bool cir_multiply_overflows(ctool_u32 left,
+                                         ctool_u32 right) {
+  return left != 0u && right > 0xffffffffu / left ? CTOOL_TRUE
+                                                  : CTOOL_FALSE;
 }
 
 static ctool_status_t cir_emit_failure(
@@ -192,6 +212,17 @@ static ctool_status_t cir_unsupported_type(
   return cir_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
       location, "CupidC IR lowering does not yet support this value type");
+}
+
+static ctool_status_t cir_unsupported_initializer_leaf(
+    cir_context_t *context, const ctool_c_pp_location_t *location,
+    const char *message) {
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
+  return cir_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+      location, message);
 }
 
 static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
@@ -3820,6 +3851,658 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   return cir_unsupported_expression(context, &expression->location);
 }
 
+static ctool_u32 cir_inline_child_slot_count(
+    const ctool_c_type_node_t *node) {
+  if (node->kind == CTOOL_C_TYPE_ALIGNED ||
+      node->kind == CTOOL_C_TYPE_QUALIFIED ||
+      node->kind == CTOOL_C_TYPE_ARRAY ||
+      node->kind == CTOOL_C_TYPE_VECTOR ||
+      node->kind == CTOOL_C_TYPE_ENUM) {
+    return 1u;
+  }
+  return node->kind == CTOOL_C_TYPE_RECORD ? node->member_count : 0u;
+}
+
+static ctool_bool cir_inline_child(
+    const cir_context_t *context, const ctool_c_type_node_t *node,
+    ctool_u32 slot, ctool_u32 *child_out) {
+  if (node->kind != CTOOL_C_TYPE_RECORD &&
+      cir_inline_child_slot_count(node) == 1u) {
+    if (slot != 0u) {
+      return CTOOL_FALSE;
+    }
+    *child_out = node->referenced_type;
+    return CTOOL_TRUE;
+  }
+  if (node->kind == CTOOL_C_TYPE_RECORD && slot < node->member_count) {
+    ctool_u32 member_index = node->first_member + slot;
+    const ctool_c_record_member_t *member =
+        &context->unit->graph.members[member_index];
+    const ctool_c_type_node_t *member_node =
+        cir_unwrapped_type(context, member->type);
+    if ((member->is_bit_field == CTOOL_TRUE && member->bit_width == 0u) ||
+        (slot + 1u == node->member_count &&
+         member_node != (const ctool_c_type_node_t *)0 &&
+         member_node->kind == CTOOL_C_TYPE_ARRAY &&
+         member_node->array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED)) {
+      return CTOOL_FALSE;
+    }
+    *child_out = member->type;
+    return CTOOL_TRUE;
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool cir_inline_types_are_acyclic(
+    const cir_context_t *context, const ctool_bool *seen,
+    ctool_u32 *indegree, ctool_u32 *work) {
+  ctool_u32 reachable_count = 0u;
+  ctool_u32 processed_count = 0u;
+  ctool_u32 work_count = 0u;
+  ctool_u32 type;
+  for (type = 0u; type < context->unit->graph.type_count; type++) {
+    const ctool_c_type_node_t *node;
+    ctool_u32 slot;
+    if (seen[type] == CTOOL_FALSE) {
+      continue;
+    }
+    reachable_count++;
+    node = &context->unit->graph.types[type];
+    for (slot = 0u; slot < cir_inline_child_slot_count(node); slot++) {
+      ctool_u32 child;
+      if (cir_inline_child(context, node, slot, &child) == CTOOL_FALSE) {
+        continue;
+      }
+      if (child >= context->unit->graph.type_count ||
+          seen[child] == CTOOL_FALSE || indegree[child] == 0xffffffffu) {
+        return CTOOL_FALSE;
+      }
+      indegree[child]++;
+    }
+  }
+  for (type = 0u; type < context->unit->graph.type_count; type++) {
+    if (seen[type] == CTOOL_TRUE && indegree[type] == 0u) {
+      work[work_count++] = type;
+    }
+  }
+  while (work_count != 0u) {
+    const ctool_c_type_node_t *node;
+    ctool_u32 slot;
+    type = work[--work_count];
+    processed_count++;
+    node = &context->unit->graph.types[type];
+    for (slot = 0u; slot < cir_inline_child_slot_count(node); slot++) {
+      ctool_u32 child;
+      if (cir_inline_child(context, node, slot, &child) == CTOOL_FALSE) {
+        continue;
+      }
+      if (child >= context->unit->graph.type_count ||
+          indegree[child] == 0u) {
+        return CTOOL_FALSE;
+      }
+      indegree[child]--;
+      if (indegree[child] == 0u) {
+        work[work_count++] = child;
+      }
+    }
+  }
+  return processed_count == reachable_count ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_status_t cir_require_initializable_aggregate(
+    cir_context_t *context, ctool_u32 root_type,
+    const ctool_c_pp_location_t *location) {
+  ctool_arena_mark_t mark = ctool_arena_mark(context->arena);
+  ctool_u32 *work = (ctool_u32 *)0;
+  ctool_u32 *indegree = (ctool_u32 *)0;
+  ctool_bool *seen = (ctool_bool *)0;
+  ctool_u32 work_count = 0u;
+  ctool_bool invalid = CTOOL_FALSE;
+  ctool_bool unsupported = CTOOL_FALSE;
+  ctool_status_t status;
+  ctool_status_t rewind_status;
+  if (root_type >= context->unit->graph.type_count ||
+      root_type >= context->unit->layout.type_count) {
+    return cir_invalid_unit(context, location);
+  }
+  status = cir_alloc_array(
+      context, context->unit->graph.type_count, (ctool_u32)sizeof(*work),
+      (void **)&work);
+  if (status == CTOOL_OK) {
+    status = cir_alloc_array(
+        context, context->unit->graph.type_count, (ctool_u32)sizeof(*seen),
+        (void **)&seen);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_alloc_array(
+        context, context->unit->graph.type_count,
+        (ctool_u32)sizeof(*indegree), (void **)&indegree);
+  }
+  if (status == CTOOL_OK) {
+    work[work_count++] = root_type;
+    seen[root_type] = CTOOL_TRUE;
+  }
+  while (status == CTOOL_OK && invalid == CTOOL_FALSE &&
+         work_count != 0u) {
+    ctool_u32 type = work[--work_count];
+    const ctool_c_type_node_t *node = cir_type_node(context, type);
+    const ctool_c_type_layout_t *layout;
+    if (node == (const ctool_c_type_node_t *)0 ||
+        type >= context->unit->layout.type_count) {
+      invalid = CTOOL_TRUE;
+      break;
+    }
+    layout = &context->unit->layout.types[type];
+    if (node->kind < CTOOL_C_TYPE_VOID ||
+        node->kind > CTOOL_C_TYPE_QUALIFIED || layout->alignment == 0u ||
+        (layout->alignment & (layout->alignment - 1u)) != 0u) {
+      invalid = CTOOL_TRUE;
+      continue;
+    }
+    if ((node->qualifiers & (CTOOL_C_QUAL_VOLATILE | CTOOL_C_QUAL_ATOMIC)) !=
+        0u) {
+      unsupported = CTOOL_TRUE;
+    }
+    if (node->kind == CTOOL_C_TYPE_ALIGNED ||
+        node->kind == CTOOL_C_TYPE_QUALIFIED) {
+      const ctool_c_type_layout_t *referenced_layout;
+      if (node->referenced_type >= context->unit->graph.type_count ||
+          node->referenced_type >= context->unit->layout.type_count ||
+          cir_unwrapped_type(context, type) ==
+              (const ctool_c_type_node_t *)0) {
+        invalid = CTOOL_TRUE;
+        continue;
+      }
+      referenced_layout =
+          &context->unit->layout.types[node->referenced_type];
+      if (layout->is_object == CTOOL_FALSE ||
+          layout->is_complete_object == CTOOL_FALSE || layout->size == 0u ||
+          layout->size != referenced_layout->size ||
+          layout->is_object != referenced_layout->is_object ||
+          layout->is_complete_object !=
+              referenced_layout->is_complete_object) {
+        invalid = CTOOL_TRUE;
+      } else if (seen[node->referenced_type] == CTOOL_FALSE) {
+        seen[node->referenced_type] = CTOOL_TRUE;
+        work[work_count++] = node->referenced_type;
+      }
+      continue;
+    }
+    if (node->kind == CTOOL_C_TYPE_POINTER) {
+      if (node->referenced_type >= context->unit->graph.type_count ||
+          layout->is_object == CTOOL_FALSE ||
+          layout->is_complete_object == CTOOL_FALSE || layout->size != 4u) {
+        invalid = CTOOL_TRUE;
+      }
+      continue;
+    }
+    if (node->kind == CTOOL_C_TYPE_ARRAY) {
+      const ctool_c_type_layout_t *element_layout;
+      if (node->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+          node->element_count == 0u ||
+          node->referenced_type >= context->unit->graph.type_count ||
+          node->referenced_type >= context->unit->layout.type_count ||
+          layout->is_object == CTOOL_FALSE ||
+          layout->is_complete_object == CTOOL_FALSE || layout->size == 0u) {
+        invalid = CTOOL_TRUE;
+        continue;
+      }
+      element_layout =
+          &context->unit->layout.types[node->referenced_type];
+      if (element_layout->is_object == CTOOL_FALSE ||
+          element_layout->is_complete_object == CTOOL_FALSE ||
+          element_layout->size == 0u ||
+          layout->alignment != element_layout->alignment ||
+          cir_multiply_overflows(node->element_count,
+                                 element_layout->size) == CTOOL_TRUE ||
+          node->element_count * element_layout->size != layout->size) {
+        invalid = CTOOL_TRUE;
+      } else if (seen[node->referenced_type] == CTOOL_FALSE) {
+        seen[node->referenced_type] = CTOOL_TRUE;
+        work[work_count++] = node->referenced_type;
+      }
+      continue;
+    }
+    if (node->kind == CTOOL_C_TYPE_VECTOR) {
+      const ctool_c_type_layout_t *element_layout;
+      if (node->element_count == 0u ||
+          node->referenced_type >= context->unit->graph.type_count ||
+          node->referenced_type >= context->unit->layout.type_count ||
+          layout->is_object == CTOOL_FALSE ||
+          layout->is_complete_object == CTOOL_FALSE || layout->size == 0u) {
+        invalid = CTOOL_TRUE;
+        continue;
+      }
+      element_layout =
+          &context->unit->layout.types[node->referenced_type];
+      if (element_layout->is_object == CTOOL_FALSE ||
+          element_layout->is_complete_object == CTOOL_FALSE ||
+          element_layout->size == 0u ||
+          cir_multiply_overflows(node->element_count,
+                                 element_layout->size) == CTOOL_TRUE ||
+          node->element_count * element_layout->size != layout->size) {
+        invalid = CTOOL_TRUE;
+      } else if (seen[node->referenced_type] == CTOOL_FALSE) {
+        seen[node->referenced_type] = CTOOL_TRUE;
+        work[work_count++] = node->referenced_type;
+      }
+      continue;
+    }
+    if (node->kind == CTOOL_C_TYPE_RECORD) {
+      ctool_u32 member_offset;
+      if (node->record_kind < CTOOL_C_RECORD_STRUCT ||
+          node->record_kind > CTOOL_C_RECORD_CLASS) {
+        invalid = CTOOL_TRUE;
+        continue;
+      }
+      if (node->record_kind != CTOOL_C_RECORD_STRUCT) {
+        unsupported = CTOOL_TRUE;
+      }
+      if (node->record_complete == CTOOL_FALSE ||
+          node->first_member > context->unit->graph.member_count ||
+          node->member_count >
+              context->unit->graph.member_count - node->first_member ||
+          layout->is_object == CTOOL_FALSE ||
+          layout->is_complete_object == CTOOL_FALSE || layout->size == 0u) {
+        invalid = CTOOL_TRUE;
+        continue;
+      }
+      for (member_offset = 0u; member_offset < node->member_count;
+           member_offset++) {
+        ctool_u32 member_index = node->first_member + member_offset;
+        const ctool_c_record_member_t *member =
+            &context->unit->graph.members[member_index];
+        const ctool_c_member_layout_t *member_layout =
+            &context->unit->layout.members[member_index];
+        const ctool_c_type_node_t *member_node;
+        const ctool_c_type_layout_t *member_type_layout;
+        ctool_u32 member_type = member->type;
+        if (member_type >= context->unit->graph.type_count ||
+            member_type >= context->unit->layout.type_count) {
+          invalid = CTOOL_TRUE;
+          break;
+        }
+        member_node = cir_unwrapped_type(context, member_type);
+        member_type_layout = &context->unit->layout.types[member_type];
+        if (member_node == (const ctool_c_type_node_t *)0 ||
+            member_layout->alignment == 0u ||
+            (member_layout->alignment & (member_layout->alignment - 1u)) !=
+                0u ||
+            member_layout->byte_offset > layout->size ||
+            member_layout->size >
+                layout->size - member_layout->byte_offset) {
+          invalid = CTOOL_TRUE;
+          break;
+        }
+        if (member_offset + 1u == node->member_count &&
+            member_node->kind == CTOOL_C_TYPE_ARRAY &&
+            member_node->array_bound_kind == CTOOL_C_ARRAY_UNSPECIFIED) {
+          if (node->record_kind != CTOOL_C_RECORD_STRUCT ||
+              member_layout->size != 0u ||
+              member_layout->byte_offset != layout->size) {
+            invalid = CTOOL_TRUE;
+          }
+          continue;
+        }
+        if (member->is_bit_field == CTOOL_TRUE) {
+          if (member->bit_width == 0u) {
+            if (member_layout->bit_offset != 0u ||
+                member_layout->bit_width != 0u ||
+                member_layout->size != member_type_layout->size) {
+              invalid = CTOOL_TRUE;
+              break;
+            }
+            continue;
+          }
+          if (member_layout->size == 0u || member_layout->size > 8u ||
+              member_layout->bit_width != member->bit_width ||
+              member_layout->bit_offset > member_layout->size * 8u ||
+              member_layout->bit_width >
+                  member_layout->size * 8u - member_layout->bit_offset) {
+            invalid = CTOOL_TRUE;
+            break;
+          }
+          if (seen[member_type] == CTOOL_FALSE) {
+            seen[member_type] = CTOOL_TRUE;
+            work[work_count++] = member_type;
+          }
+          continue;
+        }
+        if (member->bit_width != 0u || member_layout->bit_offset != 0u ||
+            member_layout->bit_width != 0u ||
+            member_type_layout->is_object == CTOOL_FALSE ||
+            member_type_layout->is_complete_object == CTOOL_FALSE ||
+            member_type_layout->size == 0u ||
+            member_layout->size != member_type_layout->size) {
+          invalid = CTOOL_TRUE;
+          break;
+        }
+        if (seen[member_type] == CTOOL_FALSE) {
+          if (work_count >= context->unit->graph.type_count) {
+            invalid = CTOOL_TRUE;
+            break;
+          }
+          seen[member_type] = CTOOL_TRUE;
+          work[work_count++] = member_type;
+        }
+      }
+      continue;
+    }
+    if (node->kind == CTOOL_C_TYPE_ENUM) {
+      if (node->referenced_type >= context->unit->graph.type_count ||
+          node->referenced_type >= context->unit->layout.type_count) {
+        invalid = CTOOL_TRUE;
+      } else if (seen[node->referenced_type] == CTOOL_FALSE) {
+        seen[node->referenced_type] = CTOOL_TRUE;
+        work[work_count++] = node->referenced_type;
+      }
+    }
+    if (layout->is_object == CTOOL_FALSE ||
+        layout->is_complete_object == CTOOL_FALSE || layout->size == 0u) {
+      invalid = CTOOL_TRUE;
+    }
+  }
+  if (status == CTOOL_OK && invalid == CTOOL_FALSE &&
+      cir_inline_types_are_acyclic(context, seen, indegree, work) ==
+          CTOOL_FALSE) {
+    invalid = CTOOL_TRUE;
+  }
+  rewind_status = ctool_arena_rewind(context->arena, mark);
+  if (status != CTOOL_OK) {
+    return rewind_status == CTOOL_OK ? status : rewind_status;
+  }
+  if (rewind_status != CTOOL_OK) {
+    return rewind_status;
+  }
+  if (invalid == CTOOL_TRUE) {
+    return cir_invalid_unit(context, location);
+  }
+  return unsupported == CTOOL_TRUE ? cir_unsupported_type(context, location)
+                                   : CTOOL_OK;
+}
+
+static ctool_status_t cir_append_local_address(
+    cir_context_t *context, ctool_u32 binding_index,
+    const ctool_c_block_binding_t *binding,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  ctool_status_t status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, binding->type,
+      CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, binding_index, 0u, location,
+      physical_location, (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_ADDRESS, binding->type);
+}
+
+static ctool_status_t cir_append_initializer_path(
+    cir_context_t *context, ctool_u32 binding_index,
+    const ctool_c_block_binding_t *binding, ctool_u32 path_count,
+    const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  ctool_u32 index;
+  ctool_status_t status = cir_append_local_address(
+      context, binding_index, binding, location, physical_location);
+  for (index = 0u; status == CTOOL_OK && index < path_count; index++) {
+    const cir_initializer_path_t *path = &context->initializer_path[index];
+    cir_stack_entry_t parent;
+    status = cir_pop(context, &parent);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (parent.kind != CIR_STACK_ADDRESS ||
+        parent.type != path->parent_type) {
+      return cir_invalid_unit(context, location);
+    }
+    status = cir_append_instruction(
+        context,
+        path->kind == CIR_INITIALIZER_ARRAY_ELEMENT
+            ? CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS
+            : CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS,
+        path->child_type, path->parent_type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        path->subobject, 0u, location, physical_location,
+        (ctool_u32 *)0);
+    if (status == CTOOL_OK) {
+      status = cir_push(context, CIR_STACK_ADDRESS, path->child_type);
+    }
+  }
+  return status;
+}
+
+static ctool_status_t cir_lower_aggregate_initializer_leaf(
+    cir_context_t *context, ctool_u32 binding_index,
+    const ctool_c_block_binding_t *binding,
+    const ctool_c_initializer_t *initializer, ctool_u32 path_count) {
+  cir_stack_entry_t address;
+  cir_stack_entry_t value;
+  ctool_u32 base_depth;
+  ctool_status_t status;
+  if (initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION ||
+      initializer->expression >= context->unit->expression_count ||
+      initializer->integer_bits != 0u ||
+      initializer->string_bytes.data != (const ctool_u8 *)0 ||
+      initializer->string_bytes.size != 0u ||
+      initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+      initializer->address_reference != CTOOL_C_AST_NONE ||
+      initializer->address_addend != 0 ||
+      initializer->first_element != CTOOL_C_AST_NONE ||
+      initializer->element_count != 0u) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  if (cir_type_is_represented_scalar(context, initializer->type) ==
+          CTOOL_FALSE ||
+      cir_type_has_atomic_qualification(context, initializer->type) ==
+          CTOOL_TRUE) {
+    const ctool_c_type_node_t *type =
+        cir_unwrapped_type(context, initializer->type);
+    return cir_unsupported_initializer_leaf(
+        context, &initializer->location,
+        type != (const ctool_c_type_node_t *)0 &&
+                type->kind == CTOOL_C_TYPE_RECORD
+            ? "CupidC IR lowering does not yet support record-valued "
+              "expression leaves in automatic aggregate initializer lists"
+            : "CupidC IR lowering does not yet support this value type in "
+              "automatic aggregate initializer lists");
+  }
+  status = cir_append_initializer_path(
+      context, binding_index, binding, path_count, &initializer->location,
+      &initializer->physical_location);
+  base_depth = context->stack_depth;
+  if (status == CTOOL_OK) {
+    status = cir_lower_expression(context, initializer->expression, 0u);
+  }
+  if (status == CTOOL_OK &&
+      (cir_add_overflows(base_depth, 1u) == CTOOL_TRUE ||
+       context->stack_depth != base_depth + 1u)) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &value);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (value.kind != CIR_STACK_VALUE ||
+      address.kind != CIR_STACK_ADDRESS ||
+      address.type != initializer->type ||
+      cir_scalar_value_types_match(context, initializer->type, value.type) ==
+          CTOOL_FALSE) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  return cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_STORE, initializer->type, value.type,
+      CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+      CTOOL_C_AST_NONE, 0u, &initializer->location,
+      &initializer->physical_location, (ctool_u32 *)0);
+}
+
+static ctool_status_t cir_lower_aggregate_initializer_list(
+    cir_context_t *context, ctool_u32 binding_index,
+    const ctool_c_block_binding_t *binding, ctool_u32 initializer_index,
+    ctool_u32 depth) {
+  const ctool_c_initializer_t *initializer;
+  const ctool_c_type_node_t *parent;
+  ctool_u32 edge_offset;
+  if (initializer_index >= context->unit->initializer_count ||
+      depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    return cir_invalid_unit(context, &binding->location);
+  }
+  initializer = &context->unit->initializers[initializer_index];
+  parent = cir_unwrapped_type(context, initializer->type);
+  if (initializer->kind != CTOOL_C_INITIALIZER_LIST ||
+      parent == (const ctool_c_type_node_t *)0 ||
+      initializer->expression != CTOOL_C_AST_NONE ||
+      initializer->integer_bits != 0u ||
+      initializer->string_bytes.data != (const ctool_u8 *)0 ||
+      initializer->string_bytes.size != 0u ||
+      initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+      initializer->address_reference != CTOOL_C_AST_NONE ||
+      initializer->address_addend != 0 || initializer->element_count == 0u ||
+      initializer->first_element == CTOOL_C_AST_NONE ||
+      initializer->first_element > context->unit->initializer_element_count ||
+      initializer->element_count >
+          context->unit->initializer_element_count -
+              initializer->first_element) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  if ((parent->kind == CTOOL_C_TYPE_ARRAY &&
+       (parent->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        parent->referenced_type >= context->unit->graph.type_count)) ||
+      (parent->kind == CTOOL_C_TYPE_RECORD &&
+       (parent->record_kind != CTOOL_C_RECORD_STRUCT ||
+        parent->record_complete == CTOOL_FALSE ||
+        parent->first_member > context->unit->graph.member_count ||
+        parent->member_count >
+            context->unit->graph.member_count - parent->first_member)) ||
+      (parent->kind != CTOOL_C_TYPE_ARRAY &&
+       parent->kind != CTOOL_C_TYPE_RECORD)) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  for (edge_offset = 0u; edge_offset < initializer->element_count;
+       edge_offset++) {
+    const ctool_c_initializer_element_t *edge =
+        &context->unit->initializer_elements[initializer->first_element +
+                                             edge_offset];
+    const ctool_c_initializer_t *child;
+    cir_initializer_path_t *path = &context->initializer_path[depth];
+    ctool_u32 previous;
+    if (edge->initializer >= initializer_index) {
+      return cir_invalid_unit(context, &initializer->location);
+    }
+    child = &context->unit->initializers[edge->initializer];
+    for (previous = 0u; previous < edge_offset; previous++) {
+      if (context->unit
+              ->initializer_elements[initializer->first_element + previous]
+              .subobject == edge->subobject) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
+    }
+    path->parent_type = initializer->type;
+    path->subobject = edge->subobject;
+    if (parent->kind == CTOOL_C_TYPE_ARRAY) {
+      if (edge->subobject >= parent->element_count) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
+      path->kind = CIR_INITIALIZER_ARRAY_ELEMENT;
+      path->child_type = parent->referenced_type;
+    } else {
+      const ctool_c_record_member_t *member;
+      if (edge->subobject < parent->first_member ||
+          edge->subobject - parent->first_member >= parent->member_count ||
+          edge->subobject >= context->unit->layout.member_count) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
+      member = &context->unit->graph.members[edge->subobject];
+      if (member->type >= context->unit->graph.type_count) {
+        return cir_invalid_unit(context, &initializer->location);
+      }
+      if (member->is_bit_field == CTOOL_TRUE) {
+        return cir_unsupported_initializer_leaf(
+            context, &child->location,
+            "CupidC IR lowering does not yet support bit-field leaves in "
+            "automatic aggregate initializer lists");
+      }
+      path->kind = CIR_INITIALIZER_RECORD_MEMBER;
+      path->child_type = member->type;
+    }
+    if (child->type != path->child_type) {
+      return cir_invalid_unit(context, &child->location);
+    }
+    if (child->kind == CTOOL_C_INITIALIZER_LIST) {
+      ctool_status_t status = cir_lower_aggregate_initializer_list(
+          context, binding_index, binding, edge->initializer, depth + 1u);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    } else if (child->kind == CTOOL_C_INITIALIZER_EXPRESSION) {
+      ctool_status_t status = cir_lower_aggregate_initializer_leaf(
+          context, binding_index, binding, child, depth + 1u);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    } else if (child->kind == CTOOL_C_INITIALIZER_STRING) {
+      return cir_unsupported_initializer_leaf(
+          context, &child->location,
+          "CupidC IR lowering does not yet support string leaves in "
+          "automatic aggregate initializer lists");
+    } else {
+      return cir_invalid_unit(context, &child->location);
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_lower_aggregate_initializer(
+    cir_context_t *context, ctool_u32 binding_index,
+    const ctool_c_block_binding_t *binding) {
+  const ctool_c_initializer_t *initializer;
+  cir_stack_entry_t address;
+  ctool_status_t status;
+  if (binding->initializer >= context->unit->initializer_count) {
+    return cir_invalid_unit(context, &binding->location);
+  }
+  initializer = &context->unit->initializers[binding->initializer];
+  if (initializer->type != binding->type) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
+    return cir_unsupported_type(context, &initializer->location);
+  }
+  status = cir_require_initializable_aggregate(
+      context, binding->type, &initializer->location);
+  if (status == CTOOL_OK) {
+    status = cir_append_local_address(
+        context, binding_index, binding, &initializer->location,
+        &initializer->physical_location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &address);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (address.kind != CIR_STACK_ADDRESS || address.type != binding->type) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT, binding->type,
+      binding->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &initializer->location, &initializer->physical_location,
+      (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_lower_aggregate_initializer_list(
+      context, binding_index, binding, binding->initializer, 0u);
+}
+
 static ctool_status_t cir_lower_declaration(
     cir_context_t *context, const ctool_c_statement_t *statement) {
   ctool_u32 binding_offset;
@@ -3877,7 +4560,12 @@ static ctool_status_t cir_lower_declaration(
     }
     if (cir_type_is_represented_scalar(context, binding->type) ==
         CTOOL_FALSE) {
-      return cir_unsupported_type(context, &binding->location);
+      status = cir_lower_aggregate_initializer(context, binding_index,
+                                               binding);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      continue;
     }
     if (binding->initializer >= context->unit->initializer_count) {
       return cir_invalid_unit(context, &binding->location);

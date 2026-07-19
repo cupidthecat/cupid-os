@@ -30,13 +30,15 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
   CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT,
   CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
-  CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER
+  CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER,
+  CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT,
+  CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
   ctool_c_ir_instruction_kind_t kind;
   /* Value-producing instructions use type for their result. Object-address
-   * instructions and STORE use the referenced destination object type.
+   * instructions, STORE, and ZERO_OBJECT use the destination object type.
    * FUNCTION_ADDRESS retains its function-designator type.
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
@@ -50,7 +52,9 @@ typedef struct {
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
    * retains the duplicated object's type. DEREFERENCE retains its pointer
    * operand type. ADDRESS_OF retains its object or function operand type.
-   * FUNCTION_TO_POINTER retains its function operand type. CALL_DIRECT
+   * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT
+   * retains the aggregate address operand type. ELEMENT_ADDRESS retains its
+   * fixed-array operand type. CALL_DIRECT
    * retains the function type, while CALL_INDIRECT retains the function
    * pointer type. BRANCH_ZERO retains its consumed condition type. */
   ctool_u32 input_type;
@@ -64,6 +68,7 @@ typedef struct {
    * offset stays private to the emitter. FILE_ADDRESS, CALL_DIRECT, and
    * FUNCTION_ADDRESS use an absolute file-binding index.
    * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
+   * ELEMENT_ADDRESS uses a direct fixed-array element index.
    * POINTER_BINARY uses an absolute graph-type index for its right operand.
    * Branches use a function-relative instruction index. Other instructions
    * use CTOOL_C_AST_NONE. */
@@ -178,11 +183,17 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
  * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. A referenced
- * automatic scalar receives one target-sized slot. A referenced uninitialized
- * fixed array or record receives its target size and alignment, up to four
- * byte alignment. DUPLICATE_ADDRESS preserves an address while a supported
- * integer or pointer compound assignment or update loads and stores the
- * object. This evaluates the destination once. Integer mutation supports
+ * automatic scalar receives one target-sized slot. A referenced fixed array
+ * or record receives its target size and alignment, up to four-byte
+ * alignment. ZERO_OBJECT consumes an aggregate address of input_type and
+ * performs semantic zero initialization for the complete object named by
+ * type. ELEMENT_ADDRESS consumes a fixed-array address and produces one
+ * direct element address. Automatic array and structure initializer lists
+ * zero the complete object once, then evaluate represented scalar expression
+ * leaves in source order and store them through ELEMENT_ADDRESS and
+ * MEMBER_ADDRESS paths. DUPLICATE_ADDRESS preserves an address while a
+ * supported integer or pointer compound assignment or update loads and stores
+ * the object. This evaluates the destination once. Integer mutation supports
  * non-Boolean scalar objects that occupy one, two, or four bytes. Narrow
  * values are promoted for the 32-bit computation and converted back before
  * an exact-width store. Compound assignments retain integer-promotion, usual

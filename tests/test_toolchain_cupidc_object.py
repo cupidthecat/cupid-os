@@ -144,6 +144,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "automatic-objects: ok\n")
 
+    def test_automatic_aggregate_initializers_zero_then_store_subobjects(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "aggregate-initializers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "aggregate-initializers: ok\n")
+
     def test_narrow_integer_mutation_emits_exact_width_i386_stores(self):
         result = subprocess.run(
             [str(self.contract_path), "narrow-mutations", str(REPO_ROOT)],

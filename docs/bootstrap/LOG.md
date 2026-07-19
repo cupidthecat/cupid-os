@@ -4573,3 +4573,55 @@ This increment transfers no production C object and retires no host dependency. 
 The root README, bootstrap README, capability matrix, migration matrix, host-dependency record, active-source audit, chronological log, public IR contract, wiki, CTXT manual, and ADR 0047 describe the capability and its limits. Four earlier ADRs now distinguish this discard-only cast from value-producing conversions. No active OS C or assembly source, production build rule, or `TempleOS/` reference source changed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Boolean mutation, aggregate initialization and values, narrow bit fields, atomic access, 64-bit integers, floating values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
+
+## 2026-07-18: CupidC lowers automatic aggregate initializer lists
+
+### Decision and active-source requirement
+
+Hosted CupidC lowers automatic `LIST` initializer roots for complete fixed arrays and structures inside the existing four-byte-aligned frame boundary. It emits one semantic `ZERO_OBJECT` for the complete object, then walks explicit leaves in source order. Each leaf rebuilds its path from the local root with `MEMBER_ADDRESS` and the new `ELEMENT_ADDRESS`, evaluates one represented scalar expression, and stores the result.
+
+The unchanged `ctool_string_t no_name = {(const char *)0, 0u}` declaration in `toolchain/cupidc_pp.c` supplies the active mixed pointer and integer shape. `toolchain/cupidc_frontend.c` has seven automatic `{0}` declarations. The object contract guards `ctool_c_type_node_t node = {0}` directly. CupidC learned these ordinary initializer forms without splitting the aggregates into scalar variables.
+
+The i386 emitter preserves EDI, moves the object address into EDI, clears EAX, loads the complete object size into ECX, issues `CLD`, and emits `REP STOSB`. It restores EDI before later code. `ELEMENT_ADDRESS` keeps the direct fixed-array index in public IR and applies its checked target byte offset only during emission.
+
+Automatic string leaves, explicit bit-field leaves, record-valued expression leaves, volatile or atomic subobjects, and wide or floating expression leaves stay unsupported. Omitted bit fields and omitted wide scalar members may receive the aggregate's semantic zero because they do not require runtime value lowering. Whole-record expression initialization, aggregate assignment, and aggregate call or return conventions remain outside this step.
+
+No user question was needed. The frozen initializer forest already fixes ownership, selector identities, source order, expression conversions, and omitted-subobject semantics.
+
+### Contract evidence and corrections
+
+- The first focused IR test stopped at the former unsupported aggregate-initializer boundary. This was the semantic red result.
+- The main IR fixture publishes 65 exact instructions and reaches a maximum abstract-stack depth of three. It covers the active `no_name` shape, nested structures and arrays, direct out-of-order designators, a narrow integer conversion, implicit zero, and source-order stores.
+- A second IR fixture requires one zero operation and one store while leaving an omitted bit field and omitted 64-bit member at semantic zero. Its volatile zero-width separator is accepted because it creates no stored subobject. A separate omitted nonzero volatile bit field remains unsupported.
+- Mutated selector and array-layout records receive the invalid-unit diagnostic. A by-value self-cycle in the frozen type graph also fails transactionally, while pointer recursion and shared by-value DAG nodes stay valid. An explicit 64-bit expression leaf keeps the unsupported-type diagnostic.
+- The object fixture emits `aggregate_paths` over a 40-byte object and `active_zero_record` over a 16-byte object. It has seven symbols and four source-ordered `R_386_PC32` relocations. A decoder-driven symbolic executor checks the complete zero extent, call results and order, selected store offsets and values, the EDI save and restore around zeroing, and byte-identical repeat emission.
+- Object negatives retain automatic string, explicit bit-field, and record-valued expression leaves at precise unsupported-type diagnostics. Every failure preserves the frozen unit, publishes no output, rewinds operation storage, and leaves the job reusable.
+- Expanding omitted subobjects into frontend records was rejected because the forest deliberately records only explicit clauses. Scalar-only zero stores were rejected because they miss padding and unnamed or omitted subobjects. Pointer arithmetic was not reused for direct selectors because `ELEMENT_ADDRESS` keeps their checked semantic identity.
+- Semantic review found that the first reachability walk treated a repeated type as sufficient evidence against a cycle and applied qualifiers from a zero-width separator. The final graph pass distinguishes shared DAG nodes from by-value cycles, stops at pointer referents, and excludes zero-width separators and flexible tails. Follow-up review found no remaining correctness or contract issue.
+- Standards review found two stale designator totals and duplicated single-child type classification in the cycle helpers. The records now use the regenerated total of 617, and `cir_inline_child` reuses `cir_inline_child_slot_count`. Spec review found no behavior error or scope creep. Its final pass caught one documentation overclaim: the executor tracks value pushes and pops but does not model every whole-function ESP effect. The ADR and log now claim the checked EDI save and restore, not general stack balance.
+- The complete Toolchain suite stopped at the expected stale self-source guards after the implementation grew. The final tuples are 145 definitions, 4,233 statements, 36,079 expressions, 526 block bindings, and 174 initializers for `cupidc_ir.c`; and 94/2,048/18,627/286/147 for `cupidc_emit.c`.
+- Clang analysis found that two mutation fixtures indexed copied arrays without first stating their nonzero count and bounds. Explicit guards closed both proof gaps. Final GCC and Clang analysis is clean across the two product files and all three affected contracts.
+- Three host commands were excluded from evidence. Native MinGW GCC inherited the Windows Clang/LLD `/Brepro` link flag and stopped before running a test. A package-style WSL unittest command found no local test modules, so the accepted command uses discovery. A parallel Clang analysis pass over the WSL-mounted large contract saw a transient incomplete file view; sequential reads saw the unchanged stable hash and completed cleanly.
+
+The regenerated graph records 688 active sources, 251 feature IDs, 498 reachable transforms, and 39 accounted unreachable sources. Its lexical inventory contains 617 direct designated initializers across 18 files, 1,036 `goto` occurrences in 24 files, 61 `do`, 203 `switch`, 1,520 `case`, 134 `default`, 2,507 `while`, 1,715 `break`, 947 `continue`, 25,725 `if`, 3,513 `else`, 3,078 `for`, 15,760 `return`, and 3,212 `sizeof` occurrences. The active-source digest is `147a6a9aa4bedc6eb2c148756d753593100b5ac12591fb76e0886d0bb50d5138`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red IR contract | PASS | The new positive fixture first received the old unsupported-type diagnostic before initializer-list lowering was added. |
+| Focused aggregate contracts | PASS | The final Python IR and object run passes all 36 tests in 21.260 seconds. Fresh WSL GCC and Clang runs each pass the 22 IR tests, and both sanitizer builds pass the amended aggregate mode. |
+| Hosted Toolchain | PASS AFTER SOURCE-GUARD UPDATE | Windows Clang, WSL GCC, and WSL Clang pass the complete strict suite and all 22 assembly demos. The first complete run supplied the two expected replacement tuples described above. |
+| Sanitizers | PASS | Fresh GCC and Clang address and undefined-behavior sanitizer builds pass the complete hosted suite in 169.1 and 180.8 seconds with leak detection and halt-on-error enabled. Both rebuild and pass the amended IR mode after the analyzer fix. |
+| Static analysis | PASS AFTER FIXTURE HARDENING | GCC `-fanalyzer` and Clang `--analyze` report no diagnostics across `cupidc_ir.c`, `cupidc_emit.c`, and the three affected contracts. The two fixture guards above came from the first Clang pass. |
+| Two-axis implementation review | PASS AFTER FIXES | Standards review corrected two stale designator totals and one duplicated type classification. Spec review found no missing behavior, implementation error, or scope creep. Its final pass removed an unsupported whole-function stack-balance claim while retaining the concrete zero, store, call-order, and EDI save-and-restore oracle. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerated the checked records in 41.2 seconds. `make check-bootstrap-audit` reproduced them in 42.0 seconds. |
+| Full repository gate | PASS | `make test` passes all 320 tests in 525.828 seconds with one expected skip and returns from Make in 564 seconds after the audit check. |
+| Production image build | PASS | `make all` rebuilds the normal compiler, assembler, linker, kernel, embedded documentation, and disk-image path in 24.7 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke boots the rebuilt image and runs `ls` through CupidC to JIT completion in 16.2 seconds. The Cupid core, ELF32, x86, CupidDis, and CupidASM self-tests pass, and no panic appears. This smoke checks the refreshed image without assigning production ownership to the hosted lowering path. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contracts. The same host compiler still produces the normal root and user C objects. The private in-kernel compiler remains the runtime JIT and AOT path.
+
+ADR 0048 and the bootstrap records describe the capability and its limits. No active OS C or assembly source, production build rule, or `TempleOS/` reference source changed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Aggregate values and assignment, the deferred initializer leaves, Boolean mutation, narrow bit fields, atomic access, 64-bit and floating runtime values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap still remain. No issue is ready to close from this increment.
