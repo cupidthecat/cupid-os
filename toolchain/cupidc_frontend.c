@@ -2941,6 +2941,9 @@ static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token);
 static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
                                              ctool_u32 *type_out);
+static ctool_status_t cfront_parse_compound_literal(
+    cfront_context_t *context, const ctool_c_pp_token_t *literal_token,
+    ctool_u32 type, cfront_expression_value_t *value_out);
 static ctool_status_t cfront_layout_query_now(
     cfront_context_t *context, ctool_u32 type,
     const cfront_vector_t *member_path,
@@ -2964,13 +2967,20 @@ static ctool_bool cfront_parenthesized_type_name_starts(
 
 static ctool_status_t cfront_rewind_query_expressions(
     cfront_context_t *context, ctool_u32 expression_mark,
-    ctool_u32 child_mark, ctool_arena_mark_t arena_mark,
+    ctool_u32 child_mark, ctool_u32 initializer_mark,
+    ctool_u32 initializer_element_mark, ctool_arena_mark_t arena_mark,
     const ctool_c_pp_token_t *operator_token, ctool_status_t status) {
+  ctool_status_t initializer_element_status = cfront_vector_rewind(
+      &context->initializer_elements, initializer_element_mark);
+  ctool_status_t initializer_status = cfront_vector_rewind(
+      &context->initializers, initializer_mark);
   ctool_status_t child_status = cfront_vector_rewind(
       &context->expression_children, child_mark);
   ctool_status_t expression_status = cfront_vector_rewind(
       &context->expressions, expression_mark);
-  if (child_status != CTOOL_OK || expression_status != CTOOL_OK) {
+  if (initializer_element_status != CTOOL_OK ||
+      initializer_status != CTOOL_OK || child_status != CTOOL_OK ||
+      expression_status != CTOOL_OK) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         operator_token, "unevaluated expression scratch rewind failed");
@@ -3062,6 +3072,10 @@ static ctool_status_t cfront_parse_sizeof_query(
   ctool_c_type_layout_t layout;
   ctool_u32 expression_mark = cfront_vector_mark(&context->expressions);
   ctool_u32 child_mark = cfront_vector_mark(&context->expression_children);
+  ctool_u32 initializer_mark =
+      cfront_vector_mark(&context->initializers);
+  ctool_u32 initializer_element_mark =
+      cfront_vector_mark(&context->initializer_elements);
   ctool_arena_mark_t arena_mark =
       ctool_arena_mark(ctool_job_arena(context->job));
   ctool_u32 operand_type = CTOOL_C_TYPE_NONE;
@@ -3103,8 +3117,8 @@ static ctool_status_t cfront_parse_sizeof_query(
     *size_out = layout.size;
   }
   status = cfront_rewind_query_expressions(
-      context, expression_mark, child_mark, arena_mark, operator_token,
-      status);
+      context, expression_mark, child_mark, initializer_mark,
+      initializer_element_mark, arena_mark, operator_token, status);
   cfront_leave_syntax(context);
   return status;
 }
@@ -3116,6 +3130,10 @@ static ctool_status_t cfront_parse_alignof_query(
   ctool_c_type_layout_t layout;
   ctool_u32 expression_mark = cfront_vector_mark(&context->expressions);
   ctool_u32 child_mark = cfront_vector_mark(&context->expression_children);
+  ctool_u32 initializer_mark =
+      cfront_vector_mark(&context->initializers);
+  ctool_u32 initializer_element_mark =
+      cfront_vector_mark(&context->initializer_elements);
   ctool_arena_mark_t arena_mark =
       ctool_arena_mark(ctool_job_arena(context->job));
   ctool_u32 operand_type = CTOOL_C_TYPE_NONE;
@@ -3173,8 +3191,8 @@ static ctool_status_t cfront_parse_alignof_query(
     }
   }
   status = cfront_rewind_query_expressions(
-      context, expression_mark, child_mark, arena_mark, operator_token,
-      status);
+      context, expression_mark, child_mark, initializer_mark,
+      initializer_element_mark, arena_mark, operator_token, status);
   cfront_leave_syntax(context);
   return status;
 }
@@ -9103,6 +9121,13 @@ static ctool_status_t cfront_parse_body_unary(
     if (status == CTOOL_OK) {
       status = cfront_expected(context, ")");
     }
+    if (status == CTOOL_OK &&
+        cfront_peek_is(context, "{") == CTOOL_TRUE) {
+      status = cfront_parse_compound_literal(
+          context, token, target_type, value_out);
+      cfront_leave_syntax(context);
+      return status;
+    }
     if (status == CTOOL_OK) {
       status = cfront_parse_body_unary(context, value_out);
     }
@@ -10092,6 +10117,89 @@ static ctool_status_t cfront_parse_block_initializer(
         context, *object_type_io, value_token, &value, initializer_out);
   }
   return status;
+}
+
+static ctool_status_t cfront_parse_compound_literal(
+    cfront_context_t *context, const ctool_c_pp_token_t *literal_token,
+    ctool_u32 type, cfront_expression_value_t *value_out) {
+  ctool_c_type_node_t node;
+  ctool_c_expression_t expression;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 initializer = CTOOL_C_AST_NONE;
+  ctool_bool complete = CTOOL_FALSE;
+  ctool_status_t status;
+  if (context->static_initializer_depth != 0u &&
+      context->constant_evaluation_suppression_depth == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, literal_token,
+        "evaluated compound literals in static initializers are not "
+        "supported");
+  }
+  status = cfront_underlying_type(context, type, &base, &qualifiers, &node);
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        literal_token, "could not resolve compound literal type");
+  }
+  if (node.kind == CTOOL_C_TYPE_VOID ||
+      node.kind == CTOOL_C_TYPE_FUNCTION) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
+        literal_token, "compound literal requires an object type");
+  }
+  status = cfront_type_is_complete_object_now(context, type, &complete);
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        literal_token,
+        "could not determine whether compound literal type is complete");
+  }
+  if (complete == CTOOL_FALSE &&
+      (node.kind != CTOOL_C_TYPE_ARRAY ||
+       node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
+        literal_token,
+        "compound literal requires a complete object type that is not "
+        "variable length");
+  }
+  status = cfront_parse_block_initializer(
+      context, &type, literal_token, &initializer);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cfront_type_is_complete_object_now(context, type, &complete);
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        literal_token, "could not resolve completed compound literal type");
+  }
+  if (complete == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
+        literal_token, "compound literal initializer must complete its type");
+  }
+  cfront_expression_init(
+      &expression, CTOOL_C_EXPRESSION_COMPOUND_LITERAL,
+      &literal_token->location, &literal_token->physical_location);
+  expression.type = type;
+  expression.reference = initializer;
+  status = cfront_append_expression(
+      context, &expression, &value_out->expression);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  value_out->type = type;
+  value_out->is_lvalue = CTOOL_TRUE;
+  value_out->is_bit_field = CTOOL_FALSE;
+  value_out->bit_width = 0u;
+  value_out->address_forbidden = CTOOL_FALSE;
+  cfront_constant_value_clear(value_out);
+  return cfront_parse_body_postfix(context, value_out);
 }
 
 static ctool_bool cfront_character_type_kind(ctool_c_type_kind_t kind) {
@@ -14390,6 +14498,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     ctool_u32 *owners = (ctool_u32 *)0;
     cfront_initializer_domain_t *storage_domains =
         (cfront_initializer_domain_t *)0;
+    ctool_u32 *expression_limits = (ctool_u32 *)0;
     ctool_bool ownership_valid = CTOOL_TRUE;
     ctool_status_t rewind_status;
     status = cfront_alloc_array(context, context->initializers.count,
@@ -14399,6 +14508,11 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       status = cfront_alloc_array(context, context->initializers.count,
                                   (ctool_u32)sizeof(*storage_domains),
                                   (void **)&storage_domains);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_alloc_array(context, context->initializers.count,
+                                  (ctool_u32)sizeof(*expression_limits),
+                                  (void **)&expression_limits);
     }
     for (index = 0u;
          status == CTOOL_OK && ownership_valid == CTOOL_TRUE &&
@@ -14451,6 +14565,25 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
               ? CFRONT_INITIALIZER_DOMAIN_STATIC
               : CFRONT_INITIALIZER_DOMAIN_AUTOMATIC;
     }
+    for (index = 0u;
+         status == CTOOL_OK && ownership_valid == CTOOL_TRUE &&
+         index < context->expressions.count;
+         index++) {
+      ctool_u32 root;
+      if (expressions[index].kind !=
+          CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+        continue;
+      }
+      root = expressions[index].reference;
+      if (root >= context->initializers.count || owners[root] != 0u ||
+          index == CFRONT_U32_MAX) {
+        ownership_valid = CTOOL_FALSE;
+        break;
+      }
+      owners[root] = 1u;
+      storage_domains[root] = CFRONT_INITIALIZER_DOMAIN_AUTOMATIC;
+      expression_limits[root] = index + 1u;
+    }
     for (index = context->initializers.count;
          status == CTOOL_OK && ownership_valid == CTOOL_TRUE && index != 0u;) {
       const ctool_c_initializer_t *initializer;
@@ -14474,6 +14607,12 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         ownership_valid = CTOOL_FALSE;
         break;
       }
+      if (expression_limits[index] != 0u &&
+          initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION &&
+          initializer->expression >= expression_limits[index] - 1u) {
+        ownership_valid = CTOOL_FALSE;
+        break;
+      }
       if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
         continue;
       }
@@ -14488,6 +14627,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           break;
         }
         storage_domains[child] = storage_domains[index];
+        expression_limits[child] = expression_limits[index];
       }
     }
     for (index = 0u;
@@ -14824,6 +14964,13 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "frozen member reference is invalid");
     }
+    if (expression->kind == CTOOL_C_EXPRESSION_COMPOUND_LITERAL &&
+        expression->reference >= context->initializers.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "frozen compound-literal initializer reference is invalid");
+    }
     if (expression->child_count != 0u) {
       if (expression->first_child > context->expression_children.count ||
           expression->child_count >
@@ -14870,6 +15017,35 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             cfront_peek(context), "frozen literal expression is invalid");
       }
       break;
+    case CTOOL_C_EXPRESSION_COMPOUND_LITERAL: {
+      const ctool_c_initializer_t *initializer =
+          expression->reference < context->initializers.count
+              ? &initializers[expression->reference]
+              : (const ctool_c_initializer_t *)0;
+      ctool_bool complete = CTOOL_FALSE;
+      status = cfront_type_is_complete_object_now(
+          context, expression->type, &complete);
+      if (status != CTOOL_OK || complete == CTOOL_FALSE ||
+          initializer == (const ctool_c_initializer_t *)0 ||
+          initializer->type != expression->type ||
+          (initializer->kind != CTOOL_C_INITIALIZER_EXPRESSION &&
+           initializer->kind != CTOOL_C_INITIALIZER_STRING &&
+           initializer->kind != CTOOL_C_INITIALIZER_LIST) ||
+          expression->child_count != 0u ||
+          expression->first_child != CTOOL_C_AST_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE ||
+          expression->integer_bits != 0u ||
+          expression->string_bytes.data != (const ctool_u8 *)0 ||
+          expression->string_bytes.size != 0u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen compound-literal expression is invalid");
+      }
+      break;
+    }
     case CTOOL_C_EXPRESSION_CALL:
       if (expression->child_count == 0u ||
           expression->reference != CTOOL_C_AST_NONE ||

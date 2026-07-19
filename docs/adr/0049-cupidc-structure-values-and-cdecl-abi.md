@@ -36,4 +36,8 @@ The shared x86 contract encodes and decodes `RET 4` as `C2 04 00`, rejects an im
 
 This remains hosted bootstrap evidence. The host C compiler still produces normal root and user C objects, and the private in-kernel CupidC compiler remains the runtime JIT and AOT path. No production artifact, build owner, boot path, or host dependency changes here.
 
-Issue #25 remains open. Union and Cupid class values, volatile and atomic structure access, alignment above four bytes, variadic calls, 16-byte call-site alignment, direct wide and floating runtime values, production integration, staged self-hosting, and the fixed-point bootstrap remain.
+Issue #25 remains open. Union and Cupid class values, volatile and atomic structure access, alignment above four bytes, variadic calls, direct wide and floating runtime values, production integration, staged self-hosting, and the fixed-point bootstrap remain. ADR 0050 later added sixteen-byte alignment for every represented direct and indirect call.
+
+## Extension: structure compound literals
+
+ADR 0052 lets a supported structure compound literal build an aggregate value in target-private staging and commit it to its persistent unnamed frame object. The existing lvalue-to-value path then applies. `LOAD` still creates a separate private snapshot before a call, assignment, conditional, or return uses the value. Staging, the persistent object, and a later value snapshot have distinct storage, so initialization can read the prior object and reevaluation cannot change a structure value that was already copied.

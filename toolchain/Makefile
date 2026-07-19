@@ -376,6 +376,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-returns ..
 	$(CUPIDC_FRONTEND_CONTRACT) conditional-expressions ..
 	$(CUPIDC_FRONTEND_CONTRACT) aggregate-values ..
+	$(CUPIDC_FRONTEND_CONTRACT) compound-literals ..
 	$(CUPIDC_FRONTEND_CONTRACT) for-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) if-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) while-statements ..
@@ -411,6 +412,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) automatic-objects ..
 	$(CUPIDC_IR_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_IR_CONTRACT) structure-values ..
+	$(CUPIDC_IR_CONTRACT) compound-literals ..
 	$(CUPIDC_IR_CONTRACT) narrow-values ..
 	$(CUPIDC_IR_CONTRACT) void-casts ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
@@ -425,6 +427,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) structure-values ..
 	$(CUPIDC_OBJECT_CONTRACT) call-alignment ..
 	$(CUPIDC_OBJECT_CONTRACT) block-statics ..
+	$(CUPIDC_OBJECT_CONTRACT) compound-literals ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..
 	$(CUPIDC_OBJECT_CONTRACT) void-casts ..

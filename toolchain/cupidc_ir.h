@@ -32,7 +32,10 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER,
   CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT,
-  CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS
+  CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_STAGING_ADDRESS,
+  CTOOL_C_IR_INSTRUCTION_COPY_OBJECT
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -52,9 +55,10 @@ typedef struct {
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
    * retains the duplicated object's type. DEREFERENCE retains its pointer
    * operand type. ADDRESS_OF retains its object or function operand type.
-   * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT
-   * retains the aggregate address operand type. ELEMENT_ADDRESS retains its
-   * fixed-array operand type. CALL_DIRECT retains the function type, while
+   * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT and
+   * COPY_OBJECT retain aggregate address operand types. ELEMENT_ADDRESS
+   * retains its fixed-array operand type. CALL_DIRECT retains the function
+   * type, while
    * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
    * consumed condition type. */
   ctool_u32 input_type;
@@ -64,8 +68,12 @@ typedef struct {
   ctool_c_conversion_kind_t conversion;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index for a
-   * represented scalar or a complete fixed array or record. Object offsets
-   * and structure snapshot storage stay private to the emitter. FILE_ADDRESS,
+   * represented scalar or a complete fixed array or record.
+   * COMPOUND_LITERAL_ADDRESS and COMPOUND_LITERAL_STAGING_ADDRESS use the
+   * absolute frontend expression index of the unnamed automatic object. The
+   * staging address is private storage used to finish aggregate initialization
+   * before replacing the persistent object. Object offsets and structure
+   * snapshot storage stay private to the emitter. FILE_ADDRESS,
    * CALL_DIRECT, and
    * FUNCTION_ADDRESS use an absolute file-binding index.
    * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
@@ -186,19 +194,26 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * targets are resolved before the immutable result is published.
  * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
  * preserves that value while equality tests select resolved case targets.
- * LOCAL_ADDRESS and FILE_ADDRESS push object addresses. A referenced
- * automatic scalar receives one target-sized slot. A referenced fixed array
- * or record receives its target size and alignment, up to four-byte
- * alignment. ZERO_OBJECT consumes an aggregate address of input_type and
- * performs semantic zero initialization for the complete object named by
- * type. ELEMENT_ADDRESS consumes a fixed-array address and produces one
- * direct element address. Automatic array and structure initializer lists
- * zero the complete object once, then evaluate represented scalar or supported
- * structure expression leaves in source order and store them through
- * ELEMENT_ADDRESS and MEMBER_ADDRESS paths. DUPLICATE_ADDRESS preserves an
- * address while a
- * supported integer or pointer compound assignment or update loads and stores
- * the object. This evaluates the destination once. Integer mutation supports
+ * LOCAL_ADDRESS, COMPOUND_LITERAL_ADDRESS,
+ * COMPOUND_LITERAL_STAGING_ADDRESS, and FILE_ADDRESS push object addresses.
+ * A referenced automatic scalar receives one target-sized slot.
+ * A referenced fixed array or record receives its target size and alignment,
+ * up to four-byte alignment. Each compound-literal source site keeps one
+ * automatic slot and lowers its initializer at every evaluation before
+ * producing that slot's address. Aggregate compound literals build a separate
+ * staging object, then COPY_OBJECT replaces the persistent object's complete
+ * representation after every explicit initializer expression has run.
+ * ZERO_OBJECT consumes an aggregate address of input_type and performs
+ * semantic zero initialization for the complete object named by type.
+ * ELEMENT_ADDRESS consumes a fixed-array address and produces one direct
+ * element address. COPY_OBJECT consumes destination and source aggregate
+ * addresses. Automatic array and structure
+ * initializer lists zero the complete object once, then evaluate represented
+ * scalar or supported structure expression leaves in source order and store
+ * them through ELEMENT_ADDRESS and MEMBER_ADDRESS paths. DUPLICATE_ADDRESS
+ * preserves an address while a supported integer or pointer compound
+ * assignment or update loads and stores the object. This evaluates the
+ * destination once. Integer mutation supports
  * non-Boolean scalar objects that occupy one, two, or four bytes. Narrow
  * values are promoted for the 32-bit computation and converted back before
  * an exact-width store. Compound assignments retain integer-promotion, usual

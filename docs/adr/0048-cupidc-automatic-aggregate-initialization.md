@@ -38,8 +38,14 @@ Useful object negatives retain automatic string leaves, explicit bit-field leave
 
 The active-source guards pin unchanged declarations in `cupidc_pp.c` and `cupidc_frontend.c`. This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contracts. The host compiler still produces the normal root and user C objects, while the private in-kernel CupidC compiler remains the runtime JIT and AOT path. No production artifact, ABI owner, boot path, or host dependency changes here.
 
-Issue #25 remains open for aggregate values and assignment, the deferred initializer leaves, Boolean mutation, narrow bit fields, atomic access, 64-bit and floating runtime values, variadic calls, call-site alignment, production integration, staged self-hosting, and the fixed-point bootstrap.
+Issue #25 remains open for the deferred initializer leaves, remaining aggregate value and assignment categories, Boolean mutation, narrow bit fields, atomic access, 64-bit and floating runtime values, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap. ADR 0049 later added supported structure values, and ADR 0050 closed the represented call-alignment boundary.
 
 ## Extension: structure-valued leaves
 
 Supported structure-valued expression leaves later gained runtime lowering. The initializer still zeros the complete root object first and rebuilds each explicit direct-subobject path in source order. A structure leaf evaluates to an instruction-owned snapshot, then the existing `STORE` instruction copies the complete object into the selected destination. Whole-record expression initialization uses the same copy path without `ZERO_OBJECT`, and `STORE_VALUE` supplies value-preserving structure assignment. The supported object must be a complete structure with alignment no greater than four and no stored `volatile` or `_Atomic` subobject. Automatic strings, explicit bit-field leaves, unions, Cupid classes, array values, over-aligned objects, and wide or floating scalar expression leaves remain deferred. This extension changes hosted capability only.
+
+## Extension: compound-literal initializers
+
+ADR 0052 reuses the same zero, path, and store walker for a block-scope compound literal, but an aggregate list targets `COMPOUND_LITERAL_STAGING_ADDRESS`. After every explicit initializer expression has run, `COPY_OBJECT` replaces the persistent object named by `COMPOUND_LITERAL_ADDRESS`. This prevents a repeated literal's initializer from erasing the prior object before it reads through an escaped pointer. Scalar and whole-structure expression roots already evaluate before their store and continue to use the expression-initialization path. String-initialized compound literals remain deferred at IR lowering.
+
+Named automatic aggregate declarations still target `LOCAL_ADDRESS` directly. A backward jump over such a declaration can therefore expose the older alias corner case when its initializer reads the prior object through an escaped pointer. Fixing that wider declaration behavior remains separate work under issue #25.

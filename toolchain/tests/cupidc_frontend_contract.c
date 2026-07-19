@@ -4573,12 +4573,14 @@ static int validate_toolchain_frontier(const char *host_root) {
        1984u, 39u, 21u, 0u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 149u, 4431u,
-       37853u, 538u, 176u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 115u, 2809u,
-       24041u, 380u, 187u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 284u,
-       10773u, 68625u, 1591u, 1131u, 0u, 0u}};
+      {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
+       25107u, 475u, 282u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 151u, 4555u,
+       38934u, 553u, 178u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 116u, 2939u,
+       25594u, 399u, 198u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 285u,
+       10872u, 69486u, 1608u, 1142u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -18914,6 +18916,389 @@ cleanup:
   return failed;
 }
 
+static ctool_u32 compound_literal_count(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 count = 0u;
+  ctool_u32 index;
+  for (index = 0u; index < unit->expression_count; index++) {
+    if (unit->expressions[index].kind ==
+        CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+      count++;
+    }
+  }
+  return count;
+}
+
+static int compound_initializer_precedes_literal(
+    const ctool_c_translation_unit_t *unit, ctool_u32 initializer_index,
+    ctool_u32 literal_index, ctool_u32 depth) {
+  const ctool_c_initializer_t *initializer;
+  ctool_u32 child_offset;
+  if (initializer_index >= unit->initializer_count ||
+      depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    return 0;
+  }
+  initializer = &unit->initializers[initializer_index];
+  if (initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION) {
+    return initializer->expression < literal_index ? 1 : 0;
+  }
+  if (initializer->kind == CTOOL_C_INITIALIZER_STRING) {
+    return 1;
+  }
+  if (initializer->kind != CTOOL_C_INITIALIZER_LIST ||
+      initializer->first_element > unit->initializer_element_count ||
+      initializer->element_count == 0u ||
+      initializer->element_count >
+          unit->initializer_element_count - initializer->first_element) {
+    return 0;
+  }
+  for (child_offset = 0u; child_offset < initializer->element_count;
+       child_offset++) {
+    ctool_u32 child =
+        unit->initializer_elements[initializer->first_element + child_offset]
+            .initializer;
+    if (child >= initializer_index ||
+        compound_initializer_precedes_literal(
+            unit, child, literal_index, depth + 1u) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_compound_literal_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 literal_lines[] = {6u, 9u, 12u, 16u, 19u, 20u};
+  ctool_u8 *owners = NULL;
+  ctool_u32 compound_cursor = 0u;
+  ctool_u32 record_count = 0u;
+  ctool_u32 scalar_count = 0u;
+  ctool_u32 array_count = 0u;
+  ctool_u32 member_count = 0u;
+  ctool_u32 address_count = 0u;
+  ctool_u32 array_decay_count = 0u;
+  ctool_u32 index;
+  int valid = 0;
+
+  if (unit->expressions == NULL || unit->initializers == NULL ||
+      unit->initializer_elements == NULL ||
+      unit->initializer_count != 16u ||
+      unit->initializer_element_count != 10u ||
+      unit->block_binding_count != 0u ||
+      unit->object_definition_count != 0u ||
+      compound_literal_count(unit) != ARRAY_COUNT(literal_lines)) {
+    return 1;
+  }
+  owners = (ctool_u8 *)calloc(unit->initializer_count, sizeof(*owners));
+  if (owners == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    const ctool_c_initializer_t *initializer = &unit->initializers[index];
+    ctool_u32 child_offset;
+    if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
+      continue;
+    }
+    if (initializer->first_element > unit->initializer_element_count ||
+        initializer->element_count == 0u ||
+        initializer->element_count >
+            unit->initializer_element_count - initializer->first_element) {
+      goto cleanup;
+    }
+    for (child_offset = 0u; child_offset < initializer->element_count;
+         child_offset++) {
+      ctool_u32 child =
+          unit->initializer_elements[initializer->first_element + child_offset]
+              .initializer;
+      if (child >= index || child >= unit->initializer_count ||
+          owners[child] != 0u) {
+        goto cleanup;
+      }
+      owners[child] = 1u;
+    }
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    const ctool_c_initializer_t *initializer;
+    const ctool_c_type_node_t *type;
+    if (expression->kind == CTOOL_C_EXPRESSION_MEMBER) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      if (child < unit->expression_count &&
+          unit->expressions[child].kind ==
+              CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+        member_count++;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_ADDRESS) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      if (child < unit->expression_count &&
+          unit->expressions[child].kind ==
+              CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+        address_count++;
+      }
+    } else if (expression->kind ==
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+               expression->conversion ==
+                   CTOOL_C_CONVERSION_ARRAY_TO_POINTER) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      if (child < unit->expression_count &&
+          unit->expressions[child].kind ==
+              CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+        array_decay_count++;
+      }
+    }
+    if (expression->kind != CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
+      continue;
+    }
+    if (compound_cursor >= ARRAY_COUNT(literal_lines) ||
+        expression->reference >= unit->initializer_count ||
+        expression->child_count != 0u ||
+        expression->first_child != CTOOL_C_AST_NONE ||
+        expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        expression->conversion != CTOOL_C_CONVERSION_NONE ||
+        expression->computation_type != CTOOL_C_TYPE_NONE ||
+        expression->integer_bits != 0u ||
+        expression->string_bytes.data != NULL ||
+        expression->string_bytes.size != 0u ||
+        !dual_location_matches(&expression->location,
+                               &expression->physical_location,
+                               "/compound-literals.c",
+                               literal_lines[compound_cursor]) ||
+        owners[expression->reference] != 0u) {
+      goto cleanup;
+    }
+    owners[expression->reference] = 1u;
+    initializer = &unit->initializers[expression->reference];
+    type = unwrapped_type_node(unit, expression->type);
+    if (initializer->type != expression->type || type == NULL ||
+        compound_initializer_precedes_literal(
+            unit, expression->reference, index, 0u) == 0) {
+      goto cleanup;
+    }
+    if (type->kind == CTOOL_C_TYPE_RECORD &&
+        initializer->kind == CTOOL_C_INITIALIZER_LIST &&
+        initializer->element_count == 2u) {
+      record_count++;
+    } else if (type->kind == CTOOL_C_TYPE_SIGNED_INT &&
+               initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION) {
+      scalar_count++;
+    } else if (type->kind == CTOOL_C_TYPE_ARRAY &&
+               type->array_bound_kind == CTOOL_C_ARRAY_FIXED &&
+               type->element_count == 2u &&
+               initializer->kind == CTOOL_C_INITIALIZER_LIST &&
+               initializer->element_count == 2u) {
+      array_count++;
+    } else {
+      goto cleanup;
+    }
+    compound_cursor++;
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    if (owners[index] != 1u) {
+      goto cleanup;
+    }
+  }
+  if (compound_cursor != ARRAY_COUNT(literal_lines) || record_count != 4u ||
+      scalar_count != 1u || array_count != 1u || member_count < 2u ||
+      address_count != 1u || array_decay_count != 1u) {
+    goto cleanup;
+  }
+  valid = 1;
+
+cleanup:
+  free(owners);
+  return valid != 0 ? 0 : 1;
+}
+
+static int validate_compound_literal_sizeof_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_expression_t *expression =
+      unit->expression_count == 1u ? &unit->expressions[0] : NULL;
+  return expression != NULL && unit->initializer_count == 0u &&
+                 unit->initializer_element_count == 0u &&
+                 unit->block_binding_count == 0u &&
+                 compound_literal_count(unit) == 0u &&
+                 expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+                 expression->integer_bits == 8u &&
+                 underlying_type_kind(unit, expression->type, NULL) ==
+                     CTOOL_C_TYPE_UNSIGNED_INT
+             ? 0
+             : 1;
+}
+
+static int validate_compound_literal_static_sizeof_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_block_binding_t *binding = find_block_binding(unit, "x");
+  const ctool_c_initializer_t *initializer =
+      binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u ||
+      unit->block_binding_count != 1u || unit->initializer_count != 1u ||
+      unit->initializer_element_count != 0u || binding == NULL ||
+      binding->storage != CTOOL_C_STORAGE_STATIC || initializer == NULL ||
+      initializer->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      initializer->integer_bits != 4u ||
+      underlying_type_kind(unit, initializer->type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_INT ||
+      compound_literal_count(unit) != 0u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    if (unit->expressions[index].kind == CTOOL_C_EXPRESSION_PARAMETER) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int compound_literal_active_source_is_unchanged(
+    frontend_fixture_t *fixture) {
+  static const char active[] =
+      "return pp_string_equal(value, (ctool_string_t){literal, size});";
+  ctool_path_t path;
+  ctool_source_t source;
+  const char *found;
+  ctool_status_t status;
+  path.text = ctool_string("/toolchain/cupidc_pp.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(fixture->job, &path, &source);
+  found = status == CTOOL_OK && source.contents.data != NULL
+              ? strstr((const char *)source.contents.data, active)
+              : NULL;
+  if (found == NULL || strstr(found + strlen(active), active) != NULL) {
+    (void)fprintf(stderr,
+                  "compound-literals: active cupidc_pp.c source differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_compound_literals(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "typedef struct { const char *data; ctool_u32 size; } ctool_string_t;\n"
+      "int pp_string_equal(ctool_string_t left, ctool_string_t right);\n"
+      "void consume_string_pointer(ctool_string_t *value);\n"
+      "int active_shape(ctool_string_t value, const char *literal, ctool_u32 size) {\n"
+      "  return pp_string_equal(value, (ctool_string_t){literal, size});\n"
+      "}\n"
+      "ctool_u32 member_value(const char *literal, ctool_u32 size) {\n"
+      "  return (ctool_string_t){literal, size}.size;\n"
+      "}\n"
+      "void mutate_member(const char *literal, ctool_u32 size) {\n"
+      "  (ctool_string_t){literal, size}.size = size + 1u;\n"
+      "}\n"
+      "void repeat_address(const char *literal, ctool_u32 count) {\n"
+      "  while (count--) {\n"
+      "    consume_string_pointer(&(ctool_string_t){literal, count});\n"
+      "  }\n"
+      "}\n"
+      "int scalar_value(int value) { return (int){value}; }\n"
+      "int inferred_array(int left, int right) { return (int[]){left, right}[1]; }\n";
+  static const char sizeof_source[] =
+      "typedef struct { int first; int second; } pair_t;\n"
+      "unsigned int literal_size(int value) {\n"
+      "  return sizeof((pair_t){value, value + 1});\n"
+      "}\n";
+  static const char static_sizeof_source[] =
+      "unsigned int static_literal_size(int value) {\n"
+      "  static unsigned x = sizeof((int){value});\n"
+      "  return x;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"void compound literal",
+         "void bad(void) {\n  (void){0};\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       2u, 3u, "compound literal requires an object type"},
+      {{"function compound literal",
+         "void bad(void) {\n  (int (void)){0};\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       2u, 3u, "compound literal requires an object type"},
+      {{"incomplete record compound literal",
+         "struct pending;\nvoid bad(void) {\n  (struct pending){0};\n}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       3u, 3u,
+        "compound literal requires a complete object type that is not "
+        "variable length"},
+      {{"variable-length compound literal boundary",
+         "void bad(int count) {\n  (int[count]){1};\n}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 8u, "integer constant expression operand is unsupported"},
+      {{"empty scalar compound literal",
+         "void bad(void) {\n  (int){};\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 9u, "scalar initializer list requires one expression"},
+      {{"static initializer compound literal",
+         "void bad(void) {\n  static int *pointer = &(int){1};\n}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 26u,
+       "evaluated compound literals in static initializers are not supported"},
+      {{"const compound literal assignment",
+         "typedef struct { int value; } item_t;\n"
+         "void bad(void) {\n  (const item_t){1}.value = 2;\n}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 27u, "assignment requires a modifiable lvalue"},
+      {{"union compound literal boundary",
+         "union item { int value; };\n"
+         "void bad(void) {\n  (union item){1};\n}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       3u, 15u,
+       "union and class initializer lists await active-member semantics"},
+      {{"fixed array compound literal excess element",
+         "void bad(void) {\n  (int[1]){1, 2};\n}\n", CTOOL_ERR_INPUT,
+         CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 15u, "automatic array initializer list has excess elements"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t sizeof_unit;
+  ctool_c_translation_unit_t static_sizeof_unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "compound-literals", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/compound-literals.c", source, &unit) !=
+          0 ||
+      validate_compound_literal_unit(&unit) != 0 ||
+      parse_valid_fixture(&fixture, "/compound-sizeof.c", sizeof_source,
+                          &sizeof_unit) != 0 ||
+      validate_compound_literal_sizeof_unit(&sizeof_unit) != 0 ||
+      parse_valid_fixture(&fixture, "/compound-static-sizeof.c",
+                          static_sizeof_source, &static_sizeof_unit) != 0 ||
+      validate_compound_literal_static_sizeof_unit(&static_sizeof_unit) != 0 ||
+      compound_literal_active_source_is_unchanged(&fixture) != 0) {
+    (void)fprintf(stderr, "compound-literals: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/compound-literal-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_compound_literal_unit(&unit) != 0 ||
+        validate_compound_literal_sizeof_unit(&sizeof_unit) != 0 ||
+        validate_compound_literal_static_sizeof_unit(&static_sizeof_unit) !=
+            0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("compound-literals: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -18927,6 +19312,7 @@ int main(int argc, char **argv) {
                    "automatic-aggregate-initializers|"
                    "designated-initializers|file-scope-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
+                   "compound-literals|"
                    "for-statements|"
                    "if-statements|while-statements|do-statements|"
                    "switch-statements|labels-and-goto|"
@@ -18984,6 +19370,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "aggregate-values") == 0) {
     return run_aggregate_values(argv[2]);
+  }
+  if (strcmp(argv[1], "compound-literals") == 0) {
+    return run_compound_literals(argv[2]);
   }
   if (strcmp(argv[1], "for-statements") == 0) {
     return run_for_statements(argv[2]);

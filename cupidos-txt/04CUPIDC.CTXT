@@ -170,12 +170,22 @@ instead of an EBP-relative frame slot, and the declaration emits no runtime
 initialization code. Unused and unreachable block statics still receive
 storage.
 
+Block-scope compound literals use one persistent unnamed automatic object per
+source site. Their initializer runs each time execution reaches the expression.
+The resulting lvalue can pass through ordinary member access, indexing,
+address-taking, loads, stores, and calls. Repeated evaluation in one function
+invocation reuses the same object. Recursive calls receive a fresh object in
+their own frame. Aggregate lists are built in separate staging storage and
+committed after every initializer read has finished.
+
 Supported structure graphs have alignment no greater than four bytes and
 contain no stored volatile or atomic subobjects. Graphs containing a union or
 class remain unsupported. Automatic string leaves, explicit bit-field leaves,
-Boolean mutation, separate 64-bit and floating-point runtime values, and
-variadic calls remain unfinished in the shared path. A block-static initializer
-also cannot yet take the address of another block static.
+string-initialized and static-duration compound literals, variable-length
+compound-literal objects, the named-aggregate backward-jump alias case, Boolean
+mutation, separate 64-bit and floating-point runtime values, and variadic calls
+remain unfinished in the shared path. A block-static initializer also cannot
+yet take the address of another block static.
 
 Production ownership is unchanged. The normal OS build still uses a host C
 compiler for its C objects, and the private in-kernel CupidC compiler still

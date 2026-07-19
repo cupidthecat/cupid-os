@@ -240,7 +240,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_UPDATE,
   CTOOL_C_EXPRESSION_CAST,
   CTOOL_C_EXPRESSION_MEMBER,
-  CTOOL_C_EXPRESSION_CONDITIONAL
+  CTOOL_C_EXPRESSION_CONDITIONAL,
+  CTOOL_C_EXPRESSION_COMPOUND_LITERAL
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -311,12 +312,15 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
 
   /* IDENTIFIER: file-binding index. PARAMETER: parameter index.
-   * BLOCK_BINDING: block-binding index. MEMBER: direct graph-member index. */
+   * BLOCK_BINDING: block-binding index. MEMBER: direct graph-member index.
+   * COMPOUND_LITERAL: initializer-root index for the unnamed automatic
+   * object. The expression's own absolute index is that object's identity. */
   ctool_u32 reference;
   /* CALL: ordered slice of expression_children, callee first.
    * CONDITIONAL: condition, selected-when-nonzero, selected-when-zero.
    * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY/UPDATE: one source-expression
-   * child. */
+   * child. COMPOUND_LITERAL has no expression children because its
+   * initializer owns a separate postorder forest. */
   ctool_u32 first_child;
   ctool_u32 child_count;
   /* IMPLICIT_CONVERSION: exact semantic conversion applied to one child. */
@@ -388,8 +392,9 @@ typedef struct {
   const ctool_c_block_binding_t *block_bindings;
   ctool_u32 block_binding_count;
   /* Semantic object initializer forests. Storage duration comes from the
-   * owning file-object definition or block binding. LIST nodes may contain
-   * runtime EXPRESSION leaves only under an automatic block binding. */
+   * owning file-object definition, block binding, or compound-literal
+   * expression. LIST nodes may contain runtime EXPRESSION leaves only under
+   * an automatic owner. */
   const ctool_c_initializer_t *initializers;
   ctool_u32 initializer_count;
   /* Direct LIST edges. Nested lists retain independent slices, and those
@@ -474,6 +479,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * whole-object record expressions, narrow character-array strings, and
  * recursive array or structure lists with direct designators whose leaves
  * retain runtime scalar or compatible record-valued assignment expressions;
+ * block-scope compound literals whose lvalues name one automatic object per
+ * source site. The initializer runs at every evaluation, and fixed scalar,
+ * array, or structure types use the same automatic initializer forms;
  * block-scope static objects with implicit or explicit pointer zero,
  * target-converted integer constants, narrow character-array strings,
  * direct narrow-string addresses or addresses of linked file objects and

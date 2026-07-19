@@ -4771,3 +4771,60 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0051, the earlier declaration and storage ADR extensions, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was reduced, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for wider runtime values, remaining initializer address forms, deferred aggregate categories, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC lowers block-scope compound literals
+
+### Decision and active requirement
+
+Hosted CupidC now parses, lowers, and emits C11 block-scope compound literals. The unchanged active requirement is in `toolchain/cupidc_pp.c`:
+
+```c
+return pp_string_equal(value, (ctool_string_t){literal, size});
+```
+
+The expression is an lvalue naming one unnamed automatic object at that source site. Its initializer runs whenever execution reaches the expression. Repeated evaluation in the same block reuses the address and initializes the object again, while recursion receives a fresh object in each stack frame.
+
+The frontend keeps the initializer root on the compound-literal expression instead of inventing a hidden block binding. This preserves the existing rule that a declaration statement owns one contiguous slice of block bindings. The absolute expression index gives each source site a stable identity. Speculative type-query parsing now rewinds expressions, child edges, initializer roots and elements, and arena storage together. An unevaluated compound literal can therefore appear inside `sizeof` or a GNU alignment query in a static initializer without publishing an automatic object.
+
+The linear IR uses `COMPOUND_LITERAL_ADDRESS` for the persistent object identity. Scalar and whole-structure expression roots evaluate before their store. Aggregate list roots instead use `COMPOUND_LITERAL_STAGING_ADDRESS`: they zero staging, evaluate explicit leaves in source order, store there, and use `COPY_OBJECT` to replace the persistent object after every initializer read has finished. Initialization remains inline at the expression point, so loop and `goto` reevaluation follow the source semantics. The i386 emitter lays out ordinary automatic locals, persistent compound-literal objects, aggregate staging objects, and structure snapshots in that order. Lexical visibility is still enforced by the frontend even though the physical slots last for the whole function call.
+
+This increment covers represented scalar values, fixed arrays, arrays whose bound is inferred from the initializer, and structures within the existing automatic-object rules. String-initialized array compound literals receive a focused IR diagnostic. A variable-length type name stops earlier at the frontend's integer-constant-expression boundary. File-scope and other static-duration compound literals remain deferred, as do unions, classes, stored volatile or atomic graphs, over-aligned objects, explicit bit-field objects, and direct wide or floating runtime values. Named automatic aggregate declarations still initialize in place, leaving their related backward-jump alias case for issue #25.
+
+### Contract evidence and corrections
+
+- Before the frontend change, the contract could not name a compound-literal expression kind. Adding the expression and initializer ownership model made scalar, inferred-array, member, mutation, address, postfix, and rollback cases pass without changing active source.
+- The initial IR design had no compound-literal address instruction. Its first aggregate lowering initialized the persistent object directly, so early zeroing erased the prior value before an escaped pointer could read it. The alias contract exposed the ordering bug with `compound literal alias read was not ordered between staged stores before commit`.
+- The corrected IR uses distinct persistent and staging addresses. Its two-member alias proof places a read of the prior object between the two staged stores, then requires one final commit. A separate inferred-array function checks two staged `ELEMENT_ADDRESS` stores, one complete commit, and a final load through the persistent array. The remaining contracts cover scalar initialization, source-site identity, repeated evaluation, backward-`goto` reevaluation, stack depth, immutable frozen input, and transactional failure.
+- The first object contract reached the new IR and stopped at the emitter's internal unsupported-expression path. The final symbolic decoder distinguishes aligned persistent and staging regions, proves staged zeroing and two member stores, sees one staging commit and a later persistent-object read, checks at least three complete structure copies, and retains 16-byte call alignment plus one `R_386_PC32` relocation to `pp_string_equal` with addend `-4`. A second emitted function independently proves full zeroing of an eight-byte staging slot, two staged element stores, one commit, and a later persistent-array load.
+- The variable-length negative `(int[count]){1}` first expected a compound-literal diagnostic. The parser correctly stops earlier at line 2, column 8 with `integer constant expression operand is unsupported`, the existing unsupported-array-bound boundary. The exact contract now pins that result.
+- Existing pointer and function-pointer contracts caught an accidental change to ordinary declaration initializer locations during the shared-initializer refactor. Their original logical and physical source locations were restored.
+- Three focused checks caught gaps before the full gate: a valid static `sizeof((int){value})` query was rejected, nested compound initializers reset the public depth budget, and unused expression payload fields were not all validated. The final contracts cover all three corrections, including a typed 129-layer case that returns `CTOOL_ERR_LIMIT` and rolls back cleanly.
+- The documented string-initializer rejection initially had no parsed fixture. The added `(char[]){"Cupid"}` case proves ownership of the string root, completion to `char[6]`, the exact decoded bytes, immutable frontend input, and the focused transactional IR diagnostic.
+- The first full repository run passed the compiler behavior but found seven stale lexical inventory assertions. The generated audit already held the new totals. The focused inventory checks passed after those exact expectations were refreshed, then the complete gate passed.
+- One sanitizer wrapper lost its flags while crossing from PowerShell into WSL. That run is excluded. The accepted GCC and Clang binaries were rebuilt with visible ASan and UBSan flags, their sanitizer runtimes were confirmed in the binaries, and all three new contract modes passed.
+- A repository run overlapped with an active-header edit, so its audit result was discarded. The stable-tree rerun passed the audit and all 327 tests.
+- The persistent and staging slot paths currently duplicate the emitter's checked frame-reservation arithmetic used for ordinary locals and structure snapshots. This change leaves that layout code in place. A general frame-object allocator remains future emitter cleanup.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 151/4,555/38,934/553/178; `cupidc_emit.c` has 116/2,939/25,594/399/198; and `cupidc_frontend.c` has 285/10,872/69,486/1,608/1,142. The source graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 designated initializers across 18 files, 1,116 `goto`, 62 `do`, 206 `switch`, 1,577 `case`, 137 `default`, 2,517 `while`, 1,730 `break`, 968 `continue`, 26,369 `if`, 3,596 `else`, 3,140 `for`, 16,147 `return`, and 3,318 `sizeof` occurrences. The inventory records 40 compound literals across four active files. The audit JSON digest is `29c37666f81759f0116c6c418746137d38edf72a863258083c2cceacddee10bb`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red contracts | PASS | Frontend, IR, and object fixtures each reached the missing layer before that layer was implemented. |
+| Focused CupidC modules | PASS | All 85 frontend, IR, and object tests passed in 32.256 seconds. |
+| Windows hosted Toolchain | PASS | Every hosted contract mode and all 22 assembly demos passed in 26.317 seconds. |
+| WSL strict compilers | PASS | GCC 13.3 passed in 103.19 seconds and Clang 18.1 passed in 101.75 seconds. Both runs completed 179 checks, all 22 demos, and the `72594E70` x86 inventory without diagnostics. |
+| Sanitizers | PASS | Verified GCC and Clang ASan/UBSan builds passed the frontend, IR, and object compound-literal modes. The batches took 129.233 and 145.389 seconds, with empty diagnostic streams. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` checked all six changed implementation and contract units without diagnostics; the large frontend took 940.24 seconds, and the other units took 10.89 to 77.49 seconds. Clang 18.1 checked the same six units in a 127.340-second batch and produced six empty diagnostic plists. |
+| Active-source audit | PASS | Final regeneration completed in 47.564 seconds, and the reproducibility check passed in 49.134 seconds with digest `29c37666f81759f0116c6c418746137d38edf72a863258083c2cceacddee10bb`. |
+| Full repository gate | PASS | All 327 tests passed in 623.901 seconds with one expected skip; total wall time was 667.802 seconds. |
+| Production image build | PASS | `make all` rebuilt and staged the production image in 28.555 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke ran `/bin/ls.cc` successfully in 19.060 seconds. |
+| Standards and spec review | PASS WITH NOTE | Spec re-review found no remaining gaps after the parsed string-initializer contract was added. Standards review found no rule violation and recorded the frame-reservation refactor note above. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler and normal C objects. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, and the private in-kernel compiler remains the embedded JIT and AOT path.
+
+ADR 0052, the earlier frontend, storage, initializer, and structure-value ADR extensions, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its limits. No active OS C or assembly source was reduced, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for static-duration compound literals, named automatic aggregate reentry through an escaped alias, remaining runtime values and initializer forms, variadic calls, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
