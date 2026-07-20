@@ -138,6 +138,22 @@ static void cir_zero_result(ctool_c_ir_unit_t *result) {
   }
 }
 
+static ctool_bool cir_string_equal(ctool_string_t left,
+                                   ctool_string_t right) {
+  ctool_u32 index;
+  if (left.size != right.size ||
+      (left.size != 0u &&
+       (left.data == (const char *)0 || right.data == (const char *)0))) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < left.size; index++) {
+    if (left.data[index] != right.data[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_bool cir_add_overflows(ctool_u32 left, ctool_u32 right) {
   return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;
 }
@@ -4249,7 +4265,9 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     }
     binding = &context->unit->block_bindings[expression->reference];
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
-        binding->type != expression->type) {
+        binding->type != expression->type ||
+        binding->storage == CTOOL_C_STORAGE_EXTERN ||
+        binding->linkage_binding != CTOOL_C_AST_NONE) {
       return cir_invalid_unit(context, &expression->location);
     }
     if (cir_type_is_represented_scalar(context, expression->type) ==
@@ -5446,11 +5464,52 @@ static ctool_status_t cir_lower_declaration(
     if (binding->kind != CTOOL_C_BINDING_OBJECT) {
       return cir_unsupported_statement(context, &binding->location);
     }
+    if (binding->storage == CTOOL_C_STORAGE_EXTERN) {
+      const ctool_c_binding_t *linked;
+      ctool_bool compatible;
+      if (binding->initializer != CTOOL_C_AST_NONE ||
+          binding->type >= context->unit->graph.type_count ||
+          binding->linkage_binding >= context->unit->binding_count) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      linked = &context->unit->bindings[binding->linkage_binding];
+      compatible =
+          cir_types_compatible(context, binding->type, linked->type);
+      if (context->relation_status != CTOOL_OK) {
+        return context->relation_status;
+      }
+      if (linked->kind != CTOOL_C_BINDING_OBJECT ||
+          linked->type >= context->unit->graph.type_count ||
+          (linked->storage != CTOOL_C_STORAGE_NONE &&
+           linked->storage != CTOOL_C_STORAGE_EXTERN &&
+           linked->storage != CTOOL_C_STORAGE_STATIC) ||
+          (linked->linkage != CTOOL_C_LINKAGE_INTERNAL &&
+           linked->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
+          !((linked->storage == CTOOL_C_STORAGE_STATIC &&
+             linked->linkage == CTOOL_C_LINKAGE_INTERNAL) ||
+            ((linked->storage == CTOOL_C_STORAGE_NONE ||
+              linked->storage == CTOOL_C_STORAGE_EXTERN) &&
+             linked->linkage == CTOOL_C_LINKAGE_EXTERNAL)) ||
+          (linked->file_scope_visible != CTOOL_FALSE &&
+           linked->file_scope_visible != CTOOL_TRUE) ||
+          (linked->file_scope_visible == CTOOL_FALSE &&
+           linked->storage != CTOOL_C_STORAGE_EXTERN) ||
+          cir_string_equal(binding->name, linked->name) == CTOOL_FALSE ||
+          compatible == CTOOL_FALSE) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      context->block_binding_cursor++;
+      context->visible_block_binding_end = context->block_binding_cursor;
+      continue;
+    }
     if (binding->storage != CTOOL_C_STORAGE_NONE &&
         binding->storage != CTOOL_C_STORAGE_AUTO &&
         binding->storage != CTOOL_C_STORAGE_REGISTER &&
         binding->storage != CTOOL_C_STORAGE_STATIC) {
       return cir_unsupported_statement(context, &binding->location);
+    }
+    if (binding->linkage_binding != CTOOL_C_AST_NONE) {
+      return cir_invalid_unit(context, &binding->location);
     }
     if (binding->type >= context->unit->layout.type_count) {
       return cir_invalid_unit(context, &binding->location);

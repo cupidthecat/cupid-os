@@ -14478,6 +14478,232 @@ static int validate_aggregate_initializer_ir(
   return 1;
 }
 
+static int validate_block_extern_ir(const ctool_c_translation_unit_t *unit,
+                                    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 block_index;
+  const ctool_c_block_binding_t *block;
+  ctool_u32 linked_index;
+  const ctool_c_binding_t *linked;
+  ctool_u32 array_linked_index = CTOOL_C_AST_NONE;
+  ctool_u32 array_declarations = 0u;
+  ctool_u32 file_addresses = 0u;
+  ctool_u32 scalar_file_addresses = 0u;
+  ctool_u32 array_file_addresses = 0u;
+  ctool_u32 local_addresses = 0u;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      (unit->binding_count != 0u && unit->bindings == NULL) ||
+      (unit->function_definition_count != 0u &&
+       unit->function_definitions == NULL) ||
+      (unit->block_binding_count != 0u && unit->block_bindings == NULL) ||
+      (ir->function_count != 0u && ir->functions == NULL) ||
+      (ir->instruction_count != 0u && ir->instructions == NULL)) {
+    return 0;
+  }
+  block_index = find_block_binding(unit, "external_value");
+  block = block_index == CTOOL_C_AST_NONE
+              ? NULL
+              : &unit->block_bindings[block_index];
+  linked_index =
+      block == NULL ? CTOOL_C_AST_NONE : block->linkage_binding;
+  linked = linked_index >= unit->binding_count
+               ? NULL
+               : &unit->bindings[linked_index];
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *candidate = &unit->block_bindings[index];
+    if (string_equal(candidate->name, "external_values") == 0) {
+      continue;
+    }
+    if (candidate->storage != CTOOL_C_STORAGE_EXTERN ||
+        candidate->initializer != CTOOL_C_AST_NONE ||
+        candidate->linkage_binding >= unit->binding_count ||
+        (array_linked_index != CTOOL_C_AST_NONE &&
+         candidate->linkage_binding != array_linked_index)) {
+      return 0;
+    }
+    array_linked_index = candidate->linkage_binding;
+    array_declarations++;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind ==
+        CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS) {
+      file_addresses++;
+      if (ir->instructions[index].reference == linked_index) {
+        scalar_file_addresses++;
+      }
+      if (ir->instructions[index].reference == array_linked_index) {
+        array_file_addresses++;
+      }
+    }
+    if (ir->instructions[index].kind ==
+        CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS) {
+      local_addresses++;
+    }
+  }
+  if (block == NULL || linked == NULL ||
+      block->storage != CTOOL_C_STORAGE_EXTERN ||
+      block->initializer != CTOOL_C_AST_NONE ||
+      linked->kind != CTOOL_C_BINDING_OBJECT ||
+      linked->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      linked->file_scope_visible != CTOOL_FALSE ||
+      array_declarations != 2u ||
+      array_linked_index == CTOOL_C_AST_NONE ||
+      unit->bindings[array_linked_index].kind != CTOOL_C_BINDING_OBJECT ||
+      unit->bindings[array_linked_index].linkage !=
+          CTOOL_C_LINKAGE_EXTERNAL ||
+      unit->bindings[array_linked_index].file_scope_visible != CTOOL_FALSE ||
+      unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instruction_count < 6u ||
+      ir->instructions == NULL || file_addresses != 2u ||
+      scalar_file_addresses != 1u || array_file_addresses != 1u ||
+      local_addresses != 0u) {
+    (void)fprintf(stderr, "block extern IR inventory differs\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  instructions = ir->instructions + function->first_instruction;
+  if (function->binding != unit->function_definitions[0].binding ||
+      function->declared_type !=
+          unit->function_definitions[0].declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 3u ||
+      function->maximum_stack_depth != 1u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != block->type ||
+      instructions[0].input_type != CTOOL_C_TYPE_NONE ||
+      instructions[0].reference != linked_index ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[1].type != block->type ||
+      instructions[1].input_type != block->type ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[2].type != block->type ||
+      instructions[2].input_type != block->type) {
+    (void)fprintf(stderr, "block extern IR instructions differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_block_externs(const char *host_root) {
+  static const char source[] =
+      "int read_external(void) {\n"
+      "  extern int external_value;\n"
+      "  return external_value;\n"
+      "}\n"
+      "int read_external_array(void) {\n"
+      "  extern int external_values[];\n"
+      "  extern int external_values[2];\n"
+      "  return external_values[1];\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_block_binding_t *invalid_blocks = NULL;
+  ctool_c_binding_t *invalid_bindings = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_u64 fingerprint;
+  ctool_u32 block_index;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-extern-ir.c", source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "block extern lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_block_extern_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  block_index = find_block_binding(&unit, "external_value");
+  invalid_blocks = (ctool_c_block_binding_t *)malloc(
+      (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  if (block_index == CTOOL_C_AST_NONE || invalid_blocks == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[block_index].linkage_binding = CTOOL_C_AST_NONE;
+  invalid_unit = unit;
+  invalid_unit.block_bindings = invalid_blocks;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block extern missing linked identity")) {
+    goto cleanup;
+  }
+  invalid_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  if (invalid_bindings == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  invalid_bindings[unit.block_bindings[block_index].linkage_binding].kind =
+      CTOOL_C_BINDING_TYPEDEF;
+  invalid_unit = unit;
+  invalid_unit.bindings = invalid_bindings;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block extern linked to non-object binding")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  invalid_bindings[unit.block_bindings[block_index].linkage_binding].name =
+      ctool_string("wrong_external");
+  invalid_unit = unit;
+  invalid_unit.bindings = invalid_bindings;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block extern linked to different name")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  invalid_bindings[unit.block_bindings[block_index].linkage_binding].storage =
+      CTOOL_C_STORAGE_STATIC;
+  invalid_unit = unit;
+  invalid_unit.bindings = invalid_bindings;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block extern linked to impossible storage and linkage")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_bindings);
+  free(invalid_blocks);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-externs: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_aggregate_initializers(const char *host_root) {
   static const char source[] =
       "typedef unsigned int ctool_u32;\n"
@@ -17991,6 +18217,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_objects(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-externs") == 0) {
+    return run_block_externs(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializers(argv[2]);
   }
@@ -18024,7 +18253,8 @@ int main(int argc, char **argv) {
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "aggregate-initializers|structure-values|compound-literals|"
+                "block-externs|aggregate-initializers|structure-values|"
+                "compound-literals|"
                 "old-style-empty-functions|variadic-callees|block-records|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");

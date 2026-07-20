@@ -369,6 +369,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) old-style-empty-functions ..
 	$(CUPIDC_FRONTEND_CONTRACT) variadic-callees ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
+	$(CUPIDC_FRONTEND_CONTRACT) block-externs ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-initializers ..
 	$(CUPIDC_FRONTEND_CONTRACT) static-initializers ..
 	$(CUPIDC_FRONTEND_CONTRACT) aggregate-initializers ..
@@ -412,6 +413,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) function-pointers ..
 	$(CUPIDC_IR_CONTRACT) automatic-objects ..
+	$(CUPIDC_IR_CONTRACT) block-externs ..
 	$(CUPIDC_IR_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_IR_CONTRACT) structure-values ..
 	$(CUPIDC_IR_CONTRACT) compound-literals ..
@@ -427,6 +429,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) function-pointers ..
 	$(CUPIDC_OBJECT_CONTRACT) automatic-objects ..
+	$(CUPIDC_OBJECT_CONTRACT) block-externs ..
 	$(CUPIDC_OBJECT_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_OBJECT_CONTRACT) structure-values ..
 	$(CUPIDC_OBJECT_CONTRACT) call-alignment ..

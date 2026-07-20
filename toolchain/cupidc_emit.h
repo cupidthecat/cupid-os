@@ -28,7 +28,8 @@ ctool_status_t ctool_c_emit_object(
  * narrow string literals, one-byte, two-byte, or four-byte integer loads and
  * stores, and four-byte pointer values, through CupidC linear IR and the
  * shared x86 model. Direct object and literal addresses use text `R_386_32`
- * relocations, while direct calls use `R_386_PC32`. The emitter writes those
- * functions beside static definitions in the same object. */
+ * relocations, including linked objects first declared by a block extern.
+ * Direct calls use `R_386_PC32`. The emitter writes those functions beside
+ * static definitions in the same object. */
 
 #endif

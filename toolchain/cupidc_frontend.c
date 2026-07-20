@@ -1221,6 +1221,27 @@ static ctool_bool cfront_find_binding_range(
   return CTOOL_FALSE;
 }
 
+static ctool_bool cfront_find_file_binding_range(
+    const cfront_context_t *context, ctool_u32 first, ctool_u32 end,
+    ctool_string_t name, ctool_c_binding_t *binding_out) {
+  ctool_u32 index = end;
+  while (index > first) {
+    ctool_c_binding_t binding;
+    index--;
+    if (cfront_binding_get(context, index, &binding) != CTOOL_OK) {
+      return CTOOL_FALSE;
+    }
+    if (binding.file_scope_visible == CTOOL_TRUE &&
+        cfront_string_equal(binding.name, name) == CTOOL_TRUE) {
+      if (binding_out != (ctool_c_binding_t *)0) {
+        *binding_out = binding;
+      }
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
 static ctool_bool cfront_find_binding_from(
     const cfront_context_t *context, ctool_u32 first, ctool_string_t name,
     ctool_c_binding_t *binding_out) {
@@ -1266,8 +1287,8 @@ static ctool_bool cfront_find_binding(const cfront_context_t *context,
     file_binding_end = binding_first;
     level--;
   }
-  return cfront_find_binding_range(context, 0u, file_binding_end, name,
-                                   binding_out);
+  return cfront_find_file_binding_range(context, 0u, file_binding_end, name,
+                                        binding_out);
 }
 
 static ctool_bool cfront_find_typedef(const cfront_context_t *context,
@@ -2463,9 +2484,40 @@ static ctool_bool cfront_find_file_binding_index(
     if (cfront_binding_get(context, index, &binding) != CTOOL_OK) {
       return CTOOL_FALSE;
     }
-    if (cfront_string_equal(binding.name, name) == CTOOL_TRUE) {
-      *binding_out = binding;
-      *index_out = index;
+    if (binding.file_scope_visible == CTOOL_TRUE &&
+        cfront_string_equal(binding.name, name) == CTOOL_TRUE) {
+      if (binding_out != (ctool_c_binding_t *)0) {
+        *binding_out = binding;
+      }
+      if (index_out != (ctool_u32 *)0) {
+        *index_out = index;
+      }
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool cfront_find_external_linkage_binding_index(
+    const cfront_context_t *context, ctool_string_t name,
+    ctool_c_binding_t *binding_out, ctool_u32 *index_out) {
+  ctool_u32 index = context->bindings.count;
+  while (index != 0u) {
+    ctool_c_binding_t binding;
+    index--;
+    if (cfront_binding_get(context, index, &binding) != CTOOL_OK) {
+      return CTOOL_FALSE;
+    }
+    if ((binding.kind == CTOOL_C_BINDING_OBJECT ||
+         binding.kind == CTOOL_C_BINDING_FUNCTION) &&
+        binding.linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+        cfront_string_equal(binding.name, name) == CTOOL_TRUE) {
+      if (binding_out != (ctool_c_binding_t *)0) {
+        *binding_out = binding;
+      }
+      if (index_out != (ctool_u32 *)0) {
+        *index_out = index;
+      }
       return CTOOL_TRUE;
     }
   }
@@ -2484,6 +2536,11 @@ static ctool_status_t cfront_append_binding(
   ctool_c_binding_t binding;
   ctool_u32 existing_index = CFRONT_NONE;
   ctool_bool duplicate = CTOOL_FALSE;
+  ctool_bool publishes_file_name =
+      context->prototype_scope_depth == 0u &&
+              context->in_function_body == CTOOL_FALSE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (name.size == 0u) {
     return cfront_emit_failure(context, CTOOL_ERR_INPUT,
                                CTOOL_C_PARSE_DIAG_DECLARATOR, token,
@@ -2497,9 +2554,53 @@ static ctool_status_t cfront_append_binding(
                     context, context->prototype_name_mark, name) == CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+  } else if (context->in_function_body == CTOOL_TRUE) {
+    ctool_c_block_binding_t visible_block;
+    ctool_u32 visible_block_index;
+    ctool_u32 parameter;
+    ctool_u32 parameter_type;
+    ctool_bool nearer_name = CTOOL_FALSE;
+    if (cfront_find_active_block_binding(
+            context, name, &visible_block, &visible_block_index) ==
+        CTOOL_TRUE) {
+      (void)visible_block_index;
+      nearer_name = CTOOL_TRUE;
+      if (visible_block.storage == CTOOL_C_STORAGE_EXTERN &&
+          visible_block.linkage_binding < context->bindings.count &&
+          cfront_binding_get(context, visible_block.linkage_binding,
+                             &existing) == CTOOL_OK) {
+        duplicate = CTOOL_TRUE;
+        existing_index = visible_block.linkage_binding;
+      }
+    } else if (cfront_find_active_parameter(
+                   context, name, &parameter, &parameter_type) == CTOOL_TRUE) {
+      (void)parameter;
+      (void)parameter_type;
+      nearer_name = CTOOL_TRUE;
+    }
+    if (nearer_name == CTOOL_FALSE) {
+      duplicate = cfront_find_file_binding_index(
+          context, name, &existing, &existing_index);
+      if (duplicate == CTOOL_TRUE &&
+          (existing.kind != CTOOL_C_BINDING_OBJECT &&
+           existing.kind != CTOOL_C_BINDING_FUNCTION)) {
+        duplicate = CTOOL_FALSE;
+        existing_index = CFRONT_NONE;
+      }
+    }
+    if (duplicate == CTOOL_FALSE) {
+      duplicate = cfront_find_external_linkage_binding_index(
+          context, name, &existing, &existing_index);
+    }
   } else {
     duplicate = cfront_find_file_binding_index(
         context, name, &existing, &existing_index);
+    if (duplicate == CTOOL_FALSE &&
+        (kind == CTOOL_C_BINDING_OBJECT ||
+         kind == CTOOL_C_BINDING_FUNCTION)) {
+      duplicate = cfront_find_external_linkage_binding_index(
+          context, name, &existing, &existing_index);
+    }
   }
   if (duplicate == CTOOL_TRUE) {
     if (context->prototype_scope_depth == 0u &&
@@ -2536,11 +2637,16 @@ static ctool_status_t cfront_append_binding(
         if (status == CTOOL_OK &&
             (composite != existing.type ||
              (semantics.attributes & ~existing.attributes) != 0u ||
-             (semantics.function_declaration_flags &
-              ~existing.function_declaration_flags) != 0u ||
-             semantics.minimum_alignment > existing.minimum_alignment)) {
+              (semantics.function_declaration_flags &
+               ~existing.function_declaration_flags) != 0u ||
+              semantics.minimum_alignment > existing.minimum_alignment ||
+              (publishes_file_name == CTOOL_TRUE &&
+               existing.file_scope_visible == CTOOL_FALSE))) {
           ctool_c_binding_t replacement = existing;
           replacement.type = composite;
+          if (publishes_file_name == CTOOL_TRUE) {
+            replacement.file_scope_visible = CTOOL_TRUE;
+          }
           replacement.attributes |= semantics.attributes;
           replacement.function_declaration_flags |=
               semantics.function_declaration_flags;
@@ -2578,6 +2684,7 @@ static ctool_status_t cfront_append_binding(
   binding.kind = kind;
   binding.storage = storage;
   binding.linkage = cfront_binding_linkage(kind, storage);
+  binding.file_scope_visible = publishes_file_name;
   binding.attributes = semantics.attributes;
   binding.function_declaration_flags = semantics.function_declaration_flags;
   binding.minimum_alignment = semantics.minimum_alignment;
@@ -6107,6 +6214,7 @@ static void cfront_block_binding_init(
   binding->kind = CTOOL_C_BINDING_OBJECT;
   binding->storage = cfront_public_storage(storage);
   binding->type = type;
+  binding->linkage_binding = CTOOL_C_AST_NONE;
   binding->initializer = CTOOL_C_AST_NONE;
   binding->location = *location;
   binding->physical_location = *physical_location;
@@ -6181,11 +6289,14 @@ static ctool_status_t cfront_publish_initializer_elements(
 
 static ctool_status_t cfront_append_block_binding(
     cfront_context_t *context, const ctool_c_block_binding_t *binding,
-    const ctool_c_pp_token_t *name_token,
+    const ctool_c_pp_token_t *name_token, ctool_bool compatible_redeclaration,
     ctool_u32 *binding_out) {
   ctool_u32 index;
-  ctool_status_t status = cfront_validate_new_block_binding_name(
-      context, binding->name, name_token);
+  ctool_status_t status =
+      compatible_redeclaration == CTOOL_TRUE
+          ? CTOOL_OK
+          : cfront_validate_new_block_binding_name(
+                context, binding->name, name_token);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -7111,10 +7222,16 @@ static ctool_status_t cfront_parse_body_primary(
   if (cfront_find_active_block_binding(context, token->spelling,
                                        &block_binding, &reference) ==
       CTOOL_TRUE) {
-    cfront_expression_init(&expression, CTOOL_C_EXPRESSION_BLOCK_BINDING,
-                           &token->location, &token->physical_location);
+    cfront_expression_init(
+        &expression,
+        block_binding.storage == CTOOL_C_STORAGE_EXTERN
+            ? CTOOL_C_EXPRESSION_IDENTIFIER
+            : CTOOL_C_EXPRESSION_BLOCK_BINDING,
+        &token->location, &token->physical_location);
     expression.type = block_binding.type;
-    expression.reference = reference;
+    expression.reference = block_binding.storage == CTOOL_C_STORAGE_EXTERN
+                               ? block_binding.linkage_binding
+                               : reference;
     type = block_binding.type;
     value_out->is_lvalue = CTOOL_TRUE;
     value_out->is_bit_field = CTOOL_FALSE;
@@ -12125,7 +12242,8 @@ static ctool_status_t cfront_parse_block_declaration(
     return cfront_append_statement(context, &statement, statement_out);
   }
   if (specifiers.storage == CFRONT_STORAGE_TYPEDEF ||
-      specifiers.storage == CFRONT_STORAGE_EXTERN ||
+      (specifiers.storage == CFRONT_STORAGE_EXTERN &&
+       is_for_initializer == CTOOL_TRUE) ||
       (specifiers.storage == CFRONT_STORAGE_STATIC &&
        is_for_initializer == CTOOL_TRUE)) {
     return cfront_emit_failure(
@@ -12150,8 +12268,12 @@ static ctool_status_t cfront_parse_block_declaration(
     ctool_u32 base;
     ctool_u32 qualifiers;
     ctool_u32 binding_index;
+    ctool_u32 linkage_binding = CTOOL_C_AST_NONE;
     ctool_bool complete = CTOOL_FALSE;
     ctool_bool has_initializer;
+    ctool_bool compatible_extern_redeclaration = CTOOL_FALSE;
+    ctool_c_block_binding_t prior_extern;
+    cfront_zero(&prior_extern, (ctool_u32)sizeof(prior_extern));
     cfront_zero(&declarator_attributes,
                 (ctool_u32)sizeof(declarator_attributes));
     status = cfront_parse_declarator(context, CTOOL_FALSE, &root);
@@ -12173,6 +12295,13 @@ static ctool_status_t cfront_parse_block_declaration(
           "block declaration attributes are outside this body slice");
     }
     has_initializer = cfront_peek_is(context, "=");
+    if (specifiers.storage == CFRONT_STORAGE_EXTERN &&
+        has_initializer == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+          cfront_peek(context),
+          "block extern object declaration cannot have an initializer");
+    }
     status = cfront_underlying_type(context, type, &base, &qualifiers, &node);
     (void)base;
     (void)qualifiers;
@@ -12197,7 +12326,8 @@ static ctool_status_t cfront_parse_block_declaration(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           name_token, "block object completeness is unavailable");
     }
-    if (complete == CTOOL_FALSE) {
+    if (complete == CTOOL_FALSE &&
+        specifiers.storage != CFRONT_STORAGE_EXTERN) {
       if (has_initializer == CTOOL_FALSE ||
           node.kind != CTOOL_C_TYPE_ARRAY ||
           node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
@@ -12209,7 +12339,42 @@ static ctool_status_t cfront_parse_block_declaration(
     cfront_block_binding_init(
         &block_binding, name, type, specifiers.storage, &location,
         &physical_location);
-    if (has_initializer == CTOOL_TRUE) {
+    if (specifiers.storage == CFRONT_STORAGE_EXTERN) {
+      cfront_binding_semantics_t binding_semantics;
+      ctool_c_binding_t canonical_binding;
+      ctool_u32 prior_index;
+      if (cfront_current_block_name_exists(context, name) == CTOOL_TRUE &&
+          cfront_find_active_block_binding(context, name, &prior_extern,
+                                           &prior_index) == CTOOL_TRUE &&
+          prior_extern.storage == CTOOL_C_STORAGE_EXTERN) {
+        (void)prior_index;
+        compatible_extern_redeclaration = CTOOL_TRUE;
+      }
+      cfront_zero(&binding_semantics,
+                  (ctool_u32)sizeof(binding_semantics));
+      status = cfront_append_binding(
+          context, CTOOL_C_BINDING_OBJECT, CTOOL_C_STORAGE_EXTERN, name, type,
+          binding_semantics, name_token, &location, &physical_location, 0ull,
+          CTOOL_FALSE, &linkage_binding);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      status = cfront_binding_get(context, linkage_binding,
+                                  &canonical_binding);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            name_token, "block extern linked binding is unavailable");
+      }
+      if (compatible_extern_redeclaration == CTOOL_TRUE &&
+          prior_extern.linkage_binding != linkage_binding) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            name_token, "block extern redeclaration changed linked identity");
+      }
+      block_binding.type = canonical_binding.type;
+      block_binding.linkage_binding = linkage_binding;
+    } else if (has_initializer == CTOOL_TRUE) {
       const ctool_c_pp_token_t *initializer_token;
       status = cfront_validate_new_block_binding_name(context, name,
                                                        name_token);
@@ -12243,13 +12408,15 @@ static ctool_status_t cfront_parse_block_declaration(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           name_token, "completed block object type is unavailable");
     }
-    if (complete == CTOOL_FALSE) {
+    if (complete == CTOOL_FALSE &&
+        specifiers.storage != CFRONT_STORAGE_EXTERN) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
           name_token, "block object requires a complete object type");
     }
     status = cfront_append_block_binding(
-        context, &block_binding, name_token, &binding_index);
+        context, &block_binding, name_token,
+        compatible_extern_redeclaration, &binding_index);
     (void)binding_index;
     if (status != CTOOL_OK) {
       return status;
@@ -14591,6 +14758,19 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       return cfront_storage_failure(context, status);
     }
   }
+  for (index = 0u; index < context->bindings.count; index++) {
+    const ctool_c_binding_t *binding = &bindings[index];
+    if ((binding->file_scope_visible != CTOOL_FALSE &&
+         binding->file_scope_visible != CTOOL_TRUE) ||
+        (binding->file_scope_visible == CTOOL_FALSE &&
+         (binding->kind != CTOOL_C_BINDING_OBJECT ||
+          binding->storage != CTOOL_C_STORAGE_EXTERN ||
+          binding->linkage != CTOOL_C_LINKAGE_EXTERNAL))) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen file-binding visibility is invalid");
+    }
+  }
   for (index = 0u; index < context->tags.count; index++) {
     status = cfront_vector_get(&context->tags, index, &tags[index]);
     if (status == CTOOL_OK) {
@@ -15111,16 +15291,41 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   }
   for (index = 0u; index < context->block_bindings.count; index++) {
     const ctool_c_block_binding_t *binding = &block_bindings[index];
+    const ctool_c_binding_t *linked =
+        binding->linkage_binding < context->bindings.count
+            ? &bindings[binding->linkage_binding]
+            : (const ctool_c_binding_t *)0;
     const ctool_c_initializer_t *initializer =
         binding->initializer < context->initializers.count
             ? &initializers[binding->initializer]
             : (const ctool_c_initializer_t *)0;
+    ctool_bool linked_compatible = CTOOL_FALSE;
+    if (binding->storage == CTOOL_C_STORAGE_EXTERN &&
+        linked != (const ctool_c_binding_t *)0) {
+      status = cfront_types_compatible(context, binding->type, linked->type,
+                                       &linked_compatible);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+    }
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         (binding->storage != CTOOL_C_STORAGE_NONE &&
          binding->storage != CTOOL_C_STORAGE_AUTO &&
          binding->storage != CTOOL_C_STORAGE_REGISTER &&
+         binding->storage != CTOOL_C_STORAGE_EXTERN &&
          binding->storage != CTOOL_C_STORAGE_STATIC) ||
         binding->type >= context->types.count || binding->name.size == 0u ||
+        (binding->storage == CTOOL_C_STORAGE_EXTERN &&
+         (binding->linkage_binding >= context->bindings.count ||
+          binding->initializer != CTOOL_C_AST_NONE ||
+          linked == (const ctool_c_binding_t *)0 ||
+          linked->kind != CTOOL_C_BINDING_OBJECT ||
+          (linked->linkage != CTOOL_C_LINKAGE_INTERNAL &&
+           linked->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
+          cfront_string_equal(binding->name, linked->name) == CTOOL_FALSE ||
+          linked_compatible == CTOOL_FALSE)) ||
+        (binding->storage != CTOOL_C_STORAGE_EXTERN &&
+         binding->linkage_binding != CTOOL_C_AST_NONE) ||
         (binding->storage == CTOOL_C_STORAGE_STATIC &&
          initializer == (const ctool_c_initializer_t *)0) ||
         (binding->storage != CTOOL_C_STORAGE_STATIC &&

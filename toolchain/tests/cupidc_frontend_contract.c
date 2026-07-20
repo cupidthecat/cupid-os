@@ -1573,75 +1573,6 @@ static int parse_loaded_fixture(frontend_fixture_t *fixture,
   return failed;
 }
 
-static int expect_loaded_frontend_failure(
-    frontend_fixture_t *fixture, const char *path_text,
-    ctool_status_t expected_status, ctool_u32 expected_code,
-    const char *expected_path, ctool_u32 expected_line,
-    ctool_u32 expected_column, const char *expected_message) {
-  ctool_path_t path;
-  ctool_source_t source;
-  ctool_c_pp_result_t tape;
-  ctool_c_translation_unit_t unit;
-  ctool_c_pp_token_t *snapshot = NULL;
-  ctool_arena_mark_t mark;
-  const ctool_diagnostic_t *diagnostic;
-  ctool_u32 diagnostic_count;
-  ctool_status_t status;
-  size_t token_bytes;
-  int failed = 1;
-
-  path.text = ctool_string(path_text);
-  status = ctool_job_load_source(fixture->job, &path, &source);
-  diagnostic_count = ctool_job_diagnostic_count(fixture->job);
-  (void)memset(&tape, 0xa5, sizeof(tape));
-  if (status == CTOOL_OK) {
-    status = ctool_c_preprocess(fixture->job, &source, &fixture->pp_request,
-                                &tape);
-  }
-  if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
-      ctool_job_diagnostic_count(fixture->job) != diagnostic_count) {
-    (void)fprintf(stderr, "%s: prepare %s failed: %s\n", fixture->mode,
-                  path_text, ctool_status_name(status));
-    (void)ctool_job_render_diagnostics(fixture->job);
-    return 1;
-  }
-  token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
-  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
-  if (snapshot == NULL) {
-    return 1;
-  }
-  (void)memcpy(snapshot, tape.tokens, token_bytes);
-  mark = ctool_arena_mark(ctool_job_arena(fixture->job));
-  (void)memset(&unit, 0xa5, sizeof(unit));
-  status = ctool_c_parse(fixture->job, &tape, &fixture->parse_request, &unit);
-  diagnostic = ctool_job_diagnostic(fixture->job, diagnostic_count);
-  if (status == expected_status && unit_is_zero(&unit) != 0 &&
-      ctool_job_diagnostic_count(fixture->job) == diagnostic_count + 1u &&
-      diagnostic != NULL && diagnostic->code == expected_code &&
-      string_equal(diagnostic->path, expected_path) != 0 &&
-      diagnostic->line == expected_line &&
-      diagnostic->column == expected_column &&
-      string_equal(diagnostic->message, expected_message) != 0 &&
-      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(fixture->job))) !=
-          0 &&
-      memcmp(snapshot, tape.tokens, token_bytes) == 0) {
-    failed = 0;
-  } else {
-    (void)fprintf(stderr, "%s: %s frontier differs: %s", fixture->mode,
-                  path_text, ctool_status_name(status));
-    if (diagnostic != NULL) {
-      (void)fprintf(stderr, "/0x%08x at %.*s:%u:%u: %.*s",
-                    diagnostic->code, (int)diagnostic->path.size,
-                    diagnostic->path.data, diagnostic->line,
-                    diagnostic->column, (int)diagnostic->message.size,
-                    diagnostic->message.data);
-    }
-    (void)fprintf(stderr, "\n");
-  }
-  free(snapshot);
-  return failed;
-}
-
 static int validate_anchor(const frontend_fixture_t *fixture) {
   const ctool_c_binding_t *binding;
   const ctool_c_type_node_t *type;
@@ -4382,9 +4313,10 @@ static int run_block_bindings(const char *host_root) {
         "void bad(void) { int local; int local; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_REDEFINITION},
        1u, 33u, "block-scope identifier is already declared in this scope"},
-      {{"extern local boundary", "void bad(void) { extern int local; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u, "block storage class is outside this body slice"},
+      {{"automatic and extern in one scope",
+        "void bad(void) { int local; extern int local; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 40u, "block-scope identifier is already declared in this scope"},
       {{"block typedef boundary", "void bad(void) { typedef int local; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        1u, 18u, "block storage class is outside this body slice"},
@@ -4450,6 +4382,293 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("block-bindings: ok\n");
+  }
+  return failed;
+}
+
+static int validate_block_extern_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *external = find_binding(unit, "external_values");
+  ctool_u32 external_index = find_binding_index(unit, "external_values");
+  const ctool_c_block_binding_t *external_block =
+      find_block_binding(unit, "external_values");
+  const ctool_c_binding_t *shadowed_typedef =
+      find_binding(unit, "shadowed_name");
+  const ctool_c_binding_t *after_scope = find_binding(unit, "after_scope");
+  const ctool_c_block_binding_t *shadowed_block =
+      find_block_binding(unit, "shadowed_name");
+  const ctool_c_binding_t *visible_static =
+      find_binding(unit, "visible_static");
+  const ctool_c_block_binding_t *visible_static_block =
+      find_block_binding(unit, "visible_static");
+  const ctool_c_binding_t *publish_later =
+      find_binding(unit, "publish_later");
+  const ctool_c_block_binding_t *publish_later_block =
+      find_block_binding(unit, "publish_later");
+  const ctool_c_binding_t *shadowed_enumerator =
+      find_binding(unit, "shadowed_enum");
+  const ctool_c_block_binding_t *shadowed_enum_block =
+      find_block_binding(unit, "shadowed_enum");
+  const ctool_c_binding_t *after_enum_scope =
+      find_binding(unit, "after_enum_scope");
+  ctool_u32 linked_references = 0u;
+  ctool_u32 local_references = 0u;
+  ctool_u32 hidden_static_internal = CTOOL_C_AST_NONE;
+  ctool_u32 hidden_static_external = CTOOL_C_AST_NONE;
+  ctool_u32 shadowed_external = CTOOL_C_AST_NONE;
+  ctool_u32 shadowed_enum_external = CTOOL_C_AST_NONE;
+  ctool_u32 repeated_linkage = CTOOL_C_AST_NONE;
+  ctool_u32 repeated_declarations = 0u;
+  ctool_u32 index;
+  if (external == NULL || external_index == CTOOL_C_AST_NONE ||
+      external->kind != CTOOL_C_BINDING_OBJECT ||
+      external->storage != CTOOL_C_STORAGE_EXTERN ||
+      external->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      external->file_scope_visible != CTOOL_FALSE ||
+      find_object_definition(unit, "external_values") != NULL ||
+      unit->block_binding_count != 9u || external_block == NULL ||
+      external_block->kind != CTOOL_C_BINDING_OBJECT ||
+      external_block->storage != CTOOL_C_STORAGE_EXTERN ||
+      external_block->type != external->type ||
+      external_block->linkage_binding != external_index ||
+      external_block->initializer != CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "block-externs: declaration graph differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->binding_count; index++) {
+    const ctool_c_binding_t *binding = &unit->bindings[index];
+    if (binding->kind != CTOOL_C_BINDING_OBJECT) {
+      continue;
+    }
+    if (string_equal(binding->name, "hidden_static") != 0) {
+      if (binding->linkage == CTOOL_C_LINKAGE_INTERNAL &&
+          binding->file_scope_visible == CTOOL_TRUE) {
+        hidden_static_internal = index;
+      }
+      if (binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+          binding->file_scope_visible == CTOOL_FALSE) {
+        hidden_static_external = index;
+      }
+    }
+    if (string_equal(binding->name, "shadowed_name") != 0 &&
+        binding->kind == CTOOL_C_BINDING_OBJECT &&
+        binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+        binding->file_scope_visible == CTOOL_FALSE) {
+      shadowed_external = index;
+    }
+    if (string_equal(binding->name, "shadowed_enum") != 0 &&
+        binding->kind == CTOOL_C_BINDING_OBJECT &&
+        binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+        binding->file_scope_visible == CTOOL_FALSE) {
+      shadowed_enum_external = index;
+    }
+  }
+  if (hidden_static_internal == CTOOL_C_AST_NONE ||
+      hidden_static_external == CTOOL_C_AST_NONE ||
+      hidden_static_internal == hidden_static_external) {
+    (void)fprintf(stderr, "block-externs: hidden linkage differs\n");
+    return 1;
+  }
+  if (shadowed_typedef == NULL ||
+      shadowed_typedef->kind != CTOOL_C_BINDING_TYPEDEF ||
+      shadowed_typedef->file_scope_visible != CTOOL_TRUE ||
+      shadowed_external == CTOOL_C_AST_NONE || shadowed_block == NULL ||
+      shadowed_block->storage != CTOOL_C_STORAGE_EXTERN ||
+      shadowed_block->linkage_binding != shadowed_external ||
+      after_scope == NULL || after_scope->kind != CTOOL_C_BINDING_OBJECT ||
+      after_scope->type != shadowed_typedef->type) {
+    (void)fprintf(stderr, "block-externs: typedef shadow differs\n");
+    return 1;
+  }
+  if (visible_static == NULL ||
+      visible_static->kind != CTOOL_C_BINDING_OBJECT ||
+      visible_static->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      visible_static->file_scope_visible != CTOOL_TRUE ||
+      visible_static_block == NULL ||
+      visible_static_block->storage != CTOOL_C_STORAGE_EXTERN ||
+      visible_static_block->linkage_binding !=
+          find_binding_index(unit, "visible_static")) {
+    (void)fprintf(stderr, "block-externs: visible static linkage differs\n");
+    return 1;
+  }
+  if (publish_later == NULL ||
+      publish_later->kind != CTOOL_C_BINDING_OBJECT ||
+      publish_later->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      publish_later->file_scope_visible != CTOOL_TRUE ||
+      publish_later_block == NULL ||
+      publish_later_block->storage != CTOOL_C_STORAGE_EXTERN ||
+      publish_later_block->linkage_binding !=
+          find_binding_index(unit, "publish_later") ||
+      find_object_definition(unit, "publish_later") == NULL) {
+    (void)fprintf(stderr, "block-externs: later publication differs\n");
+    return 1;
+  }
+  if (shadowed_enumerator == NULL ||
+      shadowed_enumerator->kind != CTOOL_C_BINDING_ENUMERATOR ||
+      shadowed_enumerator->file_scope_visible != CTOOL_TRUE ||
+      shadowed_enumerator->integer_bits != 4ull ||
+      shadowed_enum_external == CTOOL_C_AST_NONE ||
+      shadowed_enum_block == NULL ||
+      shadowed_enum_block->storage != CTOOL_C_STORAGE_EXTERN ||
+      shadowed_enum_block->linkage_binding != shadowed_enum_external ||
+      after_enum_scope == NULL ||
+      after_enum_scope->kind != CTOOL_C_BINDING_OBJECT) {
+    (void)fprintf(stderr, "block-externs: enumerator shadow differs\n");
+    return 1;
+  }
+  {
+    const ctool_c_type_node_t *array =
+        unwrapped_type_node(unit, after_enum_scope->type);
+    if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+        array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        array->element_count != 4u) {
+      (void)fprintf(stderr,
+                    "block-externs: enumerator restoration differs\n");
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    if (string_equal(binding->name, "repeated_values") == 0) {
+      continue;
+    }
+    if (binding->storage != CTOOL_C_STORAGE_EXTERN ||
+        binding->initializer != CTOOL_C_AST_NONE ||
+        binding->linkage_binding >= unit->binding_count ||
+        (repeated_linkage != CTOOL_C_AST_NONE &&
+         binding->linkage_binding != repeated_linkage)) {
+      (void)fprintf(stderr,
+                    "block-externs: repeated declaration differs\n");
+      return 1;
+    }
+    repeated_linkage = binding->linkage_binding;
+    repeated_declarations++;
+  }
+  if (repeated_declarations != 2u || repeated_linkage == CTOOL_C_AST_NONE ||
+      unit->bindings[repeated_linkage].linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      unit->bindings[repeated_linkage].file_scope_visible != CTOOL_FALSE) {
+    (void)fprintf(stderr, "block-externs: repeated linkage differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+        expression->reference == external_index) {
+      linked_references++;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        expression->reference == 0u) {
+      local_references++;
+    }
+  }
+  if (linked_references != 1u || local_references != 0u) {
+    (void)fprintf(stderr, "block-externs: linked reference differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_block_externs(const char *host_root) {
+  static const char source[] =
+      "int read_external(void) {\n"
+      "  extern int external_values[2];\n"
+      "  return external_values[1];\n"
+      "}\n"
+      "typedef int shadowed_name;\n"
+      "void hide_typedef(void) {\n"
+      "  extern int shadowed_name;\n"
+      "  shadowed_name = 7;\n"
+      "}\n"
+      "shadowed_name after_scope;\n"
+      "static int hidden_static;\n"
+      "void hide_static(void) {\n"
+      "  int hidden_static;\n"
+      "  {\n"
+      "    extern int hidden_static;\n"
+      "    hidden_static = 9;\n"
+      "  }\n"
+      "  hidden_static = 3;\n"
+      "}\n"
+      "void complete_external_array(void) {\n"
+      "  extern int repeated_values[];\n"
+      "  extern int repeated_values[2];\n"
+      "  repeated_values[1] = 11;\n"
+      "}\n"
+      "static int visible_static;\n"
+      "void use_visible_static(void) {\n"
+      "  extern int visible_static;\n"
+      "  visible_static = 5;\n"
+      "}\n"
+      "void introduce_then_publish(void) {\n"
+      "  extern int publish_later;\n"
+      "  publish_later = 13;\n"
+      "}\n"
+      "int publish_later;\n"
+      "enum { shadowed_enum = 4 };\n"
+      "void hide_enum(void) {\n"
+      "  extern int shadowed_enum;\n"
+      "  shadowed_enum = 6;\n"
+      "}\n"
+      "int after_enum_scope[shadowed_enum];\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"block extern initializer",
+        "void bad(void) { extern int value = 1; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 35u,
+       "block extern object declaration cannot have an initializer"},
+      {{"block extern for initializer",
+        "void bad(void) {\n"
+        "  for (extern int value; ; ) { }\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       2u, 8u,
+       "for initializer declaration requires automatic or register storage"},
+      {{"incompatible repeated block extern",
+        "void bad(void) { extern int values[2]; extern int values[3]; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 51u, "ordinary identifier has a conflicting declaration"},
+      {{"block extern conflicts with parameter",
+        "void bad(int value) { extern int value; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 34u,
+       "block-scope identifier is already declared in this scope"},
+      {{"incompatible later file declaration",
+        "void bad(void) {\n"
+        "  extern int value;\n"
+        "}\n"
+        "long value;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       4u, 6u, "ordinary identifier has a conflicting declaration"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "block-externs", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/block-externs.c", source, &unit) != 0 ||
+      validate_block_extern_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/block-extern-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_block_extern_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-externs: ok\n");
   }
   return failed;
 }
@@ -5148,12 +5367,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4788u,
-       41641u, 591u, 193u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 159u, 4821u,
+       42048u, 594u, 193u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 121u, 3098u,
        27740u, 414u, 207u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 294u,
-       11334u, 72520u, 1681u, 1169u, 0u, 0u}};
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 296u,
+       11457u, 73436u, 1700u, 1178u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -20327,6 +20546,50 @@ static int validate_active_variadic_header(
              : 1;
 }
 
+static int validate_active_d_main_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const struct {
+    const char *name;
+    ctool_u32 line;
+  } externs[] = {{"forwardmove", 1336u}, {"sidemove", 1337u}};
+  ctool_u32 index;
+
+  if (unit->binding_count != 2631u ||
+      unit->function_definition_count != 21u ||
+      unit->statement_count != 645u || unit->expression_count != 2999u ||
+      unit->block_binding_count != 41u ||
+      unit->initializer_count != 120u) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(externs); index++) {
+    const ctool_c_block_binding_t *block =
+        find_block_binding(unit, externs[index].name);
+    const ctool_c_binding_t *linked =
+        block == NULL || block->linkage_binding >= unit->binding_count
+            ? NULL
+            : &unit->bindings[block->linkage_binding];
+    const ctool_c_type_node_t *array =
+        linked == NULL ? NULL : unwrapped_type_node(unit, linked->type);
+    if (block == NULL || block->kind != CTOOL_C_BINDING_OBJECT ||
+        block->storage != CTOOL_C_STORAGE_EXTERN ||
+        block->initializer != CTOOL_C_AST_NONE || linked == NULL ||
+        linked->kind != CTOOL_C_BINDING_OBJECT ||
+        linked->storage != CTOOL_C_STORAGE_EXTERN ||
+        linked->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+        linked->file_scope_visible != CTOOL_FALSE ||
+        string_equal(linked->name, externs[index].name) == 0 ||
+        array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+        array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        array->element_count != 2u ||
+        dual_location_matches(&block->location, &block->physical_location,
+                              "/kernel/doom/src/d_main.c",
+                              externs[index].line) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int run_variadic_callees(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
@@ -20495,13 +20758,11 @@ static int run_variadic_callees(const char *host_root) {
                   "variadic-callees: active compatibility header differs\n");
     goto cleanup;
   }
-  if (expect_loaded_frontend_failure(
-           &fixture, "/kernel/doom/src/d_main.c", CTOOL_ERR_UNSUPPORTED,
-           CTOOL_C_PARSE_DIAG_STATEMENT,
-           "/kernel/doom/src/d_main.c",
-           1336u, 2u,
-           "block storage class is outside this body slice") !=
-       0) {
+  if (parse_loaded_fixture(&fixture, "/kernel/doom/src/d_main.c", NULL, 0u,
+                           &active_unit) != 0 ||
+      validate_active_d_main_unit(&active_unit) != 0) {
+    (void)fprintf(stderr,
+                  "variadic-callees: active d_main source differs\n");
     goto cleanup;
   }
   fixture.pp_request.forced_include_count = 0u;
@@ -20527,7 +20788,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "variadic-callees|block-bindings|block-records|"
+                   "variadic-callees|block-bindings|block-externs|block-records|"
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
@@ -20570,6 +20831,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);
+  }
+  if (strcmp(argv[1], "block-externs") == 0) {
+    return run_block_externs(argv[2]);
   }
   if (strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);

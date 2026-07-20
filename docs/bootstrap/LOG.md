@@ -5073,3 +5073,50 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0057, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block `extern` objects, block typedef names, block function declarations, block enums, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-20: CupidC keeps block extern objects linked
+
+### Decision and active requirement
+
+Hosted CupidC now accepts block-scope `extern` object declarations. The exact Doom profile previously stopped at `extern int forwardmove[2];` and `extern int sidemove[2];` in `kernel/doom/src/d_main.c:1336` and `:1337`. The unchanged file now parses completely.
+
+A block external declaration publishes a lexical block binding that points to one canonical linked object binding. The lexical record controls where the name is visible. Expressions retain the canonical binding index, so IR and object emission use the same entity as an eligible file-scope declaration.
+
+The canonical binding now records whether its ordinary name is visible at file scope. An external entity first introduced inside a block remains hidden from file lookup, while a later compatible file declaration can publish that same entity. A visible file-scope `static` object supplies internal linkage. If a nearer automatic object or parameter hides that declaration, a nested `extern` introduces a distinct external-linkage entity. This separates C entity identity from lexical name visibility without leaking block names.
+
+Compatible repeated block declarations coalesce, and an incomplete array may be completed by a later fixed bound. A block external may hide a file typedef and restores it when the scope ends. Initializers, `for` initializers, incompatible repetitions, and same-scope conflicts with automatic objects or parameters receive focused diagnostics. Block function declarations remain separate work.
+
+The declaration itself lowers as a checked no-op. It reserves no automatic frame slot. Object uses lower through `FILE_ADDRESS`, which lets the existing linked-object path produce an ordinary ELF symbol and `R_386_32` relocation. Treating the declaration as an automatic object, leaking every block name into file lookup, moving the active declarations to file scope, and accepting syntax without canonical identity were rejected because each approach changes C semantics or hides a toolchain limitation. ADR 0058 records the model.
+
+### Contract evidence and corrections
+
+- The frontend red contract first stopped at line 2, column 3 with the old unsupported storage diagnostic. The final fixture covers scalar and array objects, compatible repeats, incomplete-to-fixed completion, internal linkage, a hidden file declaration, typedef and enumerator shadowing, later file publication, and scope restoration. Exact negatives cover initializers, `for` initializers, incompatible arrays, an incompatible later file declaration, an automatic object, and a parameter conflict.
+- The exact `d_main.c` profile publishes 2,631 bindings, 21 function definitions, 645 statements, 2,999 expressions, 41 block bindings, and 120 initializers. Its declarations on lines 1336 and 1337 each keep a two-element array type, a lexical alias, and a hidden canonical external binding.
+- IR first stopped at line 2, column 14 after the frontend became valid. The final scalar case emits `FILE_ADDRESS`, `LOAD`, and `RETURN_VALUE` with maximum stack depth one. The companion array case declares an incomplete array, completes it with bound two, and indexes it. Across both functions there are two file addresses and no local addresses. Malformed canonical indices, links to non-object bindings, mismatched names, and impossible storage and linkage pairs fail transactionally.
+- The ELF32 fixture emits the exact 15 text bytes `55 89 e5 68 00 00 00 00 58 8b 00 50 58 c9 c3`. It has three symbols, one undefined object, and one `R_386_32` relocation at text offset 4 with addend zero. Repeat emission is byte-identical, and no automatic frame slot or second object symbol appears.
+- Clang static analysis found that the new IR contract could dereference a missing frozen table after a failed lookup. Explicit table guards now turn that condition into the intended contract failure. The final Clang and GCC analyzer passes cover both changed implementation units and all three changed C contracts.
+- The first sanitizer wrapper did not deliver its requested flags to Make, so that run is excluded. Corrected GCC and Clang builds show AddressSanitizer and UndefinedBehaviorSanitizer on every compile and link command, pass the full hosted suite, and pass the amended `block-externs` IR mode after rebuilding the contract.
+- The first full repository gate found one stale generated-audit `sizeof` total after all other 338 tests passed. The focused audit test then passed, and the complete repository rerun passed. An earlier focused run overlapped audit regeneration and exposed five stale control-flow totals. Those assertions were refreshed only after the final audit had completed, and subsequent audit checks reproduce the same manifest.
+- Standards review found stale current-state limits and gaps in the focused linkage coverage. The final contract now proves a visible file-scope `static`, later file-scope publication, enumerator shadowing, and an incompatible later file declaration. Specification review asked the IR boundary to reject a different canonical name and an impossible storage and linkage pair. Those copied-unit negatives now fail transactionally. The reverse scans for visible file bindings and hidden external entities remain separate because they enforce different lookup policies and ranges; combining them would blur the distinction between lexical visibility and canonical identity.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 159/4,821/42,048/594/193; `cupidc_emit.c` has 121/3,098/27,740/414/207; and `cupidc_frontend.c` has 296/11,457/73,436/1,700/1,178. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,195 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,523 `while`, 1,732 `break`, 975 `continue`, 26,902 `if`, 3,661 `else`, 3,180 `for`, 16,446 `return`, and 3,393 `sizeof` occurrences. The active-source digest is `2cdc7d2ac0c2c1817b684219d28d006780e34e5f1bbcdaa4a659f44689cbbdce`; the complete audit JSON has SHA-256 `1533307833f002c11c1731b1172d9a8da10cc185390c19dd62062269f3577b53`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | Frontend and IR first failed at their former boundaries. The final frontend, IR, and object modules pass all 97 tests in 23.938 seconds. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite and all 22 assembly demos after rebuilding the amended IR and contracts. |
+| WSL strict compilers | PASS | GCC 13.3 and Clang 18.1 pass the complete hosted suite after rebuilding the amended IR and contracts. |
+| Sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite with leak detection and halt-on-error enabled. Every compile and link command carries the requested instrumentation. |
+| Static analysis | PASS | Clang and GCC first report no findings across the two changed implementation files and three changed contracts. A final pass checks the amended IR implementation and frontend and IR contracts again without a diagnostic. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records, and `make check-bootstrap-audit` reproduces them in 38.1 seconds. |
+| Full repository gate | PASS | `make test` passes all 339 tests in 514.450 seconds with one expected platform skip; Make returns in 556.0 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 25.6 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke boots the rebuilt image and runs `/bin/ls.cc` successfully in 19.0 seconds. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path.
+
+ADR 0058, ADR 0014, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material. C linkage and scope rules, the existing public identity model, and the measured Doom frontier determined the implementation, so no user question was needed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. The exact `d_main.c` profile is complete, but broader Doom translation units, block typedef names, block function declarations, block enums, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

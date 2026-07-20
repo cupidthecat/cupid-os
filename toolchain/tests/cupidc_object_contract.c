@@ -14617,6 +14617,106 @@ cleanup:
   return 1;
 }
 
+static int run_block_extern_object(const char *host_root) {
+  static const char source[] =
+      "unsigned int read_external_clock(void) {\n"
+      "  extern unsigned int external_clock;\n"
+      "  return external_clock;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_u32 linked_index = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-extern-object.c", source, &unit) ||
+      unit.block_binding_count != 1u ||
+      unit.block_bindings[0].storage != CTOOL_C_STORAGE_EXTERN ||
+      unit.block_bindings[0].initializer != CTOOL_C_AST_NONE ||
+      unit.block_bindings[0].linkage_binding >= unit.binding_count ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  linked_index = unit.block_bindings[0].linkage_binding;
+  if (unit.bindings[linked_index].kind != CTOOL_C_BINDING_OBJECT ||
+      unit.bindings[linked_index].linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      unit.bindings[linked_index].file_scope_visible != CTOOL_FALSE) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "block extern object buffer") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output, "block extern object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)first_object_size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output, "repeat block extern object emission")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  if (bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0) {
+    (void)fprintf(stderr, "block extern object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/block-extern-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read block extern object") ||
+      object.symbol_count != 3u ||
+      !validate_external_object_load(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < object.symbol_count; index++) {
+    const ctool_elf32_symbol_t *symbol = &object.symbols[index];
+    if (symbol->type == CTOOL_ELF32_SYMBOL_OBJECT &&
+        string_equal(symbol->name, "external_clock") == 0) {
+      (void)fprintf(stderr, "block extern created a second object symbol\n");
+      goto cleanup;
+    }
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  dispose_unit_snapshot(&snapshot);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-externs: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -14647,6 +14747,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "block-externs") == 0) {
+    return run_block_extern_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializer_object(argv[2]);
@@ -14686,7 +14789,8 @@ int main(int argc, char **argv) {
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "aggregate-initializers|narrow-mutations|narrow-values|"
+                "block-externs|aggregate-initializers|narrow-mutations|"
+                "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees "

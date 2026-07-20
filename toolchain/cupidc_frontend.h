@@ -49,6 +49,9 @@ typedef struct {
    * type is symbol-local and never mutates a shared typedef graph. */
   ctool_c_storage_class_t storage;
   ctool_c_linkage_t linkage;
+  /* False means the linked entity was introduced by a block extern and has
+   * no ordinary name at file scope. */
+  ctool_bool file_scope_visible;
   /* Semantically retained declaration attributes. Noreturn belongs to the
    * canonical function entity and merges across compatible declarations. */
   ctool_u32 attributes;
@@ -92,6 +95,9 @@ typedef struct {
   /* Block-scope declarations retain their source storage spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
+  /* An extern object aliases this canonical linked binding. Other block
+   * objects use AST_NONE because their identity is the block binding itself. */
+  ctool_u32 linkage_binding;
   /* Root in translation_unit.initializers. An uninitialized automatic object
    * uses AST_NONE. An initialized automatic object may own an EXPRESSION,
    * STRING, or LIST forest; a static object always owns its semantic forest,
