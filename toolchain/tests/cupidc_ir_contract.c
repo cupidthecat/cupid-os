@@ -14704,6 +14704,149 @@ cleanup:
   return 1;
 }
 
+static int run_block_typedefs(const char *host_root) {
+  static const char source[] =
+      "unsigned int block_typedef(unsigned int input) {\n"
+      "  typedef unsigned char byte_t;\n"
+      "  byte_t value = (byte_t)input;\n"
+      "  return value;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_block_binding_t *invalid_blocks = NULL;
+  ctool_c_ir_unit_t first;
+  ctool_c_ir_unit_t second;
+  ctool_u64 fingerprint;
+  ctool_u64 first_ir_fingerprint;
+  ctool_u32 typedef_index;
+  ctool_u32 value_index;
+  ctool_u32 local_addresses = 0u;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&invalid_unit, 0, sizeof(invalid_unit));
+  (void)memset(&first, 0xa5, sizeof(first));
+  (void)memset(&second, 0xa5, sizeof(second));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-typedef-ir.c", source, &unit)) {
+    goto cleanup;
+  }
+  typedef_index = find_block_binding(&unit, "byte_t");
+  value_index = find_block_binding(&unit, "value");
+  if (typedef_index == CTOOL_C_AST_NONE ||
+      value_index == CTOOL_C_AST_NONE || typedef_index >= value_index ||
+      unit.block_binding_count != 2u ||
+      unit.block_bindings[typedef_index].kind != CTOOL_C_BINDING_TYPEDEF ||
+      unit.block_bindings[typedef_index].storage != CTOOL_C_STORAGE_TYPEDEF ||
+      unit.block_bindings[typedef_index].type >= unit.graph.type_count ||
+      unit.block_bindings[typedef_index].initializer != CTOOL_C_AST_NONE ||
+      unit.block_bindings[typedef_index].linkage_binding != CTOOL_C_AST_NONE ||
+      unit.block_bindings[value_index].kind != CTOOL_C_BINDING_OBJECT ||
+      unit.block_bindings[value_index].type !=
+          unit.block_bindings[typedef_index].type) {
+    (void)fprintf(stderr, "block typedef frontend inventory differs\n");
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  status = ctool_c_lower_ir(job, &unit, &first);
+  if (!check_status(status, CTOOL_OK, "block typedef lowering") ||
+      unit_fingerprint(&unit) != fingerprint || first.function_count != 1u ||
+      first.functions == NULL || first.instruction_count == 0u ||
+      first.instructions == NULL || first.functions[0].first_instruction != 0u ||
+      first.functions[0].instruction_count != first.instruction_count) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < first.instruction_count; index++) {
+    if (first.instructions[index].kind ==
+        CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS) {
+      if (first.instructions[index].reference != value_index) {
+        (void)fprintf(stderr, "block typedef acquired runtime storage\n");
+        goto cleanup;
+      }
+      local_addresses++;
+    }
+  }
+  if (local_addresses != 2u) {
+    (void)fprintf(stderr, "block typedef local address inventory differs\n");
+    goto cleanup;
+  }
+  first_ir_fingerprint = ir_instruction_fingerprint(&first);
+  status = ctool_c_lower_ir(job, &unit, &second);
+  if (!check_status(status, CTOOL_OK, "repeat block typedef lowering") ||
+      second.function_count != first.function_count ||
+      second.instruction_count != first.instruction_count ||
+      ir_instruction_fingerprint(&second) != first_ir_fingerprint ||
+      unit_fingerprint(&unit) != fingerprint) {
+    (void)fprintf(stderr, "block typedef IR is not deterministic\n");
+    goto cleanup;
+  }
+  invalid_blocks = (ctool_c_block_binding_t *)malloc(
+      (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  if (invalid_blocks == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_unit = unit;
+  invalid_unit.block_bindings = invalid_blocks;
+  invalid_blocks[typedef_index].storage = CTOOL_C_STORAGE_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block typedef missing typedef storage")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[typedef_index].initializer = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block typedef with initializer")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[typedef_index].linkage_binding = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block typedef with linked identity")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[typedef_index].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block typedef with invalid type")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_blocks);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-typedefs: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_aggregate_initializers(const char *host_root) {
   static const char source[] =
       "typedef unsigned int ctool_u32;\n"
@@ -18220,6 +18363,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "block-externs") == 0) {
     return run_block_externs(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-typedefs") == 0) {
+    return run_block_typedefs(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializers(argv[2]);
   }
@@ -18253,7 +18399,7 @@ int main(int argc, char **argv) {
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "block-externs|aggregate-initializers|structure-values|"
+                "block-externs|block-typedefs|aggregate-initializers|"
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|block-records|"
                 "narrow-values|void-casts "

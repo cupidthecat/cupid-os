@@ -199,10 +199,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * or declaration initializer once, then its optional condition, body, and
  * optional iteration expression in C source order. Declarations in supported
  * compound statements use the same source-ordered block bindings as outer
- * declarations. A block extern object advances lexical visibility without
- * emitting runtime work or reserving local storage. Its uses publish
- * FILE_ADDRESS against the canonical linked binding. An omitted condition has
- * no false exit.
+ * declarations. A block typedef advances lexical visibility without emitting
+ * runtime work or reserving local storage. A block extern object does the
+ * same, and its uses publish FILE_ADDRESS against the canonical linked
+ * binding. An omitted condition has no false exit.
  * Break uses JUMP to the nearest loop or switch exit. Continue uses JUMP to
  * the nearest loop's continuation point. A do continuation reaches its
  * condition, while a for continuation reaches its iteration expression when

@@ -199,10 +199,13 @@ identity, an incomplete array can be completed, and a visible file-scope
 static object keeps internal linkage. The declaration creates no automatic
 storage or runtime IR. The exact Doom profile now parses all of
 kernel/doom/src/d_main.c, including its local forwardmove and sidemove
-declarations. Block enums, block typedef names, block function declarations,
-nonempty identifier lists, floating default promotions, non-scalar arguments
-without declared parameter types, atomic cursor access, and wider or aggregate
-variadic reads remain open.
+declarations. Block typedefs follow the ordinary identifier scope. They retain
+stable scalar, record, or function types, allow exact same-type repetition and
+nested shadowing, and create no runtime IR, frame storage, symbol, or
+relocation. Block enums, block function declarations, nonempty identifier
+lists, floating default promotions, non-scalar arguments without declared
+parameter types, atomic cursor access, and wider or aggregate variadic reads
+remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects

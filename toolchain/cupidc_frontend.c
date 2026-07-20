@@ -1294,13 +1294,19 @@ static ctool_bool cfront_find_binding(const cfront_context_t *context,
 static ctool_bool cfront_find_typedef(const cfront_context_t *context,
                                       ctool_string_t name,
                                       ctool_u32 *type_out) {
+  ctool_c_block_binding_t block_binding;
   ctool_c_binding_t binding;
   ctool_u32 parameter;
   ctool_u32 parameter_type;
-  if (cfront_find_active_block_binding(
-          context, name, (ctool_c_block_binding_t *)0,
-          (ctool_u32 *)0) == CTOOL_TRUE ||
-      cfront_find_active_parameter(context, name, &parameter,
+  if (cfront_find_active_block_binding(context, name, &block_binding,
+                                       (ctool_u32 *)0) == CTOOL_TRUE) {
+    if (block_binding.kind == CTOOL_C_BINDING_TYPEDEF) {
+      *type_out = block_binding.type;
+      return CTOOL_TRUE;
+    }
+    return CTOOL_FALSE;
+  }
+  if (cfront_find_active_parameter(context, name, &parameter,
                                    &parameter_type) == CTOOL_TRUE) {
     return CTOOL_FALSE;
   }
@@ -7222,6 +7228,11 @@ static ctool_status_t cfront_parse_body_primary(
   if (cfront_find_active_block_binding(context, token->spelling,
                                        &block_binding, &reference) ==
       CTOOL_TRUE) {
+    if (block_binding.kind != CTOOL_C_BINDING_OBJECT) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "typedef name cannot be used as an expression");
+    }
     cfront_expression_init(
         &expression,
         block_binding.storage == CTOOL_C_STORAGE_EXTERN
@@ -12241,7 +12252,8 @@ static ctool_status_t cfront_parse_block_declaration(
     statement.block_binding_count = 0u;
     return cfront_append_statement(context, &statement, statement_out);
   }
-  if (specifiers.storage == CFRONT_STORAGE_TYPEDEF ||
+  if ((specifiers.storage == CFRONT_STORAGE_TYPEDEF &&
+       is_for_initializer == CTOOL_TRUE) ||
       (specifiers.storage == CFRONT_STORAGE_EXTERN &&
        is_for_initializer == CTOOL_TRUE) ||
       (specifiers.storage == CFRONT_STORAGE_STATIC &&
@@ -12271,9 +12283,9 @@ static ctool_status_t cfront_parse_block_declaration(
     ctool_u32 linkage_binding = CTOOL_C_AST_NONE;
     ctool_bool complete = CTOOL_FALSE;
     ctool_bool has_initializer;
-    ctool_bool compatible_extern_redeclaration = CTOOL_FALSE;
-    ctool_c_block_binding_t prior_extern;
-    cfront_zero(&prior_extern, (ctool_u32)sizeof(prior_extern));
+    ctool_bool compatible_redeclaration = CTOOL_FALSE;
+    ctool_c_block_binding_t prior_binding;
+    cfront_zero(&prior_binding, (ctool_u32)sizeof(prior_binding));
     cfront_zero(&declarator_attributes,
                 (ctool_u32)sizeof(declarator_attributes));
     status = cfront_parse_declarator(context, CTOOL_FALSE, &root);
@@ -12295,60 +12307,90 @@ static ctool_status_t cfront_parse_block_declaration(
           "block declaration attributes are outside this body slice");
     }
     has_initializer = cfront_peek_is(context, "=");
-    if (specifiers.storage == CFRONT_STORAGE_EXTERN &&
-        has_initializer == CTOOL_TRUE) {
+    cfront_block_binding_init(
+        &block_binding, name, type, specifiers.storage, &location,
+        &physical_location);
+    if (specifiers.storage == CFRONT_STORAGE_TYPEDEF) {
+      ctool_u32 prior_index;
+      if (has_initializer == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+            cfront_peek(context),
+            "block typedef declaration cannot have an initializer");
+      }
+      block_binding.kind = CTOOL_C_BINDING_TYPEDEF;
+      if (cfront_current_block_name_exists(context, name) == CTOOL_TRUE &&
+          cfront_find_active_block_binding(context, name, &prior_binding,
+                                           &prior_index) == CTOOL_TRUE &&
+          prior_binding.kind == CTOOL_C_BINDING_TYPEDEF) {
+        ctool_bool same = CTOOL_FALSE;
+        (void)prior_index;
+        status = cfront_types_same(context, prior_binding.type, type, &same);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        if (same == CTOOL_FALSE) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION,
+              name_token,
+              "block typedef has a different type in the same scope");
+        }
+        compatible_redeclaration = CTOOL_TRUE;
+      }
+    } else if (specifiers.storage == CFRONT_STORAGE_EXTERN &&
+               has_initializer == CTOOL_TRUE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
           cfront_peek(context),
           "block extern object declaration cannot have an initializer");
     }
-    status = cfront_underlying_type(context, type, &base, &qualifiers, &node);
-    (void)base;
-    (void)qualifiers;
-    if (status != CTOOL_OK) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-          name_token, "block declaration type is unavailable");
-    }
-    if (node.kind == CTOOL_C_TYPE_FUNCTION) {
-      return cfront_emit_failure(
-          context,
-          is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
-                                           : CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_STATEMENT, name_token,
-          is_for_initializer == CTOOL_TRUE
-              ? "for initializer cannot declare a function"
-              : "block function declarations are outside this body slice");
-    }
-    status = cfront_type_is_complete_object_now(context, type, &complete);
-    if (status != CTOOL_OK) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-          name_token, "block object completeness is unavailable");
-    }
-    if (complete == CTOOL_FALSE &&
-        specifiers.storage != CFRONT_STORAGE_EXTERN) {
-      if (has_initializer == CTOOL_FALSE ||
-          node.kind != CTOOL_C_TYPE_ARRAY ||
-          node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
+    if (specifiers.storage != CFRONT_STORAGE_TYPEDEF) {
+      status =
+          cfront_underlying_type(context, type, &base, &qualifiers, &node);
+      (void)base;
+      (void)qualifiers;
+      if (status != CTOOL_OK) {
         return cfront_emit_failure(
-            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
-            name_token, "block object requires a complete object type");
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            name_token, "block declaration type is unavailable");
+      }
+      if (node.kind == CTOOL_C_TYPE_FUNCTION) {
+        return cfront_emit_failure(
+            context,
+            is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
+                                             : CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_STATEMENT, name_token,
+            is_for_initializer == CTOOL_TRUE
+                ? "for initializer cannot declare a function"
+                : "block function declarations are outside this body slice");
+      }
+      status = cfront_type_is_complete_object_now(context, type, &complete);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            name_token, "block object completeness is unavailable");
+      }
+      if (complete == CTOOL_FALSE &&
+          specifiers.storage != CFRONT_STORAGE_EXTERN) {
+        if (has_initializer == CTOOL_FALSE ||
+            node.kind != CTOOL_C_TYPE_ARRAY ||
+            node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
+              name_token, "block object requires a complete object type");
+        }
       }
     }
-    cfront_block_binding_init(
-        &block_binding, name, type, specifiers.storage, &location,
-        &physical_location);
     if (specifiers.storage == CFRONT_STORAGE_EXTERN) {
       cfront_binding_semantics_t binding_semantics;
       ctool_c_binding_t canonical_binding;
       ctool_u32 prior_index;
       if (cfront_current_block_name_exists(context, name) == CTOOL_TRUE &&
-          cfront_find_active_block_binding(context, name, &prior_extern,
+          cfront_find_active_block_binding(context, name, &prior_binding,
                                            &prior_index) == CTOOL_TRUE &&
-          prior_extern.storage == CTOOL_C_STORAGE_EXTERN) {
+          prior_binding.storage == CTOOL_C_STORAGE_EXTERN) {
         (void)prior_index;
-        compatible_extern_redeclaration = CTOOL_TRUE;
+        compatible_redeclaration = CTOOL_TRUE;
       }
       cfront_zero(&binding_semantics,
                   (ctool_u32)sizeof(binding_semantics));
@@ -12366,8 +12408,8 @@ static ctool_status_t cfront_parse_block_declaration(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             name_token, "block extern linked binding is unavailable");
       }
-      if (compatible_extern_redeclaration == CTOOL_TRUE &&
-          prior_extern.linkage_binding != linkage_binding) {
+      if (compatible_redeclaration == CTOOL_TRUE &&
+          prior_binding.linkage_binding != linkage_binding) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             name_token, "block extern redeclaration changed linked identity");
@@ -12401,22 +12443,24 @@ static ctool_status_t cfront_parse_block_declaration(
         return status;
       }
     }
-    status = cfront_type_is_complete_object_now(
-        context, block_binding.type, &complete);
-    if (status != CTOOL_OK) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-          name_token, "completed block object type is unavailable");
-    }
-    if (complete == CTOOL_FALSE &&
-        specifiers.storage != CFRONT_STORAGE_EXTERN) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
-          name_token, "block object requires a complete object type");
+    if (specifiers.storage != CFRONT_STORAGE_TYPEDEF) {
+      status = cfront_type_is_complete_object_now(
+          context, block_binding.type, &complete);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            name_token, "completed block object type is unavailable");
+      }
+      if (complete == CTOOL_FALSE &&
+          specifiers.storage != CFRONT_STORAGE_EXTERN) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
+            name_token, "block object requires a complete object type");
+      }
     }
     status = cfront_append_block_binding(
         context, &block_binding, name_token,
-        compatible_extern_redeclaration, &binding_index);
+        compatible_redeclaration, &binding_index);
     (void)binding_index;
     if (status != CTOOL_OK) {
       return status;
@@ -15300,6 +15344,17 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             ? &initializers[binding->initializer]
             : (const ctool_c_initializer_t *)0;
     ctool_bool linked_compatible = CTOOL_FALSE;
+    if (binding->kind == CTOOL_C_BINDING_TYPEDEF) {
+      if (binding->storage != CTOOL_C_STORAGE_TYPEDEF ||
+          binding->type >= context->types.count || binding->name.size == 0u ||
+          binding->linkage_binding != CTOOL_C_AST_NONE ||
+          binding->initializer != CTOOL_C_AST_NONE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen block typedef is invalid");
+      }
+      continue;
+    }
     if (binding->storage == CTOOL_C_STORAGE_EXTERN &&
         linked != (const ctool_c_binding_t *)0) {
       status = cfront_types_compatible(context, binding->type, linked->type,

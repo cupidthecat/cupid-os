@@ -92,16 +92,17 @@ typedef struct {
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
-  /* Block-scope declarations retain their source storage spelling. */
+  /* Block-scope object and typedef declarations retain their source storage
+   * spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
-  /* An extern object aliases this canonical linked binding. Other block
-   * objects use AST_NONE because their identity is the block binding itself. */
+  /* An extern object aliases this canonical linked binding. Other objects and
+   * typedefs use AST_NONE because their identity is the block binding itself. */
   ctool_u32 linkage_binding;
-  /* Root in translation_unit.initializers. An uninitialized automatic object
-   * uses AST_NONE. An initialized automatic object may own an EXPRESSION,
-   * STRING, or LIST forest; a static object always owns its semantic forest,
-   * including implicit zero initialization. */
+  /* Root in translation_unit.initializers. A typedef or uninitialized
+   * automatic object uses AST_NONE. An initialized automatic object may own
+   * an EXPRESSION, STRING, or LIST forest; a static object always owns its
+   * semantic forest, including implicit zero initialization. */
   ctool_u32 initializer;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;

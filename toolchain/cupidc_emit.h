@@ -29,6 +29,7 @@ ctool_status_t ctool_c_emit_object(
  * stores, and four-byte pointer values, through CupidC linear IR and the
  * shared x86 model. Direct object and literal addresses use text `R_386_32`
  * relocations, including linked objects first declared by a block extern.
+ * Block typedefs consume no frame storage and produce no target record.
  * Direct calls use `R_386_PC32`. The emitter writes those functions beside
  * static definitions in the same object. */
 

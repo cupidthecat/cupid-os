@@ -4317,9 +4317,6 @@ static int run_block_bindings(const char *host_root) {
         "void bad(void) { int local; extern int local; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
        1u, 40u, "block-scope identifier is already declared in this scope"},
-      {{"block typedef boundary", "void bad(void) { typedef int local; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u, "block storage class is outside this body slice"},
       {{"block function declaration boundary",
         "void bad(void) { int local(void); }\n", CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -4382,6 +4379,317 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("block-bindings: ok\n");
+  }
+  return failed;
+}
+
+static int validate_block_typedef_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const names[] = {
+      "word_t",    "word_copy_t", "word_t",   "value",    "word_t",
+      "narrow",    "restored",    "word_t",   "restored_after_object",
+      "pair_t",    "pair",        "callback_t", "callback", "no_value_t",
+      "nothing",   "pending_t",   "pending",  "local_t",  "byte"};
+  static const ctool_c_binding_kind_t kinds[] = {
+      CTOOL_C_BINDING_TYPEDEF, CTOOL_C_BINDING_TYPEDEF,
+      CTOOL_C_BINDING_TYPEDEF, CTOOL_C_BINDING_OBJECT,
+      CTOOL_C_BINDING_TYPEDEF, CTOOL_C_BINDING_OBJECT,
+      CTOOL_C_BINDING_OBJECT,  CTOOL_C_BINDING_OBJECT,
+      CTOOL_C_BINDING_OBJECT,  CTOOL_C_BINDING_TYPEDEF,
+      CTOOL_C_BINDING_OBJECT,  CTOOL_C_BINDING_TYPEDEF,
+      CTOOL_C_BINDING_OBJECT,  CTOOL_C_BINDING_TYPEDEF,
+      CTOOL_C_BINDING_OBJECT,  CTOOL_C_BINDING_TYPEDEF,
+      CTOOL_C_BINDING_OBJECT,  CTOOL_C_BINDING_TYPEDEF,
+      CTOOL_C_BINDING_OBJECT};
+  static const ctool_u32 lines[] = {3u,  3u,  4u,  5u,  7u,  8u,  11u,
+                                    13u, 16u, 17u, 18u, 19u, 20u, 21u,
+                                    22u, 23u, 24u, 33u, 34u};
+  static const ctool_u32 declaration_first[] = {
+      0u, 2u, 3u, 4u,  5u,  6u,  7u,  8u,  9u,
+      10u, 11u, 12u, 13u, 14u, 15u, 16u, 17u, 18u};
+  static const ctool_u32 declaration_count[] = {
+      2u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
+      1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u};
+  const ctool_c_type_node_t *callback_type;
+  const ctool_c_type_node_t *callback_pointer;
+  const ctool_c_type_node_t *no_value_type;
+  const ctool_c_type_node_t *nothing_pointer;
+  const ctool_c_type_node_t *pending_type;
+  const ctool_c_type_node_t *pending_pointer;
+  const ctool_c_type_node_t *outer_word;
+  const ctool_c_type_node_t *inner_word;
+  const ctool_c_type_node_t *byte_type;
+  const ctool_c_type_node_t *shadow_function;
+  ctool_u32 shadow_parameter;
+  ctool_u32 restored_parameter_references = 0u;
+  ctool_u32 shadow_object_references = 0u;
+  ctool_u32 declaration_index = 0u;
+  ctool_u32 index;
+
+  if (unit->block_binding_count != ARRAY_COUNT(names) ||
+      unit->function_definition_count != 2u) {
+    (void)fprintf(stderr, "block-typedefs: AST inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    ctool_bool is_typedef = kinds[index] == CTOOL_C_BINDING_TYPEDEF
+                                ? CTOOL_TRUE
+                                : CTOOL_FALSE;
+    if (!string_equal(binding->name, names[index]) ||
+        binding->kind != kinds[index] ||
+        binding->storage != (is_typedef == CTOOL_TRUE
+                                 ? CTOOL_C_STORAGE_TYPEDEF
+                                 : CTOOL_C_STORAGE_NONE) ||
+        binding->linkage_binding != CTOOL_C_AST_NONE ||
+        (is_typedef == CTOOL_TRUE &&
+         binding->initializer != CTOOL_C_AST_NONE) ||
+        !dual_location_matches(&binding->location,
+                               &binding->physical_location,
+                               "/block-typedefs.c", lines[index])) {
+      (void)fprintf(stderr,
+                    "block-typedefs: binding %u metadata differs\n", index);
+      return 1;
+    }
+  }
+  callback_type = type_node(unit, unit->block_bindings[11].type);
+  callback_pointer = type_node(unit, unit->block_bindings[12].type);
+  no_value_type = type_node(unit, unit->block_bindings[13].type);
+  nothing_pointer = type_node(unit, unit->block_bindings[14].type);
+  pending_type = type_node(unit, unit->block_bindings[15].type);
+  pending_pointer = type_node(unit, unit->block_bindings[16].type);
+  outer_word = type_node(unit, unit->block_bindings[0].type);
+  inner_word = type_node(unit, unit->block_bindings[4].type);
+  byte_type = type_node(unit, unit->block_bindings[17].type);
+  shadow_function =
+      type_node(unit, unit->function_definitions[1].declared_type);
+  shadow_parameter = shadow_function == NULL
+                         ? CTOOL_C_AST_NONE
+                         : shadow_function->first_parameter;
+  if (unit->block_bindings[0].type != unit->block_bindings[1].type ||
+      unit->block_bindings[0].type != unit->block_bindings[2].type ||
+      unit->block_bindings[1].type != unit->block_bindings[3].type ||
+      unit->block_bindings[4].type != unit->block_bindings[5].type ||
+      unit->block_bindings[0].type != unit->block_bindings[6].type ||
+      unit->block_bindings[0].type != unit->block_bindings[7].type ||
+      unit->block_bindings[0].type != unit->block_bindings[8].type ||
+      unit->block_bindings[9].type != unit->block_bindings[10].type ||
+      unit->block_bindings[17].type != unit->block_bindings[18].type ||
+      outer_word == NULL || outer_word->kind != CTOOL_C_TYPE_UNSIGNED_INT ||
+      inner_word == NULL || inner_word->kind != CTOOL_C_TYPE_UNSIGNED_SHORT ||
+      byte_type == NULL || byte_type->kind != CTOOL_C_TYPE_UNSIGNED_CHAR ||
+      callback_type == NULL || callback_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      callback_pointer == NULL ||
+      callback_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      callback_pointer->referenced_type != unit->block_bindings[11].type ||
+      no_value_type == NULL || no_value_type->kind != CTOOL_C_TYPE_VOID ||
+      nothing_pointer == NULL ||
+      nothing_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      unit->block_bindings[13].type !=
+          nothing_pointer->referenced_type ||
+      pending_type == NULL || pending_type->kind != CTOOL_C_TYPE_RECORD ||
+      pending_pointer == NULL ||
+      pending_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      unit->block_bindings[15].type !=
+          pending_pointer->referenced_type ||
+      unit->block_bindings[15].type >= unit->layout.type_count ||
+      unit->layout.types[unit->block_bindings[15].type].is_complete_object !=
+          CTOOL_FALSE ||
+      shadow_function == NULL ||
+      shadow_function->kind != CTOOL_C_TYPE_FUNCTION ||
+      shadow_function->parameter_count != 1u) {
+    (void)fprintf(stderr, "block-typedefs: alias types differ\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      continue;
+    }
+    if (declaration_index >= ARRAY_COUNT(declaration_first) ||
+        statement->first_block_binding != declaration_first[declaration_index] ||
+        statement->block_binding_count !=
+            declaration_count[declaration_index]) {
+      (void)fprintf(stderr, "block-typedefs: declaration slice differs\n");
+      return 1;
+    }
+    declaration_index++;
+  }
+  if (declaration_index != ARRAY_COUNT(declaration_first)) {
+    (void)fprintf(stderr, "block-typedefs: declaration inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_PARAMETER &&
+        expression->reference == shadow_parameter) {
+      restored_parameter_references++;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        expression->reference == 7u) {
+      shadow_object_references++;
+    }
+  }
+  if (restored_parameter_references != 1u || shadow_object_references != 1u) {
+    (void)fprintf(stderr,
+                  "block-typedefs: ordinary-name restoration differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int block_typedef_active_source_is_unchanged(
+    frontend_fixture_t *fixture) {
+  static const struct {
+    const char *path;
+    const char *declaration_end;
+  } cases[] = {
+      {"/toolchain/tests/cupidc_frontend_contract.c",
+       "} toolchain_frontier_" "case_t;"},
+      {"/toolchain/tests/cupidc_frontend_contract.c",
+       "} constant_" "oracle_t;"},
+      {"/toolchain/tests/cupidc_ir_contract.c",
+       "} variadic_ir_" "expectation_t;"},
+      {"/toolchain/tests/cupidc_object_contract.c",
+       "} narrow_mutation_" "case_t;"},
+      {"/toolchain/tests/cupidc_object_contract.c",
+       "} narrow_mutation_" "function_t;"},
+      {"/toolchain/tests/cupidc_object_contract.c",
+       "} call_alignment_" "case_t;"},
+      {"/toolchain/tests/cupidc_pp_contract.c",
+       "} line_error_" "case_t;"},
+      {"/toolchain/tests/cupidc_pp_contract.c",
+       "} conditional_" "case_t;"}};
+  ctool_u32 index;
+  for (index = 0u; index < ARRAY_COUNT(cases); index++) {
+    ctool_path_t path;
+    ctool_source_t source;
+    const char *found;
+    path.text = ctool_string(cases[index].path);
+    (void)memset(&source, 0xa5, sizeof(source));
+    if (ctool_job_load_source(fixture->job, &path, &source) != CTOOL_OK ||
+        source.contents.data == NULL) {
+      return 1;
+    }
+    found = strstr((const char *)source.contents.data,
+                   cases[index].declaration_end);
+    if (found == NULL ||
+        strstr(found + strlen(cases[index].declaration_end),
+               cases[index].declaration_end) != NULL) {
+      (void)fprintf(stderr,
+                    "block-typedefs: active declaration %u differs\n",
+                    index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_block_typedefs(const char *host_root) {
+  static const char source[] =
+      "typedef signed int file_word_t;\n"
+      "int use_alias(int input) {\n"
+      "  typedef unsigned int word_t, word_copy_t;\n"
+      "  typedef word_t word_t;\n"
+      "  word_copy_t value = (word_copy_t)input;\n"
+      "  {\n"
+      "    typedef unsigned short word_t;\n"
+      "    word_t narrow = (word_t)value;\n"
+      "    value += narrow;\n"
+      "  }\n"
+      "  word_t restored = value;\n"
+      "  {\n"
+      "    unsigned int word_t = value;\n"
+      "    value = word_t;\n"
+      "  }\n"
+      "  word_t restored_after_object = value;\n"
+      "  typedef struct Pair { int left; int right; } pair_t;\n"
+      "  pair_t pair = { restored_after_object, input };\n"
+      "  typedef int callback_t(int);\n"
+      "  callback_t *callback;\n"
+      "  typedef void no_value_t;\n"
+      "  no_value_t *nothing;\n"
+      "  typedef struct Pending pending_t;\n"
+      "  pending_t *pending;\n"
+      "  (void)callback;\n"
+      "  (void)nothing;\n"
+      "  (void)pending;\n"
+      "  return pair.left + pair.right;\n"
+      "}\n"
+      "file_word_t file_value;\n"
+      "int shadow_parameter(int local_t) {\n"
+      "  {\n"
+      "    typedef unsigned char local_t;\n"
+      "    local_t byte = (local_t)1;\n"
+      "    (void)byte;\n"
+      "  }\n"
+      "  return local_t;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"block typedef initializer",
+        "void bad(void) { typedef int value = 1; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 36u, "block typedef declaration cannot have an initializer"},
+      {{"different block typedef in one scope",
+        "void bad(void) { typedef int value_t; typedef long value_t; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 52u, "block typedef has a different type in the same scope"},
+      {{"compatible block typedef is not the same type",
+        "void bad(void) { typedef int values_t[]; typedef int values_t[4]; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 54u, "block typedef has a different type in the same scope"},
+      {{"block typedef conflicts with object",
+        "void bad(void) { int value_t; typedef int value_t; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 43u, "block-scope identifier is already declared in this scope"},
+      {{"block typedef conflicts with parameter",
+        "void bad(int value_t) { typedef int value_t; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 37u, "block-scope identifier is already declared in this scope"},
+      {{"block typedef for initializer",
+        "void bad(void) { for (typedef int value_t; ; ) { } }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 23u,
+       "for initializer declaration requires automatic or register storage"},
+      {{"block typedef used as expression",
+        "int bad(void) { typedef int value_t; return value_t; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 45u, "typedef name cannot be used as an expression"},
+      {{"expired block typedef",
+        "void bad(void) { { typedef int value_t; } value_t value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 43u, "expression identifier is not declared"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "block-typedefs", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/block-typedefs.c", source, &unit) != 0 ||
+      validate_block_typedef_unit(&unit) != 0 ||
+      block_typedef_active_source_is_unchanged(&fixture) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/block-typedef-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_block_typedef_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-typedefs: ok\n");
   }
   return failed;
 }
@@ -5367,12 +5675,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 159u, 4821u,
-       42048u, 594u, 193u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 159u, 4829u,
+       42123u, 594u, 193u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 121u, 3098u,
        27740u, 414u, 207u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 296u,
-       11457u, 73436u, 1700u, 1178u, 0u, 0u}};
+       11497u, 73679u, 1703u, 1179u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -20788,7 +21096,8 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "variadic-callees|block-bindings|block-externs|block-records|"
+                   "variadic-callees|block-bindings|block-typedefs|"
+                   "block-externs|block-records|"
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
@@ -20831,6 +21140,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);
+  }
+  if (strcmp(argv[1], "block-typedefs") == 0) {
+    return run_block_typedefs(argv[2]);
   }
   if (strcmp(argv[1], "block-externs") == 0) {
     return run_block_externs(argv[2]);

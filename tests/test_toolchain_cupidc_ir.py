@@ -260,6 +260,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "block-externs: ok\n")
 
+    def test_block_typedefs_lower_without_runtime_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-typedefs", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-typedefs: ok\n")
+
     def test_automatic_aggregate_initializers_zero_and_store_subobjects(self):
         result = subprocess.run(
             [

@@ -5120,3 +5120,51 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0058, ADR 0014, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material. C linkage and scope rules, the existing public identity model, and the measured Doom frontier determined the implementation, so no user question was needed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. The exact `d_main.c` profile is complete, but broader Doom translation units, block typedef names, block function declarations, block enums, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-20: CupidC keeps block typedefs lexical
+
+### Decision and active requirement
+
+Hosted CupidC now accepts `typedef` declarations inside compound statements. Eight unchanged declarations in the active hosted Toolchain contracts require this form: `toolchain_frontier_case_t`, `constant_oracle_t`, `variadic_ir_expectation_t`, `narrow_mutation_case_t`, `narrow_mutation_function_t`, `call_alignment_case_t`, `line_error_case_t`, and `conditional_case_t`.
+
+A block typedef is an ordinary lexical binding with a stable graph type and no runtime identity. Lookup follows the nearest active ordinary binding. A nearer typedef supplies its type, while an object, function, parameter, or enumerator hides an outer typedef until the inner scope ends. This also lets an inner typedef hide a parameter and restores the parameter after that block.
+
+An exact same-type typedef may be repeated in one scope. A different type or another ordinary declaration with the same name is rejected. Function, `void`, complete record, and incomplete record aliases are accepted because a typedef names a type rather than declaring an object. Initializers and `typedef` declarations in a `for` initializer remain invalid.
+
+The frontend publishes each alias as a block binding with typedef kind and storage. IR validates that representation, consumes the declaration as a checked no-op, and advances its binding and visibility cursors. No local address, stack slot, symbol, relocation, or target record is produced. Source was not moved or rewritten to avoid the missing capability. ADR 0059 records the model and its boundary.
+
+### Contract evidence and corrections
+
+- The frontend red contract first stopped at line 2, column 3 with the former unsupported-storage diagnostic. The final positive fixture covers multiple declarators, exact repetition, typedef and object shadowing with restoration, aliases for records, functions, `void`, and incomplete records, plus a typedef that temporarily hides a parameter. Focused negatives cover an initializer, incompatible types, compatible but non-identical incomplete and fixed arrays, object and parameter conflicts, a `for` initializer, expression use, and an expired alias.
+- IR first rejected the newly valid declaration as an unsupported statement. Its final fixture keeps the typedef binding in the frozen unit, proves that both local-address instructions refer to the real object, repeats deterministically, and rejects wrong storage, an initializer, linkage identity, and an out-of-range type index without publishing partial IR.
+- The object fixture emits one function spelled through a block alias and the same function spelled with its underlying type. Their ELF32 output is byte-identical. The shared ELF reader confirms that the function is defined and that the object contains neither a typedef symbol nor a typedef relocation.
+- The first parser draft admitted `typedef` in a `for` initializer. The negative contract caught the oversight, and the existing automatic-or-register rule now guards that form.
+- The active-source declaration guard initially matched its own string literals. Splitting those literals makes each check pin the real contract declaration only. Adding a function alias also added a parameter graph record, which exposed an index-dependent restoration assertion. The final check derives the function's parameter slice from the graph instead of relying on a fixed index.
+- The first complete repository run reached four stale control-flow inventory assertions after the fixture changed the active source graph. The focused rerun exposed a fifth adjacent `else` total that the earlier `if` assertion had masked. All five checks now use the regenerated manifest, and the complete suite passes.
+- A standalone build-graph test exceeded its short command wrapper without reporting a failure. The accepted repository-wide run completed the same module. No result is inferred from the timed-out wrapper.
+- Standards review corrected two evidence claims. The malformed IR type is an out-of-range index, and the object proof uses the shared ELF reader rather than the instruction decoder. Specification review added a compatible but non-identical array redefinition and a legal object shadow with restoration. Both counterexamples now have focused regression coverage.
+- The first sanitizer rerun after review passed its flags through a PowerShell-to-WSL shell wrapper. The compile line showed only `-std=c11`, and linking correctly failed when the uninstrumented replacement object met existing instrumented objects. That run is excluded. Direct WSL environment arguments preserved the requested AddressSanitizer and UndefinedBehaviorSanitizer flags on both compile and link lines. The rebuilt GCC and Clang contracts pass the amended mode with leak detection and halt-on-error enabled.
+- No user question was needed. C ordinary-identifier scope, the immutable type graph, and the eight measured declarations determine the behavior without changing an OS source file.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 159/4,829/42,123/594/193; `cupidc_emit.c` has 121/3,098/27,740/414/207; and `cupidc_frontend.c` has 296/11,497/73,679/1,703/1,179. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,215 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,523 `while`, 1,732 `break`, 978 `continue`, 26,961 `if`, 3,662 `else`, 3,186 `for`, 16,473 `return`, and 3,408 `sizeof` occurrences. The active-source digest is `6c8db9da96fa550300464762885e46b691f01ae572e855eb761e9bb5a9b558fc`; the complete audit JSON has SHA-256 `fb352d28539fe7ae9f3a58093f75bcc6ab2fbc0bc60b11a25a126731d7e17d76`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | Frontend and IR failed first at their former boundaries. After review strengthened the scope cases, the final frontend module passes all 48 tests in 10.383 seconds, and the block-typedef frontend, IR, and object modes pass on the final Windows binaries. |
+| Windows hosted Toolchain | PASS | The complete hosted suite and all 22 assembly demos pass in 13.5 seconds after the review amendment. |
+| WSL strict compilers | PASS | GCC 13.3 and Clang 18.1 each pass the complete hosted suite in 37.6 seconds after rebuilding the amended contract. |
+| Sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite in 203.3 seconds. The amended contract is then rebuilt with verified instrumentation under both compilers and passes its focused mode with leak detection and halt-on-error enabled. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 static analysis report no findings across both changed implementation units and all three changed C contracts. The amended frontend contract passes final GCC and Clang checks in 34.5 and 50.9 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 41.4 seconds, and `make check-bootstrap-audit` reproduces them in 43.8 seconds. |
+| Full repository gate | PASS | `make test` passes all 342 tests in 517.696 seconds with one expected platform skip; Make returns in 556.2 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 28.1 seconds. |
+| Emulator gate | NOT RUN | This hosted declaration change does not alter production code, object ownership, target output, or ABI behavior, so the repository policy does not require another boot claim. |
+| Two-axis review | PASS | Standards and specification re-reviews report no remaining implementation, test, documentation, evidence, scope, or ownership finding after four corrections. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path.
+
+ADR 0059, ADR 0014, ADR 0036, ADR 0057, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block function declarations, block enums, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

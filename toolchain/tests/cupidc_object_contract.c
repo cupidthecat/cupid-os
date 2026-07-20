@@ -14717,6 +14717,146 @@ cleanup:
   return 1;
 }
 
+static int run_block_typedef_object(const char *host_root) {
+  static const char typedef_source[] =
+      "unsigned int block_typedef(unsigned int input) {\n"
+      "  typedef unsigned char byte_t;\n"
+      "  byte_t value = (byte_t)input;\n"
+      "  return value;\n"
+      "}\n";
+  static const char direct_source[] =
+      "unsigned int block_typedef(unsigned int input) {\n"
+      "  unsigned char value = (unsigned char)input;\n"
+      "  return value;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *typedef_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *direct_output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t typedef_unit;
+  ctool_c_translation_unit_t direct_unit;
+  unit_snapshot_t typedef_snapshot;
+  unit_snapshot_t direct_snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t typedef_bytes;
+  ctool_bytes_t direct_bytes;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_symbol_t *function;
+  ctool_u32 typedef_index;
+  ctool_u32 value_index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&typedef_unit, 0, sizeof(typedef_unit));
+  (void)memset(&direct_unit, 0, sizeof(direct_unit));
+  (void)memset(&typedef_snapshot, 0, sizeof(typedef_snapshot));
+  (void)memset(&direct_snapshot, 0, sizeof(direct_snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-typedef-object.c", typedef_source,
+                    &typedef_unit) ||
+      !parse_source(job, "/block-typedef-object.c", direct_source,
+                    &direct_unit) ||
+      !take_unit_snapshot(&typedef_unit, &typedef_snapshot) ||
+      !take_unit_snapshot(&direct_unit, &direct_snapshot)) {
+    goto cleanup;
+  }
+  if (typedef_unit.block_binding_count != 2u ||
+      direct_unit.block_binding_count != 1u) {
+    (void)fprintf(stderr, "block typedef object bindings differ\n");
+    goto cleanup;
+  }
+  typedef_index = 0u;
+  value_index = 1u;
+  if (typedef_unit.block_bindings[typedef_index].kind !=
+          CTOOL_C_BINDING_TYPEDEF ||
+      typedef_unit.block_bindings[typedef_index].storage !=
+          CTOOL_C_STORAGE_TYPEDEF ||
+      typedef_unit.block_bindings[typedef_index].initializer !=
+          CTOOL_C_AST_NONE ||
+      typedef_unit.block_bindings[typedef_index].linkage_binding !=
+          CTOOL_C_AST_NONE ||
+      typedef_unit.block_bindings[value_index].kind !=
+          CTOOL_C_BINDING_OBJECT ||
+      typedef_unit.block_bindings[value_index].type !=
+          typedef_unit.block_bindings[typedef_index].type) {
+    (void)fprintf(stderr, "block typedef object metadata differs\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &typedef_output);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &direct_output);
+  }
+  if (!check_status(status, CTOOL_OK, "block typedef object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &typedef_unit, typedef_output,
+          "block typedef object emission") ||
+      !expect_object_success_preserves_unit(
+          job, &direct_unit, direct_output,
+          "direct spelling object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  typedef_bytes = ctool_buffer_view(typedef_output);
+  direct_bytes = ctool_buffer_view(direct_output);
+  if (typedef_bytes.size == 0u ||
+      typedef_bytes.size != direct_bytes.size ||
+      memcmp(typedef_bytes.data, direct_bytes.data,
+             (size_t)typedef_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "block typedef changed the emitted object\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/block-typedef-object.o");
+  object_source.contents = typedef_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read block typedef object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  text = find_section(&object, ".text");
+  function = find_symbol(&object, "block_typedef");
+  if (text == (const ctool_elf32_section_t *)0 ||
+      function == (const ctool_elf32_symbol_t *)0 ||
+      text->contents.size == 0u || object.relocation_count != 0u ||
+      !symbol_matches(function, function->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      text->contents.size) ||
+      find_symbol(&object, "byte_t") !=
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "value") !=
+          (const ctool_elf32_symbol_t *)0) {
+    (void)fprintf(stderr, "block typedef ELF inventory differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&direct_snapshot);
+  dispose_unit_snapshot(&typedef_snapshot);
+  if (direct_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(direct_output);
+  }
+  if (typedef_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(typedef_output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-typedefs: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -14750,6 +14890,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "block-externs") == 0) {
     return run_block_extern_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "block-typedefs") == 0) {
+    return run_block_typedef_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializer_object(argv[2]);
@@ -14789,7 +14932,8 @@ int main(int argc, char **argv) {
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "block-externs|aggregate-initializers|narrow-mutations|"
+                "block-externs|block-typedefs|aggregate-initializers|"
+                "narrow-mutations|"
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"

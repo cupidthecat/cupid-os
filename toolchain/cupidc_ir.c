@@ -5461,6 +5461,17 @@ static ctool_status_t cir_lower_declaration(
         binding->storage > CTOOL_C_STORAGE_REGISTER) {
       return cir_invalid_unit(context, &binding->location);
     }
+    if (binding->kind == CTOOL_C_BINDING_TYPEDEF) {
+      if (binding->storage != CTOOL_C_STORAGE_TYPEDEF ||
+          binding->type >= context->unit->graph.type_count ||
+          binding->linkage_binding != CTOOL_C_AST_NONE ||
+          binding->initializer != CTOOL_C_AST_NONE) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      context->block_binding_cursor++;
+      context->visible_block_binding_end = context->block_binding_cursor;
+      continue;
+    }
     if (binding->kind != CTOOL_C_BINDING_OBJECT) {
       return cir_unsupported_statement(context, &binding->location);
     }
