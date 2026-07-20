@@ -3645,11 +3645,12 @@ static int run_function_bodies(const char *host_root) {
         "void bad(int value) { one(value, value); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        2u, 34u, "function call has too many arguments"},
-      {{"variadic call argument boundary",
+      {{"floating variadic argument promotion boundary",
         "void variadic(int first, ...);\n"
-        "void bad(int value) { variadic(value, value); }\n",
+        "void bad(float value) { variadic(1, value); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 39u, "variadic call arguments are outside this body slice"},
+       2u, 37u,
+       "floating variadic arguments require default promotion to double"},
       {{"incompatible call argument",
         "void pointer(const char *value);\n"
         "void bad(unsigned int value) { pointer(value); }\n",
@@ -3679,9 +3680,11 @@ static int run_function_bodies(const char *host_root) {
       "void print(const char *text, ...);\n"
       "void print_u32(u32 value);\n"
       "const char *label;\n"
-      "static inline void helper(const char *old_label, u32 old_value);\n"
-      "static void helper(const char *label, register u32 value) {\n"
-      "  print(label);\n"
+      "static inline void helper(const char *old_label, u32 old_value,\n"
+      "                          unsigned char old_narrow);\n"
+      "static void helper(const char *label, register u32 value,\n"
+      "                   unsigned char narrow) {\n"
+      "  print(label, narrow, label, \"extra\");\n"
       "  print_u32(value);\n"
       "  { print(\"\" \"\\n\"); }\n"
       "}\n";
@@ -3725,8 +3728,8 @@ static int run_function_bodies(const char *host_root) {
       print_binding == CTOOL_C_AST_NONE ||
       print_u32_binding == CTOOL_C_AST_NONE ||
       unit.function_definition_count != 1u || unit.statement_count != 5u ||
-      unit.statement_child_count != 4u || unit.expression_count != 16u ||
-      unit.expression_child_count != 13u) {
+      unit.statement_child_count != 4u || unit.expression_count != 23u ||
+      unit.expression_child_count != 20u) {
     (void)fprintf(stderr, "function-bodies: AST inventory differs\n");
     goto cleanup;
   }
@@ -3741,10 +3744,10 @@ static int run_function_bodies(const char *host_root) {
       unit.bindings[helper_binding].function_declaration_flags !=
           CTOOL_C_FUNCTION_DECL_INLINE ||
       unit.bindings[helper_binding].location.line != 5u ||
-      definition->location.line != 6u ||
+      definition->location.line != 7u ||
       function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
       function->has_prototype != CTOOL_TRUE ||
-      function->parameter_count != 2u ||
+      function->parameter_count != 3u ||
       function->first_parameter > unit.parameter_count ||
       function->parameter_count >
           unit.parameter_count - function->first_parameter ||
@@ -3756,10 +3759,14 @@ static int run_function_bodies(const char *host_root) {
                     "label") ||
       !string_equal(unit.parameters[function->first_parameter + 1u].name,
                     "value") ||
+      !string_equal(unit.parameters[function->first_parameter + 2u].name,
+                    "narrow") ||
       unit.parameters[function->first_parameter].storage !=
           CTOOL_C_STORAGE_NONE ||
       unit.parameters[function->first_parameter + 1u].storage !=
-          CTOOL_C_STORAGE_REGISTER) {
+          CTOOL_C_STORAGE_REGISTER ||
+      unit.parameters[function->first_parameter + 2u].storage !=
+          CTOOL_C_STORAGE_NONE) {
     (void)fprintf(stderr,
                   "function-bodies: definition metadata differs\n");
     goto cleanup;
@@ -3796,7 +3803,7 @@ static int run_function_bodies(const char *host_root) {
     calls[index] = &unit.expressions[statement->expression];
     if (calls[index]->kind != CTOOL_C_EXPRESSION_CALL ||
         calls[index]->first_child > unit.expression_child_count ||
-        calls[index]->child_count != 2u ||
+        calls[index]->child_count != (index == 0u ? 5u : 2u) ||
         calls[index]->child_count >
             unit.expression_child_count - calls[index]->first_child) {
       (void)fprintf(stderr, "function-bodies: call %u differs\n", index);
@@ -3909,6 +3916,105 @@ static int run_function_bodies(const char *host_root) {
         decayed_type->referenced_type != literal_type->referenced_type) {
       (void)fprintf(stderr,
                     "function-bodies: string literal type differs\n");
+      goto cleanup;
+    }
+  }
+  {
+    ctool_u32 narrow_conversion_index =
+        unit.expression_children[calls[0]->first_child + 2u];
+    ctool_u32 pointer_conversion_index =
+        unit.expression_children[calls[0]->first_child + 3u];
+    ctool_u32 array_conversion_index =
+        unit.expression_children[calls[0]->first_child + 4u];
+    const ctool_c_expression_t *narrow_conversion =
+        narrow_conversion_index < unit.expression_count
+            ? &unit.expressions[narrow_conversion_index]
+            : NULL;
+    const ctool_c_expression_t *pointer_conversion =
+        pointer_conversion_index < unit.expression_count
+            ? &unit.expressions[pointer_conversion_index]
+            : NULL;
+    const ctool_c_expression_t *array_conversion =
+        array_conversion_index < unit.expression_count
+            ? &unit.expressions[array_conversion_index]
+            : NULL;
+    const ctool_c_expression_t *narrow_load;
+    const ctool_c_expression_t *narrow_parameter;
+    const ctool_c_expression_t *pointer_parameter;
+    const ctool_c_expression_t *string_literal;
+    const ctool_c_type_node_t *promoted_type;
+    const ctool_c_type_node_t *array_pointer_type;
+    ctool_u32 narrow_load_index;
+    ctool_u32 narrow_parameter_index = CTOOL_C_AST_NONE;
+    ctool_u32 pointer_parameter_index;
+    if (narrow_conversion == NULL ||
+        narrow_conversion->kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        narrow_conversion->conversion !=
+            CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+        narrow_conversion->child_count != 1u ||
+        narrow_conversion->first_child >= unit.expression_child_count ||
+        pointer_conversion == NULL ||
+        pointer_conversion->kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        pointer_conversion->conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        pointer_conversion->child_count != 1u ||
+        pointer_conversion->first_child >= unit.expression_child_count ||
+        array_conversion == NULL ||
+        array_conversion->kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        array_conversion->conversion != CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+        array_conversion->child_count != 1u ||
+        array_conversion->first_child >= unit.expression_child_count) {
+      (void)fprintf(stderr,
+                    "function-bodies: variadic conversions differ\n");
+      goto cleanup;
+    }
+    narrow_load_index =
+        unit.expression_children[narrow_conversion->first_child];
+    pointer_parameter_index =
+        unit.expression_children[pointer_conversion->first_child];
+    narrow_load = narrow_load_index < unit.expression_count
+                      ? &unit.expressions[narrow_load_index]
+                      : NULL;
+    if (narrow_load != NULL && narrow_load->child_count == 1u &&
+        narrow_load->first_child < unit.expression_child_count) {
+      narrow_parameter_index =
+          unit.expression_children[narrow_load->first_child];
+    }
+    narrow_parameter = narrow_parameter_index < unit.expression_count
+                           ? &unit.expressions[narrow_parameter_index]
+                           : NULL;
+    pointer_parameter = pointer_parameter_index < unit.expression_count
+                            ? &unit.expressions[pointer_parameter_index]
+                            : NULL;
+    array_pointer_type = type_node(&unit, array_conversion->type);
+    string_literal =
+        unit.expression_children[array_conversion->first_child] <
+                unit.expression_count
+            ? &unit.expressions[
+                  unit.expression_children[array_conversion->first_child]]
+            : NULL;
+    promoted_type = type_node(&unit, narrow_conversion->type);
+    if (narrow_load == NULL ||
+        narrow_load->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        narrow_load->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        narrow_parameter == NULL ||
+        narrow_parameter->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+        narrow_parameter->reference != function->first_parameter + 2u ||
+        pointer_parameter == NULL ||
+        pointer_parameter->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+        pointer_parameter->reference != function->first_parameter ||
+        promoted_type == NULL ||
+        promoted_type->kind != CTOOL_C_TYPE_SIGNED_INT ||
+        pointer_conversion->type != arguments[0]->type ||
+        array_pointer_type == NULL ||
+        array_pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+        string_literal == NULL ||
+        string_literal->kind != CTOOL_C_EXPRESSION_STRING) {
+      (void)fprintf(stderr,
+                    "function-bodies: variadic argument types differ\n");
       goto cleanup;
     }
   }
@@ -4575,12 +4681,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 154u, 4636u,
-       40009u, 565u, 183u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 118u, 2995u,
-       26495u, 408u, 202u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 285u,
-       10872u, 69486u, 1608u, 1142u, 0u, 0u}};
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 154u, 4665u,
+       40203u, 570u, 186u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 119u, 3005u,
+       26642u, 408u, 204u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 286u,
+       10907u, 69665u, 1615u, 1145u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];

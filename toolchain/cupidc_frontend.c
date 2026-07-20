@@ -7341,6 +7341,53 @@ static ctool_status_t cfront_apply_integer_promotion(
       context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target, value);
 }
 
+static ctool_status_t cfront_apply_default_argument_promotions(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    cfront_expression_value_t *value) {
+  cfront_integer_type_t integer;
+  ctool_c_type_node_t node;
+  ctool_bool is_complete = CTOOL_FALSE;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_status_t status = cfront_integer_type(
+      context, value->type, &integer, &is_integer);
+  (void)integer;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (is_integer == CTOOL_TRUE) {
+    return cfront_apply_integer_promotion(context, token, value);
+  }
+  status = cfront_underlying_type(
+      context, value->type, &base, &qualifiers, &node);
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (node.kind == CTOOL_C_TYPE_FLOAT) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "floating variadic arguments require default promotion to double");
+  }
+  status = cfront_apply_default_conversion(context, value);
+  if (status == CTOOL_OK) {
+    status = cfront_type_is_complete_object_now(
+        context, value->type, &is_complete);
+  }
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  return is_complete == CTOOL_TRUE
+             ? CTOOL_OK
+             : cfront_emit_failure(
+                   context, CTOOL_ERR_INPUT,
+                   CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+                   "variadic argument must have complete object type");
+}
+
 static ctool_status_t cfront_apply_usual_integer_conversions(
     cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
     cfront_expression_value_t *left, cfront_expression_value_t *right,
@@ -8011,15 +8058,13 @@ static ctool_status_t cfront_parse_body_postfix(
               "function call argument is not convertible to parameter type",
               &argument);
         }
+      } else if (status == CTOOL_OK && function.variadic == CTOOL_TRUE) {
+        status = cfront_apply_default_argument_promotions(
+            context, argument_token, &argument);
       } else if (status == CTOOL_OK) {
         status = cfront_emit_failure(
-            context,
-            function.variadic == CTOOL_TRUE ? CTOOL_ERR_UNSUPPORTED
-                                             : CTOOL_ERR_INPUT,
-            CTOOL_C_PARSE_DIAG_EXPRESSION, argument_token,
-            function.variadic == CTOOL_TRUE
-                ? "variadic call arguments are outside this body slice"
-                : "function call has too many arguments");
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            argument_token, "function call has too many arguments");
       }
       if (status == CTOOL_OK) {
         status = cfront_vector_append(&children, &argument.expression,

@@ -8728,11 +8728,6 @@ static int run_function_pointer_object(const char *host_root) {
       "int forward_callback(callback_t callback) {\n"
       "  return use_callback(callback);\n"
       "}\n";
-  static const char variadic_source[] =
-      "typedef int (*variadic_callback_t)(int, ...);\n"
-      "int call_variadic(variadic_callback_t callback) {\n"
-      "  return callback(1);\n"
-      "}\n";
   static const char atomic_source[] =
       "typedef int (*callback_t)(int);\n"
       "callback_t _Atomic shared_callback;\n"
@@ -8746,7 +8741,6 @@ static int run_function_pointer_object(const char *host_root) {
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_buffer_t *output = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
-  ctool_c_translation_unit_t variadic_unit;
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t local_address_unit;
   unit_snapshot_t local_address_snapshot;
@@ -8760,7 +8754,6 @@ static int run_function_pointer_object(const char *host_root) {
   ctool_status_t status;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
-  (void)memset(&variadic_unit, 0, sizeof(variadic_unit));
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   (void)memset(&local_address_unit, 0, sizeof(local_address_unit));
   (void)memset(&local_address_snapshot, 0, sizeof(local_address_snapshot));
@@ -8845,18 +8838,7 @@ static int run_function_pointer_object(const char *host_root) {
     goto cleanup;
   }
   if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
-      !parse_source(job, "/variadic-function-pointer-object.c",
-                    variadic_source, &variadic_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &variadic_unit, output, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "represented scalar or structure arguments and void, scalar, or "
-          "structure results",
-          "variadic function pointer object")) {
-    goto cleanup;
-  }
-  if (!parse_source(job, "/atomic-function-pointer-object.c", atomic_source,
+      !parse_source(job, "/atomic-function-pointer-object.c", atomic_source,
                     &atomic_unit) ||
       !expect_object_failure_preserves_unit(
           job, &atomic_unit, output, CTOOL_ERR_UNSUPPORTED,
@@ -12441,7 +12423,7 @@ cleanup:
 #define CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT \
   (CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT / 2u)
 #define CALL_ALIGNMENT_SYMBOLIC_SAVED_FRAME_SLOTS 1u
-#define CALL_ALIGNMENT_SYMBOLIC_PADDING_SLOTS 3u
+#define CALL_ALIGNMENT_SYMBOLIC_CALLEE_BITS 0xc011ee00u
 
 static int call_alignment_symbolic_stack_slot(
     const ctool_x86_memory_t *memory, ctool_u32 esp_slot,
@@ -12471,18 +12453,30 @@ static aggregate_symbolic_value_t call_alignment_read_symbolic_operand(
     const aggregate_symbolic_value_t registers[8],
     const aggregate_symbolic_value_t stack[CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT],
     ctool_u32 esp_slot) {
+  aggregate_symbolic_value_t value;
+  ctool_i32 frame_offset;
   ctool_u32 slot;
   if (operand != NULL && operand->kind == CTOOL_X86_OPERAND_MEMORY &&
       call_alignment_symbolic_stack_slot(&operand->as.memory, esp_slot,
                                          &slot)) {
     return stack[slot];
   }
+  if (operand != NULL && operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+      aggregate_memory_frame_offset(&operand->as.memory, registers,
+                                    &frame_offset) != 0 &&
+      frame_offset == 8) {
+    value = aggregate_unknown_value();
+    value.kind = AGGREGATE_SYMBOLIC_CONSTANT;
+    value.bits = CALL_ALIGNMENT_SYMBOLIC_CALLEE_BITS;
+    return value;
+  }
   return aggregate_read_operand(operand, registers);
 }
 
 static int validate_call_alignment_arguments(
     ctool_job_t *job, const ctool_elf32_section_t *text,
-    const ctool_elf32_symbol_t *function, const char *context) {
+    const ctool_elf32_symbol_t *function, ctool_bool indirect,
+    const char *context) {
   static const ctool_u32 expected_arguments[] = {
       0x11223344u, 0x55667788u, 0x99aabbccu};
   aggregate_symbolic_value_t registers[8];
@@ -12490,14 +12484,12 @@ static int validate_call_alignment_arguments(
   ctool_u32 argument_count =
       (ctool_u32)(sizeof(expected_arguments) /
                   sizeof(expected_arguments[0]));
-  ctool_u32 expected_call_slot =
-      CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT -
-      CALL_ALIGNMENT_SYMBOLIC_SAVED_FRAME_SLOTS - argument_count -
-      CALL_ALIGNMENT_SYMBOLIC_PADDING_SLOTS;
+  ctool_u32 call_slot = CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT;
   ctool_u32 esp_slot = CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT;
   ctool_u32 cursor = 0u;
   ctool_u32 index;
   if (job == NULL || text == NULL || function == NULL || context == NULL ||
+      (indirect != CTOOL_FALSE && indirect != CTOOL_TRUE) ||
       text->contents.data == NULL ||
       function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
       function->section_file_index != text->file_index ||
@@ -12549,6 +12541,23 @@ static int validate_call_alignment_arguments(
         return 0;
       }
       registers[destination] = stack[esp_slot++];
+    } else if (instruction->mnemonic == CTOOL_X86_MN_LEA &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[1].kind == CTOOL_X86_OPERAND_MEMORY) {
+      ctool_i32 frame_offset;
+      ctool_u32 destination;
+      if (aggregate_gpr_index(instruction->operands[0].as.reg,
+                              &destination) == 0 ||
+          aggregate_memory_frame_offset(
+              &instruction->operands[1].as.memory, registers,
+              &frame_offset) == 0) {
+        return 0;
+      }
+      registers[destination] = aggregate_unknown_value();
+      registers[destination].kind = AGGREGATE_SYMBOLIC_FRAME_ADDRESS;
+      registers[destination].frame_offset = frame_offset;
     } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
                instruction->operand_count == 2u) {
       const ctool_x86_operand_t *destination = &instruction->operands[0];
@@ -12599,17 +12608,31 @@ static int validate_call_alignment_arguments(
           stack[index] = aggregate_unknown_value();
         }
       } else {
+        ctool_u32 expected_base =
+            CALL_ALIGNMENT_SYMBOLIC_ENTRY_SLOT -
+            CALL_ALIGNMENT_SYMBOLIC_SAVED_FRAME_SLOTS;
         if (slots > CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT - esp_slot) {
           return 0;
         }
+        if (call_slot != CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT &&
+            (esp_slot != call_slot || call_slot > expected_base ||
+             slots != expected_base - call_slot)) {
+          (void)fprintf(stderr,
+                        "%s: caller cleanup did not consume the callee, "
+                        "three arguments, and padding\n",
+                        context);
+          return 0;
+        }
         esp_slot += slots;
+        if (call_slot != CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT) {
+          return esp_slot == expected_base ? 1 : 0;
+        }
       }
     } else if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
-      if (esp_slot != expected_call_slot) {
-        (void)fprintf(stderr,
-                      "%s: expected three scalar arguments and three "
-                      "padding slots at the call\n",
-                      context);
+      if (call_slot != CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT ||
+          esp_slot + argument_count >
+              CALL_ALIGNMENT_SYMBOLIC_SLOT_COUNT) {
+        (void)fprintf(stderr, "%s: call stack shape differs\n", context);
         return 0;
       }
       for (index = 0u; index < argument_count; index++) {
@@ -12623,7 +12646,28 @@ static int validate_call_alignment_arguments(
           return 0;
         }
       }
-      return 1;
+      if (indirect == CTOOL_TRUE) {
+        if (instruction->operand_count != 1u ||
+            instruction->operands[0].kind !=
+                CTOOL_X86_OPERAND_REGISTER ||
+            aggregate_register_is(instruction->operands[0].as.reg, 0u) ==
+                0 ||
+            registers[0].kind != AGGREGATE_SYMBOLIC_CONSTANT ||
+            registers[0].bits != CALL_ALIGNMENT_SYMBOLIC_CALLEE_BITS) {
+          (void)fprintf(stderr,
+                        "%s: indirect callee was not preserved below the "
+                        "actual arguments\n",
+                        context);
+          return 0;
+        }
+      } else if (instruction->operand_count != 1u ||
+                 instruction->operands[0].kind !=
+                     CTOOL_X86_OPERAND_RELATIVE) {
+        (void)fprintf(stderr, "%s: direct call target differs\n", context);
+        return 0;
+      }
+      call_slot = esp_slot;
+      registers[0] = aggregate_unknown_value();
     } else {
       (void)fprintf(stderr,
                     "%s: unsupported symbolic instruction at %u\n",
@@ -12632,7 +12676,9 @@ static int validate_call_alignment_arguments(
     }
     cursor += decoded.consumed;
   }
-  (void)fprintf(stderr, "%s: expected call was not found\n", context);
+  (void)fprintf(stderr,
+                "%s: expected call and caller cleanup were not found\n",
+                context);
   return 0;
 }
 
@@ -12646,17 +12692,24 @@ static int validate_call_alignment_object(
     ctool_u32 joins;
     ctool_u32 back_edges;
   } call_alignment_case_t;
+  static const ctool_i32 variadic_structure_frame[] = {8};
+  structure_function_expectation_t variadic_structure_expected;
   static const call_alignment_case_t cases[] = {
       {"aligned_zero", 1u, 0u, 0u, 0u, 0u},
       {"aligned_one", 1u, 0u, 0u, 0u, 0u},
       {"aligned_nested", 2u, 0u, 0u, 0u, 0u},
       {"aligned_indirect", 1u, 0u, 0u, 0u, 0u},
       {"aligned_arguments", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_variadic_arguments", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_variadic_indirect", 1u, 0u, 0u, 0u, 0u},
+      {"aligned_variadic_structure", 1u, 0u, 0u, 0u, 0u},
+      {"variadic_definition", 0u, 0u, 0u, 0u, 0u},
       {"aligned_branch", 3u, 0u, 1u, 1u, 0u},
       {"aligned_loop", 1u, 0u, 1u, 1u, 1u},
       {"aligned_structure", 2u, 1u, 0u, 0u, 0u},
       {"aligned_structure_indirect", 1u, 1u, 0u, 0u, 0u}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *variadic_structure;
   ctool_u32 index;
   if (text == NULL || text->contents.data == NULL) {
     (void)fprintf(stderr, "call alignment text section differs\n");
@@ -12676,9 +12729,41 @@ static int validate_call_alignment_object(
       return 0;
     }
   }
-  return validate_call_alignment_arguments(
-      job, text, find_symbol(object, "aligned_arguments"),
-      "aligned_arguments");
+  if (!validate_call_alignment_arguments(
+          job, text, find_symbol(object, "aligned_arguments"),
+          CTOOL_FALSE, "aligned_arguments")) {
+    return 0;
+  }
+  if (!validate_call_alignment_arguments(
+          job, text, find_symbol(object, "aligned_variadic_arguments"),
+          CTOOL_FALSE, "aligned_variadic_arguments")) {
+    return 0;
+  }
+  if (!validate_call_alignment_arguments(
+          job, text, find_symbol(object, "aligned_variadic_indirect"),
+          CTOOL_TRUE, "aligned_variadic_indirect")) {
+    return 0;
+  }
+  variadic_structure =
+      find_symbol(object, "aligned_variadic_structure");
+  if (variadic_structure == (const ctool_elf32_symbol_t *)0) {
+    return 0;
+  }
+  (void)memset(&variadic_structure_expected, 0,
+               sizeof(variadic_structure_expected));
+  variadic_structure_expected.name = "aligned_variadic_structure";
+  variadic_structure_expected.value = variadic_structure->value;
+  variadic_structure_expected.size = variadic_structure->size;
+  variadic_structure_expected.positive_frame_offsets =
+      variadic_structure_frame;
+  variadic_structure_expected.positive_frame_offset_count = 1u;
+  variadic_structure_expected.move_count = 2u;
+  variadic_structure_expected.zero_count = 1u;
+  variadic_structure_expected.direct_call_count = 1u;
+  variadic_structure_expected.plain_return_count = 1u;
+  variadic_structure_expected.caller_cleanup = 32u;
+  return validate_structure_function(
+      job, text, variadic_structure, &variadic_structure_expected);
 }
 
 static int run_call_alignment_object(const char *host_root) {
@@ -12688,6 +12773,9 @@ static int run_call_alignment_object(const char *host_root) {
       "extern u32 no_args(void);\n"
       "extern u32 scalar1(u32 value);\n"
       "extern u32 scalar3(u32 first, u32 second, u32 third);\n"
+      "extern u32 variadic3(u32 first, ...);\n"
+      "typedef u32 (*variadic_callback_t)(u32 first, ...);\n"
+      "extern u32 variadic_pair(u32 first, pair_t value, ...);\n"
       "extern pair_t pair_call(u32 before, pair_t value, u32 after);\n"
       "u32 aligned_zero(void) { return no_args(); }\n"
       "u32 aligned_one(u32 value) { return scalar1(value); }\n"
@@ -12701,6 +12789,16 @@ static int run_call_alignment_object(const char *host_root) {
       "u32 aligned_arguments(void) {\n"
       "  return scalar3(0x11223344u, 0x55667788u, 0x99aabbccu);\n"
       "}\n"
+      "u32 aligned_variadic_arguments(void) {\n"
+      "  return variadic3(0x11223344u, 0x55667788u, 0x99aabbccu);\n"
+      "}\n"
+      "u32 aligned_variadic_indirect(variadic_callback_t function) {\n"
+      "  return function(0x11223344u, 0x55667788u, 0x99aabbccu);\n"
+      "}\n"
+      "u32 aligned_variadic_structure(pair_t value) {\n"
+      "  return variadic_pair(1u, value, 2u);\n"
+      "}\n"
+      "u32 variadic_definition(u32 first, ...) { return first; }\n"
       "u32 aligned_branch(u32 value) {\n"
       "  u32 selected;\n"
       "  if (value) selected = scalar1(value);\n"

@@ -646,12 +646,6 @@ static const char function_pointer_value_source[] =
     "  return use_callback(callback);\n"
     "}\n";
 
-static const char variadic_function_pointer_source[] =
-    "typedef int (*variadic_callback_t)(int, ...);\n"
-    "int call_variadic(variadic_callback_t callback) {\n"
-    "  return callback(1);\n"
-    "}\n";
-
 static const char wide_function_pointer_source[] =
     "typedef long long (*wide_callback_t)(long long);\n"
     "int call_wide(wide_callback_t callback) { return callback(1); }\n";
@@ -6430,6 +6424,64 @@ static int validate_call_ir(const ctool_c_translation_unit_t *unit,
   return 1;
 }
 
+static int validate_variadic_call_ir(const ctool_c_translation_unit_t *unit,
+                                     const ctool_c_ir_unit_t *ir) {
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->function_count != 3u ||
+      ir->instruction_count == 0u) {
+    (void)fprintf(stderr, "variadic call IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      const ctool_c_type_node_t *function =
+          instruction->input_type < unit->graph.type_count
+              ? &unit->graph.types[instruction->input_type]
+              : NULL;
+      if (function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+          function->variadic != CTOOL_TRUE ||
+          function->parameter_count != 1u ||
+          instruction->argument_count != 3u) {
+        (void)fprintf(stderr, "variadic direct call IR differs\n");
+        return 0;
+      }
+      direct_calls++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+      const ctool_c_type_node_t *pointer =
+          instruction->input_type < unit->graph.type_count
+              ? &unit->graph.types[instruction->input_type]
+              : NULL;
+      const ctool_c_type_node_t *function =
+          pointer != NULL && pointer->kind == CTOOL_C_TYPE_POINTER &&
+                  pointer->referenced_type < unit->graph.type_count
+              ? &unit->graph.types[pointer->referenced_type]
+              : NULL;
+      if (function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+          function->variadic != CTOOL_TRUE ||
+          function->parameter_count != 1u ||
+          instruction->argument_count != 2u) {
+        (void)fprintf(stderr, "variadic indirect call IR differs\n");
+        return 0;
+      }
+      indirect_calls++;
+    } else if (instruction->argument_count != 0u) {
+      (void)fprintf(stderr, "non-call variadic metadata differs\n");
+      return 0;
+    }
+  }
+  if (direct_calls != 1u || indirect_calls != 1u ||
+      ir->functions[0].maximum_stack_depth != 3u ||
+      ir->functions[1].maximum_stack_depth != 3u ||
+      ir->functions[2].maximum_stack_depth != 1u) {
+    (void)fprintf(stderr, "variadic call stack contract differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_active_leaf(const char *host_root) {
   static const char simple_source[] =
       "int answer(void) { return 42; }\n"
@@ -6708,8 +6760,22 @@ static int run_active_leaf(const char *host_root) {
   static const char wide_remainder_source[] =
       "int wide_remainder(void) { return 8LL % 3LL; }\n";
   static const char variadic_call_source[] =
+      "typedef int (*variadic_callback_t)(int first, ...);\n"
       "int variadic_target(int first, ...);\n"
-      "int call_variadic(void) { return variadic_target(1); }\n";
+      "int call_variadic(signed char narrow, void *pointer) {\n"
+      "  return variadic_target(1, narrow, pointer);\n"
+      "}\n"
+      "int call_variadic_indirect(variadic_callback_t callback,\n"
+      "                           unsigned short narrow) {\n"
+      "  return callback(2, narrow);\n"
+      "}\n"
+      "int variadic_definition(int first, ...) { return first; }\n";
+  static const char variadic_structure_source[] =
+      "struct pair { int value; };\n"
+      "int variadic_target(int first, ...);\n"
+      "int call_variadic_structure(struct pair value) {\n"
+      "  return variadic_target(1, value);\n"
+      "}\n";
   static const char value_statement_source[] =
       "void discard_value(void) { 1; }\n";
   static const char wide_local_source[] =
@@ -6833,6 +6899,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t wide_division_unit;
   ctool_c_translation_unit_t wide_remainder_unit;
   ctool_c_translation_unit_t variadic_call_unit;
+  ctool_c_translation_unit_t variadic_structure_unit;
   ctool_c_translation_unit_t value_statement_unit;
   ctool_c_translation_unit_t wide_local_unit;
   ctool_c_translation_unit_t overaligned_local_unit;
@@ -6872,6 +6939,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t variadic_ir;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   ctool_u32 file_binding;
@@ -6925,6 +6993,10 @@ static int run_active_leaf(const char *host_root) {
                sizeof(wide_unary_negate_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
+  (void)memset(&variadic_call_unit, 0, sizeof(variadic_call_unit));
+  (void)memset(&variadic_structure_unit, 0,
+               sizeof(variadic_structure_unit));
+  (void)memset(&variadic_ir, 0, sizeof(variadic_ir));
   (void)memset(&addition_unit, 0, sizeof(addition_unit));
   (void)memset(&multiplication_unit, 0, sizeof(multiplication_unit));
   (void)memset(&unsigned_multiplication_unit, 0,
@@ -8879,21 +8951,31 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "CupidC IR lowering supports only prototyped calls with "
           "represented scalar or structure arguments and void, scalar, or "
           "structure results",
           "wide direct call")) {
     goto cleanup;
   }
   if (!parse_source(job, "/variadic-call.c", variadic_call_source,
-                    &variadic_call_unit) ||
+                    &variadic_call_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&variadic_call_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &variadic_call_unit, &variadic_ir);
+  if (!check_status(status, CTOOL_OK, "variadic call lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&variadic_call_unit) != fingerprint ||
+      !validate_variadic_call_ir(&variadic_call_unit, &variadic_ir) ||
+      !parse_source(job, "/variadic-structure.c",
+                    variadic_structure_source, &variadic_structure_unit) ||
       !expect_ir_failure(
-          job, &variadic_call_unit, CTOOL_ERR_UNSUPPORTED,
+          job, &variadic_structure_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "represented scalar or structure arguments and void, scalar, or "
-          "structure results",
-          "variadic direct call")) {
+          "CupidC IR lowering supports variadic arguments only for "
+          "represented scalar values",
+          "variadic structure argument")) {
     goto cleanup;
   }
   if (!parse_source(job, "/value-statement.c", value_statement_source,
@@ -8915,7 +8997,7 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic cdecl functions "
+          "CupidC IR lowering supports only prototyped cdecl functions "
           "with represented scalar or structure parameters and void, scalar, "
           "or structure results",
           "unsupported ABI")) {
@@ -12197,7 +12279,6 @@ static int run_function_pointers(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t value_unit;
-  ctool_c_translation_unit_t variadic_unit;
   ctool_c_translation_unit_t wide_unit;
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t cast_unit;
@@ -12225,7 +12306,6 @@ static int run_function_pointers(const char *host_root) {
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&value_unit, 0, sizeof(value_unit));
-  (void)memset(&variadic_unit, 0, sizeof(variadic_unit));
   (void)memset(&wide_unit, 0, sizeof(wide_unit));
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   (void)memset(&cast_unit, 0, sizeof(cast_unit));
@@ -12295,21 +12375,11 @@ static int run_function_pointers(const char *host_root) {
           "function pointer relational comparison")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/variadic-function-pointer.c",
-                    variadic_function_pointer_source, &variadic_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &variadic_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls with "
-          "represented scalar or structure arguments and void, scalar, or "
-          "structure results",
-          "variadic indirect call")) {
-    goto cleanup;
-  }
   if (!parse_source(job, "/wide-function-pointer.c",
                     wide_function_pointer_source, &wide_unit) ||
       !expect_ir_failure_preserves_unit(
           job, &wide_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic calls with "
+          "CupidC IR lowering supports only prototyped calls with "
           "represented scalar or structure arguments and void, scalar, or "
           "structure results",
           "wide indirect call")) {
@@ -15901,7 +15971,7 @@ static int run_structure_values(const char *host_root) {
       !expect_ir_failure_preserves_unit(
           job, &union_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only fixed, nonvariadic cdecl "
+          "CupidC IR lowering supports only prototyped cdecl "
           "functions with represented scalar or structure parameters and "
           "void, scalar, or structure results",
           "union value ABI") ||

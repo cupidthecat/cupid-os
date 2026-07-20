@@ -70,6 +70,9 @@ typedef struct {
   /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
    * an implicit conversion. */
   ctool_c_conversion_kind_t conversion;
+  /* CALL_DIRECT and CALL_INDIRECT retain the actual argument count after
+   * default argument promotions. Other instructions keep zero. */
+  ctool_u32 argument_count;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index for a
    * represented scalar or a complete fixed array or record.
@@ -255,19 +258,22 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * A represented integer, object pointer, function pointer, or supported
  * structure operand emits DISCARD. A void operand leaves the abstract stack at
  * its incoming depth and emits no extra instruction.
- * CALL_DIRECT consumes its fixed arguments after they have been evaluated in
- * source order. CALL_INDIRECT also consumes the function pointer below those
- * arguments. Argument zero is deepest among the arguments, and the final
+ * CALL_DIRECT consumes its arguments after they have been evaluated in source
+ * order. CALL_INDIRECT also consumes the function pointer below those
+ * arguments. The instruction retains the actual argument count, including
+ * variadic arguments after the frontend applies the represented default
+ * promotions. Argument zero is deepest among the arguments, and the final
  * argument is on top. Each argument occupies one abstract stack entry. The
  * i386 emitter gives scalar arguments one four-byte slot and copies structure
- * arguments inline, rounded up to four bytes. A structure result uses a hidden
- * pointer before the explicit arguments. The callee copies into that storage,
- * returns its address in EAX, and removes the hidden pointer with RET 4. Either
- * call pushes one result unless its result type is void. Narrow caller and
- * callee results are normalized from the declared AL or AX lane. Supported
- * structure values are complete, nonvolatile, nonatomic structures whose
- * alignment does not exceed four bytes. Structure RETURN_VALUE copies into
- * the caller-provided result object.
+ * named arguments inline, rounded up to four bytes. Ellipsis arguments are
+ * limited to represented four-byte scalar values. A structure result uses a
+ * hidden pointer before the explicit arguments. The callee copies into that
+ * storage, returns its address in EAX, and removes the hidden pointer with
+ * RET 4. Either call pushes one result unless its result type is void. Narrow
+ * caller and callee results are normalized from the declared AL or AX lane.
+ * Supported structure values are complete, nonvolatile, nonatomic structures
+ * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
+ * into the caller-provided result object.
  * Failure zeros the result, rewinds allocations made during the operation,
  * and keeps its structured diagnostic in the job. */
 

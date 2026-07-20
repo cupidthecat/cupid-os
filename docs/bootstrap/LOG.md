@@ -4876,3 +4876,52 @@ The hosted source gates publish definitions, statements, expressions, block bind
 ADR 0053, the earlier frontend, IR, initializer, and compound-literal ADR extensions, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for the remaining C11 and i386 ABI gaps, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC lowers scalar variadic calls
+
+### Decision and active requirement
+
+Hosted CupidC now lowers and emits the scalar caller slice of C variadic functions. The active-source audit finds 49 variadic declarations in 20 files, including the logging and serial interfaces that the OS build will eventually need CupidC to compile. Those declarations remain unchanged.
+
+The frontend still checks every named argument against its prototype. It now gives each ellipsis argument the C default conversions that the represented type system can express: lvalues lose their top-level qualifiers, arrays and functions decay to pointers, and integer types narrower than `int` promote to target `int`. A `float` ellipsis argument stops with `floating variadic arguments require default promotion to double`, which identifies the missing conversion instead of silently using the wrong ABI. The typed frontend can retain other values, but the IR rejects any ellipsis argument that is not a represented four-byte integer or pointer.
+
+Each call instruction records its actual argument count. Non-call instructions keep that field at zero. Direct and indirect calls use the count for reverse argument evaluation, saved indirect-callee placement, stack alignment, and caller cleanup. The structure-aware call path still sizes each named structure argument from its parameter type and now treats later scalar ellipsis arguments as four-byte slots. Variadic function definitions can lower and emit code that uses their named parameters; access to unnamed arguments is not implemented.
+
+This decision reopens the fixed-arity part of ADR 0017. A fixed prototype can still derive its argument count from the function type, so fixed calls do not need separate source metadata. A variadic prototype cannot describe the number of arguments at one call site. The actual count therefore belongs to the call instruction and is validated against the named parameter count before emission. ADR 0054 records this exception and its ABI consequences.
+
+`va_list`, `va_start`, `va_arg`, `va_copy`, and `va_end` remain open. So do the default `float` to `double` promotion, structure-valued ellipsis arguments, wider scalar transport, and other runtime values that the linear IR cannot yet represent. No user question was needed because C default argument conversions, the existing i386 cdecl model, and the active declarations determine this slice.
+
+### Contract evidence and corrections
+
+- The first frontend contract expected the old blanket variadic-call diagnostic. It now proves a three-argument call through a one-parameter prototype, including a signed narrow lvalue promotion, pointer lvalue conversion, and narrow string array decay. The focused floating negative pins the missing `double` promotion.
+- The initial IR contract could not distinguish the named parameter count from the actual call count. The public instruction now proves counts of three for a direct call and two for an indirect call, a variadic definition using its named parameter, zero on every non-call instruction, and transactional rejection of a structure-valued ellipsis argument.
+- The first object contract reached the new IR but stopped with the emitter's internal diagnostic because alignment still used the named count. The emitter now accounts for every actual slot. Direct and indirect fixtures each carry three distinct scalar constants so the decoder can prove cdecl order, sixteen-byte alignment, and exact caller cleanup.
+- The initial indirect oracle proved only generic alignment. Formal spec review showed that an emitter using the named count could still pass. The final decoder identifies the function pointer loaded from `[ebp+8]`, tracks its saved stack slot, requires `call eax` to use that value, observes all three arguments at the call, and proves that cleanup consumes the saved callee, the three actual arguments, and padding.
+- A structure fixture passes one named eight-byte structure followed by one scalar ellipsis argument. It proves the expected `[ebp+8]` source address, inline structure bytes, scalar placement, alignment, and 32-byte cleanup. A manual review caught an early helper change that had weakened the positive source-offset check; the strict check was restored before the full gate.
+- The first complete repository run passed the compiler behavior but found a stale lexical `sizeof` expectation of 3,341 instead of the generated total of 3,343. The exact inventory gates and generated audit were updated, then the complete suite passed.
+- The first GUI attempt booted the desktop and passed its core runtime checks, but the terminal shortcut did not open before the harness deadline. The retry used the established 0.60-second key pause and ran `/bin/ls.cc` successfully. The accepted final smoke repeated that command against the final rebuilt image.
+- Standards review found that ADR 0054 needed to state its relationship to ADR 0017, that the bootstrap log and final build evidence were not yet present, and that one loop variable called an ellipsis type a parameter type. The ADR now explains the reopened decision, this entry carries the evidence, and the variable is named `argument_type`. The direct and indirect scalar-emission loops still mirror one another; that duplication predates this increment and remains a limited emitter cleanup opportunity.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_frontend.c` has 286/10,907/69,665/1,615/1,145, `cupidc_ir.c` has 154/4,665/40,203/570/186, and `cupidc_emit.c` has 119/3,005/26,642/408/204. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations, 1,129 `goto`, 62 `do`, 206 `switch`, 1,579 `case`, 137 `default`, 2,518 `while`, 1,730 `break`, 968 `continue`, 26,514 `if`, 3,629 `else`, 3,150 `for`, 16,228 `return`, and 3,343 `sizeof` occurrences. The active-source digest is `4b310df2ca21f904e4f824804eb81d1f67750e98aefbb217a5637d336f77e2a3`; the complete audit JSON has SHA-256 `e0fb21c66df578418043d1f67d7071de427d815b4e2fdec744b228aa61da7c42`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red contracts | PASS | Frontend first returned the former blanket variadic diagnostic. Object emission then returned its internal diagnostic when alignment used one named parameter instead of three actual arguments. |
+| Focused CupidC modules | PASS | Frontend, IR, and object modules pass all 85 tests in 30.070 seconds. |
+| Windows hosted Toolchain | PASS | The complete hosted suite passes every mode and all 22 assembly demos in 18.9 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds each produce 179 passing contract markers. The paired run takes 81.7 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds each produce 179 passing markers in 173.2 seconds, with leak detection and halt-on-error enabled. The binaries contain their expected sanitizer symbols. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze -analyzer-werror` report no diagnostics across the three changed implementations and three C contracts in 1,046.1 seconds. Both analyzers also pass the amended IR and object files in 57.8 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the records in 47.7 seconds, and `make check-bootstrap-audit` reproduces them in 48.4 seconds. |
+| Full repository gate | PASS AFTER INVENTORY UPDATE | The stable final `make test` passes all 327 tests in 553.491 seconds with one expected skip; Make returns in 598.9 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the production image in 26.2 seconds. |
+| Emulator gate | PASS AFTER INPUT-TIMING RETRY | The final GUI terminal smoke boots the rebuilt image and runs `/bin/ls.cc` successfully in 18.9 seconds. |
+| Two-axis review | PASS | Standards re-review finds no hard violation and retains one documented maintenance judgment about duplicated direct and indirect emitter setup. Spec re-review finds no remaining gap in the scalar variadic caller slice. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the hosted compiler and normal C objects. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, while the private in-kernel compiler remains the embedded JIT and AOT path.
+
+ADR 0054, the amended call-alignment record, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for complete variadic callee support, floating and wider runtime values, the remaining C11 and i386 ABI gaps, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.

@@ -76,6 +76,10 @@ _Avoid_: aggregate scalar, borrowed object address
 An i386 call instruction emitted with ESP on a sixteen-byte boundary before the CPU pushes the return address. Hosted CupidC derives the required padding from the fixed frame, live Linear IR stack depth, and outgoing ABI storage.
 _Avoid_: sixteen-byte function frame, aligned callee entry
 
+**Variadic call site**:
+A call through a prototyped function type whose final parameter is an ellipsis. Linear IR keeps the named parameter count in the function type and the actual argument count on the call instruction. Hosted i386 emission currently transports only represented four-byte scalar ellipsis arguments.
+_Avoid_: unprototyped call, variadic macro
+
 **C mode**:
 The CupidC language mode for freestanding C source.
 _Avoid_: Cupid mode

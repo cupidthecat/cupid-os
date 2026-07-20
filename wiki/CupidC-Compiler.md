@@ -194,7 +194,7 @@ kernel ABI.
 
 ### Self-hosting compiler path
 
-Cupid OS has a shared CupidC frontend, linear IR, and ELF32 emitter for the self-hosting migration. This path is separate from the in-kernel JIT and AOT compiler described elsewhere on this page. It assigns target-sized i386 stack storage to referenced fixed arrays and records with alignment up to four bytes. One-byte, two-byte, and four-byte integers work across locals, file objects, members, indexed access, conditions, conversions, assignment, mutation, and fixed direct or indirect calls. Narrow loads produce canonical 32-bit values, while stores use the declared byte or word width. Fixed cdecl arguments keep four-byte stack slots, and callers and callees normalize narrow results.
+Cupid OS has a shared CupidC frontend, linear IR, and ELF32 emitter for the self-hosting migration. This path is separate from the in-kernel JIT and AOT compiler described elsewhere on this page. It assigns target-sized i386 stack storage to referenced fixed arrays and records with alignment up to four bytes. One-byte, two-byte, and four-byte integers work across locals, file objects, members, indexed access, conditions, conversions, assignment, mutation, and fixed or scalar variadic direct and indirect calls. Narrow loads produce canonical 32-bit values, while stores use the declared byte or word width. Represented cdecl scalar arguments keep four-byte stack slots, and callers and callees normalize narrow results.
 
 The shared path lowers explicit casts to `void`. It evaluates the operand once, discards a represented integer, pointer, or supported structure result, and leaves a `void` operand off the abstract stack.
 
@@ -204,13 +204,15 @@ The shared path carries compatible, complete structure values through lvalue con
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and each argument is rounded up to four bytes. The caller clears ABI padding before it copies arguments. A structure-returning call passes a hidden destination pointer before the explicit arguments. The callee reads that pointer at `[ebp+8]`, reads its first explicit argument at `[ebp+12]`, copies the result into the destination, returns the pointer in `eax`, and uses `ret 4`. The caller cleans the explicit argument bytes.
 
-Supported fixed direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing structure area. Nested calls and structure-result calls follow the same rule.
+Supported fixed and scalar variadic direct or indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing structure area. Nested calls and structure-result calls follow the same rule.
+
+For a scalar variadic call, the shared frontend applies lvalue, array, function, and integer default conversions to the ellipsis arguments. The call instruction retains the actual argument count, and the emitter uses it for cdecl order, the saved indirect callee, stack alignment, and caller cleanup. Direct and indirect calls can pass represented four-byte integers and pointers. A variadic definition can use its named parameters. The shared path does not yet implement floating promotion to `double`, structure-valued ellipsis arguments, `va_list`, or access to unnamed arguments.
 
 Block-static objects use static storage in the shared ELF32 path. The emitter places top-level `const` objects in `.rodata`, writable zero-filled objects in `.bss`, and other writable objects in `.data`. Each object receives a local symbol derived from its absolute block-binding index, so shadowed names remain distinct. `LOCAL_ADDRESS` reaches that symbol through an `R_386_32` relocation instead of an EBP-relative frame slot, and the declaration emits no runtime initialization code. Unused and unreachable block statics still receive storage.
 
 Block-scope compound literals use one persistent unnamed automatic object per source site. Their initializer runs each time execution reaches the expression, and the resulting lvalue can flow through ordinary member access, indexing, address-taking, loads, stores, and calls. Repeated evaluation in one function invocation reuses the same object. Recursive calls receive a fresh object in their own frame. Aggregate lists are assembled in separate staging storage and committed only after every initializer read has finished. A narrow string root zeros and copies directly into its persistent character array.
 
-Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, variadic calls, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
+Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field leaves, Boolean mutation, separate 64-bit and floating-point runtime values, complete variadic callee support, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C compiler for its C objects, and the private in-kernel CupidC compiler still handles embedded runtime compilation. The hosted shared path does not produce a normal Cupid OS object or change a boot or runtime artifact.
 
@@ -1079,7 +1081,7 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - **No standard library** - only kernel bindings are available
 - **No function pointers** - cannot store/call through function pointer variables
 - **No ternary operator** (`?:`) - use `if/else` instead
-- **No variadic functions** - fixed parameter count only
+- **No variadic definitions in the in-kernel JIT/AOT compiler** - it still uses a fixed parameter count; the hosted self-hosting path has the scalar caller subset described above
 - **Limited optimization** - single-pass compilation with no optimization passes
 
 ---

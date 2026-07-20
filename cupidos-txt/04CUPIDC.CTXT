@@ -120,13 +120,13 @@ The shared path allocates target-sized i386 stack storage for referenced fixed
 arrays and records with alignment up to four bytes. It carries one-byte,
 two-byte, and four-byte integers through locals, file
 objects, members, indexed access, conditions, conversions, assignment,
-mutation, and fixed direct or indirect calls. Narrow loads extend into
-canonical 32-bit values. Stores use the declared byte or word width. Byte and
-word compound assignments and increment or decrement compute through 32-bit
+mutation, and fixed or scalar variadic direct and indirect calls. Narrow loads
+extend into canonical 32-bit values. Stores use the declared byte or word
+width. Byte and word compound assignments and increment or decrement compute through 32-bit
 integer promotion, evaluate their destination once, and store once at the
 declared width. Signed byte and word mutation wraps through the low i386 lane
-and then sign-extends the result. Fixed cdecl arguments keep four-byte stack
-slots, and callers and callees normalize narrow results.
+and then sign-extends the result. Represented cdecl scalar arguments keep
+four-byte stack slots, and callers and callees normalize narrow results.
 
 An explicit cast to void evaluates its operand once. The shared IR discards a
 represented integer, object pointer, function pointer, or supported structure
@@ -163,6 +163,14 @@ immediately before CALL. The emitter chooses zero, four, eight, or twelve bytes
 of padding from the function frame, live Linear IR stack, and outgoing
 structure area. Nested calls and structure-result calls follow the same rule.
 
+For a scalar variadic call, the frontend applies lvalue, array, function, and
+integer default conversions to the ellipsis arguments. Linear IR retains the
+actual argument count. The emitter uses it for cdecl order, the saved indirect
+callee, stack alignment, and caller cleanup. Direct and indirect calls can
+pass represented four-byte integers and pointers. A variadic definition can
+use its named parameters. Floating promotion to double, structure-valued
+ellipsis arguments, va_list, and access to unnamed arguments remain open.
+
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects
 in .bss, and other writable objects in .data. Each object receives a local
@@ -188,9 +196,9 @@ than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field leaves, Boolean mutation, separate 64-bit and
-floating-point runtime values, variadic calls, wide strings, literal pooling,
-and block-static addresses in other block-static initializers remain
-unfinished in the shared path.
+floating-point runtime values, complete variadic callee support, wide strings,
+literal pooling, and block-static addresses in other block-static initializers
+remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C
 compiler for its C objects, and the private in-kernel CupidC compiler still

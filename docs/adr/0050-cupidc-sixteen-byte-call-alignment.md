@@ -29,3 +29,7 @@ Alignment changes the bytes and relocation offsets of earlier call-bearing objec
 This is still hosted bootstrap evidence. GCC or Clang builds the emitter and its contracts, and no normal Cupid OS C object has moved to this path. Issue #25 remains open for variadic calls, direct wide and floating runtime values, the deferred aggregate forms, whole-unit production integration, staged self-hosting, and the fixed-point bootstrap.
 
 This decision closes the call-alignment boundary recorded by ADR 0017, ADR 0043, and ADR 0049. Their original scope statements remain part of the historical record.
+
+## Extension: scalar variadic calls
+
+ADR 0054 applies the same alignment pass to scalar variadic calls. The public call instruction now retains the actual argument count, so stack-depth analysis and padding no longer assume that the function type's named parameter count describes the full call site. Fixed-call behavior is unchanged.

@@ -2540,6 +2540,22 @@ static ctool_bool cemit_ir_type_is_void(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_call_argument_count_is_valid(
+    const ctool_c_type_node_t *function_type,
+    const ctool_c_ir_instruction_t *instruction) {
+  return function_type != (const ctool_c_type_node_t *)0 &&
+                 instruction != (const ctool_c_ir_instruction_t *)0 &&
+                 function_type->kind == CTOOL_C_TYPE_FUNCTION &&
+                 instruction->argument_count >=
+                     function_type->parameter_count &&
+                 (function_type->variadic == CTOOL_TRUE ||
+                  instruction->argument_count ==
+                      function_type->parameter_count) &&
+                 instruction->argument_count <= 0x1fffffffu
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cemit_emit_structure_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
@@ -2559,17 +2575,20 @@ static ctool_status_t cemit_emit_structure_call(
   if (function_type == (const ctool_c_type_node_t *)0 ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
       function_type->parameter_count > 0x1fffffffu ||
+      cemit_call_argument_count_is_valid(function_type, instruction) ==
+          CTOOL_FALSE ||
       (direct != CTOOL_FALSE && direct != CTOOL_TRUE)) {
     return CTOOL_ERR_INTERNAL;
   }
-  for (argument = 0u; argument < function_type->parameter_count;
-       argument++) {
-    ctool_u32 argument_size;
-    status = cemit_ir_argument_size(
-        context,
-        context->unit->graph.parameter_types
-            [function_type->first_parameter + argument],
-        &argument_size);
+  for (argument = 0u; argument < instruction->argument_count; argument++) {
+    ctool_u32 argument_size = 4u;
+    if (argument < function_type->parameter_count) {
+      status = cemit_ir_argument_size(
+          context,
+          context->unit->graph.parameter_types
+              [function_type->first_parameter + argument],
+          &argument_size);
+    }
     if (status != CTOOL_OK) {
       return status;
     }
@@ -2579,11 +2598,11 @@ static ctool_status_t cemit_emit_structure_call(
     }
     outgoing_bytes += argument_size;
   }
-  if (cemit_multiply_overflows(function_type->parameter_count, 4u) ==
+  if (cemit_multiply_overflows(instruction->argument_count, 4u) ==
       CTOOL_TRUE) {
     return CTOOL_ERR_OVERFLOW;
   }
-  placeholder_bytes = function_type->parameter_count * 4u;
+  placeholder_bytes = instruction->argument_count * 4u;
   if (direct == CTOOL_FALSE) {
     if (cemit_add_overflows(placeholder_bytes, 4u) == CTOOL_TRUE) {
       return CTOOL_ERR_OVERFLOW;
@@ -2617,31 +2636,35 @@ static ctool_status_t cemit_emit_structure_call(
     }
   }
   for (argument = 0u; status == CTOOL_OK &&
-                      argument < function_type->parameter_count;
+                      argument < instruction->argument_count;
        argument++) {
-    ctool_u32 parameter_type =
-        context->unit->graph
-            .parameter_types[function_type->first_parameter + argument];
-    ctool_u32 argument_size;
+    ctool_u32 parameter_type = CTOOL_C_TYPE_NONE;
+    ctool_u32 argument_size = 4u;
     ctool_u32 handle_offset;
-    status = cemit_ir_argument_size(context, parameter_type,
-                                    &argument_size);
+    if (argument < function_type->parameter_count) {
+      parameter_type =
+          context->unit->graph
+              .parameter_types[function_type->first_parameter + argument];
+      status = cemit_ir_argument_size(context, parameter_type,
+                                      &argument_size);
+    }
     if (status != CTOOL_OK ||
         cemit_multiply_overflows(
-            function_type->parameter_count - 1u - argument, 4u) ==
+            instruction->argument_count - 1u - argument, 4u) ==
             CTOOL_TRUE) {
       return status == CTOOL_OK ? CTOOL_ERR_OVERFLOW : status;
     }
     handle_offset =
-        (function_type->parameter_count - 1u - argument) * 4u;
+        (instruction->argument_count - 1u - argument) * 4u;
     if (cemit_add_overflows(reserved_bytes, handle_offset) == CTOOL_TRUE) {
       return CTOOL_ERR_OVERFLOW;
     }
     handle_offset += reserved_bytes;
     status = cemit_x86_load_stack(context, 2u, handle_offset);
     if (status == CTOOL_OK &&
-        cemit_ir_type_is_represented_scalar(context, parameter_type) ==
-            CTOOL_TRUE) {
+        (argument >= function_type->parameter_count ||
+         cemit_ir_type_is_represented_scalar(context, parameter_type) ==
+             CTOOL_TRUE)) {
       status = cemit_x86_store_stack(context, destination_offset, 2u);
     } else if (status == CTOOL_OK) {
       status = cemit_x86_lea_stack(context, 0u, destination_offset);
@@ -2664,15 +2687,15 @@ static ctool_status_t cemit_emit_structure_call(
   }
   if (direct == CTOOL_FALSE) {
     ctool_u32 callee_offset;
-    if (cemit_multiply_overflows(function_type->parameter_count, 4u) ==
+    if (cemit_multiply_overflows(instruction->argument_count, 4u) ==
             CTOOL_TRUE ||
         cemit_add_overflows(reserved_bytes,
-                            function_type->parameter_count * 4u) ==
+                            instruction->argument_count * 4u) ==
             CTOOL_TRUE) {
       return CTOOL_ERR_OVERFLOW;
     }
     callee_offset =
-        reserved_bytes + function_type->parameter_count * 4u;
+        reserved_bytes + instruction->argument_count * 4u;
     status = cemit_x86_load_stack(context, 0u, callee_offset);
     if (status == CTOOL_OK) {
       status = cemit_x86_call_register(context, 0u);
@@ -2728,7 +2751,6 @@ static ctool_status_t cemit_emit_direct_call(
       function_type == (const ctool_c_type_node_t *)0 ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
       function_type->has_prototype == CTOOL_FALSE ||
-      function_type->variadic == CTOOL_TRUE ||
       function_type->referenced_type != instruction->type ||
       function_type->first_parameter >
           context->unit->graph.parameter_type_count ||
@@ -2736,6 +2758,8 @@ static ctool_status_t cemit_emit_direct_call(
           context->unit->graph.parameter_type_count -
               function_type->first_parameter ||
       function_type->parameter_count > 0x1fffffffu ||
+      cemit_call_argument_count_is_valid(function_type, instruction) ==
+          CTOOL_FALSE ||
       (cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE &&
        cemit_ir_type_is_represented_scalar(context, instruction->type) ==
            CTOOL_FALSE &&
@@ -2774,11 +2798,11 @@ static ctool_status_t cemit_emit_direct_call(
         temporary_offset, frame_size, stack_depth);
   }
   for (argument = 0u; status == CTOOL_OK &&
-                      argument < function_type->parameter_count / 2u;
+                      argument < instruction->argument_count / 2u;
        argument++) {
     ctool_u32 low_offset = argument * 4u;
     ctool_u32 high_offset =
-        (function_type->parameter_count - 1u - argument) * 4u;
+        (instruction->argument_count - 1u - argument) * 4u;
     status = cemit_x86_load_stack(context, 1u, high_offset);
     if (status == CTOOL_OK) {
       status = cemit_x86_load_stack(context, 2u, low_offset);
@@ -2793,7 +2817,7 @@ static ctool_status_t cemit_emit_direct_call(
   if (status != CTOOL_OK) {
     return status;
   }
-  argument_bytes = function_type->parameter_count * 4u;
+  argument_bytes = instruction->argument_count * 4u;
   status = cemit_call_stack_padding(frame_size, stack_depth, 0u,
                                     &padding);
   if (status == CTOOL_OK) {
@@ -2847,7 +2871,6 @@ static ctool_status_t cemit_emit_indirect_call(
       function_type == (const ctool_c_type_node_t *)0 ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
       function_type->has_prototype == CTOOL_FALSE ||
-      function_type->variadic == CTOOL_TRUE ||
       function_type->referenced_type != instruction->type ||
       function_type->first_parameter >
           context->unit->graph.parameter_type_count ||
@@ -2855,6 +2878,8 @@ static ctool_status_t cemit_emit_indirect_call(
           context->unit->graph.parameter_type_count -
               function_type->first_parameter ||
       function_type->parameter_count > 0x1fffffffu ||
+      cemit_call_argument_count_is_valid(function_type, instruction) ==
+          CTOOL_FALSE ||
       (cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE &&
        cemit_ir_type_is_represented_scalar(context, instruction->type) ==
            CTOOL_FALSE &&
@@ -2891,11 +2916,11 @@ static ctool_status_t cemit_emit_indirect_call(
         stack_depth);
   }
   for (argument = 0u; status == CTOOL_OK &&
-                      argument < function_type->parameter_count / 2u;
+                      argument < instruction->argument_count / 2u;
        argument++) {
     ctool_u32 low_offset = argument * 4u;
     ctool_u32 high_offset =
-        (function_type->parameter_count - 1u - argument) * 4u;
+        (instruction->argument_count - 1u - argument) * 4u;
     status = cemit_x86_load_stack(context, 1u, high_offset);
     if (status == CTOOL_OK) {
       status = cemit_x86_load_stack(context, 2u, low_offset);
@@ -2907,7 +2932,7 @@ static ctool_status_t cemit_emit_indirect_call(
       status = cemit_x86_store_stack(context, low_offset, 1u);
     }
   }
-  argument_bytes = function_type->parameter_count * 4u;
+  argument_bytes = instruction->argument_count * 4u;
   if (status == CTOOL_OK) {
     status = cemit_call_stack_padding(frame_size, stack_depth, 0u,
                                       &padding);
@@ -2957,6 +2982,11 @@ static ctool_status_t cemit_emit_ir_instruction(
     ctool_u32 frame_size, ctool_u32 stack_depth,
     ctool_u32 *branch_patches, ctool_u32 *branch_afters) {
   ctool_status_t status;
+  if (ir_instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+      ir_instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT &&
+      ir_instruction->argument_count != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS) {
     ctool_u32 relative_parameter;
     ctool_u32 parameter_offset;
@@ -4286,11 +4316,13 @@ static ctool_status_t cemit_ir_stack_effect(
       }
       if (call_type == (const ctool_c_type_node_t *)0 ||
           call_type->kind != CTOOL_C_TYPE_FUNCTION ||
-          cemit_add_overflows(consumed, call_type->parameter_count) ==
+          cemit_call_argument_count_is_valid(call_type, instruction) ==
+              CTOOL_FALSE ||
+          cemit_add_overflows(consumed, instruction->argument_count) ==
               CTOOL_TRUE) {
         return CTOOL_ERR_INTERNAL;
       }
-      consumed += call_type->parameter_count;
+      consumed += instruction->argument_count;
       produced = cemit_ir_type_is_void(context, instruction->type) ==
                          CTOOL_TRUE
                      ? 0u
