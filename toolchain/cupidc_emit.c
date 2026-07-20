@@ -2589,11 +2589,15 @@ static ctool_bool cemit_call_argument_count_is_valid(
   return function_type != (const ctool_c_type_node_t *)0 &&
                  instruction != (const ctool_c_ir_instruction_t *)0 &&
                  function_type->kind == CTOOL_C_TYPE_FUNCTION &&
-                 instruction->argument_count >=
-                     function_type->parameter_count &&
-                 (function_type->variadic == CTOOL_TRUE ||
-                  instruction->argument_count ==
-                      function_type->parameter_count) &&
+                 ((function_type->has_prototype == CTOOL_TRUE &&
+                   instruction->argument_count >=
+                       function_type->parameter_count &&
+                   (function_type->variadic == CTOOL_TRUE ||
+                    instruction->argument_count ==
+                        function_type->parameter_count)) ||
+                  (function_type->has_prototype == CTOOL_FALSE &&
+                   function_type->parameter_count == 0u &&
+                   function_type->variadic == CTOOL_FALSE)) &&
                  instruction->argument_count <= 0x1fffffffu
              ? CTOOL_TRUE
              : CTOOL_FALSE;
@@ -2793,7 +2797,6 @@ static ctool_status_t cemit_emit_direct_call(
       binding->type != instruction->input_type ||
       function_type == (const ctool_c_type_node_t *)0 ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
-      function_type->has_prototype == CTOOL_FALSE ||
       function_type->referenced_type != instruction->type ||
       function_type->first_parameter >
           context->unit->graph.parameter_type_count ||
@@ -2913,7 +2916,6 @@ static ctool_status_t cemit_emit_indirect_call(
           context, instruction->input_type) == CTOOL_FALSE ||
       function_type == (const ctool_c_type_node_t *)0 ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
-      function_type->has_prototype == CTOOL_FALSE ||
       function_type->referenced_type != instruction->type ||
       function_type->first_parameter >
           context->unit->graph.parameter_type_count ||

@@ -267,13 +267,14 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * CALL_DIRECT consumes its arguments after they have been evaluated in source
  * order. CALL_INDIRECT also consumes the function pointer below those
  * arguments. The instruction retains the actual argument count, including
- * variadic arguments after the frontend applies the represented default
- * promotions. Argument zero is deepest among the arguments, and the final
- * argument is on top. Each argument occupies one abstract stack entry. The
- * i386 emitter gives scalar arguments one four-byte slot and copies structure
- * named arguments inline, rounded up to four bytes. Ellipsis arguments are
- * limited to represented four-byte scalar values. A structure result uses a
- * hidden pointer before the explicit arguments. The callee copies into that
+ * variadic and unprototyped arguments after the frontend applies the
+ * represented default promotions. Argument zero is deepest among the
+ * arguments, and the final argument is on top. Each argument occupies one
+ * abstract stack entry. The i386 emitter gives scalar arguments one four-byte
+ * slot and copies named structure arguments inline, rounded up to four bytes.
+ * Arguments without declared parameter types are limited to represented
+ * four-byte scalar values. A structure result uses a hidden pointer before the
+ * explicit arguments. The callee copies into that
  * storage, returns its address in EAX, and removes the hidden pointer with
  * RET 4. Either call pushes one result unless its result type is void. Narrow
  * caller and callee results are normalized from the declared AL or AX lane.

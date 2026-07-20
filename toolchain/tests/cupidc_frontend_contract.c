@@ -3741,7 +3741,8 @@ static int run_function_bodies(const char *host_root) {
         "void bad(float value) { variadic(1, value); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        2u, 37u,
-       "floating variadic arguments require default promotion to double"},
+       "floating arguments governed by default argument promotions require "
+       "double support"},
       {{"incompatible call argument",
         "void pointer(const char *value);\n"
         "void bad(unsigned int value) { pointer(value); }\n",
@@ -4772,12 +4773,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4791u,
-       41625u, 591u, 193u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4788u,
+       41649u, 591u, 193u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 121u, 3098u,
-       27724u, 414u, 207u, 0u, 0u},
+       27740u, 414u, 207u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 291u,
-       11137u, 71173u, 1652u, 1158u, 0u, 0u}};
+       11134u, 71209u, 1652u, 1158u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -19524,6 +19525,250 @@ cleanup:
   return failed;
 }
 
+static int validate_old_style_empty_definition_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *binding = find_binding(unit, "tick");
+  const ctool_c_function_definition_t *definition =
+      find_function_definition(unit, "tick");
+  const ctool_c_function_definition_t *caller =
+      find_function_definition(unit, "invoke");
+  const ctool_c_type_node_t *function =
+      definition == NULL
+          ? NULL
+          : unwrapped_type_node(unit, definition->declared_type);
+  const ctool_c_statement_t *body =
+      definition != NULL && definition->body < unit->statement_count
+          ? &unit->statements[definition->body]
+          : NULL;
+  ctool_u32 return_index =
+      body != NULL && body->first_child < unit->statement_child_count
+          ? unit->statement_children[body->first_child]
+          : CTOOL_C_AST_NONE;
+  const ctool_c_statement_t *return_statement =
+      return_index < unit->statement_count ? &unit->statements[return_index]
+                                           : NULL;
+  const ctool_c_expression_t *constant =
+      return_statement != NULL &&
+              return_statement->expression < unit->expression_count
+          ? &unit->expressions[return_statement->expression]
+          : NULL;
+  const ctool_c_expression_t *call = NULL;
+  const ctool_c_expression_t *callee_conversion = NULL;
+  const ctool_c_expression_t *callee_identifier = NULL;
+  ctool_u32 expression_index;
+  ctool_u32 nonprototype_calls = 0u;
+  ctool_u32 zero_argument_calls = 0u;
+  ctool_u32 promoted_direct_calls = 0u;
+  ctool_u32 promoted_indirect_calls = 0u;
+
+  for (expression_index = 0u; expression_index < unit->expression_count;
+       expression_index++) {
+    const ctool_c_expression_t *candidate =
+        &unit->expressions[expression_index];
+    if (candidate->kind == CTOOL_C_EXPRESSION_CALL &&
+        candidate->child_count != 0u) {
+      ctool_u32 callee_index = expression_child(unit, candidate, 0u);
+      const ctool_c_expression_t *candidate_callee =
+          callee_index < unit->expression_count
+              ? &unit->expressions[callee_index]
+              : NULL;
+      const ctool_c_type_node_t *pointer =
+          candidate_callee == NULL
+              ? NULL
+              : unwrapped_type_node(unit, candidate_callee->type);
+      const ctool_c_type_node_t *called_function =
+          pointer != NULL && pointer->kind == CTOOL_C_TYPE_POINTER
+              ? unwrapped_type_node(unit, pointer->referenced_type)
+              : NULL;
+      if (called_function == NULL ||
+          called_function->kind != CTOOL_C_TYPE_FUNCTION ||
+          called_function->has_prototype != CTOOL_FALSE) {
+        continue;
+      }
+      nonprototype_calls++;
+      if (candidate->child_count == 1u) {
+        zero_argument_calls++;
+        call = candidate;
+      } else if (candidate->child_count == 4u) {
+        const ctool_c_expression_t *small =
+            &unit->expressions[expression_child(unit, candidate, 1u)];
+        const ctool_c_expression_t *pointer_argument =
+            &unit->expressions[expression_child(unit, candidate, 2u)];
+        const ctool_c_expression_t *function_argument =
+            &unit->expressions[expression_child(unit, candidate, 3u)];
+        if (candidate_callee->kind ==
+                CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+            candidate_callee->conversion ==
+                CTOOL_C_CONVERSION_FUNCTION_TO_POINTER &&
+            small->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+            small->conversion == CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+            underlying_type_kind(unit, small->type, NULL) ==
+                CTOOL_C_TYPE_SIGNED_INT &&
+            pointer_argument->kind ==
+                CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+            pointer_argument->conversion ==
+                CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
+            function_argument->kind ==
+                CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+            function_argument->conversion ==
+                CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) {
+          promoted_direct_calls++;
+        }
+      } else if (candidate->child_count == 2u) {
+        const ctool_c_expression_t *small =
+            &unit->expressions[expression_child(unit, candidate, 1u)];
+        if (candidate_callee->kind ==
+                CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+            candidate_callee->conversion ==
+                CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
+            small->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+            small->conversion == CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+            underlying_type_kind(unit, small->type, NULL) ==
+                CTOOL_C_TYPE_SIGNED_INT) {
+          promoted_indirect_calls++;
+        }
+      }
+    }
+  }
+  if (call != NULL && call->child_count == 1u &&
+      call->first_child < unit->expression_child_count) {
+    ctool_u32 conversion_index =
+        unit->expression_children[call->first_child];
+    if (conversion_index < unit->expression_count) {
+      callee_conversion = &unit->expressions[conversion_index];
+    }
+  }
+  if (callee_conversion != NULL && callee_conversion->child_count == 1u &&
+      callee_conversion->first_child < unit->expression_child_count) {
+    ctool_u32 identifier_index =
+        unit->expression_children[callee_conversion->first_child];
+    if (identifier_index < unit->expression_count) {
+      callee_identifier = &unit->expressions[identifier_index];
+    }
+  }
+  return binding != NULL && binding->kind == CTOOL_C_BINDING_FUNCTION &&
+                 binding->storage == CTOOL_C_STORAGE_STATIC &&
+                 definition != NULL &&
+                 definition->storage == CTOOL_C_STORAGE_STATIC &&
+                 function != NULL && function->kind == CTOOL_C_TYPE_FUNCTION &&
+                 function->has_prototype == CTOOL_FALSE &&
+                 function->variadic == CTOOL_FALSE &&
+                 function->parameter_count == 0u &&
+                 unit->parameter_count == 4u &&
+                 underlying_type_kind(unit, function->referenced_type, NULL) ==
+                     CTOOL_C_TYPE_SIGNED_INT &&
+                 body != NULL && body->kind == CTOOL_C_STATEMENT_COMPOUND &&
+                 body->child_count == 1u &&
+                 return_statement != NULL &&
+                 return_statement->kind == CTOOL_C_STATEMENT_RETURN &&
+                 constant != NULL &&
+                 constant->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+                 constant->integer_bits == 37u &&
+                 caller != NULL && call != NULL &&
+                 underlying_type_kind(unit, call->type, NULL) ==
+                     CTOOL_C_TYPE_SIGNED_INT &&
+                 callee_conversion != NULL &&
+                 callee_conversion->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 callee_conversion->conversion ==
+                     CTOOL_C_CONVERSION_FUNCTION_TO_POINTER &&
+                 callee_identifier != NULL &&
+                 callee_identifier->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+                 callee_identifier->reference < unit->binding_count &&
+                 &unit->bindings[callee_identifier->reference] == binding &&
+                 nonprototype_calls == 3u && zero_argument_calls == 1u &&
+                 promoted_direct_calls == 1u &&
+                 promoted_indirect_calls == 1u &&
+                 dual_location_matches(&definition->location,
+                                       &definition->physical_location,
+                                       "/old-style-empty-functions.c", 3u)
+             ? 0
+             : 1;
+}
+
+static int run_old_style_empty_functions(const char *host_root) {
+  static const char source[] =
+      "extern int consume();\n"
+      "static int tick();\n"
+      "static int tick()\n"
+      "{\n"
+      "  return 37;\n"
+      "}\n"
+      "static int invoke(void)\n"
+      "{\n"
+      "  return tick();\n"
+      "}\n"
+      "static int invoke_promoted(signed char small, int *pointer)\n"
+      "{\n"
+      "  return consume(small, pointer, tick);\n"
+      "}\n"
+      "static int invoke_indirect(int (*callee)(), unsigned short small)\n"
+      "{\n"
+      "  return callee(small);\n"
+      "}\n";
+  static const frontend_exact_failure_case_t floating_failure = {
+      {"floating non-prototype argument promotion boundary",
+       "extern int sink();\n"
+       "int bad(float value) { return sink(value); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      2u, 36u,
+      "floating arguments governed by default argument promotions require "
+      "double support"};
+  static const frontend_exact_failure_case_t identifier_list_failure = {
+      {"nonempty old-style function identifier list",
+       "int legacy(value)\n"
+       "int value;\n"
+       "{\n"
+       "  return value;\n"
+       "}\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_DECLARATOR},
+      1u, 12u,
+      "old-style function identifier lists are outside this declarator "
+      "slice"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "old-style-empty-functions", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(&fixture, "/old-style-empty-functions.c", source,
+                          &unit) != 0 ||
+      validate_old_style_empty_definition_unit(&unit) != 0) {
+    (void)fprintf(stderr,
+                  "old-style-empty-functions: public graph differs\n");
+    goto cleanup;
+  }
+  if (expect_frontend_failure_at_message(
+          &fixture, &floating_failure.failure,
+          "/old-style-empty-function-failure.c", floating_failure.line,
+          floating_failure.column, floating_failure.message) != 0 ||
+      validate_old_style_empty_definition_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  if (expect_frontend_failure_at_message(
+          &fixture, &identifier_list_failure.failure,
+          "/old-style-identifier-list-failure.c",
+          identifier_list_failure.line, identifier_list_failure.column,
+          identifier_list_failure.message) != 0 ||
+      validate_old_style_empty_definition_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("old-style-empty-functions: ok\n");
+  }
+  return failed;
+}
+
 static int variadic_cursor_child_is(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_expression_t *expression, ctool_u32 child_offset,
@@ -19876,12 +20121,12 @@ static int run_variadic_callees(const char *host_root) {
     goto cleanup;
   }
   if (expect_loaded_frontend_failure(
-          &fixture, "/kernel/doom/src/d_main.c", CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION,
-          "/kernel/doom/src/d_main.c",
-          405u, 6u,
-          "old-style function definitions are outside this body slice") !=
-      0) {
+           &fixture, "/kernel/doom/src/d_main.c", CTOOL_ERR_UNSUPPORTED,
+           CTOOL_C_PARSE_DIAG_STATEMENT,
+           "/kernel/doom/src/d_main.c",
+           689u, 18u,
+           "block tag specifiers are outside this body slice") !=
+       0) {
     goto cleanup;
   }
   fixture.pp_request.forced_include_count = 0u;
@@ -19906,7 +20151,8 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
-                   "function-bodies|variadic-callees|block-bindings|"
+                   "function-bodies|old-style-empty-functions|"
+                   "variadic-callees|block-bindings|"
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
@@ -19940,6 +20186,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "function-bodies") == 0) {
     return run_function_bodies(argv[2]);
+  }
+  if (strcmp(argv[1], "old-style-empty-functions") == 0) {
+    return run_old_style_empty_functions(argv[2]);
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

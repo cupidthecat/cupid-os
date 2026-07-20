@@ -4976,3 +4976,50 @@ This remains hosted bootstrap evidence. GCC or Clang still builds the shared com
 ADR 0055, ADR 0054, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material. The requirements and existing i386 ABI were sufficient, so no user question was needed.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. The next measured Doom blocker is old-style function definitions. Atomic variadic access, floating and wider runtime values, aggregate variadic transport, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap also remain. No issue is ready to close from this increment.
+
+## 2026-07-20: CupidC lowers empty identifier-list functions
+
+### Decision and active requirement
+
+Hosted CupidC now accepts a function definition written with an empty identifier list. The definition has no parameters, but its function type deliberately remains a type without a prototype. This distinction moves the exact Doom profile past the unchanged `void doomgeneric_Tick()` definition at `kernel/doom/src/d_main.c:405` without changing Doom or treating `()` as `(void)`.
+
+A call through a function type without a prototype may carry any number of arguments. The frontend applies the default argument promotions to every actual argument. Narrow integers promote to target `int`, lvalues undergo lvalue conversion, and arrays and functions decay to pointers. Fixed prototype parameters still use assignment conversion, and only an ellipsis uses default promotions in a variadic prototype.
+
+Linear IR keeps the actual argument count on direct and indirect calls. A canonical function type without a prototype has no declared parameter records and is not variadic, so every actual argument follows the existing path for a value without a declared parameter type. That path currently accepts represented four-byte integers and pointers. A structure argument stops with a focused ABI diagnostic, while a floating argument stops in the frontend because the required promotion to `double` is not represented.
+
+The i386 emitter uses the actual count for reverse argument placement, indirect-callee preservation, sixteen-byte call alignment, stack effects, and caller cleanup. Empty identifier-list definitions use the ordinary represented zero-parameter frame. Nonempty identifier lists remain unsupported and receive their own declarator diagnostic instead of being confused with the supported empty form.
+
+Normalizing `()` to a `void` prototype was rejected because later declarations and calls would observe the wrong C type. Deriving a zero-argument call from the definition was rejected because a type without a prototype does not declare an arity. Passing narrow values as raw words was rejected because it would skip the required integer promotions and could expose stale high bits. ADR 0056 records the chosen boundary and its ABI consequences.
+
+### Contract evidence and corrections
+
+- The frontend contract first reached the former blanket rejection for calls without prototypes. The final positive fixture defines and calls `tick()`, calls an external unprototyped function with a promoted signed character, a pointer lvalue, and a function designator, and calls an unprototyped function pointer with a promoted unsigned short. Focused negatives cover the missing `double` promotion and a nonempty identifier list, with rollback, prior-unit preservation, and same-job recovery.
+- The IR layer then rejected the newly valid calls because it still required a prototype. Its final contract publishes four functions and 20 instructions. It pins actual counts of zero, three, and one, two narrow integer promotions, function address and decay, exact stack depths, and transactional rejection of a structure argument without a declared parameter type.
+- The emitter initially derived call shape from the declared zero-parameter slice. It now validates the canonical non-prototype type and uses the actual count. Repeat emission produces the same ELF32 bytes.
+- The first object proof pinned bytes, relocations, and alignment but did not independently prove the promoted values or cleanup it described. Spec review caught that gap. The final source passes three distinct constants through both direct and indirect unprototyped calls. A symbolic decoder checks their cdecl order, preserves the indirect callee below them, and requires cleanup to consume the callee, all actual arguments, and padding. The object has 181 text bytes, five named symbols, two direct-call relocations, and FNV fingerprint `898EBD57`.
+- The first combined Python run found exact inventory assertions left at the preceding source totals. The active-source audit already exposed the new counts. The assertions and generated records were updated together, and the complete focused set then passed.
+- The in-app browser backend was unavailable for the final GUI check. The repository's own `gui_terminal_smoke.py` harness booted the rebuilt image directly, opened the terminal, and ran `/bin/ls.cc` with the established 0.60-second key timing. This is the recorded runtime evidence; no browser result is claimed.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 158/4,788/41,649/591/193; `cupidc_emit.c` has 121/3,098/27,740/414/207; and `cupidc_frontend.c` has 291/11,134/71,209/1,652/1,158. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,164 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,521 `while`, 1,731 `break`, 971 `continue`, 26,747 `if`, 3,659 `else`, 3,162 `for`, 16,358 `return`, and 3,370 `sizeof` occurrences. The active-source digest is `7d647d0a1bfe13e0af22a800b4c11c95ab668980afb45840f9daf0f257b3327d`; the complete audit JSON has SHA-256 `5f80f4c1d8be09fb265691cfc341f8f2a191fda5aa9ea64471d6f2f172ef8154`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red contracts | PASS | The frontend exposed its blanket unprototyped-call rejection, IR then rejected the new call form, and the object contract initially failed while emission still used the declared zero-parameter slice. The strengthened ABI oracle also failed against its stale byte and relocation expectations before the final values were pinned. |
+| Focused CupidC modules | PASS | Frontend, IR, and object modules pass all 91 tests in 23.483 seconds. |
+| Windows hosted Toolchain | PASS | The complete hosted suite passes every mode and all 22 assembly demos in 30.7 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted suite in 72.1 and 71.3 seconds. Both compilers rebuild and pass the final strengthened object mode in 3.8 and 4.7 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang ASan and UBSan builds pass the complete hosted suite in 192.6 and 221.2 seconds with leak detection and halt-on-error enabled. The amended object mode passes again in 16.0 and 13.4 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze -analyzer-werror` report no diagnostics across the three implementations and three C contracts in 627.1 and 160.0 seconds. Both analyzers also pass the final amended object contract in 19.1 and 17.0 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 37.8 seconds, and `make check-bootstrap-audit` reproduces them in 37.6 seconds. |
+| Full repository gate | PASS | `make test` passes 333 tests in 472.918 seconds with one expected platform skip; Make returns in 510.2 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the production image in 21.2 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` successfully in 19.8 seconds. |
+| Two-axis review | PASS AFTER ORACLE AND RECORD CORRECTIONS | Standards re-review finds no hard violation. Spec re-review finds no remaining mismatch, overclaim, scope creep, or false completion claim after the ABI oracle and two stale inventory totals were corrected. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and normal C objects. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, while the private in-kernel compiler remains the embedded JIT and AOT path.
+
+ADR 0056, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the new capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material. C function-type semantics, the existing i386 cdecl contract, and the measured active-source frontier determined this slice, so no user question was needed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. The exact Doom profile now reaches the anonymous block-scope `struct` at `kernel/doom/src/d_main.c:689`. Block tag specifiers, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, aggregate arguments without declared parameter types, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

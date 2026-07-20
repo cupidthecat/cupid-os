@@ -8951,7 +8951,7 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only prototyped calls with "
+          "CupidC IR lowering supports calls with "
           "represented scalar or structure arguments and void, scalar, or "
           "structure results",
           "wide direct call")) {
@@ -8973,8 +8973,8 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &variadic_structure_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports variadic arguments only for "
-          "represented scalar values",
+          "CupidC IR lowering supports arguments without declared parameter "
+          "types only for represented scalar values",
           "variadic structure argument")) {
     goto cleanup;
   }
@@ -8997,9 +8997,9 @@ static int run_active_leaf(const char *host_root) {
       !expect_ir_failure(
           job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only prototyped cdecl functions "
-          "with represented scalar or structure parameters and void, scalar, "
-          "or structure results",
+          "CupidC IR lowering supports cdecl functions with represented "
+          "scalar or structure parameters and void, scalar, or structure "
+          "results",
           "unsupported ABI")) {
     goto cleanup;
   }
@@ -12379,7 +12379,7 @@ static int run_function_pointers(const char *host_root) {
                     wide_function_pointer_source, &wide_unit) ||
       !expect_ir_failure_preserves_unit(
           job, &wide_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only prototyped calls with "
+          "CupidC IR lowering supports calls with "
           "represented scalar or structure arguments and void, scalar, or "
           "structure results",
           "wide indirect call")) {
@@ -15971,9 +15971,9 @@ static int run_structure_values(const char *host_root) {
       !expect_ir_failure_preserves_unit(
           job, &union_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports only prototyped cdecl "
-          "functions with represented scalar or structure parameters and "
-          "void, scalar, or structure results",
+          "CupidC IR lowering supports cdecl functions with represented "
+          "scalar or structure parameters and void, scalar, or structure "
+          "results",
           "union value ABI") ||
       !parse_source(job, "/volatile-structure-value.c", volatile_source,
                     &volatile_unit) ||
@@ -17276,6 +17276,205 @@ static int variadic_ir_instruction_is(
              : 0;
 }
 
+static int validate_old_style_empty_ir(const ctool_c_translation_unit_t *unit,
+                                       const ctool_c_ir_unit_t *ir) {
+  ctool_u32 tick = find_binding(unit, "tick");
+  ctool_u32 invoke = find_binding(unit, "invoke");
+  ctool_u32 consume = find_binding(unit, "consume");
+  ctool_u32 promoted = find_binding(unit, "invoke_promoted");
+  ctool_u32 indirect = find_binding(unit, "invoke_indirect");
+  const ctool_c_function_definition_t *tick_definition =
+      unit->function_definition_count == 4u
+          ? &unit->function_definitions[0]
+          : NULL;
+  const ctool_c_function_definition_t *invoke_definition =
+      unit->function_definition_count == 4u
+          ? &unit->function_definitions[1]
+          : NULL;
+  const ctool_c_type_node_t *tick_type =
+      tick_definition != NULL &&
+              tick_definition->declared_type < unit->graph.type_count
+          ? &unit->graph.types[tick_definition->declared_type]
+          : NULL;
+  const ctool_c_ir_instruction_t *instructions = ir->instructions;
+  ctool_u32 result_type;
+  ctool_u32 direct_zero_calls = 0u;
+  ctool_u32 direct_promoted_calls = 0u;
+  ctool_u32 indirect_promoted_calls = 0u;
+  ctool_u32 integer_promotions = 0u;
+  ctool_u32 function_addresses = 0u;
+  ctool_u32 function_decays = 0u;
+  ctool_u32 instruction;
+  ctool_u32 function_index;
+
+  if (tick == CTOOL_C_AST_NONE || invoke == CTOOL_C_AST_NONE ||
+      consume == CTOOL_C_AST_NONE || promoted == CTOOL_C_AST_NONE ||
+      indirect == CTOOL_C_AST_NONE ||
+      tick_definition == NULL || invoke_definition == NULL ||
+      tick_definition->binding != tick || invoke_definition->binding != invoke ||
+      tick_type == NULL || tick_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      tick_type->has_prototype != CTOOL_FALSE ||
+      tick_type->parameter_count != 0u || tick_type->variadic != CTOOL_FALSE ||
+      ir->function_count != 4u || ir->instruction_count != 20u ||
+      ir->functions == NULL || instructions == NULL) {
+    return 0;
+  }
+  result_type = tick_type->referenced_type;
+  for (function_index = 0u; function_index < ir->function_count;
+       function_index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    if ((function->binding == tick || function->binding == invoke) &&
+        function->maximum_stack_depth != 1u) {
+      return 0;
+    }
+    if (function->binding == promoted && function->maximum_stack_depth != 3u) {
+      return 0;
+    }
+    if (function->binding == indirect && function->maximum_stack_depth != 2u) {
+      return 0;
+    }
+  }
+  for (instruction = 0u; instruction < ir->instruction_count; instruction++) {
+    const ctool_c_ir_instruction_t *candidate = &instructions[instruction];
+    if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+        candidate->reference == tick && candidate->argument_count == 0u) {
+      direct_zero_calls++;
+    } else if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+               candidate->reference == consume &&
+               candidate->argument_count == 3u) {
+      direct_promoted_calls++;
+    } else if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT &&
+               candidate->argument_count == 1u) {
+      indirect_promoted_calls++;
+    } else if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               candidate->conversion == CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+               candidate->type == result_type) {
+      integer_promotions++;
+    } else if (candidate->kind == CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS &&
+               candidate->reference == tick) {
+      function_addresses++;
+    } else if (candidate->kind ==
+               CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER) {
+      function_decays++;
+    }
+  }
+  return ir->functions[0].binding == tick &&
+                 ir->functions[0].declared_type ==
+                     tick_definition->declared_type &&
+                 ir->functions[0].first_instruction == 0u &&
+                 ir->functions[0].instruction_count == 2u &&
+                 ir->functions[0].maximum_stack_depth == 1u &&
+                 ir->functions[1].binding == invoke &&
+                 ir->functions[1].declared_type ==
+                     invoke_definition->declared_type &&
+                 ir->functions[1].first_instruction == 2u &&
+                 ir->functions[1].instruction_count == 2u &&
+                 ir->functions[1].maximum_stack_depth == 1u &&
+                 instructions[0].kind == CTOOL_C_IR_INSTRUCTION_INTEGER &&
+                 instructions[0].type == result_type &&
+                 instructions[0].input_type == CTOOL_C_TYPE_NONE &&
+                 instructions[0].argument_count == 0u &&
+                 instructions[0].reference == CTOOL_C_AST_NONE &&
+                 instructions[0].integer_bits == 37u &&
+                 instructions[1].kind ==
+                     CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+                 instructions[1].type == result_type &&
+                 instructions[1].input_type == result_type &&
+                 instructions[1].argument_count == 0u &&
+                 instructions[2].kind ==
+                     CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+                 instructions[2].type == result_type &&
+                 instructions[2].input_type == unit->bindings[tick].type &&
+                 instructions[2].argument_count == 0u &&
+                 instructions[2].reference == tick &&
+                 instructions[3].kind ==
+                     CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+                 instructions[3].type == result_type &&
+                 instructions[3].input_type == result_type &&
+                 instructions[3].argument_count == 0u &&
+                 direct_zero_calls == 1u && direct_promoted_calls == 1u &&
+                 indirect_promoted_calls == 1u && integer_promotions == 2u &&
+                 function_addresses == 1u && function_decays == 1u &&
+                 string_equal(instructions[0].location.path,
+                              "/old-style-empty-ir.c") &&
+                 string_equal(instructions[2].location.path,
+                              "/old-style-empty-ir.c")
+             ? 1
+             : 0;
+}
+
+static int run_old_style_empty_functions(const char *host_root) {
+  static const char source[] =
+      "extern int consume();\n"
+      "static int tick();\n"
+      "static int tick()\n"
+      "{\n"
+      "  return 37;\n"
+      "}\n"
+      "static int invoke(void)\n"
+      "{\n"
+      "  return tick();\n"
+      "}\n"
+      "static int invoke_promoted(signed char small, int *pointer)\n"
+      "{\n"
+      "  return consume(small, pointer, tick);\n"
+      "}\n"
+      "static int invoke_indirect(int (*callee)(), unsigned short small)\n"
+      "{\n"
+      "  return callee(small);\n"
+      "}\n";
+  static const char aggregate_source[] =
+      "typedef struct { int value; } box_t;\n"
+      "extern int consume();\n"
+      "int bad(box_t box) { return consume(box); }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t aggregate_unit;
+  ctool_c_ir_unit_t ir;
+  uint64_t fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/old-style-empty-ir.c", source, CTOOL_FALSE,
+                         &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "old-style empty function lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_old_style_empty_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source_mode(job, "/old-style-aggregate-ir.c", aggregate_source,
+                         CTOOL_FALSE, &aggregate_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &aggregate_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports arguments without declared parameter "
+          "types only for represented scalar values",
+          "old-style aggregate argument")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("old-style-empty-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_variadic_callee_ir(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
@@ -17696,6 +17895,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "compound-literals") == 0) {
     return run_compound_literals(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "old-style-empty-functions") == 0) {
+    return run_old_style_empty_functions(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);
   }
@@ -17715,7 +17917,7 @@ int main(int argc, char **argv) {
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|structure-values|compound-literals|"
-                "variadic-callees|"
+                "old-style-empty-functions|variadic-callees|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;

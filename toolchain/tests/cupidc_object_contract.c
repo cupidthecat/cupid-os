@@ -14071,6 +14071,207 @@ static int validate_variadic_callee_object(
              : 0;
 }
 
+static int validate_old_style_empty_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *tick = find_symbol(object, "tick");
+  const ctool_elf32_symbol_t *invoke = find_symbol(object, "invoke");
+  const ctool_elf32_symbol_t *consume = find_symbol(object, "consume");
+  const ctool_elf32_symbol_t *promoted =
+      find_symbol(object, "invoke_promoted");
+  const ctool_elf32_symbol_t *indirect =
+      find_symbol(object, "invoke_indirect");
+  ctool_u32 cursor;
+  ctool_u32 call_offset = CTOOL_C_AST_NONE;
+  ctool_u32 calls = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 tick_calls = 0u;
+  ctool_u32 consume_calls = 0u;
+  ctool_u32 relocation;
+
+  if (text == NULL || rel_text == NULL || tick == NULL || invoke == NULL ||
+      consume == NULL || promoted == NULL || indirect == NULL ||
+      text->contents.data == NULL || object->symbol_count != 6u ||
+      object->relocation_count != 2u || object->relocations == NULL ||
+      text->relocation_first != 0u || text->relocation_count != 2u ||
+      text->contents.size != 181u ||
+      structure_text_fingerprint(text->contents) != 0x898ebd57u ||
+      tick->size != 11u || invoke->size != 18u || promoted->size != 70u ||
+      indirect->size != 82u || tick->value != 0u ||
+      invoke->value != tick->size ||
+      promoted->value != invoke->value + invoke->size ||
+      indirect->value != promoted->value + promoted->size ||
+      indirect->size != text->contents.size - indirect->value ||
+      !symbol_matches(tick, 1u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      tick->size) ||
+      !symbol_matches(invoke, 2u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      invoke->value, invoke->size) ||
+      !symbol_matches(promoted, 3u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      promoted->value, promoted->size) ||
+      !symbol_matches(indirect, 4u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      indirect->value, indirect->size) ||
+      !symbol_matches(consume, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u) ||
+      !validate_call_alignment_function(job, text, invoke, 1u, 0u, 0u, 0u,
+                                        0u, "invoke") ||
+      !validate_call_alignment_function(job, text, promoted, 1u, 0u, 0u, 0u,
+                                        0u, "invoke_promoted") ||
+      !validate_call_alignment_function(job, text, indirect, 1u, 0u, 0u, 0u,
+                                        0u, "invoke_indirect") ||
+      !validate_call_alignment_arguments(
+          job, text, promoted, CTOOL_FALSE, "invoke_promoted") ||
+      !validate_call_alignment_arguments(
+          job, text, indirect, CTOOL_TRUE, "invoke_indirect")) {
+    return 0;
+  }
+  cursor = 0u;
+  while (cursor < invoke->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + invoke->value + cursor,
+        invoke->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      call_offset = invoke->value + cursor + 1u;
+      calls++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      returns++;
+    }
+    cursor += decoded.consumed;
+  }
+  for (relocation = 0u; relocation < object->relocation_count; relocation++) {
+    const ctool_elf32_relocation_t *entry = &object->relocations[relocation];
+    if (entry->relocation_section_file_index != rel_text->file_index ||
+        entry->entry_index != relocation ||
+        entry->target_section_file_index != text->file_index ||
+        entry->addend_known != CTOOL_TRUE) {
+      return 0;
+    }
+    if (entry->type == CTOOL_ELF32_R_386_PC32 && entry->addend == -4 &&
+        entry->symbol_file_index == tick->file_index &&
+        entry->offset == call_offset) {
+      tick_calls++;
+    } else if (entry->type == CTOOL_ELF32_R_386_PC32 &&
+               entry->addend == -4 &&
+               entry->symbol_file_index == consume->file_index) {
+      consume_calls++;
+    } else {
+      return 0;
+    }
+  }
+  return cursor == invoke->size && calls == 1u && returns == 1u &&
+                 call_offset != CTOOL_C_AST_NONE && tick_calls == 1u &&
+                 consume_calls == 1u
+             ? 1
+             : 0;
+}
+
+static int run_old_style_empty_object(const char *host_root) {
+  static const char source[] =
+      "extern int consume();\n"
+      "static int tick();\n"
+      "static int tick()\n"
+      "{\n"
+      "  return 37;\n"
+      "}\n"
+      "static int invoke(void)\n"
+      "{\n"
+      "  return tick();\n"
+      "}\n"
+      "static int invoke_promoted(void)\n"
+      "{\n"
+      "  return consume(0x11223344u, 0x55667788u, 0x99aabbccu);\n"
+      "}\n"
+      "static int invoke_indirect(int (*callee)())\n"
+      "{\n"
+      "  return callee(0x11223344u, 0x55667788u, 0x99aabbccu);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/old-style-empty-object.c", source,
+                         CTOOL_FALSE, &unit) ||
+      unit.function_definition_count != 4u) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "old-style empty object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first old-style empty object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat old-style empty object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data, first_bytes.size) != 0) {
+    (void)fprintf(stderr, "old-style empty object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/old-style-empty-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read old-style empty object") ||
+      !validate_old_style_empty_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("old-style-empty-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_variadic_callee_object(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
@@ -14242,6 +14443,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "compound-literals") == 0) {
     return run_compound_literal_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "old-style-empty-functions") == 0) {
+    return run_old_style_empty_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callee_object(argv[2]);
   }
@@ -14252,7 +14456,8 @@ int main(int argc, char **argv) {
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|narrow-mutations|narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
-                "compound-literals|variadic-callees "
+                "compound-literals|old-style-empty-functions|"
+                "variadic-callees "
                 "HOST_ROOT\n");
   return 2;
 }

@@ -3663,9 +3663,13 @@ static ctool_status_t cir_lower_call(
     return cir_invalid_unit(context, &expression->location);
   }
   argument_count = expression->child_count - 1u;
-  if (argument_count < function_type->parameter_count ||
-      (function_type->variadic == CTOOL_FALSE &&
-       argument_count != function_type->parameter_count)) {
+  if ((function_type->has_prototype == CTOOL_TRUE &&
+       (argument_count < function_type->parameter_count ||
+        (function_type->variadic == CTOOL_FALSE &&
+         argument_count != function_type->parameter_count))) ||
+      (function_type->has_prototype == CTOOL_FALSE &&
+       (function_type->parameter_count != 0u ||
+        function_type->variadic == CTOOL_TRUE))) {
     return cir_invalid_unit(context, &expression->location);
   }
   if (callee->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
@@ -3694,14 +3698,6 @@ static ctool_status_t cir_lower_call(
       direct = CTOOL_TRUE;
     }
   }
-  if (function_type->has_prototype == CTOOL_FALSE) {
-    return cir_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-        &expression->location,
-        "CupidC IR lowering supports only prototyped calls with "
-        "represented scalar or structure arguments and void, scalar, or "
-        "structure results");
-  }
   if (cir_type_is_void(context, expression->type) == CTOOL_FALSE &&
       cir_type_is_represented_scalar(context, expression->type) ==
           CTOOL_FALSE) {
@@ -3710,7 +3706,7 @@ static ctool_status_t cir_lower_call(
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           &expression->location,
-          "CupidC IR lowering supports only prototyped calls with "
+          "CupidC IR lowering supports calls with "
           "represented scalar or structure arguments and void, scalar, or "
           "structure results");
     }
@@ -3737,10 +3733,10 @@ static ctool_status_t cir_lower_call(
   for (argument = 0u; argument < argument_count; argument++) {
     ctool_u32 child;
     ctool_u32 argument_type = CTOOL_C_TYPE_NONE;
-    ctool_bool variadic_argument =
+    ctool_bool undeclared_parameter_argument =
         argument >= function_type->parameter_count ? CTOOL_TRUE
                                                    : CTOOL_FALSE;
-    if (variadic_argument == CTOOL_FALSE) {
+    if (undeclared_parameter_argument == CTOOL_FALSE) {
       argument_type =
           context->unit->graph
               .parameter_types[function_type->first_parameter + argument];
@@ -3750,7 +3746,7 @@ static ctool_status_t cir_lower_call(
     if (status != CTOOL_OK) {
       return status;
     }
-    if (variadic_argument == CTOOL_TRUE) {
+    if (undeclared_parameter_argument == CTOOL_TRUE) {
       const ctool_c_expression_t *argument_expression =
           &context->unit->expressions[child];
       const ctool_c_type_layout_t *layout =
@@ -3765,8 +3761,8 @@ static ctool_status_t cir_lower_call(
         return cir_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
             &argument_expression->location,
-            "CupidC IR lowering supports variadic arguments only for "
-            "represented scalar values");
+            "CupidC IR lowering supports arguments without declared "
+            "parameter types only for represented scalar values");
       }
       if (cir_type_is_represented_integer(
               context, argument_expression->type) == CTOOL_TRUE &&
@@ -3785,7 +3781,7 @@ static ctool_status_t cir_lower_call(
         return cir_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
             &expression->location,
-            "CupidC IR lowering supports only prototyped calls with "
+            "CupidC IR lowering supports calls with "
             "represented scalar or structure arguments and void, scalar, or "
             "structure results");
       }
@@ -7704,13 +7700,14 @@ static ctool_status_t cir_lower_function(
         "CupidC IR lowering requires external-inline finalization before "
         "lowering this definition");
   }
-  if (function_type->has_prototype == CTOOL_FALSE) {
+  if (function_type->has_prototype == CTOOL_FALSE &&
+      (function_type->parameter_count != 0u ||
+       function_type->variadic == CTOOL_TRUE)) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
         &definition->location,
-        "CupidC IR lowering supports only prototyped cdecl functions "
-        "with represented scalar or structure parameters and void, scalar, "
-        "or structure results");
+        "CupidC IR lowering supports old-style definitions only when their "
+        "identifier list is empty");
   }
   if (cir_type_is_void(context, function_type->referenced_type) ==
           CTOOL_FALSE &&
@@ -7721,8 +7718,8 @@ static ctool_status_t cir_lower_function(
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           &definition->location,
-          "CupidC IR lowering supports only prototyped cdecl "
-          "functions with represented scalar or structure parameters and "
+          "CupidC IR lowering supports cdecl functions with represented "
+          "scalar or structure parameters and "
           "void, scalar, or structure results");
     }
     status = cir_require_structure_value(
@@ -7762,8 +7759,8 @@ static ctool_status_t cir_lower_function(
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           &context->unit->parameters[absolute].location,
-          "CupidC IR lowering supports only prototyped cdecl "
-          "functions with represented scalar or structure parameters and "
+          "CupidC IR lowering supports cdecl functions with represented "
+          "scalar or structure parameters and "
           "void, scalar, or structure results");
     }
     status = cir_require_structure_value(

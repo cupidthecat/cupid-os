@@ -4400,6 +4400,16 @@ static ctool_status_t cfront_parse_function_suffix_body(
     function.has_prototype = CTOOL_TRUE;
     return cfront_append_declarator(context, &function, root_out);
   }
+  if (cfront_peek(context) != (const ctool_c_pp_token_t *)0 &&
+      cfront_peek(context)->kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
+      cfront_starts_declaration_specifier(context, cfront_peek(context)) ==
+          CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_DECLARATOR,
+        cfront_peek(context),
+        "old-style function identifier lists are outside this declarator "
+        "slice");
+  }
   function.has_prototype = CTOOL_TRUE;
   for (;;) {
     cfront_specifiers_t specifiers;
@@ -7658,7 +7668,8 @@ static ctool_status_t cfront_apply_default_argument_promotions(
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         token,
-        "floating variadic arguments require default promotion to double");
+        "floating arguments governed by default argument promotions require "
+        "double support");
   }
   status = cfront_apply_default_conversion(context, value);
   if (status == CTOOL_OK) {
@@ -7673,7 +7684,8 @@ static ctool_status_t cfront_apply_default_argument_promotions(
              : cfront_emit_failure(
                    context, CTOOL_ERR_INPUT,
                    CTOOL_C_PARSE_DIAG_EXPRESSION, token,
-                   "variadic argument must have complete object type");
+                   "arguments governed by default argument promotions must "
+                   "have complete object type");
 }
 
 static ctool_status_t cfront_apply_usual_integer_conversions(
@@ -8314,11 +8326,6 @@ static ctool_status_t cfront_parse_body_postfix(
     }
     (void)function_base;
     (void)function_qualifiers;
-    if (function.has_prototype == CTOOL_FALSE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          open, "calls without a prototype are outside this body slice");
-    }
     status = cfront_enter_syntax(context, open);
     if (status != CTOOL_OK) {
       return status;
@@ -8336,7 +8343,8 @@ static ctool_status_t cfront_parse_body_postfix(
       ctool_u32 parameter_type;
       cfront_zero(&argument, (ctool_u32)sizeof(argument));
       status = cfront_parse_body_expression(context, &argument);
-      if (status == CTOOL_OK && argument_count < function.parameter_count) {
+      if (status == CTOOL_OK && function.has_prototype == CTOOL_TRUE &&
+          argument_count < function.parameter_count) {
         status = cfront_vector_get(
             &context->parameter_types,
             function.first_parameter + argument_count, &parameter_type);
@@ -8346,7 +8354,9 @@ static ctool_status_t cfront_parse_body_postfix(
               "function call argument is not convertible to parameter type",
               &argument);
         }
-      } else if (status == CTOOL_OK && function.variadic == CTOOL_TRUE) {
+      } else if (status == CTOOL_OK &&
+                 (function.has_prototype == CTOOL_FALSE ||
+                  function.variadic == CTOOL_TRUE)) {
         status = cfront_apply_default_argument_promotions(
             context, argument_token, &argument);
       } else if (status == CTOOL_OK) {
@@ -8373,7 +8383,8 @@ static ctool_status_t cfront_parse_body_postfix(
         }
       }
     }
-    if (status == CTOOL_OK && argument_count < function.parameter_count) {
+    if (status == CTOOL_OK && function.has_prototype == CTOOL_TRUE &&
+        argument_count < function.parameter_count) {
       status = cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
           cfront_peek(context), "function call has too few arguments");
@@ -13319,12 +13330,6 @@ static ctool_status_t cfront_parse_function_definition(
         context, CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
         "function definition requires a function declarator");
-  }
-  if (function.has_prototype == CTOOL_FALSE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
-        "old-style function definitions are outside this body slice");
   }
   for (index = 0u; index < context->function_definitions.count; index++) {
     ctool_c_function_definition_t existing;

@@ -366,6 +366,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) attributes ..
 	$(CUPIDC_FRONTEND_CONTRACT) static-asserts ..
 	$(CUPIDC_FRONTEND_CONTRACT) function-bodies ..
+	$(CUPIDC_FRONTEND_CONTRACT) old-style-empty-functions ..
 	$(CUPIDC_FRONTEND_CONTRACT) variadic-callees ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-initializers ..
@@ -414,6 +415,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_IR_CONTRACT) structure-values ..
 	$(CUPIDC_IR_CONTRACT) compound-literals ..
+	$(CUPIDC_IR_CONTRACT) old-style-empty-functions ..
 	$(CUPIDC_IR_CONTRACT) variadic-callees ..
 	$(CUPIDC_IR_CONTRACT) narrow-values ..
 	$(CUPIDC_IR_CONTRACT) void-casts ..
@@ -430,6 +432,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) call-alignment ..
 	$(CUPIDC_OBJECT_CONTRACT) block-statics ..
 	$(CUPIDC_OBJECT_CONTRACT) compound-literals ..
+	$(CUPIDC_OBJECT_CONTRACT) old-style-empty-functions ..
 	$(CUPIDC_OBJECT_CONTRACT) variadic-callees ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..

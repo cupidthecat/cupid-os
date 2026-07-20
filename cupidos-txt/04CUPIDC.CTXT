@@ -164,7 +164,7 @@ of padding from the function frame, live Linear IR stack, and outgoing
 structure area. Nested calls and structure-result calls follow the same rule.
 
 For a scalar variadic call, the frontend applies lvalue, array, function, and
-integer default conversions to the ellipsis arguments. Linear IR retains the
+integer default promotions to the ellipsis arguments. Linear IR retains the
 actual argument count. The emitter uses it for cdecl order, the saved indirect
 callee, stack alignment, and caller cleanup. Direct and indirect calls can
 pass represented four-byte integers and pointers.
@@ -174,10 +174,17 @@ frontend retains start, argument, copy, and end operations. The i386 emitter
 starts the cursor after the final named cdecl parameter, reads represented
 non-atomic four-byte integer and pointer slots, and advances the cursor by four
 bytes for each read. The unchanged Doom compatibility header parses under its
-generated profile. That profile next stops at the old-style doomgeneric_Tick
-definition in kernel/doom/src/d_main.c at line 405. Floating default
-promotions, non-scalar ellipsis transport, atomic cursor access, and wider or
-aggregate variadic reads remain open.
+generated profile.
+
+An empty identifier-list definition has zero parameters and keeps its
+non-prototype function type. Direct and indirect calls without a prototype
+apply default argument promotions to every argument and retain the actual count
+through Linear IR and i386 emission. The represented path accepts four-byte
+integers and pointers. The exact Doom profile passes doomgeneric_Tick and
+reaches the anonymous block-scope struct in kernel/doom/src/d_main.c at line
+689. Nonempty identifier lists, block tag specifiers, floating default
+promotions, non-scalar arguments without declared parameter types, atomic
+cursor access, and wider or aggregate variadic reads remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects

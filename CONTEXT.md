@@ -80,6 +80,10 @@ _Avoid_: sixteen-byte function frame, aligned callee entry
 A call through a prototyped function type whose final parameter is an ellipsis. Linear IR keeps the named parameter count in the function type and the actual argument count on the call instruction. Hosted i386 emission currently transports only represented four-byte scalar ellipsis arguments.
 _Avoid_: unprototyped call, variadic macro
 
+**Unprototyped call site**:
+A call through a function type that does not declare parameter types. The frontend applies default argument promotions to every argument, and Linear IR keeps the actual argument count on the call instruction. Hosted i386 emission currently transports represented four-byte scalar arguments at this boundary.
+_Avoid_: variadic call, call with zero parameters
+
 **Variadic cursor**:
 The target `char *` value used by hosted CupidC to traverse unnamed i386 cdecl arguments. `va_start` points it just past the final named argument, each supported non-atomic `va_arg` advances it by one four-byte slot, `va_copy` copies it, and `va_end` consumes its evaluated address without changing stored state.
 _Avoid_: host `va_list`, argument array
