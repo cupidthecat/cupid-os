@@ -241,7 +241,11 @@ typedef enum {
   CTOOL_C_EXPRESSION_CAST,
   CTOOL_C_EXPRESSION_MEMBER,
   CTOOL_C_EXPRESSION_CONDITIONAL,
-  CTOOL_C_EXPRESSION_COMPOUND_LITERAL
+  CTOOL_C_EXPRESSION_COMPOUND_LITERAL,
+  CTOOL_C_EXPRESSION_VARIADIC_START,
+  CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT,
+  CTOOL_C_EXPRESSION_VARIADIC_COPY,
+  CTOOL_C_EXPRESSION_VARIADIC_END
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -318,6 +322,9 @@ typedef struct {
   ctool_u32 reference;
   /* CALL: ordered slice of expression_children, callee first.
    * CONDITIONAL: condition, selected-when-nonzero, selected-when-zero.
+   * VARIADIC_START: cursor lvalue, then final named parameter.
+   * VARIADIC_ARGUMENT/VARIADIC_END: cursor lvalue.
+   * VARIADIC_COPY: destination cursor lvalue, then converted source cursor.
    * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY/UPDATE: one source-expression
    * child. COMPOUND_LITERAL has no expression children because its
    * initializer owns a separate postorder forest. */

@@ -18,7 +18,7 @@ Linear IR accepts variadic definitions and lowers their named parameters and bod
 
 The i386 emitter uses the actual count for abstract stack effects, argument reversal, padding, caller cleanup, and the saved callee offset of an indirect call. Every supported direct or indirect call still places ESP on a sixteen-byte boundary immediately before `CALL`. The structure-aware call path continues to size named structure arguments from the function type and treats supported ellipsis arguments as four-byte scalar slots. Hidden structure-result handling is unchanged.
 
-The shared path does not yet expose `va_list`, `va_start`, `va_arg`, `va_copy`, or `va_end`. It can emit a variadic definition that uses only its named parameters, but it cannot yet implement a callee that reads the unnamed portion. Floating default promotions and non-scalar ellipsis transport also remain open.
+ADR 0055 later adds a target `__builtin_va_list` cursor and scalar `va_start`, `va_arg`, `va_copy`, and `va_end` operations for i386 callees. Floating default promotions, non-scalar ellipsis transport, and wider or aggregate variadic reads remain open.
 
 This decision reopens ADR 0017's choice not to duplicate fixed-call arity on each call instruction. That choice remains sound for fixed prototypes, where the function type determines the count. A variadic function type records only its named parameters, so its call instruction must retain the caller-owned actual count. Reconstructing the count in the emitter from AST was rejected because target emission consumes Linear IR, not frontend syntax. Treating every extra argument as a raw word in the frontend was rejected because it would skip C's required conversions and would make narrow values depend on stale high bits.
 
@@ -32,4 +32,4 @@ The object contract emits direct and register-indirect three-argument calls, a n
 
 This is hosted bootstrap evidence. GCC or Clang still builds the shared compiler and the normal Cupid OS C objects. The private in-kernel compiler remains the embedded JIT and AOT path, and no production artifact or host dependency changes here.
 
-Issue #25 remains open. Reading unnamed arguments, floating and wider runtime values, remaining aggregate forms, production integration, staged self-hosting, and the fixed-point bootstrap still remain.
+Issue #25 remains open. ADR 0055 adds scalar unnamed-argument reads. Floating and wider runtime values, remaining aggregate forms, production integration, staged self-hosting, and the fixed-point bootstrap still remain.

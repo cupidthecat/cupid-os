@@ -101,6 +101,7 @@ typedef struct {
   ctool_u32 function_maximum_patched_target;
   ctool_bool count_only_validation;
   ctool_u32 function_result_type;
+  ctool_bool function_variadic;
   cir_stack_entry_t stack[CIR_STACK_LIMIT];
   ctool_u32 stack_depth;
   ctool_u32 maximum_stack_depth;
@@ -3841,6 +3842,237 @@ static ctool_status_t cir_lower_call(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
+static ctool_bool cir_variadic_cursor_type(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_node_t *character;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 character_base;
+  ctool_u32 character_qualifiers;
+  if (type >= context->unit->layout.type_count ||
+      cir_underlying_type(context, type, &pointer_base, &pointer_qualifiers,
+                          &pointer) == CTOOL_FALSE ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      pointer->referenced_type >= context->unit->graph.type_count ||
+      cir_underlying_type(context, pointer->referenced_type,
+                          &character_base, &character_qualifiers,
+                          &character) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)pointer_base;
+  (void)character_base;
+  return character->kind == CTOOL_C_TYPE_CHAR &&
+                 ((pointer_qualifiers | pointer->qualifiers) &
+                  CTOOL_C_QUAL_CONST) == 0u &&
+                 (character_qualifiers | character->qualifiers) == 0u &&
+                 context->unit->layout.types[type].is_object == CTOOL_TRUE &&
+                 context->unit->layout.types[type].is_complete_object ==
+                     CTOOL_TRUE &&
+                 context->unit->layout.types[type].size == 4u &&
+                 cir_type_has_atomic_qualification(context, type) ==
+                     CTOOL_FALSE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_variadic_argument_type(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
+  if (node == (const ctool_c_type_node_t *)0 ||
+      type >= context->unit->layout.type_count ||
+      context->unit->layout.types[type].is_object == CTOOL_FALSE ||
+      context->unit->layout.types[type].is_complete_object == CTOOL_FALSE ||
+      context->unit->layout.types[type].size != 4u ||
+      cir_type_has_atomic_qualification(context, type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  return node->kind == CTOOL_C_TYPE_POINTER ||
+                 node->kind == CTOOL_C_TYPE_SIGNED_INT ||
+                 node->kind == CTOOL_C_TYPE_UNSIGNED_INT ||
+                 node->kind == CTOOL_C_TYPE_SIGNED_LONG ||
+                 node->kind == CTOOL_C_TYPE_UNSIGNED_LONG
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cir_lower_variadic_cursor_address(
+    cir_context_t *context, ctool_u32 child, ctool_u32 depth,
+    const ctool_c_pp_location_t *location,
+    cir_stack_entry_t *address_out) {
+  const ctool_c_expression_t *cursor;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_status_t status;
+  if (child >= context->unit->expression_count) {
+    return cir_invalid_unit(context, location);
+  }
+  cursor = &context->unit->expressions[child];
+  if (cir_variadic_cursor_type(context, cursor->type) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, location);
+  }
+  status = cir_lower_expression(context, child, depth + 1u);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cir_add_overflows(base_depth, 1u) == CTOOL_TRUE ||
+      context->stack_depth != base_depth + 1u) {
+    return cir_invalid_unit(context, location);
+  }
+  status = cir_pop(context, address_out);
+  if (status != CTOOL_OK || address_out->kind != CIR_STACK_ADDRESS ||
+      address_out->type != cursor->type) {
+    return cir_invalid_unit(context, location);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_lower_variadic_builtin(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 depth) {
+  cir_stack_entry_t address = {CIR_STACK_VALUE, CTOOL_C_TYPE_NONE};
+  ctool_u32 cursor_child;
+  ctool_u32 expected_children =
+      expression->kind == CTOOL_C_EXPRESSION_VARIADIC_START ||
+              expression->kind == CTOOL_C_EXPRESSION_VARIADIC_COPY
+          ? 2u
+          : 1u;
+  ctool_status_t status;
+  if (expression->child_count != expected_children ||
+      expression->reference != CTOOL_C_AST_NONE ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      expression->conversion != CTOOL_C_CONVERSION_NONE ||
+      expression->computation_type != CTOOL_C_TYPE_NONE ||
+      expression->integer_bits != 0u ||
+      expression->string_bytes.data != (const ctool_u8 *)0 ||
+      expression->string_bytes.size != 0u ||
+      ((expression->kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) !=
+       (cir_type_is_void(context, expression->type) == CTOOL_FALSE))) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_expression_child(context, expression_index, expression, 0u,
+                                &cursor_child);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_START) {
+    const ctool_c_expression_t *last;
+    ctool_u32 last_child;
+    ctool_u32 expected_last;
+    if (context->function_variadic == CTOOL_FALSE ||
+        context->function_parameter_count == 0u ||
+        cir_add_overflows(context->function_first_parameter,
+                          context->function_parameter_count - 1u) ==
+            CTOOL_TRUE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    expected_last = context->function_first_parameter +
+                    context->function_parameter_count - 1u;
+    status = cir_expression_child(context, expression_index, expression, 1u,
+                                  &last_child);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    last = &context->unit->expressions[last_child];
+    if (last->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+        last->child_count != 0u || last->first_child != CTOOL_C_AST_NONE ||
+        last->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        last->conversion != CTOOL_C_CONVERSION_NONE ||
+        last->computation_type != CTOOL_C_TYPE_NONE ||
+        last->integer_bits != 0u ||
+        last->string_bytes.data != (const ctool_u8 *)0 ||
+        last->string_bytes.size != 0u ||
+        last->reference != expected_last ||
+        expected_last >= context->unit->parameter_count ||
+        last->type != context->unit->parameters[expected_last].type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_lower_variadic_cursor_address(
+        context, cursor_child, depth, &expression->location, &address);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_VARIADIC_START,
+        CTOOL_C_TYPE_NONE, address.type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        expected_last, 0u, &expression->location,
+        &expression->physical_location, (ctool_u32 *)0);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_COPY) {
+    const ctool_c_expression_t *source;
+    cir_stack_entry_t value;
+    ctool_u32 source_child;
+    ctool_u32 base_depth = context->stack_depth;
+    status = cir_expression_child(context, expression_index, expression, 1u,
+                                  &source_child);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    source = &context->unit->expressions[source_child];
+    if (source->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        source->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        cir_variadic_cursor_type(context, source->type) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_lower_variadic_cursor_address(
+        context, cursor_child, depth, &expression->location, &address);
+    if (status == CTOOL_OK) {
+      status = cir_push(context, address.kind, address.type);
+    }
+    if (status == CTOOL_OK) {
+      status = cir_lower_expression(context, source_child, depth + 1u);
+    }
+    if (status == CTOOL_OK &&
+        (cir_add_overflows(base_depth, 2u) == CTOOL_TRUE ||
+         context->stack_depth != base_depth + 2u)) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (status == CTOOL_OK) {
+      status = cir_pop(context, &value);
+    }
+    if (status == CTOOL_OK) {
+      status = cir_pop(context, &address);
+    }
+    if (status != CTOOL_OK || address.kind != CIR_STACK_ADDRESS ||
+        value.kind != CIR_STACK_VALUE ||
+        cir_scalar_value_types_match(context, address.type, value.type) ==
+            CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    return cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_STORE, address.type, value.type,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+        CTOOL_C_AST_NONE, 0u, &expression->location,
+        &expression->physical_location, (ctool_u32 *)0);
+  }
+  status = cir_lower_variadic_cursor_address(
+      context, cursor_child, depth, &expression->location, &address);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+    if (cir_variadic_argument_type(context, expression->type) ==
+        CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT,
+        expression->type, address.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+    return status == CTOOL_OK
+               ? cir_push(context, CIR_STACK_VALUE, expression->type)
+               : status;
+  }
+  return cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_VARIADIC_END, CTOOL_C_TYPE_NONE,
+      address.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u,
+      &expression->location, &expression->physical_location,
+      (ctool_u32 *)0);
+}
+
 static ctool_status_t cir_lower_expression(cir_context_t *context,
                                            ctool_u32 expression_index,
                                            ctool_u32 depth) {
@@ -4044,6 +4276,13 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   if (expression->kind == CTOOL_C_EXPRESSION_COMPOUND_LITERAL) {
     return cir_lower_compound_literal_expression(
         context, expression_index, expression, depth);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_START ||
+      expression->kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT ||
+      expression->kind == CTOOL_C_EXPRESSION_VARIADIC_COPY ||
+      expression->kind == CTOOL_C_EXPRESSION_VARIADIC_END) {
+    return cir_lower_variadic_builtin(context, expression_index, expression,
+                                      depth);
   }
   if (expression->kind == CTOOL_C_EXPRESSION_STRING) {
     ctool_status_t string_status;
@@ -7548,6 +7787,7 @@ static ctool_status_t cir_lower_function(
   context->function_first_parameter = function_type->first_parameter;
   context->function_parameter_count = function_type->parameter_count;
   context->function_result_type = function_type->referenced_type;
+  context->function_variadic = function_type->variadic;
   context->stack_depth = 0u;
   context->maximum_stack_depth = 0u;
   context->control_depth = 0u;

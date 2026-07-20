@@ -360,8 +360,10 @@ static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
   return check_status(status, CTOOL_OK, "job open");
 }
 
-static int parse_source(ctool_job_t *job, const char *path, const char *text,
-                        ctool_c_translation_unit_t *unit_out) {
+static int parse_source_mode(ctool_job_t *job, const char *path,
+                             const char *text,
+                             ctool_bool gnu_extensions,
+                             ctool_c_translation_unit_t *unit_out) {
   ctool_source_t source;
   ctool_c_pp_request_t pp_request;
   ctool_c_pp_result_t tape;
@@ -378,7 +380,7 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
   source.contents = ctool_bytes(text, (ctool_u32)text_size);
   (void)memset(&pp_request, 0, sizeof(pp_request));
   pp_request.mode = CTOOL_C_PP_MODE_C11;
-  pp_request.gnu_extensions = CTOOL_FALSE;
+  pp_request.gnu_extensions = gnu_extensions;
   pp_request.hosted_environment = CTOOL_FALSE;
   (void)memset(&tape, 0xa5, sizeof(tape));
   status = ctool_c_preprocess(job, &source, &pp_request, &tape);
@@ -393,7 +395,7 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
 
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
-  parse_request.gnu_extensions = CTOOL_FALSE;
+  parse_request.gnu_extensions = gnu_extensions;
   (void)memset(unit_out, 0xa5, sizeof(*unit_out));
   status = ctool_c_parse(job, &tape, &parse_request, unit_out);
   if (status != CTOOL_OK ||
@@ -404,6 +406,11 @@ static int parse_source(ctool_job_t *job, const char *path, const char *text,
     return 0;
   }
   return 1;
+}
+
+static int parse_source(ctool_job_t *job, const char *path, const char *text,
+                        ctool_c_translation_unit_t *unit_out) {
+  return parse_source_mode(job, path, text, CTOOL_FALSE, unit_out);
 }
 
 static int active_source_contains(ctool_job_t *job, const char *path_text,
@@ -13916,6 +13923,270 @@ cleanup:
   return 1;
 }
 
+static int variadic_oracle_execute(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u32 first,
+    ctool_u32 second, ctool_u32 third, ctool_u32 *result_out) {
+  narrow_oracle_machine_t machine;
+  ctool_u32 first_pointer = 224u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 preserved;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == NULL || text == NULL || symbol == NULL || result_out == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  (void)memset(&machine, 0, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = 64u;
+  if (!narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, 0x13579bdfu) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u, 0x11111111u) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u, 0x22222222u) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 12u, 32u,
+          first_pointer) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 16u, 32u, second) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 20u, 32u, third) ||
+      !narrow_oracle_write_memory(
+          &machine, first_pointer, 32u, first)) {
+    return 0;
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        !narrow_oracle_step(&machine, &decoded.instruction, &returned)) {
+      (void)fprintf(
+          stderr, "variadic callee oracle stopped at %u on %s\n",
+          (unsigned int)cursor,
+          status == CTOOL_OK && decoded.kind == CTOOL_X86_DECODE_KNOWN
+              ? ctool_x86_mnemonic_name(decoded.instruction.mnemonic).data
+              : "invalid instruction");
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, &preserved) ||
+      preserved != 0x13579bdfu ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u, &preserved) ||
+      preserved != 0x11111111u ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u, &preserved) ||
+      preserved != 0x22222222u ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 12u, 32u, &preserved) ||
+      preserved != first_pointer ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 16u, 32u, &preserved) ||
+      preserved != second ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 20u, 32u, &preserved) ||
+      preserved != third) {
+    return 0;
+  }
+  *result_out = machine.registers[NARROW_ORACLE_EAX];
+  return 1;
+}
+
+static int validate_variadic_callee_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *function = find_symbol(object, "sum_after");
+  ctool_u32 cursor = 0u;
+  ctool_u32 positive_frame_offsets = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 leaves = 0u;
+  ctool_u32 result = 0u;
+  if (text == NULL || function == NULL || text->relocation_count != 0u ||
+      object->relocation_count != 0u || function->size == 0u ||
+      function->size != text->contents.size ||
+      !symbol_matches(function, function->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      text->contents.size)) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_u32 operand;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    for (operand = 0u; operand < decoded.instruction.operand_count;
+         operand++) {
+      const ctool_x86_operand_t *value =
+          &decoded.instruction.operands[operand];
+      if (value->kind == CTOOL_X86_OPERAND_MEMORY &&
+          value->as.memory.base.class_id == CTOOL_X86_REG_GPR32 &&
+          value->as.memory.base.index == NARROW_ORACLE_EBP &&
+          value->as.memory.displacement.kind ==
+              CTOOL_X86_VALUE_CONSTANT &&
+          (ctool_i32)value->as.memory.displacement.bits > 0) {
+        if ((ctool_i32)value->as.memory.displacement.bits != 16) {
+          return 0;
+        }
+        positive_frame_offsets++;
+      }
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      returns++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_LEAVE) {
+      leaves++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == function->size && positive_frame_offsets == 1u &&
+                 returns == 1u && leaves == 1u &&
+                 variadic_oracle_execute(
+                     job, text, function, 0x01020304u, 0x10203040u,
+                     0x55667788u, &result) &&
+                 result == 0x21426384u
+             ? 1
+             : 0;
+}
+
+static int run_variadic_callee_object(const char *host_root) {
+  static const char source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "int sum_after(int prefix, int marker, ...) {\n"
+      "  va_list ap;\n"
+      "  va_list copy;\n"
+      "  int *first;\n"
+      "  unsigned long second;\n"
+      "  unsigned long original_second;\n"
+      "  __builtin_va_start(ap, marker);\n"
+      "  first = __builtin_va_arg(ap, int *);\n"
+      "  __builtin_va_copy(copy, ap);\n"
+      "  second = __builtin_va_arg(copy, unsigned long);\n"
+      "  original_second = __builtin_va_arg(ap, unsigned long);\n"
+      "  __builtin_va_end(copy);\n"
+      "  __builtin_va_end(ap);\n"
+      "  return *first + second + original_second;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u8 *expected_object = NULL;
+  ctool_u32 diagnostic_count;
+  ctool_arena_mark_t mark;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/variadic-object.c", source, CTOOL_TRUE,
+                         &unit) ||
+      unit.function_definition_count != 1u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "variadic callee object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "variadic callee object buffers")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, first);
+  first_bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first variadic callee object") ||
+      first_bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object = (ctool_u8 *)malloc((size_t)first_bytes.size);
+  if (expected_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, first_bytes.data,
+               (size_t)first_bytes.size);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &unit, second);
+  second_bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat variadic callee object") ||
+      second_bytes.size != first_bytes.size ||
+      memcmp(second_bytes.data, expected_object,
+             (size_t)second_bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "variadic callee object emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/variadic-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read variadic callee object") ||
+      !validate_variadic_callee_object(job, &object)) {
+    (void)fprintf(stderr, "variadic callee object differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expected_object);
+  dispose_unit_snapshot(&snapshot);
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("variadic-callees: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -13971,6 +14242,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "compound-literals") == 0) {
     return run_compound_literal_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
+    return run_variadic_callee_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
@@ -13978,7 +14252,7 @@ int main(int argc, char **argv) {
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|narrow-mutations|narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
-                "compound-literals "
+                "compound-literals|variadic-callees "
                 "HOST_ROOT\n");
   return 2;
 }

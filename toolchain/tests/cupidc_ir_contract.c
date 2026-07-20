@@ -17258,6 +17258,375 @@ cleanup:
   return 1;
 }
 
+static int variadic_ir_instruction_is(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_u32 reference) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_NONE &&
+                 instruction->conversion ==
+                     (kind == CTOOL_C_IR_INSTRUCTION_LOAD
+                          ? CTOOL_C_CONVERSION_LVALUE_TO_VALUE
+                          : CTOOL_C_CONVERSION_NONE) &&
+                 instruction->argument_count == 0u &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == 0u
+             ? 1
+             : 0;
+}
+
+static int validate_variadic_callee_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 ap = find_block_binding(unit, "ap");
+  ctool_u32 copy = find_block_binding(unit, "copy");
+  ctool_u32 source = find_block_binding(unit, "source");
+  ctool_u32 value = find_block_binding(unit, "value");
+  ctool_u32 cursor_type;
+  ctool_u32 value_type;
+  ctool_u32 last_parameter;
+
+  if (unit->function_definition_count != 1u ||
+      unit->block_binding_count != 4u || ir->function_count != 1u ||
+      ir->instruction_count != 18u || ir->functions == NULL ||
+      ir->instructions == NULL || ap == CTOOL_C_AST_NONE ||
+      copy == CTOOL_C_AST_NONE || source == CTOOL_C_AST_NONE ||
+      value == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  function = &ir->functions[0];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->has_prototype != CTOOL_TRUE ||
+      function_type->variadic != CTOOL_TRUE ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count ||
+      function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 18u ||
+      function->maximum_stack_depth != 2u) {
+    return 0;
+  }
+  cursor_type = unit->block_bindings[ap].type;
+  value_type = unit->block_bindings[value].type;
+  last_parameter = function_type->first_parameter;
+  if (unit->block_bindings[copy].type != cursor_type ||
+      unit->block_bindings[source].type == cursor_type) {
+    return 0;
+  }
+  instructions = &ir->instructions[function->first_instruction];
+  {
+    typedef struct {
+      ctool_c_ir_instruction_kind_t kind;
+      ctool_u32 type;
+      ctool_u32 input_type;
+      ctool_u32 reference;
+    } variadic_ir_expectation_t;
+    const variadic_ir_expectation_t expected[] = {
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, cursor_type,
+         CTOOL_C_TYPE_NONE, ap},
+        {CTOOL_C_IR_INSTRUCTION_VARIADIC_START, CTOOL_C_TYPE_NONE,
+         cursor_type, last_parameter},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, cursor_type,
+         CTOOL_C_TYPE_NONE, copy},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, cursor_type,
+         CTOOL_C_TYPE_NONE, ap},
+        {CTOOL_C_IR_INSTRUCTION_LOAD, cursor_type, cursor_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_STORE, cursor_type, cursor_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, value_type,
+         CTOOL_C_TYPE_NONE, value},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, cursor_type,
+         CTOOL_C_TYPE_NONE, copy},
+        {CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT, value_type, cursor_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_STORE_VALUE, value_type, value_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_DISCARD, CTOOL_C_TYPE_NONE, value_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, cursor_type,
+         CTOOL_C_TYPE_NONE, copy},
+        {CTOOL_C_IR_INSTRUCTION_VARIADIC_END, CTOOL_C_TYPE_NONE, cursor_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, cursor_type,
+         CTOOL_C_TYPE_NONE, ap},
+        {CTOOL_C_IR_INSTRUCTION_VARIADIC_END, CTOOL_C_TYPE_NONE, cursor_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS, value_type,
+         CTOOL_C_TYPE_NONE, value},
+        {CTOOL_C_IR_INSTRUCTION_LOAD, value_type, value_type,
+         CTOOL_C_AST_NONE},
+        {CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, value_type, value_type,
+         CTOOL_C_AST_NONE}};
+    ctool_u32 instruction;
+    for (instruction = 0u;
+         instruction < (ctool_u32)(sizeof(expected) / sizeof(expected[0]));
+         instruction++) {
+      if (!variadic_ir_instruction_is(
+              &instructions[instruction], expected[instruction].kind,
+              expected[instruction].type, expected[instruction].input_type,
+              expected[instruction].reference)) {
+        (void)fprintf(stderr,
+                      "variadic-callees: instruction %u fields differ\n",
+                      (unsigned int)instruction);
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int run_variadic_callees(const char *host_root) {
+  static const char source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "int read_args(int last, ...) {\n"
+      "  va_list ap;\n"
+      "  va_list copy;\n"
+      "  va_list const source;\n"
+      "  int value;\n"
+      "  __builtin_va_start(ap, last);\n"
+      "  __builtin_va_copy(copy, ap);\n"
+      "  value = __builtin_va_arg(copy, int);\n"
+      "  __builtin_va_end(copy);\n"
+      "  __builtin_va_end(ap);\n"
+      "  return value;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 *invalid_children = NULL;
+  ctool_u32 start_expression = CTOOL_C_AST_NONE;
+  ctool_u32 argument_expression = CTOOL_C_AST_NONE;
+  ctool_u32 cursor_expression = CTOOL_C_AST_NONE;
+  ctool_u32 last_expression = CTOOL_C_AST_NONE;
+  ctool_u32 source_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/variadic-ir.c", source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "variadic callee lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_variadic_callee_ir(&unit, &ir)) {
+    (void)fprintf(
+        stderr,
+        "variadic-callees: IR inventory differs functions=%u instructions=%u "
+        "maximum-stack=%u\n",
+        (unsigned int)ir.function_count, (unsigned int)ir.instruction_count,
+        ir.function_count != 0u && ir.functions != NULL
+            ? (unsigned int)ir.functions[0].maximum_stack_depth
+            : 0u);
+    (void)fprintf(
+        stderr,
+        "  unit functions=%u blocks=%u ap=%u copy=%u value=%u "
+        "declared-type=%u kind=%u prototype=%u variadic=%u parameters=%u\n",
+        (unsigned int)unit.function_definition_count,
+        (unsigned int)unit.block_binding_count,
+        (unsigned int)find_block_binding(&unit, "ap"),
+        (unsigned int)find_block_binding(&unit, "copy"),
+        (unsigned int)find_block_binding(&unit, "value"),
+        unit.function_definition_count != 0u
+            ? (unsigned int)unit.function_definitions[0].declared_type
+            : 0u,
+        unit.function_definition_count != 0u &&
+                unit.function_definitions[0].declared_type <
+                    unit.graph.type_count
+            ? (unsigned int)unit.graph
+                  .types[unit.function_definitions[0].declared_type]
+                  .kind
+            : 0u,
+        unit.function_definition_count != 0u &&
+                unit.function_definitions[0].declared_type <
+                    unit.graph.type_count
+            ? (unsigned int)unit.graph
+                  .types[unit.function_definitions[0].declared_type]
+                  .has_prototype
+            : 0u,
+        unit.function_definition_count != 0u &&
+                unit.function_definitions[0].declared_type <
+                    unit.graph.type_count
+            ? (unsigned int)unit.graph
+                  .types[unit.function_definitions[0].declared_type]
+                  .variadic
+            : 0u,
+        unit.function_definition_count != 0u &&
+                unit.function_definitions[0].declared_type <
+                    unit.graph.type_count
+            ? (unsigned int)unit.graph
+                  .types[unit.function_definitions[0].declared_type]
+                  .parameter_count
+            : 0u);
+    if (unit.function_definition_count != 0u && ir.function_count != 0u) {
+      (void)fprintf(
+          stderr,
+          "  definition binding=%u IR binding=%u IR declared=%u first=%u "
+          "count=%u cursor-types=%u/%u value-type=%u\n",
+          (unsigned int)unit.function_definitions[0].binding,
+          (unsigned int)ir.functions[0].binding,
+          (unsigned int)ir.functions[0].declared_type,
+          (unsigned int)ir.functions[0].first_instruction,
+          (unsigned int)ir.functions[0].instruction_count,
+          (unsigned int)unit.block_bindings[0].type,
+          (unsigned int)unit.block_bindings[1].type,
+          (unsigned int)unit.block_bindings[2].type);
+    }
+    for (index = 0u; index < ir.instruction_count; index++) {
+      const ctool_c_ir_instruction_t *instruction = &ir.instructions[index];
+      (void)fprintf(
+          stderr, "  %u kind=%u type=%u input=%u reference=%u\n",
+          (unsigned int)index, (unsigned int)instruction->kind,
+          (unsigned int)instruction->type,
+          (unsigned int)instruction->input_type,
+          (unsigned int)instruction->reference);
+    }
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_VARIADIC_START) {
+      start_expression = index;
+    } else if (unit.expressions[index].kind ==
+               CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+      argument_expression = index;
+    }
+  }
+  if (start_expression == CTOOL_C_AST_NONE ||
+      argument_expression == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u || unit.expression_child_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count ||
+      sizeof(*invalid_children) >
+          SIZE_MAX / (size_t)unit.expression_child_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_children = (ctool_u32 *)malloc(
+      (size_t)unit.expression_child_count * sizeof(*invalid_children));
+  if (invalid_expressions == NULL || invalid_children == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  (void)memcpy(invalid_children, unit.expression_children,
+               (size_t)unit.expression_child_count * sizeof(*invalid_children));
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_unit.expression_children = invalid_children;
+  source_binding = find_block_binding(&unit, "source");
+  cursor_expression =
+      invalid_children[invalid_expressions[start_expression].first_child];
+  last_expression =
+      invalid_children[invalid_expressions[start_expression].first_child + 1u];
+  if (source_binding == CTOOL_C_AST_NONE ||
+      cursor_expression >= unit.expression_count ||
+      last_expression >= unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_children[invalid_expressions[start_expression].first_child + 1u] =
+      invalid_children[invalid_expressions[start_expression].first_child];
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "variadic start final parameter reference")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_children, unit.expression_children,
+               (size_t)unit.expression_child_count * sizeof(*invalid_children));
+  invalid_expressions[last_expression].type =
+      unit.expressions[start_expression].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "variadic start final parameter type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[last_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_ADD;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "variadic start final parameter metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[last_expression].integer_bits = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "variadic start final parameter payload")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[cursor_expression].reference = source_binding;
+  invalid_expressions[cursor_expression].type =
+      unit.block_bindings[source_binding].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "const variadic cursor destination")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[argument_expression].type =
+      unit.expressions[start_expression].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "variadic argument result type")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_children);
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("variadic-callees: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -17327,6 +17696,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "compound-literals") == 0) {
     return run_compound_literals(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
+    return run_variadic_callees(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_values(argv[2]);
   }
@@ -17343,6 +17715,7 @@ int main(int argc, char **argv) {
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|structure-values|compound-literals|"
+                "variadic-callees|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;

@@ -167,9 +167,17 @@ For a scalar variadic call, the frontend applies lvalue, array, function, and
 integer default conversions to the ellipsis arguments. Linear IR retains the
 actual argument count. The emitter uses it for cdecl order, the saved indirect
 callee, stack alignment, and caller cleanup. Direct and indirect calls can
-pass represented four-byte integers and pointers. A variadic definition can
-use its named parameters. Floating promotion to double, structure-valued
-ellipsis arguments, va_list, and access to unnamed arguments remain open.
+pass represented four-byte integers and pointers.
+
+In GNU C mode, __builtin_va_list is a target char pointer cursor. The shared
+frontend retains start, argument, copy, and end operations. The i386 emitter
+starts the cursor after the final named cdecl parameter, reads represented
+non-atomic four-byte integer and pointer slots, and advances the cursor by four
+bytes for each read. The unchanged Doom compatibility header parses under its
+generated profile. That profile next stops at the old-style doomgeneric_Tick
+definition in kernel/doom/src/d_main.c at line 405. Floating default
+promotions, non-scalar ellipsis transport, atomic cursor access, and wider or
+aggregate variadic reads remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects
@@ -196,7 +204,7 @@ than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field leaves, Boolean mutation, separate 64-bit and
-floating-point runtime values, complete variadic callee support, wide strings,
+floating-point runtime values, wider or aggregate variadic values, wide strings,
 literal pooling, and block-static addresses in other block-static initializers
 remain unfinished in the shared path.
 

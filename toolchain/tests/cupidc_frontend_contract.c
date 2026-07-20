@@ -276,17 +276,22 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
              : 0;
 }
 
-static int build_kernel_profile(
+static int build_active_profile(
+    const char *profile, ctool_u32 expected_include_roots,
+    ctool_u32 expected_macro_actions, ctool_u32 expected_forced_includes,
     ctool_c_pp_request_t *request, ctool_c_pp_include_root_t *include_roots,
     ctool_c_pp_macro_action_t *macro_actions,
     ctool_path_t *forced_includes) {
   ctool_u32 row_index;
   ctool_u32 profile_count = 0u;
 
+  if (profile == NULL) {
+    return 1;
+  }
   (void)memset(request, 0, sizeof(*request));
   for (row_index = 0u; row_index < ARRAY_COUNT(active_rows); row_index++) {
     const active_row_t *row = &active_rows[row_index];
-    if (row->profile == NULL || strcmp(row->profile, "KERNEL_I386") != 0) {
+    if (row->profile == NULL || strcmp(row->profile, profile) != 0) {
       continue;
     }
     if (row->kind == ACTIVE_PROFILE) {
@@ -319,12 +324,29 @@ static int build_kernel_profile(
   if (profile_count != 1u || request->mode != CTOOL_C_PP_MODE_C11 ||
       request->gnu_extensions != CTOOL_TRUE ||
       request->hosted_environment != CTOOL_FALSE ||
-      request->include_root_count != 18u || request->macro_action_count != 8u ||
-      request->forced_include_count != 0u) {
-    (void)fprintf(stderr, "fat16: KERNEL_I386 profile differs\n");
+      request->include_root_count != expected_include_roots ||
+      request->macro_action_count != expected_macro_actions ||
+      request->forced_include_count != expected_forced_includes) {
+    (void)fprintf(stderr, "frontend: %s profile differs\n", profile);
     return 1;
   }
   return 0;
+}
+
+static int build_kernel_profile(
+    ctool_c_pp_request_t *request, ctool_c_pp_include_root_t *include_roots,
+    ctool_c_pp_macro_action_t *macro_actions,
+    ctool_path_t *forced_includes) {
+  return build_active_profile("KERNEL_I386", 18u, 8u, 0u, request,
+                              include_roots, macro_actions, forced_includes);
+}
+
+static int build_doom_tree_profile(
+    ctool_c_pp_request_t *request, ctool_c_pp_include_root_t *include_roots,
+    ctool_c_pp_macro_action_t *macro_actions,
+    ctool_path_t *forced_includes) {
+  return build_active_profile("DOOM_TREE_I386", 20u, 9u, 1u, request,
+                              include_roots, macro_actions, forced_includes);
 }
 
 static int open_job(const char *mode, const char *host_root,
@@ -1546,6 +1568,75 @@ static int parse_loaded_fixture(frontend_fixture_t *fixture,
     (void)ctool_job_render_diagnostics(fixture->job);
   } else {
     failed = 0;
+  }
+  free(snapshot);
+  return failed;
+}
+
+static int expect_loaded_frontend_failure(
+    frontend_fixture_t *fixture, const char *path_text,
+    ctool_status_t expected_status, ctool_u32 expected_code,
+    const char *expected_path, ctool_u32 expected_line,
+    ctool_u32 expected_column, const char *expected_message) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_c_pp_result_t tape;
+  ctool_c_translation_unit_t unit;
+  ctool_c_pp_token_t *snapshot = NULL;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  size_t token_bytes;
+  int failed = 1;
+
+  path.text = ctool_string(path_text);
+  status = ctool_job_load_source(fixture->job, &path, &source);
+  diagnostic_count = ctool_job_diagnostic_count(fixture->job);
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  if (status == CTOOL_OK) {
+    status = ctool_c_preprocess(fixture->job, &source, &fixture->pp_request,
+                                &tape);
+  }
+  if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
+      ctool_job_diagnostic_count(fixture->job) != diagnostic_count) {
+    (void)fprintf(stderr, "%s: prepare %s failed: %s\n", fixture->mode,
+                  path_text, ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(fixture->job);
+    return 1;
+  }
+  token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
+  snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
+  if (snapshot == NULL) {
+    return 1;
+  }
+  (void)memcpy(snapshot, tape.tokens, token_bytes);
+  mark = ctool_arena_mark(ctool_job_arena(fixture->job));
+  (void)memset(&unit, 0xa5, sizeof(unit));
+  status = ctool_c_parse(fixture->job, &tape, &fixture->parse_request, &unit);
+  diagnostic = ctool_job_diagnostic(fixture->job, diagnostic_count);
+  if (status == expected_status && unit_is_zero(&unit) != 0 &&
+      ctool_job_diagnostic_count(fixture->job) == diagnostic_count + 1u &&
+      diagnostic != NULL && diagnostic->code == expected_code &&
+      string_equal(diagnostic->path, expected_path) != 0 &&
+      diagnostic->line == expected_line &&
+      diagnostic->column == expected_column &&
+      string_equal(diagnostic->message, expected_message) != 0 &&
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(fixture->job))) !=
+          0 &&
+      memcmp(snapshot, tape.tokens, token_bytes) == 0) {
+    failed = 0;
+  } else {
+    (void)fprintf(stderr, "%s: %s frontier differs: %s", fixture->mode,
+                  path_text, ctool_status_name(status));
+    if (diagnostic != NULL) {
+      (void)fprintf(stderr, "/0x%08x at %.*s:%u:%u: %.*s",
+                    diagnostic->code, (int)diagnostic->path.size,
+                    diagnostic->path.data, diagnostic->line,
+                    diagnostic->column, (int)diagnostic->message.size,
+                    diagnostic->message.data);
+    }
+    (void)fprintf(stderr, "\n");
   }
   free(snapshot);
   return failed;
@@ -4681,12 +4772,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 154u, 4665u,
-       40203u, 570u, 186u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 119u, 3005u,
-       26642u, 408u, 204u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 286u,
-       10907u, 69665u, 1615u, 1145u, 0u, 0u}};
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4791u,
+       41625u, 591u, 193u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 121u, 3098u,
+       27724u, 414u, 207u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 291u,
+       11137u, 71173u, 1652u, 1158u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -17454,6 +17545,34 @@ static char *build_depth_source(const char *kind, ctool_u32 depth) {
       free(text);
       return NULL;
     }
+  } else if (strcmp(kind, "variadic-builtin") == 0) {
+    if (append_scale_text(
+            text, capacity, &used,
+            "void bad(int last, ...) { __builtin_va_list ap; ") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (append_scale_text(text, capacity, &used, "(") != 0) {
+        free(text);
+        return NULL;
+      }
+    }
+    if (append_scale_text(
+            text, capacity, &used, "__builtin_va_arg(ap, int)") != 0) {
+      free(text);
+      return NULL;
+    }
+    for (index = 0u; index < depth; index++) {
+      if (append_scale_text(text, capacity, &used, ")") != 0) {
+        free(text);
+        return NULL;
+      }
+    }
+    if (append_scale_text(text, capacity, &used, "; }\n") != 0) {
+      free(text);
+      return NULL;
+    }
   } else {
     free(text);
     return NULL;
@@ -19405,6 +19524,380 @@ cleanup:
   return failed;
 }
 
+static int variadic_cursor_child_is(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_expression_t *expression, ctool_u32 child_offset,
+    ctool_c_expression_kind_t kind, const char *name) {
+  ctool_u32 child_index = expression_child(unit, expression, child_offset);
+  const ctool_c_expression_t *child =
+      child_index < unit->expression_count
+          ? &unit->expressions[child_index]
+          : NULL;
+  if (child == NULL || child->kind != kind) {
+    return 0;
+  }
+  if (kind == CTOOL_C_EXPRESSION_BLOCK_BINDING) {
+    return child->reference < unit->block_binding_count &&
+                   string_equal(unit->block_bindings[child->reference].name,
+                                name) != 0
+               ? 1
+               : 0;
+  }
+  if (kind == CTOOL_C_EXPRESSION_PARAMETER) {
+    return child->reference < unit->parameter_count &&
+                   string_equal(unit->parameters[child->reference].name,
+                                name) != 0
+               ? 1
+               : 0;
+  }
+  return 0;
+}
+
+static int validate_variadic_callee_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *alias = find_binding(unit, "va_list");
+  const ctool_c_type_node_t *cursor =
+      alias == NULL ? NULL : unwrapped_type_node(unit, alias->type);
+  const ctool_c_type_node_t *character =
+      cursor != NULL && cursor->kind == CTOOL_C_TYPE_POINTER
+          ? unwrapped_type_node(unit, cursor->referenced_type)
+          : NULL;
+  ctool_u32 starts = 0u;
+  ctool_u32 arguments = 0u;
+  ctool_u32 copies = 0u;
+  ctool_u32 ends = 0u;
+  ctool_u32 signed_int_arguments = 0u;
+  ctool_u32 unsigned_int_arguments = 0u;
+  ctool_u32 signed_long_arguments = 0u;
+  ctool_u32 unsigned_long_arguments = 0u;
+  ctool_u32 pointer_arguments = 0u;
+  ctool_u32 index;
+
+  if (alias == NULL || alias->kind != CTOOL_C_BINDING_TYPEDEF ||
+      cursor == NULL || cursor->kind != CTOOL_C_TYPE_POINTER ||
+      character == NULL || character->kind != CTOOL_C_TYPE_CHAR) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    ctool_u32 expected_children = 0u;
+    ctool_u32 expected_line = 0u;
+    if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_START) {
+      starts++;
+      expected_children = 2u;
+      expected_line = 11u;
+      if (underlying_type_kind(unit, expression->type, NULL) !=
+              CTOOL_C_TYPE_VOID ||
+          variadic_cursor_child_is(
+              unit, expression, 0u, CTOOL_C_EXPRESSION_BLOCK_BINDING,
+              "ap") == 0 ||
+          variadic_cursor_child_is(
+              unit, expression, 1u, CTOOL_C_EXPRESSION_PARAMETER,
+              "first") == 0) {
+        return 1;
+      }
+    } else if (expression->kind ==
+               CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+      const ctool_c_type_node_t *argument_type =
+          unwrapped_type_node(unit, expression->type);
+      arguments++;
+      expected_children = 1u;
+      expected_line = 13u + arguments;
+      if (argument_type == NULL ||
+          variadic_cursor_child_is(
+              unit, expression, 0u, CTOOL_C_EXPRESSION_BLOCK_BINDING,
+              arguments == 1u ? "copy" : "ap") == 0) {
+        return 1;
+      }
+      if (argument_type->kind == CTOOL_C_TYPE_SIGNED_INT) {
+        signed_int_arguments++;
+      } else if (argument_type->kind == CTOOL_C_TYPE_UNSIGNED_INT) {
+        unsigned_int_arguments++;
+      } else if (argument_type->kind == CTOOL_C_TYPE_SIGNED_LONG) {
+        signed_long_arguments++;
+      } else if (argument_type->kind == CTOOL_C_TYPE_UNSIGNED_LONG) {
+        unsigned_long_arguments++;
+      } else if (argument_type->kind == CTOOL_C_TYPE_POINTER) {
+        pointer_arguments++;
+      } else {
+        return 1;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_COPY) {
+      ctool_u32 source_index;
+      const ctool_c_expression_t *source;
+      copies++;
+      expected_children = 2u;
+      expected_line = 13u;
+      source_index = expression_child(unit, expression, 1u);
+      source = source_index < unit->expression_count
+                   ? &unit->expressions[source_index]
+                   : NULL;
+      if (underlying_type_kind(unit, expression->type, NULL) !=
+              CTOOL_C_TYPE_VOID ||
+          variadic_cursor_child_is(
+              unit, expression, 0u, CTOOL_C_EXPRESSION_BLOCK_BINDING,
+              "copy") == 0 ||
+          source == NULL ||
+          source->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          source->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+          variadic_cursor_child_is(
+              unit, source, 0u, CTOOL_C_EXPRESSION_BLOCK_BINDING,
+              "source") == 0) {
+        return 1;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_END) {
+      ends++;
+      expected_children = 1u;
+      expected_line = ends == 1u ? 19u : 20u;
+      if (underlying_type_kind(unit, expression->type, NULL) !=
+              CTOOL_C_TYPE_VOID ||
+          variadic_cursor_child_is(
+              unit, expression, 0u, CTOOL_C_EXPRESSION_BLOCK_BINDING,
+              ends == 1u ? "copy" : "ap") == 0) {
+        return 1;
+      }
+    } else {
+      continue;
+    }
+    if (expression->child_count != expected_children ||
+        expression->first_child > unit->expression_child_count ||
+        expression->child_count >
+            unit->expression_child_count - expression->first_child ||
+        expression->reference != CTOOL_C_AST_NONE ||
+        expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        expression->conversion != CTOOL_C_CONVERSION_NONE ||
+        expression->computation_type != CTOOL_C_TYPE_NONE ||
+        expression->integer_bits != 0u ||
+        expression->string_bytes.data != NULL ||
+        expression->string_bytes.size != 0u ||
+        !dual_location_matches(&expression->location,
+                               &expression->physical_location,
+                               "/variadic-callees.c", expected_line)) {
+      return 1;
+    }
+  }
+  return starts == 1u && arguments == 5u && copies == 1u && ends == 2u &&
+                 signed_int_arguments == 1u &&
+                 unsigned_int_arguments == 1u &&
+                 signed_long_arguments == 1u &&
+                 unsigned_long_arguments == 1u && pointer_arguments == 1u
+             ? 0
+             : 1;
+}
+
+static int validate_active_variadic_header(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *alias = find_binding(unit, "va_list");
+  const ctool_c_binding_t *formatted = find_binding(unit, "vfprintf");
+  const ctool_c_type_node_t *cursor =
+      alias == NULL ? NULL : unwrapped_type_node(unit, alias->type);
+  const ctool_c_type_node_t *character =
+      cursor != NULL && cursor->kind == CTOOL_C_TYPE_POINTER
+          ? unwrapped_type_node(unit, cursor->referenced_type)
+          : NULL;
+  return alias != NULL && alias->kind == CTOOL_C_BINDING_TYPEDEF &&
+                 dual_location_matches(
+                     &alias->location, &alias->physical_location,
+                     "/kernel/doom/dglibc_compat.h", 13u) != 0 &&
+                 cursor != NULL && cursor->kind == CTOOL_C_TYPE_POINTER &&
+                 character != NULL && character->kind == CTOOL_C_TYPE_CHAR &&
+                 formatted != NULL &&
+                 formatted->kind == CTOOL_C_BINDING_FUNCTION
+             ? 0
+             : 1;
+}
+
+static int run_variadic_callees(const char *host_root) {
+  static const char source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "typedef const char *text_t;\n"
+      "int read_args(int first, ...) {\n"
+      "  va_list ap;\n"
+      "  va_list copy;\n"
+      "  int number;\n"
+      "  unsigned int unsigned_number;\n"
+      "  long signed_long;\n"
+      "  unsigned long unsigned_long;\n"
+      "  text_t text;\n"
+      "  __builtin_va_start(ap, first);\n"
+      "  va_list const source = ap;\n"
+      "  __builtin_va_copy(copy, source);\n"
+      "  number = __builtin_va_arg(copy, int);\n"
+      "  unsigned_number = __builtin_va_arg(ap, unsigned int);\n"
+      "  signed_long = __builtin_va_arg(ap, long);\n"
+      "  unsigned_long = __builtin_va_arg(ap, unsigned long);\n"
+      "  text = __builtin_va_arg(ap, text_t);\n"
+      "  __builtin_va_end(copy);\n"
+      "  __builtin_va_end(ap);\n"
+      "  return number;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"variadic start outside a variadic function",
+        "void bad(int last) {\n"
+        "  __builtin_va_list ap;\n"
+        "  __builtin_va_start(ap, last);\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u, "__builtin_va_start requires a variadic function"},
+      {{"variadic start with the wrong named parameter",
+        "void bad(int first, int last, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  __builtin_va_start(ap, first);\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u,
+       "__builtin_va_start requires the final named parameter"},
+      {{"non-cursor variadic argument list",
+        "int bad(int last, ...) {\n"
+        "  int ap = 0;\n"
+        "  return __builtin_va_arg(ap, int);\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u,
+       "variadic builtin requires a __builtin_va_list cursor"},
+      {{"const variadic cursor",
+        "void bad(int last, ...) {\n"
+        "  __builtin_va_list const ap = 0;\n"
+        "  __builtin_va_start(ap, last);\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u, "variadic cursor requires a modifiable lvalue"},
+      {{"non-lvalue variadic copy source",
+        "void bad(int last, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  __builtin_va_list copy;\n"
+        "  __builtin_va_start(ap, last);\n"
+        "  __builtin_va_copy(copy, (__builtin_va_list)0);\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       5u, 3u, "variadic cursor requires an lvalue"},
+      {{"atomic variadic cursor",
+        "void bad(int last, ...) {\n"
+        "  __builtin_va_list _Atomic ap;\n"
+        "  __builtin_va_start(ap, last);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u, "atomic variadic cursors are outside this ABI slice"},
+      {{"atomic variadic argument read",
+        "int bad(int last, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  __builtin_va_start(ap, last);\n"
+        "  return __builtin_va_arg(ap, _Atomic int);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       4u, 10u,
+       "atomic variadic argument reads are outside this ABI slice"},
+      {{"floating variadic argument read",
+        "int bad(int last, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  __builtin_va_start(ap, last);\n"
+        "  __builtin_va_arg(ap, double);\n"
+        "  return 0;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       4u, 3u,
+       "variadic argument reads support only 4-byte integer and pointer types"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"variadic builtins without GNU extensions",
+       "typedef __builtin_va_list va_list;\n", CTOOL_ERR_UNSUPPORTED,
+       CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 9u, "variadic builtins require GNU extensions"};
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t active_unit;
+  char *depth_source = NULL;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "variadic-callees", host_root,
+                             256u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/variadic-callees.c", source, &unit) !=
+          0 ||
+      validate_variadic_callee_unit(&unit) != 0) {
+    (void)fprintf(stderr, "variadic-callees: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/variadic-callee-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_variadic_callee_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/variadic-callee-failure.c", disabled_gnu_case.line,
+          disabled_gnu_case.column, disabled_gnu_case.message) != 0 ||
+      validate_variadic_callee_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  depth_source = build_depth_source(
+      "variadic-builtin", CTOOL_C_PARSE_NESTING_LIMIT - 1u);
+  if (depth_source == NULL) {
+    (void)fprintf(stderr,
+                  "variadic-callees: depth source construction failed\n");
+    goto cleanup;
+  }
+  {
+    const frontend_failure_case_t depth_failure = {
+        "variadic builtin nesting limit", depth_source, CTOOL_ERR_LIMIT,
+        CTOOL_C_PARSE_DIAG_LIMIT};
+    if (expect_frontend_failure_at_message(
+            &fixture, &depth_failure, "/variadic-callee-depth.c", 0u, 0u,
+            "source syntax exceeds the public nesting limit") != 0 ||
+        validate_variadic_callee_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (build_doom_tree_profile(&fixture.pp_request, include_roots,
+                              macro_actions, forced_includes) != 0) {
+    goto cleanup;
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (
+      parse_loaded_fixture(&fixture, "/kernel/doom/dglibc_compat.h", NULL,
+                           0u, &active_unit) != 0 ||
+      validate_active_variadic_header(&active_unit) != 0) {
+    (void)fprintf(stderr,
+                  "variadic-callees: active compatibility header differs\n");
+    goto cleanup;
+  }
+  if (expect_loaded_frontend_failure(
+          &fixture, "/kernel/doom/src/d_main.c", CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION,
+          "/kernel/doom/src/d_main.c",
+          405u, 6u,
+          "old-style function definitions are outside this body slice") !=
+      0) {
+    goto cleanup;
+  }
+  fixture.pp_request.forced_include_count = 0u;
+  failed = 0;
+
+cleanup:
+  free(depth_source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("variadic-callees: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -19413,7 +19906,8 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
-                   "function-bodies|block-bindings|scalar-initializers|"
+                   "function-bodies|variadic-callees|block-bindings|"
+                   "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
                    "designated-initializers|file-scope-initializers|"
@@ -19446,6 +19940,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "function-bodies") == 0) {
     return run_function_bodies(argv[2]);
+  }
+  if (strcmp(argv[1], "variadic-callees") == 0) {
+    return run_variadic_callees(argv[2]);
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);

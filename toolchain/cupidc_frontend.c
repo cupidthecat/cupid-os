@@ -240,6 +240,7 @@ typedef struct {
   ctool_u32 active_function_type;
   ctool_u32 active_function_first_label;
   ctool_bool in_function_body;
+  ctool_u32 builtin_va_list_type;
   ctool_u32 scalar_types[CTOOL_C_TYPE_LONG_DOUBLE + 1u];
 } cfront_context_t;
 
@@ -2916,6 +2917,8 @@ static ctool_status_t cfront_parse_body_expression(
     cfront_context_t *context, cfront_expression_value_t *value_out);
 static ctool_status_t cfront_parse_body_assignment(
     cfront_context_t *context, cfront_expression_value_t *value_out);
+static ctool_status_t cfront_parse_variadic_builtin(
+    cfront_context_t *context, cfront_expression_value_t *value_out);
 static ctool_status_t cfront_require_controlling_value(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     cfront_expression_value_t *value);
@@ -2941,6 +2944,9 @@ static ctool_bool cfront_starts_declaration_specifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token);
 static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
                                              ctool_u32 *type_out);
+static ctool_status_t cfront_builtin_va_list_type(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 *type_out);
 static ctool_status_t cfront_parse_compound_literal(
     cfront_context_t *context, const ctool_c_pp_token_t *literal_token,
     ctool_u32 type, cfront_expression_value_t *value_out);
@@ -4068,6 +4074,7 @@ static ctool_bool cfront_starts_declaration_specifier(
       cfront_token_is(token, "volatile") == CTOOL_TRUE ||
       cfront_token_is(token, "restrict") == CTOOL_TRUE ||
       cfront_token_is(token, "_Atomic") == CTOOL_TRUE ||
+      cfront_token_is(token, "__builtin_va_list") == CTOOL_TRUE ||
       cfront_token_is(token, "void") == CTOOL_TRUE ||
       cfront_token_is(token, "_Bool") == CTOOL_TRUE ||
       cfront_token_is(token, "char") == CTOOL_TRUE ||
@@ -6902,6 +6909,12 @@ static ctool_status_t cfront_parse_body_primary(
                                                    value_out)
                : status;
   }
+  if (cfront_token_is(token, "__builtin_va_start") == CTOOL_TRUE ||
+      cfront_token_is(token, "__builtin_va_arg") == CTOOL_TRUE ||
+      cfront_token_is(token, "__builtin_va_copy") == CTOOL_TRUE ||
+      cfront_token_is(token, "__builtin_va_end") == CTOOL_TRUE) {
+    return cfront_parse_variadic_builtin(context, value_out);
+  }
   if (cfront_token_is(token, "(") == CTOOL_TRUE) {
     ctool_status_t parenthesized = cfront_enter_syntax(context, token);
     if (parenthesized != CTOOL_OK) {
@@ -7128,6 +7141,27 @@ static ctool_status_t cfront_pointer_type_at(
   return cfront_type_append(context, &pointer, type_out);
 }
 
+static ctool_status_t cfront_builtin_va_list_type(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 *type_out) {
+  ctool_u32 character_type;
+  ctool_status_t status;
+  if (context->builtin_va_list_type != CFRONT_NONE) {
+    *type_out = context->builtin_va_list_type;
+    return CTOOL_OK;
+  }
+  status = cfront_scalar_type(context, CTOOL_C_TYPE_CHAR, token,
+                              &character_type);
+  if (status == CTOOL_OK) {
+    status = cfront_pointer_type_at(context, character_type, token,
+                                    &context->builtin_va_list_type);
+  }
+  if (status == CTOOL_OK) {
+    *type_out = context->builtin_va_list_type;
+  }
+  return status;
+}
+
 static ctool_status_t cfront_pointer_conversion_type(
     cfront_context_t *context, ctool_u32 referenced,
     const ctool_c_expression_t *source, ctool_u32 *type_out) {
@@ -7259,6 +7293,260 @@ static ctool_status_t cfront_apply_default_conversion(
         context, CTOOL_C_CONVERSION_LVALUE_TO_VALUE, target_type, value);
   }
   return CTOOL_OK;
+}
+
+static ctool_status_t cfront_variadic_cursor_type_matches(
+    cfront_context_t *context, ctool_u32 type, ctool_bool *matches_out,
+    ctool_bool *atomic_out) {
+  ctool_c_type_node_t pointer;
+  ctool_c_type_node_t character;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 character_base;
+  ctool_u32 character_qualifiers;
+  ctool_status_t status;
+  *matches_out = CTOOL_FALSE;
+  *atomic_out = CTOOL_FALSE;
+  status = cfront_underlying_type(context, type, &pointer_base,
+                                  &pointer_qualifiers, &pointer);
+  (void)pointer_base;
+  if (status != CTOOL_OK || pointer.kind != CTOOL_C_TYPE_POINTER) {
+    return status;
+  }
+  if (((pointer_qualifiers | pointer.qualifiers) & CTOOL_C_QUAL_ATOMIC) !=
+      0u) {
+    *atomic_out = CTOOL_TRUE;
+  }
+  status = cfront_underlying_type(
+      context, pointer.referenced_type, &character_base,
+      &character_qualifiers, &character);
+  (void)character_base;
+  if (status == CTOOL_OK && character.kind == CTOOL_C_TYPE_CHAR &&
+      (character_qualifiers | character.qualifiers) == 0u) {
+    *matches_out = CTOOL_TRUE;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_validate_variadic_cursor(
+    cfront_context_t *context, const ctool_c_pp_token_t *builtin_token,
+    const cfront_expression_value_t *cursor, ctool_bool require_modifiable) {
+  ctool_bool matches = CTOOL_FALSE;
+  ctool_bool atomic = CTOOL_FALSE;
+  ctool_bool modifiable = CTOOL_FALSE;
+  ctool_status_t status = cfront_variadic_cursor_type_matches(
+      context, cursor->type, &matches, &atomic);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (matches == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "variadic builtin requires a __builtin_va_list cursor");
+  }
+  if (atomic == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token, "atomic variadic cursors are outside this ABI slice");
+  }
+  if (cursor->is_lvalue == CTOOL_FALSE || cursor->is_bit_field == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        require_modifiable == CTOOL_TRUE
+            ? "variadic cursor requires a modifiable lvalue"
+            : "variadic cursor requires an lvalue");
+  }
+  if (require_modifiable == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  status = cfront_type_is_modifiable_object(context, cursor->type,
+                                             &modifiable);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  return modifiable == CTOOL_TRUE
+             ? CTOOL_OK
+             : cfront_emit_failure(
+                   context, CTOOL_ERR_INPUT,
+                   CTOOL_C_PARSE_DIAG_EXPRESSION, builtin_token,
+                   "variadic cursor requires a modifiable lvalue");
+}
+
+static ctool_status_t cfront_validate_variadic_argument_type(
+    cfront_context_t *context, const ctool_c_pp_token_t *builtin_token,
+    ctool_u32 type) {
+  ctool_c_type_node_t node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_status_t status = cfront_underlying_type(
+      context, type, &base, &qualifiers, &node);
+  (void)base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (((qualifiers | node.qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "atomic variadic argument reads are outside this ABI slice");
+  }
+  if (node.kind == CTOOL_C_TYPE_POINTER ||
+      node.kind == CTOOL_C_TYPE_SIGNED_INT ||
+      node.kind == CTOOL_C_TYPE_UNSIGNED_INT ||
+      node.kind == CTOOL_C_TYPE_SIGNED_LONG ||
+      node.kind == CTOOL_C_TYPE_UNSIGNED_LONG) {
+    return CTOOL_OK;
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+      builtin_token,
+      "variadic argument reads support only 4-byte integer and pointer types");
+}
+
+static ctool_status_t cfront_parse_variadic_builtin(
+    cfront_context_t *context, cfront_expression_value_t *value_out) {
+  const ctool_c_pp_token_t *builtin_token = cfront_peek(context);
+  ctool_c_expression_kind_t kind;
+  cfront_expression_value_t cursor;
+  cfront_expression_value_t second;
+  ctool_c_expression_t expression;
+  ctool_u32 argument_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 result_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 first_child = CTOOL_C_AST_NONE;
+  ctool_u32 child_count = 1u;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_status_t status;
+
+  if (context->request->gnu_extensions == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token, "variadic builtins require GNU extensions");
+  }
+  if (cfront_token_is(builtin_token, "__builtin_va_start") == CTOOL_TRUE) {
+    kind = CTOOL_C_EXPRESSION_VARIADIC_START;
+  } else if (cfront_token_is(builtin_token, "__builtin_va_arg") ==
+             CTOOL_TRUE) {
+    kind = CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT;
+  } else if (cfront_token_is(builtin_token, "__builtin_va_copy") ==
+             CTOOL_TRUE) {
+    kind = CTOOL_C_EXPRESSION_VARIADIC_COPY;
+  } else {
+    kind = CTOOL_C_EXPRESSION_VARIADIC_END;
+  }
+  cfront_zero(&cursor, (ctool_u32)sizeof(cursor));
+  cfront_zero(&second, (ctool_u32)sizeof(second));
+  status = cfront_enter_syntax(context, builtin_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  (void)cfront_advance(context);
+  status = cfront_expected(context, "(");
+  if (status == CTOOL_OK) {
+    status = cfront_parse_body_assignment(context, &cursor);
+  }
+  if (status == CTOOL_OK && kind != CTOOL_C_EXPRESSION_VARIADIC_END) {
+    status = cfront_expected(context, ",");
+  }
+  if (status == CTOOL_OK && kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+    status = cfront_parse_type_name(context, &argument_type);
+  } else if (status == CTOOL_OK &&
+             kind != CTOOL_C_EXPRESSION_VARIADIC_END) {
+    status = cfront_parse_body_assignment(context, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ")");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_variadic_cursor(
+        context, builtin_token, &cursor, CTOOL_TRUE);
+  }
+  if (status == CTOOL_OK && kind == CTOOL_C_EXPRESSION_VARIADIC_START) {
+    ctool_c_type_node_t function;
+    ctool_c_expression_t last;
+    ctool_u32 function_base;
+    ctool_u32 function_qualifiers;
+    status = cfront_underlying_type(
+        context, context->active_function_type, &function_base,
+        &function_qualifiers, &function);
+    (void)function_base;
+    (void)function_qualifiers;
+    if (status != CTOOL_OK || function.kind != CTOOL_C_TYPE_FUNCTION) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          builtin_token, "active variadic function type is unavailable");
+    } else if (function.variadic == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          builtin_token, "__builtin_va_start requires a variadic function");
+    } else if (function.parameter_count == 0u ||
+               cfront_vector_get(&context->expressions, second.expression,
+                                 &last) != CTOOL_OK ||
+               last.kind != CTOOL_C_EXPRESSION_PARAMETER ||
+               last.reference !=
+                   function.first_parameter + function.parameter_count - 1u) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          builtin_token,
+          "__builtin_va_start requires the final named parameter");
+    }
+  }
+  if (status == CTOOL_OK && kind == CTOOL_C_EXPRESSION_VARIADIC_COPY) {
+    status = cfront_validate_variadic_cursor(
+        context, builtin_token, &second, CTOOL_FALSE);
+    if (status == CTOOL_OK) {
+      status = cfront_apply_default_conversion(context, &second);
+    }
+  }
+  if (status == CTOOL_OK && kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+    status = cfront_validate_variadic_argument_type(
+        context, builtin_token, argument_type);
+  }
+  if (status == CTOOL_OK &&
+      kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+    result_type = argument_type;
+  } else if (status == CTOOL_OK) {
+    status = cfront_scalar_type(context, CTOOL_C_TYPE_VOID, builtin_token,
+                                &result_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(&context->expression_children,
+                                  &cursor.expression, &first_child);
+  }
+  if (status == CTOOL_OK &&
+      (kind == CTOOL_C_EXPRESSION_VARIADIC_START ||
+       kind == CTOOL_C_EXPRESSION_VARIADIC_COPY)) {
+    status = cfront_vector_append(&context->expression_children,
+                                  &second.expression, (ctool_u32 *)0);
+    child_count = 2u;
+  }
+  if (status == CTOOL_OK) {
+    cfront_expression_init(&expression, kind, &builtin_token->location,
+                           &builtin_token->physical_location);
+    expression.type = result_type;
+    expression.first_child = first_child;
+    expression.child_count = child_count;
+    status = cfront_append_expression(context, &expression,
+                                      &value_out->expression);
+  }
+  if (status == CTOOL_OK) {
+    value_out->type = result_type;
+    value_out->is_lvalue = CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
+    cfront_constant_value_clear(value_out);
+  }
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY)) {
+    return ctool_job_diagnostic_count(context->job) == diagnostic_count
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  return status;
 }
 
 static ctool_status_t cfront_append_integer_conversion_if_needed(
@@ -15091,6 +15379,41 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       }
       break;
     }
+    case CTOOL_C_EXPRESSION_VARIADIC_START:
+    case CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT:
+    case CTOOL_C_EXPRESSION_VARIADIC_COPY:
+    case CTOOL_C_EXPRESSION_VARIADIC_END: {
+      ctool_c_type_node_t result;
+      ctool_u32 result_base;
+      ctool_u32 result_qualifiers;
+      ctool_u32 expected_children =
+          expression->kind == CTOOL_C_EXPRESSION_VARIADIC_START ||
+                  expression->kind == CTOOL_C_EXPRESSION_VARIADIC_COPY
+              ? 2u
+              : 1u;
+      status = cfront_underlying_type(
+          context, expression->type, &result_base, &result_qualifiers,
+          &result);
+      (void)result_base;
+      (void)result_qualifiers;
+      if (status != CTOOL_OK ||
+          expression->child_count != expected_children ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE ||
+          expression->integer_bits != 0u ||
+          expression->string_bytes.data != (const ctool_u8 *)0 ||
+          expression->string_bytes.size != 0u ||
+          ((expression->kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) !=
+           (result.kind != CTOOL_C_TYPE_VOID))) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen variadic builtin expression is invalid");
+      }
+      break;
+    }
     case CTOOL_C_EXPRESSION_CALL:
       if (expression->child_count == 0u ||
           expression->reference != CTOOL_C_AST_NONE ||
@@ -15383,6 +15706,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
     for (index = 0u; index <= CTOOL_C_TYPE_LONG_DOUBLE; index++) {
       context.scalar_types[index] = CFRONT_NONE;
     }
+    context.builtin_va_list_type = CFRONT_NONE;
     status = cfront_validate_input(&context);
     if (status == CTOOL_OK) {
       stage = "scratch initialization";
@@ -15445,6 +15769,7 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
   ctool_bool saw_int = CTOOL_FALSE;
   ctool_bool saw_float = CTOOL_FALSE;
   ctool_bool saw_double = CTOOL_FALSE;
+  ctool_bool saw_builtin_va_list = CTOOL_FALSE;
   ctool_bool saw_signed = CTOOL_FALSE;
   ctool_bool saw_unsigned = CTOOL_FALSE;
   ctool_status_t status;
@@ -15512,6 +15837,30 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
     if (qualifier != 0u) {
       qualifiers |= qualifier;
       saw_any = CTOOL_TRUE;
+      (void)cfront_advance(context);
+      continue;
+    }
+    if (cfront_token_is(token, "__builtin_va_list") == CTOOL_TRUE) {
+      if (context->request->gnu_extensions == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
+            "variadic builtins require GNU extensions");
+      }
+      if (saw_base == CTOOL_TRUE || saw_scalar == CTOOL_TRUE ||
+          typedef_type != CFRONT_NONE || saw_builtin_va_list == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
+            "declaration has more than one base type");
+      }
+      status = cfront_builtin_va_list_type(context, token, &typedef_type);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      saw_any = CTOOL_TRUE;
+      saw_base = CTOOL_TRUE;
+      saw_builtin_va_list = CTOOL_TRUE;
       (void)cfront_advance(context);
       continue;
     }

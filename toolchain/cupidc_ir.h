@@ -37,7 +37,10 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_STAGING_ADDRESS,
   CTOOL_C_IR_INSTRUCTION_COPY_OBJECT,
   CTOOL_C_IR_INSTRUCTION_STRING_LITERAL_ADDRESS,
-  CTOOL_C_IR_INSTRUCTION_COPY_STRING
+  CTOOL_C_IR_INSTRUCTION_COPY_STRING,
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_START,
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT,
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_END
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -61,8 +64,10 @@ typedef struct {
    * FUNCTION_TO_POINTER retains its function operand type. ZERO_OBJECT and
    * COPY_OBJECT retain aggregate address operand types. COPY_STRING retains
    * its character-array address operand type. ELEMENT_ADDRESS retains its
-   * fixed-array operand type. CALL_DIRECT retains the function
-   * type, while
+   * fixed-array operand type.
+   * VARIADIC_START/VARIADIC_ARGUMENT/VARIADIC_END retain the consumed
+   * cursor-object type. VARIADIC_ARGUMENT uses type for the loaded result.
+   * CALL_DIRECT retains the function type, while
    * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
    * consumed condition type. */
   ctool_u32 input_type;
@@ -88,6 +93,7 @@ typedef struct {
    * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
    * ELEMENT_ADDRESS uses a direct fixed-array element index.
    * POINTER_BINARY uses an absolute graph-type index for its right operand.
+   * VARIADIC_START uses the absolute final named parameter index.
    * Branches use a function-relative instruction index. Other instructions
    * use CTOOL_C_AST_NONE. */
   ctool_u32 reference;

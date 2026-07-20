@@ -4925,3 +4925,54 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0054, the amended call-alignment record, the root context, README files, bootstrap matrices, active-source audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for complete variadic callee support, floating and wider runtime values, the remaining C11 and i386 ABI gaps, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-19: CupidC lowers scalar variadic callees
+
+### Decision and active requirement
+
+Hosted CupidC now represents and emits the scalar callee side of i386 cdecl variadic functions. This follows the caller work in ADR 0054. The active Doom profile previously stopped in `kernel/doom/dglibc_compat.h` because `__builtin_va_list` was not a recognized type. The header and every active C source remain unchanged.
+
+GNU C mode treats `__builtin_va_list` as Cupid's target `char *` cursor. The frontend publishes explicit start, argument, copy, and end expressions. A destination cursor must be a modifiable, non-atomic `__builtin_va_list` lvalue. A copy source may be a const lvalue because lvalue conversion removes its top-level qualifier. `__builtin_va_start` is valid only in a variadic definition, and its second operand must be the final named parameter.
+
+Linear IR keeps `VARIADIC_START`, `VARIADIC_ARGUMENT`, and `VARIADIC_END` as target-independent operations. Cursor copy uses the existing scalar `STORE`. Start retains the absolute final-parameter identity, while argument retrieval carries both the cursor-object type and the loaded type. Because the final-parameter child is not lowered, this path validates its identity, type, canonical metadata, and empty unused payloads directly.
+
+The i386 emitter starts the cursor at the first byte after the final named cdecl argument. It reuses the established parameter-layout operation, so rounded named-structure spans and hidden structure-result handling are inherited behavior rather than new direct oracle claims. Each supported read loads the old four-byte slot and advances the stored cursor by four. Copy preserves the cursor value. End evaluates its cursor operand but emits no state change.
+
+This increment supports non-atomic pointers and non-atomic four-byte `int`, `unsigned int`, `long`, and `unsigned long` reads. Atomic cursors, atomic reads, floating and wider values, aggregate reads, floating default promotion, and non-scalar ellipsis transport remain open. The same Doom profile now passes the compatibility header and stops at the old-style `void doomgeneric_Tick()` definition in `kernel/doom/src/d_main.c:405`.
+
+Small freestanding i386 probes compiled independently with GCC and Clang agreed on the cursor model. Both placed the first unnamed value after the final named stack slot, copied one pointer for `va_copy`, advanced by four for the represented read, and emitted no state change for `va_end`. These probes informed the target rule; the committed object proof remains decoder-driven and does not claim native i386 execution.
+
+### Contract evidence and corrections
+
+- The red sequence advanced one layer at a time. The frontend first rejected `__builtin_va_list`, IR then rejected the newly represented builtin expressions, and object emission then lacked their i386 operations. Each layer received positive and focused negative coverage before the next one was implemented.
+- The frontend fixture covers every supported integer kind, a pointer read, a const copy source, both end operations, and exact source locations. Negatives cover strict C mode, nonvariadic use, the wrong named parameter, a non-cursor, a const destination, a non-lvalue copy source, atomic cursors and reads, a floating read, and the public syntax-depth limit. The depth case proves one precise diagnostic, rollback, and same-job recovery.
+- The IR fixture pins 18 exact instructions and a maximum abstract stack depth of two. Copied-unit negatives cover a wrong final-parameter reference, type, metadata, and retained payload; a const cursor destination; and an invalid argument result type. Every failure preserves the frozen unit and publishes no partial IR.
+- The deterministic ELF32 fixture has no relocations and exactly one positive EBP displacement, `16`, for the first unnamed argument after two named parameters. Shared decoding checks the complete function. The decoder-driven i386 interpreter reads a pointer and then the same unsigned-long slot independently through copied and original cursors. It returns `0x21426384`, restores ESP, and preserves the return address, both named arguments, and all three unnamed argument words.
+- The first execution oracle read the unsigned long only through the copied cursor. Review showed that shared cursor state could still pass. The final oracle reads the same slot through both cursors and uses a distinct following word, so copy independence is observable.
+- Clang analysis found that one defensive IR stack record could be read after a failed path without an initializer. Initializing it removed the warning without changing successful lowering.
+- Review also found that atomic cursor qualifiers were accepted inconsistently, a failed syntax-depth entry could produce an unmatched leave and duplicate storage diagnostic, and the skipped `va_start` parameter child lacked the full frozen-unit checks. Focused regressions now cover each boundary.
+- The first sanitizer wrapper did not preserve its requested compiler flags. That run is excluded. Corrected GCC and Clang builds show AddressSanitizer and UndefinedBehaviorSanitizer instrumentation and pass with leak detection and halt-on-error enabled.
+- An earlier repository run reached stale lexical inventory assertions after the implementation changed the checked source graph. The generated audit and exact drift gates were refreshed from the final source, then the complete repository suite passed.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 158/4,791/41,625/591/193; `cupidc_emit.c` has 121/3,098/27,724/414/207; and `cupidc_frontend.c` has 291/11,137/71,173/1,652/1,158. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,154 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,520 `while`, 1,731 `break`, 970 `continue`, 26,698 `if`, 3,649 `else`, 3,158 `for`, 16,340 `return`, and 3,367 `sizeof` occurrences. The active-source digest is `76ee35f9b0d35985de5eea8747c9efaf9903993e50b62bd9e6175f8e4847a778`; the complete audit JSON has SHA-256 `c6245903337a0402a260c2b2d0f6692e0dc4fbd57180a8fe0d859c1ec4f019e0`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused CupidC contracts | PASS | Frontend, IR, and object `variadic-callees` modes pass on the final Windows binaries. |
+| Windows hosted Toolchain | PASS | The complete hosted suite passes every mode and all 22 assembly demos. |
+| WSL strict compilers | PASS | GCC 13.3 and Clang 18.1 pass the complete hosted suite. After the final frozen-unit amendment, both rebuild the affected contracts and pass `aggregate-values` plus `variadic-callees` in 15.0 and 15.6 seconds. |
+| Sanitizers | PASS | GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite. The final amended aggregate and variadic checks also pass in 54.8 and 62.3 seconds. |
+| Static analysis | PASS | Clang 18.1 reports no findings across the changed frontend, IR, and three contracts. GCC 13.3 `-fanalyzer` reports no findings on the same five units; its frontend and IR implementation checks take 326.5 and 129.7 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 37.0 seconds. The final repository gate reproduces the checked manifest. |
+| Full repository gate | PASS | `make test` passes 330 tests in 478.363 seconds with one expected platform skip; Make returns in 516.2 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the production image in 22.6 seconds. |
+| Emulator gate | PASS | The GUI terminal smoke boots the rebuilt image and runs `/bin/ls.cc` through CupidC to completion in 20.2 seconds. |
+| Two-axis review | PASS | Standards and spec re-reviews find no remaining implementation, test, documentation, scope, or ownership issue after the frozen-unit and evidence corrections. |
+
+This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler and the normal OS C objects. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path. No host dependency or production C-object owner moves in this increment.
+
+ADR 0055, ADR 0054, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material. The requirements and existing i386 ABI were sufficient, so no user question was needed.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. The next measured Doom blocker is old-style function definitions. Atomic variadic access, floating and wider runtime values, aggregate variadic transport, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap also remain. No issue is ready to close from this increment.
