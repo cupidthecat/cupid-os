@@ -20,7 +20,8 @@ typedef enum {
   CFRONT_D_NAME = 1,
   CFRONT_D_POINTER,
   CFRONT_D_ARRAY,
-  CFRONT_D_FUNCTION
+  CFRONT_D_FUNCTION,
+  CFRONT_D_PARAMETER_TAG
 } cfront_declarator_kind_t;
 
 typedef struct {
@@ -29,9 +30,18 @@ typedef struct {
   ctool_string_t name;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
-  ctool_u32 qualifiers;
-  ctool_c_array_bound_kind_t array_bound_kind;
-  ctool_u32 element_count;
+  union {
+    struct {
+      ctool_u32 qualifiers;
+      ctool_c_array_bound_kind_t array_bound_kind;
+      ctool_u32 element_count;
+    } type;
+    struct {
+      ctool_u32 first_parameter_tag;
+      ctool_u32 parameter_tag_count;
+      ctool_u32 parameter_enum_position;
+    } function;
+  } detail;
   ctool_u32 parameter_head;
   ctool_u32 parameter_count;
   ctool_bool has_prototype;
@@ -120,6 +130,8 @@ typedef struct {
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
   ctool_bool anonymous_record_definition;
+  ctool_bool record_definition;
+  ctool_bool record_tag_previously_visible;
   ctool_bool empty_declaration_valid;
   const ctool_c_pp_token_t *block_tag_specifier_token;
   cfront_attributes_t attributes;
@@ -186,6 +198,11 @@ typedef struct {
 } cfront_object_definition_t;
 
 typedef struct {
+  ctool_u32 binding_mark;
+  ctool_u32 tag_mark;
+} cfront_block_scope_mark_t;
+
+typedef struct {
   ctool_job_t *job;
   const ctool_c_pp_result_t *tape;
   const ctool_c_parse_request_t *request;
@@ -237,8 +254,10 @@ typedef struct {
   ctool_u32 prototype_binding_mark;
   ctool_u32 prototype_tag_mark;
   ctool_u32 prototype_name_mark;
+  ctool_u32 prototype_enum_position;
   ctool_u32 active_function_type;
   ctool_u32 active_function_first_label;
+  ctool_u32 active_function_tag_mark;
   ctool_bool in_function_body;
   ctool_u32 builtin_va_list_type;
   ctool_u32 scalar_types[CTOOL_C_TYPE_LONG_DOUBLE + 1u];
@@ -583,7 +602,7 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(pending_initializer_elements,
                      ctool_c_initializer_element_t)
   CFRONT_OPEN_VECTOR(active_block_binding_indices, ctool_u32)
-  CFRONT_OPEN_VECTOR(block_scope_marks, ctool_u32)
+  CFRONT_OPEN_VECTOR(block_scope_marks, cfront_block_scope_mark_t)
   CFRONT_OPEN_VECTOR(statements, ctool_c_statement_t)
   CFRONT_OPEN_VECTOR(statement_children, ctool_u32)
   CFRONT_OPEN_VECTOR(switch_contexts, cfront_switch_context_t)
@@ -2600,6 +2619,59 @@ static ctool_bool cfront_find_tag(const cfront_context_t *context,
   return cfront_find_tag_from(context, 0u, name, tag_out);
 }
 
+static ctool_status_t cfront_current_tag_scope_mark(
+    const cfront_context_t *context, ctool_u32 *mark_out) {
+  cfront_block_scope_mark_t block_mark;
+  if (mark_out == (ctool_u32 *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (context->prototype_scope_depth != 0u) {
+    *mark_out = context->prototype_tag_mark;
+    return CTOOL_OK;
+  }
+  if (context->in_function_body == CTOOL_FALSE) {
+    *mark_out = 0u;
+    return CTOOL_OK;
+  }
+  if (context->block_scope_marks.count == 0u ||
+      cfront_vector_get(&context->block_scope_marks,
+                        context->block_scope_marks.count - 1u,
+                        &block_mark) != CTOOL_OK) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *mark_out = block_mark.tag_mark;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_validate_block_tag_specifier(
+    cfront_context_t *context, const cfront_specifiers_t *specifiers) {
+  ctool_c_type_node_t tag_type;
+  ctool_u32 tag_base;
+  ctool_u32 tag_qualifiers;
+  ctool_status_t status;
+  if (specifiers->block_tag_specifier_token ==
+      (const ctool_c_pp_token_t *)0) {
+    return CTOOL_OK;
+  }
+  status = cfront_underlying_type(context, specifiers->type, &tag_base,
+                                  &tag_qualifiers, &tag_type);
+  (void)tag_base;
+  (void)tag_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        specifiers->block_tag_specifier_token,
+        "block tag type is unavailable");
+  }
+  if (tag_type.kind != CTOOL_C_TYPE_RECORD) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        specifiers->block_tag_specifier_token,
+        "block enum specifiers are outside this body slice");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_append_tag(cfront_context_t *context,
                                         ctool_string_t name, ctool_u32 type,
                                         const ctool_c_pp_token_t *token) {
@@ -4102,36 +4174,43 @@ static ctool_bool cfront_starts_declaration_specifier(
 
 static ctool_status_t cfront_record_type_body(
     cfront_context_t *context, ctool_c_record_kind_t record_kind,
-    ctool_u32 *type_out, ctool_bool *anonymous_definition_out);
+    ctool_u32 *type_out, ctool_bool *anonymous_definition_out,
+    ctool_bool *definition_out, ctool_bool *tag_previously_visible_out);
 
 static ctool_status_t cfront_record_type(
     cfront_context_t *context, ctool_c_record_kind_t record_kind,
-    ctool_u32 *type_out, ctool_bool *anonymous_definition_out) {
+    ctool_u32 *type_out, ctool_bool *anonymous_definition_out,
+    ctool_bool *definition_out, ctool_bool *tag_previously_visible_out) {
   ctool_status_t status = cfront_enter_syntax(context, cfront_peek(context));
   if (status != CTOOL_OK) {
     return status;
   }
   status = cfront_record_type_body(context, record_kind, type_out,
-                                   anonymous_definition_out);
+                                   anonymous_definition_out, definition_out,
+                                   tag_previously_visible_out);
   cfront_leave_syntax(context);
   return status;
 }
 
 static ctool_status_t cfront_record_type_body(
     cfront_context_t *context, ctool_c_record_kind_t record_kind,
-    ctool_u32 *type_out, ctool_bool *anonymous_definition_out) {
+    ctool_u32 *type_out, ctool_bool *anonymous_definition_out,
+    ctool_bool *definition_out, ctool_bool *tag_previously_visible_out) {
   const ctool_c_pp_token_t *keyword = cfront_advance(context);
   const ctool_c_pp_token_t *name_token;
   ctool_string_t name = ctool_string("");
   ctool_c_tag_t existing_tag;
   ctool_c_type_node_t node;
   ctool_u32 type = CFRONT_NONE;
+  ctool_u32 current_tag_mark = 0u;
   ctool_bool has_existing = CTOOL_FALSE;
   cfront_attributes_t record_attributes;
   ctool_status_t status;
   cfront_zero(&record_attributes, (ctool_u32)sizeof(record_attributes));
   cfront_zero(&node, (ctool_u32)sizeof(node));
   *anonymous_definition_out = CTOOL_FALSE;
+  *definition_out = CTOOL_FALSE;
+  *tag_previously_visible_out = CTOOL_FALSE;
   status = cfront_parse_attributes(context, &record_attributes);
   if (status != CTOOL_OK) {
     return status;
@@ -4146,16 +4225,24 @@ static ctool_status_t cfront_record_type_body(
           name_token, "record tag cannot use a reserved word");
     }
     name = name_token->spelling;
+    *tag_previously_visible_out =
+        cfront_find_tag(context, name, (ctool_c_tag_t *)0);
     (void)cfront_advance(context);
     status = cfront_parse_attributes(context, &record_attributes);
     if (status != CTOOL_OK) {
       return status;
     }
+    status = cfront_current_tag_scope_mark(context, &current_tag_mark);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "record tag scope is unavailable");
+    }
     has_existing =
-        context->prototype_scope_depth != 0u &&
-                cfront_peek_is(context, "{") == CTOOL_TRUE
-            ? cfront_find_tag_from(context, context->prototype_tag_mark,
-                                   name, &existing_tag)
+        cfront_peek_is(context, "{") == CTOOL_TRUE ||
+                cfront_peek_is(context, ";") == CTOOL_TRUE
+            ? cfront_find_tag_from(context, current_tag_mark, name,
+                                   &existing_tag)
             : cfront_find_tag(context, name, &existing_tag);
     if (has_existing == CTOOL_TRUE) {
       status = cfront_type_get(context, existing_tag.type, &node);
@@ -4211,6 +4298,7 @@ static ctool_status_t cfront_record_type_body(
     *type_out = type;
     return CTOOL_OK;
   }
+  *definition_out = CTOOL_TRUE;
   if (has_existing == CTOOL_TRUE && node.record_complete == CTOOL_TRUE) {
     return cfront_emit_failure(context, CTOOL_ERR_INPUT,
                                CTOOL_C_PARSE_DIAG_REDEFINITION, name_token,
@@ -4374,10 +4462,51 @@ static ctool_status_t cfront_adjust_parameter_type(
   return status == CTOOL_OK ? CTOOL_OK : cfront_storage_failure(context, status);
 }
 
+static ctool_status_t cfront_append_function_declarator(
+    cfront_context_t *context, cfront_declarator_t *function,
+    ctool_u32 tag_mark, const ctool_c_pp_token_t *open_token,
+    ctool_u32 *root_out) {
+  ctool_u32 tag_index;
+  ctool_status_t status = CTOOL_OK;
+  if (context->tags.count < tag_mark) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        open_token, "function parameter tag scope is unavailable");
+  }
+  function->detail.function.first_parameter_tag =
+      context->declarators.count;
+  function->detail.function.parameter_tag_count =
+      context->tags.count - tag_mark;
+  function->detail.function.parameter_enum_position =
+      context->prototype_enum_position;
+  for (tag_index = tag_mark; tag_index < context->tags.count; tag_index++) {
+    ctool_c_tag_t tag;
+    cfront_declarator_t tag_copy;
+    status = cfront_vector_get(&context->tags, tag_index, &tag);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          open_token, "function parameter tag is unavailable");
+    }
+    cfront_zero(&tag_copy, (ctool_u32)sizeof(tag_copy));
+    tag_copy.kind = CFRONT_D_PARAMETER_TAG;
+    tag_copy.child = tag.type;
+    tag_copy.name = tag.name;
+    tag_copy.location = tag.location;
+    tag_copy.physical_location = tag.physical_location;
+    status = cfront_vector_append(&context->declarators, &tag_copy,
+                                  (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  return cfront_append_declarator(context, function, root_out);
+}
+
 static ctool_status_t cfront_parse_function_suffix_body(
     cfront_context_t *context, ctool_u32 child,
     const ctool_c_pp_token_t *open_token, ctool_u32 prototype_mark,
-    ctool_u32 *root_out) {
+    ctool_u32 tag_mark, ctool_u32 *root_out) {
   cfront_declarator_t function;
   ctool_u32 head = CFRONT_NONE;
   ctool_u32 count = 0u;
@@ -4391,14 +4520,16 @@ static ctool_status_t cfront_parse_function_suffix_body(
   if (cfront_peek_is(context, ")") == CTOOL_TRUE) {
     (void)cfront_advance(context);
     function.has_prototype = CTOOL_FALSE;
-    return cfront_append_declarator(context, &function, root_out);
+    return cfront_append_function_declarator(
+        context, &function, tag_mark, open_token, root_out);
   }
   if (cfront_peek_is(context, "void") == CTOOL_TRUE &&
       cfront_token_is(cfront_token(context, context->position + 1u), ")") ==
           CTOOL_TRUE) {
     context->position += 2u;
     function.has_prototype = CTOOL_TRUE;
-    return cfront_append_declarator(context, &function, root_out);
+    return cfront_append_function_declarator(
+        context, &function, tag_mark, open_token, root_out);
   }
   if (cfront_peek(context) != (const ctool_c_pp_token_t *)0 &&
       cfront_peek(context)->kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
@@ -4576,7 +4707,8 @@ static ctool_status_t cfront_parse_function_suffix_body(
   }
   function.parameter_head = head;
   function.parameter_count = count;
-  return cfront_append_declarator(context, &function, root_out);
+  return cfront_append_function_declarator(
+      context, &function, tag_mark, open_token, root_out);
 }
 
 static ctool_status_t cfront_parse_function_suffix(
@@ -4589,6 +4721,7 @@ static ctool_status_t cfront_parse_function_suffix(
   ctool_u32 previous_tag_mark = context->prototype_tag_mark;
   ctool_u32 previous_binding_mark = context->prototype_binding_mark;
   ctool_u32 previous_name_mark = context->prototype_name_mark;
+  ctool_u32 previous_enum_position = context->prototype_enum_position;
   ctool_u32 binding_scope_stack_mark =
       cfront_vector_mark(&context->prototype_binding_marks);
   ctool_u32 name_scope_stack_mark =
@@ -4612,8 +4745,9 @@ static ctool_status_t cfront_parse_function_suffix(
   context->prototype_tag_mark = tag_mark;
   context->prototype_binding_mark = binding_mark;
   context->prototype_name_mark = prototype_mark;
+  context->prototype_enum_position = CFRONT_NONE;
   status = cfront_parse_function_suffix_body(
-      context, child, open_token, prototype_mark, root_out);
+      context, child, open_token, prototype_mark, tag_mark, root_out);
   rewind_status = cfront_vector_rewind(&context->prototype_names,
                                        prototype_mark);
   if (rewind_status == CTOOL_OK) {
@@ -4634,6 +4768,7 @@ static ctool_status_t cfront_parse_function_suffix(
   context->prototype_tag_mark = previous_tag_mark;
   context->prototype_binding_mark = previous_binding_mark;
   context->prototype_name_mark = previous_name_mark;
+  context->prototype_enum_position = previous_enum_position;
   if (status == CTOOL_OK && rewind_status != CTOOL_OK) {
     status = cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
@@ -4765,9 +4900,9 @@ static ctool_status_t cfront_parse_declarator_body(
       array.location = open->location;
       array.physical_location = open->physical_location;
       if (cfront_peek_is(context, "]") == CTOOL_TRUE) {
-        array.array_bound_kind = CTOOL_C_ARRAY_UNSPECIFIED;
+        array.detail.type.array_bound_kind = CTOOL_C_ARRAY_UNSPECIFIED;
       } else {
-        array.array_bound_kind = CTOOL_C_ARRAY_FIXED;
+        array.detail.type.array_bound_kind = CTOOL_C_ARRAY_FIXED;
         status = cfront_parse_constant_conditional(context, &count);
         if (status != CTOOL_OK) {
           break;
@@ -4780,7 +4915,7 @@ static ctool_status_t cfront_parse_declarator_body(
               "array bound is outside the supported 32-bit object range");
           break;
         }
-        array.element_count = (ctool_u32)count.bits;
+        array.detail.type.element_count = (ctool_u32)count.bits;
       }
       status = cfront_expected(context, "]");
       if (status == CTOOL_OK) {
@@ -4811,7 +4946,7 @@ static ctool_status_t cfront_parse_declarator_body(
       declarator.child = root;
       declarator.location = pointer.location;
       declarator.physical_location = pointer.physical_location;
-      declarator.qualifiers = pointer.qualifiers;
+      declarator.detail.type.qualifiers = pointer.qualifiers;
       status = cfront_append_declarator(context, &declarator, &root);
       if (status != CTOOL_OK) {
         break;
@@ -4919,7 +5054,7 @@ static ctool_status_t cfront_build_declarator(
       return CTOOL_OK;
     }
     if (declarator.kind == CFRONT_D_POINTER) {
-      if ((declarator.qualifiers & CTOOL_C_QUAL_RESTRICT) != 0u) {
+      if ((declarator.detail.type.qualifiers & CTOOL_C_QUAL_RESTRICT) != 0u) {
         ctool_u32 referenced;
         ctool_u32 referenced_qualifiers;
         ctool_c_type_node_t referenced_node;
@@ -4942,7 +5077,7 @@ static ctool_status_t cfront_build_declarator(
       }
       cfront_node_from_declarator(&node, CTOOL_C_TYPE_POINTER, &declarator);
       node.referenced_type = current;
-      node.qualifiers = declarator.qualifiers;
+      node.qualifiers = declarator.detail.type.qualifiers;
     } else if (declarator.kind == CFRONT_D_ARRAY) {
       ctool_bool element_complete = CTOOL_FALSE;
       status = cfront_type_is_complete_object_now(
@@ -4975,8 +5110,8 @@ static ctool_status_t cfront_build_declarator(
       }
       cfront_node_from_declarator(&node, CTOOL_C_TYPE_ARRAY, &declarator);
       node.referenced_type = current;
-      node.array_bound_kind = declarator.array_bound_kind;
-      node.element_count = declarator.element_count;
+      node.array_bound_kind = declarator.detail.type.array_bound_kind;
+      node.element_count = declarator.detail.type.element_count;
     } else if (declarator.kind == CFRONT_D_FUNCTION) {
       ctool_c_type_node_t result_node;
       ctool_u32 result_base;
@@ -5039,6 +5174,12 @@ static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
   ctool_status_t status = cfront_parse_specifiers(context, &specifiers);
   if (status != CTOOL_OK) {
     return status;
+  }
+  if (context->in_function_body == CTOOL_TRUE) {
+    status = cfront_validate_block_tag_specifier(context, &specifiers);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   status = cfront_validate_function_specifier_context(
       context, &specifiers, CTOOL_FALSE,
@@ -5453,6 +5594,12 @@ static ctool_status_t cfront_parse_member_declaration(
   status = cfront_parse_specifiers(context, &specifiers);
   if (status != CTOOL_OK) {
     return status;
+  }
+  if (context->in_function_body == CTOOL_TRUE) {
+    status = cfront_validate_block_tag_specifier(context, &specifiers);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   status = cfront_validate_function_specifier_context(
       context, &specifiers, CTOOL_FALSE,
@@ -5881,16 +6028,23 @@ static ctool_bool cfront_find_active_parameter(
 }
 
 static ctool_status_t cfront_enter_block_scope(cfront_context_t *context) {
-  ctool_u32 mark = context->active_block_binding_indices.count;
-  ctool_status_t status =
-      cfront_vector_append(&context->block_scope_marks, &mark,
-                           (ctool_u32 *)0);
+  cfront_block_scope_mark_t mark;
+  ctool_status_t status;
+  mark.binding_mark = context->active_block_binding_indices.count;
+  mark.tag_mark = context->tags.count;
+  if (context->in_function_body == CTOOL_TRUE &&
+      context->block_scope_marks.count == 0u &&
+      context->active_function_tag_mark != CFRONT_NONE) {
+    mark.tag_mark = context->active_function_tag_mark;
+  }
+  status = cfront_vector_append(&context->block_scope_marks, &mark,
+                                (ctool_u32 *)0);
   return status == CTOOL_OK ? CTOOL_OK
                             : cfront_storage_failure(context, status);
 }
 
 static ctool_status_t cfront_leave_block_scope(cfront_context_t *context) {
-  ctool_u32 mark;
+  cfront_block_scope_mark_t mark;
   ctool_status_t status;
   if (context->block_scope_marks.count == 0u) {
     return CTOOL_ERR_INTERNAL;
@@ -5900,7 +6054,10 @@ static ctool_status_t cfront_leave_block_scope(cfront_context_t *context) {
       &mark);
   if (status == CTOOL_OK) {
     status = cfront_vector_rewind(&context->active_block_binding_indices,
-                                  mark);
+                                  mark.binding_mark);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_rewind(&context->tags, mark.tag_mark);
   }
   if (status == CTOOL_OK) {
     status = cfront_vector_rewind(&context->block_scope_marks,
@@ -5911,7 +6068,7 @@ static ctool_status_t cfront_leave_block_scope(cfront_context_t *context) {
 
 static ctool_bool cfront_current_block_name_exists(
     const cfront_context_t *context, ctool_string_t name) {
-  ctool_u32 mark;
+  cfront_block_scope_mark_t mark;
   ctool_u32 active;
   if (context->block_scope_marks.count == 0u ||
       cfront_vector_get(&context->block_scope_marks,
@@ -5920,7 +6077,7 @@ static ctool_bool cfront_current_block_name_exists(
     return CTOOL_FALSE;
   }
   active = context->active_block_binding_indices.count;
-  while (active > mark) {
+  while (active > mark.binding_mark) {
     ctool_u32 index;
     ctool_c_block_binding_t binding;
     active--;
@@ -11880,31 +12037,16 @@ static ctool_status_t cfront_parse_block_declaration(
     ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *declaration_token = cfront_peek(context);
   cfront_specifiers_t specifiers;
+  ctool_u32 tag_mark = context->tags.count;
   ctool_u32 first_binding = context->block_bindings.count;
   ctool_u32 binding_count = 0u;
   ctool_status_t status = cfront_parse_specifiers(context, &specifiers);
   if (status != CTOOL_OK) {
     return status;
   }
-  if (specifiers.block_tag_specifier_token !=
-      (const ctool_c_pp_token_t *)0) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-        specifiers.block_tag_specifier_token,
-        "block tag specifiers are outside this body slice");
-  }
-  if (specifiers.storage == CFRONT_STORAGE_TYPEDEF ||
-      specifiers.storage == CFRONT_STORAGE_EXTERN ||
-      (specifiers.storage == CFRONT_STORAGE_STATIC &&
-       is_for_initializer == CTOOL_TRUE)) {
-    return cfront_emit_failure(
-        context,
-        is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
-                                         : CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_STATEMENT, declaration_token,
-        is_for_initializer == CTOOL_TRUE
-            ? "for initializer declaration requires automatic or register storage"
-            : "block storage class is outside this body slice");
+  status = cfront_validate_block_tag_specifier(context, &specifiers);
+  if (status != CTOOL_OK) {
+    return status;
   }
   if (specifiers.function_declaration_flags != 0u) {
     return cfront_emit_failure(
@@ -11921,6 +12063,79 @@ static ctool_status_t cfront_parse_block_declaration(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         cfront_first_attribute_token(&specifiers.attributes),
         "block declaration attributes are outside this body slice");
+  }
+  if (is_for_initializer == CTOOL_TRUE &&
+      cfront_peek_is(context, ";") == CTOOL_FALSE &&
+      context->tags.count != tag_mark) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+        specifiers.block_tag_specifier_token,
+        "for initializer declaration cannot introduce a tag");
+  }
+  if (cfront_peek_is(context, ";") == CTOOL_TRUE) {
+    ctool_c_statement_t statement;
+    ctool_c_type_node_t empty_type;
+    ctool_u32 empty_base;
+    ctool_u32 empty_qualifiers;
+    ctool_bool type_qualified = CTOOL_FALSE;
+    if (is_for_initializer == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+          declaration_token,
+          "for initializer declaration must declare an automatic or register object");
+    }
+    if (specifiers.block_tag_specifier_token !=
+            (const ctool_c_pp_token_t *)0 &&
+        specifiers.record_definition == CTOOL_FALSE) {
+      status = cfront_underlying_type(context, specifiers.type, &empty_base,
+                                      &empty_qualifiers, &empty_type);
+      (void)empty_base;
+      if (status != CTOOL_OK || empty_type.kind != CTOOL_C_TYPE_RECORD) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            declaration_token,
+            "empty block record declaration type is unavailable");
+      }
+      type_qualified =
+          empty_qualifiers != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    }
+    if ((specifiers.storage != CFRONT_STORAGE_NONE ||
+         type_qualified == CTOOL_TRUE) &&
+        specifiers.record_definition == CTOOL_FALSE &&
+        (context->tags.count == tag_mark ||
+         specifiers.record_tag_previously_visible == CTOOL_TRUE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+          declaration_token,
+          specifiers.storage != CFRONT_STORAGE_NONE
+              ? "storage-qualified empty declaration does not introduce a tag"
+              : "type-qualified empty declaration does not introduce a tag");
+    }
+    if (specifiers.empty_declaration_valid == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+          declaration_token,
+          "block declaration does not declare an identifier or tag");
+    }
+    (void)cfront_advance(context);
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_DECLARATION,
+                          declaration_token);
+    statement.first_block_binding = first_binding;
+    statement.block_binding_count = 0u;
+    return cfront_append_statement(context, &statement, statement_out);
+  }
+  if (specifiers.storage == CFRONT_STORAGE_TYPEDEF ||
+      specifiers.storage == CFRONT_STORAGE_EXTERN ||
+      (specifiers.storage == CFRONT_STORAGE_STATIC &&
+       is_for_initializer == CTOOL_TRUE)) {
+    return cfront_emit_failure(
+        context,
+        is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
+                                         : CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, declaration_token,
+        is_for_initializer == CTOOL_TRUE
+            ? "for initializer declaration requires automatic or register storage"
+            : "block storage class is outside this body slice");
   }
   for (;;) {
     const ctool_c_pp_token_t *name_token = cfront_peek(context);
@@ -13307,20 +13522,27 @@ static ctool_status_t cfront_parse_compound_statement(
 }
 
 static ctool_status_t cfront_parse_function_definition(
-    cfront_context_t *context, ctool_u32 binding, ctool_u32 declared_type,
-    cfront_storage_t storage, ctool_u32 function_declaration_flags,
+    cfront_context_t *context, ctool_u32 declarator_root,
+    ctool_u32 binding, ctool_u32 declared_type, cfront_storage_t storage,
+    ctool_u32 function_declaration_flags,
     const ctool_c_pp_token_t *name_token,
     const ctool_c_pp_location_t *location,
     const ctool_c_pp_location_t *physical_location) {
   ctool_c_type_node_t function;
+  cfront_declarator_t definition_declarator;
   ctool_u32 base;
   ctool_u32 qualifiers;
   ctool_u32 index;
+  ctool_u32 declarator_index = declarator_root;
   ctool_u32 body = CTOOL_C_AST_NONE;
   ctool_u32 first_label = context->labels.count;
+  ctool_u32 function_tag_mark = context->tags.count;
   ctool_u32 previous_type = context->active_function_type;
   ctool_u32 previous_first_label = context->active_function_first_label;
+  ctool_u32 previous_function_tag_mark =
+      context->active_function_tag_mark;
   ctool_bool previous_in_body = context->in_function_body;
+  ctool_bool found_function_declarator = CTOOL_FALSE;
   ctool_status_t status = cfront_underlying_type(
       context, declared_type, &base, &qualifiers, &function);
   (void)base;
@@ -13330,6 +13552,54 @@ static ctool_status_t cfront_parse_function_definition(
         context, CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION, name_token,
         "function definition requires a function declarator");
+  }
+  cfront_zero(&definition_declarator,
+              (ctool_u32)sizeof(definition_declarator));
+  for (;;) {
+    cfront_declarator_t declarator;
+    status = cfront_vector_get(&context->declarators, declarator_index,
+                               &declarator);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function definition declarator is unavailable");
+    }
+    if (declarator.kind == CFRONT_D_FUNCTION) {
+      definition_declarator = declarator;
+      found_function_declarator = CTOOL_TRUE;
+    }
+    if (declarator.kind == CFRONT_D_NAME) {
+      break;
+    }
+    if (declarator.child == CFRONT_NONE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function definition declarator has no name");
+    }
+    declarator_index = declarator.child;
+  }
+  if (found_function_declarator == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        name_token, "function definition declarator has no function suffix");
+  }
+  if (definition_declarator.detail.function.parameter_enum_position !=
+      CFRONT_NONE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_token(context,
+                     definition_declarator.detail.function
+                         .parameter_enum_position),
+        "block enum specifiers are outside this body slice");
+  }
+  if (definition_declarator.detail.function.first_parameter_tag >
+          context->declarators.count ||
+      definition_declarator.detail.function.parameter_tag_count >
+          context->declarators.count -
+              definition_declarator.detail.function.first_parameter_tag) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        name_token, "function definition parameter tag slice is invalid");
   }
   for (index = 0u; index < context->function_definitions.count; index++) {
     ctool_c_function_definition_t existing;
@@ -13362,8 +13632,37 @@ static ctool_status_t cfront_parse_function_definition(
           "function definition parameters require identifiers");
     }
   }
+  for (index = 0u;
+       index < definition_declarator.detail.function.parameter_tag_count;
+       index++) {
+    cfront_declarator_t tag_copy;
+    ctool_c_tag_t tag;
+    status = cfront_vector_get(&context->declarators,
+                               definition_declarator.detail.function
+                                       .first_parameter_tag +
+                                   index,
+                               &tag_copy);
+    if (status != CTOOL_OK || tag_copy.kind != CFRONT_D_PARAMETER_TAG) {
+      (void)cfront_vector_rewind(&context->tags, function_tag_mark);
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function definition parameter tag is invalid");
+    }
+    cfront_zero(&tag, (ctool_u32)sizeof(tag));
+    tag.name = tag_copy.name;
+    tag.type = tag_copy.child;
+    tag.location = tag_copy.location;
+    tag.physical_location = tag_copy.physical_location;
+    status = cfront_vector_append(&context->tags, &tag,
+                                  (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      (void)cfront_vector_rewind(&context->tags, function_tag_mark);
+      return cfront_storage_failure(context, status);
+    }
+  }
   context->active_function_type = declared_type;
   context->active_function_first_label = first_label;
+  context->active_function_tag_mark = function_tag_mark;
   context->in_function_body = CTOOL_TRUE;
   status = cfront_parse_compound_statement(context, &body);
   for (index = first_label;
@@ -13383,7 +13682,17 @@ static ctool_status_t cfront_parse_function_definition(
   }
   context->active_function_type = previous_type;
   context->active_function_first_label = previous_first_label;
+  context->active_function_tag_mark = previous_function_tag_mark;
   context->in_function_body = previous_in_body;
+  {
+    ctool_status_t rewind_status =
+        cfront_vector_rewind(&context->tags, function_tag_mark);
+    if (status == CTOOL_OK && rewind_status != CTOOL_OK) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "function definition tag scope rewind failed");
+    }
+  }
   if (status == CTOOL_OK) {
     ctool_c_function_definition_t definition;
     cfront_zero(&definition, (ctool_u32)sizeof(definition));
@@ -13598,7 +13907,7 @@ static ctool_status_t cfront_parse_external_declaration(
             "function definition must be the only declaration declarator");
       }
       return cfront_parse_function_definition(
-          context, binding_index, type, specifiers.storage,
+          context, root, binding_index, type, specifiers.storage,
           specifiers.function_declaration_flags, name_token, &location,
           &physical_location);
     }
@@ -15052,7 +15361,6 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           statement->expression != CTOOL_C_AST_NONE ||
           control_fields_none == CTOOL_FALSE ||
           statement->first_block_binding > context->block_bindings.count ||
-          statement->block_binding_count == 0u ||
           statement->block_binding_count >
               context->block_bindings.count -
                   statement->first_block_binding) {
@@ -15712,6 +16020,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
       context.scalar_types[index] = CFRONT_NONE;
     }
     context.builtin_va_list_type = CFRONT_NONE;
+    context.active_function_tag_mark = CFRONT_NONE;
+    context.prototype_enum_position = CFRONT_NONE;
     status = cfront_validate_input(&context);
     if (status == CTOOL_OK) {
       stage = "scratch initialization";
@@ -15969,7 +16279,9 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
       spec_out->block_tag_specifier_token = token;
       status = cfront_record_type(
           context, record_kind, &typedef_type,
-          &spec_out->anonymous_record_definition);
+          &spec_out->anonymous_record_definition,
+          &spec_out->record_definition,
+          &spec_out->record_tag_previously_visible);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -15990,8 +16302,17 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
       spec_out->block_tag_specifier_token = token;
       {
         ctool_bool anonymous_enum_definition = CTOOL_FALSE;
+        ctool_u32 enum_tag_mark = context->tags.count;
+        ctool_u32 enum_binding_mark = context->bindings.count;
+        ctool_u32 enum_token_position = context->position;
         status = cfront_enum_type(context, &typedef_type,
                                   &anonymous_enum_definition);
+        if (status == CTOOL_OK && context->prototype_scope_depth != 0u &&
+            context->prototype_enum_position == CFRONT_NONE &&
+            (context->tags.count != enum_tag_mark ||
+             context->bindings.count != enum_binding_mark)) {
+          context->prototype_enum_position = enum_token_position;
+        }
       }
       if (status != CTOOL_OK) {
         return status;

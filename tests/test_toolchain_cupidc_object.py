@@ -252,6 +252,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "old-style-empty-functions: ok\n")
 
+    def test_block_record_tags_emit_deterministic_i386_objects(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-records", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-records: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

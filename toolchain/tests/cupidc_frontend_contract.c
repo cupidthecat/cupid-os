@@ -4400,8 +4400,8 @@ static int run_block_bindings(const char *host_root) {
        1u, 22u, "block object requires a complete object type"},
       {{"incomplete block object",
         "struct S;\nvoid bad(void) { struct S local; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       2u, 18u, "block tag specifiers are outside this body slice"},
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       2u, 27u, "block object requires a complete object type"},
       {{"block static assertion boundary",
         "void bad(void) { _Static_assert(1, \"ok\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -4450,6 +4450,381 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("block-bindings: ok\n");
+  }
+  return failed;
+}
+
+static const ctool_c_function_definition_t *find_function_definition(
+    const ctool_c_translation_unit_t *unit, const char *name);
+
+static int validate_block_record_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const storage_tag_names[] = {
+      "static_tag", "extern_tag", "typedef_tag", "auto_tag",
+      "register_tag"};
+  static const ctool_c_record_kind_t storage_tag_kinds[] = {
+      CTOOL_C_RECORD_STRUCT, CTOOL_C_RECORD_UNION,
+      CTOOL_C_RECORD_STRUCT, CTOOL_C_RECORD_STRUCT,
+      CTOOL_C_RECORD_UNION};
+  const ctool_c_tag_t *shared = find_tag(unit, "Shared");
+  const ctool_c_block_binding_t *file_record =
+      find_block_binding(unit, "file_record");
+  const ctool_c_block_binding_t *complete =
+      find_block_binding(unit, "complete");
+  const ctool_c_block_binding_t *forward_pointer =
+      find_block_binding(unit, "forward_pointer");
+  const ctool_c_block_binding_t *inner = find_block_binding(unit, "inner");
+  const ctool_c_block_binding_t *outer_shadow =
+      find_block_binding(unit, "outer_shadow");
+  const ctool_c_block_binding_t *restored_shadow =
+      find_block_binding(unit, "restored_shadow");
+  const ctool_c_block_binding_t *choice = find_block_binding(unit, "choice");
+  const ctool_c_block_binding_t *file_record_again =
+      find_block_binding(unit, "file_record_again");
+  const ctool_c_block_binding_t *packs = find_block_binding(unit, "packs");
+  const ctool_c_block_binding_t *parameter_local =
+      find_block_binding(unit, "parameter_local");
+  const ctool_c_block_binding_t *visible_loop =
+      find_block_binding(unit, "visible_loop");
+  const ctool_c_block_binding_t *anonymous_loop =
+      find_block_binding(unit, "anonymous_loop");
+  const ctool_c_block_binding_t *qualified_tag =
+      find_block_binding(unit, "qualified_tag");
+  const ctool_c_function_definition_t *parameter_definition =
+      find_function_definition(unit, "parameter_record");
+  const ctool_c_type_node_t *parameter_function =
+      parameter_definition == NULL
+          ? NULL
+          : unwrapped_type_node(unit, parameter_definition->declared_type);
+  const ctool_c_parameter_t *parameter =
+      parameter_function == NULL ||
+              parameter_function->kind != CTOOL_C_TYPE_FUNCTION ||
+              parameter_function->parameter_count != 1u ||
+              parameter_function->first_parameter >= unit->parameter_count
+          ? NULL
+          : &unit->parameters[parameter_function->first_parameter];
+  const ctool_c_type_node_t *complete_record =
+      complete == NULL ? NULL : unwrapped_type_node(unit, complete->type);
+  const ctool_c_type_node_t *forward_pointer_type =
+      forward_pointer == NULL
+          ? NULL
+          : unwrapped_type_node(unit, forward_pointer->type);
+  const ctool_c_type_node_t *inner_record =
+      inner == NULL ? NULL : unwrapped_type_node(unit, inner->type);
+  const ctool_c_type_node_t *outer_shadow_pointer =
+      outer_shadow == NULL ? NULL
+                           : unwrapped_type_node(unit, outer_shadow->type);
+  const ctool_c_type_node_t *restored_shadow_pointer =
+      restored_shadow == NULL
+          ? NULL
+          : unwrapped_type_node(unit, restored_shadow->type);
+  const ctool_c_type_node_t *shadow_record =
+      outer_shadow_pointer == NULL ||
+              outer_shadow_pointer->kind != CTOOL_C_TYPE_POINTER
+          ? NULL
+          : unwrapped_type_node(unit,
+                                outer_shadow_pointer->referenced_type);
+  const ctool_c_type_node_t *choice_record =
+      choice == NULL ? NULL : unwrapped_type_node(unit, choice->type);
+  const ctool_c_type_node_t *array =
+      packs == NULL ? NULL : unwrapped_type_node(unit, packs->type);
+  const ctool_c_type_node_t *record =
+      array == NULL || array->kind != CTOOL_C_TYPE_ARRAY
+          ? NULL
+          : unwrapped_type_node(unit, array->referenced_type);
+  const ctool_c_type_node_t *visible_loop_pointer =
+      visible_loop == NULL ? NULL
+                           : unwrapped_type_node(unit, visible_loop->type);
+  const ctool_c_type_node_t *anonymous_loop_record =
+      anonymous_loop == NULL ? NULL
+                             : unwrapped_type_node(unit, anonymous_loop->type);
+  const ctool_c_type_node_t *qualified_tag_pointer =
+      qualified_tag == NULL ? NULL
+                            : unwrapped_type_node(unit, qualified_tag->type);
+  const ctool_c_type_node_t *qualified_tag_record =
+      qualified_tag_pointer == NULL ||
+              qualified_tag_pointer->kind != CTOOL_C_TYPE_POINTER
+          ? NULL
+          : unwrapped_type_node(unit, qualified_tag_pointer->referenced_type);
+  const ctool_c_type_layout_t *array_layout =
+      packs == NULL ? NULL : type_layout(unit, packs->type);
+  const ctool_c_type_layout_t *record_layout =
+      array == NULL ? NULL : type_layout(unit, array->referenced_type);
+  const ctool_c_initializer_t *root =
+      packs == NULL ? NULL : initializer_node(unit, packs->initializer);
+  ctool_u32 name_member = CTOOL_C_AST_NONE;
+  ctool_u32 mission_member = CTOOL_C_AST_NONE;
+  ctool_u32 completed_member = CTOOL_C_AST_NONE;
+  ctool_u32 nested_member = CTOOL_C_AST_NONE;
+  ctool_u32 word_member = CTOOL_C_AST_NONE;
+  ctool_u32 byte_member = CTOOL_C_AST_NONE;
+  ctool_u32 parameter_member = CTOOL_C_AST_NONE;
+  ctool_u32 loop_member = CTOOL_C_AST_NONE;
+  ctool_u32 storage_tag_types[ARRAY_COUNT(storage_tag_names)];
+  ctool_u32 index;
+
+  for (index = 0u; index < ARRAY_COUNT(storage_tag_names); index++) {
+    const ctool_c_block_binding_t *binding =
+        find_block_binding(unit, storage_tag_names[index]);
+    const ctool_c_type_node_t *pointer =
+        binding == NULL ? NULL : unwrapped_type_node(unit, binding->type);
+    const ctool_c_type_node_t *referent =
+        pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER
+            ? NULL
+            : unwrapped_type_node(unit, pointer->referenced_type);
+    if (referent == NULL || referent->kind != CTOOL_C_TYPE_RECORD ||
+        referent->record_kind != storage_tag_kinds[index] ||
+        referent->record_complete != CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "block-records: storage-qualified tag %s differs\n",
+                    storage_tag_names[index]);
+      return 1;
+    }
+    storage_tag_types[index] = pointer->referenced_type;
+  }
+  for (index = 1u; index < ARRAY_COUNT(storage_tag_names); index++) {
+    ctool_u32 prior;
+    for (prior = 0u; prior < index; prior++) {
+      if (storage_tag_types[index] == storage_tag_types[prior]) {
+        (void)fprintf(stderr,
+                      "block-records: storage-qualified tags alias\n");
+        return 1;
+      }
+    }
+  }
+
+  if (unit->tag_count != 1u || shared == NULL ||
+      unit->block_binding_count != 18u ||
+      unit->function_definition_count != 4u || file_record == NULL ||
+      file_record->type != shared->type || file_record_again == NULL ||
+      file_record_again->type != shared->type || complete_record == NULL ||
+      complete_record->kind != CTOOL_C_TYPE_RECORD ||
+      complete_record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      complete_record->record_complete != CTOOL_TRUE ||
+      find_record_member(unit, complete_record, "completed",
+                         &completed_member) == NULL ||
+      forward_pointer_type == NULL ||
+      forward_pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+      forward_pointer_type->referenced_type != complete->type ||
+      inner_record == NULL || inner_record->kind != CTOOL_C_TYPE_RECORD ||
+      inner_record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      inner_record->record_complete != CTOOL_TRUE ||
+      inner->type == shared->type ||
+      find_record_member(unit, inner_record, "nested", &nested_member) ==
+          NULL || outer_shadow_pointer == NULL ||
+      outer_shadow_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      restored_shadow_pointer == NULL ||
+      restored_shadow_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      outer_shadow_pointer->referenced_type !=
+          restored_shadow_pointer->referenced_type || shadow_record == NULL ||
+      shadow_record->kind != CTOOL_C_TYPE_RECORD ||
+      shadow_record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      shadow_record->record_complete != CTOOL_FALSE ||
+      outer_shadow_pointer->referenced_type == shared->type ||
+      choice_record == NULL || choice_record->kind != CTOOL_C_TYPE_RECORD ||
+      choice_record->record_kind != CTOOL_C_RECORD_UNION ||
+      choice_record->record_complete != CTOOL_TRUE ||
+      choice_record->member_count != 2u ||
+      find_record_member(unit, choice_record, "word", &word_member) == NULL ||
+      find_record_member(unit, choice_record, "byte", &byte_member) == NULL ||
+      word_member == byte_member ||
+      packs == NULL ||
+      packs->kind != CTOOL_C_BINDING_OBJECT ||
+      packs->storage != CTOOL_C_STORAGE_STATIC || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != 3u || array_layout == NULL ||
+      array_layout->size != 24u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD ||
+      record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      record->record_complete != CTOOL_TRUE || record->member_count != 2u ||
+      record_layout == NULL || record_layout->size != 8u ||
+      find_record_member(unit, record, "name", &name_member) == NULL ||
+      find_record_member(unit, record, "mission", &mission_member) == NULL ||
+      name_member == mission_member || root == NULL ||
+      root->kind != CTOOL_C_INITIALIZER_LIST || root->type != packs->type ||
+      root->element_count != 3u || parameter_local == NULL ||
+      parameter == NULL || parameter->type != parameter_local->type ||
+      unwrapped_type_node(unit, parameter_local->type) == NULL ||
+      unwrapped_type_node(unit, parameter_local->type)->kind !=
+          CTOOL_C_TYPE_RECORD ||
+      unwrapped_type_node(unit, parameter_local->type)->record_complete !=
+          CTOOL_TRUE ||
+      find_record_member(unit,
+                         unwrapped_type_node(unit, parameter_local->type),
+                         "parameter_value", &parameter_member) == NULL ||
+      visible_loop_pointer == NULL ||
+      visible_loop_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      visible_loop_pointer->referenced_type != shared->type ||
+      anonymous_loop_record == NULL ||
+      anonymous_loop_record->kind != CTOOL_C_TYPE_RECORD ||
+      anonymous_loop_record->record_complete != CTOOL_TRUE ||
+      find_record_member(unit, anonymous_loop_record, "value", &loop_member) ==
+          NULL ||
+      qualified_tag_record == NULL ||
+      qualified_tag_record->kind != CTOOL_C_TYPE_RECORD ||
+      qualified_tag_record->record_kind != CTOOL_C_RECORD_STRUCT ||
+      qualified_tag_record->record_complete != CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "block-records: anonymous static record differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_block_records(const char *host_root) {
+  static const char source[] =
+      "struct Shared { int file_value; };\n"
+      "void records(void) {\n"
+      "  struct Shared file_record;\n"
+      "  struct Forward;\n"
+      "  struct Forward *forward_pointer;\n"
+      "  struct Forward { int completed; };\n"
+      "  struct Forward complete = { 7 };\n"
+      "  static const struct {\n"
+      "    char *name;\n"
+      "    int mission;\n"
+      "  } packs[] = {\n"
+      "    { \"doom2\", 1 },\n"
+      "    { \"tnt\", 2 },\n"
+      "    { \"plutonia\", 3 },\n"
+      "  };\n"
+      "  struct Shared;\n"
+      "  struct Shared *outer_shadow;\n"
+      "  {\n"
+      "    struct Shared { int nested; } inner = { 9 };\n"
+      "  }\n"
+      "  struct Shared *restored_shadow;\n"
+      "  union Choice;\n"
+      "  union Choice { unsigned int word; unsigned char byte; };\n"
+      "  union Choice choice;\n"
+      "  static struct StaticTag;\n"
+      "  struct StaticTag *static_tag;\n"
+      "  extern union ExternTag;\n"
+      "  union ExternTag *extern_tag;\n"
+      "  typedef struct TypedefTag;\n"
+      "  struct TypedefTag *typedef_tag;\n"
+      "  auto struct AutoTag;\n"
+      "  struct AutoTag *auto_tag;\n"
+      "  register union RegisterTag;\n"
+      "  union RegisterTag *register_tag;\n"
+      "  const struct QualifiedTag;\n"
+      "  struct QualifiedTag *qualified_tag;\n"
+      "}\n"
+      "void second(void) {\n"
+      "  struct Shared file_record_again;\n"
+      "}\n"
+      "void parameter_record(\n"
+      "    struct Parameter { int parameter_value; } parameter) {\n"
+      "  struct Parameter;\n"
+      "  struct Parameter parameter_local = { 11 };\n"
+      "}\n"
+      "void loop_records(void) {\n"
+      "  for (struct Shared *visible_loop = 0; visible_loop;\n"
+      "       visible_loop = 0) {\n"
+      "  }\n"
+      "  for (struct { int value; } anonymous_loop = { 1 };\n"
+      "       anonymous_loop.value; anonymous_loop.value = 0) {\n"
+      "  }\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"block enum boundary",
+        "void bad(void) { enum Local { VALUE }; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 18u, "block enum specifiers are outside this body slice"},
+      {{"duplicate block record definition",
+        "void bad(void) { struct S { int first; }; struct S { int second; }; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 50u, "record tag already has a definition"},
+      {{"block tag kind conflict",
+        "void bad(void) { struct S; union S *value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 34u, "tag is redeclared with a different kind"},
+      {{"expired nested block tag",
+        "void bad(void) { { struct S { int value; }; } struct S object; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       1u, 56u, "block object requires a complete object type"},
+      {{"enum nested in a block record",
+        "void bad(void) { struct Holder { enum Local { LEAK } value; } holder; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 34u, "block enum specifiers are outside this body slice"},
+      {{"enum in a function definition parameter list",
+         "void bad(enum Local { VALUE } value) { }\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 10u, "block enum specifiers are outside this body slice"},
+      {{"enum definition in a block type name",
+         "void bad(void) { (void)sizeof(enum Local { LEAK }); }\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 31u, "block enum specifiers are outside this body slice"},
+      {{"enum type-name binding does not leak across parses",
+         "void bad(void) { LEAK; }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+        1u, 18u, "expression identifier is not declared"},
+      {{"tag declaration in a for initializer",
+         "void bad(void) { for (struct Loop; ; ) { } }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+        1u, 23u,
+        "for initializer declaration must declare an automatic or register object"},
+      {{"record definition in a for initializer",
+         "void bad(void) { for (struct Loop { int value; } item = { 0 }; ; ) { } }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+        1u, 23u, "for initializer declaration cannot introduce a tag"},
+      {{"record reference introducing a tag in a for initializer",
+         "void bad(void) { for (struct Loop *item = 0; ; ) { } }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+        1u, 23u, "for initializer declaration cannot introduce a tag"},
+      {{"storage-qualified empty declaration of a visible tag",
+         "struct S { int value; };\n"
+         "void bad(void) { static struct S; }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+        2u, 18u,
+        "storage-qualified empty declaration does not introduce a tag"},
+      {{"type-qualified empty declaration of a visible tag",
+         "struct S { int value; };\n"
+         "void bad(void) { const struct S; }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+        2u, 18u,
+        "type-qualified empty declaration does not introduce a tag"},
+      {{"expired parameter-list tag",
+        "void first(struct P { int value; } parameter) { struct P local; }\n"
+        "void bad(void) { struct P object; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       2u, 27u, "block object requires a complete object type"},
+      {{"anonymous record without a declarator",
+        "void bad(void) { struct { int value; }; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 18u, "block declaration does not declare an identifier or tag"},
+  };
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "block-records", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/block-records.c", source, &unit) != 0 ||
+      validate_block_record_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/block-record-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_block_record_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-records: ok\n");
   }
   return failed;
 }
@@ -4774,11 +5149,11 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
       {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4788u,
-       41649u, 591u, 193u, 0u, 0u},
+       41641u, 591u, 193u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 121u, 3098u,
        27740u, 414u, 207u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 291u,
-       11134u, 71209u, 1652u, 1158u, 0u, 0u}};
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 294u,
+       11334u, 72520u, 1681u, 1169u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -20124,8 +20499,8 @@ static int run_variadic_callees(const char *host_root) {
            &fixture, "/kernel/doom/src/d_main.c", CTOOL_ERR_UNSUPPORTED,
            CTOOL_C_PARSE_DIAG_STATEMENT,
            "/kernel/doom/src/d_main.c",
-           689u, 18u,
-           "block tag specifiers are outside this body slice") !=
+           1336u, 2u,
+           "block storage class is outside this body slice") !=
        0) {
     goto cleanup;
   }
@@ -20152,7 +20527,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "variadic-callees|block-bindings|"
+                   "variadic-callees|block-bindings|block-records|"
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
@@ -20195,6 +20570,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);
+  }
+  if (strcmp(argv[1], "block-records") == 0) {
+    return run_block_records(argv[2]);
   }
   if (strcmp(argv[1], "scalar-initializers") == 0) {
     return run_scalar_initializers(argv[2]);

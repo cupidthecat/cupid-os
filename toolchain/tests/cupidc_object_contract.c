@@ -14272,6 +14272,235 @@ cleanup:
   return 1;
 }
 
+static int validate_block_record_object(
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_rodata[] = {
+      0u, 0u, 0u, 0u, 1u, 0u, 0u, 0u,
+      0u, 0u, 0u, 0u, 2u, 0u, 0u, 0u,
+      0u, 0u, 0u, 0u, 3u, 0u, 0u, 0u,
+      'd', 'o', 'o', 'm', '2', 0u,
+      't', 'n', 't', 0u,
+      'p', 'l', 'u', 't', 'o', 'n', 'i', 'a', 0u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "block_records");
+  const ctool_elf32_symbol_t *static_function =
+      find_symbol(object, "block_record_static");
+  const ctool_elf32_symbol_t *packs = find_symbol(object, ".LBS1.packs");
+  const ctool_elf32_symbol_t *doom2 = find_symbol(object, ".LC0");
+  const ctool_elf32_symbol_t *tnt = find_symbol(object, ".LC1");
+  const ctool_elf32_symbol_t *plutonia = find_symbol(object, ".LC2");
+  const ctool_elf32_relocation_t *packs_reference =
+      text == (const ctool_elf32_section_t *)0 ||
+              text->relocation_count != 1u ||
+              text->relocation_first >= object->relocation_count
+          ? (const ctool_elf32_relocation_t *)0
+          : &object->relocations[text->relocation_first];
+  ctool_u32 fingerprint =
+      text == (const ctool_elf32_section_t *)0
+          ? 0u
+          : structure_text_fingerprint(text->contents);
+  if (text == (const ctool_elf32_section_t *)0 ||
+      rodata == (const ctool_elf32_section_t *)0 ||
+      function == (const ctool_elf32_symbol_t *)0 ||
+      static_function == (const ctool_elf32_symbol_t *)0 ||
+      packs == (const ctool_elf32_symbol_t *)0 ||
+      doom2 == (const ctool_elf32_symbol_t *)0 ||
+      tnt == (const ctool_elf32_symbol_t *)0 ||
+      plutonia == (const ctool_elf32_symbol_t *)0 ||
+      text->contents.size != 91u || fingerprint != 0x8c3e7e1cu ||
+      text->relocation_count != 1u || rodata->contents.size != 43u ||
+      rodata->size != 43u || rodata->alignment != 4u ||
+      rodata->relocation_count != 3u ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      object->symbol_count != 7u || object->relocation_count != 4u ||
+      !symbol_matches(function, function->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      53u) ||
+      !symbol_matches(static_function, static_function->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 53u,
+                      38u) ||
+      !symbol_matches(packs, packs->file_index, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 0u,
+                      24u) ||
+      !symbol_matches(doom2, doom2->file_index, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 24u,
+                      6u) ||
+      !symbol_matches(tnt, tnt->file_index, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 30u,
+                      4u) ||
+      !symbol_matches(plutonia, plutonia->file_index,
+                      CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index, 34u,
+                      9u) ||
+      packs_reference == (const ctool_elf32_relocation_t *)0 ||
+      packs_reference->target_section_file_index != text->file_index ||
+      packs_reference->offset != 57u ||
+      packs_reference->symbol_file_index != packs->file_index ||
+      packs_reference->type != CTOOL_ELF32_R_386_32 ||
+      packs_reference->addend_known != CTOOL_TRUE ||
+      packs_reference->addend != 0 ||
+      !block_static_relocation_matches(object, rodata, 0u, doom2) ||
+      !block_static_relocation_matches(object, rodata, 8u, tnt) ||
+      !block_static_relocation_matches(object, rodata, 16u, plutonia)) {
+    (void)fprintf(stderr,
+                  "block record object differs: text=%u fingerprint=%08x "
+                  "symbols=%u relocations=%u function=%u/%u packs=%u/%u "
+                  "rodata=%u/%u/%u binding=%u/%u/%u indices=%u/%u/%u "
+                  "text-rel=%u/%u/%u/%d\n",
+                  text == (const ctool_elf32_section_t *)0
+                      ? 0u
+                      : text->contents.size,
+                  fingerprint, object->symbol_count,
+                  object->relocation_count,
+                  static_function == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : static_function->value,
+                  static_function == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : static_function->size,
+                  packs == (const ctool_elf32_symbol_t *)0 ? 0u
+                                                           : packs->value,
+                  packs == (const ctool_elf32_symbol_t *)0 ? 0u
+                                                           : packs->size,
+                  rodata == (const ctool_elf32_section_t *)0
+                      ? 0u
+                      : rodata->contents.size,
+                  rodata == (const ctool_elf32_section_t *)0
+                      ? 0u
+                      : rodata->alignment,
+                  rodata == (const ctool_elf32_section_t *)0
+                      ? 0u
+                      : rodata->relocation_count,
+                  function == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : function->binding,
+                  static_function == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : static_function->binding,
+                  packs == (const ctool_elf32_symbol_t *)0 ? 0u
+                                                           : packs->binding,
+                  function == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : function->file_index,
+                  static_function == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : static_function->file_index,
+                  packs == (const ctool_elf32_symbol_t *)0
+                      ? 0u
+                      : packs->file_index,
+                  packs_reference == (const ctool_elf32_relocation_t *)0
+                      ? 0u
+                      : packs_reference->offset,
+                  packs_reference == (const ctool_elf32_relocation_t *)0
+                      ? 0u
+                      : packs_reference->type,
+                  packs_reference == (const ctool_elf32_relocation_t *)0
+                      ? 0u
+                      : packs_reference->symbol_file_index,
+                  packs_reference == (const ctool_elf32_relocation_t *)0
+                      ? 0
+                      : packs_reference->addend);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_block_record_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "ctool_u32 block_records(void) {\n"
+      "  struct Value;\n"
+      "  struct Value { ctool_u32 member; };\n"
+      "  struct Value value = { 7u };\n"
+      "  return value.member;\n"
+      "}\n"
+      "ctool_u32 block_record_static(void) {\n"
+      "  static const struct { char *name; ctool_u32 mission; } packs[] = {\n"
+      "    { \"doom2\", 1u },\n"
+      "    { \"tnt\", 2u },\n"
+      "    { \"plutonia\", 3u },\n"
+      "  };\n"
+      "  return packs[1].mission;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-record-object.c", source, &unit) ||
+      unit.tag_count != 0u || unit.block_binding_count != 2u ||
+      unit.function_definition_count != 2u) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "block record object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first block record object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat block record object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data, first_bytes.size) != 0) {
+    (void)fprintf(stderr, "block record object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/block-record-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read block record object") ||
+      !validate_block_record_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-records: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_variadic_callee_object(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
@@ -14446,6 +14675,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "old-style-empty-functions") == 0) {
     return run_old_style_empty_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
+    return run_block_record_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callee_object(argv[2]);
   }
@@ -14456,7 +14688,7 @@ int main(int argc, char **argv) {
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|narrow-mutations|narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
-                "compound-literals|old-style-empty-functions|"
+                "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees "
                 "HOST_ROOT\n");
   return 2;

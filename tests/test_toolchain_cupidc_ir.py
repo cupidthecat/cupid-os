@@ -308,6 +308,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "old-style-empty-functions: ok\n")
 
+    def test_block_record_tags_lower_without_runtime_declaration_work(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-records", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-records: ok\n")
+
     def test_narrow_integer_values_preserve_width_promotion_and_fixed_abi(self):
         result = subprocess.run(
             [str(self.contract_path), "narrow-values", str(REPO_ROOT)],

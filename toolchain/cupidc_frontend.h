@@ -531,9 +531,18 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * `_Atomic(type-name)`, and complex/imaginary type specifiers are pending and
  * fail closed rather than being skipped.
  * Declaration/member/namespace counts otherwise consume checked job storage
- * rather than fixed frontend tables. Block typedefs, extern objects, function
- * declarations, block tag specifiers, attributes, union or Cupid class lists,
- * and static assertions remain explicit body boundaries.
+ * rather than fixed frontend tables. Block-scope struct and union tags obey
+ * lexical scope, including forward declarations, same-scope completion, and
+ * nested shadowing. Tags introduced by a function definition's parameter list
+ * share the outer body scope and expire after that definition. Tag-only
+ * declarations may carry a represented storage-class specifier or type
+ * qualifier when they introduce a tag, remain declaration statements, and
+ * create no runtime binding. An empty declaration with storage or type
+ * qualification cannot merely name a visible tag. A `for` declaration may use
+ * a visible record or an anonymous record for its object, but cannot introduce
+ * a named tag or omit the object. Block typedef names, extern objects, function
+ * declarations, block enum specifiers, attributes, union or Cupid class
+ * initializer lists, and static assertions remain explicit boundaries.
  * Chained, promoted, or overriding designators, union lists, arithmetic and
  * casts on static addresses, floating constants, static-data allocation, and
  * relocation lowering remain pending. Comma

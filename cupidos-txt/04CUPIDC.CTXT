@@ -180,11 +180,26 @@ An empty identifier-list definition has zero parameters and keeps its
 non-prototype function type. Direct and indirect calls without a prototype
 apply default argument promotions to every argument and retain the actual count
 through Linear IR and i386 emission. The represented path accepts four-byte
-integers and pointers. The exact Doom profile passes doomgeneric_Tick and
-reaches the anonymous block-scope struct in kernel/doom/src/d_main.c at line
-689. Nonempty identifier lists, block tag specifiers, floating default
-promotions, non-scalar arguments without declared parameter types, atomic
-cursor access, and wider or aggregate variadic reads remain open.
+integers and pointers.
+
+Block-scope struct and union tags follow lexical C scope. Forward declarations,
+same-scope completion, ordinary references, nested shadowing, and restoration
+after scope exit are supported. A record tag declared in a function definition's
+parameter list remains visible through the outer body and expires with the
+definition. A tag-only declaration may use typedef, extern, static, auto,
+register, or a represented type qualifier when it introduces a tag, and has no
+runtime work. An empty declaration with storage or type qualification cannot
+merely repeat a visible tag. A for initializer may use a visible record type or
+an anonymous record definition
+for its object, but it cannot introduce a named tag or omit the object. An
+anonymous record definition can provide the type for an automatic or
+block-static object, including Doom's packs array. The exact Doom profile now
+reaches the block extern objects in kernel/doom/src/d_main.c at line 1336.
+Block enums, including enum definitions inside type names, block extern
+objects, block typedef names, block function declarations, nonempty identifier
+lists, floating default promotions, non-scalar arguments without declared
+parameter types, atomic cursor access, and wider or aggregate variadic reads
+remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects

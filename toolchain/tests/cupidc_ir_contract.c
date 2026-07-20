@@ -17826,6 +17826,111 @@ cleanup:
   return 1;
 }
 
+static int run_block_records(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int ctool_u32;\n"
+      "ctool_u32 block_records(void) {\n"
+      "  static struct Value;\n"
+      "  extern struct Value { ctool_u32 member; };\n"
+      "  struct Value value = { 7u };\n"
+      "  return value.member;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first;
+  ctool_c_ir_unit_t second;
+  ctool_c_statement_t *invalid_statements = NULL;
+  uint64_t fingerprint;
+  uint64_t first_ir_fingerprint;
+  ctool_u32 zero_binding_declarations = 0u;
+  ctool_u32 first_zero_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&invalid_unit, 0, sizeof(invalid_unit));
+  (void)memset(&first, 0xa5, sizeof(first));
+  (void)memset(&second, 0xa5, sizeof(second));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-record-ir.c", source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  status = ctool_c_lower_ir(job, &unit, &first);
+  if (!check_status(status, CTOOL_OK, "block record lowering") ||
+      unit_fingerprint(&unit) != fingerprint || unit.tag_count != 0u ||
+      unit.block_binding_count != 1u || first.function_count != 1u ||
+      first.instruction_count != 10u || first.instructions == NULL ||
+      first.functions == NULL || first.functions[0].first_instruction != 0u ||
+      first.functions[0].instruction_count != 10u ||
+      first.functions[0].maximum_stack_depth != 2u) {
+    (void)fprintf(stderr, "block record IR inventory differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.statement_count; index++) {
+    if (unit.statements[index].kind == CTOOL_C_STATEMENT_DECLARATION &&
+        unit.statements[index].block_binding_count == 0u) {
+      if (first_zero_binding == CTOOL_C_AST_NONE) {
+        first_zero_binding = index;
+      }
+      zero_binding_declarations++;
+    }
+  }
+  if (zero_binding_declarations != 2u ||
+      first_zero_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "block record declaration inventory differs\n");
+    goto cleanup;
+  }
+  first_ir_fingerprint = ir_instruction_fingerprint(&first);
+  status = ctool_c_lower_ir(job, &unit, &second);
+  if (!check_status(status, CTOOL_OK, "repeat block record lowering") ||
+      second.function_count != first.function_count ||
+      second.instruction_count != first.instruction_count ||
+      ir_instruction_fingerprint(&second) != first_ir_fingerprint ||
+      unit_fingerprint(&unit) != fingerprint) {
+    (void)fprintf(stderr, "block record IR is not deterministic\n");
+    goto cleanup;
+  }
+  if (unit.statement_count == 0u ||
+      sizeof(*invalid_statements) >
+          SIZE_MAX / (size_t)unit.statement_count) {
+    goto cleanup;
+  }
+  invalid_statements = (ctool_c_statement_t *)malloc(
+      (size_t)unit.statement_count * sizeof(*invalid_statements));
+  if (invalid_statements == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*invalid_statements));
+  invalid_unit = unit;
+  invalid_unit.statements = invalid_statements;
+  invalid_statements[first_zero_binding].first_block_binding = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block record declaration binding cursor")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_statements);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-records: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -17901,6 +18006,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
+    return run_block_records(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_values(argv[2]);
   }
@@ -17917,7 +18025,7 @@ int main(int argc, char **argv) {
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "aggregate-initializers|structure-values|compound-literals|"
-                "old-style-empty-functions|variadic-callees|"
+                "old-style-empty-functions|variadic-callees|block-records|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;

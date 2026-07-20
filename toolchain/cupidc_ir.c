@@ -7004,7 +7004,6 @@ static ctool_status_t cir_scan_declaration_bindings(
     if (statement->first_block_binding == CTOOL_C_AST_NONE ||
         statement->first_block_binding != *binding_cursor ||
         statement->first_block_binding > context->unit->block_binding_count ||
-        statement->block_binding_count == 0u ||
         statement->block_binding_count > context->unit->block_binding_count -
                                              statement->first_block_binding ||
         cir_add_overflows(*binding_cursor, statement->block_binding_count) ==

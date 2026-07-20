@@ -12870,7 +12870,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.break",
-      "occurrences": 1731
+      "occurrences": 1732
     },
     {
       "category": "control",
@@ -13826,7 +13826,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 3162
+      "occurrences": 3170
     },
     {
       "category": "control",
@@ -13874,7 +13874,7 @@
         "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.goto",
-      "occurrences": 1164
+      "occurrences": 1177
     },
     {
       "category": "control",
@@ -14259,7 +14259,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 26747
+      "occurrences": 26814
     },
     {
       "category": "control",
@@ -14614,7 +14614,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 16358
+      "occurrences": 16402
     },
     {
       "category": "control",
@@ -15240,7 +15240,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 1444
+      "occurrences": 1451
     },
     {
       "category": "declarator",
@@ -15501,7 +15501,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 3370
+      "occurrences": 3383
     },
     {
       "category": "extension",
@@ -18687,7 +18687,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 9516
+      "occurrences": 9612
     },
     {
       "category": "qualifier",
@@ -19195,7 +19195,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 6133
+      "occurrences": 6149
     },
     {
       "category": "type",
@@ -19587,7 +19587,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.char",
-      "occurrences": 6892
+      "occurrences": 6900
     },
     {
       "category": "type",
@@ -20296,7 +20296,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 19182
+      "occurrences": 19190
     },
     {
       "category": "type",
@@ -20710,7 +20710,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 790
+      "occurrences": 793
     },
     {
       "category": "type",
@@ -20963,7 +20963,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 850
+      "occurrences": 851
     },
     {
       "category": "type",
@@ -20992,12 +20992,13 @@
         "kernel/lang/cupidscript_streams.h",
         "toolchain/cupidasm.c",
         "toolchain/cupidasm.h",
+        "toolchain/cupidc_frontend.c",
         "toolchain/cupidld.h",
         "toolchain/cupidobj.h",
         "toolchain/x86.h"
       ],
       "id": "c.type.union",
-      "occurrences": 12
+      "occurrences": 13
     },
     {
       "category": "type",
@@ -21721,7 +21722,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 10887
+      "occurrences": 10913
     },
     {
       "category": "declaration",
@@ -22332,7 +22333,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "7d647d0a1bfe13e0af22a800b4c11c95ab668980afb45840f9daf0f257b3327d",
+    "active_source_digest": "618efe47d0e56d9a23d188d126b5eb3687ec979d8e72a0efff24a647258d9ace",
     "control_files": [
       {
         "path": "Makefile",
@@ -45399,18 +45400,19 @@
         "c.type.enum",
         "c.type.struct",
         "c.type.typedef",
+        "c.type.union",
         "c.type.void"
       ],
       "includes": [
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c",
-      "lines": 16540,
+      "lines": 16861,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "1ad1c4bd5e00701afcc8c1397f1d6a4f3093868e3795c55f4193ac48714863db"
+      "sha256": "0639a7114d71e2218a183fe5df4bfa5b871c57423d964f50eb3fbb2ffa64431a"
     },
     {
       "build_owners": [
@@ -45434,12 +45436,12 @@
         "toolchain/cupidc_type.h"
       ],
       "language": "c_header",
-      "lines": 546,
+      "lines": 555,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "43db32c4f30318a6d2c4c4a615bf992c76e4f519ed6e43bb642627d8a03b64e5"
+      "sha256": "c965db9c4844aa67fc9566fded40c44e9a943c55cb5dad28a6ef200720e853dd"
     },
     {
       "build_owners": [
@@ -45476,12 +45478,12 @@
         "toolchain/cupidc_ir.h"
       ],
       "language": "c",
-      "lines": 8118,
+      "lines": 8117,
       "origin": "tracked",
       "path": "toolchain/cupidc_ir.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "afecd292c69de6785fea4b6c6ef11e469faf5e573645ab4ce2f8c392e5276b55"
+      "sha256": "35730be202b1c41f9fb747812104172a588d0137d9adb536e00b610bbe047819"
     },
     {
       "build_owners": [
@@ -46297,12 +46299,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c",
-      "lines": 20288,
+      "lines": 20666,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "64b11986affeeeee753440bf248685773b496f7b0ded8386fa5730f6a7238396"
+      "sha256": "59959145e703ecbcd7df7a454460285dd3a92c034dea548a7e22915c126ad595"
     },
     {
       "build_owners": [
@@ -46347,12 +46349,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "c",
-      "lines": 17924,
+      "lines": 18032,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_ir_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "e55077ab95da403c830a7f907cee38795f10e45e815dd400b614518561966062"
+      "sha256": "badcefffd256c4496c72f4f2b22027e3109d651319c1d8a5de33e7a47659ea81"
     },
     {
       "build_owners": [
@@ -46402,12 +46404,12 @@
         "toolchain/x86.h"
       ],
       "language": "c",
-      "lines": 14463,
+      "lines": 14695,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "9ee900e7072c49ca1d4411b8e136dc16ffa31ac534af5eef93bbcd631bc05b4b"
+      "sha256": "d841b5a0bc6a0e73b12a3a69f79f9ea11ff354cc43f2bb2540d0407173f83c7a"
     },
     {
       "build_owners": [
