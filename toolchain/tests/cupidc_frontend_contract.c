@@ -5520,6 +5520,271 @@ static int validate_block_enum_unit(const ctool_c_translation_unit_t *unit) {
   return 0;
 }
 
+static int validate_block_member_enum_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_block_binding_t *bindings = unit->block_bindings;
+  const ctool_c_type_node_t *holder;
+  const ctool_c_record_member_t *member;
+  ctool_u32 member_index = CTOOL_C_AST_NONE;
+  ctool_u32 declaration_index = 0u;
+  ctool_bool first_used = CTOOL_FALSE;
+  ctool_bool last_used = CTOOL_FALSE;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 1u ||
+      unit->block_binding_count != 4u ||
+      !string_equal(bindings[0].name, "MEMBER_FIRST") ||
+      !string_equal(bindings[1].name, "MEMBER_LAST") ||
+      !string_equal(bindings[2].name, "holder") ||
+      !string_equal(bindings[3].name, "restored") ||
+      bindings[0].kind != CTOOL_C_BINDING_ENUMERATOR ||
+      bindings[1].kind != CTOOL_C_BINDING_ENUMERATOR ||
+      bindings[0].integer_bits != 4ull || bindings[1].integer_bits != 6ull ||
+      bindings[2].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[3].kind != CTOOL_C_BINDING_OBJECT) {
+    (void)fprintf(stderr, "block-enums: member binding inventory differs\n");
+    return 1;
+  }
+  holder = unwrapped_type_node(unit, bindings[2].type);
+  member = holder == NULL
+               ? NULL
+               : find_record_member(unit, holder, "value", &member_index);
+  if (holder == NULL || holder->kind != CTOOL_C_TYPE_RECORD ||
+      holder->record_complete != CTOOL_TRUE || member == NULL ||
+      member->type != bindings[3].type ||
+      unwrapped_type_node(unit, member->type) == NULL ||
+      unwrapped_type_node(unit, member->type)->kind != CTOOL_C_TYPE_ENUM) {
+    (void)fprintf(stderr, "block-enums: member enum type differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      continue;
+    }
+    if ((declaration_index == 0u &&
+         (statement->first_block_binding != 0u ||
+          statement->block_binding_count != 3u)) ||
+        (declaration_index == 1u &&
+         (statement->first_block_binding != 3u ||
+          statement->block_binding_count != 1u)) ||
+        declaration_index > 1u) {
+      (void)fprintf(stderr,
+                    "block-enums: member declaration slice differs\n");
+      return 1;
+    }
+    declaration_index++;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING) {
+      continue;
+    }
+    if (expression->reference == 0u) {
+      first_used = CTOOL_TRUE;
+    }
+    if (expression->reference == 1u) {
+      last_used = CTOOL_TRUE;
+    }
+  }
+  if (declaration_index != 2u || first_used == CTOOL_FALSE ||
+      last_used == CTOOL_FALSE) {
+    (void)fprintf(stderr, "block-enums: member enum use differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_parameter_enum_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_block_binding_t *bindings = unit->block_bindings;
+  const ctool_c_type_node_t *parameter_type;
+  ctool_bool first_used = CTOOL_FALSE;
+  ctool_bool last_used = CTOOL_FALSE;
+  ctool_u32 declaration_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 1u || unit->parameter_count != 1u ||
+      unit->block_binding_count != 3u ||
+      unit->function_definitions[0].first_block_binding != 0u ||
+      unit->function_definitions[0].block_binding_count != 2u ||
+      !string_equal(unit->parameters[0].name, "value") ||
+      !string_equal(bindings[0].name, "PARAM_FIRST") ||
+      !string_equal(bindings[1].name, "PARAM_LAST") ||
+      !string_equal(bindings[2].name, "local") ||
+      bindings[0].kind != CTOOL_C_BINDING_ENUMERATOR ||
+      bindings[1].kind != CTOOL_C_BINDING_ENUMERATOR ||
+      bindings[2].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[0].integer_bits != 2ull || bindings[1].integer_bits != 5ull ||
+      bindings[2].type != unit->parameters[0].type) {
+    (void)fprintf(stderr,
+                  "block-enums: parameter binding inventory differs\n");
+    return 1;
+  }
+  parameter_type = unwrapped_type_node(unit, unit->parameters[0].type);
+  if (parameter_type == NULL || parameter_type->kind != CTOOL_C_TYPE_ENUM) {
+    (void)fprintf(stderr, "block-enums: parameter enum type differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      continue;
+    }
+    if (statement->first_block_binding != 2u ||
+        statement->block_binding_count != 1u) {
+      (void)fprintf(stderr,
+                    "block-enums: parameter declaration slice differs\n");
+      return 1;
+    }
+    declaration_count++;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING) {
+      continue;
+    }
+    if (expression->reference == 0u) {
+      first_used = CTOOL_TRUE;
+    }
+    if (expression->reference == 1u) {
+      last_used = CTOOL_TRUE;
+    }
+  }
+  if (declaration_count != 1u || first_used == CTOOL_FALSE ||
+      last_used == CTOOL_FALSE) {
+    (void)fprintf(stderr, "block-enums: parameter enum use differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_type_name_enum_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const names[] = {
+      "size",          "TYPE_VALUE", "value",       "CAST_VALUE",
+      "ALIGN_VALUE",   "aligned",    "LITERAL_VALUE", "OFFSET_VALUE",
+      "CASE_VALUE",    "ITER_VALUE", "cursor",      "value",
+      "VA_VALUE",      "values",     "DESIGNATOR_VALUE",
+      "LITERAL_DESIGNATOR_VALUE", "UNEVALUATED_DESIGNATOR_VALUE"};
+  const ctool_c_block_binding_t *bindings = unit->block_bindings;
+  ctool_u32 event_count = 0u;
+  ctool_u32 initializer_event_count = 0u;
+  ctool_u32 declaration_index = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != 11u ||
+      unit->block_binding_count != ARRAY_COUNT(names) ||
+      bindings[0].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[1].kind != CTOOL_C_BINDING_ENUMERATOR ||
+      bindings[1].integer_bits != 11ull ||
+      bindings[2].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[2].type == bindings[0].type) {
+    (void)fprintf(stderr,
+                  "block-enums: type-name binding inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(names); index++) {
+    if (!string_equal(bindings[index].name, names[index])) {
+      (void)fprintf(stderr,
+                    "block-enums: type-name binding name differs\n");
+      return 1;
+    }
+    if (index == 0u || index == 2u || index == 5u || index == 10u ||
+        index == 11u || index == 13u) {
+      if (bindings[index].kind != CTOOL_C_BINDING_OBJECT ||
+          bindings[index].activation_expression != CTOOL_C_AST_NONE ||
+          bindings[index].activation_initializer != CTOOL_C_AST_NONE) {
+        (void)fprintf(stderr,
+                      "block-enums: type-name object metadata differs\n");
+        return 1;
+      }
+    } else if (bindings[index].kind != CTOOL_C_BINDING_ENUMERATOR ||
+               ((index != 14u && index != 15u) &&
+                (bindings[index].activation_expression == CTOOL_C_AST_NONE ||
+                 bindings[index].activation_initializer !=
+                     CTOOL_C_AST_NONE)) ||
+               ((index == 14u || index == 15u) &&
+                (bindings[index].activation_expression != CTOOL_C_AST_NONE ||
+                 bindings[index].activation_initializer ==
+                     CTOOL_C_AST_NONE))) {
+      (void)fprintf(stderr,
+                    "block-enums: type-name event metadata differs\n");
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      continue;
+    }
+    if ((declaration_index == 0u &&
+         (statement->first_block_binding != 0u ||
+          statement->block_binding_count != 2u)) ||
+        (declaration_index == 1u &&
+         (statement->first_block_binding != 2u ||
+          statement->block_binding_count != 1u)) ||
+        (declaration_index == 2u &&
+         (statement->first_block_binding != 5u ||
+          statement->block_binding_count != 1u)) ||
+        (declaration_index == 3u &&
+         (statement->first_block_binding != 10u ||
+          statement->block_binding_count != 1u)) ||
+        (declaration_index == 4u &&
+         (statement->first_block_binding != 11u ||
+          statement->block_binding_count != 2u)) ||
+        (declaration_index == 5u &&
+         (statement->first_block_binding != 13u ||
+          statement->block_binding_count != 2u)) ||
+        declaration_index > 5u) {
+      (void)fprintf(stderr,
+                    "block-enums: type-name declaration slice differs\n");
+      return 1;
+    }
+    declaration_index++;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->first_block_binding != CTOOL_C_AST_NONE) {
+      ctool_u32 expected_child_offset =
+          expression->first_block_binding == 12u ? 1u : 0u;
+      if (expression->block_binding_count != 1u ||
+          expression->block_binding_child_offset != expected_child_offset ||
+          expression->first_block_binding >= unit->block_binding_count ||
+          bindings[expression->first_block_binding]
+                  .activation_expression != index) {
+        (void)fprintf(stderr,
+                      "block-enums: type-name expression event differs\n");
+        return 1;
+      }
+      event_count++;
+    }
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    const ctool_c_initializer_t *initializer = &unit->initializers[index];
+    if (initializer->first_block_binding == CTOOL_C_AST_NONE) {
+      continue;
+    }
+    if ((initializer->first_block_binding != 14u &&
+         initializer->first_block_binding != 15u) ||
+        initializer->block_binding_count != 1u ||
+        bindings[initializer->first_block_binding].activation_expression !=
+            CTOOL_C_AST_NONE ||
+        bindings[initializer->first_block_binding].activation_initializer !=
+            index) {
+      (void)fprintf(stderr,
+                    "block-enums: initializer enum event differs\n");
+      return 1;
+    }
+    initializer_event_count++;
+  }
+  if (declaration_index != 6u || event_count != 9u ||
+      initializer_event_count != 2u) {
+    (void)fprintf(stderr, "block-enums: type-name enum event differs\n");
+    return 1;
+  }
+  return 0;
+}
+
 static int block_enum_active_source_is_unchanged(
     frontend_fixture_t *fixture) {
   static const struct {
@@ -5595,6 +5860,88 @@ static int run_block_enums(const char *host_root) {
       "         CC_REPL_SRC_MAX = 64 * 1024 };\n"
       "  return CC_REPL_LINE_MAX + CC_REPL_SRC_MAX;\n"
       "}\n";
+  static const char member_source[] =
+      "int member_enum(int input) {\n"
+      "  struct Holder {\n"
+      "    enum MemberTag { MEMBER_FIRST = 4,\n"
+      "                     MEMBER_LAST = MEMBER_FIRST + 2 } value;\n"
+      "  } holder = { MEMBER_LAST };\n"
+      "  enum MemberTag restored = MEMBER_FIRST;\n"
+      "  return input + holder.value + restored;\n"
+      "}\n";
+  static const char parameter_source[] =
+      "int parameter_enum(\n"
+      "    enum ParameterTag { PARAM_FIRST = 2,\n"
+      "                        PARAM_LAST = PARAM_FIRST + 3 } value) {\n"
+      "  enum ParameterTag local = PARAM_LAST;\n"
+      "  return value + local + PARAM_FIRST;\n"
+      "}\n";
+  static const char type_name_source[] =
+      "int type_name_enum(void) {\n"
+      "  int size = sizeof(enum SizeTag { TYPE_VALUE = 11 });\n"
+      "  enum SizeTag value = TYPE_VALUE;\n"
+      "  return size + value;\n"
+      "}\n"
+      "int cast_enum(int input) {\n"
+      "  return (enum CastTag { CAST_VALUE = 7 })input + CAST_VALUE;\n"
+      "}\n"
+      "int align_enum(void) {\n"
+      "  _Alignof(enum AlignTag { ALIGN_VALUE = 13 });\n"
+      "  enum AlignTag aligned = ALIGN_VALUE;\n"
+      "  return aligned;\n"
+      "}\n"
+      "int literal_enum(void) {\n"
+      "  return (enum LiteralTag { LITERAL_VALUE = 17 }){ LITERAL_VALUE };\n"
+      "}\n"
+      "int offset_enum(void) {\n"
+      "  return __builtin_offsetof(\n"
+      "      struct Offset { enum OffsetTag { OFFSET_VALUE = 19 } member;\n"
+      "                      int tail; }, tail) + OFFSET_VALUE;\n"
+      "}\n"
+      "int case_enum(int input) {\n"
+      "  switch (input) {\n"
+      "  case (enum CaseTag { CASE_VALUE = 23 })23:\n"
+      "    return CASE_VALUE;\n"
+      "  default:\n"
+      "    return 0;\n"
+      "  }\n"
+      "}\n"
+      "int iteration_enum(int input) {\n"
+      "  for (; input; (enum IterTag { ITER_VALUE = 29 })input) {\n"
+      "    return ITER_VALUE;\n"
+      "  }\n"
+      "  return 0;\n"
+      "}\n"
+      "int variadic_enum(int marker, ...) {\n"
+      "  __builtin_va_list cursor;\n"
+      "  __builtin_va_start(cursor, marker);\n"
+      "  int value = __builtin_va_arg(\n"
+      "      cursor, enum VaTag { VA_VALUE = 31 });\n"
+      "  __builtin_va_end(cursor);\n"
+      "  return value + VA_VALUE;\n"
+      "}\n"
+      "int designator_enum(void) {\n"
+      "  int values[1] = {\n"
+      "      [sizeof(enum DesignatorTag { DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          DESIGNATOR_VALUE\n"
+      "  };\n"
+      "  return values[0];\n"
+      "}\n"
+      "int literal_designator_enum(void) {\n"
+      "  return ((int[1]) {\n"
+      "      [sizeof(enum LiteralDesignatorTag {\n"
+      "          LITERAL_DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          LITERAL_DESIGNATOR_VALUE\n"
+      "  })[0];\n"
+      "}\n"
+      "int unevaluated_designator_enum(void) {\n"
+      "  (void)sizeof((int[1]) {\n"
+      "      [sizeof(enum UnevaluatedDesignatorTag {\n"
+      "          UNEVALUATED_DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          UNEVALUATED_DESIGNATOR_VALUE\n"
+      "  });\n"
+      "  return UNEVALUATED_DESIGNATOR_VALUE;\n"
+      "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"duplicate local enumerator",
         "void bad(void) { enum { VALUE = 1, VALUE = 2 }; }\n",
@@ -5606,6 +5953,34 @@ static int run_block_enums(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
        1u, 30u,
        "block-scope identifier is already declared in this scope"},
+      {{"member enumerator conflicts with an outer local",
+        "void bad(void) { int VALUE; struct Holder { enum { VALUE } value; } holder; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 52u,
+       "block-scope identifier is already declared in this scope"},
+      {{"parameter enumerator conflicts with its parameter",
+        "void bad(enum { VALUE } VALUE) { }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 10u, "prototype parameter conflicts with an ordinary identifier"},
+      {{"parameter enumerator conflicts with an outer declaration",
+        "void bad(enum { VALUE } item) { int VALUE; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 37u,
+       "block-scope identifier is already declared in this scope"},
+      {{"type-name enumerator conflicts with an outer local",
+        "void bad(void) { int VALUE; (void)sizeof(enum { VALUE }); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 49u,
+       "block-scope identifier is already declared in this scope"},
+      {{"initializer type-name enumerator conflicts with its object",
+        "void bad(void) { int VALUE = sizeof(enum { VALUE }); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 44u,
+       "block-scope identifier is already declared in this scope"},
+      {{"type-name enumerator used before its declaration",
+        "int bad(void) { return VALUE + (enum { VALUE = 1 })1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 24u, "expression identifier is not declared"},
       {{"nested enumerator expires",
         "int bad(void) {\n"
         "  { enum { VALUE = 1 }; }\n"
@@ -5619,6 +5994,21 @@ static int run_block_enums(const char *host_root) {
         "  enum Local object;\n"
         "  return object;\n"
         "}\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       3u, 3u, "enum reference requires a previously declared tag"},
+      {{"nested type-name enumerator expires",
+        "int bad(void) {\n"
+        "  { (void)sizeof(enum Local { VALUE = 1 }); }\n"
+        "  return VALUE;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u, "expression identifier is not declared"},
+      {{"nested type-name enum tag expires",
+        "int bad(void) {\n"
+        "  { (void)sizeof(enum Local { VALUE = 1 }); }\n"
+        "  enum Local object;\n"
+        "  return object;\n"
+        "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
        3u, 3u, "enum reference requires a previously declared tag"},
       {{"loop enumerator expires",
@@ -5626,8 +6016,13 @@ static int run_block_enums(const char *host_root) {
         "  for (enum { VALUE = 1 } i = 0; i; i++) { }\n"
         "  return VALUE;\n"
         "}\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 10u, "expression identifier is not declared"},
+      {{"parameter enumerator expires",
+        "void first(enum { VALUE } item) { }\n"
+        "int second(void) { return VALUE; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 27u, "expression identifier is not declared"},
       {{"enumerator address",
         "int bad(void) { enum { VALUE = 1 }; return &VALUE; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -5644,6 +6039,9 @@ static int run_block_enums(const char *host_root) {
        "for initializer declaration must declare an automatic or register object"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t member_unit;
+  ctool_c_translation_unit_t parameter_unit;
+  ctool_c_translation_unit_t type_name_unit;
   ctool_u32 index;
   int failed = 1;
 
@@ -5653,6 +6051,15 @@ static int run_block_enums(const char *host_root) {
   }
   if (parse_valid_fixture(&fixture, "/block-enums.c", source, &unit) != 0 ||
       validate_block_enum_unit(&unit) != 0 ||
+      parse_valid_fixture(&fixture, "/block-member-enum.c", member_source,
+                          &member_unit) != 0 ||
+      validate_block_member_enum_unit(&member_unit) != 0 ||
+      parse_valid_fixture(&fixture, "/parameter-enum.c", parameter_source,
+                          &parameter_unit) != 0 ||
+      validate_parameter_enum_unit(&parameter_unit) != 0 ||
+      parse_valid_fixture(&fixture, "/type-name-enum.c", type_name_source,
+                          &type_name_unit) != 0 ||
+      validate_type_name_enum_unit(&type_name_unit) != 0 ||
       block_enum_active_source_is_unchanged(&fixture) != 0) {
     goto cleanup;
   }
@@ -5960,22 +6367,6 @@ static int run_block_records(const char *host_root) {
         "void bad(void) { { struct S { int value; }; } struct S object; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
        1u, 56u, "block object requires a complete object type"},
-      {{"enum nested in a block record",
-        "void bad(void) { struct Holder { enum Local { LEAK } value; } holder; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 34u, "block enum specifiers are outside this body slice"},
-      {{"enum in a function definition parameter list",
-         "void bad(enum Local { VALUE } value) { }\n",
-         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-        1u, 10u, "block enum specifiers are outside this body slice"},
-      {{"enum definition in a block type name",
-         "void bad(void) { (void)sizeof(enum Local { LEAK }); }\n",
-         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-        1u, 31u, "block enum specifiers are outside this body slice"},
-      {{"enum type-name binding does not leak across parses",
-         "void bad(void) { LEAK; }\n",
-         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
-        1u, 18u, "expression identifier is not declared"},
       {{"tag declaration in a for initializer",
          "void bad(void) { for (struct Loop; ; ) { } }\n",
          CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
@@ -6364,12 +6755,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 161u, 4936u,
-       43159u, 607u, 196u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 164u, 5085u,
+       44372u, 623u, 202u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 122u, 3102u,
-       27793u, 416u, 209u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 299u,
-       11675u, 75085u, 1731u, 1189u, 0u, 0u}};
+       27803u, 416u, 209u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 303u,
+       11901u, 77125u, 1765u, 1205u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -21664,9 +22055,18 @@ static int run_variadic_callees(const char *host_root) {
         "  __builtin_va_start(ap, last);\n"
         "  return __builtin_va_arg(ap, _Atomic int);\n"
         "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        4u, 10u,
        "atomic variadic argument reads are outside this ABI slice"},
+      {{"wide enum variadic argument read",
+        "int bad(int last, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  return __builtin_va_arg(\n"
+        "      ap, enum { VALUE = 0x100000000ull });\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u,
+       "variadic argument reads support only 4-byte integer and pointer types"},
       {{"floating variadic argument read",
         "int bad(int last, ...) {\n"
         "  __builtin_va_list ap;\n"

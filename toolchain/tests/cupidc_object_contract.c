@@ -15148,6 +15148,69 @@ static int run_block_enum_object(const char *host_root) {
       "    input += VALUE;\n"
       "  }\n"
       "  return input + VALUE;\n"
+      "}\n"
+      "int member_constants(void) {\n"
+      "  struct Holder { enum { MEMBER_FIRST = 19, MEMBER_LAST = 23 } value; };\n"
+      "  return MEMBER_FIRST + MEMBER_LAST;\n"
+      "}\n"
+      "int parameter_constants(\n"
+      "    enum { PARAM_FIRST = 13, PARAM_LAST = 17 } value) {\n"
+      "  return value + PARAM_FIRST + PARAM_LAST;\n"
+      "}\n"
+      "int size_constant(void) {\n"
+      "  (void)sizeof(enum SizeTag { SIZE_VALUE = 11 });\n"
+      "  return SIZE_VALUE;\n"
+      "}\n"
+      "int cast_constant(int input) {\n"
+      "  return (enum CastTag { CAST_VALUE = 7 })input + CAST_VALUE;\n"
+      "}\n"
+      "int align_constant(void) {\n"
+      "  (void)_Alignof(enum AlignTag { ALIGN_VALUE = 13 });\n"
+      "  return ALIGN_VALUE;\n"
+      "}\n"
+      "int literal_constant(void) {\n"
+      "  return (enum LiteralTag { LITERAL_VALUE = 17 }){ LITERAL_VALUE };\n"
+      "}\n"
+      "int offset_constant(void) {\n"
+      "  return __builtin_offsetof(\n"
+      "      struct Offset { enum { OFFSET_VALUE = 19 } member;\n"
+      "                      int tail; }, tail) + OFFSET_VALUE;\n"
+      "}\n"
+      "int case_constant(int input) {\n"
+      "  switch (input) {\n"
+      "  case (enum CaseTag { CASE_VALUE = 23 })23:\n"
+      "    return CASE_VALUE;\n"
+      "  default:\n"
+      "    return 0;\n"
+      "  }\n"
+      "}\n"
+      "int iteration_constant(int input) {\n"
+      "  for (; input; (enum IterTag { ITER_VALUE = 29 })input) {\n"
+      "    return ITER_VALUE;\n"
+      "  }\n"
+      "  return 0;\n"
+      "}\n"
+      "int variadic_constant(int marker, ...) {\n"
+      "  __builtin_va_list cursor;\n"
+      "  __builtin_va_start(cursor, marker);\n"
+      "  int value = __builtin_va_arg(\n"
+      "      cursor, enum VaTag { VA_VALUE = 31 });\n"
+      "  __builtin_va_end(cursor);\n"
+      "  return value + VA_VALUE;\n"
+      "}\n"
+      "int designator_constant(void) {\n"
+      "  int values[1] = {\n"
+      "      [sizeof(enum DesignatorTag { DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          DESIGNATOR_VALUE\n"
+      "  };\n"
+      "  return values[0];\n"
+      "}\n"
+      "int literal_designator_constant(void) {\n"
+      "  return ((int[1]) {\n"
+      "      [sizeof(enum LiteralDesignatorTag {\n"
+      "          LITERAL_DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          LITERAL_DESIGNATOR_VALUE\n"
+      "  })[0];\n"
       "}\n";
   static const char direct_source[] =
       "int cursor_constants(void) {\n"
@@ -15161,10 +15224,66 @@ static int run_block_enum_object(const char *host_root) {
       "    input += 5;\n"
       "  }\n"
       "  return input + 3;\n"
+      "}\n"
+      "int member_constants(void) {\n"
+      "  return 19 + 23;\n"
+      "}\n"
+      "int parameter_constants(int value) {\n"
+      "  return value + 13 + 17;\n"
+      "}\n"
+      "int size_constant(void) {\n"
+      "  (void)sizeof(int);\n"
+      "  return 11;\n"
+      "}\n"
+      "int cast_constant(int input) {\n"
+      "  return (int)input + 7;\n"
+      "}\n"
+      "int align_constant(void) {\n"
+      "  (void)_Alignof(int);\n"
+      "  return 13;\n"
+      "}\n"
+      "int literal_constant(void) {\n"
+      "  return (int){ 17 };\n"
+      "}\n"
+      "int offset_constant(void) {\n"
+      "  return __builtin_offsetof(\n"
+      "      struct Offset { int member; int tail; }, tail) + 19;\n"
+      "}\n"
+      "int case_constant(int input) {\n"
+      "  switch (input) {\n"
+      "  case (int)23:\n"
+      "    return 23;\n"
+      "  default:\n"
+      "    return 0;\n"
+      "  }\n"
+      "}\n"
+      "int iteration_constant(int input) {\n"
+      "  for (; input; (int)input) {\n"
+      "    return 29;\n"
+      "  }\n"
+      "  return 0;\n"
+      "}\n"
+      "int variadic_constant(int marker, ...) {\n"
+      "  __builtin_va_list cursor;\n"
+      "  __builtin_va_start(cursor, marker);\n"
+      "  int value = __builtin_va_arg(cursor, int);\n"
+      "  __builtin_va_end(cursor);\n"
+      "  return value + 31;\n"
+      "}\n"
+      "int designator_constant(void) {\n"
+      "  int values[1] = { [0] = 0 };\n"
+      "  return values[0];\n"
+      "}\n"
+      "int literal_designator_constant(void) {\n"
+      "  return ((int[1]) { [0] = 0 })[0];\n"
       "}\n";
   static const char *const enumerator_names[] = {
       "CURSOR_W", "CURSOR_H", "CURSOR_PAD", "CC_REPL_LINE_MAX",
-      "CC_REPL_SRC_MAX", "VALUE"};
+      "CC_REPL_SRC_MAX", "VALUE", "MEMBER_FIRST", "MEMBER_LAST",
+      "PARAM_FIRST", "PARAM_LAST", "SIZE_VALUE", "CAST_VALUE",
+      "ALIGN_VALUE", "LITERAL_VALUE", "OFFSET_VALUE", "CASE_VALUE",
+      "ITER_VALUE", "VA_VALUE", "DESIGNATOR_VALUE",
+      "LITERAL_DESIGNATOR_VALUE"};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -15181,6 +15300,8 @@ static int run_block_enum_object(const char *host_root) {
   const ctool_elf32_section_t *text;
   ctool_u32 enumerator_name_count =
       (ctool_u32)(sizeof(enumerator_names) / sizeof(enumerator_names[0]));
+  ctool_u32 expression_event_count = 0u;
+  ctool_u32 initializer_event_count = 0u;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
@@ -15190,11 +15311,23 @@ static int run_block_enum_object(const char *host_root) {
   (void)memset(&enum_snapshot, 0, sizeof(enum_snapshot));
   (void)memset(&direct_snapshot, 0, sizeof(direct_snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
-      !parse_source(job, "/block-enum-object.c", enum_source, &enum_unit) ||
-      !parse_source(job, "/block-enum-object.c", direct_source,
-                    &direct_unit) ||
-      enum_unit.block_binding_count != 7u ||
-      direct_unit.block_binding_count != 0u ||
+      !parse_source_mode(job, "/block-enum-object.c", enum_source,
+                         CTOOL_TRUE, &enum_unit) ||
+      !parse_source_mode(job, "/block-enum-object.c", direct_source,
+                         CTOOL_TRUE, &direct_unit) ||
+      enum_unit.block_binding_count != 24u ||
+      direct_unit.block_binding_count != 3u ||
+      enum_unit.function_definition_count != 15u ||
+      enum_unit.function_definitions[3].first_block_binding != 7u ||
+      enum_unit.function_definitions[3].block_binding_count != 0u ||
+      enum_unit.function_definitions[4].first_block_binding != 9u ||
+      enum_unit.function_definitions[4].block_binding_count != 2u ||
+      enum_unit.function_definitions[12].first_block_binding != 18u ||
+      enum_unit.function_definitions[12].block_binding_count != 0u ||
+      enum_unit.function_definitions[13].first_block_binding != 21u ||
+      enum_unit.function_definitions[13].block_binding_count != 0u ||
+      enum_unit.function_definitions[14].first_block_binding != 23u ||
+      enum_unit.function_definitions[14].block_binding_count != 0u ||
       !take_unit_snapshot(&enum_unit, &enum_snapshot) ||
       !take_unit_snapshot(&direct_unit, &direct_snapshot)) {
     goto cleanup;
@@ -15202,13 +15335,70 @@ static int run_block_enum_object(const char *host_root) {
   for (index = 0u; index < enum_unit.block_binding_count; index++) {
     const ctool_c_block_binding_t *binding =
         &enum_unit.block_bindings[index];
-    if (binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
-        binding->storage != CTOOL_C_STORAGE_NONE ||
-        binding->linkage_binding != CTOOL_C_AST_NONE ||
-        binding->initializer != CTOOL_C_AST_NONE) {
+    if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      if (binding->storage != CTOOL_C_STORAGE_NONE ||
+          binding->linkage_binding != CTOOL_C_AST_NONE ||
+          binding->initializer != CTOOL_C_AST_NONE) {
+        (void)fprintf(stderr, "block enum object metadata differs\n");
+        goto cleanup;
+      }
+      if (index >= 11u) {
+        const ctool_c_expression_t *expression;
+        ctool_u32 expected_child_offset = index == 20u ? 1u : 0u;
+        if (index == 22u || index == 23u) {
+          const ctool_c_initializer_t *initializer;
+          if (binding->activation_expression != CTOOL_C_AST_NONE ||
+              binding->activation_initializer >=
+                  enum_unit.initializer_count) {
+            (void)fprintf(stderr,
+                          "block enum object initializer event differs\n");
+            goto cleanup;
+          }
+          initializer =
+              &enum_unit.initializers[binding->activation_initializer];
+          if (initializer->first_block_binding != index ||
+              initializer->block_binding_count != 1u) {
+            (void)fprintf(
+                stderr,
+                "block enum object initializer ownership differs\n");
+            goto cleanup;
+          }
+          initializer_event_count++;
+          continue;
+        }
+        if (binding->activation_expression >= enum_unit.expression_count ||
+            binding->activation_initializer != CTOOL_C_AST_NONE) {
+          (void)fprintf(stderr,
+                        "block enum object event index differs\n");
+          goto cleanup;
+        }
+        expression = &enum_unit.expressions[binding->activation_expression];
+        if (expression->first_block_binding != index ||
+            expression->block_binding_count != 1u ||
+            expression->block_binding_child_offset !=
+                expected_child_offset) {
+          (void)fprintf(stderr,
+                        "block enum object event ownership differs\n");
+          goto cleanup;
+        }
+        expression_event_count++;
+      } else if (binding->activation_expression != CTOOL_C_AST_NONE ||
+                 binding->activation_initializer != CTOOL_C_AST_NONE) {
+        (void)fprintf(stderr,
+                      "block enum declaration event metadata differs\n");
+        goto cleanup;
+      }
+    } else if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+               (index != 18u && index != 19u && index != 21u) ||
+               binding->activation_expression != CTOOL_C_AST_NONE ||
+               binding->activation_initializer != CTOOL_C_AST_NONE) {
       (void)fprintf(stderr, "block enum object metadata differs\n");
       goto cleanup;
     }
+  }
+  if (expression_event_count != 8u || initializer_event_count != 2u) {
+    (void)fprintf(stderr, "block enum object event count differs\n");
+    goto cleanup;
   }
   status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
                                  &enum_output);
@@ -15256,6 +15446,30 @@ static int run_block_enum_object(const char *host_root) {
       find_symbol(&object, "repl_constants") ==
           (const ctool_elf32_symbol_t *)0 ||
       find_symbol(&object, "shadow_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "member_constants") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "parameter_constants") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "size_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "cast_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "align_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "literal_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "offset_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "case_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "iteration_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "variadic_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "designator_constant") ==
+          (const ctool_elf32_symbol_t *)0 ||
+      find_symbol(&object, "literal_designator_constant") ==
           (const ctool_elf32_symbol_t *)0) {
     (void)fprintf(stderr, "block enum ELF inventory differs\n");
     goto cleanup;

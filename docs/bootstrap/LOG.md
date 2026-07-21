@@ -5272,3 +5272,61 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0061, ADR 0014, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Declaration-position block enums now work, but nested member, type-name, and function-parameter enum definitions remain open alongside block attributes, nested functions, nonempty identifier-list definitions, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC preserves nested enum activation
+
+### Decision and active requirement
+
+Hosted CupidC now accepts enum definitions in block record members, function-definition parameter lists, and block type names. This completes the nested definition boundary left by ADR 0061 without moving or simplifying any C source.
+
+Every enumerator remains a lexical binding with a folded value and no storage. A record member definition belongs to its declaration. A function definition keeps parameter-list enumerators in a prefix that enters scope before the outer body and expires when the definition ends. A definition inside a type name belongs to the expression or initializer designator where its first enumerator becomes visible.
+
+Expression owners record a contiguous binding slice and the child offset where the slice activates. Initializer owners carry the same information for folded designators that do not survive as runtime expressions. Automatic objects reserve their public binding index before parsing the initializer, which keeps the object's C point of declaration intact and leaves any nested enum event in its true source position.
+
+Linear IR now validates this ownership in a lexical pass before runtime lowering. Statement headers, bodies, expression children, and initializer forests are visited in written order. A `do` body therefore precedes its condition, while a `for` condition and iteration precede its body. Runtime lowering can still follow control-flow order because the lexical pass has already rejected a reference written before an enum definition.
+
+The represented variadic path also accepts a complete, non-atomic four-byte enum. Frontend, IR, and i386 emission apply the same one-word ABI rule, so an enum read follows the existing `int` path. Enumerators still produce no local slot, declaration instruction, ELF symbol, or relocation.
+
+Function-wide visibility without activation records was rejected because it would accept names before their declarations. Replaying tokens during IR lowering would duplicate parsing and constant evaluation. Synthetic local objects would give enumerators storage and address semantics they do not have. ADR 0062 records the ownership model.
+
+### Contract evidence and corrections
+
+- Frontend positives cover record members, function-definition parameters, `sizeof`, `_Alignof`, casts, compound literals, `__builtin_offsetof`, case values, `for` iteration expressions, `__builtin_va_arg`, aggregate designators, and designators inside compound literals. Exact negatives cover duplicate and conflicting names, use before activation, expired tags and enumerators, a pending object's name, and scope restoration.
+- IR performs its source-order check before lowering the function. Copied-unit negatives reject malformed function prefixes, expression and initializer slices, broken owner back-references, invalid child offsets, and references that precede activation. Each failure leaves the previous published IR intact.
+- Object controls compare each enum form with an equivalent literal or `int` form byte for byte. The four-byte variadic enum read matches the direct integer read, and the shared ELF reader confirms that no enumerator reaches the symbol table.
+- The first type-name draft attached enum events only to expressions. Aggregate designators exposed the missing path because their folded index expressions do not remain in the runtime tree. Initializer-owned slices now retain those events explicitly, including designators inside compound literals. Review then found that an unevaluated compound literal inside `sizeof` attached such a slice to an initializer that was about to be discarded. Attachment now waits until query parsing ends, and frontend and IR regressions prove that the enumerator belongs to the retained outer expression.
+- Reserving an automatic object's binding after its initializer gave a nested enumerator the object's future index and also hid the object during its own initializer. The final provisional record reserves the stable public index first and includes the pending object in same-scope conflict checks.
+- The first enum variadic object reached the emitter and found that its type gate still admitted only integer and pointer kinds. The emitter now applies the same complete four-byte enum rule as frontend and IR.
+- Two-axis review found that the frontend still admitted a wide enum until IR rejected it. The final check uses Cupid's target compatible-integer width, and an exact `0x100000000ull` enum case now fails at the frontend with the documented diagnostic.
+- Clang static analysis found one dead initializer for the designator binding cursor. Removing it changed the self-source frontier by one initializer and two expressions. The focused contract and analyzer rerun then passed.
+- A later Clang pass could not prove that a full layout result was initialized before the new width comparison. The enum already carries its target compatible integer, so the final frontend check uses that width directly instead of repeating the complete layout query. Clang and GCC analysis pass the final form.
+- The first complete repository run found the expected active-source drift in six control-flow guards, one `sizeof` guard, and the updated self-source frontier. The regenerated audit supplied the replacement values. All 51 focused frontend and audit tests passed before the complete suite was run again.
+- The combined GCC analyzer wrapper reached its ten-minute limit as the last object finished. The first five compilation steps had already exited successfully, every expected analyzer object was present, and a separate run of the final object contract exited without a diagnostic. No result is inferred from the wrapper timeout itself.
+- The first sanitizer rerun after review lost its flag values while crossing the PowerShell-to-WSL wrapper. Linking instrumented objects without the runtimes failed as it should, and that attempt is excluded. Direct WSL environment arguments preserved the full flag lists for the accepted fresh GCC and Clang runs.
+- One parallel analyzer batch returned when Clang reported the layout-result concern while a GCC child kept running against the older snapshot. That GCC result is excluded. The accepted analyzer runs use separate outputs and the final source.
+- A combined focused Python run hit its four-minute wrapper limit while the audit module was still working and produced no final count. That attempt is excluded. Separate runs give clear results for both modules.
+- No user question was needed. C scope and point-of-declaration rules, the immutable binding stream, and the existing typed graph determine the behavior.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 164/5,085/44,372/623/202; `cupidc_emit.c` has 122/3,102/27,803/416/209; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 623 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,293 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,526 `while`, 1,733 `break`, 995 `continue`, 27,294 `if`, 3,679 `else`, 3,232 `for`, 16,638 `return`, and 3,473 `sizeof` occurrences. The active-source digest is `c97c825bc818ce9367cda56bc5725d21237376c60aa5e45b7e6f84e37c4de4db`; the complete audit JSON has SHA-256 `c9fb4add81f2db46ccd599fbe7c6ecac9680e8d57228021fd15547d06f9e78f3`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | Frontend, IR, and object modes first failed at their former nested enum boundaries. The final positives and malformed ownership cases pass together. |
+| Windows hosted Toolchain | PASS | Final-tree strict Clang passes the complete hosted suite, including the expanded enum modes and all 22 assembly demos, in 11.7 seconds. |
+| WSL strict compilers | PASS | Final-tree GCC and Clang builds pass the complete hosted suite. The parallel rerun returns in about 36 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite with leak detection and halt-on-error enabled. After the analyzer hardening, both builds recompile the final frontend and pass the five affected frontend, IR, and object modes. |
+| Static analysis | PASS | Clang reports no finding in the final frontend or either amended contract. Real GCC `-fanalyzer` covers the same files in 349.6, 33.8, and 95.6 seconds without a diagnostic. Earlier clean runs cover the unchanged emitter and object contract. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 37.4 seconds, and `make check-bootstrap-audit` reproduces them in 37.1 seconds. |
+| Focused repository correction | PASS | All 50 CupidC frontend tests pass in 7.937 seconds, and all 49 build-graph audit tests pass in 329.913 seconds. |
+| Full repository gate | PASS | `make test` passes all 348 tests in 473.226 seconds with one existing platform skip; Make returns in 510.5 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image, including the updated CTXT manual, in 20.4 seconds. |
+| Emulator gate | NOT RUN | This hosted compiler change transfers no production object and changes no kernel output or ABI, so another boot claim is not required. |
+| Two-axis review | PASS AFTER FIXES | Standards and specification review found the wide-enum frontend gap and the discarded unevaluated-initializer owner. Both fixes have focused regressions, and both re-reviews report no remaining implementation or specification violation. Standards also noted duplicated ownership validation and the broad `cir_scan_declaration_bindings` name as non-blocking cleanup work. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path.
+
+ADR 0062, its predecessor decisions, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block declaration attributes, block-scope static assertions, nested function definitions, nonempty identifier-list definitions, direct wider enum values, floating semantics, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

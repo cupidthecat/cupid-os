@@ -172,9 +172,9 @@ pass represented four-byte integers and pointers.
 In GNU C mode, __builtin_va_list is a target char pointer cursor. The shared
 frontend retains start, argument, copy, and end operations. The i386 emitter
 starts the cursor after the final named cdecl parameter, reads represented
-non-atomic four-byte integer and pointer slots, and advances the cursor by four
-bytes for each read. The unchanged Doom compatibility header parses under its
-generated profile.
+non-atomic four-byte integer, enum, and pointer slots, and advances the cursor
+by four bytes for each read. The unchanged Doom compatibility header parses
+under its generated profile.
 
 An empty identifier-list definition has zero parameters and keeps its
 non-prototype function type. Direct and indirect calls without a prototype
@@ -214,18 +214,19 @@ lookup until a later file declaration publishes it. The declaration creates no
 runtime IR or storage. Direct calls use R_386_PC32, and function addresses use
 R_386_32. Active-source checks cover 27 declarations in nine files.
 
-Declaration-position block enums keep their enumerators in the ordinary
-lexical binding stream. A later enumerator can use an earlier value, nested
-tags and constants shadow their outer names, and scope exit restores those
-names. An anonymous enum can share a for scope with its declared object.
-A visible enum tag can be used in a block type name or record member.
-Linear IR turns represented uses into integer constants, so the declaration
-needs no frame slot, symbol, relocation, or runtime instruction. This covers
-the cursor constants in kernel/gui/desktop.c and the REPL limits in
-kernel/lang/shell.c without moving them. Enum definitions nested in block
-record members or type names, enum definitions in function-definition
-parameter lists, block declaration attributes, nested function definitions,
-nonempty identifier lists, floating default promotions,
+Block enums keep their enumerators in the ordinary lexical binding stream. A
+later enumerator can use an earlier value, nested tags and constants shadow
+their outer names, and scope exit restores those names. Definitions work in
+declarations, record members, function-definition parameter lists, and block
+type names. Function prefixes and expression or initializer activation records
+keep the exact point where each name becomes visible. Linear IR checks that
+source order before lowering runtime control flow, including case values, loop
+headers, variadic reads, aggregate designators, and compound literals.
+Represented uses become integer constants with no frame slot, symbol,
+relocation, or runtime declaration instruction. This covers the cursor
+constants in kernel/gui/desktop.c and the REPL limits in kernel/lang/shell.c
+without moving them. Block declaration attributes, nested function
+definitions, nonempty identifier lists, floating default promotions,
 non-scalar arguments without declared parameter types, atomic cursor access,
 and wider or aggregate variadic reads remain open.
 

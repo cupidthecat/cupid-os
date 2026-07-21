@@ -18616,24 +18616,107 @@ static int run_block_enums(const char *host_root) {
       "int wide_unused_enum(void) {\n"
       "  enum { WIDE = 0x100000000ull };\n"
       "  return 0;\n"
+      "}\n"
+      "int member_enum(void) {\n"
+      "  struct Holder { enum { MEMBER_FIRST = 19, MEMBER_LAST = 23 } value; };\n"
+      "  return MEMBER_FIRST + MEMBER_LAST;\n"
+      "}\n"
+      "int parameter_enum(\n"
+      "    enum { PARAM_FIRST = 13, PARAM_LAST = 17 } value) {\n"
+      "  return value + PARAM_FIRST + PARAM_LAST;\n"
       "}\n";
   static const char wide_source[] =
       "int wide_block_enum(void) {\n"
       "  enum { WIDE = 0x100000000ull };\n"
       "  return WIDE;\n"
       "}\n";
+  static const char type_name_source[] =
+      "int type_name_enum(void) {\n"
+      "  int size = sizeof(enum SizeTag { TYPE_VALUE = 11 });\n"
+      "  enum SizeTag value = TYPE_VALUE;\n"
+      "  return size + value;\n"
+      "}\n"
+      "int cast_enum(int input) {\n"
+      "  return (enum CastTag { CAST_VALUE = 7 })input + CAST_VALUE;\n"
+      "}\n"
+      "int align_enum(void) {\n"
+      "  _Alignof(enum AlignTag { ALIGN_VALUE = 13 });\n"
+      "  enum AlignTag aligned = ALIGN_VALUE;\n"
+      "  return aligned;\n"
+      "}\n"
+      "int literal_enum(void) {\n"
+      "  return (enum LiteralTag { LITERAL_VALUE = 17 }){ LITERAL_VALUE };\n"
+      "}\n"
+      "int offset_enum(void) {\n"
+      "  return __builtin_offsetof(\n"
+      "      struct Offset { enum OffsetTag { OFFSET_VALUE = 19 } member;\n"
+      "                      int tail; }, tail) + OFFSET_VALUE;\n"
+      "}\n"
+      "int case_enum(int input) {\n"
+      "  switch (input) {\n"
+      "  case (enum CaseTag { CASE_VALUE = 23 })23:\n"
+      "    return CASE_VALUE;\n"
+      "  default:\n"
+      "    return 0;\n"
+      "  }\n"
+      "}\n"
+      "int iteration_enum(int input) {\n"
+      "  for (; input; (enum IterTag { ITER_VALUE = 29 })input) {\n"
+      "    return ITER_VALUE;\n"
+      "  }\n"
+      "  return 0;\n"
+      "}\n"
+      "int variadic_enum(int marker, ...) {\n"
+      "  __builtin_va_list cursor;\n"
+      "  __builtin_va_start(cursor, marker);\n"
+      "  int value = __builtin_va_arg(\n"
+      "      cursor, enum VaTag { VA_VALUE = 31 });\n"
+      "  __builtin_va_end(cursor);\n"
+      "  return value + VA_VALUE;\n"
+      "}\n"
+      "int designator_enum(void) {\n"
+      "  int values[1] = {\n"
+      "      [sizeof(enum DesignatorTag { DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          DESIGNATOR_VALUE\n"
+      "  };\n"
+      "  return values[0];\n"
+      "}\n"
+      "int literal_designator_enum(void) {\n"
+      "  return ((int[1]) {\n"
+      "      [sizeof(enum LiteralDesignatorTag {\n"
+      "          LITERAL_DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          LITERAL_DESIGNATOR_VALUE\n"
+      "  })[0];\n"
+      "}\n"
+      "int unevaluated_designator_enum(void) {\n"
+      "  (void)sizeof((int[1]) {\n"
+      "      [sizeof(enum UnevaluatedDesignatorTag {\n"
+      "          UNEVALUATED_DESIGNATOR_VALUE = 0 }) - 4] =\n"
+      "          UNEVALUATED_DESIGNATOR_VALUE\n"
+      "  });\n"
+      "  return UNEVALUATED_DESIGNATOR_VALUE;\n"
+      "}\n";
   static const ctool_u64 expected_values[] = {
-      8ull, 10ull, 1ull, 512ull, 65536ull, 5ull, 3ull, 0ull};
+      8ull, 10ull, 1ull, 512ull, 65536ull, 5ull, 3ull, 0ull,
+      19ull, 23ull, 13ull, 17ull};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t type_name_unit;
   ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t invalid_type_name_unit;
   ctool_c_block_binding_t *invalid_blocks = NULL;
+  ctool_c_block_binding_t *invalid_type_name_blocks = NULL;
+  ctool_c_function_definition_t *invalid_definitions = NULL;
+  ctool_c_expression_t *invalid_type_name_expressions = NULL;
+  ctool_c_initializer_t *invalid_type_name_initializers = NULL;
   ctool_c_ir_unit_t first;
   ctool_c_ir_unit_t second;
+  ctool_c_ir_unit_t type_name_ir;
   ctool_u64 fingerprint;
+  ctool_u64 type_name_fingerprint;
   ctool_u64 first_ir_fingerprint;
   ctool_u32 diagnostic_count;
   ctool_u32 value_counts[sizeof(expected_values) /
@@ -18641,14 +18724,21 @@ static int run_block_enums(const char *host_root) {
   ctool_u32 expected_value_count =
       (ctool_u32)(sizeof(expected_values) / sizeof(expected_values[0]));
   ctool_u32 local_addresses = 0u;
+  ctool_u32 type_name_event_count = 0u;
+  ctool_u32 initializer_event_count = 0u;
+  ctool_u32 cast_expression = CTOOL_C_AST_NONE;
+  ctool_u32 va_expression = CTOOL_C_AST_NONE;
+  ctool_u32 designator_initializer = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&wide_unit, 0, sizeof(wide_unit));
+  (void)memset(&type_name_unit, 0, sizeof(type_name_unit));
   (void)memset(&first, 0xa5, sizeof(first));
   (void)memset(&second, 0xa5, sizeof(second));
+  (void)memset(&type_name_ir, 0xa5, sizeof(type_name_ir));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/block-enum-ir.c", source, CTOOL_TRUE,
                          &unit)) {
@@ -18660,7 +18750,11 @@ static int run_block_enums(const char *host_root) {
   if (!check_status(status, CTOOL_OK, "block enum lowering") ||
       ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_fingerprint(&unit) != fingerprint ||
-      unit.block_binding_count != 8u || first.function_count != 4u) {
+      unit.block_binding_count != 12u || first.function_count != 6u ||
+      unit.function_definitions[4].first_block_binding != 8u ||
+      unit.function_definitions[4].block_binding_count != 0u ||
+      unit.function_definitions[5].first_block_binding != 10u ||
+      unit.function_definitions[5].block_binding_count != 2u) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -18701,6 +18795,102 @@ static int run_block_enums(const char *host_root) {
     (void)fprintf(stderr, "block enum IR is not deterministic\n");
     goto cleanup;
   }
+  if (!parse_source_mode(job, "/type-name-enum-ir.c", type_name_source,
+                         CTOOL_TRUE, &type_name_unit)) {
+    goto cleanup;
+  }
+  type_name_fingerprint = unit_fingerprint(&type_name_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &type_name_unit, &type_name_ir);
+  if (!check_status(status, CTOOL_OK, "type-name enum lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&type_name_unit) != type_name_fingerprint ||
+      type_name_unit.function_definition_count != 11u ||
+      type_name_unit.block_binding_count != 17u ||
+      type_name_ir.function_count != 11u ||
+      type_name_unit.function_definitions[0].first_block_binding != 0u ||
+      type_name_unit.function_definitions[1].first_block_binding != 3u ||
+      type_name_unit.function_definitions[7].first_block_binding != 10u ||
+      type_name_unit.function_definitions[8].first_block_binding != 13u ||
+      type_name_unit.function_definitions[9].first_block_binding != 15u ||
+      type_name_unit.function_definitions[10].first_block_binding != 16u) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < type_name_unit.block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding =
+        &type_name_unit.block_bindings[index];
+    ctool_bool event =
+        index == 1u || index == 3u || index == 4u || index == 6u ||
+                index == 7u || index == 8u || index == 9u || index == 12u ||
+                index == 14u || index == 15u || index == 16u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if (event == CTOOL_TRUE) {
+      if (index == 14u || index == 15u) {
+        const ctool_c_initializer_t *initializer;
+        if (binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
+            binding->activation_expression != CTOOL_C_AST_NONE ||
+            binding->activation_initializer >=
+                type_name_unit.initializer_count) {
+          (void)fprintf(stderr,
+                        "type-name enum IR initializer event differs\n");
+          goto cleanup;
+        }
+        initializer = &type_name_unit
+                           .initializers[binding->activation_initializer];
+        if (initializer->first_block_binding != index ||
+            initializer->block_binding_count != 1u) {
+          (void)fprintf(stderr,
+                        "type-name enum IR initializer ownership differs\n");
+          goto cleanup;
+        }
+        if (index == 14u) {
+          designator_initializer = binding->activation_initializer;
+        }
+        initializer_event_count++;
+        continue;
+      }
+      const ctool_c_expression_t *expression;
+      ctool_u32 expected_child_offset = index == 12u ? 1u : 0u;
+      if (binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
+          binding->activation_initializer != CTOOL_C_AST_NONE ||
+          binding->activation_expression >=
+              type_name_unit.expression_count) {
+        (void)fprintf(stderr,
+                      "type-name enum IR event inventory differs\n");
+        goto cleanup;
+      }
+      expression = &type_name_unit
+                        .expressions[binding->activation_expression];
+      if (expression->first_block_binding != index ||
+          expression->block_binding_count != 1u ||
+          expression->block_binding_child_offset != expected_child_offset) {
+        (void)fprintf(stderr,
+                      "type-name enum IR event ownership differs\n");
+        goto cleanup;
+      }
+      type_name_event_count++;
+      if (index == 3u) {
+        cast_expression = binding->activation_expression;
+      }
+      if (index == 12u) {
+        va_expression = binding->activation_expression;
+      }
+    } else if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+               binding->activation_expression != CTOOL_C_AST_NONE ||
+               binding->activation_initializer != CTOOL_C_AST_NONE) {
+      (void)fprintf(stderr,
+                    "type-name enum IR object inventory differs\n");
+      goto cleanup;
+    }
+  }
+  if (type_name_event_count != 9u || cast_expression == CTOOL_C_AST_NONE ||
+      va_expression == CTOOL_C_AST_NONE || initializer_event_count != 2u ||
+      designator_initializer == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "type-name enum IR event count differs\n");
+    goto cleanup;
+  }
   if (!parse_source_mode(job, "/wide-block-enum-ir.c", wide_source,
                          CTOOL_TRUE, &wide_unit) ||
       !expect_ir_failure_preserves_unit(
@@ -18717,6 +18907,12 @@ static int run_block_enums(const char *host_root) {
   }
   invalid_unit = unit;
   invalid_unit.block_bindings = invalid_blocks;
+
+  invalid_definitions = (ctool_c_function_definition_t *)malloc(
+      (size_t)unit.function_definition_count * sizeof(*invalid_definitions));
+  if (invalid_definitions == NULL) {
+    goto cleanup;
+  }
 
   (void)memcpy(invalid_blocks, unit.block_bindings,
                (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
@@ -18783,9 +18979,180 @@ static int run_block_enums(const char *host_root) {
           "non-enumerator with enum value")) {
     goto cleanup;
   }
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  (void)memcpy(invalid_definitions, unit.function_definitions,
+               (size_t)unit.function_definition_count *
+                   sizeof(*invalid_definitions));
+  invalid_unit.function_definitions = invalid_definitions;
+  invalid_definitions[5].first_block_binding = 9u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "parameter enumerator ownership start")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_definitions, unit.function_definitions,
+               (size_t)unit.function_definition_count *
+                   sizeof(*invalid_definitions));
+  invalid_definitions[4].block_binding_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "body declaration claimed by a function prefix")) {
+    goto cleanup;
+  }
+
+  invalid_type_name_blocks = (ctool_c_block_binding_t *)malloc(
+      (size_t)type_name_unit.block_binding_count *
+      sizeof(*invalid_type_name_blocks));
+  invalid_type_name_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)type_name_unit.expression_count *
+      sizeof(*invalid_type_name_expressions));
+  invalid_type_name_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)type_name_unit.initializer_count *
+      sizeof(*invalid_type_name_initializers));
+  if (invalid_type_name_blocks == NULL ||
+      invalid_type_name_expressions == NULL ||
+      invalid_type_name_initializers == NULL) {
+    goto cleanup;
+  }
+  invalid_type_name_unit = type_name_unit;
+  invalid_type_name_unit.block_bindings = invalid_type_name_blocks;
+  invalid_type_name_unit.expressions = invalid_type_name_expressions;
+  invalid_type_name_unit.initializers = invalid_type_name_initializers;
+
+  (void)memcpy(invalid_type_name_blocks, type_name_unit.block_bindings,
+               (size_t)type_name_unit.block_binding_count *
+                   sizeof(*invalid_type_name_blocks));
+  (void)memcpy(invalid_type_name_expressions, type_name_unit.expressions,
+               (size_t)type_name_unit.expression_count *
+                   sizeof(*invalid_type_name_expressions));
+  (void)memcpy(invalid_type_name_initializers, type_name_unit.initializers,
+               (size_t)type_name_unit.initializer_count *
+                   sizeof(*invalid_type_name_initializers));
+  invalid_type_name_expressions
+      [type_name_unit.block_bindings[1u].activation_expression]
+          .first_block_binding = 2u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_type_name_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "type-name enum ownership start")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_type_name_blocks, type_name_unit.block_bindings,
+               (size_t)type_name_unit.block_binding_count *
+                   sizeof(*invalid_type_name_blocks));
+  (void)memcpy(invalid_type_name_expressions, type_name_unit.expressions,
+               (size_t)type_name_unit.expression_count *
+                   sizeof(*invalid_type_name_expressions));
+  invalid_type_name_blocks[1u].activation_expression = cast_expression;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_type_name_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "type-name enum activation back-reference")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_type_name_blocks, type_name_unit.block_bindings,
+               (size_t)type_name_unit.block_binding_count *
+                   sizeof(*invalid_type_name_blocks));
+  (void)memcpy(invalid_type_name_expressions, type_name_unit.expressions,
+               (size_t)type_name_unit.expression_count *
+                   sizeof(*invalid_type_name_expressions));
+  invalid_type_name_expressions[va_expression]
+      .block_binding_child_offset =
+      invalid_type_name_expressions[va_expression].child_count + 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_type_name_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "type-name enum activation child offset")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_type_name_blocks, type_name_unit.block_bindings,
+               (size_t)type_name_unit.block_binding_count *
+                   sizeof(*invalid_type_name_blocks));
+  (void)memcpy(invalid_type_name_expressions, type_name_unit.expressions,
+               (size_t)type_name_unit.expression_count *
+                   sizeof(*invalid_type_name_expressions));
+  if (invalid_type_name_expressions[cast_expression].child_count != 1u ||
+      invalid_type_name_expressions[cast_expression].first_child >=
+          type_name_unit.expression_child_count) {
+    (void)fprintf(stderr, "type-name enum cast shape differs\n");
+    goto cleanup;
+  }
+  index = type_name_unit.expression_children
+      [invalid_type_name_expressions[cast_expression].first_child];
+  if (index >= type_name_unit.expression_count) {
+    (void)fprintf(stderr, "type-name enum cast child differs\n");
+    goto cleanup;
+  }
+  invalid_type_name_expressions[index].kind =
+      CTOOL_C_EXPRESSION_BLOCK_BINDING;
+  invalid_type_name_expressions[index].reference = 3u;
+  invalid_type_name_expressions[cast_expression]
+      .block_binding_child_offset = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_type_name_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "type-name enum reference before activation")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_type_name_blocks, type_name_unit.block_bindings,
+               (size_t)type_name_unit.block_binding_count *
+                   sizeof(*invalid_type_name_blocks));
+  (void)memcpy(invalid_type_name_expressions, type_name_unit.expressions,
+               (size_t)type_name_unit.expression_count *
+                   sizeof(*invalid_type_name_expressions));
+  (void)memcpy(invalid_type_name_initializers, type_name_unit.initializers,
+               (size_t)type_name_unit.initializer_count *
+                   sizeof(*invalid_type_name_initializers));
+  invalid_type_name_initializers[designator_initializer]
+      .first_block_binding = 13u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_type_name_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "designator enum ownership start")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_type_name_blocks, type_name_unit.block_bindings,
+               (size_t)type_name_unit.block_binding_count *
+                   sizeof(*invalid_type_name_blocks));
+  (void)memcpy(invalid_type_name_initializers, type_name_unit.initializers,
+               (size_t)type_name_unit.initializer_count *
+                   sizeof(*invalid_type_name_initializers));
+  invalid_type_name_initializers[designator_initializer]
+      .first_block_binding = CTOOL_C_AST_NONE;
+  invalid_type_name_initializers[designator_initializer]
+      .block_binding_count = 0u;
+  invalid_type_name_blocks[14u].activation_initializer = CTOOL_C_AST_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_type_name_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "designator enum reference before activation")) {
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
+  free(invalid_type_name_initializers);
+  free(invalid_type_name_expressions);
+  free(invalid_type_name_blocks);
+  free(invalid_definitions);
   free(invalid_blocks);
   if (job != NULL) {
     ctool_job_close(job);

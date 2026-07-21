@@ -2122,7 +2122,8 @@ static ctool_bool cemit_ir_type_is_variadic_argument(
                  node->kind == CTOOL_C_TYPE_SIGNED_INT ||
                  node->kind == CTOOL_C_TYPE_UNSIGNED_INT ||
                  node->kind == CTOOL_C_TYPE_SIGNED_LONG ||
-                 node->kind == CTOOL_C_TYPE_UNSIGNED_LONG
+                 node->kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
+                 node->kind == CTOOL_C_TYPE_ENUM
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }

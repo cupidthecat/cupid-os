@@ -109,6 +109,11 @@ typedef struct {
   /* ENUMERATOR only: evaluated target bit pattern and unsignedness. */
   ctool_u64 integer_bits;
   ctool_bool integer_unsigned;
+  /* ENUMERATOR only: a type-name definition names the expression or
+   * initializer that activates it. Declaration and function-prefix
+   * enumerators use AST_NONE for both fields. */
+  ctool_u32 activation_expression;
+  ctool_u32 activation_initializer;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_block_binding_t;
@@ -170,6 +175,11 @@ typedef struct {
    * Other kinds use AST_NONE and zero. */
   ctool_u32 first_element;
   ctool_u32 element_count;
+  /* Enumerators introduced by this initializer's designator. They become
+   * visible before the initializer subtree is visited. Initializers without
+   * a slice use AST_NONE and zero. */
+  ctool_u32 first_block_binding;
+  ctool_u32 block_binding_count;
 } ctool_c_initializer_t;
 
 typedef struct {
@@ -354,6 +364,13 @@ typedef struct {
   ctool_u64 integer_bits;
   /* STRING: decoded target bytes including the trailing null byte. */
   ctool_bytes_t string_bytes;
+  /* Enumerators introduced by a type name in this expression. The slice
+   * activates after block_binding_child_offset direct children have been
+   * visited in source order. Expressions without a slice use AST_NONE, zero,
+   * and zero. */
+  ctool_u32 first_block_binding;
+  ctool_u32 block_binding_count;
+  ctool_u32 block_binding_child_offset;
 } ctool_c_expression_t;
 
 typedef struct {
@@ -363,6 +380,11 @@ typedef struct {
   ctool_u32 declared_type;
   ctool_c_storage_class_t storage;
   ctool_u32 function_declaration_flags;
+  /* Enumerators introduced by the definition's parameter list. This prefix
+   * enters scope before the outer compound statement and remains visible
+   * through that statement. Body declarations own later binding slices. */
+  ctool_u32 first_block_binding;
+  ctool_u32 block_binding_count;
   /* Function-scope slice in translation_unit.labels. Entries are ordered by
    * first definition or goto reference in this definition. */
   ctool_u32 first_label;
@@ -522,9 +544,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * assignment and null-pointer conversions. Block bindings use lexical scope,
  * share the outer function-body scope with definition parameters, and retain
  * stable public indices after their scopes close. Declaration-position enums
- * retain each enumerator's value and type in that same binding stream. Lvalue
- * conversion removes top-level const, volatile, and atomic qualification while
- * retaining the qualified source node. Definition parameter metadata retains
+ * retain each enumerator's value and type in that same binding stream. Enum
+ * definitions in record members, function-definition parameter lists, and
+ * block type names use the same stream. Function prefixes and expression or
+ * initializer activation records preserve the exact point where each
+ * enumerator becomes visible. Lvalue conversion removes top-level const,
+ * volatile, and atomic qualification while retaining the qualified source
+ * node. Definition parameter metadata retains
  * its adjusted qualified object type separately from normalized function-type
  * parameters. An empty identifier-list definition retains its non-prototype
  * function type and has no parameters; nonempty old-style identifier lists
@@ -555,9 +581,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * a visible record or an anonymous record for its object, but cannot introduce
  * a named tag or omit the object. An anonymous enum may declare a `for` object
  * and its enumerators share the loop scope. A visible enum tag can be used in
- * a block type name or record member. Enum definitions nested in block record
- * members or type names, enum definitions in function-definition
- * parameter lists, block declaration attributes, union or Cupid class
+ * a block type name or record member, and a new enum definition is represented
+ * in either context. Block declaration attributes, union or Cupid class
  * initializer lists, and static assertions remain explicit boundaries.
  * Chained, promoted, or overriding designators, union lists, arithmetic and
  * casts on static addresses, floating constants, static-data allocation, and

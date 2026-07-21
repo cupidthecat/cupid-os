@@ -30,4 +30,4 @@ This is hosted bootstrap evidence. GCC or Clang still builds CupidC and the cont
 
 ## Later work
 
-ADR 0061 adds declaration-position block enums to the same lexical binding stream. Enum definitions nested in block record members or type names and enum definitions in function-definition parameter lists remain open alongside nested functions and block attributes.
+ADR 0061 adds declaration-position block enums to the same lexical binding stream. ADR 0062 adds enum definitions in block record members, type names, and function-definition parameter lists. Nested functions and block attributes remain open.
