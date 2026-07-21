@@ -14717,6 +14717,279 @@ cleanup:
   return 1;
 }
 
+static int validate_block_function_object(
+    const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *invoke =
+      find_symbol(object, "invoke_external");
+  const ctool_elf32_symbol_t *invoke_old =
+      find_symbol(object, "invoke_old_style");
+  const ctool_elf32_symbol_t *address =
+      find_symbol(object, "address_external");
+  const ctool_elf32_symbol_t *helper =
+      find_symbol(object, "external_helper");
+  ctool_u32 helper_symbols = 0u;
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 function_addresses = 0u;
+  ctool_u32 index;
+
+  if (text == (const ctool_elf32_section_t *)0 ||
+      rel_text == (const ctool_elf32_section_t *)0 ||
+      invoke == (const ctool_elf32_symbol_t *)0 ||
+      invoke_old == (const ctool_elf32_symbol_t *)0 ||
+      address == (const ctool_elf32_symbol_t *)0 ||
+      helper == (const ctool_elf32_symbol_t *)0 ||
+      text->contents.size == 0u || text->relocation_first != 0u ||
+      text->relocation_count != 3u || object->symbol_count != 5u ||
+      object->relocation_count != 3u || object->relocations == NULL ||
+      !symbol_matches(invoke_old, invoke_old->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      invoke_old->size) ||
+      invoke_old->size == 0u ||
+      !symbol_matches(invoke, invoke->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      invoke_old->size,
+                      invoke->size) ||
+      invoke->size == 0u ||
+      !symbol_matches(address, address->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      invoke_old->size + invoke->size, address->size) ||
+      address->size == 0u ||
+      invoke_old->size > text->contents.size ||
+      invoke->size > text->contents.size - invoke_old->size ||
+      address->size !=
+          text->contents.size - invoke_old->size - invoke->size ||
+      !symbol_matches(helper, helper->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION,
+                      0u, 0u)) {
+    (void)fprintf(stderr, "block function ELF inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset > text->contents.size ||
+        text->contents.size - relocation->offset < 4u ||
+        relocation->symbol_file_index != helper->file_index ||
+        relocation->addend_known != CTOOL_TRUE) {
+      (void)fprintf(stderr,
+                    "block function relocation metadata differs\n");
+      return 0;
+    }
+    if (relocation->type == CTOOL_ELF32_R_386_PC32 &&
+        relocation->addend == -4) {
+      direct_calls++;
+    } else if (relocation->type == CTOOL_ELF32_R_386_32 &&
+               relocation->addend == 0) {
+      function_addresses++;
+    } else {
+      (void)fprintf(stderr,
+                    "block function relocation kind differs: %u/%d\n",
+                    relocation->type, relocation->addend);
+      return 0;
+    }
+  }
+  for (index = 0u; index < object->symbol_count; index++) {
+    const ctool_elf32_symbol_t *symbol = &object->symbols[index];
+    if (symbol->type == CTOOL_ELF32_SYMBOL_FUNCTION &&
+        string_equal(symbol->name, "external_helper") != 0) {
+      helper_symbols++;
+    }
+  }
+  if (helper_symbols != 1u || direct_calls != 2u ||
+      function_addresses != 1u) {
+    (void)fprintf(stderr,
+                  "block function symbol use differs: %u/%u/%u\n",
+                  helper_symbols, direct_calls, function_addresses);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_block_function_object(const char *host_root) {
+  static const char block_source[] =
+      "int invoke_old_style(void) {\n"
+      "  int external_helper();\n"
+      "  return external_helper();\n"
+      "}\n"
+      "int invoke_external(int value);\n"
+      "int invoke_external(int value) {\n"
+      "  int external_helper(int value);\n"
+      "  return external_helper(value);\n"
+      "}\n"
+      "int (*address_external(void))() {\n"
+      "  int external_helper();\n"
+      "  return external_helper;\n"
+      "}\n";
+  static const char file_source[] =
+      "int invoke_old_style(void);\n"
+      "int external_helper();\n"
+      "int invoke_old_style(void) {\n"
+      "  return external_helper();\n"
+      "}\n"
+      "int invoke_external(int value);\n"
+      "int external_helper(int value);\n"
+      "int invoke_external(int value) {\n"
+      "  return external_helper(value);\n"
+      "}\n"
+      "int (*address_external(void))() {\n"
+      "  return external_helper;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *block_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *file_output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t block_unit;
+  ctool_c_translation_unit_t file_unit;
+  unit_snapshot_t block_snapshot;
+  unit_snapshot_t file_snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t block_bytes;
+  ctool_bytes_t file_bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_u32 linked_index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&block_unit, 0, sizeof(block_unit));
+  (void)memset(&file_unit, 0, sizeof(file_unit));
+  (void)memset(&block_snapshot, 0, sizeof(block_snapshot));
+  (void)memset(&file_snapshot, 0, sizeof(file_snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/block-function-object.c", block_source,
+                    &block_unit) ||
+      !parse_source(job, "/block-function-object.c", file_source,
+                    &file_unit) ||
+      block_unit.block_binding_count != 3u ||
+      file_unit.block_binding_count != 0u ||
+      block_unit.block_bindings[0].kind != CTOOL_C_BINDING_FUNCTION ||
+      block_unit.block_bindings[0].storage != CTOOL_C_STORAGE_NONE ||
+      block_unit.block_bindings[0].initializer != CTOOL_C_AST_NONE ||
+      block_unit.block_bindings[0].linkage_binding >=
+          block_unit.binding_count ||
+      block_unit.block_bindings[1].kind != CTOOL_C_BINDING_FUNCTION ||
+      block_unit.block_bindings[1].storage != CTOOL_C_STORAGE_NONE ||
+      block_unit.block_bindings[1].initializer != CTOOL_C_AST_NONE ||
+      block_unit.block_bindings[1].linkage_binding !=
+          block_unit.block_bindings[0].linkage_binding ||
+      block_unit.block_bindings[2].kind != CTOOL_C_BINDING_FUNCTION ||
+      block_unit.block_bindings[2].storage != CTOOL_C_STORAGE_NONE ||
+      block_unit.block_bindings[2].initializer != CTOOL_C_AST_NONE ||
+      block_unit.block_bindings[2].linkage_binding !=
+          block_unit.block_bindings[0].linkage_binding ||
+      block_unit.block_bindings[0].type >= block_unit.graph.type_count ||
+      block_unit.block_bindings[1].type >= block_unit.graph.type_count ||
+      block_unit.block_bindings[2].type >= block_unit.graph.type_count ||
+      block_unit.graph.types[block_unit.block_bindings[0].type].kind !=
+          CTOOL_C_TYPE_FUNCTION ||
+      block_unit.graph.types[block_unit.block_bindings[1].type].kind !=
+          CTOOL_C_TYPE_FUNCTION ||
+      block_unit.graph.types[block_unit.block_bindings[2].type].kind !=
+          CTOOL_C_TYPE_FUNCTION ||
+      block_unit.graph.types[block_unit.block_bindings[0].type]
+              .has_prototype != CTOOL_FALSE ||
+      block_unit.graph.types[block_unit.block_bindings[1].type]
+              .has_prototype != CTOOL_TRUE ||
+      block_unit.graph.types[block_unit.block_bindings[2].type]
+              .has_prototype != CTOOL_FALSE ||
+      !take_unit_snapshot(&block_unit, &block_snapshot) ||
+      !take_unit_snapshot(&file_unit, &file_snapshot)) {
+    goto cleanup;
+  }
+  linked_index = block_unit.block_bindings[0].linkage_binding;
+  if (block_unit.bindings[linked_index].kind != CTOOL_C_BINDING_FUNCTION ||
+      block_unit.bindings[linked_index].linkage !=
+          CTOOL_C_LINKAGE_EXTERNAL ||
+      block_unit.bindings[linked_index].file_scope_visible != CTOOL_FALSE) {
+    (void)fprintf(stderr, "block function linkage metadata differs\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &block_output);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &file_output);
+  }
+  if (!check_status(status, CTOOL_OK, "block function object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &block_unit, block_output,
+          "block function object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  block_bytes = ctool_buffer_view(block_output);
+  first_object_size = block_bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, block_bytes.data, (size_t)first_object_size);
+  if (ctool_buffer_rewind(block_output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &block_unit, block_output,
+          "repeat block function object emission") ||
+      !expect_object_success_preserves_unit(
+          job, &file_unit, file_output,
+          "file prototype object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  block_bytes = ctool_buffer_view(block_output);
+  file_bytes = ctool_buffer_view(file_output);
+  if (block_bytes.size == 0u || block_bytes.size != first_object_size ||
+      memcmp(block_bytes.data, first_object,
+             (size_t)block_bytes.size) != 0 ||
+      block_bytes.size != file_bytes.size ||
+      memcmp(block_bytes.data, file_bytes.data,
+             (size_t)block_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "block function changed the emitted object\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/block-function-object.o");
+  object_source.contents = block_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read block function object") ||
+      !validate_block_function_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  dispose_unit_snapshot(&file_snapshot);
+  dispose_unit_snapshot(&block_snapshot);
+  if (file_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(file_output);
+  }
+  if (block_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(block_output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_block_typedef_object(const char *host_root) {
   static const char typedef_source[] =
       "unsigned int block_typedef(unsigned int input) {\n"
@@ -14891,6 +15164,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "block-externs") == 0) {
     return run_block_extern_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-functions") == 0) {
+    return run_block_function_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "block-typedefs") == 0) {
     return run_block_typedef_object(argv[2]);
   }
@@ -14932,7 +15208,8 @@ int main(int argc, char **argv) {
                 "static-data|direct-goto|switch-object|integer-mutation|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
-                "block-externs|block-typedefs|aggregate-initializers|"
+                "block-externs|block-functions|block-typedefs|"
+                "aggregate-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"

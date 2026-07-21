@@ -30,4 +30,4 @@ The exact Doom profile now passes the unchanged `packs` declaration and reaches 
 
 ## Later extensions
 
-ADR 0058 adds block-scope external objects. ADR 0059 adds block typedefs while preserving the same lexical ordinary-name scope used by local objects and parameters. Block enum specifiers and block function declarations remain open.
+ADR 0058 adds block-scope external objects. ADR 0059 adds block typedefs while preserving the same lexical ordinary-name scope used by local objects and parameters. ADR 0060 adds block-scope function declarations. Block enum specifiers remain open.

@@ -202,10 +202,21 @@ kernel/doom/src/d_main.c, including its local forwardmove and sidemove
 declarations. Block typedefs follow the ordinary identifier scope. They retain
 stable scalar, record, or function types, allow exact same-type repetition and
 nested shadowing, and create no runtime IR, frame storage, symbol, or
-relocation. Block enums, block function declarations, nonempty identifier
-lists, floating default promotions, non-scalar arguments without declared
-parameter types, atomic cursor access, and wider or aggregate variadic reads
-remain open.
+relocation.
+
+A block function declaration keeps its lexical name and visible type alongside
+one canonical linked function. Plain and extern declarations share compatible
+identity. A visible prior declaration contributes to the later alias's
+composite type. An expired sibling prototype does not change the type seen by
+a later old-style declaration. A visible file-scope static function keeps
+internal linkage. A function introduced only inside a block stays out of file
+lookup until a later file declaration publishes it. The declaration creates no
+runtime IR or storage. Direct calls use R_386_PC32, and function addresses use
+R_386_32. Active-source checks cover 27 declarations in nine files. Block
+enums, block declaration attributes, nested function
+definitions, nonempty identifier lists, floating default promotions,
+non-scalar arguments without declared parameter types, atomic cursor access,
+and wider or aggregate variadic reads remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects

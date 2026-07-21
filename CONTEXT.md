@@ -64,6 +64,10 @@ _Avoid_: automatic local, file-scope object
 A lexical block declaration that names a canonical linked object. It owns no storage. Uses retain the canonical file-binding identity even when no ordinary file-scope name is visible.
 _Avoid_: automatic local, block-static object
 
+**Block function alias**:
+A lexical block declaration that names a canonical linked function. It owns no storage or runtime work. Uses keep the type visible at the declaration and retain the canonical function identity even when no ordinary file-scope name is visible.
+_Avoid_: nested function, automatic local
+
 **Block typedef**:
 A type alias whose name lives in one C block scope. It keeps a stable frontend type identity, shares the ordinary identifier namespace, and owns no runtime storage.
 _Avoid_: file typedef, block object

@@ -832,6 +832,36 @@ static ctool_bool cir_type_query_unit_is_valid(
              : CTOOL_FALSE;
 }
 
+ctool_status_t ctool_c_ir_function_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out) {
+  cir_context_t context;
+  const ctool_c_type_node_t *left_function;
+  const ctool_c_type_node_t *right_function;
+  if (job == (ctool_job_t *)0 || compatible_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *compatible_out = CTOOL_FALSE;
+  if (cir_type_query_unit_is_valid(unit) == CTOOL_FALSE ||
+      left >= unit->graph.type_count || right >= unit->graph.type_count) {
+    return CTOOL_OK;
+  }
+  cir_zero(&context, (ctool_u32)sizeof(context));
+  context.job = job;
+  context.unit = unit;
+  context.arena = ctool_job_arena(job);
+  left_function = cir_unwrapped_type(&context, left);
+  right_function = cir_unwrapped_type(&context, right);
+  if (left_function == (const ctool_c_type_node_t *)0 ||
+      right_function == (const ctool_c_type_node_t *)0 ||
+      left_function->kind != CTOOL_C_TYPE_FUNCTION ||
+      right_function->kind != CTOOL_C_TYPE_FUNCTION) {
+    return CTOOL_OK;
+  }
+  *compatible_out = cir_types_compatible(&context, left, right);
+  return context.relation_status;
+}
+
 ctool_status_t ctool_c_ir_pointer_value_types_compatible(
     ctool_job_t *job, const ctool_c_translation_unit_t *unit,
     ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out) {
@@ -3700,6 +3730,7 @@ static ctool_status_t cir_lower_call(
     }
     identifier = &context->unit->expressions[identifier_index];
     if (identifier->kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
+      ctool_bool compatible;
       if (identifier->child_count != 0u ||
           identifier->reference >= context->unit->binding_count ||
           identifier->type >= context->unit->graph.type_count ||
@@ -3708,7 +3739,15 @@ static ctool_status_t cir_lower_call(
       }
       binding = &context->unit->bindings[identifier->reference];
       if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
-          binding->type != identifier->type) {
+          binding->type >= context->unit->graph.type_count) {
+        return cir_invalid_unit(context, &identifier->location);
+      }
+      compatible = cir_types_compatible(
+          context, binding->type, identifier->type);
+      if (context->relation_status != CTOOL_OK) {
+        return context->relation_status;
+      }
+      if (compatible == CTOOL_FALSE) {
         return cir_invalid_unit(context, &identifier->location);
       }
       direct = CTOOL_TRUE;
@@ -4137,6 +4176,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   }
   if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
     const ctool_c_binding_t *binding;
+    ctool_bool compatible = CTOOL_FALSE;
     ctool_u32 definition;
     if (expression->child_count != 0u ||
         expression->first_child != CTOOL_C_AST_NONE ||
@@ -4147,8 +4187,30 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       return cir_invalid_unit(context, &expression->location);
     }
     binding = &context->unit->bindings[expression->reference];
-    if (binding->type != expression->type ||
-        expression->type >= context->unit->graph.type_count) {
+    if (expression->type >= context->unit->graph.type_count ||
+        binding->type >= context->unit->graph.type_count) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
+      const ctool_c_type_node_t *expression_function =
+          cir_unwrapped_type(context, expression->type);
+      const ctool_c_type_node_t *binding_function =
+          cir_unwrapped_type(context, binding->type);
+      if (expression_function == (const ctool_c_type_node_t *)0 ||
+          binding_function == (const ctool_c_type_node_t *)0 ||
+          expression_function->kind != CTOOL_C_TYPE_FUNCTION ||
+          binding_function->kind != CTOOL_C_TYPE_FUNCTION) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+      compatible = cir_types_compatible(
+          context, binding->type, expression->type);
+      if (context->relation_status != CTOOL_OK) {
+        return context->relation_status;
+      }
+      if (compatible == CTOOL_FALSE) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+    } else if (binding->type != expression->type) {
       return cir_invalid_unit(context, &expression->location);
     }
     if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
@@ -5466,6 +5528,56 @@ static ctool_status_t cir_lower_declaration(
           binding->type >= context->unit->graph.type_count ||
           binding->linkage_binding != CTOOL_C_AST_NONE ||
           binding->initializer != CTOOL_C_AST_NONE) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      context->block_binding_cursor++;
+      context->visible_block_binding_end = context->block_binding_cursor;
+      continue;
+    }
+    if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
+      const ctool_c_binding_t *linked;
+      const ctool_c_type_node_t *block_function;
+      const ctool_c_type_node_t *linked_function;
+      ctool_bool compatible;
+      if ((binding->storage != CTOOL_C_STORAGE_NONE &&
+           binding->storage != CTOOL_C_STORAGE_EXTERN) ||
+          binding->initializer != CTOOL_C_AST_NONE ||
+          binding->type >= context->unit->graph.type_count ||
+          binding->linkage_binding >= context->unit->binding_count) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      linked = &context->unit->bindings[binding->linkage_binding];
+      if (linked->type >= context->unit->graph.type_count) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      block_function = cir_unwrapped_type(context, binding->type);
+      linked_function = cir_unwrapped_type(context, linked->type);
+      if (block_function == (const ctool_c_type_node_t *)0 ||
+          linked_function == (const ctool_c_type_node_t *)0 ||
+          block_function->kind != CTOOL_C_TYPE_FUNCTION ||
+          linked_function->kind != CTOOL_C_TYPE_FUNCTION) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      compatible =
+          cir_types_compatible(context, binding->type, linked->type);
+      if (context->relation_status != CTOOL_OK) {
+        return context->relation_status;
+      }
+      if (linked->kind != CTOOL_C_BINDING_FUNCTION ||
+          (linked->storage != CTOOL_C_STORAGE_NONE &&
+           linked->storage != CTOOL_C_STORAGE_EXTERN &&
+           linked->storage != CTOOL_C_STORAGE_STATIC) ||
+          !((linked->storage == CTOOL_C_STORAGE_STATIC &&
+             linked->linkage == CTOOL_C_LINKAGE_INTERNAL) ||
+            ((linked->storage == CTOOL_C_STORAGE_NONE ||
+              linked->storage == CTOOL_C_STORAGE_EXTERN) &&
+             linked->linkage == CTOOL_C_LINKAGE_EXTERNAL)) ||
+          (linked->file_scope_visible != CTOOL_FALSE &&
+           linked->file_scope_visible != CTOOL_TRUE) ||
+          (linked->file_scope_visible == CTOOL_FALSE &&
+           linked->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
+          cir_string_equal(binding->name, linked->name) == CTOOL_FALSE ||
+          compatible == CTOOL_FALSE) {
         return cir_invalid_unit(context, &binding->location);
       }
       context->block_binding_cursor++;

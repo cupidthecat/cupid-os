@@ -5168,3 +5168,54 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0059, ADR 0014, ADR 0036, ADR 0057, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block function declarations, block enums, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-20: CupidC keeps block function types lexical
+
+### Decision and active requirement
+
+Hosted CupidC now accepts function declarations inside compound statements. The active source has 27 such declarations across nine files. Most use `extern` near optional subsystems, while `kernel/doom/src/wi_stuff.c` also uses the plain form. Those declarations remain where their source authors put them.
+
+Each declaration publishes a lexical block binding and points to one canonical linked function. The block binding retains its source storage spelling and the function type visible at that declaration. The canonical binding supplies linkage identity and the ELF symbol. A visible file-scope `static` function keeps internal linkage. A function first introduced inside a block has external linkage but no ordinary file-scope name until a later file declaration publishes it.
+
+Function type composition follows visibility. A later declaration forms a composite with a prior linked declaration only when that prior declaration is visible. Declarations in expired sibling blocks still name the same external function and must remain compatible, but a prototype from one sibling does not strengthen an old-style declaration in another. Expressions therefore carry the lexical function type while their identifier reference names the canonical binding. This lets calls enforce the declaration in scope without creating duplicate symbols.
+
+Plain, `extern`, and `inline` declarations are represented. `static`, `auto`, `register`, initializers, and function declarations in `for` initializers receive focused diagnostics. GNU nested function definitions and block declaration attributes remain explicit boundaries. The declaration allocates no automatic storage and emits no Linear IR instruction.
+
+Linear IR now checks that the lexical and canonical types are both function types and are compatible. A shared checked query gives the emitter the same relation. Direct calls use the lexical call type and the canonical symbol through `R_386_PC32`; function addresses use `R_386_32`. ADR 0060 records this model.
+
+### Contract evidence and corrections
+
+- The frontend red fixture first stopped at the former blanket rejection. Its positive case now covers 15 block function declarations, including plain, `extern`, and `inline` spellings, visible internal linkage, a nearer automatic object, typedef and enumerator shadowing, later file publication, multiple declarators, a pointer to an incomplete record, and visible old-style to prototype composition. Fourteen exact negatives cover invalid storage, initializers, conflicts, scope expiry, nested definitions, attributes, and incompatible declarations.
+- A later sibling regression starts with `int sibling_helper(int)` in one function and uses `int sibling_helper()` in another. The zero-argument call must remain valid. The first implementation reused the canonical composite as the second alias's type and rejected that call. The corrected alias keeps its old-style type while sharing the canonical function identity.
+- IR first rejected the newly represented declaration. The final fixture has five functions and 18 instructions. It covers external and internal direct calls, a direct call through the old-style sibling declaration, one function address, and no declaration-owned `LOCAL_ADDRESS`.
+- The first malformed-unit checks covered missing and mismatched linkage metadata but allowed a block record and canonical function binding whose types were both changed to target `int`. An unused declaration exposed the gap. IR and frontend freeze now require actual function nodes before checking compatibility.
+- The initial object proof covered only a direct call. Review caught that the documentation also promised function-address use. The final object is byte-identical to an equivalent file-scope declaration sequence. It has three defined functions, one undefined function, two `R_386_PC32` relocations with addend `-4`, and one `R_386_32` relocation with addend zero. The old-style direct call and address both use a lexical type that differs from the canonical prototype.
+- The frontend's old unsupported `for (inline ...)` diagnostic changed during the first implementation. The established exact diagnostic was restored. Hosted-source frontier totals were then refreshed from successful parses of the changed implementation files.
+- The first WSL wrapper lost its environment values through nested shell quoting and failed before compilation. That result is excluded. Direct `wsl env` invocations preserved the compiler and flag values and passed under both compilers.
+- The first complete repository run reached six stale inventory assertions after the compiler contracts passed. The generated manifest supplied the replacement totals. Focused checks and the complete suite then passed with those exact values.
+- Standards review found the missing log entry, an old ADR sentence that still called block functions unsupported, and a counter named for hidden declarations even though it counted every block function. Those records and the counter name were corrected. Specification review found the sibling-scope type leak, the weak IR type check, and the missing address proof. Each finding now has regression coverage.
+- GCC returned immediately when `-fanalyzer` was paired with `-fsyntax-only`. That run is excluded. Real per-file compilations exercised the analyzer and completed without a diagnostic.
+- No user question was needed. C linkage and composite-type scope, the existing canonical binding model, and the 27 measured declarations determine the supported behavior.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 160/4,905/42,845/605/196; `cupidc_emit.c` has 122/3,102/27,793/416/209; and `cupidc_frontend.c` has 297/11,594/74,415/1,716/1,182. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,245 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,524 `while`, 1,733 `break`, 984 `continue`, 27,078 `if`, 3,671 `else`, 16,523 `return`, 3,198 `for`, and 3,427 `sizeof` occurrences. The active-source digest is `42808d1c7c2ec88913af3f278ff4f0ad60ce49071f4dcf9f654a12462b2eeb5e`; the complete audit JSON has SHA-256 `4e73d52f4e6debe943eb2f70cc1b3cee032094c4b8f0d2edb6ddaed508d6f225`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | Frontend, IR, and object modes failed at their former or deliberately malformed boundaries. Their final `block-functions` modes pass on the Windows binaries. |
+| Windows hosted Toolchain | PASS | The complete hosted suite and all 22 assembly demos pass in 7.9 seconds on the final built files. |
+| WSL strict compilers | PASS | Fresh GCC and Clang builds pass the complete hosted suite in 60.1 and 60.6 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite with leak detection and halt-on-error enabled. Their object-contract binaries contain both sanitizer runtimes. |
+| Static analysis | PASS | Clang analysis reports no findings across the three changed implementation files and three changed C contracts in 139.7 seconds. Real GCC `-fanalyzer` compilations report no findings across the same files in 601.9 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 40.8 seconds, and `make check-bootstrap-audit` reproduces them in 37.6 seconds. |
+| Full repository gate | PASS | `make test` passes all 345 tests in 485.869 seconds with one expected platform skip; Make returns in 524.3 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 21.7 seconds. |
+| Emulator gate | NOT RUN | This hosted declaration change transfers no production object and changes no production output or ABI, so another boot claim is not required. |
+| Two-axis review | PASS | Standards and specification re-reviews report no remaining implementation, test, documentation, evidence, scope, or ownership finding after the review corrections. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path.
+
+ADR 0060, ADR 0014, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block enums, block declaration attributes, nested function definitions, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

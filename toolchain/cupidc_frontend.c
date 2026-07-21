@@ -2504,6 +2504,37 @@ static ctool_bool cfront_find_file_binding_index(
   return CTOOL_FALSE;
 }
 
+static ctool_bool cfront_find_visible_function_type(
+    const cfront_context_t *context, ctool_string_t name,
+    ctool_u32 *type_out) {
+  ctool_c_block_binding_t block_binding;
+  ctool_c_binding_t file_binding;
+  ctool_u32 parameter;
+  ctool_u32 parameter_type;
+  if (cfront_find_active_block_binding(
+          context, name, &block_binding, (ctool_u32 *)0) == CTOOL_TRUE) {
+    if (block_binding.kind == CTOOL_C_BINDING_FUNCTION &&
+        block_binding.linkage_binding != CTOOL_C_AST_NONE) {
+      *type_out = block_binding.type;
+      return CTOOL_TRUE;
+    }
+    return CTOOL_FALSE;
+  }
+  if (cfront_find_active_parameter(context, name, &parameter,
+                                   &parameter_type) == CTOOL_TRUE) {
+    (void)parameter;
+    (void)parameter_type;
+    return CTOOL_FALSE;
+  }
+  if (cfront_find_file_binding_index(
+          context, name, &file_binding, (ctool_u32 *)0) == CTOOL_TRUE &&
+      file_binding.kind == CTOOL_C_BINDING_FUNCTION) {
+    *type_out = file_binding.type;
+    return CTOOL_TRUE;
+  }
+  return CTOOL_FALSE;
+}
+
 static ctool_bool cfront_find_external_linkage_binding_index(
     const cfront_context_t *context, ctool_string_t name,
     ctool_c_binding_t *binding_out, ctool_u32 *index_out) {
@@ -2571,7 +2602,11 @@ static ctool_status_t cfront_append_binding(
         CTOOL_TRUE) {
       (void)visible_block_index;
       nearer_name = CTOOL_TRUE;
-      if (visible_block.storage == CTOOL_C_STORAGE_EXTERN &&
+      if (((visible_block.kind == CTOOL_C_BINDING_OBJECT &&
+            visible_block.storage == CTOOL_C_STORAGE_EXTERN) ||
+           (visible_block.kind == CTOOL_C_BINDING_FUNCTION &&
+            (visible_block.storage == CTOOL_C_STORAGE_NONE ||
+             visible_block.storage == CTOOL_C_STORAGE_EXTERN))) &&
           visible_block.linkage_binding < context->bindings.count &&
           cfront_binding_get(context, visible_block.linkage_binding,
                              &existing) == CTOOL_OK) {
@@ -2650,6 +2685,16 @@ static ctool_status_t cfront_append_binding(
                existing.file_scope_visible == CTOOL_FALSE))) {
           ctool_c_binding_t replacement = existing;
           replacement.type = composite;
+          if (kind == CTOOL_C_BINDING_FUNCTION &&
+              context->prototype_scope_depth == 0u) {
+            if (context->in_function_body == CTOOL_TRUE &&
+                existing.file_scope_visible == CTOOL_TRUE) {
+              replacement.type = existing.type;
+            } else if (context->in_function_body == CTOOL_FALSE &&
+                       existing.file_scope_visible == CTOOL_FALSE) {
+              replacement.type = type;
+            }
+          }
           if (publishes_file_name == CTOOL_TRUE) {
             replacement.file_scope_visible = CTOOL_TRUE;
           }
@@ -7228,23 +7273,31 @@ static ctool_status_t cfront_parse_body_primary(
   if (cfront_find_active_block_binding(context, token->spelling,
                                        &block_binding, &reference) ==
       CTOOL_TRUE) {
-    if (block_binding.kind != CTOOL_C_BINDING_OBJECT) {
+    if (block_binding.kind == CTOOL_C_BINDING_TYPEDEF) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
           "typedef name cannot be used as an expression");
     }
+    if (block_binding.kind != CTOOL_C_BINDING_OBJECT &&
+        block_binding.kind != CTOOL_C_BINDING_FUNCTION) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "block binding cannot be used as an expression");
+    }
     cfront_expression_init(
         &expression,
-        block_binding.storage == CTOOL_C_STORAGE_EXTERN
+        block_binding.linkage_binding != CTOOL_C_AST_NONE
             ? CTOOL_C_EXPRESSION_IDENTIFIER
             : CTOOL_C_EXPRESSION_BLOCK_BINDING,
         &token->location, &token->physical_location);
     expression.type = block_binding.type;
-    expression.reference = block_binding.storage == CTOOL_C_STORAGE_EXTERN
+    expression.reference = block_binding.linkage_binding != CTOOL_C_AST_NONE
                                ? block_binding.linkage_binding
                                : reference;
     type = block_binding.type;
-    value_out->is_lvalue = CTOOL_TRUE;
+    value_out->is_lvalue =
+        block_binding.kind == CTOOL_C_BINDING_OBJECT ? CTOOL_TRUE
+                                                     : CTOOL_FALSE;
     value_out->is_bit_field = CTOOL_FALSE;
     value_out->bit_width = 0u;
     value_out->address_forbidden =
@@ -12176,15 +12229,12 @@ static ctool_status_t cfront_parse_block_declaration(
   if (status != CTOOL_OK) {
     return status;
   }
-  if (specifiers.function_declaration_flags != 0u) {
+  if (specifiers.function_declaration_flags != 0u &&
+      is_for_initializer == CTOOL_TRUE) {
     return cfront_emit_failure(
-        context,
-        is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
-                                         : CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_STATEMENT, specifiers.inline_token,
-        is_for_initializer == CTOOL_TRUE
-            ? "for initializer cannot use a function specifier"
-            : "block function specifiers are outside this body slice");
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        specifiers.inline_token,
+        "for initializer cannot use a function specifier");
   }
   if (cfront_attributes_any(&specifiers.attributes) == CTOOL_TRUE) {
     return cfront_emit_failure(
@@ -12312,6 +12362,12 @@ static ctool_status_t cfront_parse_block_declaration(
         &physical_location);
     if (specifiers.storage == CFRONT_STORAGE_TYPEDEF) {
       ctool_u32 prior_index;
+      status = cfront_validate_function_specifier_context(
+          context, &specifiers, CTOOL_FALSE,
+          "inline function specifier requires a function declaration");
+      if (status != CTOOL_OK) {
+        return status;
+      }
       if (has_initializer == CTOOL_TRUE) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
@@ -12337,12 +12393,6 @@ static ctool_status_t cfront_parse_block_declaration(
         }
         compatible_redeclaration = CTOOL_TRUE;
       }
-    } else if (specifiers.storage == CFRONT_STORAGE_EXTERN &&
-               has_initializer == CTOOL_TRUE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
-          cfront_peek(context),
-          "block extern object declaration cannot have an initializer");
     }
     if (specifiers.storage != CFRONT_STORAGE_TYPEDEF) {
       status =
@@ -12355,49 +12405,92 @@ static ctool_status_t cfront_parse_block_declaration(
             name_token, "block declaration type is unavailable");
       }
       if (node.kind == CTOOL_C_TYPE_FUNCTION) {
-        return cfront_emit_failure(
-            context,
-            is_for_initializer == CTOOL_TRUE ? CTOOL_ERR_INPUT
-                                             : CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PARSE_DIAG_STATEMENT, name_token,
-            is_for_initializer == CTOOL_TRUE
-                ? "for initializer cannot declare a function"
-                : "block function declarations are outside this body slice");
-      }
-      status = cfront_type_is_complete_object_now(context, type, &complete);
-      if (status != CTOOL_OK) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            name_token, "block object completeness is unavailable");
-      }
-      if (complete == CTOOL_FALSE &&
-          specifiers.storage != CFRONT_STORAGE_EXTERN) {
-        if (has_initializer == CTOOL_FALSE ||
-            node.kind != CTOOL_C_TYPE_ARRAY ||
-            node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
+        if (is_for_initializer == CTOOL_TRUE) {
           return cfront_emit_failure(
-              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
-              name_token, "block object requires a complete object type");
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+              name_token, "for initializer cannot declare a function");
+        }
+        if (specifiers.storage != CFRONT_STORAGE_NONE &&
+            specifiers.storage != CFRONT_STORAGE_EXTERN) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT,
+              CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, declaration_token,
+              "block function declaration has an invalid storage class");
+        }
+        if (has_initializer == CTOOL_TRUE) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+              cfront_peek(context),
+              "block function declaration cannot have an initializer");
+        }
+        if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_UNSUPPORTED,
+              CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION,
+              cfront_peek(context),
+              "nested function definitions are outside this body slice");
+        }
+        block_binding.kind = CTOOL_C_BINDING_FUNCTION;
+      } else {
+        status = cfront_validate_function_specifier_context(
+            context, &specifiers, CTOOL_FALSE,
+            "inline function specifier requires a function declaration");
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        if (specifiers.storage == CFRONT_STORAGE_EXTERN &&
+            has_initializer == CTOOL_TRUE) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
+              cfront_peek(context),
+              "block extern object declaration cannot have an initializer");
+        }
+        status = cfront_type_is_complete_object_now(context, type, &complete);
+        if (status != CTOOL_OK) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              name_token, "block object completeness is unavailable");
+        }
+        if (complete == CTOOL_FALSE &&
+            specifiers.storage != CFRONT_STORAGE_EXTERN) {
+          if (has_initializer == CTOOL_FALSE ||
+              node.kind != CTOOL_C_TYPE_ARRAY ||
+              node.array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME,
+                name_token, "block object requires a complete object type");
+          }
         }
       }
     }
-    if (specifiers.storage == CFRONT_STORAGE_EXTERN) {
+    if (block_binding.kind == CTOOL_C_BINDING_FUNCTION ||
+        specifiers.storage == CFRONT_STORAGE_EXTERN) {
       cfront_binding_semantics_t binding_semantics;
       ctool_c_binding_t canonical_binding;
       ctool_u32 prior_index;
+      ctool_u32 visible_function_type = CTOOL_C_TYPE_NONE;
+      ctool_bool has_visible_function_type = CTOOL_FALSE;
+      if (block_binding.kind == CTOOL_C_BINDING_FUNCTION) {
+        has_visible_function_type = cfront_find_visible_function_type(
+            context, name, &visible_function_type);
+      }
       if (cfront_current_block_name_exists(context, name) == CTOOL_TRUE &&
           cfront_find_active_block_binding(context, name, &prior_binding,
                                            &prior_index) == CTOOL_TRUE &&
-          prior_binding.storage == CTOOL_C_STORAGE_EXTERN) {
+          prior_binding.kind == block_binding.kind &&
+          prior_binding.linkage_binding != CTOOL_C_AST_NONE) {
         (void)prior_index;
         compatible_redeclaration = CTOOL_TRUE;
       }
       cfront_zero(&binding_semantics,
                   (ctool_u32)sizeof(binding_semantics));
+      binding_semantics.function_declaration_flags =
+          specifiers.function_declaration_flags;
       status = cfront_append_binding(
-          context, CTOOL_C_BINDING_OBJECT, CTOOL_C_STORAGE_EXTERN, name, type,
-          binding_semantics, name_token, &location, &physical_location, 0ull,
-          CTOOL_FALSE, &linkage_binding);
+          context, block_binding.kind,
+          cfront_public_storage(specifiers.storage), name, type,
+          binding_semantics, name_token, &location, &physical_location,
+          0ull, CTOOL_FALSE, &linkage_binding);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -12406,15 +12499,26 @@ static ctool_status_t cfront_parse_block_declaration(
       if (status != CTOOL_OK) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            name_token, "block extern linked binding is unavailable");
+            name_token, "block linked binding is unavailable");
       }
       if (compatible_redeclaration == CTOOL_TRUE &&
           prior_binding.linkage_binding != linkage_binding) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            name_token, "block extern redeclaration changed linked identity");
+            name_token, "block redeclaration changed linked identity");
       }
-      block_binding.type = canonical_binding.type;
+      if (block_binding.kind == CTOOL_C_BINDING_FUNCTION) {
+        block_binding.type = type;
+        if (has_visible_function_type == CTOOL_TRUE) {
+          status = cfront_composite_type(
+              context, visible_function_type, type, &block_binding.type);
+          if (status != CTOOL_OK) {
+            return status;
+          }
+        }
+      } else {
+        block_binding.type = canonical_binding.type;
+      }
       block_binding.linkage_binding = linkage_binding;
     } else if (has_initializer == CTOOL_TRUE) {
       const ctool_c_pp_token_t *initializer_token;
@@ -12443,7 +12547,7 @@ static ctool_status_t cfront_parse_block_declaration(
         return status;
       }
     }
-    if (specifiers.storage != CFRONT_STORAGE_TYPEDEF) {
+    if (block_binding.kind == CTOOL_C_BINDING_OBJECT) {
       status = cfront_type_is_complete_object_now(
           context, block_binding.type, &complete);
       if (status != CTOOL_OK) {
@@ -14807,9 +14911,13 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     if ((binding->file_scope_visible != CTOOL_FALSE &&
          binding->file_scope_visible != CTOOL_TRUE) ||
         (binding->file_scope_visible == CTOOL_FALSE &&
-         (binding->kind != CTOOL_C_BINDING_OBJECT ||
-          binding->storage != CTOOL_C_STORAGE_EXTERN ||
-          binding->linkage != CTOOL_C_LINKAGE_EXTERNAL))) {
+         !((binding->kind == CTOOL_C_BINDING_OBJECT &&
+            binding->storage == CTOOL_C_STORAGE_EXTERN &&
+            binding->linkage == CTOOL_C_LINKAGE_EXTERNAL) ||
+           (binding->kind == CTOOL_C_BINDING_FUNCTION &&
+            (binding->storage == CTOOL_C_STORAGE_NONE ||
+             binding->storage == CTOOL_C_STORAGE_EXTERN) &&
+            binding->linkage == CTOOL_C_LINKAGE_EXTERNAL)))) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "frozen file-binding visibility is invalid");
@@ -15355,13 +15463,66 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       }
       continue;
     }
-    if (binding->storage == CTOOL_C_STORAGE_EXTERN &&
+    if (binding->linkage_binding != CTOOL_C_AST_NONE &&
         linked != (const ctool_c_binding_t *)0) {
       status = cfront_types_compatible(context, binding->type, linked->type,
                                        &linked_compatible);
       if (status != CTOOL_OK) {
         return status;
       }
+    }
+    if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
+      ctool_c_type_node_t block_function;
+      ctool_c_type_node_t linked_function;
+      ctool_u32 block_base;
+      ctool_u32 block_qualifiers;
+      ctool_u32 linked_base;
+      ctool_u32 linked_qualifiers;
+      ctool_bool function_types_valid = CTOOL_FALSE;
+      if (binding->type < context->types.count &&
+          linked != (const ctool_c_binding_t *)0 &&
+          linked->type < context->types.count) {
+        status = cfront_underlying_type(
+            context, binding->type, &block_base, &block_qualifiers,
+            &block_function);
+        if (status == CTOOL_OK) {
+          status = cfront_underlying_type(
+              context, linked->type, &linked_base, &linked_qualifiers,
+              &linked_function);
+        }
+        (void)block_base;
+        (void)block_qualifiers;
+        (void)linked_base;
+        (void)linked_qualifiers;
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        function_types_valid =
+            block_function.kind == CTOOL_C_TYPE_FUNCTION &&
+                    linked_function.kind == CTOOL_C_TYPE_FUNCTION
+                ? CTOOL_TRUE
+                : CTOOL_FALSE;
+      }
+      if ((binding->storage != CTOOL_C_STORAGE_NONE &&
+           binding->storage != CTOOL_C_STORAGE_EXTERN) ||
+          binding->type >= context->types.count || binding->name.size == 0u ||
+          binding->initializer != CTOOL_C_AST_NONE ||
+          binding->linkage_binding >= context->bindings.count ||
+          linked == (const ctool_c_binding_t *)0 ||
+          linked->kind != CTOOL_C_BINDING_FUNCTION ||
+          function_types_valid == CTOOL_FALSE ||
+          (linked->storage != CTOOL_C_STORAGE_NONE &&
+           linked->storage != CTOOL_C_STORAGE_EXTERN &&
+           linked->storage != CTOOL_C_STORAGE_STATIC) ||
+          (linked->linkage != CTOOL_C_LINKAGE_INTERNAL &&
+           linked->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
+          cfront_string_equal(binding->name, linked->name) == CTOOL_FALSE ||
+          linked_compatible == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen block function is invalid");
+      }
+      continue;
     }
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         (binding->storage != CTOOL_C_STORAGE_NONE &&

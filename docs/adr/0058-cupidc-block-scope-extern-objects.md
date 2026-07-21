@@ -14,7 +14,7 @@ A canonical object introduced only through a block declaration records that it h
 
 When a linked file declaration is visible, the block declaration inherits its linkage. A visible file-scope `static` object therefore remains an internal-linkage object. If a nearer automatic object or parameter hides that declaration, a nested block `extern` introduces a distinct external-linkage entity. A block declaration may also hide a file typedef or enumerator until its scope ends.
 
-Compatible repeated block declarations coalesce. This includes an incomplete array followed by a fixed bound. Incompatible types, conflicts with an automatic object or parameter in the same scope, and initializers receive focused diagnostics. The supported form is a declaration statement, not a `for` initializer. Block-scope function declarations remain separate work.
+Compatible repeated block declarations coalesce. This includes an incomplete array followed by a fixed bound. Incompatible types, conflicts with an automatic object or parameter in the same scope, and initializers receive focused diagnostics. The supported form is a declaration statement, not a `for` initializer. ADR 0060 extends the same lexical-to-canonical model to block-scope function declarations.
 
 Linear IR validates the lexical-to-canonical link and emits no instruction for the declaration itself. It reserves no local frame storage. Uses lower through `FILE_ADDRESS`, so the existing linked-object path carries the canonical identity into ELF emission. An unresolved object receives one ordinary undefined ELF symbol and one `R_386_32` relocation at each address site, with no local object symbol or automatic frame slot.
 

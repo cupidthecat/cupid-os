@@ -42,6 +42,9 @@ typedef struct {
   ctool_status_t relation_status;
 } cemit_context_t;
 
+static ctool_bool cemit_ir_function_types_match(
+    cemit_context_t *context, ctool_u32 left, ctool_u32 right);
+
 static void cemit_zero(void *destination, ctool_u32 size) {
   ctool_u8 *bytes = (ctool_u8 *)destination;
   ctool_u32 index;
@@ -357,13 +360,17 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
       binding = &context->unit->bindings[instruction->reference];
       if ((instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
            (binding->kind != CTOOL_C_BINDING_FUNCTION ||
-            binding->type != instruction->input_type)) ||
+            cemit_ir_function_types_match(
+                context, binding->type, instruction->input_type) ==
+                CTOOL_FALSE)) ||
           (instruction->kind == CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS &&
            (binding->kind != CTOOL_C_BINDING_OBJECT ||
             binding->type != instruction->type)) ||
           (instruction->kind == CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS &&
            (binding->kind != CTOOL_C_BINDING_FUNCTION ||
-            binding->type != instruction->type))) {
+            cemit_ir_function_types_match(
+                context, binding->type, instruction->type) ==
+                CTOOL_FALSE))) {
         return cemit_invalid_unit(context, &instruction->location);
       }
       context->binding_needed[instruction->reference] = CTOOL_TRUE;
@@ -2147,6 +2154,14 @@ static ctool_bool cemit_ir_relation_result(
   return result;
 }
 
+static ctool_bool cemit_ir_function_types_match(
+    cemit_context_t *context, ctool_u32 left, ctool_u32 right) {
+  ctool_bool compatible = CTOOL_FALSE;
+  ctool_status_t status = ctool_c_ir_function_types_compatible(
+      context->job, context->unit, left, right, &compatible);
+  return cemit_ir_relation_result(context, status, compatible);
+}
+
 static ctool_bool cemit_ir_pointer_types_match(
     cemit_context_t *context, ctool_u32 object_type,
     ctool_u32 value_type) {
@@ -2794,7 +2809,8 @@ static ctool_status_t cemit_emit_direct_call(
   binding = &context->unit->bindings[instruction->reference];
   function_type = cemit_unwrapped_type(context, instruction->input_type);
   if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
-      binding->type != instruction->input_type ||
+      cemit_ir_function_types_match(
+          context, binding->type, instruction->input_type) == CTOOL_FALSE ||
       function_type == (const ctool_c_type_node_t *)0 ||
       function_type->kind != CTOOL_C_TYPE_FUNCTION ||
       function_type->referenced_type != instruction->type ||
@@ -3531,7 +3547,8 @@ static ctool_status_t cemit_emit_ir_instruction(
     addressed_type = cemit_unwrapped_type(context, ir_instruction->type);
     symbol = context->binding_symbols[ir_instruction->reference];
     if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
-        binding->type != ir_instruction->type ||
+        cemit_ir_function_types_match(
+            context, binding->type, ir_instruction->type) == CTOOL_FALSE ||
         addressed_type == (const ctool_c_type_node_t *)0 ||
         addressed_type->kind != CTOOL_C_TYPE_FUNCTION ||
         symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count) {

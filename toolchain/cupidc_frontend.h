@@ -45,12 +45,14 @@ typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
   /* Canonical bindings retain the first declaration's storage spelling and
-   * dual location. Linkage and type describe the merged entity; a composite
-   * type is symbol-local and never mutates a shared typedef graph. */
+   * dual location. Linkage describes the shared entity. Type holds the
+   * file-scope composite when the name is visible there, or the compatibility
+   * accumulator for an entity known only through block declarations. A
+   * composite type is symbol-local and never mutates a shared typedef graph. */
   ctool_c_storage_class_t storage;
   ctool_c_linkage_t linkage;
-  /* False means the linked entity was introduced by a block extern and has
-   * no ordinary name at file scope. */
+  /* False means the linked entity was introduced by a block declaration and
+   * has no ordinary name at file scope. */
   ctool_bool file_scope_visible;
   /* Semantically retained declaration attributes. Noreturn belongs to the
    * canonical function entity and merges across compatible declarations. */
@@ -92,12 +94,13 @@ typedef struct {
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
-  /* Block-scope object and typedef declarations retain their source storage
-   * spelling. */
+  /* Block-scope object, function, and typedef declarations retain their
+   * source storage spelling. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
-  /* An extern object aliases this canonical linked binding. Other objects and
-   * typedefs use AST_NONE because their identity is the block binding itself. */
+  /* An extern object or block function aliases this canonical linked binding.
+   * Other objects and typedefs use AST_NONE because their identity is the
+   * block binding itself. */
   ctool_u32 linkage_binding;
   /* Root in translation_unit.initializers. A typedef or uninitialized
    * automatic object uses AST_NONE. An initialized automatic object may own
@@ -547,8 +550,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * create no runtime binding. An empty declaration with storage or type
  * qualification cannot merely name a visible tag. A `for` declaration may use
  * a visible record or an anonymous record for its object, but cannot introduce
- * a named tag or omit the object. Block typedef names, extern objects, function
- * declarations, block enum specifiers, attributes, union or Cupid class
+ * a named tag or omit the object. Block declaration attributes, block enum
+ * specifiers, union or Cupid class
  * initializer lists, and static assertions remain explicit boundaries.
  * Chained, promoted, or overriding designators, union lists, arithmetic and
  * casts on static addresses, floating constants, static-data allocation, and

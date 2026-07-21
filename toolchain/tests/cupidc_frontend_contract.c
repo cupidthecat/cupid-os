@@ -444,6 +444,9 @@ static const ctool_c_block_binding_t *find_block_binding(
   return NULL;
 }
 
+static const ctool_c_function_definition_t *find_function_definition(
+    const ctool_c_translation_unit_t *unit, const char *name);
+
 static const ctool_c_initializer_t *initializer_node(
     const ctool_c_translation_unit_t *unit, ctool_u32 initializer) {
   return initializer < unit->initializer_count
@@ -4317,10 +4320,6 @@ static int run_block_bindings(const char *host_root) {
         "void bad(void) { int local; extern int local; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
        1u, 40u, "block-scope identifier is already declared in this scope"},
-      {{"block function declaration boundary",
-        "void bad(void) { int local(void); }\n", CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 22u, "block function declarations are outside this body slice"},
       {{"void block object", "void bad(void) { void local; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
        1u, 23u, "block object requires a complete object type"},
@@ -4379,6 +4378,432 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("block-bindings: ok\n");
+  }
+  return failed;
+}
+
+static int block_function_active_source_is_unchanged(
+    frontend_fixture_t *fixture) {
+  static const struct {
+    const char *path;
+    const char *declaration;
+    ctool_u32 count;
+  } cases[] = {
+      {"/kernel/audio/ac97.c", "    extern int  mixer_play(", 3u},
+      {"/kernel/audio/ac97.c", "    extern void mixer_stop(int);", 3u},
+      {"/kernel/audio/ac97.c",
+       "    extern void mixer_set_volume(int, uint8_t, uint8_t);", 1u},
+      {"/kernel/audio/ac97.c", "    extern void opl_smoke(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern int ac97_init(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern int  mixer_init(void);", 1u},
+      {"/kernel/core/kernel.c",
+       "    extern void mixer_fill(int16_t *, uint32_t);", 1u},
+      {"/kernel/core/kernel.c",
+       "    extern void ac97_set_fill_callback(void (*)(int16_t *, uint32_t));",
+       1u},
+      {"/kernel/core/kernel.c", "    extern void ehci_init_all(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern void ehci_poll_interrupts(void);",
+       1u},
+      {"/kernel/core/kernel.c", "    extern void uhci_init_all(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern void usb_hid_init(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern void usb_hub_init(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern void usb_msc_init(void);", 1u},
+      {"/kernel/core/kernel.c", "    extern void ac97_start(void);", 1u},
+      {"/kernel/core/process.c",
+       "    extern void kernel_check_reschedule(void);", 1u},
+      {"/kernel/core/process.c",
+       "    extern void kernel_clear_reschedule(void);", 1u},
+      {"/kernel/doom/doom_libc_stubs.c",
+       "    extern void serial_write_string(const char *s);", 1u},
+      {"/kernel/doom/src/i_video.c", "    extern void I_InitInput(void);", 1u},
+      {"/kernel/doom/src/m_menu.c",
+       "    extern void I_OPL_DevMessages(char *, size_t);", 1u},
+      {"/kernel/doom/src/wi_stuff.c", "    void WI_unloadData(void);", 1u},
+      {"/kernel/network/arp.c", "    extern void net_process_pending(void);",
+       1u},
+      {"/kernel/network/icmp.c",
+       "    extern net_if_t *net_if_primary(void);", 1u}};
+  ctool_u32 index;
+  for (index = 0u; index < ARRAY_COUNT(cases); index++) {
+    ctool_path_t path;
+    ctool_source_t source;
+    const char *cursor;
+    const char *found;
+    ctool_u32 count = 0u;
+    path.text = ctool_string(cases[index].path);
+    (void)memset(&source, 0xa5, sizeof(source));
+    if (ctool_job_load_source(fixture->job, &path, &source) != CTOOL_OK ||
+        source.contents.data == NULL) {
+      return 1;
+    }
+    cursor = (const char *)source.contents.data;
+    while ((found = strstr(cursor, cases[index].declaration)) != NULL) {
+      count++;
+      cursor = found + strlen(cases[index].declaration);
+    }
+    if (count != cases[index].count) {
+      (void)fprintf(stderr,
+                    "block-functions: active declaration %u differs\n",
+                    index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_block_functions(const char *host_root) {
+  static const char source[] =
+      "static int visible_static(int value) { return value + 1; }\n"
+      "typedef int hidden_type;\n"
+      "enum { hidden_enum = 3 };\n"
+      "int invoke(int value) {\n"
+      "  int helper(int);\n"
+      "  extern int helper(int);\n"
+      "  inline int helper(int);\n"
+      "  return helper(value);\n"
+      "}\n"
+      "int use_visible_static(int value) {\n"
+      "  int visible_static(int);\n"
+      "  return visible_static(value);\n"
+      "}\n"
+      "int hide_visible_static(int value) {\n"
+      "  int visible_static = value;\n"
+      "  {\n"
+      "    int visible_static(int);\n"
+      "    value = visible_static(value);\n"
+      "  }\n"
+      "  return visible_static;\n"
+      "}\n"
+      "int hide_file_names(int value) {\n"
+      "  {\n"
+      "    int hidden_type(int);\n"
+      "    value = hidden_type(value);\n"
+      "  }\n"
+      "  hidden_type restored = value;\n"
+      "  {\n"
+      "    int hidden_enum(int);\n"
+      "    value = hidden_enum(value);\n"
+      "  }\n"
+      "  return restored + hidden_enum;\n"
+      "}\n"
+      "int introduce_published(int value) {\n"
+      "  int published(int);\n"
+      "  return published(value);\n"
+      "}\n"
+      "int published(int value) { return value + 2; }\n"
+      "int merge_prototype(int value) {\n"
+      "  int promoted();\n"
+      "  int promoted(int);\n"
+      "  return promoted(value);\n"
+      "}\n"
+      "int call_sibling_prototype(int value) {\n"
+      "  int sibling_helper(int);\n"
+      "  return sibling_helper(value);\n"
+      "}\n"
+      "int call_sibling_old_style(void) {\n"
+      "  int sibling_helper();\n"
+      "  return sibling_helper();\n"
+      "}\n"
+      "int call_pair(int value) {\n"
+      "  extern int first(int), second(int);\n"
+      "  return first(value) + second(value);\n"
+      "}\n"
+      "struct Net;\n"
+      "struct Net *get_net(void) {\n"
+      "  extern struct Net *net_primary(void);\n"
+      "  return net_primary();\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"static block function",
+        "void bad(void) { static void local(void); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 18u, "block function declaration has an invalid storage class"},
+      {{"auto block function",
+        "void bad(void) { auto void local(void); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 18u, "block function declaration has an invalid storage class"},
+      {{"register block function",
+        "void bad(void) { register void local(void); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 18u, "block function declaration has an invalid storage class"},
+      {{"block function initializer",
+        "void bad(void) { int local(void) = 0; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 34u, "block function declaration cannot have an initializer"},
+      {{"incompatible repeated block function",
+        "void bad(void) { int local(int); long local(int); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 39u, "ordinary identifier has a conflicting declaration"},
+      {{"block function conflicts with object",
+        "void bad(void) { int local; int local(void); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 33u, "block-scope identifier is already declared in this scope"},
+      {{"block function conflicts with parameter",
+        "void bad(int local) { int local(void); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 27u, "block-scope identifier is already declared in this scope"},
+      {{"block function for initializer",
+        "void bad(void) { for (int local(void); ; ) { } }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 27u, "for initializer cannot declare a function"},
+      {{"nested function definition",
+        "void bad(void) { int local(void) { } }\n", CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
+       1u, 34u, "nested function definitions are outside this body slice"},
+      {{"expired block function",
+        "int bad(void) {\n"
+        "  { int local(void); }\n"
+        "  return local();\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u, "expression identifier is not declared"},
+      {{"inline block object",
+        "void bad(void) { inline int local; }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 18u, "inline function specifier requires a function declaration"},
+      {{"block function attribute boundary",
+        "void bad(void) { int local(void) __attribute__((noreturn)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 49u, "block declaration attributes are outside this body slice"},
+      {{"incompatible visible internal function",
+        "static int local(int);\n"
+        "void bad(void) { long local(int); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       2u, 23u, "ordinary identifier has a conflicting declaration"},
+      {{"incompatible sibling block functions",
+        "void first(void) { int local(int); }\n"
+        "void second(void) { long local(int); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       2u, 26u, "ordinary identifier has a conflicting declaration"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  const ctool_c_block_binding_t *block;
+  const ctool_c_binding_t *linked;
+  ctool_u32 linked_index;
+  ctool_u32 helper_declarations = 0u;
+  ctool_u32 linked_references = 0u;
+  ctool_u32 visible_internal = CTOOL_C_AST_NONE;
+  ctool_u32 hidden_external = CTOOL_C_AST_NONE;
+  ctool_u32 visible_static_function_declarations = 0u;
+  ctool_u32 hidden_static_function_declarations = 0u;
+  ctool_u32 visible_static_objects = 0u;
+  ctool_u32 block_object_references = 0u;
+  ctool_u32 hidden_enum_binding = CTOOL_C_AST_NONE;
+  ctool_u32 hidden_enum_references = 0u;
+  ctool_u32 published_binding = CTOOL_C_AST_NONE;
+  ctool_u32 published_block_declarations = 0u;
+  ctool_u32 promoted_binding = CTOOL_C_AST_NONE;
+  ctool_u32 promoted_block_declarations = 0u;
+  ctool_u32 sibling_binding = CTOOL_C_AST_NONE;
+  ctool_u32 sibling_prototype_declarations = 0u;
+  ctool_u32 sibling_old_style_declarations = 0u;
+  ctool_u32 block_function_declarations = 0u;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "block-functions", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/block-functions.c", source, &unit) !=
+          0 ||
+      block_function_active_source_is_unchanged(&fixture) != 0) {
+    goto cleanup;
+  }
+  block = find_block_binding(&unit, "helper");
+  linked_index = block == NULL ? CTOOL_C_AST_NONE : block->linkage_binding;
+  linked = linked_index < unit.binding_count ? &unit.bindings[linked_index]
+                                             : NULL;
+  for (index = 0u; index < unit.block_binding_count; index++) {
+    const ctool_c_block_binding_t *candidate = &unit.block_bindings[index];
+    if (string_equal(candidate->name, "helper") == 0) {
+      continue;
+    }
+    if (candidate->kind != CTOOL_C_BINDING_FUNCTION ||
+        candidate->initializer != CTOOL_C_AST_NONE ||
+        candidate->linkage_binding != linked_index) {
+      (void)fprintf(stderr,
+                    "block-functions: repeated declaration differs\n");
+      goto cleanup;
+    }
+    helper_declarations++;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    const ctool_c_binding_t *candidate = &unit.bindings[index];
+    if (string_equal(candidate->name, "hidden_enum") != 0 &&
+        candidate->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      hidden_enum_binding = index;
+    }
+    if (string_equal(candidate->name, "published") != 0 &&
+        candidate->kind == CTOOL_C_BINDING_FUNCTION) {
+      published_binding = index;
+    }
+    if (string_equal(candidate->name, "promoted") != 0 &&
+        candidate->kind == CTOOL_C_BINDING_FUNCTION) {
+      promoted_binding = index;
+    }
+    if (string_equal(candidate->name, "visible_static") == 0 ||
+        candidate->kind != CTOOL_C_BINDING_FUNCTION) {
+      continue;
+    }
+    if (candidate->linkage == CTOOL_C_LINKAGE_INTERNAL &&
+        candidate->file_scope_visible == CTOOL_TRUE) {
+      visible_internal = index;
+    }
+    if (candidate->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+        candidate->file_scope_visible == CTOOL_FALSE) {
+      hidden_external = index;
+    }
+  }
+  for (index = 0u; index < unit.block_binding_count; index++) {
+    const ctool_c_block_binding_t *candidate = &unit.block_bindings[index];
+    if (string_equal(candidate->name, "visible_static") == 0) {
+      continue;
+    }
+    if (candidate->kind == CTOOL_C_BINDING_OBJECT) {
+      visible_static_objects++;
+    } else if (candidate->kind == CTOOL_C_BINDING_FUNCTION &&
+               candidate->linkage_binding == visible_internal) {
+      visible_static_function_declarations++;
+    } else if (candidate->kind == CTOOL_C_BINDING_FUNCTION &&
+               candidate->linkage_binding == hidden_external) {
+      hidden_static_function_declarations++;
+    } else {
+      (void)fprintf(stderr,
+                    "block-functions: static shadow binding differs\n");
+      goto cleanup;
+    }
+  }
+  for (index = 0u; index < unit.block_binding_count; index++) {
+    const ctool_c_block_binding_t *candidate = &unit.block_bindings[index];
+    if (candidate->kind != CTOOL_C_BINDING_FUNCTION) {
+      continue;
+    }
+    block_function_declarations++;
+    if (string_equal(candidate->name, "published") != 0 &&
+        candidate->linkage_binding == published_binding) {
+      published_block_declarations++;
+    }
+    if (string_equal(candidate->name, "promoted") != 0 &&
+        candidate->linkage_binding == promoted_binding) {
+      promoted_block_declarations++;
+    }
+    if (string_equal(candidate->name, "sibling_helper") != 0) {
+      const ctool_c_type_node_t *function =
+          unwrapped_type_node(&unit, candidate->type);
+      if (function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+          candidate->linkage_binding >= unit.binding_count ||
+          (sibling_binding != CTOOL_C_AST_NONE &&
+           sibling_binding != candidate->linkage_binding)) {
+        (void)fprintf(stderr,
+                      "block-functions: sibling declaration differs\n");
+        goto cleanup;
+      }
+      sibling_binding = candidate->linkage_binding;
+      if (function->has_prototype == CTOOL_TRUE) {
+        sibling_prototype_declarations++;
+      } else {
+        sibling_old_style_declarations++;
+      }
+    }
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+        expression->reference == linked_index) {
+      linked_references++;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        expression->reference < unit.block_binding_count &&
+        unit.block_bindings[expression->reference].kind ==
+            CTOOL_C_BINDING_OBJECT) {
+      block_object_references++;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        expression->reference < unit.block_binding_count &&
+        unit.block_bindings[expression->reference].kind ==
+            CTOOL_C_BINDING_FUNCTION) {
+      (void)fprintf(stderr,
+                    "block-functions: function used lexical storage\n");
+      goto cleanup;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+        expression->reference == hidden_enum_binding) {
+      hidden_enum_references++;
+    }
+  }
+  if (unit.block_binding_count != 17u || helper_declarations != 3u ||
+      block == NULL || linked == NULL ||
+      block->kind != CTOOL_C_BINDING_FUNCTION ||
+      block->storage != CTOOL_C_STORAGE_NONE ||
+      block->initializer != CTOOL_C_AST_NONE ||
+      linked->kind != CTOOL_C_BINDING_FUNCTION ||
+      linked->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      linked->file_scope_visible != CTOOL_FALSE ||
+      (linked->function_declaration_flags & CTOOL_C_FUNCTION_DECL_INLINE) ==
+          0u ||
+      linked_references != 1u || visible_internal == CTOOL_C_AST_NONE ||
+      hidden_external == CTOOL_C_AST_NONE ||
+      visible_internal == hidden_external ||
+      visible_static_function_declarations != 1u ||
+      hidden_static_function_declarations != 1u ||
+      visible_static_objects != 1u || block_object_references == 0u) {
+    (void)fprintf(stderr, "block-functions: declaration graph differs\n");
+    goto cleanup;
+  }
+  if (hidden_enum_binding == CTOOL_C_AST_NONE ||
+      hidden_enum_references != 1u ||
+      published_binding == CTOOL_C_AST_NONE ||
+      unit.bindings[published_binding].file_scope_visible != CTOOL_TRUE ||
+      find_function_definition(&unit, "published") == NULL ||
+      published_block_declarations != 1u ||
+      promoted_binding == CTOOL_C_AST_NONE ||
+      unit.bindings[promoted_binding].file_scope_visible != CTOOL_FALSE ||
+      promoted_block_declarations != 2u ||
+      sibling_binding == CTOOL_C_AST_NONE ||
+      unit.bindings[sibling_binding].file_scope_visible != CTOOL_FALSE ||
+      sibling_prototype_declarations != 1u ||
+      sibling_old_style_declarations != 1u ||
+      block_function_declarations != 15u) {
+    (void)fprintf(
+        stderr,
+        "block-functions: namespace graph differs "
+        "enum=%u/%u published=%u/%u promoted=%u/%u functions=%u\n",
+        hidden_enum_binding, hidden_enum_references, published_binding,
+        published_block_declarations, promoted_binding,
+        promoted_block_declarations, block_function_declarations);
+    goto cleanup;
+  }
+  {
+    const ctool_c_type_node_t *promoted =
+        unwrapped_type_node(&unit, unit.bindings[promoted_binding].type);
+    if (promoted == NULL || promoted->kind != CTOOL_C_TYPE_FUNCTION ||
+        promoted->has_prototype != CTOOL_TRUE ||
+        promoted->parameter_count != 1u) {
+      (void)fprintf(stderr,
+                    "block-functions: composite prototype differs\n");
+      goto cleanup;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/block-function-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        unit.block_binding_count != 17u || block == NULL || linked == NULL ||
+        block->linkage_binding != linked_index ||
+        linked->kind != CTOOL_C_BINDING_FUNCTION) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-functions: ok\n");
   }
   return failed;
 }
@@ -4980,9 +5405,6 @@ cleanup:
   }
   return failed;
 }
-
-static const ctool_c_function_definition_t *find_function_definition(
-    const ctool_c_translation_unit_t *unit, const char *name);
 
 static int validate_block_record_unit(
     const ctool_c_translation_unit_t *unit) {
@@ -5675,12 +6097,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 159u, 4829u,
-       42123u, 594u, 193u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 121u, 3098u,
-       27740u, 414u, 207u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 296u,
-       11497u, 73679u, 1703u, 1179u, 0u, 0u}};
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 160u, 4905u,
+       42845u, 605u, 196u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 122u, 3102u,
+       27793u, 416u, 209u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 297u,
+       11594u, 74415u, 1716u, 1182u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -21096,7 +21518,8 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "variadic-callees|block-bindings|block-typedefs|"
+                   "variadic-callees|block-bindings|block-functions|"
+                   "block-typedefs|"
                    "block-externs|block-records|"
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
@@ -21140,6 +21563,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);
+  }
+  if (strcmp(argv[1], "block-functions") == 0) {
+    return run_block_functions(argv[2]);
   }
   if (strcmp(argv[1], "block-typedefs") == 0) {
     return run_block_typedefs(argv[2]);

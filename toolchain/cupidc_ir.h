@@ -119,6 +119,15 @@ typedef struct {
   ctool_u32 instruction_count;
 } ctool_c_ir_unit_t;
 
+/* Reports whether two published semantic types are compatible function
+ * types. The query follows qualified and aligned wrappers and compares return
+ * and parameter types structurally. A malformed graph, a non-function type,
+ * or an out-of-range type returns CTOOL_OK with a false result. Missing job or
+ * output arguments return CTOOL_ERR_INVALID_ARGUMENT. */
+ctool_status_t ctool_c_ir_function_types_compatible(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 left, ctool_u32 right, ctool_bool *compatible_out);
+
 /* Reports whether two published semantic types carry compatible represented
  * four-byte object, void, or function pointer values. Top-level pointer-object
  * qualifiers do not belong to the value after lvalue conversion. Referent
