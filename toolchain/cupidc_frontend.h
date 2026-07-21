@@ -94,19 +94,21 @@ typedef struct {
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;
-  /* Block-scope object, function, and typedef declarations retain their
-   * source storage spelling. */
+  /* Block-scope declarations retain their source storage spelling.
+   * Enumerators always use NONE. */
   ctool_c_storage_class_t storage;
   ctool_u32 type;
   /* An extern object or block function aliases this canonical linked binding.
-   * Other objects and typedefs use AST_NONE because their identity is the
-   * block binding itself. */
+   * Other block bindings use AST_NONE because their identity is local. */
   ctool_u32 linkage_binding;
   /* Root in translation_unit.initializers. A typedef or uninitialized
    * automatic object uses AST_NONE. An initialized automatic object may own
    * an EXPRESSION, STRING, or LIST forest; a static object always owns its
    * semantic forest, including implicit zero initialization. */
   ctool_u32 initializer;
+  /* ENUMERATOR only: evaluated target bit pattern and unsignedness. */
+  ctool_u64 integer_bits;
+  ctool_bool integer_unsigned;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_block_binding_t;
@@ -517,9 +519,10 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * increment/decrement, right-associative C11 conditional values including
  * same-record results, fixed-argument prototyped calls; and explicit lvalue,
  * array, function, qualification, integer promotion, usual-arithmetic, and
- * assignment and null-pointer conversions. Block bindings use
- * lexical scope, share the outer function-body scope with definition
- * parameters, and retain stable public indices after their scopes close. Lvalue
+ * assignment and null-pointer conversions. Block bindings use lexical scope,
+ * share the outer function-body scope with definition parameters, and retain
+ * stable public indices after their scopes close. Declaration-position enums
+ * retain each enumerator's value and type in that same binding stream. Lvalue
  * conversion removes top-level const, volatile, and atomic qualification while
  * retaining the qualified source node. Definition parameter metadata retains
  * its adjusted qualified object type separately from normalized function-type
@@ -550,8 +553,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * create no runtime binding. An empty declaration with storage or type
  * qualification cannot merely name a visible tag. A `for` declaration may use
  * a visible record or an anonymous record for its object, but cannot introduce
- * a named tag or omit the object. Block declaration attributes, block enum
- * specifiers, union or Cupid class
+ * a named tag or omit the object. An anonymous enum may declare a `for` object
+ * and its enumerators share the loop scope. A visible enum tag can be used in
+ * a block type name or record member. Enum definitions nested in block record
+ * members or type names, enum definitions in function-definition
+ * parameter lists, block declaration attributes, union or Cupid class
  * initializer lists, and static assertions remain explicit boundaries.
  * Chained, promoted, or overriding designators, union lists, arithmetic and
  * casts on static addresses, floating constants, static-data allocation, and

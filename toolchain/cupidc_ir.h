@@ -211,7 +211,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * declarations. A block typedef advances lexical visibility without emitting
  * runtime work or reserving local storage. A block extern object does the
  * same, and its uses publish FILE_ADDRESS against the canonical linked
- * binding. An omitted condition has no false exit.
+ * binding. A block enumerator also advances visibility without storage or
+ * declaration instructions; a represented use publishes INTEGER. An omitted
+ * condition has no false exit.
  * Break uses JUMP to the nearest loop or switch exit. Continue uses JUMP to
  * the nearest loop's continuation point. A do continuation reaches its
  * condition, while a for continuation reaches its iteration expression when

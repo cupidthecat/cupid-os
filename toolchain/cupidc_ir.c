@@ -4124,6 +4124,35 @@ static ctool_status_t cir_lower_variadic_builtin(
       (ctool_u32 *)0);
 }
 
+static ctool_status_t cir_lower_enumerator_value(
+    cir_context_t *context, ctool_u32 type, ctool_u64 integer_bits,
+    ctool_bool integer_unsigned, const ctool_c_pp_location_t *location,
+    const ctool_c_pp_location_t *physical_location) {
+  ctool_u64 low = integer_bits & 0xffffffffu;
+  ctool_status_t status;
+  if (integer_unsigned != CTOOL_FALSE && integer_unsigned != CTOOL_TRUE) {
+    return cir_invalid_unit(context, location);
+  }
+  if (cir_type_is_i32_integer(context, type) == CTOOL_FALSE) {
+    return cir_unsupported_type(context, location);
+  }
+  if (cir_i32_bits_are_canonical(
+          integer_bits,
+          integer_unsigned == CTOOL_FALSE ? CTOOL_TRUE : CTOOL_FALSE) ==
+      CTOOL_FALSE) {
+    return cir_invalid_unit(context, location);
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_INTEGER, type, CTOOL_C_TYPE_NONE,
+      CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+      CTOOL_C_AST_NONE, low, location, physical_location,
+      (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_VALUE, type);
+}
+
 static ctool_status_t cir_lower_expression(cir_context_t *context,
                                            ctool_u32 expression_index,
                                            ctool_u32 depth) {
@@ -4214,33 +4243,14 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       return cir_invalid_unit(context, &expression->location);
     }
     if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
-      ctool_u64 low = binding->integer_bits & 0xffffffffu;
       if (binding->storage != CTOOL_C_STORAGE_NONE ||
-          binding->linkage != CTOOL_C_LINKAGE_NONE ||
-          (binding->integer_unsigned != CTOOL_FALSE &&
-           binding->integer_unsigned != CTOOL_TRUE)) {
+          binding->linkage != CTOOL_C_LINKAGE_NONE) {
         return cir_invalid_unit(context, &expression->location);
       }
-      if (cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
-        return cir_unsupported_type(context, &expression->location);
-      }
-      if (cir_i32_bits_are_canonical(
-              binding->integer_bits,
-              binding->integer_unsigned == CTOOL_FALSE ? CTOOL_TRUE
-                                                        : CTOOL_FALSE) ==
-          CTOOL_FALSE) {
-        return cir_invalid_unit(context, &expression->location);
-      }
-      status = cir_append_instruction(
-          context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
-          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
-          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
-          low, &expression->location,
-          &expression->physical_location, (ctool_u32 *)0);
-      if (status != CTOOL_OK) {
-        return status;
-      }
-      return cir_push(context, CIR_STACK_VALUE, expression->type);
+      return cir_lower_enumerator_value(
+          context, expression->type, binding->integer_bits,
+          binding->integer_unsigned, &expression->location,
+          &expression->physical_location);
     }
     if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
       if (binding->linkage != CTOOL_C_LINKAGE_INTERNAL &&
@@ -4326,10 +4336,24 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       return cir_invalid_unit(context, &expression->location);
     }
     binding = &context->unit->block_bindings[expression->reference];
-    if (binding->kind != CTOOL_C_BINDING_OBJECT ||
-        binding->type != expression->type ||
+    if (binding->type != expression->type ||
         binding->storage == CTOOL_C_STORAGE_EXTERN ||
         binding->linkage_binding != CTOOL_C_AST_NONE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      if (binding->storage != CTOOL_C_STORAGE_NONE ||
+          binding->initializer != CTOOL_C_AST_NONE) {
+        return cir_invalid_unit(context, &expression->location);
+      }
+      return cir_lower_enumerator_value(
+          context, expression->type, binding->integer_bits,
+          binding->integer_unsigned, &expression->location,
+          &expression->physical_location);
+    }
+    if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+        binding->integer_bits != 0ull ||
+        binding->integer_unsigned != CTOOL_FALSE) {
       return cir_invalid_unit(context, &expression->location);
     }
     if (cir_type_is_represented_scalar(context, expression->type) ==
@@ -5522,6 +5546,38 @@ static ctool_status_t cir_lower_declaration(
         binding->storage < CTOOL_C_STORAGE_NONE ||
         binding->storage > CTOOL_C_STORAGE_REGISTER) {
       return cir_invalid_unit(context, &binding->location);
+    }
+    if (binding->kind != CTOOL_C_BINDING_ENUMERATOR &&
+        (binding->integer_bits != 0ull ||
+         binding->integer_unsigned != CTOOL_FALSE)) {
+      return cir_invalid_unit(context, &binding->location);
+    }
+    if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      const ctool_c_type_layout_t *enum_layout;
+      if (binding->storage != CTOOL_C_STORAGE_NONE ||
+          binding->type >= context->unit->layout.type_count ||
+          binding->linkage_binding != CTOOL_C_AST_NONE ||
+          binding->initializer != CTOOL_C_AST_NONE ||
+          (binding->integer_unsigned != CTOOL_FALSE &&
+           binding->integer_unsigned != CTOOL_TRUE)) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      enum_layout = &context->unit->layout.types[binding->type];
+      if (enum_layout->is_integer != CTOOL_TRUE ||
+          enum_layout->is_object != CTOOL_TRUE ||
+          enum_layout->is_complete_object != CTOOL_TRUE ||
+          (enum_layout->size != 4u && enum_layout->size != 8u) ||
+          (enum_layout->size == 4u &&
+           cir_i32_bits_are_canonical(
+               binding->integer_bits,
+               binding->integer_unsigned == CTOOL_FALSE ? CTOOL_TRUE
+                                                         : CTOOL_FALSE) ==
+               CTOOL_FALSE)) {
+        return cir_invalid_unit(context, &binding->location);
+      }
+      context->block_binding_cursor++;
+      context->visible_block_binding_end = context->block_binding_cursor;
+      continue;
     }
     if (binding->kind == CTOOL_C_BINDING_TYPEDEF) {
       if (binding->storage != CTOOL_C_STORAGE_TYPEDEF ||

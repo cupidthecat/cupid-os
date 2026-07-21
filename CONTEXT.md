@@ -72,6 +72,10 @@ _Avoid_: nested function, automatic local
 A type alias whose name lives in one C block scope. It keeps a stable frontend type identity, shares the ordinary identifier namespace, and owns no runtime storage.
 _Avoid_: file typedef, block object
 
+**Block enumerator**:
+An enum constant whose ordinary identifier lives in one C block scope. Its frontend binding keeps the evaluated target value and type but owns no storage, address, symbol, relocation, or runtime declaration work.
+_Avoid_: local constant object, file enumerator
+
 **Block-scope record tag**:
 A `struct` or `union` name whose identity lives in one C block scope. A declaration may leave the type incomplete, a later definition in the same scope may complete it, and a nested tag may hide it until that nested block ends. A tag declared in a function definition's parameter list shares the outer body scope and expires when the definition ends.
 _Avoid_: file tag, block object

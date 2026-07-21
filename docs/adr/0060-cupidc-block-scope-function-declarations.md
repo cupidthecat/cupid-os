@@ -26,4 +26,8 @@ The frontend contract covers plain, `extern`, and `inline` spellings; compatible
 
 The IR contract proves external and internal direct calls, an old-style sibling call, one function address, and no declaration-owned `LOCAL_ADDRESS`. It also rejects a block function whose record and canonical binding were both changed to a compatible non-function type. The object contract is byte-identical to an equivalent file-scope declaration sequence. It has three defined functions, one undefined function symbol, two `R_386_PC32` call relocations with addend `-4`, and one `R_386_32` function-address relocation with addend zero.
 
-This is hosted bootstrap evidence. GCC or Clang still builds CupidC and the contracts, and the normal Cupid OS build still uses the host compiler for C objects. No production artifact, ABI, or boot path changes in this increment. Block-scope enum declarations, nested functions, block attributes, production ownership, and self-hosting remain open.
+This is hosted bootstrap evidence. GCC or Clang still builds CupidC and the contracts, and the normal Cupid OS build still uses the host compiler for C objects. No production artifact, ABI, or boot path changes in this increment. Nested functions, block attributes, production ownership, and self-hosting remain open.
+
+## Later work
+
+ADR 0061 adds declaration-position block enums to the same lexical binding stream. Enum definitions nested in block record members or type names and enum definitions in function-definition parameter lists remain open alongside nested functions and block attributes.

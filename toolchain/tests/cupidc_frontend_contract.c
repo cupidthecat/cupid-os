@@ -5406,6 +5406,277 @@ cleanup:
   return failed;
 }
 
+static int validate_block_enum_unit(const ctool_c_translation_unit_t *unit) {
+  static const char *const names[] = {
+      "FIRST",            "SECOND",          "outer_object",
+      "FIRST",            "INNER",           "inner_object",
+      "restored",         "IMPLICIT",        "EXPLICIT",
+      "AFTER",            "stored",          "FILE_VALUE",
+      "sum",              "LOOP_FIRST",      "LOOP_LAST",
+      "i",                "CURSOR_W",         "CURSOR_H",
+      "CURSOR_PAD",       "CC_REPL_LINE_MAX", "CC_REPL_SRC_MAX"};
+  static const ctool_u32 enum_indices[] = {
+      0u, 1u, 3u, 4u, 7u, 8u, 9u, 11u, 13u, 14u, 16u, 17u, 18u, 19u, 20u};
+  static const ctool_u64 enum_values[] = {
+      3ull, 7ull, 11ull, 12ull, 0ull, 5ull, 6ull, 31ull,
+      1ull, 3ull, 8ull, 10ull, 1ull, 512ull, 65536ull};
+  static const ctool_u32 declaration_first[] = {
+      0u, 2u, 3u, 5u, 6u, 7u, 10u, 11u, 12u, 13u, 16u, 19u};
+  static const ctool_u32 declaration_count[] = {
+      2u, 1u, 2u, 1u, 1u, 3u, 1u, 1u, 1u, 3u, 3u, 2u};
+  static const ctool_u32 required_references[] = {
+      0u, 1u, 4u, 7u, 11u, 13u, 14u, 16u, 17u, 18u, 19u, 20u};
+  ctool_bool references[ARRAY_COUNT(names)] = {CTOOL_FALSE};
+  const ctool_c_block_binding_t *bindings = unit->block_bindings;
+  const ctool_c_type_node_t *outer_enum;
+  const ctool_c_type_node_t *inner_enum;
+  ctool_u32 file_value = find_binding_index(unit, "FILE_VALUE");
+  ctool_u32 declaration_index = 0u;
+  ctool_u32 file_references = 0u;
+  ctool_u32 index;
+
+  if (unit->block_binding_count != ARRAY_COUNT(names) ||
+      unit->function_definition_count != 6u || file_value == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "block-enums: binding inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(names); index++) {
+    if (!string_equal(bindings[index].name, names[index])) {
+      (void)fprintf(stderr, "block-enums: binding name %u differs\n", index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(enum_indices); index++) {
+    const ctool_c_block_binding_t *binding =
+        &bindings[enum_indices[index]];
+    const ctool_c_type_node_t *type = unwrapped_type_node(unit, binding->type);
+    if (binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
+        binding->storage != CTOOL_C_STORAGE_NONE ||
+        binding->linkage_binding != CTOOL_C_AST_NONE ||
+        binding->initializer != CTOOL_C_AST_NONE ||
+        binding->integer_bits != enum_values[index] ||
+        binding->integer_unsigned != CTOOL_FALSE || type == NULL ||
+        type->kind != CTOOL_C_TYPE_SIGNED_INT) {
+      (void)fprintf(stderr,
+                    "block-enums: enumerator metadata %u differs\n", index);
+      return 1;
+    }
+  }
+  outer_enum = unwrapped_type_node(unit, bindings[2].type);
+  inner_enum = unwrapped_type_node(unit, bindings[5].type);
+  if (bindings[2].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[5].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[6].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[10].kind != CTOOL_C_BINDING_OBJECT ||
+      bindings[10].storage != CTOOL_C_STORAGE_STATIC ||
+      outer_enum == NULL || outer_enum->kind != CTOOL_C_TYPE_ENUM ||
+      inner_enum == NULL || inner_enum->kind != CTOOL_C_TYPE_ENUM ||
+      bindings[2].type == bindings[5].type ||
+      bindings[2].type != bindings[6].type) {
+    (void)fprintf(stderr, "block-enums: enum tag restoration differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind != CTOOL_C_STATEMENT_DECLARATION) {
+      continue;
+    }
+    if (declaration_index >= ARRAY_COUNT(declaration_first) ||
+        statement->first_block_binding != declaration_first[declaration_index] ||
+        statement->block_binding_count !=
+            declaration_count[declaration_index]) {
+      (void)fprintf(stderr, "block-enums: declaration slice differs\n");
+      return 1;
+    }
+    declaration_index++;
+  }
+  if (declaration_index != ARRAY_COUNT(declaration_first)) {
+    (void)fprintf(stderr, "block-enums: declaration inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        expression->reference < ARRAY_COUNT(names)) {
+      references[expression->reference] = CTOOL_TRUE;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+        expression->reference == file_value) {
+      file_references++;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(required_references); index++) {
+    if (references[required_references[index]] == CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "block-enums: enumerator reference %u is missing\n",
+                    required_references[index]);
+      return 1;
+    }
+  }
+  if (file_references != 1u) {
+    (void)fprintf(stderr, "block-enums: file enumerator restoration differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int block_enum_active_source_is_unchanged(
+    frontend_fixture_t *fixture) {
+  static const struct {
+    const char *path;
+    const char *declaration;
+  } cases[] = {
+      {"/kernel/gui/desktop.c", "    CURSOR_W = 8,"},
+      {"/kernel/gui/desktop.c", "    CURSOR_H = 10,"},
+      {"/kernel/gui/desktop.c", "    CURSOR_PAD = 1"},
+      {"/kernel/lang/shell.c",
+       "  enum { CC_REPL_LINE_MAX = 512, CC_REPL_SRC_MAX = 64 * 1024 };"}};
+  ctool_u32 index;
+  for (index = 0u; index < ARRAY_COUNT(cases); index++) {
+    ctool_path_t path;
+    ctool_source_t source;
+    const char *found;
+    path.text = ctool_string(cases[index].path);
+    (void)memset(&source, 0xa5, sizeof(source));
+    if (ctool_job_load_source(fixture->job, &path, &source) != CTOOL_OK ||
+        source.contents.data == NULL) {
+      return 1;
+    }
+    found = strstr((const char *)source.contents.data,
+                   cases[index].declaration);
+    if (found == NULL ||
+        strstr(found + strlen(cases[index].declaration),
+               cases[index].declaration) != NULL) {
+      (void)fprintf(stderr,
+                    "block-enums: active declaration %u differs\n", index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_block_enums(const char *host_root) {
+  static const char source[] =
+      "enum FileTag { FILE_VALUE = 23 };\n"
+      "int block_enum(int input) {\n"
+      "  enum Local { FIRST = 3, SECOND = FIRST + 4 };\n"
+      "  (void)sizeof(enum Local);\n"
+      "  (void)sizeof(struct { enum Local member; });\n"
+      "  enum Local outer_object = SECOND;\n"
+      "  {\n"
+      "    enum Local { FIRST = 11, INNER = FIRST + 1 };\n"
+      "    enum Local inner_object = INNER;\n"
+      "    input += inner_object;\n"
+      "  }\n"
+      "  enum Local restored = FIRST;\n"
+      "  enum { IMPLICIT, EXPLICIT = 5, AFTER = EXPLICIT + 1 };\n"
+      "  static int stored = AFTER;\n"
+      "  return input + outer_object + restored + stored + IMPLICIT;\n"
+      "}\n"
+      "int file_enum(void) { return FILE_VALUE; }\n"
+      "int shadow_file_enum(void) {\n"
+      "  enum { FILE_VALUE = 31 };\n"
+      "  return FILE_VALUE;\n"
+      "}\n"
+      "int loop_enum(void) {\n"
+      "  int sum = 0;\n"
+      "  for (enum { LOOP_FIRST = 1, LOOP_LAST = LOOP_FIRST + 2 }\n"
+      "           i = LOOP_FIRST; i < LOOP_LAST; i++) {\n"
+      "    sum += i;\n"
+      "  }\n"
+      "  return sum;\n"
+      "}\n"
+      "int active_cursor_enum(void) {\n"
+      "  enum { CURSOR_W = 8, CURSOR_H = 10, CURSOR_PAD = 1 };\n"
+      "  return CURSOR_W + CURSOR_H + CURSOR_PAD;\n"
+      "}\n"
+      "int active_repl_enum(void) {\n"
+      "  enum { CC_REPL_LINE_MAX = 512,\n"
+      "         CC_REPL_SRC_MAX = 64 * 1024 };\n"
+      "  return CC_REPL_LINE_MAX + CC_REPL_SRC_MAX;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"duplicate local enumerator",
+        "void bad(void) { enum { VALUE = 1, VALUE = 2 }; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 36u,
+       "block-scope identifier is already declared in this scope"},
+      {{"local enumerator conflicts with parameter",
+        "void bad(int VALUE) { enum { VALUE = 1 }; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       1u, 30u,
+       "block-scope identifier is already declared in this scope"},
+      {{"nested enumerator expires",
+        "int bad(void) {\n"
+        "  { enum { VALUE = 1 }; }\n"
+        "  return VALUE;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u, "expression identifier is not declared"},
+      {{"nested enum tag expires",
+        "int bad(void) {\n"
+        "  { enum Local { VALUE = 1 }; }\n"
+        "  enum Local object;\n"
+        "  return object;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_TYPE_NAME},
+       3u, 3u, "enum reference requires a previously declared tag"},
+      {{"loop enumerator expires",
+        "int bad(void) {\n"
+        "  for (enum { VALUE = 1 } i = 0; i; i++) { }\n"
+        "  return VALUE;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u, "expression identifier is not declared"},
+      {{"enumerator address",
+        "int bad(void) { enum { VALUE = 1 }; return &VALUE; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 44u,
+       "address operator requires an object lvalue or function designator"},
+      {{"named enum definition in a for initializer",
+        "void bad(void) { for (enum Loop { VALUE = 1 } item = 0; ; ) { } }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 23u, "for initializer declaration cannot introduce a tag"},
+      {{"enum-only for initializer",
+        "void bad(void) { for (enum { VALUE = 1 }; ; ) { } }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR},
+       1u, 23u,
+       "for initializer declaration must declare an automatic or register object"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "block-enums", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/block-enums.c", source, &unit) != 0 ||
+      validate_block_enum_unit(&unit) != 0 ||
+      block_enum_active_source_is_unchanged(&fixture) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/block-enum-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_block_enum_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("block-enums: ok\n");
+  }
+  return failed;
+}
+
 static int validate_block_record_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const storage_tag_names[] = {
@@ -5677,10 +5948,6 @@ static int run_block_records(const char *host_root) {
       "  }\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"block enum boundary",
-        "void bad(void) { enum Local { VALUE }; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u, "block enum specifiers are outside this body slice"},
       {{"duplicate block record definition",
         "void bad(void) { struct S { int first; }; struct S { int second; }; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
@@ -6097,12 +6364,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 160u, 4905u,
-       42845u, 605u, 196u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 161u, 4936u,
+       43159u, 607u, 196u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 122u, 3102u,
        27793u, 416u, 209u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 297u,
-       11594u, 74415u, 1716u, 1182u, 0u, 0u}};
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 299u,
+       11675u, 75085u, 1731u, 1189u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -21520,7 +21787,7 @@ int main(int argc, char **argv) {
                    "function-bodies|old-style-empty-functions|"
                    "variadic-callees|block-bindings|block-functions|"
                    "block-typedefs|"
-                   "block-externs|block-records|"
+                   "block-externs|block-enums|block-records|"
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
@@ -21572,6 +21839,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "block-externs") == 0) {
     return run_block_externs(argv[2]);
+  }
+  if (strcmp(argv[1], "block-enums") == 0) {
+    return run_block_enums(argv[2]);
   }
   if (strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);

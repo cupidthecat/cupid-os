@@ -212,9 +212,20 @@ a later old-style declaration. A visible file-scope static function keeps
 internal linkage. A function introduced only inside a block stays out of file
 lookup until a later file declaration publishes it. The declaration creates no
 runtime IR or storage. Direct calls use R_386_PC32, and function addresses use
-R_386_32. Active-source checks cover 27 declarations in nine files. Block
-enums, block declaration attributes, nested function
-definitions, nonempty identifier lists, floating default promotions,
+R_386_32. Active-source checks cover 27 declarations in nine files.
+
+Declaration-position block enums keep their enumerators in the ordinary
+lexical binding stream. A later enumerator can use an earlier value, nested
+tags and constants shadow their outer names, and scope exit restores those
+names. An anonymous enum can share a for scope with its declared object.
+A visible enum tag can be used in a block type name or record member.
+Linear IR turns represented uses into integer constants, so the declaration
+needs no frame slot, symbol, relocation, or runtime instruction. This covers
+the cursor constants in kernel/gui/desktop.c and the REPL limits in
+kernel/lang/shell.c without moving them. Enum definitions nested in block
+record members or type names, enum definitions in function-definition
+parameter lists, block declaration attributes, nested function definitions,
+nonempty identifier lists, floating default promotions,
 non-scalar arguments without declared parameter types, atomic cursor access,
 and wider or aggregate variadic reads remain open.
 

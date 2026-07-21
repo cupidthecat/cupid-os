@@ -5219,3 +5219,56 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0060, ADR 0014, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block enums, block declaration attributes, nested function definitions, nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC keeps block enumerators lexical
+
+### Decision and active requirement
+
+Hosted CupidC now accepts enum definitions in declaration position inside a compound statement. Two unchanged OS functions require this form. `desktop_run` in `kernel/gui/desktop.c` defines the cursor dimensions and padding, while `shell_cc_repl` in `kernel/lang/shell.c` defines its line and source limits.
+
+Each enumerator is an ordinary lexical binding with a folded target value and a final identifier type. It has no storage, initializer, linkage identity, or address. The parser publishes each name as soon as its value is known, so a later enumerator can use an earlier one. The containing declaration statement owns the complete source-ordered slice, including any object, typedef, or function declarator that follows the enum specifier.
+
+Enum tags continue to use the tag namespace. A definition checks only the current tag scope before introducing its type, while a reference searches every visible scope. Nested tags and enumerator names can shadow independently, and both restore when their block ends. An anonymous enum and its automatic or register object may share a `for` scope. The existing rule still rejects a named tag introduction or an empty declaration in a `for` initializer.
+
+Linear IR validates the enum metadata and consumes the declaration without allocating storage or emitting an instruction. A represented 32-bit use becomes `INTEGER`, so the ELF path sees the same instruction stream as a direct folded constant. It creates no enum symbol or relocation. An unused GNU-width enum declaration remains valid, but a referenced 64-bit enumerator stops at the existing wide runtime-value boundary.
+
+Publishing these names as file bindings was rejected because it would leak them across functions. Treating them as objects would invent storage and address semantics. Re-evaluating their tokens during IR lowering would duplicate frontend work and discard the immutable typed result. Moving the active declarations to file scope would hide the compiler gap instead of fixing it. ADR 0061 records the chosen model.
+
+Enum definitions nested in block record members or block type names, and enum definitions in a function definition's parameter list, remain unsupported. Block declaration attributes, nested functions, broad wide-value lowering, production ownership, and self-hosting remain separate work.
+
+A visible enum tag can now be used in a block type name or record member. These reference-only uses keep the existing type and create no enumerators. A new enum definition in either context still fails at the documented boundary.
+
+### Contract evidence and corrections
+
+- Review found that the first implementation rejected reference-only enum specifiers along with definitions in block type names and record members. Two positive expressions now cover those references, while the existing definition failures remain. Review also added exact failures for a named enum tag and an enum-only declaration in a `for` initializer, linked ADR 0061 from the root README, and moved shared enumerator IR lowering into one helper.
+
+- The frontend contract first stopped at the former block-tag boundary while evaluating `CURSOR_W`. The final unit publishes 21 lexical bindings across six functions. It covers named and anonymous definitions, values based on earlier enumerators, enum-typed objects, static initialization, file-name shadowing, nested shadowing and restoration, and an anonymous enum in a `for` declaration.
+- Exact frontend failures cover duplicate names, parameter conflicts, expired tags and constants, loop-scope expiry, and address-taking. The earlier record-tag negatives still reject enum definitions in a record member, a block type name, or a function definition's parameter list. Failed parses preserve the previous unit and recover in the same job.
+- IR first rejected the newly represented declaration as an unsupported statement. The final mode emits integer constants without `LOCAL_ADDRESS`, repeats deterministically, accepts an unused wide GNU value, rejects a referenced wide value, and rejects malformed storage, initializer, linkage, Boolean, value, and kind metadata transactionally.
+- The first object oracle compared the enum's folded `64 * 1024` value with a direct-source control that still emitted multiplication. Spelling the intended control value as the literal `65536` made the comparison exact. The final enum and direct-constant ELF32 objects are byte-identical, contain the expected functions, and have no enumerator symbol or relocation.
+- The complete frontend, IR, and object run exposed the expected self-source drift in `cupidc_ir.c` and `cupidc_frontend.c`. Their checked tuples were replaced with the successful parse inventories. The regenerated active-source audit then supplied six control-flow totals and one `sizeof` total for the repository drift gates.
+- No user question was needed. C tag and ordinary-identifier scope, the existing immutable binding stream, and the two measured OS declarations determine the behavior without changing an OS source file.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 161/4,936/43,159/607/196; `cupidc_emit.c` has 122/3,102/27,793/416/209; and `cupidc_frontend.c` has 299/11,675/75,085/1,731/1,189. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 617 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,266 `goto`, 62 `do`, 206 `switch`, 1,586 `case`, 137 `default`, 2,525 `while`, 1,733 `break`, 987 `continue`, 27,151 `if`, 3,673 `else`, 3,211 `for`, 16,563 `return`, and 3,450 `sizeof` occurrences. The active-source digest is `98d49c0fc78e3e932ed86230b0eda8374216a407453b24d5927d17738cd6daee`; the complete audit JSON has SHA-256 `6db8ad3fac44767727c879d829af6c21c0c5852835639655b287b0855189ddd9`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | Frontend and IR first failed at their former boundaries. The corrected direct-constant object control then produced byte-identical output. The six enum and neighboring record-tag modes pass together. |
+| Focused CupidC modules | PASS | The complete frontend, IR, and object modules pass all 106 tests in 24.341 seconds. A later final-tree frontend run passes all 50 tests. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite, every new enum mode, and all 22 assembly demos. The final incremental run completes in 11.215 seconds. |
+| WSL strict compilers | PASS | Fresh GCC 13.3 and Clang 18.1 builds pass the complete hosted suite with the repository's full warning policy. The two clean builds and runs complete in 139.5 seconds. |
+| Sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite with leak detection and halt-on-error enabled in 311.1 seconds. |
+| Static analysis | PASS | Real GCC `-fanalyzer` compilations and Clang `--analyze` runs report no findings across the final frontend, IR, and expanded frontend contract. Earlier clean runs cover the unchanged IR and object contracts. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the checked records in 38.8 seconds, and `make check-bootstrap-audit` reproduces them in 37.5 seconds. |
+| Full repository gate | PASS | `make test` passes all 348 tests in 479.605 seconds with one existing platform skip; Make returns in 516.503 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.151 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards and specification re-reviews report no remaining finding after the enum-reference positives, `for` boundary negatives, shared IR helper, documentation corrections, and ADR link were added. |
+| Emulator gate | NOT RUN | This hosted declaration and constant-lowering change transfers no production object and changes no production output or ABI, so another boot claim is not required. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their current production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path.
+
+ADR 0061, ADR 0014, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Declaration-position block enums now work, but nested member, type-name, and function-parameter enum definitions remain open alongside block attributes, nested functions, nonempty identifier-list definitions, floating and wider runtime values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.

@@ -130,8 +130,8 @@ typedef struct {
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
   ctool_bool anonymous_record_definition;
-  ctool_bool record_definition;
-  ctool_bool record_tag_previously_visible;
+  ctool_bool tag_definition;
+  ctool_bool tag_previously_visible;
   ctool_bool empty_declaration_valid;
   const ctool_c_pp_token_t *block_tag_specifier_token;
   cfront_attributes_t attributes;
@@ -2802,7 +2802,8 @@ static ctool_status_t cfront_current_tag_scope_mark(
 }
 
 static ctool_status_t cfront_validate_block_tag_specifier(
-    cfront_context_t *context, const cfront_specifiers_t *specifiers) {
+    cfront_context_t *context, const cfront_specifiers_t *specifiers,
+    ctool_bool allow_enum) {
   ctool_c_type_node_t tag_type;
   ctool_u32 tag_base;
   ctool_u32 tag_qualifiers;
@@ -2821,13 +2822,17 @@ static ctool_status_t cfront_validate_block_tag_specifier(
         specifiers->block_tag_specifier_token,
         "block tag type is unavailable");
   }
-  if (tag_type.kind != CTOOL_C_TYPE_RECORD) {
+  if (tag_type.kind == CTOOL_C_TYPE_ENUM) {
+    if (allow_enum == CTOOL_TRUE ||
+        specifiers->tag_definition == CTOOL_FALSE) {
+      return CTOOL_OK;
+    }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         specifiers->block_tag_specifier_token,
         "block enum specifiers are outside this body slice");
   }
-  return CTOOL_OK;
+  return tag_type.kind == CTOOL_C_TYPE_RECORD ? CTOOL_OK : CTOOL_ERR_INTERNAL;
 }
 
 static ctool_status_t cfront_append_tag(cfront_context_t *context,
@@ -3578,10 +3583,47 @@ static ctool_status_t cfront_parse_offsetof_query(
   return status;
 }
 
+static ctool_status_t cfront_enumerator_constant(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 type, ctool_u64 bits, cfront_integer_t *value_out) {
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_c_type_node_t node;
+  ctool_status_t status;
+  value_out->bits = bits;
+  status = cfront_underlying_type(context, type, &base, &qualifiers, &node);
+  (void)base;
+  (void)qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "enumerator type is unavailable");
+  }
+  if (node.kind == CTOOL_C_TYPE_SIGNED_LONG_LONG) {
+    value_out->kind = CFRONT_INTEGER_SIGNED_64;
+  } else if (node.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG) {
+    value_out->kind = CFRONT_INTEGER_UNSIGNED_64;
+  } else if (node.kind == CTOOL_C_TYPE_UNSIGNED_INT ||
+             node.kind == CTOOL_C_TYPE_UNSIGNED_LONG) {
+    value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
+  } else if (node.kind == CTOOL_C_TYPE_SIGNED_INT ||
+             node.kind == CTOOL_C_TYPE_SIGNED_LONG) {
+    value_out->kind = CFRONT_INTEGER_SIGNED_32;
+  } else {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "enumerator binding has a non-integer declared type");
+  }
+  value_out->bits =
+      cfront_integer_normalize_bits(value_out->bits, value_out->kind);
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_parse_constant_primary(
     cfront_context_t *context, cfront_integer_t *value_out) {
   const ctool_c_pp_token_t *token = cfront_peek(context);
   ctool_c_binding_t binding;
+  ctool_c_block_binding_t block_binding;
   ctool_u32 parameter;
   ctool_u32 parameter_type;
   ctool_status_t status;
@@ -3629,48 +3671,26 @@ static ctool_status_t cfront_parse_constant_primary(
     }
     return status;
   }
-  if (token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER &&
-      cfront_find_active_block_binding(
-          context, token->spelling, (ctool_c_block_binding_t *)0,
-          (ctool_u32 *)0) == CTOOL_FALSE &&
-      cfront_find_active_parameter(context, token->spelling, &parameter,
-                                   &parameter_type) == CTOOL_FALSE &&
-      cfront_find_binding(context, token->spelling, &binding) == CTOOL_TRUE &&
-      binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
-    (void)cfront_advance(context);
-    value_out->bits = binding.integer_bits;
-    {
-      ctool_u32 base;
-      ctool_u32 qualifiers;
-      ctool_c_type_node_t node;
-      status = cfront_underlying_type(context, binding.type, &base,
-                                      &qualifiers, &node);
-      (void)base;
-      (void)qualifiers;
-      if (status != CTOOL_OK) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            token, "enumerator type is unavailable");
+  if (token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
+    if (cfront_find_active_block_binding(
+            context, token->spelling, &block_binding,
+            (ctool_u32 *)0) == CTOOL_TRUE) {
+      if (block_binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
+        (void)cfront_advance(context);
+        return cfront_enumerator_constant(
+            context, token, block_binding.type, block_binding.integer_bits,
+            value_out);
       }
-      if (node.kind == CTOOL_C_TYPE_SIGNED_LONG_LONG) {
-        value_out->kind = CFRONT_INTEGER_SIGNED_64;
-      } else if (node.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG) {
-        value_out->kind = CFRONT_INTEGER_UNSIGNED_64;
-      } else if (node.kind == CTOOL_C_TYPE_UNSIGNED_INT ||
-                 node.kind == CTOOL_C_TYPE_UNSIGNED_LONG) {
-        value_out->kind = CFRONT_INTEGER_UNSIGNED_32;
-      } else if (node.kind == CTOOL_C_TYPE_SIGNED_INT ||
-                 node.kind == CTOOL_C_TYPE_SIGNED_LONG) {
-        value_out->kind = CFRONT_INTEGER_SIGNED_32;
-      } else {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            token, "enumerator binding has a non-integer declared type");
-      }
-      value_out->bits = cfront_integer_normalize_bits(value_out->bits,
-                                                      value_out->kind);
+    } else if (cfront_find_active_parameter(
+                   context, token->spelling, &parameter,
+                   &parameter_type) == CTOOL_FALSE &&
+               cfront_find_binding(context, token->spelling, &binding) ==
+                   CTOOL_TRUE &&
+               binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
+      (void)cfront_advance(context);
+      return cfront_enumerator_constant(context, token, binding.type,
+                                        binding.integer_bits, value_out);
     }
-    return CTOOL_OK;
   }
   return cfront_emit_failure(
       context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
@@ -5334,7 +5354,8 @@ static ctool_status_t cfront_parse_type_name(cfront_context_t *context,
     return status;
   }
   if (context->in_function_body == CTOOL_TRUE) {
-    status = cfront_validate_block_tag_specifier(context, &specifiers);
+    status = cfront_validate_block_tag_specifier(
+        context, &specifiers, CTOOL_FALSE);
     if (status != CTOOL_OK) {
       return status;
     }
@@ -5754,7 +5775,8 @@ static ctool_status_t cfront_parse_member_declaration(
     return status;
   }
   if (context->in_function_body == CTOOL_TRUE) {
-    status = cfront_validate_block_tag_specifier(context, &specifiers);
+    status = cfront_validate_block_tag_specifier(
+        context, &specifiers, CTOOL_FALSE);
     if (status != CTOOL_OK) {
       return status;
     }
@@ -6361,6 +6383,21 @@ static ctool_status_t cfront_append_block_binding(
   }
   *binding_out = index;
   return CTOOL_OK;
+}
+
+static ctool_status_t cfront_append_block_enumerator(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 type, cfront_integer_t value) {
+  ctool_c_block_binding_t binding;
+  ctool_u32 binding_index;
+  cfront_block_binding_init(&binding, token->spelling, type,
+                            CFRONT_STORAGE_NONE, &token->location,
+                            &token->physical_location);
+  binding.kind = CTOOL_C_BINDING_ENUMERATOR;
+  binding.integer_bits = value.bits;
+  binding.integer_unsigned = cfront_integer_unsigned(value.kind);
+  return cfront_append_block_binding(context, &binding, token, CTOOL_FALSE,
+                                     &binding_index);
 }
 
 static void cfront_prepare_pending_block_binding(
@@ -7279,7 +7316,8 @@ static ctool_status_t cfront_parse_body_primary(
           "typedef name cannot be used as an expression");
     }
     if (block_binding.kind != CTOOL_C_BINDING_OBJECT &&
-        block_binding.kind != CTOOL_C_BINDING_FUNCTION) {
+        block_binding.kind != CTOOL_C_BINDING_FUNCTION &&
+        block_binding.kind != CTOOL_C_BINDING_ENUMERATOR) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
           "block binding cannot be used as an expression");
@@ -7303,6 +7341,21 @@ static ctool_status_t cfront_parse_body_primary(
     value_out->address_forbidden =
         block_binding.storage == CTOOL_C_STORAGE_REGISTER ? CTOOL_TRUE
                                                           : CTOOL_FALSE;
+    if (block_binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
+      cfront_integer_type_t integer;
+      ctool_bool is_integer = CTOOL_FALSE;
+      status = cfront_integer_type(context, block_binding.type, &integer,
+                                   &is_integer);
+      if (status != CTOOL_OK || is_integer == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+            "block enumerator expression type is unavailable");
+      }
+      enumerator_value.bits = block_binding.integer_bits;
+      enumerator_value =
+          cfront_integer_convert_to_type(enumerator_value, &integer);
+      enumerator_constant = CTOOL_TRUE;
+    }
   } else if (cfront_find_active_parameter(context, token->spelling, &reference,
                                    &type) == CTOOL_TRUE) {
     ctool_c_parameter_t parameter;
@@ -12225,7 +12278,8 @@ static ctool_status_t cfront_parse_block_declaration(
   if (status != CTOOL_OK) {
     return status;
   }
-  status = cfront_validate_block_tag_specifier(context, &specifiers);
+  status = cfront_validate_block_tag_specifier(
+      context, &specifiers, CTOOL_TRUE);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -12264,24 +12318,26 @@ static ctool_status_t cfront_parse_block_declaration(
     }
     if (specifiers.block_tag_specifier_token !=
             (const ctool_c_pp_token_t *)0 &&
-        specifiers.record_definition == CTOOL_FALSE) {
+        specifiers.tag_definition == CTOOL_FALSE) {
       status = cfront_underlying_type(context, specifiers.type, &empty_base,
                                       &empty_qualifiers, &empty_type);
       (void)empty_base;
-      if (status != CTOOL_OK || empty_type.kind != CTOOL_C_TYPE_RECORD) {
+      if (status != CTOOL_OK ||
+          (empty_type.kind != CTOOL_C_TYPE_RECORD &&
+           empty_type.kind != CTOOL_C_TYPE_ENUM)) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             declaration_token,
-            "empty block record declaration type is unavailable");
+            "empty block tag declaration type is unavailable");
       }
       type_qualified =
           empty_qualifiers != 0u ? CTOOL_TRUE : CTOOL_FALSE;
     }
     if ((specifiers.storage != CFRONT_STORAGE_NONE ||
          type_qualified == CTOOL_TRUE) &&
-        specifiers.record_definition == CTOOL_FALSE &&
+        specifiers.tag_definition == CTOOL_FALSE &&
         (context->tags.count == tag_mark ||
-         specifiers.record_tag_previously_visible == CTOOL_TRUE)) {
+         specifiers.tag_previously_visible == CTOOL_TRUE)) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATOR,
           declaration_token,
@@ -12299,7 +12355,8 @@ static ctool_status_t cfront_parse_block_declaration(
     cfront_statement_init(&statement, CTOOL_C_STATEMENT_DECLARATION,
                           declaration_token);
     statement.first_block_binding = first_binding;
-    statement.block_binding_count = 0u;
+    statement.block_binding_count =
+        context->block_bindings.count - first_binding;
     return cfront_append_statement(context, &statement, statement_out);
   }
   if ((specifiers.storage == CFRONT_STORAGE_TYPEDEF &&
@@ -12569,7 +12626,7 @@ static ctool_status_t cfront_parse_block_declaration(
     if (status != CTOOL_OK) {
       return status;
     }
-    binding_count++;
+    binding_count = context->block_bindings.count - first_binding;
     if (cfront_peek_is(context, ",") == CTOOL_TRUE) {
       (void)cfront_advance(context);
       continue;
@@ -14279,7 +14336,8 @@ static ctool_status_t cfront_parse_external_declaration(
 
 static ctool_status_t cfront_enum_type(
     cfront_context_t *context, ctool_u32 *type_out,
-    ctool_bool *anonymous_definition_out) {
+    ctool_bool *anonymous_definition_out, ctool_bool *definition_out,
+    ctool_bool *tag_previously_visible_out) {
   const ctool_c_pp_token_t *keyword = cfront_advance(context);
   const ctool_c_pp_token_t *name_token = cfront_peek(context);
   ctool_string_t name = ctool_string("");
@@ -14290,11 +14348,19 @@ static ctool_status_t cfront_enum_type(
   ctool_u32 signed_long_long;
   ctool_u32 unsigned_long_long;
   ctool_u32 type = CFRONT_NONE;
+  ctool_u32 current_tag_mark = 0u;
   ctool_bool has_existing = CTOOL_FALSE;
+  ctool_bool block_enumerators =
+      context->in_function_body == CTOOL_TRUE &&
+              context->prototype_scope_depth == 0u
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   cfront_binding_semantics_t binding_semantics;
   ctool_status_t status;
   cfront_zero(&binding_semantics, (ctool_u32)sizeof(binding_semantics));
   *anonymous_definition_out = CTOOL_FALSE;
+  *definition_out = CTOOL_FALSE;
+  *tag_previously_visible_out = CTOOL_FALSE;
   status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, keyword,
                               &signed_int);
   if (status == CTOOL_OK) {
@@ -14320,13 +14386,19 @@ static ctool_status_t cfront_enum_type(
           name_token, "enum tag cannot use a reserved word");
     }
     name = name_token->spelling;
+    *tag_previously_visible_out =
+        cfront_find_tag(context, name, (ctool_c_tag_t *)0);
     (void)cfront_advance(context);
-    has_existing =
-        context->prototype_scope_depth != 0u &&
-                cfront_peek_is(context, "{") == CTOOL_TRUE
-            ? cfront_find_tag_from(context, context->prototype_tag_mark,
-                                   name, &existing_tag)
-            : cfront_find_tag(context, name, &existing_tag);
+    status = cfront_current_tag_scope_mark(context, &current_tag_mark);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          name_token, "enum tag scope is unavailable");
+    }
+    has_existing = cfront_peek_is(context, "{") == CTOOL_TRUE
+                       ? cfront_find_tag_from(context, current_tag_mark, name,
+                                              &existing_tag)
+                       : cfront_find_tag(context, name, &existing_tag);
     if (has_existing == CTOOL_TRUE) {
       status = cfront_type_get(context, existing_tag.type, &node);
       if (status != CTOOL_OK || node.kind != CTOOL_C_TYPE_ENUM) {
@@ -14351,6 +14423,7 @@ static ctool_status_t cfront_enum_type(
                                CTOOL_C_PARSE_DIAG_REDEFINITION, name_token,
                                "enum tag already has a definition");
   }
+  *definition_out = CTOOL_TRUE;
   cfront_node_init(&node, CTOOL_C_TYPE_ENUM, keyword);
   node.referenced_type = unsigned_int;
   status = cfront_type_append(context, &node, &type);
@@ -14363,6 +14436,8 @@ static ctool_status_t cfront_enum_type(
   (void)cfront_advance(context);
   {
     ctool_u32 binding_mark = cfront_vector_mark(&context->bindings);
+    ctool_u32 block_binding_mark =
+        cfront_vector_mark(&context->block_bindings);
     ctool_u32 copy_mark =
         cfront_vector_mark(&context->enum_binding_copies);
     cfront_integer_t previous_value = {0ull, CFRONT_INTEGER_SIGNED_32};
@@ -14444,11 +14519,17 @@ static ctool_status_t cfront_enum_type(
       } else {
         enumerator_type = signed_int;
       }
-      status = cfront_append_binding(
-          context, CTOOL_C_BINDING_ENUMERATOR, CTOOL_C_STORAGE_NONE,
-          enumerator->spelling, enumerator_type, binding_semantics, enumerator,
-          &enumerator->location, &enumerator->physical_location, value.bits,
-          cfront_integer_unsigned(value.kind), (ctool_u32 *)0);
+      status = block_enumerators == CTOOL_TRUE
+                   ? cfront_append_block_enumerator(
+                         context, enumerator, enumerator_type, value)
+                   : cfront_append_binding(
+                         context, CTOOL_C_BINDING_ENUMERATOR,
+                         CTOOL_C_STORAGE_NONE, enumerator->spelling,
+                         enumerator_type, binding_semantics, enumerator,
+                         &enumerator->location,
+                         &enumerator->physical_location, value.bits,
+                         cfront_integer_unsigned(value.kind),
+                         (ctool_u32 *)0);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -14497,48 +14578,70 @@ static ctool_status_t cfront_enum_type(
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       ctool_u32 binding_index;
-      for (binding_index = binding_mark;
-           binding_index < context->bindings.count; binding_index++) {
-        ctool_c_binding_t binding;
-        status = cfront_vector_get(&context->bindings, binding_index,
-                                   &binding);
-        if (status == CTOOL_OK) {
-          status = cfront_vector_append(&context->enum_binding_copies,
-                                        &binding, (ctool_u32 *)0);
+      ctool_u32 final_identifier_type =
+          wide_identifiers == CTOOL_TRUE ? node.referenced_type : signed_int;
+      if (block_enumerators == CTOOL_TRUE) {
+        for (binding_index = block_binding_mark;
+             binding_index < context->block_bindings.count;
+             binding_index++) {
+          ctool_c_block_binding_t binding;
+          status = cfront_block_binding_get(context, binding_index,
+                                             &binding);
+          if (status != CTOOL_OK ||
+              binding.kind != CTOOL_C_BINDING_ENUMERATOR) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+                keyword, "block enumerator binding is unavailable");
+          }
+          binding.type = final_identifier_type;
+          status = cfront_vector_replace(
+              context, &context->block_bindings, binding_index, &binding);
+          if (status != CTOOL_OK) {
+            return cfront_storage_failure(context, status);
+          }
         }
+      } else {
+        for (binding_index = binding_mark;
+             binding_index < context->bindings.count; binding_index++) {
+          ctool_c_binding_t binding;
+          status = cfront_vector_get(&context->bindings, binding_index,
+                                     &binding);
+          if (status == CTOOL_OK) {
+            status = cfront_vector_append(&context->enum_binding_copies,
+                                          &binding, (ctool_u32 *)0);
+          }
+          if (status != CTOOL_OK) {
+            return cfront_storage_failure(context, status);
+          }
+        }
+        status = cfront_vector_rewind(&context->bindings, binding_mark);
         if (status != CTOOL_OK) {
-          return cfront_storage_failure(context, status);
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              keyword, "enumerator binding rewind failed");
         }
-      }
-      status = cfront_vector_rewind(&context->bindings, binding_mark);
-      if (status != CTOOL_OK) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            keyword, "enumerator binding rewind failed");
-      }
-      for (binding_index = copy_mark;
-           binding_index < context->enum_binding_copies.count;
-           binding_index++) {
-        ctool_c_binding_t binding;
-        status = cfront_vector_get(&context->enum_binding_copies,
-                                   binding_index, &binding);
-        if (status == CTOOL_OK) {
-          binding.type = wide_identifiers == CTOOL_TRUE
-                             ? node.referenced_type
-                             : signed_int;
-          status = cfront_vector_append(&context->bindings, &binding,
-                                        (ctool_u32 *)0);
+        for (binding_index = copy_mark;
+             binding_index < context->enum_binding_copies.count;
+             binding_index++) {
+          ctool_c_binding_t binding;
+          status = cfront_vector_get(&context->enum_binding_copies,
+                                     binding_index, &binding);
+          if (status == CTOOL_OK) {
+            binding.type = final_identifier_type;
+            status = cfront_vector_append(&context->bindings, &binding,
+                                          (ctool_u32 *)0);
+          }
+          if (status != CTOOL_OK) {
+            return cfront_storage_failure(context, status);
+          }
         }
+        status =
+            cfront_vector_rewind(&context->enum_binding_copies, copy_mark);
         if (status != CTOOL_OK) {
-          return cfront_storage_failure(context, status);
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              keyword, "enumerator binding scratch rewind failed");
         }
-      }
-      status =
-          cfront_vector_rewind(&context->enum_binding_copies, copy_mark);
-      if (status != CTOOL_OK) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
-            keyword, "enumerator binding scratch rewind failed");
       }
     }
     status = cfront_type_update(context, type, &node);
@@ -15452,6 +15555,49 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             ? &initializers[binding->initializer]
             : (const ctool_c_initializer_t *)0;
     ctool_bool linked_compatible = CTOOL_FALSE;
+    if (binding->kind != CTOOL_C_BINDING_ENUMERATOR &&
+        (binding->integer_bits != 0ull ||
+         binding->integer_unsigned != CTOOL_FALSE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context), "frozen block binding has enum data");
+    }
+    if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
+      cfront_integer_type_t integer;
+      cfront_integer_kind_t value_kind;
+      ctool_bool is_integer = CTOOL_FALSE;
+      ctool_status_t enum_status = CTOOL_ERR_INVALID_ARGUMENT;
+      if (binding->type < context->types.count) {
+        enum_status = cfront_integer_type(context, binding->type, &integer,
+                                          &is_integer);
+      }
+      if (binding->storage != CTOOL_C_STORAGE_NONE ||
+          binding->type >= context->types.count || binding->name.size == 0u ||
+          binding->linkage_binding != CTOOL_C_AST_NONE ||
+          binding->initializer != CTOOL_C_AST_NONE ||
+          cfront_bool_valid(binding->integer_unsigned) == CTOOL_FALSE ||
+          enum_status != CTOOL_OK || is_integer == CTOOL_FALSE ||
+          (integer.width != 32u && integer.width != 64u)) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen block enumerator is invalid");
+      }
+      value_kind = integer.width == 64u
+                       ? (binding->integer_unsigned == CTOOL_TRUE
+                              ? CFRONT_INTEGER_UNSIGNED_64
+                              : CFRONT_INTEGER_SIGNED_64)
+                       : (binding->integer_unsigned == CTOOL_TRUE
+                              ? CFRONT_INTEGER_UNSIGNED_32
+                              : CFRONT_INTEGER_SIGNED_32);
+      if (cfront_integer_normalize_bits(binding->integer_bits, value_kind) !=
+          binding->integer_bits) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen block enumerator value is not canonical");
+      }
+      continue;
+    }
     if (binding->kind == CTOOL_C_BINDING_TYPEDEF) {
       if (binding->storage != CTOOL_C_STORAGE_TYPEDEF ||
           binding->type >= context->types.count || binding->name.size == 0u ||
@@ -16701,8 +16847,8 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
       status = cfront_record_type(
           context, record_kind, &typedef_type,
           &spec_out->anonymous_record_definition,
-          &spec_out->record_definition,
-          &spec_out->record_tag_previously_visible);
+          &spec_out->tag_definition,
+          &spec_out->tag_previously_visible);
       if (status != CTOOL_OK) {
         return status;
       }
@@ -16726,8 +16872,10 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
         ctool_u32 enum_tag_mark = context->tags.count;
         ctool_u32 enum_binding_mark = context->bindings.count;
         ctool_u32 enum_token_position = context->position;
-        status = cfront_enum_type(context, &typedef_type,
-                                  &anonymous_enum_definition);
+        status = cfront_enum_type(
+            context, &typedef_type, &anonymous_enum_definition,
+            &spec_out->tag_definition,
+            &spec_out->tag_previously_visible);
         if (status == CTOOL_OK && context->prototype_scope_depth != 0u &&
             context->prototype_enum_position == CFRONT_NONE &&
             (context->tags.count != enum_tag_mark ||

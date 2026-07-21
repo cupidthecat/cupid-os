@@ -270,6 +270,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "block-functions: ok\n")
 
+    def test_block_enumerators_lower_as_integer_constants_without_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "block-enums", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "block-enums: ok\n")
+
     def test_block_typedefs_lower_without_runtime_storage(self):
         result = subprocess.run(
             [str(self.contract_path), "block-typedefs", str(REPO_ROOT)],

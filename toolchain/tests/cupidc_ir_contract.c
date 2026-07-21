@@ -18594,6 +18594,209 @@ cleanup:
   return 1;
 }
 
+static int run_block_enums(const char *host_root) {
+  static const char source[] =
+      "int cursor_enum(void) {\n"
+      "  enum { CURSOR_W = 8, CURSOR_H = 10, CURSOR_PAD = 1 };\n"
+      "  return CURSOR_W + CURSOR_H + CURSOR_PAD;\n"
+      "}\n"
+      "int repl_enum(void) {\n"
+      "  enum { CC_REPL_LINE_MAX = 512,\n"
+      "         CC_REPL_SRC_MAX = 64 * 1024 };\n"
+      "  return CC_REPL_LINE_MAX + CC_REPL_SRC_MAX;\n"
+      "}\n"
+      "int shadow_enum(int input) {\n"
+      "  enum { VALUE = 3 };\n"
+      "  {\n"
+      "    enum { VALUE = 5 };\n"
+      "    input += VALUE;\n"
+      "  }\n"
+      "  return input + VALUE;\n"
+      "}\n"
+      "int wide_unused_enum(void) {\n"
+      "  enum { WIDE = 0x100000000ull };\n"
+      "  return 0;\n"
+      "}\n";
+  static const char wide_source[] =
+      "int wide_block_enum(void) {\n"
+      "  enum { WIDE = 0x100000000ull };\n"
+      "  return WIDE;\n"
+      "}\n";
+  static const ctool_u64 expected_values[] = {
+      8ull, 10ull, 1ull, 512ull, 65536ull, 5ull, 3ull, 0ull};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_block_binding_t *invalid_blocks = NULL;
+  ctool_c_ir_unit_t first;
+  ctool_c_ir_unit_t second;
+  ctool_u64 fingerprint;
+  ctool_u64 first_ir_fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_u32 value_counts[sizeof(expected_values) /
+                         sizeof(expected_values[0])] = {0u};
+  ctool_u32 expected_value_count =
+      (ctool_u32)(sizeof(expected_values) / sizeof(expected_values[0]));
+  ctool_u32 local_addresses = 0u;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&wide_unit, 0, sizeof(wide_unit));
+  (void)memset(&first, 0xa5, sizeof(first));
+  (void)memset(&second, 0xa5, sizeof(second));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/block-enum-ir.c", source, CTOOL_TRUE,
+                         &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first);
+  if (!check_status(status, CTOOL_OK, "block enum lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      unit.block_binding_count != 8u || first.function_count != 4u) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < first.instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &first.instructions[index];
+    ctool_u32 value_index;
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER) {
+      for (value_index = 0u; value_index < expected_value_count;
+           value_index++) {
+        if (instruction->integer_bits == expected_values[value_index]) {
+          value_counts[value_index]++;
+        }
+      }
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS) {
+      local_addresses++;
+    }
+  }
+  for (index = 0u; index < expected_value_count; index++) {
+    if (value_counts[index] != 1u) {
+      (void)fprintf(stderr,
+                    "block enum IR constant %u has %u matches\n", index,
+                    value_counts[index]);
+      goto cleanup;
+    }
+  }
+  if (local_addresses != 0u) {
+    (void)fprintf(stderr, "block enum IR allocated local storage\n");
+    goto cleanup;
+  }
+  first_ir_fingerprint = ir_instruction_fingerprint(&first);
+  status = ctool_c_lower_ir(job, &unit, &second);
+  if (!check_status(status, CTOOL_OK, "repeat block enum lowering") ||
+      unit_fingerprint(&unit) != fingerprint ||
+      second.function_count != first.function_count ||
+      second.instruction_count != first.instruction_count ||
+      ir_instruction_fingerprint(&second) != first_ir_fingerprint) {
+    (void)fprintf(stderr, "block enum IR is not deterministic\n");
+    goto cleanup;
+  }
+  if (!parse_source_mode(job, "/wide-block-enum-ir.c", wide_source,
+                         CTOOL_TRUE, &wide_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide block enumerator expression")) {
+    goto cleanup;
+  }
+  invalid_blocks = (ctool_c_block_binding_t *)malloc(
+      (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  if (invalid_blocks == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.block_bindings = invalid_blocks;
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].storage = CTOOL_C_STORAGE_AUTO;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block enumerator storage")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].initializer = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block enumerator initializer")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].linkage_binding = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block enumerator linked identity")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].integer_unsigned = (ctool_bool)2;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block enumerator unsignedness")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].integer_bits = 0xffffffffull;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block enumerator canonical value")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].kind = CTOOL_C_BINDING_OBJECT;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "non-enumerator with enum value")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_blocks);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("block-enums: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -18681,6 +18884,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "block-enums") == 0) {
+    return run_block_enums(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_values(argv[2]);
   }
@@ -18700,6 +18906,7 @@ int main(int argc, char **argv) {
                 "aggregate-initializers|"
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|block-records|"
+                "block-enums|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;
