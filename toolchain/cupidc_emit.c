@@ -217,6 +217,35 @@ static ctool_status_t cemit_validate_member_instruction(
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_validate_i32_bit_field_instruction(
+    const cemit_context_t *context,
+    const ctool_c_ir_instruction_t *ir_instruction,
+    ctool_c_conversion_kind_t expected_conversion,
+    cemit_member_info_t *info) {
+  ctool_status_t status = cemit_validate_member_instruction(
+      context, ir_instruction, expected_conversion, info);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (info->member->is_bit_field != CTOOL_TRUE ||
+      info->member->bit_width == 0u ||
+      info->member_type_layout->is_integer == CTOOL_FALSE ||
+      info->member_type_layout->size != 4u ||
+      info->result_layout->is_integer == CTOOL_FALSE ||
+      info->result_layout->size != 4u ||
+      info->result_layout->is_signed !=
+          info->member_type_layout->is_signed ||
+      info->member_layout->size != 4u ||
+      info->member_layout->bit_width != info->member->bit_width ||
+      info->member_layout->bit_width == 0u ||
+      info->member_layout->bit_offset >= 32u ||
+      info->member_layout->bit_width >
+          32u - info->member_layout->bit_offset) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_bool cemit_type_is_const(const cemit_context_t *context,
                                        ctool_u32 type) {
   ctool_u32 traversed = 0u;
@@ -1664,9 +1693,9 @@ static ctool_status_t cemit_x86_add_eax_constant(
                           (ctool_u32 *)0);
 }
 
-static ctool_status_t cemit_x86_shift_eax(
+static ctool_status_t cemit_x86_shift_register(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
-    ctool_u32 count) {
+    ctool_u8 register_index, ctool_u32 count) {
   ctool_x86_instruction_t instruction =
       cemit_x86_instruction(mnemonic, 32u);
   if (count >= 32u ||
@@ -1679,9 +1708,43 @@ static ctool_status_t cemit_x86_shift_eax(
   }
   instruction.operand_count = 2u;
   instruction.operands[0] =
-      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, register_index);
   instruction.operands[1] = cemit_x86_value_operand(
       CTOOL_X86_OPERAND_IMMEDIATE, 8u, 8u, count);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_shift_eax(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 count) {
+  return cemit_x86_shift_register(context, mnemonic, 0u, count);
+}
+
+static ctool_status_t cemit_x86_and_register_constant(
+    cemit_context_t *context, ctool_u8 register_index, ctool_u32 value) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_AND, 32u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, register_index);
+  instruction.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, value);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_store_eax_at_edx(
+    cemit_context_t *context) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_MOV, 32u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, 2u), 0, 32u);
+  instruction.operands[1] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
   return cemit_x86_encode(context, &instruction,
                           (ctool_x86_encoding_t *)0,
                           (ctool_u32 *)0);
@@ -3634,27 +3697,11 @@ static ctool_status_t cemit_emit_ir_instruction(
     cemit_member_info_t info;
     ctool_u32 left_shift;
     ctool_u32 right_shift;
-    status = cemit_validate_member_instruction(
+    status = cemit_validate_i32_bit_field_instruction(
         context, ir_instruction, CTOOL_C_CONVERSION_LVALUE_TO_VALUE,
         &info);
     if (status != CTOOL_OK) {
       return status;
-    }
-    if (info.member->is_bit_field != CTOOL_TRUE ||
-        info.member->bit_width == 0u ||
-        info.member_type_layout->is_integer == CTOOL_FALSE ||
-        info.member_type_layout->size != 4u ||
-        info.result_layout->is_integer == CTOOL_FALSE ||
-        info.result_layout->size != 4u ||
-        info.result_layout->is_signed !=
-            info.member_type_layout->is_signed ||
-        info.member_layout->size != 4u ||
-        info.member_layout->bit_width != info.member->bit_width ||
-        info.member_layout->bit_width == 0u ||
-        info.member_layout->bit_offset >= 32u ||
-        info.member_layout->bit_width >
-            32u - info.member_layout->bit_offset) {
-      return CTOOL_ERR_INTERNAL;
     }
     left_shift =
         32u - info.member_layout->bit_offset - info.member_layout->bit_width;
@@ -3682,6 +3729,88 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (status == CTOOL_OK) {
       status = cemit_x86_one_register(
           context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
+  }
+  if (ir_instruction->kind ==
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE) {
+    cemit_member_info_t info;
+    ctool_u32 value_mask;
+    ctool_u32 field_mask;
+    status = cemit_validate_i32_bit_field_instruction(
+        context, ir_instruction, CTOOL_C_CONVERSION_NONE, &info);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_add_eax_constant(context,
+                                           info.member_layout->byte_offset);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (info.member_layout->bit_width == 32u) {
+      status = cemit_x86_store_ecx_at_eax(context, ir_instruction->type);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 1u, 32u);
+      }
+      return status;
+    }
+    value_mask = (1u << info.member_layout->bit_width) - 1u;
+    field_mask = value_mask << info.member_layout->bit_offset;
+    status = cemit_x86_and_register_constant(context, 1u, value_mask);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 2u,
+          CTOOL_X86_REG_GPR32, 1u, 32u);
+    }
+    if (status == CTOOL_OK && info.result_layout->is_signed == CTOOL_TRUE) {
+      status = cemit_x86_shift_register(
+          context, CTOOL_X86_MN_SHL, 2u,
+          32u - info.member_layout->bit_width);
+    }
+    if (status == CTOOL_OK && info.result_layout->is_signed == CTOOL_TRUE) {
+      status = cemit_x86_shift_register(
+          context, CTOOL_X86_MN_SAR, 2u,
+          32u - info.member_layout->bit_width);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_shift_register(
+          context, CTOOL_X86_MN_SHL, 1u,
+          info.member_layout->bit_offset);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_eax(context, ir_instruction->type);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_and_register_constant(context, 0u, ~field_mask);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_OR, CTOOL_X86_REG_GPR32, 0u,
+          CTOOL_X86_REG_GPR32, 1u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_eax_at_edx(context);
     }
     return status;
   }
@@ -4549,6 +4678,7 @@ static ctool_status_t cemit_ir_stack_effect(
       consumed = 2u;
       break;
     case CTOOL_C_IR_INSTRUCTION_STORE_VALUE:
+    case CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE:
       consumed = 2u;
       produced = 1u;
       break;

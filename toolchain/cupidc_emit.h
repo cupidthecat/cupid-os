@@ -26,9 +26,10 @@ ctool_status_t ctool_c_emit_object(
  * target-sized fixed local frames, stable slots for block-scope compound
  * literals, automatic narrow character-array string initialization, runtime
  * narrow string literals, one-byte, two-byte, or four-byte integer loads and
- * stores, and four-byte pointer values, through CupidC linear IR and the
- * shared x86 model. Direct object and literal addresses use text `R_386_32`
- * relocations, including linked objects first declared by a block extern.
+ * stores, represented four-byte bit-field loads and plain assignments, and
+ * four-byte pointer values, through CupidC linear IR and the shared x86 model.
+ * Direct object and literal addresses use text `R_386_32` relocations,
+ * including linked objects first declared by a block extern.
  * Block typedefs consume no frame storage and produce no target record.
  * Direct calls use `R_386_PC32`. The emitter writes those functions beside
  * static definitions in the same object. */

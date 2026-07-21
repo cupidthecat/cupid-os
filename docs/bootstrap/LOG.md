@@ -5330,3 +5330,55 @@ This increment transfers no production C object and retires no host dependency. 
 ADR 0062, its predecessor decisions, the root context and README, bootstrap matrices, generated audit, wiki, and CTXT manual describe the capability and its remaining boundary. No active OS C or assembly source was weakened, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Block declaration attributes, block-scope static assertions, nested function definitions, nonempty identifier-list definitions, direct wider enum values, floating semantics, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC preserves bit-field assignment values
+
+### Decision and active requirement
+
+Hosted CupidC now lowers plain assignment to a represented non-atomic integer bit field when its declared storage unit is four bytes and fits inside its record. Doom supplies the unchanged requirement. Its color record is declared in `kernel/doom/src/i_video.h`; `kernel/doom/src/i_video.c` writes palette channels through `colors[i].r`, `colors[i].g`, and `colors[i].b`, and also writes fields in a local color record.
+
+A bit field has no C address, so ordinary `MEMBER_ADDRESS` followed by `STORE_VALUE` cannot describe the operation. Linear IR now carries `BIT_FIELD_STORE_VALUE`. The instruction keeps the absolute graph-member identity, consumes the selected record address and converted right operand, and produces the value represented by the stored field. The new instruction was appended to the public enumeration so existing instruction numbers remain stable.
+
+Lowering evaluates the record designator once and the right operand once. A partial field uses one read-modify-write sequence in the i386 emitter. The emitter masks the new lane, clears only the selected bits in the old unit, inserts the lane, and writes the complete unit once. The expression result is the truncated lane for an unsigned field and its sign-extended value for a signed field. A 32-bit field stores directly and does not read the old unit.
+
+The represented boundary is widths from one through 32 in a four-byte unit. Character-sized fields, `_Bool`, atomic fields, and a compact packed record whose declared unit crosses the record boundary retain focused diagnostics. Compound assignment, prefix and postfix update, explicit automatic-initializer bit-field leaves, other storage-unit sizes, and atomic ordering remain separate work.
+
+Treating the field as an ordinary address was rejected because C does not provide one and the operation would lose the bit offset and neighboring bits. Returning the untruncated right operand was rejected because C assignment yields the value after storage conversion. Reading the old unit for a full-width store was also rejected because it adds an unnecessary access and would be wrong for a future volatile contract.
+
+ADR 0063 records this value model. ADR 0016, ADR 0020, ADR 0022, and ADR 0039 now point to the new operation from the earlier IR, assignment, load, and mutation decisions.
+
+### Contract evidence and corrections
+
+- The IR fixture contains four functions and 31 exact instructions. Three pointer-based functions cover unsigned eight-bit, signed five-bit, and full-width fields. The fourth uses the indexed `colors[index].r` address shape from Doom. Every function reaches an abstract stack depth of two, and consecutive lowering produces the same fingerprint.
+- The deterministic object keeps the indexed 256-entry color array as 1,024 bytes of `.bss` and emits one `R_386_32` relocation. A decoder checks the partial and full-width instruction inventories. Six i386 execution cases verify unsigned truncation, signed extension, preservation of neighboring bits, one complete-unit store, unchanged arguments, restored EBP and ESP, and the no-read full-width path.
+- The positive source guard checks the unchanged Doom record and writes. Negative cases cover character-sized, Boolean, atomic, and compact packed storage. Malformed graph and layout widths fail transactionally, preserve the frozen unit, publish no partial IR, and allow same-job recovery.
+- The first IR run stopped at the former unsupported-assignment boundary. Once lowering passed, the first object run stopped at the new instruction because target emission did not know it. Adding the value-preserving i386 path made both stages green without changing Doom or any other active OS source.
+- The first complete hosted Toolchain run passed but did not execute the new modes from its Make target. The modes had only been registered in Python. Both are now explicit `toolchain/Makefile` test commands, and the canonical target passes with `bit-field-stores: ok` from IR and object emission.
+- The compiler source changes moved the checked self-parse frontiers and the audit's lexical totals. The successful frontend parses supplied the new IR and emitter tuples. The regenerated graph supplied the control-flow, designated-initializer, and `sizeof` totals used by the drift gates.
+- A standalone run of the full build-graph test module reached its five-minute command limit without a result. The directly affected manifest and drift-rejection test then passed in 110.783 seconds, and the later full repository gate completed the entire module. No claim relies on the timed-out run.
+- The first parallel WSL analyzer wrapper lost the flag list after `-I.` at the Windows argument boundary. That attempt is excluded. Explicit argument arrays delivered every strict flag and source file to GCC and Clang. A later version-print pipeline closed GCC's output early after all analyzer objects had been produced; separate output checks confirmed all four successful compilations. No analyzer result is inferred from the wrapper exit itself.
+- Standards review found two current bootstrap paragraphs that still reported older designated-initializer totals. Both now use the generated count of 624. Specification review found no implementation, test, scope, ownership, or issue-state defect.
+- No user question was needed. C bit-field assignment semantics, the existing target layout, and Doom's unchanged access forms determine the operation and its current boundary.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 166/5,136/44,869/629/205; `cupidc_emit.c` has 126/3,186/28,406/422/212; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 624 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,307 `goto`, 62 `do`, 206 `switch`, 1,587 `case`, 137 `default`, 2,528 `while`, 1,733 `break`, 995 `continue`, 27,377 `if`, 3,687 `else`, 3,235 `for`, 16,687 `return`, and 3,496 `sizeof` occurrences. The canonical active-source digest is `4ce64e36daa93dd6e3c8d939f4caa75259a461e99b383b3d3162119ed03b22bb`; the complete audit JSON has SHA-256 `25f91c887746e0138a25f6c5e3fa9e2555ba1eb539ff7bf024a8a62795ae0127`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first rejected the assignment, then object emission rejected the unknown instruction. The final focused modes pass their positive, negative, deterministic, and transactional checks. |
+| Focused CupidC modules | PASS | All 32 IR tests, 26 object tests, and 50 frontend tests pass on the final implementation. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite, both registered `bit-field-stores` modes, and all 22 assembly demos in 7.7 seconds. |
+| WSL sanitizers | PASS | Fresh GCC 13.3 and Clang 18.1 AddressSanitizer and UndefinedBehaviorSanitizer builds use the repository warning policy and pass both focused modes with leak detection and halt-on-error enabled. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no finding in `cupidc_ir.c`, `cupidc_emit.c`, or either expanded C contract. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records, `make check-bootstrap-audit` reproduces them in 37.9 seconds, and the affected deliberate-drift test passes. |
+| Full repository gate | PASS | `make test` passes all 350 tests in 480.678 seconds with one existing platform skip; Make returns in 518.4 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.5 seconds. |
+| Emulator gate | PASS | The rebuilt image passes the GUI terminal smoke. `/bin/ls.cc` reaches `JIT execution complete` in 19.9 seconds after the Cupid ELF32, CupidDis, and CupidASM kernel self-tests, with no panic marker. |
+| Two-axis review | PASS AFTER DOC FIX | Standards review found two stale designated-initializer totals and no code or test blocker. Specification review found no actionable issue. The corrected records now agree with the generated audit. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result verifies the rebuilt image but does not assign production ownership to this hosted lowering path.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Bit-field compound assignments and updates, other storage-unit sizes, atomic access, broader values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

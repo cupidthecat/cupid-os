@@ -40,7 +40,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_COPY_STRING,
   CTOOL_C_IR_INSTRUCTION_VARIADIC_START,
   CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT,
-  CTOOL_C_IR_INSTRUCTION_VARIADIC_END
+  CTOOL_C_IR_INSTRUCTION_VARIADIC_END,
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -54,8 +55,9 @@ typedef struct {
    * result type. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
-   * BIT_FIELD_LOAD retain their record operand type. STORE and STORE_VALUE
-   * retain the stored value type. DISCARD retains its consumed value type.
+   * BIT_FIELD_LOAD and BIT_FIELD_STORE_VALUE retain their record operand
+   * type. STORE and STORE_VALUE retain the stored value type. DISCARD retains
+   * its consumed value type.
    * UNARY and BINARY retain their operand type. POINTER_BINARY retains its
    * left operand type. ARRAY_TO_POINTER retains its array operand type.
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
@@ -90,7 +92,8 @@ typedef struct {
    * semantic initializer index. FILE_ADDRESS,
    * CALL_DIRECT, and
    * FUNCTION_ADDRESS use an absolute file-binding index.
-   * MEMBER_ADDRESS and BIT_FIELD_LOAD use an absolute graph-member index.
+   * MEMBER_ADDRESS, BIT_FIELD_LOAD, and BIT_FIELD_STORE_VALUE use an absolute
+   * graph-member index.
    * ELEMENT_ADDRESS uses a direct fixed-array element index.
    * POINTER_BINARY uses an absolute graph-type index for its right operand.
    * VARIADIC_START uses the absolute final named parameter index.
@@ -258,6 +261,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
  * direct, non-bit-field member address. BIT_FIELD_LOAD consumes a record
  * address and pushes the selected field's extracted integer value.
+ * BIT_FIELD_STORE_VALUE consumes a record address followed by a converted
+ * integer value, replaces the selected field within its storage unit, and
+ * pushes the stored field value after width truncation and signed extension.
  * DEREFERENCE consumes a pointer value and pushes the referenced object
  * address or function designator. It emits no target instruction because
  * both forms occupy one 32-bit machine word, while the public IR keeps their

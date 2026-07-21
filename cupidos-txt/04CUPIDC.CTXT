@@ -128,6 +128,14 @@ declared width. Signed byte and word mutation wraps through the low i386 lane
 and then sign-extends the result. Represented cdecl scalar arguments keep
 four-byte stack slots, and callers and callees normalize narrow results.
 
+Plain assignment works for non-atomic integer bit fields whose declared storage
+unit is four bytes and fits inside the record. A partial-field store keeps the
+other bits in that unit. The expression returns the stored field value after
+width truncation and signed extension. A 32-bit field uses a direct store
+without reading the old unit. Pointer-derived and indexed record members use
+the same path. Compound bit-field operations, atomic fields, and other storage
+unit sizes remain unfinished.
+
 An explicit cast to void evaluates its operand once. The shared IR discards a
 represented integer, object pointer, function pointer, or supported structure
 value. A void operand leaves no value on the abstract stack.
@@ -254,7 +262,7 @@ indexing, and returns. Supported structure graphs have alignment no greater
 than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
-case, explicit bit-field leaves, Boolean mutation, separate 64-bit and
+case, explicit bit-field initializer leaves, Boolean mutation, separate 64-bit and
 floating-point runtime values, wider or aggregate variadic values, wide strings,
 literal pooling, and block-static addresses in other block-static initializers
 remain unfinished in the shared path.

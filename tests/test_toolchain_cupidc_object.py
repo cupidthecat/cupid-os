@@ -174,6 +174,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "block-enums: ok\n")
 
+    def test_bit_field_assignments_emit_value_preserving_stores(self):
+        result = subprocess.run(
+            [str(self.contract_path), "bit-field-stores", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-stores: ok\n")
+
     def test_block_typedefs_do_not_change_emitted_objects(self):
         result = subprocess.run(
             [str(self.contract_path), "block-typedefs", str(REPO_ROOT)],

@@ -36,7 +36,7 @@ Negative contracts cover atomic, pointer, wide integer, and compound assignments
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
-ADR 0021 closes the direct ordinary member-address frontier named above. ADR 0022 adds represented four-byte bit-field reads without treating them as addresses. Issue #25 remains open. General statements, bit-field writes and non-four-byte storage units, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, floating and aggregate values, indirect and variadic calls, call-site alignment, production integration, and staged self-hosting still remain.
+ADR 0021 closes the direct ordinary member-address frontier named above. ADR 0022 adds represented four-byte bit-field reads without treating them as addresses. ADR 0063 extends the same value-preserving assignment rule to represented four-byte bit fields. Issue #25 remains open for non-four-byte field storage, bit-field compound assignments and updates, atomic ordering, other value widths, production integration, and staged self-hosting.
 
 ## Extension: structure assignment
 

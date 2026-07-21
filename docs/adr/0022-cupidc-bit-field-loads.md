@@ -35,4 +35,4 @@ A narrow `_Bool` field and an `_Atomic unsigned int` field receive the unsupport
 
 This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
-Issue #25 remains open. Bit-field writes, narrow and wide storage units, subscript and pointer-based addresses, compound and update lowering, atomic ordering, other value widths, nested and general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.
+ADR 0063 later adds value-preserving plain assignment for represented four-byte bit fields, including pointer-derived and indexed record addresses. Issue #25 remains open. Narrow and wide storage units, bit-field compound assignments and updates, atomic ordering, other value widths, production integration, and staged self-hosting still remain.

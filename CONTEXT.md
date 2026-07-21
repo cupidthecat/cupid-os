@@ -56,6 +56,10 @@ _Avoid_: Cupid C when referring to the compiler
 The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from scalar and structure values. Branch targets stay relative to one function, while parameters, represented automatic objects, compound-literal objects, runtime string literals, block-static objects, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, frame offsets, literal symbols, and structure snapshot storage remain private to target emission.
 _Avoid_: AST, x86 bytecode, machine code
 
+**Represented bit-field assignment**:
+A plain Cupid C assignment to a non-atomic integer bit field whose declared storage unit is four bytes and fits inside its record. Linear IR retains the graph member, while i386 emission preserves neighboring bits and returns the value represented by the stored field.
+_Avoid_: bit-field address, ordinary member store
+
 **Block-static object**:
 A block-scope object with static storage duration. It keeps its absolute frontend block-binding identity, receives a local ELF object symbol, and never consumes an automatic frame slot.
 _Avoid_: automatic local, file-scope object
