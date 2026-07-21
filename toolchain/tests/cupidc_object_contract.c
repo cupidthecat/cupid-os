@@ -63,6 +63,16 @@ static const char active_integer_mask[] =
     "                                           : 0xffffffffffffffffull;\n"
     "}\n";
 
+static const char active_cpu_frequency[] =
+    "uint64_t get_cpu_freq(void) {\n"
+    "    return tsc_freq;\n"
+    "}\n";
+
+static const char active_cpu_frequency_crlf[] =
+    "uint64_t get_cpu_freq(void) {\r\n"
+    "    return tsc_freq;\r\n"
+    "}\r\n";
+
 static const char wide_return_object_source[] =
     "typedef unsigned int ctool_u32;\n"
     "typedef unsigned long long ctool_u64;\n"
@@ -87,6 +97,50 @@ static const char wide_return_object_source[] =
 static const char wide_parameter_object_source[] =
     "typedef unsigned long long ctool_u64;\n"
     "ctool_u64 pass_wide(ctool_u64 value) { return value; }\n";
+
+static const char wide_value_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef struct { ctool_u32 tag; ctool_u64 value; } wide_holder_t;\n"
+    "static ctool_u64 tsc_freq = 0x1122334455667788ull;\n"
+    "ctool_u64 get_cpu_freq(void) { return tsc_freq; }\n"
+    "ctool_u64 load_pointer(ctool_u64 *source) { return *source; }\n"
+    "ctool_u64 local_round_trip(ctool_u64 *source) {\n"
+    "  ctool_u64 local = *source;\n"
+    "  return local;\n"
+    "}\n"
+    "ctool_u64 assign_pointer(ctool_u64 *destination, ctool_u64 *source) {\n"
+    "  return *destination = *source;\n"
+    "}\n"
+    "ctool_u64 chain_pointer(ctool_u64 *first, ctool_u64 *second,\n"
+    "                        ctool_u64 *source) {\n"
+    "  return *first = *second = *source;\n"
+    "}\n"
+    "ctool_u64 load_member(wide_holder_t *record) {\n"
+    "  return record->value;\n"
+    "}\n"
+    "ctool_u64 aggregate_round_trip(ctool_u64 *source) {\n"
+    "  wide_holder_t local = {7u, *source};\n"
+    "  return local.value;\n"
+    "}\n"
+    "ctool_u64 load_index(ctool_u64 *values, ctool_u32 index) {\n"
+    "  return values[index];\n"
+    "}\n"
+    "ctool_u64 block_static(void) {\n"
+    "  static ctool_u64 value = 0xaabbccddeeff0011ull;\n"
+    "  return value;\n"
+    "}\n"
+    "ctool_u64 volatile_round_trip(volatile ctool_u64 *destination,\n"
+    "                                ctool_u64 *source) {\n"
+    "  *destination = *source;\n"
+    "  return *destination;\n"
+    "}\n"
+    "void discard_pointer(ctool_u64 *source) { (void)*source; }\n";
+
+static const char wide_atomic_object_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "_Atomic ctool_u64 shared;\n"
+    "ctool_u64 load_atomic(void) { return shared; }\n";
 
 static const char void_cast_object_source[] =
     "typedef unsigned int u32;\n"
@@ -541,7 +595,12 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              job, "/toolchain/cupidc_frontend.c",
              "load active CupidC frontend source",
              "the active integer mask helper changed", active_integer_mask,
-             NULL);
+             NULL) &&
+         active_source_contains(
+             job, "/kernel/core/kernel.c",
+             "load active CPU frequency source",
+             "the active CPU frequency helper changed",
+             active_cpu_frequency, active_cpu_frequency_crlf);
 }
 
 static char *make_align_up_fixture(void) {
@@ -5285,7 +5344,7 @@ static int run_static_data(const char *host_root) {
       "}\n";
   static const char wide_declaration_for_text[] =
       "void wide_declaration_for(void) {\n"
-      "  for (long long i = 0; i < 1; i = i + 1) {}\n"
+      "  for (long long i = 0LL;;) { (void)i; break; }\n"
       "}\n";
   static const char unreachable_wide_declaration_text[] =
       "int unreachable_wide_declaration(void) {\n"
@@ -7258,27 +7317,24 @@ static int run_static_data(const char *host_root) {
       !parse_source(job, "/terminal-wide-for-iteration.c",
                     terminal_wide_for_iteration_text,
                     &terminal_wide_for_iteration_unit) ||
-      !expect_object_failure_preserves_unit(
+      !expect_object_success_preserves_unit(
           job, &terminal_wide_for_iteration_unit, second,
-          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
           "unreachable wide for iteration object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/wide-declaration-for.c",
                     wide_declaration_for_text,
                     &wide_declaration_for_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &wide_declaration_for_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_object_success_preserves_unit(
+          job, &wide_declaration_for_unit, second,
           "wide declaration for initializer object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/unreachable-wide-declaration.c",
                     unreachable_wide_declaration_text,
                     &unreachable_wide_declaration_unit) ||
-      !expect_object_failure_preserves_unit(
+      !expect_object_success_preserves_unit(
           job, &unreachable_wide_declaration_unit, second,
-          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
           "unreachable wide declaration object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/nonvoid-selection-fallthrough.c",
                     nonvoid_selection_fallthrough_text,
                     &nonvoid_selection_fallthrough_unit) ||
@@ -11759,10 +11815,8 @@ static int run_void_cast_object(const char *host_root) {
   if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/wide-void-cast-object.c", wide_source,
                     &wide_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &wide_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
+      !expect_object_success_preserves_unit(
+          job, &wide_unit, second,
           "wide void-cast object operand") ||
       ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/float-void-cast-object.c", float_source,
@@ -13308,7 +13362,7 @@ static int run_block_static_object(const char *host_root) {
       "}\n"
       "int dead(void) { return 0; static const char unused[] = \"dead\"; }\n";
   static const char referenced_wide_source[] =
-      "int read_wide(void) {\n"
+      "long long read_wide(void) {\n"
       "  static long long wide = 7;\n"
       "  return wide;\n"
       "}\n";
@@ -13441,11 +13495,10 @@ static int run_block_static_object(const char *host_root) {
   }
   if (!parse_source(job, "/referenced-wide-static.c", referenced_wide_source,
                     &referenced_wide_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &referenced_wide_unit, first, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "referenced wide block-static object")) {
+      !expect_object_success_preserves_unit(
+          job, &referenced_wide_unit, first,
+          "referenced wide block-static object") ||
+      ctool_buffer_rewind(first, 0u) != CTOOL_OK) {
     goto cleanup;
   }
   diagnostic_count = ctool_job_diagnostic_count(job);
@@ -16557,7 +16610,7 @@ static int validate_wide_snapshot_function(
   return 1;
 }
 
-#define WIDE_ORACLE_TEXT_LIMIT 512u
+#define WIDE_ORACLE_TEXT_LIMIT 2048u
 #define WIDE_ORACLE_INITIAL_ESP 204u
 #define WIDE_ORACLE_RETURN_SENTINEL 0x13579bdfu
 #define WIDE_ORACLE_STEP_LIMIT 4096u
@@ -16577,9 +16630,11 @@ static const ctool_elf32_symbol_t *wide_oracle_symbol_by_file_index(
   return (const ctool_elf32_symbol_t *)0;
 }
 
-static int wide_oracle_relocate_text(
+static int wide_oracle_relocate_text_with_data(
     const ctool_elf32_object_t *object,
-    const ctool_elf32_section_t *text, ctool_u8 *relocated,
+    const ctool_elf32_section_t *text,
+    const ctool_elf32_section_t *data, ctool_u32 data_base,
+    ctool_u8 *relocated,
     ctool_u32 relocated_capacity) {
   ctool_u32 index;
   if (object == NULL || text == NULL || relocated == NULL ||
@@ -16591,6 +16646,7 @@ static int wide_oracle_relocate_text(
     const ctool_elf32_relocation_t *relocation =
         &object->relocations[index];
     const ctool_elf32_symbol_t *target;
+    int64_t target_value;
     int64_t relocated_value;
     ctool_u32 encoded;
     if (relocation->target_section_file_index != text->file_index) {
@@ -16600,17 +16656,27 @@ static int wide_oracle_relocate_text(
         object, relocation->symbol_file_index);
     if (target == NULL ||
         target->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
-        target->section_file_index != text->file_index ||
         relocation->addend_known != CTOOL_TRUE ||
         relocation->offset > text->contents.size ||
         4u > text->contents.size - relocation->offset) {
       return 0;
     }
+    if (target->section_file_index == text->file_index) {
+      target_value = (int64_t)target->value;
+    } else if (data != NULL &&
+               target->section_file_index == data->file_index &&
+               target->value <= data->contents.size &&
+               target->size <= data->contents.size - target->value &&
+               target->value <= 0xffffffffu - data_base) {
+      target_value = (int64_t)(data_base + target->value);
+    } else {
+      return 0;
+    }
     if (relocation->type == CTOOL_ELF32_R_386_PC32) {
-      relocated_value = (int64_t)target->value + relocation->addend -
+      relocated_value = target_value + relocation->addend -
                         (int64_t)relocation->offset;
     } else if (relocation->type == CTOOL_ELF32_R_386_32) {
-      relocated_value = (int64_t)target->value + relocation->addend;
+      relocated_value = target_value + relocation->addend;
     } else {
       return 0;
     }
@@ -16624,6 +16690,14 @@ static int wide_oracle_relocate_text(
         (ctool_u8)((encoded >> 24u) & 0xffu);
   }
   return 1;
+}
+
+static int wide_oracle_relocate_text(
+    const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, ctool_u8 *relocated,
+    ctool_u32 relocated_capacity) {
+  return wide_oracle_relocate_text_with_data(
+      object, text, NULL, 0u, relocated, relocated_capacity);
 }
 
 static int wide_oracle_flag_step(
@@ -16821,6 +16895,478 @@ static int wide_function_symbol_is_valid(
                  symbol->size <= text->contents.size - symbol->value
              ? 1
              : 0;
+}
+
+static int wide_value_oracle_run(
+    ctool_job_t *job, ctool_bytes_t text,
+    const ctool_elf32_symbol_t *symbol, narrow_oracle_machine_t *machine,
+    ctool_u32 expected_copies) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 copy_count = 0u;
+  ctool_bool returned = CTOOL_FALSE;
+  ctool_bool cld_ready = CTOOL_FALSE;
+  if (job == NULL || text.data == NULL || symbol == NULL || machine == NULL ||
+      symbol->value > text.size || symbol->size > text.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text.data + symbol->value + cursor, symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_CLD) {
+      cld_ready = CTOOL_TRUE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOVSB) {
+      ctool_u32 count = machine->registers[1u];
+      ctool_u32 source = machine->registers[6u];
+      ctool_u32 destination = machine->registers[7u];
+      ctool_u32 index;
+      if (instruction->prefixes != CTOOL_X86_PREFIX_REP ||
+          cld_ready == CTOOL_FALSE || count != 8u ||
+          !narrow_oracle_memory_range(source, count) ||
+          !narrow_oracle_memory_range(destination, count)) {
+        return 0;
+      }
+      for (index = 0u; index < count; index++) {
+        machine->memory[destination + index] = machine->memory[source + index];
+      }
+      machine->registers[1u] = 0u;
+      machine->registers[6u] = source + count;
+      machine->registers[7u] = destination + count;
+      cld_ready = CTOOL_FALSE;
+      copy_count++;
+    } else if (!narrow_oracle_step(machine, instruction, &returned)) {
+      (void)fprintf(stderr, "wide object oracle stopped at %u on %s\n",
+                    (unsigned int)cursor,
+                    ctool_x86_mnemonic_name(instruction->mnemonic).data);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  return returned == CTOOL_TRUE && cursor == symbol->size &&
+                 copy_count == expected_copies
+             ? 1
+             : 0;
+}
+
+static int wide_value_oracle_execute(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_bool chained,
+    ctool_u32 expected_copies, ctool_u32 source_low,
+    ctool_u32 source_high) {
+  narrow_oracle_machine_t machine;
+  const ctool_u32 first_address = 32u;
+  const ctool_u32 second_address = 48u;
+  const ctool_u32 source_address = 64u;
+  ctool_u32 observed;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  (void)memset(&machine, 0xcd, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = 96u;
+  if (!narrow_oracle_write_memory(
+          &machine, first_address, 32u, 0xdeadbeefu) ||
+      !narrow_oracle_write_memory(
+          &machine, first_address + 4u, 32u, 0xcafebabeu) ||
+      !narrow_oracle_write_memory(
+          &machine, second_address, 32u, 0x01020304u) ||
+      !narrow_oracle_write_memory(
+          &machine, second_address + 4u, 32u, 0x05060708u) ||
+      !narrow_oracle_write_memory(
+          &machine, source_address, 32u, source_low) ||
+      !narrow_oracle_write_memory(
+          &machine, source_address + 4u, 32u, source_high) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, 0x13579bdfu) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u,
+          first_address) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u,
+          chained == CTOOL_TRUE ? second_address : source_address) ||
+      (chained == CTOOL_TRUE &&
+       !narrow_oracle_write_memory(
+           &machine, NARROW_ORACLE_INITIAL_ESP + 12u, 32u,
+           source_address))) {
+    return 0;
+  }
+  if (!wide_value_oracle_run(
+          job, text->contents, symbol, &machine, expected_copies) ||
+      machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
+      machine.registers[NARROW_ORACLE_EBP] != 96u ||
+      machine.registers[NARROW_ORACLE_EAX] != source_low ||
+      machine.registers[NARROW_ORACLE_EDX] != source_high ||
+      !narrow_oracle_read_memory(
+          &machine, first_address, 32u, &observed) ||
+      observed != source_low ||
+      !narrow_oracle_read_memory(
+          &machine, first_address + 4u, 32u, &observed) ||
+      observed != source_high ||
+      !narrow_oracle_read_memory(
+          &machine, second_address, 32u, &observed) ||
+      observed != (chained == CTOOL_TRUE ? source_low : 0x01020304u) ||
+      !narrow_oracle_read_memory(
+          &machine, second_address + 4u, 32u, &observed) ||
+      observed != (chained == CTOOL_TRUE ? source_high : 0x05060708u) ||
+      !narrow_oracle_read_memory(
+          &machine, source_address, 32u, &observed) ||
+      observed != source_low ||
+      !narrow_oracle_read_memory(
+          &machine, source_address + 4u, 32u, &observed) ||
+      observed != source_high ||
+      !narrow_oracle_read_memory(
+          &machine, first_address - 4u, 32u, &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(
+          &machine, first_address + 8u, 32u, &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, &observed) ||
+      observed != 0x13579bdfu) {
+    return 0;
+  }
+  return 1;
+}
+
+static int wide_file_value_oracle_execute(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text,
+    const ctool_elf32_section_t *data,
+    const ctool_elf32_symbol_t *symbol, ctool_u32 expected_low,
+    ctool_u32 expected_high) {
+  const ctool_u32 data_base = 32u;
+  ctool_u8 relocated_text[WIDE_ORACLE_TEXT_LIMIT];
+  narrow_oracle_machine_t machine;
+  ctool_u32 observed;
+  if (job == NULL || object == NULL || text == NULL || data == NULL ||
+      symbol == NULL || text->contents.size > WIDE_ORACLE_TEXT_LIMIT ||
+      data->contents.data == NULL ||
+      data->contents.size > NARROW_ORACLE_MEMORY_SIZE - data_base ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      !wide_oracle_relocate_text_with_data(
+          object, text, data, data_base, relocated_text,
+          WIDE_ORACLE_TEXT_LIMIT)) {
+    return 0;
+  }
+  (void)memset(&machine, 0xcd, sizeof(machine));
+  (void)memcpy(machine.memory + data_base, data->contents.data,
+               data->contents.size);
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = 96u;
+  if (!narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u,
+          WIDE_ORACLE_RETURN_SENTINEL) ||
+      !wide_value_oracle_run(
+          job, ctool_bytes(relocated_text, text->contents.size), symbol,
+          &machine, 1u) ||
+      machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
+      machine.registers[NARROW_ORACLE_EBP] != 96u ||
+      machine.registers[NARROW_ORACLE_EAX] != expected_low ||
+      machine.registers[NARROW_ORACLE_EDX] != expected_high ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, &observed) ||
+      observed != WIDE_ORACLE_RETURN_SENTINEL ||
+      memcmp(machine.memory + data_base, data->contents.data,
+             data->contents.size) != 0 ||
+      !narrow_oracle_read_memory(&machine, data_base - 4u, 32u,
+                                 &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(
+          &machine, data_base + data->contents.size, 32u, &observed) ||
+      observed != 0xcdcdcdcdu) {
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_value_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u32 expected_copies,
+    ctool_u32 expected_zeroes) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 copies = 0u;
+  ctool_u32 zeroes = 0u;
+  ctool_u32 clears = 0u;
+  ctool_u32 returns = 0u;
+  if (job == NULL || text == NULL || symbol == NULL || symbol->size == 0u ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_MOVSB) {
+      if (decoded.instruction.prefixes != CTOOL_X86_PREFIX_REP) {
+        return 0;
+      }
+      copies++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_STOSB) {
+      if (decoded.instruction.prefixes != CTOOL_X86_PREFIX_REP) {
+        return 0;
+      }
+      zeroes++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_CLD) {
+      clears++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      returns++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && copies == expected_copies &&
+                 zeroes == expected_zeroes &&
+                 clears == expected_copies + expected_zeroes &&
+                 returns == 1u
+             ? 1
+             : 0;
+}
+
+static int validate_wide_value_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const struct {
+    const char *name;
+    ctool_u32 copies;
+    ctool_u32 zeroes;
+  } expected[] = {
+      {"get_cpu_freq", 1u, 0u},
+      {"load_pointer", 1u, 0u},
+      {"local_round_trip", 3u, 0u},
+      {"assign_pointer", 2u, 0u},
+      {"chain_pointer", 3u, 0u},
+      {"load_member", 1u, 0u},
+      {"aggregate_round_trip", 3u, 1u},
+      {"load_index", 1u, 0u},
+      {"block_static", 1u, 0u},
+      {"volatile_round_trip", 3u, 0u},
+      {"discard_pointer", 1u, 0u}};
+  static const ctool_u8 expected_data[] = {
+      0x88u, 0x77u, 0x66u, 0x55u, 0x44u, 0x33u, 0x22u, 0x11u,
+      0x11u, 0x00u, 0xffu, 0xeeu, 0xddu, 0xccu, 0xbbu, 0xaau};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *frequency = find_symbol(object, "tsc_freq");
+  const ctool_elf32_symbol_t *block_value =
+      find_symbol(object, ".LBS2.value");
+  const ctool_elf32_symbol_t *functions[
+      sizeof(expected) / sizeof(expected[0])];
+  ctool_u32 frequency_relocations = 0u;
+  ctool_u32 block_relocations = 0u;
+  ctool_u32 index;
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(functions) / sizeof(functions[0]));
+       index++) {
+    functions[index] = find_symbol(object, expected[index].name);
+    if (!wide_function_symbol_is_valid(object, text, functions[index])) {
+      (void)fprintf(stderr, "wide value function %s differs\n",
+                    expected[index].name);
+      return 0;
+    }
+  }
+  if (text == NULL || data == NULL || rel_text == NULL || frequency == NULL ||
+      block_value == NULL ||
+      data->contents.data == NULL ||
+      data->contents.size != sizeof(expected_data) ||
+      memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
+      text->contents.size != 879u ||
+      structure_text_fingerprint(text->contents) != 0x2448a1cdu ||
+      object->symbol_count != 14u || object->symbols == NULL ||
+      !symbol_matches(frequency, frequency->file_index,
+                      CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 8u) ||
+      !symbol_matches(block_value, block_value->file_index,
+                      CTOOL_ELF32_BIND_LOCAL, CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 8u, 8u) ||
+      text->relocation_count != 2u || object->relocation_count != 2u) {
+    (void)fprintf(
+        stderr,
+        "wide value object inventory differs: text=%u fingerprint=%08x "
+        "symbols=%u block=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        (unsigned int)object->symbol_count, block_value == NULL ? 0u : 1u);
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    const ctool_elf32_symbol_t *target = wide_oracle_symbol_by_file_index(
+        object, relocation->symbol_file_index);
+    if (relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE || relocation->addend != 0 ||
+        target == NULL || target->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+        target->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        target->section_file_index != data->file_index || target->size != 8u) {
+      return 0;
+    }
+    if (target->file_index == frequency->file_index) {
+      ctool_u32 relative;
+      if (relocation->offset < functions[0]->value) {
+        return 0;
+      }
+      relative = relocation->offset - functions[0]->value;
+      if (relative > functions[0]->size ||
+          4u > functions[0]->size - relative) {
+        return 0;
+      }
+      frequency_relocations++;
+    } else if (target->file_index == block_value->file_index) {
+      ctool_u32 relative;
+      if (relocation->offset < functions[8]->value) {
+        return 0;
+      }
+      relative = relocation->offset - functions[8]->value;
+      if (relative > functions[8]->size ||
+          4u > functions[8]->size - relative) {
+        return 0;
+      }
+      block_relocations++;
+    } else {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(functions) / sizeof(functions[0]));
+       index++) {
+    if (!validate_wide_value_function(
+            job, text, functions[index], expected[index].copies,
+            expected[index].zeroes)) {
+      (void)fprintf(stderr, "wide value decoder %s differs\n",
+                    expected[index].name);
+      return 0;
+    }
+  }
+  return frequency_relocations == 1u && block_relocations == 1u &&
+                 wide_file_value_oracle_execute(
+                     job, object, text, data, functions[0], 0x55667788u,
+                     0x11223344u) &&
+                 wide_file_value_oracle_execute(
+                     job, object, text, data, functions[8], 0xeeff0011u,
+                     0xaabbccddu) &&
+                 wide_value_oracle_execute(
+                     job, text, functions[3], CTOOL_FALSE, 2u,
+                     0x89abcdefu,
+                     0x01234567u) &&
+                 wide_value_oracle_execute(
+                     job, text, functions[4], CTOOL_TRUE, 3u,
+                     0x76543210u,
+                     0xfedcba98u)
+             ? 1
+             : 0;
+}
+
+static int run_wide_value_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_object_sources_are_unchanged(job) ||
+      !parse_source(job, "/wide-value-object.c", wide_value_object_source,
+                    &unit) ||
+      !parse_source(job, "/wide-atomic-object.c", wide_atomic_object_source,
+                    &atomic_unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "wide value object buffers") ||
+      !expect_object_success_preserves_unit(job, &unit, first,
+                                            "first wide value object") ||
+      !expect_object_success_preserves_unit(job, &unit, second,
+                                            "repeat wide value object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "wide value objects are not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-value-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide value object") ||
+      !validate_wide_value_object(job, &object) ||
+      !expect_object_failure_preserves_unit(
+          job, &atomic_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide atomic object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (failure != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-objects: ok");
+    return 0;
+  }
+  return 1;
 }
 
 static int validate_wide_return_object(
@@ -17096,6 +17642,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     return run_wide_return_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-objects") == 0) {
+    return run_wide_value_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
@@ -17108,7 +17657,7 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
-                "variadic-callees|wide-returns "
+                "variadic-callees|wide-returns|wide-objects "
                 "HOST_ROOT\n");
   return 2;
 }

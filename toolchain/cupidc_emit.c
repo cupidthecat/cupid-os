@@ -2822,7 +2822,7 @@ static ctool_bool cemit_ir_type_is_automatic_object(
     return CTOOL_FALSE;
   }
   layout = &context->unit->layout.types[type];
-  return (cemit_ir_type_is_represented_scalar(context, type) == CTOOL_TRUE ||
+  return (cemit_ir_type_is_value_scalar(context, type) == CTOOL_TRUE ||
           cemit_ir_type_is_complete_aggregate_object(context, type) ==
               CTOOL_TRUE) &&
                  layout->is_object == CTOOL_TRUE &&
@@ -3449,7 +3449,7 @@ static ctool_status_t cemit_emit_ir_instruction(
           layout->is_complete_object == CTOOL_FALSE || layout->size == 0u ||
           layout->alignment == 0u ||
           cemit_power_of_two(layout->alignment) == CTOOL_FALSE ||
-          (cemit_ir_type_is_represented_scalar(
+          (cemit_ir_type_is_value_scalar(
                context, ir_instruction->type) == CTOOL_FALSE &&
            cemit_ir_type_is_complete_aggregate_object(
                context, ir_instruction->type) == CTOOL_FALSE)) {
@@ -3847,8 +3847,8 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (binding->kind != CTOOL_C_BINDING_OBJECT ||
         binding->type != ir_instruction->type ||
         symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count ||
-        (cemit_ir_type_is_represented_scalar(context,
-                                             ir_instruction->type) ==
+        (cemit_ir_type_is_value_scalar(context,
+                                       ir_instruction->type) ==
              CTOOL_FALSE &&
          cemit_ir_type_is_complete_aggregate_object(
              context, ir_instruction->type) == CTOOL_FALSE)) {
@@ -4096,6 +4096,8 @@ static ctool_status_t cemit_emit_ir_instruction(
         context, ir_instruction->input_type, ir_instruction->type);
     ctool_bool structure = cemit_ir_structure_types_match(
         context, ir_instruction->input_type, ir_instruction->type);
+    ctool_bool wide = cemit_ir_type_is_wide_integer(
+        context, ir_instruction->type);
     if ((scalar == CTOOL_FALSE && structure == CTOOL_FALSE) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion !=
@@ -4104,7 +4106,7 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
-    if (structure == CTOOL_TRUE) {
+    if (structure == CTOOL_TRUE || wide == CTOOL_TRUE) {
       const ctool_c_type_layout_t *layout =
           &context->unit->layout.types[ir_instruction->type];
       if (value_temporary_offset == CTOOL_C_AST_NONE ||
@@ -4231,6 +4233,8 @@ static ctool_status_t cemit_emit_ir_instruction(
         context, ir_instruction->type, ir_instruction->input_type);
     ctool_bool structure = cemit_ir_structure_types_match(
         context, ir_instruction->type, ir_instruction->input_type);
+    ctool_bool wide = cemit_ir_type_is_wide_integer(
+        context, ir_instruction->type);
     if ((scalar == CTOOL_FALSE && structure == CTOOL_FALSE) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
@@ -4238,7 +4242,7 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
-    if (structure == CTOOL_TRUE) {
+    if (structure == CTOOL_TRUE || wide == CTOOL_TRUE) {
       status = cemit_x86_one_register(
           context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
       if (status == CTOOL_OK) {
@@ -5169,7 +5173,7 @@ static ctool_status_t cemit_prepare_local_offsets(
       if (binding->storage == CTOOL_C_STORAGE_STATIC) {
         ctool_u32 symbol;
         if (context->block_binding_symbols == (ctool_u32 *)0 ||
-            (cemit_ir_type_is_represented_scalar(
+            (cemit_ir_type_is_value_scalar(
                  context, instruction->type) == CTOOL_FALSE &&
              cemit_ir_type_is_complete_aggregate_object(
                  context, instruction->type) == CTOOL_FALSE)) {
@@ -5228,6 +5232,7 @@ static ctool_status_t cemit_prepare_local_offsets(
          cemit_ir_type_is_structure_value(context, instruction->type) ==
              CTOOL_TRUE) ||
         ((instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER ||
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) &&
          cemit_ir_type_is_wide_integer(context, instruction->type) ==

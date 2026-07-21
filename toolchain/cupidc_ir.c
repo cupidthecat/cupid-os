@@ -2093,7 +2093,7 @@ static ctool_status_t cir_lower_conversion(
         return cir_invalid_unit(context, &expression->location);
       }
     }
-    if (cir_type_is_represented_scalar(context, expression->type) ==
+    if (cir_type_is_value_scalar(context, expression->type) ==
             CTOOL_FALSE &&
         cir_type_is_structure_value(context, expression->type) ==
             CTOOL_FALSE) {
@@ -3462,7 +3462,7 @@ static ctool_status_t cir_lower_assignment(
   if (expression->computation_type != expression->type) {
     return cir_invalid_unit(context, &expression->location);
   }
-  if (cir_type_is_represented_scalar(context, expression->type) ==
+  if (cir_type_is_value_scalar(context, expression->type) ==
       CTOOL_FALSE) {
     status = cir_require_structure_value(
         context, expression->type, &expression->location);
@@ -3496,7 +3496,7 @@ static ctool_status_t cir_lower_assignment(
         &context->unit->expressions[left_child], right_child, depth);
   }
   if (status == CTOOL_OK &&
-      cir_type_is_represented_scalar(context, expression->type) ==
+      cir_type_is_value_scalar(context, expression->type) ==
           CTOOL_FALSE) {
     status = cir_require_structure_value(
         context, context->unit->expressions[left_child].type,
@@ -3543,11 +3543,11 @@ static ctool_status_t cir_lower_assignment(
     return status;
   }
   if (address.kind != CIR_STACK_ADDRESS || value.kind != CIR_STACK_VALUE ||
-      ((cir_type_is_represented_scalar(context, expression->type) ==
+      ((cir_type_is_value_scalar(context, expression->type) ==
             CTOOL_TRUE &&
-        (cir_type_is_represented_scalar(context, address.type) ==
+        (cir_type_is_value_scalar(context, address.type) ==
              CTOOL_FALSE ||
-         cir_type_is_represented_scalar(context, value.type) == CTOOL_FALSE ||
+         cir_type_is_value_scalar(context, value.type) == CTOOL_FALSE ||
          cir_scalar_value_types_match(context, address.type,
                                       expression->type) == CTOOL_FALSE ||
          cir_scalar_value_types_match(context, value.type,
@@ -4744,7 +4744,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         return cir_invalid_unit(context, &expression->location);
       }
     }
-    if (cir_type_is_represented_scalar(context, expression->type) ==
+    if (cir_type_is_value_scalar(context, expression->type) ==
             CTOOL_FALSE &&
         cir_type_is_complete_aggregate_object(context, expression->type) ==
             CTOOL_FALSE) {
@@ -4800,7 +4800,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         binding->integer_unsigned != CTOOL_FALSE) {
       return cir_invalid_unit(context, &expression->location);
     }
-    if (cir_type_is_represented_scalar(context, expression->type) ==
+    if (cir_type_is_value_scalar(context, expression->type) ==
             CTOOL_FALSE &&
         cir_type_is_complete_aggregate_object(
             context, expression->type) == CTOOL_FALSE) {
@@ -5477,7 +5477,7 @@ static ctool_status_t cir_lower_aggregate_initializer_leaf(
       initializer->element_count != 0u) {
     return cir_invalid_unit(context, &initializer->location);
   }
-  if (cir_type_is_represented_scalar(context, initializer->type) ==
+  if (cir_type_is_value_scalar(context, initializer->type) ==
       CTOOL_FALSE) {
     const ctool_c_type_node_t *type =
         cir_unwrapped_type(context, initializer->type);
@@ -5537,7 +5537,7 @@ static ctool_status_t cir_lower_aggregate_initializer_leaf(
   if (value.kind != CIR_STACK_VALUE ||
       address.kind != CIR_STACK_ADDRESS ||
       address.type != initializer->type ||
-      (cir_type_is_represented_scalar(context, initializer->type) == CTOOL_TRUE
+      (cir_type_is_value_scalar(context, initializer->type) == CTOOL_TRUE
            ? cir_scalar_value_types_match(
                  context, initializer->type, value.type) == CTOOL_FALSE
            : cir_structure_value_types_match(
@@ -5799,8 +5799,8 @@ static ctool_status_t cir_lower_expression_initializer(
                            ? object->location
                            : (const ctool_c_pp_location_t *)0);
   }
-  if (cir_type_is_represented_scalar(context, object->type) == CTOOL_TRUE) {
-    if (cir_type_is_represented_scalar(
+  if (cir_type_is_value_scalar(context, object->type) == CTOOL_TRUE) {
+    if (cir_type_is_value_scalar(
             context,
             context->unit->expressions[initializer->expression].type) ==
             CTOOL_FALSE ||
@@ -5852,7 +5852,7 @@ static ctool_status_t cir_lower_expression_initializer(
   }
   if (value.kind != CIR_STACK_VALUE ||
       address.kind != CIR_STACK_ADDRESS || address.type != object->type ||
-      (cir_type_is_represented_scalar(context, object->type) == CTOOL_TRUE
+      (cir_type_is_value_scalar(context, object->type) == CTOOL_TRUE
            ? cir_scalar_value_types_match(
                  context, object->type, value.type) == CTOOL_FALSE
            : cir_structure_value_types_match(
@@ -6178,7 +6178,7 @@ static ctool_status_t cir_lower_declaration(
       }
       continue;
     }
-    if ((cir_type_is_represented_scalar(context, binding->type) ==
+    if ((cir_type_is_value_scalar(context, binding->type) ==
              CTOOL_FALSE &&
          cir_type_is_complete_aggregate_object(context, binding->type) ==
              CTOOL_FALSE) ||
@@ -6192,7 +6192,7 @@ static ctool_status_t cir_lower_declaration(
       return cir_invalid_unit(context, &binding->location);
     }
     initializer = &context->unit->initializers[binding->initializer];
-    if (cir_type_is_represented_scalar(context, binding->type) ==
+    if (cir_type_is_value_scalar(context, binding->type) ==
         CTOOL_FALSE) {
       if (initializer->kind == CTOOL_C_INITIALIZER_LIST) {
         status = cir_lower_aggregate_initializer(

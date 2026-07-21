@@ -47,3 +47,5 @@ ADR 0037 lowers direct identifier labels and `goto` through the same function bo
 ADR 0051 lets static declarations in supported nested or unreachable declaration positions reach object emission. The existing block-binding order still controls declaration visibility and gives each static object its stable target identity.
 
 ADR 0059 lets typedef declarations use the same source-ordered ownership stream. IR validates each alias and advances the lexical cursor without emitting an instruction or assigning a frame slot.
+
+ADR 0066 admits eight-byte integer objects under the same lexical ownership and frame rules. A declaration in a `for` initializer and a declaration after an unconditional return now validate as wide automatic storage. The former rejection fixtures are positive contracts. Wide `for` conditions and iterations remain unsupported, and malformed binding ownership still fails transactionally.

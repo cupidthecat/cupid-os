@@ -57,7 +57,7 @@ The typed, target-neutral instruction sequence between CupidC's function-body AS
 _Avoid_: AST, x86 bytecode, machine code
 
 **Wide integer value**:
-An eight-byte integer carried through the hosted Linear IR as one logical value. The i386 emitter stores its two words in a private frame snapshot and returns the low word in EAX and the high word in EDX. The current boundary covers constants, matching conditionals, fixed call results, discard, and return, but not parameters, lvalue access, arithmetic, or mixed-width conversion.
+An eight-byte integer carried through the hosted Linear IR as one logical value. The i386 emitter stores its bytes in a private frame snapshot and returns the low word in EAX and the high word in EDX. The current boundary covers constants, matching conditionals, fixed call results, object access through file, block-static, automatic, pointer, member, and index paths, initialization, plain assignment, discard, and return. Parameters, call arguments, conditions, arithmetic, mutation, variadic transport, and mixed-width conversion remain outside the boundary.
 _Avoid_: two unrelated 32-bit values, a public IR register pair
 
 **Represented bit-field assignment**:

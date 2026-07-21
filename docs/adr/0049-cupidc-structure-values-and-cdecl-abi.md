@@ -45,3 +45,5 @@ ADR 0052 lets a supported structure compound literal build an aggregate value in
 ## Parallel eight-byte integer snapshots
 
 ADR 0065 reuses the one-handle, emitter-private snapshot principle for an eight-byte integer result. It does not use the structure hidden-pointer ABI. The i386 scalar result remains in EDX:EAX until the caller copies both words into its private slot.
+
+ADR 0066 applies the structure copy rule to wide integer lvalues and stores. Each `LOAD` owns an eight-byte snapshot. `STORE_VALUE` copies those bytes and keeps the source snapshot as the assignment result, which preserves value semantics across chains without borrowing an object address.

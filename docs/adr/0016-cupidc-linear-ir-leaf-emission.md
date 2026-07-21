@@ -88,4 +88,6 @@ ADR 0053 adds `STRING_LITERAL_ADDRESS` and `COPY_STRING`. A runtime literal addr
 
 ### Eight-byte integer result extension
 
-ADR 0065 carries an eight-byte integer through constants, matching conditionals, fixed call results, discard, and return. One public scalar stack entry names an emitter-private two-word snapshot. This keeps the IR independent of the i386 EDX:EAX return pair. Parameters, lvalue access, arithmetic, and mixed-width conversion remain outside the extension.
+ADR 0065 carries an eight-byte integer through constants, matching conditionals, fixed call results, discard, and return. One public scalar stack entry names an emitter-private two-word snapshot. This keeps the IR independent of the i386 EDX:EAX return pair.
+
+ADR 0066 extends the same handle through file, block-static, automatic, pointer-derived, member, and indexed object access. `LOAD` captures eight bytes in a private snapshot. `STORE` and `STORE_VALUE` copy the snapshot to an object, with `STORE_VALUE` preserving it for assignment results. Parameters, arithmetic, mutation, and mixed-width conversion remain outside the extension.

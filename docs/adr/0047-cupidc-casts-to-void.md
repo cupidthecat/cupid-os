@@ -32,4 +32,4 @@ A later structure-value path allows a cast to `void` to consume a complete suppo
 
 ## Extension: discarded eight-byte integers
 
-ADR 0065 allows a cast to `void` to consume an eight-byte constant or supported fixed-call result. Lowering still evaluates the operand and discards its one snapshot handle. An eight-byte lvalue remains unsupported because this extension does not add wide object access.
+ADR 0065 allows a cast to `void` to consume an eight-byte constant or supported fixed-call result. ADR 0066 adds eight-byte lvalues. Lowering evaluates the lvalue once, captures its eight target bytes in a private snapshot, and discards that one handle.

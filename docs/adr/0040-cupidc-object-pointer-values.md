@@ -31,3 +31,7 @@ The first active-source contract stopped at the existing integer-only ABI diagno
 This change transfers no production build ownership, removes no host dependency, changes no kernel artifact, and makes no boot claim. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 Issue #25 remains open. The remaining pointer work includes arithmetic, subscripts, conditions, comparisons, casts, mutation, decay, indirect calls, atomics, production integration, staged self-hosting, and the fixed-point bootstrap.
+
+## Extension: pointers to eight-byte integers
+
+ADR 0066 lets the existing dereference, member, and indexed-address paths select an eight-byte integer object. Lvalue conversion copies that object into one private snapshot, and plain assignment copies a snapshot back through the pointer. Pointer representation and arithmetic stay four-byte; the extension changes the selected object value, not the pointer ABI.

@@ -121,6 +121,16 @@ static const char active_integer_mask[] =
     "                                           : 0xffffffffffffffffull;\n"
     "}\n";
 
+static const char active_cpu_frequency[] =
+    "uint64_t get_cpu_freq(void) {\n"
+    "    return tsc_freq;\n"
+    "}\n";
+
+static const char active_cpu_frequency_crlf[] =
+    "uint64_t get_cpu_freq(void) {\r\n"
+    "    return tsc_freq;\r\n"
+    "}\r\n";
+
 static const char active_public_storage[] =
     "static ctool_c_storage_class_t cfront_public_storage(\n"
     "    cfront_storage_t storage) {\n"
@@ -743,6 +753,55 @@ static const char wide_arithmetic_source[] =
 static const char wide_conversion_source[] =
     "typedef unsigned long long ctool_u64;\n"
     "ctool_u64 widen_value(void) { return (ctool_u64)1u; }\n";
+
+static const char wide_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef struct { ctool_u32 tag; ctool_u64 value; } wide_holder_t;\n"
+    "static ctool_u64 tsc_freq = 0x1122334455667788ull;\n"
+    "ctool_u64 get_cpu_freq(void) { return tsc_freq; }\n"
+    "ctool_u64 load_pointer(ctool_u64 *source) { return *source; }\n"
+    "ctool_u64 local_round_trip(ctool_u64 *source) {\n"
+    "  ctool_u64 local = *source;\n"
+    "  return local;\n"
+    "}\n"
+    "ctool_u64 assign_pointer(ctool_u64 *destination, ctool_u64 *source) {\n"
+    "  return *destination = *source;\n"
+    "}\n"
+    "ctool_u64 chain_pointer(ctool_u64 *first, ctool_u64 *second,\n"
+    "                        ctool_u64 *source) {\n"
+    "  return *first = *second = *source;\n"
+    "}\n"
+    "ctool_u64 load_member(wide_holder_t *record) {\n"
+    "  return record->value;\n"
+    "}\n"
+    "ctool_u64 aggregate_round_trip(ctool_u64 *source) {\n"
+    "  wide_holder_t local = {7u, *source};\n"
+    "  return local.value;\n"
+    "}\n"
+    "ctool_u64 load_index(ctool_u64 *values, ctool_u32 index) {\n"
+    "  return values[index];\n"
+    "}\n"
+    "ctool_u64 block_static(void) {\n"
+    "  static ctool_u64 value = 0xaabbccddeeff0011ull;\n"
+    "  return value;\n"
+    "}\n"
+    "ctool_u64 volatile_round_trip(volatile ctool_u64 *destination,\n"
+    "                                ctool_u64 *source) {\n"
+    "  *destination = *source;\n"
+    "  return *destination;\n"
+    "}\n"
+    "void discard_pointer(ctool_u64 *source) { (void)*source; }\n";
+
+static const char wide_atomic_load_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "_Atomic ctool_u64 shared;\n"
+    "ctool_u64 load_atomic(void) { return shared; }\n";
+
+static const char wide_atomic_store_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "_Atomic ctool_u64 shared;\n"
+    "void store_atomic(void) { shared = 1ull; }\n";
 
 static const char atomic_function_pointer_source[] =
     "typedef int (*callback_t)(int);\n"
@@ -1556,6 +1615,18 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active ATA pointer advance changed\n");
     return 0;
   }
+  path.text = ctool_string("/kernel/core/kernel.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK, "load active CPU frequency source") ||
+      source.contents.data == NULL ||
+      (strstr((const char *)source.contents.data, active_cpu_frequency) ==
+           NULL &&
+       strstr((const char *)source.contents.data,
+              active_cpu_frequency_crlf) == NULL)) {
+    (void)fprintf(stderr, "the active CPU frequency helper changed\n");
+    return 0;
+  }
   return 1;
 }
 
@@ -1934,12 +2005,18 @@ static uint64_t hash_location(uint64_t hash,
   return hash_u32(hash, location->column);
 }
 
-static uint64_t ir_instruction_fingerprint(const ctool_c_ir_unit_t *ir) {
+static uint64_t ir_instruction_slice_fingerprint(
+    const ctool_c_ir_unit_t *ir, ctool_u32 first, ctool_u32 count) {
   uint64_t hash = UINT64_C(1469598103934665603);
   ctool_u32 index;
-  hash = hash_u32(hash, ir->instruction_count);
-  for (index = 0u; index < ir->instruction_count; index++) {
-    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+  if (ir == NULL || ir->instructions == NULL || first > ir->instruction_count ||
+      count > ir->instruction_count - first) {
+    return 0u;
+  }
+  hash = hash_u32(hash, count);
+  for (index = 0u; index < count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[first + index];
     hash = hash_u32(hash, (ctool_u32)instruction->kind);
     hash = hash_u32(hash, instruction->type);
     hash = hash_u32(hash, instruction->input_type);
@@ -1951,6 +2028,13 @@ static uint64_t ir_instruction_fingerprint(const ctool_c_ir_unit_t *ir) {
     hash = hash_location(hash, &instruction->physical_location);
   }
   return hash;
+}
+
+static uint64_t ir_instruction_fingerprint(const ctool_c_ir_unit_t *ir) {
+  return ir == NULL
+             ? 0u
+             : ir_instruction_slice_fingerprint(
+                   ir, 0u, ir->instruction_count);
 }
 
 static uint64_t unit_fingerprint(const ctool_c_translation_unit_t *unit) {
@@ -4673,10 +4757,12 @@ static int validate_loop_declaration_ir(
 }
 
 static int validate_unreachable_declaration_ir(
-    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    const char *function_name, const char *path) {
   const ctool_c_function_definition_t *definition;
   const ctool_c_ir_function_t *function;
-  ctool_u32 function_binding = find_binding(unit, "unreachable_declaration");
+  const ctool_c_type_node_t *function_type;
+  ctool_u32 function_binding = find_binding(unit, function_name);
   ctool_u32 local_binding = find_block_binding(unit, "value");
   ctool_u32 value_type;
   if (unit->function_definition_count != 1u || ir->function_count != 1u ||
@@ -4689,8 +4775,14 @@ static int validate_unreachable_declaration_ir(
   }
   definition = &unit->function_definitions[0];
   function = &ir->functions[0];
-  value_type = unit->block_bindings[local_binding].type;
-  if (definition->binding != function_binding ||
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  value_type = function_type->referenced_type;
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      value_type >= unit->layout.type_count ||
+      definition->binding != function_binding ||
       function->binding != definition->binding ||
       function->declared_type != definition->declared_type ||
       function->first_instruction != 0u ||
@@ -4702,8 +4794,7 @@ static int validate_unreachable_declaration_ir(
       ir->instructions[1].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
       ir->instructions[1].type != value_type ||
       ir->instructions[1].input_type != value_type ||
-      !string_equal(ir->instructions[0].location.path,
-                    "/unreachable-declaration.c")) {
+      !string_equal(ir->instructions[0].location.path, path)) {
     (void)fprintf(stderr, "unreachable declaration IR instructions differ\n");
     return 0;
   }
@@ -6735,7 +6826,7 @@ static int run_active_leaf(const char *host_root) {
       "}\n";
   static const char wide_declaration_for_source[] =
       "void wide_declaration_for(void) {\n"
-      "  for (long long i = 0; i < 1; i = i + 1) {}\n"
+      "  for (long long i = 0LL;;) { (void)i; break; }\n"
       "}\n";
   static const char nested_declaration_source[] =
       "int nested_declaration(int value) {\n"
@@ -6880,7 +6971,7 @@ static int run_active_leaf(const char *host_root) {
       "}\n";
   static const char wide_assignment_source[] =
       "long long wide_state;\n"
-      "void set_wide(void) { wide_state = 1; }\n";
+      "void set_wide(void) { wide_state = 1LL; }\n";
   static const char abi_source[] =
       "long long wide(long long value) { return value; }\n";
   static const char inline_success_source[] =
@@ -6942,7 +7033,10 @@ static int run_active_leaf(const char *host_root) {
   static const char value_statement_source[] =
       "void discard_value(void) { 1; }\n";
   static const char wide_local_source[] =
-      "int wide_local(void) { long long value = 1; return 0; }\n";
+      "long long wide_local(void) {\n"
+      "  long long value = 1LL;\n"
+      "  return value;\n"
+      "}\n";
   static const char overaligned_local_source[] =
       "typedef int aligned_int __attribute__((aligned(8)));\n"
       "int overaligned_local(void) {\n"
@@ -7116,6 +7210,10 @@ static int run_active_leaf(const char *host_root) {
   uint64_t for_edge_fingerprint;
   uint64_t terminal_wide_for_iteration_fingerprint;
   uint64_t declaration_for_fingerprint;
+  uint64_t wide_assignment_fingerprint;
+  uint64_t wide_declaration_for_fingerprint;
+  uint64_t unreachable_wide_declaration_fingerprint;
+  uint64_t wide_local_fingerprint;
   uint64_t nested_declaration_fingerprint;
   uint64_t loop_declaration_fingerprint;
   char *fixture = NULL;
@@ -7387,12 +7485,23 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-assignment.c", wide_assignment_source,
-                    &wide_assignment_unit) ||
-      !expect_ir_failure(
-          job, &wide_assignment_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide assignment")) {
+                    &wide_assignment_unit)) {
+    goto cleanup;
+  }
+  wide_assignment_fingerprint = unit_fingerprint(&wide_assignment_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &wide_assignment_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide assignment") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_assignment_unit) != wide_assignment_fingerprint ||
+      ir.function_count != 1u || ir.instruction_count != 5u ||
+      ir.instructions == NULL ||
+      ir.instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_STORE_VALUE ||
+      ir.instructions[3].kind != CTOOL_C_IR_INSTRUCTION_DISCARD ||
+      ir.instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(stderr, "wide assignment IR stream differs\n");
     goto cleanup;
   }
 
@@ -8431,13 +8540,27 @@ static int run_active_leaf(const char *host_root) {
       !parse_source(job, "/wide-declaration-for.c",
                     wide_declaration_for_source,
                     &wide_declaration_for_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_declaration_for_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide declaration for initializer") ||
       !parse_source(job, "/declaration-for.c", declaration_for_source,
                     &declaration_for_unit)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  wide_declaration_for_fingerprint =
+      unit_fingerprint(&wide_declaration_for_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &wide_declaration_for_unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "wide declaration for initializer") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_declaration_for_unit) !=
+          wide_declaration_for_fingerprint ||
+      ir.function_count != 1u || ir.instruction_count == 0u) {
+    (void)fprintf(stderr,
+                  "wide declaration-for IR inventory differs: "
+                  "functions=%u instructions=%u\n",
+                  (unsigned int)ir.function_count,
+                  (unsigned int)ir.instruction_count);
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -8592,19 +8715,32 @@ static int run_active_leaf(const char *host_root) {
   if (!check_status(status, CTOOL_OK, "unreachable declaration lowering") ||
       ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_fingerprint(&unreachable_declaration_unit) != fingerprint ||
-      !validate_unreachable_declaration_ir(&unreachable_declaration_unit,
-                                           &ir)) {
+      !validate_unreachable_declaration_ir(
+          &unreachable_declaration_unit, &ir, "unreachable_declaration",
+          "/unreachable-declaration.c")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   if (!parse_source(job, "/unreachable-wide-declaration.c",
                     unreachable_wide_declaration_source,
-                    &unreachable_wide_declaration_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &unreachable_wide_declaration_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "unreachable wide declaration")) {
+                    &unreachable_wide_declaration_unit)) {
+    goto cleanup;
+  }
+  unreachable_wide_declaration_fingerprint =
+      unit_fingerprint(&unreachable_wide_declaration_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unreachable_wide_declaration_unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "unreachable wide declaration lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unreachable_wide_declaration_unit) !=
+          unreachable_wide_declaration_fingerprint ||
+      !validate_unreachable_declaration_ir(
+          &unreachable_wide_declaration_unit, &ir,
+          "unreachable_wide_declaration",
+          "/unreachable-wide-declaration.c")) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   fingerprint = unit_fingerprint(&statement_unit);
@@ -8761,13 +8897,28 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-local.c", wide_local_source,
-                    &wide_local_unit) ||
-      !expect_ir_failure(
-          job, &wide_local_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-           "CupidC IR lowering does not yet support this value type",
-           "wide automatic local") ||
-      !parse_source_mode(job, "/overaligned-local.c",
+                    &wide_local_unit)) {
+    goto cleanup;
+  }
+  wide_local_fingerprint = unit_fingerprint(&wide_local_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &wide_local_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide automatic local") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_local_unit) != wide_local_fingerprint ||
+      ir.function_count != 1u || ir.instruction_count != 6u ||
+      ir.instructions == NULL ||
+      ir.instructions[0].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_STORE ||
+      ir.instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS ||
+      ir.instructions[4].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      ir.instructions[5].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "wide automatic local IR stream differs\n");
+    goto cleanup;
+  }
+  if (!parse_source_mode(job, "/overaligned-local.c",
                          overaligned_local_source, CTOOL_TRUE,
                          &overaligned_local_unit) ||
       !expect_ir_failure(
@@ -15907,6 +16058,7 @@ static int run_aggregate_initializers(const char *host_root) {
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_ir_unit_t ir;
   ctool_c_ir_unit_t omitted_subobjects_ir;
+  ctool_c_ir_unit_t wide_leaf_ir;
   ctool_c_initializer_element_t *invalid_elements = NULL;
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_record_member_t *invalid_members = NULL;
@@ -15920,6 +16072,8 @@ static int run_aggregate_initializers(const char *host_root) {
   ctool_u32 inner_type = CTOOL_C_AST_NONE;
   ctool_u32 zero_count;
   ctool_u32 store_count;
+  ctool_u32 wide_constant_count;
+  ctool_u32 wide_store_count;
   uint64_t fingerprint;
   ctool_status_t status;
   int passed = 0;
@@ -15932,6 +16086,7 @@ static int run_aggregate_initializers(const char *host_root) {
   (void)memset(&ir, 0, sizeof(ir));
   (void)memset(&omitted_subobjects_ir, 0,
                sizeof(omitted_subobjects_ir));
+  (void)memset(&wide_leaf_ir, 0, sizeof(wide_leaf_ir));
   if (!open_job(host_root, &adapter, &config, &job)) {
     goto cleanup;
   }
@@ -16103,13 +16258,38 @@ static int run_aggregate_initializers(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-aggregate-leaf.c", wide_leaf_source,
-                    &wide_leaf_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_leaf_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type in "
-          "automatic aggregate initializer lists",
-          "wide automatic aggregate expression leaf")) {
+                    &wide_leaf_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&wide_leaf_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &wide_leaf_unit, &wide_leaf_ir);
+  wide_constant_count = 0u;
+  wide_store_count = 0u;
+  if (status == CTOOL_OK) {
+    for (index = 0u; index < wide_leaf_ir.instruction_count; index++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &wide_leaf_ir.instructions[index];
+      const ctool_c_type_layout_t *layout =
+          instruction->type < wide_leaf_unit.layout.type_count
+              ? &wide_leaf_unit.layout.types[instruction->type]
+              : (const ctool_c_type_layout_t *)0;
+      if (layout != (const ctool_c_type_layout_t *)0 &&
+          layout->is_integer == CTOOL_TRUE && layout->size == 8u) {
+        if (instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER) {
+          wide_constant_count++;
+        } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE) {
+          wide_store_count++;
+        }
+      }
+    }
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "wide automatic aggregate expression leaf") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_leaf_unit) != fingerprint ||
+      wide_constant_count != 1u || wide_store_count != 1u) {
+    (void)fprintf(stderr, "wide aggregate initializer leaf differs\n");
     goto cleanup;
   }
   if (!parse_source(job, "/volatile-aggregate-bit-field.c",
@@ -20193,6 +20373,27 @@ static int ir_type_is_wide_integer(
              : 0;
 }
 
+static int ir_type_has_volatile_qualification(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type) {
+  ctool_u32 traversed = 0u;
+  if (unit == NULL) {
+    return 0;
+  }
+  while (type < unit->graph.type_count &&
+         traversed++ < unit->graph.type_count) {
+    const ctool_c_type_node_t *node = &unit->graph.types[type];
+    if ((node->qualifiers & CTOOL_C_QUAL_VOLATILE) != 0u) {
+      return 1;
+    }
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      return 0;
+    }
+    type = node->referenced_type;
+  }
+  return 0;
+}
+
 static int validate_wide_return_ir(const ctool_c_translation_unit_t *unit,
                                    const ctool_c_ir_unit_t *ir) {
   ctool_u32 wide_constants = 0u;
@@ -20266,6 +20467,279 @@ static int validate_wide_return_ir(const ctool_c_translation_unit_t *unit,
                  wide_returns == 4u && wide_discards == 1u
              ? 1
              : 0;
+}
+
+static int validate_wide_object_ir(const ctool_c_translation_unit_t *unit,
+                                   const ctool_c_ir_unit_t *ir) {
+  static const struct {
+    const char *name;
+    ctool_u32 instruction_count;
+    ctool_u32 stack_depth;
+    uint64_t fingerprint;
+  } expected[] = {
+      {"get_cpu_freq", 3u, 1u, UINT64_C(0x3f56fdf59f187fc8)},
+      {"load_pointer", 5u, 1u, UINT64_C(0xae61ec1f5600b983)},
+      {"local_round_trip", 9u, 2u, UINT64_C(0x875abfc33f0f8186)},
+      {"assign_pointer", 9u, 2u, UINT64_C(0xb6941ebe5bbeba14)},
+      {"chain_pointer", 13u, 3u, UINT64_C(0xbbf4c111cc336e9e)},
+      {"load_member", 6u, 1u, UINT64_C(0xe884a0753bb2b92c)},
+      {"aggregate_round_trip", 17u, 2u,
+       UINT64_C(0xcb112ad3602fa5a9)},
+      {"load_index", 8u, 2u, UINT64_C(0x5806c4f5a4e65f02)},
+      {"block_static", 3u, 1u, UINT64_C(0x8c5b37cafbacded7)},
+      {"volatile_round_trip", 14u, 2u,
+       UINT64_C(0xc33090682d9357a9)},
+      {"discard_pointer", 6u, 1u, UINT64_C(0x5f3eed00ffd90fc0)}};
+  ctool_u32 loads = 0u;
+  ctool_u32 stores = 0u;
+  ctool_u32 value_stores = 0u;
+  ctool_u32 file_addresses = 0u;
+  ctool_u32 local_addresses = 0u;
+  ctool_u32 member_addresses = 0u;
+  ctool_u32 indexed_addresses = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 discards = 0u;
+  ctool_u32 volatile_loads = 0u;
+  ctool_u32 wide_types = 0u;
+  ctool_u32 expected_first = 0u;
+  ctool_bool functions_valid = CTOOL_TRUE;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      unit->function_definition_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->function_count !=
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      ir->functions == NULL ||
+      ir->instructions == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->layout.type_count; index++) {
+    if (ir_type_is_wide_integer(unit, index) != 0) {
+      if (unit->layout.types[index].alignment != 4u) {
+        return 0;
+      }
+      wide_types++;
+    }
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    const ctool_c_binding_t *binding =
+        definition->binding < unit->binding_count
+            ? &unit->bindings[definition->binding]
+            : NULL;
+    uint64_t fingerprint = ir_instruction_slice_fingerprint(
+        ir, function->first_instruction, function->instruction_count);
+    if (binding == NULL ||
+        string_equal(binding->name, expected[index].name) == 0 ||
+        function->binding != definition->binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != expected_first ||
+        function->instruction_count != expected[index].instruction_count ||
+        function->maximum_stack_depth != expected[index].stack_depth ||
+        fingerprint != expected[index].fingerprint) {
+      (void)fprintf(
+          stderr,
+          "wide object function %u (%s): first=%u count=%u depth=%u "
+          "fingerprint=%016llx\n",
+          (unsigned int)index, expected[index].name,
+          (unsigned int)function->first_instruction,
+          (unsigned int)function->instruction_count,
+          (unsigned int)function->maximum_stack_depth,
+          (unsigned long long)fingerprint);
+      functions_valid = CTOOL_FALSE;
+    }
+    if (expected_first > ir->instruction_count ||
+        function->instruction_count > ir->instruction_count - expected_first) {
+      return 0;
+    }
+    expected_first += function->instruction_count;
+  }
+  if (expected_first != ir->instruction_count) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    int wide_type = ir_type_is_wide_integer(unit, instruction->type);
+    int wide_input = ir_type_is_wide_integer(unit, instruction->input_type);
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+        wide_type != 0) {
+      if (wide_input == 0 ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion !=
+              CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      loads++;
+      if (ir_type_has_volatile_qualification(unit,
+                                             instruction->input_type) != 0) {
+        volatile_loads++;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE &&
+               wide_type != 0) {
+      if (wide_input == 0 ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      stores++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_STORE_VALUE &&
+               wide_type != 0) {
+      if (wide_input == 0 ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      value_stores++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS &&
+               wide_type != 0) {
+      if (instruction->input_type != CTOOL_C_TYPE_NONE ||
+          instruction->reference == CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      file_addresses++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS &&
+               wide_type != 0) {
+      if (instruction->input_type != CTOOL_C_TYPE_NONE ||
+          instruction->reference == CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      local_addresses++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS &&
+               wide_type != 0) {
+      if (instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference == CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      member_addresses++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_POINTER_BINARY) {
+      if (instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference >= unit->layout.type_count ||
+          unit->layout.types[instruction->reference].is_integer !=
+              CTOOL_TRUE ||
+          unit->layout.types[instruction->reference].size != 4u ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      indexed_addresses++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+               wide_type != 0) {
+      if (wide_input == 0) {
+        return 0;
+      }
+      returns++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD &&
+               wide_input != 0) {
+      discards++;
+    }
+  }
+  if (functions_valid == CTOOL_FALSE || wide_types == 0u || loads != 14u ||
+      stores != 2u ||
+      value_stores != 4u || file_addresses != 1u ||
+      local_addresses != 3u || member_addresses != 3u ||
+      indexed_addresses != 1u || returns != 10u || discards != 2u ||
+      volatile_loads != 1u) {
+    (void)fprintf(
+        stderr,
+        "wide object IR inventory differs: loads=%u stores=%u "
+        "value-stores=%u files=%u locals=%u members=%u indexes=%u "
+        "returns=%u discards=%u volatile-loads=%u\n",
+        (unsigned int)loads, (unsigned int)stores,
+        (unsigned int)value_stores, (unsigned int)file_addresses,
+        (unsigned int)local_addresses, (unsigned int)member_addresses,
+        (unsigned int)indexed_addresses, (unsigned int)returns,
+        (unsigned int)discards, (unsigned int)volatile_loads);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_wide_objects(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_load_unit;
+  ctool_c_translation_unit_t atomic_store_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t second_ir;
+  uint64_t fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_load_unit, 0, sizeof(atomic_load_unit));
+  (void)memset(&atomic_store_unit, 0, sizeof(atomic_store_unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&second_ir, 0xa5, sizeof(second_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/wide-objects.c", wide_object_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "wide object lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_wide_object_ir(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &unit, &second_ir);
+  if (!check_status(status, CTOOL_OK, "repeat wide object lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_wide_object_ir(&unit, &second_ir) ||
+      ir_instruction_fingerprint(&first_ir) !=
+          ir_instruction_fingerprint(&second_ir)) {
+    (void)fprintf(stderr, "wide object lowering is not deterministic\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-atomic-load.c", wide_atomic_load_source,
+                    &atomic_load_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_load_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide atomic load") ||
+      !parse_source(job, "/wide-atomic-store.c", wide_atomic_store_source,
+                    &atomic_store_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_store_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide atomic store")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-objects: ok");
+    return 0;
+  }
+  return 1;
 }
 
 static int run_wide_returns(const char *host_root) {
@@ -20456,6 +20930,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     return run_wide_returns(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-objects") == 0) {
+    return run_wide_objects(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -20470,7 +20947,7 @@ int main(int argc, char **argv) {
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
-                "narrow-values|void-casts|wide-returns "
+                "narrow-values|void-casts|wide-returns|wide-objects "
                 "HOST_ROOT\n");
   return 2;
 }

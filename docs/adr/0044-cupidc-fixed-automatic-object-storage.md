@@ -39,3 +39,7 @@ ADR 0051 keeps block statics out of this frame allocator. Their absolute block-b
 ## Extension: compound-literal objects
 
 ADR 0052 gives each referenced block-scope compound literal one target-sized persistent automatic slot. Its absolute expression index, rather than a synthetic block binding, is the slot identity. An aggregate list root also receives a target-private staging slot of the same size and alignment, so initializer reads finish before the persistent object is replaced. The emitter places persistent slots after named automatic objects, staging slots after them, and instruction-owned structure snapshots last. Reaching the expression again reuses its slots and reruns the initializer. Recursion receives fresh slots with the rest of the function frame. The same size, alignment, displacement, overflow, and final frame-rounding checks apply.
+
+## Extension: eight-byte integer objects
+
+ADR 0066 lets a fixed automatic eight-byte integer receive a frame slot and an expression initializer. A later `LOAD` uses a separate instruction-owned eight-byte snapshot, allocated after ordinary object storage. Plain and chained stores copy from that snapshot, which prevents assignment results from aliasing the destination.

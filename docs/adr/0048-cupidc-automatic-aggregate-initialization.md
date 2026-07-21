@@ -30,7 +30,7 @@ Expanding every omitted subobject into frontend initializer records was rejected
 
 ## Consequences and evidence
 
-The focused IR fixture publishes 65 exact instructions with a maximum abstract-stack depth of three. It covers the active `no_name` shape, a nested structure and array with direct designators, a narrow integer leaf, source-order stores, and implicit zero for omitted elements. A separate structure proves that one `ZERO_OBJECT` plus one explicit store also initializes omitted bit fields and an omitted 64-bit member. Mutated selectors and array layouts fail transactionally, while an explicit 64-bit leaf keeps the unsupported-type boundary.
+The focused IR fixture publishes 65 exact instructions with a maximum abstract-stack depth of three. It covers the active `no_name` shape, a nested structure and array with direct designators, a narrow integer leaf, source-order stores, and implicit zero for omitted elements. A separate structure proves that one `ZERO_OBJECT` plus one explicit store also initializes omitted bit fields and an omitted 64-bit member. Mutated selectors and array layouts fail transactionally. An explicit 64-bit leaf marked this decision's original unsupported boundary; ADR 0066 later adds that leaf through snapshot `STORE`.
 
 The object fixture emits two functions. `aggregate_paths` initializes a 40-byte object, evaluates four calls in source order, and stores them at the selected member and element offsets. `active_zero_record` initializes the active 16-byte `{0}` structure shape. The object has seven symbols and four source-ordered `R_386_PC32` call relocations. A decoder-driven symbolic executor checks the complete zero extent, call results and order, selected store values and offsets, the EDI save and restore around zeroing, and byte-identical repeated emission.
 
@@ -42,7 +42,7 @@ Issue #25 remains open for the deferred initializer leaves, remaining aggregate 
 
 ## Extension: structure-valued leaves
 
-Supported structure-valued expression leaves later gained runtime lowering. The initializer still zeros the complete root object first and rebuilds each explicit direct-subobject path in source order. A structure leaf evaluates to an instruction-owned snapshot, then the existing `STORE` instruction copies the complete object into the selected destination. Whole-record expression initialization uses the same copy path without `ZERO_OBJECT`, and `STORE_VALUE` supplies value-preserving structure assignment. The supported object must be a complete structure with alignment no greater than four and no stored `volatile` or `_Atomic` subobject. Automatic strings, explicit bit-field leaves, unions, Cupid classes, array values, over-aligned objects, and wide or floating scalar expression leaves remain deferred. This extension changes hosted capability only.
+Supported structure-valued expression leaves later gained runtime lowering. The initializer still zeros the complete root object first and rebuilds each explicit direct-subobject path in source order. A structure leaf evaluates to an instruction-owned snapshot, then the existing `STORE` instruction copies the complete object into the selected destination. Whole-record expression initialization uses the same copy path without `ZERO_OBJECT`, and `STORE_VALUE` supplies value-preserving structure assignment. The supported object must be a complete structure with alignment no greater than four and no stored `volatile` or `_Atomic` subobject. Automatic strings, explicit bit-field leaves, unions, Cupid classes, array values, over-aligned objects, and floating scalar expression leaves remain deferred. ADR 0066 later adds eight-byte integer leaves. This extension changes hosted capability only.
 
 ## Extension: compound-literal initializers
 
@@ -53,3 +53,7 @@ Named automatic aggregate declarations still target `LOCAL_ADDRESS` directly. A 
 ## Extension: runtime narrow strings
 
 ADR 0053 accepts `STRING` roots for automatic character arrays and `STRING` leaves inside supported lists. The complete destination is still zeroed once. Each explicit string path then consumes its selected address through `COPY_STRING`, which copies only the frontend-retained bytes. This keeps trailing array elements zero and preserves the source-order rule for neighboring leaves. The i386 emitter reads the immutable bytes from a deterministic local `.rodata` symbol and uses `CLD` plus `REP MOVSB` while preserving ESI and EDI.
+
+## Extension: eight-byte integer leaves
+
+ADR 0066 adds signed and unsigned eight-byte expression leaves. The initializer walker still selects the direct member or array destination in source order. `STORE` then copies the value's eight-byte snapshot into that subobject. Floating leaves, explicit bit-field leaves, atomic subobjects, unions, and Cupid classes remain deferred.

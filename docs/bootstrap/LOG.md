@@ -5491,3 +5491,59 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Eight-byte parameters, object access, conditions, arithmetic, conversion, mutation, variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC carries eight-byte integer object values
+
+### Decision and active requirement
+
+Hosted CupidC now loads and stores signed and unsigned eight-byte integer objects. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can cross lvalue conversion. Automatic expression initialization, wide leaves in aggregate initializer lists, plain and chained assignment, casts to `void`, and return use the same value path.
+
+The complete unchanged `get_cpu_freq` function in `kernel/core/kernel.c` drives this work. It returns the file-scope `tsc_freq` object as a `uint64_t`. The earlier wide-result path could represent the return value but stopped when lvalue conversion tried to read that object.
+
+One wide `LOAD` owns one eight-byte frame snapshot. The emitter copies the selected object into that slot with `CLD` and `REP MOVSB`, while preserving ESI and EDI. `STORE` copies the snapshot without a result. `STORE_VALUE` makes the same copy and keeps the source snapshot handle for plain or chained assignment. Return uses ADR 0065 and restores the low word to EAX and the high word to EDX.
+
+This extends the existing structure-snapshot rule instead of exposing a target register pair in Linear IR. Two public stack lanes were rejected because branch joins, discard, and value identity should count one C value. Keeping a wide lvalue in EDX:EAX was rejected because later evaluation or a call could overwrite it. Borrowing the source address was rejected because a later store could change a value that C had already loaded.
+
+A volatile wide lvalue follows the same evaluated source path and bytewise copy. This does not make the access atomic or reduce it to one machine instruction. `_Atomic` eight-byte loads and stores remain unsupported because the current copy path has no ordering or indivisibility contract.
+
+Eight-byte parameters and call arguments, conditions, arithmetic, compound assignment, increment or decrement, variadic transport, and mixed-width conversion remain open. No active C or assembly source was rewritten to avoid those boundaries.
+
+ADR 0066 records the decision. ADR 0016, ADR 0018, ADR 0019, ADR 0040, ADR 0044, ADR 0047, ADR 0048, ADR 0049, ADR 0051, and ADR 0065 point forward from their earlier object, initializer, discard, and snapshot boundaries.
+
+### Contract evidence and corrections
+
+- The IR fixture contains eleven functions. It covers the active file-object load, pointer loads, an automatic round trip, plain and chained pointer assignment, an ordinary member, a wide aggregate initializer leaf, indexing, a block static, volatile access, and discard.
+- Each IR function has a fixed instruction count, maximum stack depth, and stream fingerprint. The combined stream contains fourteen wide `LOAD` instructions, two `STORE` instructions, four `STORE_VALUE` instructions, one file address, three local addresses, three member addresses, one indexed pointer operation, ten wide returns, and two discards. The volatile return is checked for a volatile-qualified load source. Repeated lowering is deterministic and leaves the input unit unchanged.
+- The deterministic ELF32 object contains 16 data bytes and 879 text bytes with fingerprint `2448A1CD`. It has fourteen symbols and two exact `R_386_32` text relocations. One lies inside `get_cpu_freq` and names `tsc_freq`; the other lies inside `block_static` and names its eight-byte local object. Shared decoding covers all eleven functions, twenty byte copies, and one complete-object zeroing sequence.
+- A decoder-driven i386 oracle relocates and executes `get_cpu_freq` and `block_static`, then checks both EDX:EAX halves against their exact data objects. It also executes plain and chained pointer assignment and checks both destinations, the unchanged source, adjacent guard words, stack restoration, and frame restoration.
+- Atomic load and store fixtures retain the focused unsupported-type diagnostic. Failure leaves the frozen translation unit intact and publishes no partial object.
+- The first focused IR run stopped at the former unsupported file-object load. Object emission stopped at the same IR boundary before it could publish output. The snapshot-backed load and store path made both modes pass without changing the active helper.
+- Several older negative fixtures became valid for the intended reason. Referenced wide block statics, fixed automatic locals, declaration initialization, wide aggregate leaves, plain assignment, and discarded wide lvalues now have positive contracts. Wide arithmetic, conditions, mutation, mixed-width conversion, parameters, and atomic access remain useful negatives.
+- The first complete repository run found six stale lexical drift locks after the contract fixtures grew. The generated audit was already correct. Updating `sizeof`, `return`, `for`, `while`, `if`, `else`, and `goto` expectations made the six focused checks pass in 123.5 seconds. The complete repository rerun then passed.
+- A post-review repository run found one last stale `sizeof` lock after the expectation tables became struct records. The canonical audit already counted the four table-bound uses. The lock and prose now record 3,571 occurrences. The exact failed test passes in 116.0 seconds, and the final complete repository rerun passes.
+- The first specification review found that the active file-object function was decoded but not executed, that the two relocations were not tied to exact function spans and symbols, and that several supported object forms had IR-only target evidence. The expanded object and execution oracles close those gaps. The review also prompted per-function IR fingerprints and an explicit volatile qualification check. Standards review found one stale audit paragraph in the bootstrap README and two parallel expectation tables. The audit text now matches the generated record, and each expectation row is one local struct value.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 174/5,329/46,660/649/212; `cupidc_emit.c` has 136/3,360/30,110/446/223; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 79,121 checked lines, and `toolchain_core` has 53,052.
+
+The generated audit records 625 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,355 `goto`, 62 `do`, 206 `switch`, 1,588 `case`, 137 `default`, 2,536 `while`, 1,738 `break`, 999 `continue`, 27,703 `if`, 3,723 `else`, 3,257 `for`, 16,900 `return`, and 3,571 `sizeof` occurrences. The canonical active-source digest is `1edc6cf0d7a8529d1c3ea6596ec5f9cc05c52623023b2934d29af1d5a87aa174`; the complete audit JSON has SHA-256 `3e61168118f9f84a2712f157a7542db09a36c954758cf33864b2b348a8448dd8`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR and object emission first stopped at the file-object load. The final `wide-objects` modes pass their positive, negative, deterministic, transactional, relocation, decoder, and execution-oracle checks. |
+| Windows hosted Toolchain | PASS | The complete hosted suite, both new registered modes, and all assembly demos pass in 30.1 seconds. A focused strict rebuild also passes after the final expectation-table cleanup. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC and Clang builds pass the complete hosted suite in 50.3 and 51.1 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the affected IR and object modes in 76.7 and 90.9 seconds, with leak detection and halt-on-error enabled. |
+| Static analysis | PASS | GCC `-fanalyzer` completes the changed contracts in 131.9 seconds, and Clang `--analyze` completes them in 37.1 seconds. Earlier passes cover both changed implementation files. Neither analyzer reports a finding. |
+| Active-source audit | PASS | `make bootstrap-audit` and `make check-bootstrap-audit` regenerate and verify the final records together in 81.4 seconds. A final standalone check passes in 39.4 seconds after the drift-lock correction. |
+| Full repository gate | PASS | The final `make test` run passes all 352 tests in 507.963 seconds with one expected platform skip; Make returns in 546.649 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 23.7 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the image and runs `/bin/ls.cc` in 18.8 seconds. |
+| Two-axis review | PASS | Standards review reports no remaining violation or judgement call. Specification review reports no remaining finding after the exact IR, relocation, decoder, and relocated execution evidence was expanded. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result verifies the unchanged production path but does not assign ownership to hosted wide object access.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Eight-byte parameters and call arguments, conditions, arithmetic, mutation, variadic values, mixed-width conversion, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

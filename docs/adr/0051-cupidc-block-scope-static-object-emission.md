@@ -32,10 +32,10 @@ The focused IR proof lowers one static integer to exactly `LOCAL_ADDRESS`, `LOAD
 
 The object proof emits eleven block statics. Its sections contain 21 bytes of `.rodata`, 56 bytes of `.data`, and 4 bytes of `.bss`. The exact local symbols run from `.LBS0.hex` through `.LBS10.unused`, including separate `.LBS8.same` and `.LBS9.same` symbols for shadowed declarations. The object has ten text, one read-only-data, and five data relocations. All sixteen are `R_386_32` with addend zero. Functions that only use block statics reserve no frame storage for them.
 
-The fixture covers constant character arrays, initialized and zero integers, arrays, structures, string-backed pointers, linked file-object and function addresses, an unresolved external object, runtime reads and writes, shadowed names, an unused object, and an unreachable object. It also serializes an unused eight-byte integer image. Loading that wide object as a runtime scalar still returns the existing unsupported-type diagnostic.
+The fixture covers constant character arrays, initialized and zero integers, arrays, structures, string-backed pointers, linked file-object and function addresses, an unresolved external object, runtime reads and writes, shadowed names, an unused object, and an unreachable object. It also serializes an unused eight-byte integer image. ADR 0066 later adds runtime access to that wide object class.
 
-Negative contracts cover missing and out-of-range roots, an initializer type mismatch, a runtime expression root in static storage, a referenced wide scalar, constrained output, rollback, deterministic repetition, and same-job recovery. The active-source guard pins `dis_hex_fixed` without modifying it.
+Negative contracts cover missing and out-of-range roots, an initializer type mismatch, a runtime expression root in static storage, constrained output, rollback, deterministic repetition, and same-job recovery. A referenced eight-byte scalar is now a positive object contract. The active-source guard pins `dis_hex_fixed` without modifying it.
 
-Static initializer addresses based on another block static remain outside the frontend's represented address forms. Wider runtime scalars, production integration, staged self-hosting, and the rest of issue #25 also remain open.
+Static initializer addresses based on another block static remain outside the frontend's represented address forms. Wide arithmetic and mutation, production integration, staged self-hosting, and the rest of issue #25 also remain open.
 
 GCC or Clang still builds this hosted proof and the normal OS C objects. No production owner, host dependency, disk image behavior, or runtime path changes in this decision. `TempleOS/` remains reference-only and untouched.
