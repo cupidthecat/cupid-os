@@ -24,7 +24,7 @@ The emitter allocates a private slot for each wide `LOAD`, after ordinary automa
 
 Volatile wide lvalues remain evaluated at their source expression and use the same bytewise transfer. This is not an atomic access and does not promise a single machine instruction. `_Atomic` eight-byte loads and stores remain rejected because the current copy sequence cannot provide their ordering or indivisibility contract.
 
-This step does not add eight-byte parameters or call arguments, conditions, arithmetic, compound assignment, increment or decrement, variadic transport, or mixed-width conversion. Those paths keep their focused diagnostics and transactional rollback.
+This step did not add eight-byte parameters or call arguments, conditions, arithmetic, compound assignment, increment or decrement, variadic transport, or mixed-width conversion. Those paths kept their focused diagnostics and transactional rollback at this decision boundary.
 
 Publishing two public stack lanes was rejected for the reasons recorded in ADR 0065. Keeping a wide lvalue in EDX:EAX was also rejected because nested evaluation, calls, and chained assignment would overwrite the value before its C lifetime ends. Treating the source address as the value was rejected because a later store could change an earlier load. The private snapshot makes the copy point explicit without exposing frame offsets or target registers in Linear IR.
 
@@ -40,4 +40,4 @@ The first IR and object runs stopped at the former unsupported file-object load.
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. The private in-kernel CupidC compiler remains the runtime JIT and AOT path. No production object, build transform, boot path, host dependency, or ownership count changes.
 
-Issue #25 remains open. Eight-byte parameters and arguments, conditions, arithmetic, mutation, variadic values, mixed-width conversion, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. Eight-byte values without declared parameter types, conditions, arithmetic, mutation, mixed-width conversion, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. ADR 0067 adds declared wide parameters and named call arguments without changing the object-copy model.

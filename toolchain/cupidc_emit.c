@@ -2756,6 +2756,10 @@ static ctool_status_t cemit_ir_argument_size(
     *size_out = 4u;
     return CTOOL_OK;
   }
+  if (cemit_ir_type_is_wide_integer(context, type) == CTOOL_TRUE) {
+    *size_out = 8u;
+    return CTOOL_OK;
+  }
   if (cemit_ir_type_is_structure_value(context, type) == CTOOL_FALSE) {
     return CTOOL_ERR_INTERNAL;
   }
@@ -2915,7 +2919,7 @@ static ctool_bool cemit_call_argument_count_is_valid(
              : CTOOL_FALSE;
 }
 
-static ctool_status_t cemit_emit_structure_call(
+static ctool_status_t cemit_emit_outgoing_area_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
     const ctool_c_type_node_t *function_type, ctool_bool direct,
@@ -3106,7 +3110,7 @@ static ctool_status_t cemit_emit_direct_call(
     ctool_u32 stack_depth) {
   const ctool_c_binding_t *binding;
   const ctool_c_type_node_t *function_type;
-  ctool_bool uses_structure;
+  ctool_bool uses_outgoing_area;
   ctool_u32 argument;
   ctool_u32 argument_bytes;
   ctool_u32 padding;
@@ -3142,30 +3146,31 @@ static ctool_status_t cemit_emit_direct_call(
       instruction->integer_bits != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
-  uses_structure = cemit_ir_type_is_structure_value(
+  uses_outgoing_area = cemit_ir_type_is_structure_value(
       context, instruction->type);
   for (argument = 0u; argument < function_type->parameter_count;
        argument++) {
     ctool_u32 parameter_type =
         context->unit->graph
             .parameter_types[function_type->first_parameter + argument];
-    if (cemit_ir_type_is_represented_scalar(context, parameter_type) ==
+    if (cemit_ir_type_is_value_scalar(context, parameter_type) ==
             CTOOL_FALSE &&
         cemit_ir_type_is_structure_value(context, parameter_type) ==
             CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
     if (cemit_ir_type_is_structure_value(context, parameter_type) ==
-        CTOOL_TRUE) {
-      uses_structure = CTOOL_TRUE;
+            CTOOL_TRUE ||
+        cemit_ir_type_is_wide_integer(context, parameter_type) == CTOOL_TRUE) {
+      uses_outgoing_area = CTOOL_TRUE;
     }
   }
   symbol = context->binding_symbols[instruction->reference];
   if (symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count) {
     return CTOOL_ERR_INTERNAL;
   }
-  if (uses_structure == CTOOL_TRUE) {
-    return cemit_emit_structure_call(
+  if (uses_outgoing_area == CTOOL_TRUE) {
+    return cemit_emit_outgoing_area_call(
         context, instruction, function_type, CTOOL_TRUE, symbol,
         temporary_offset, frame_size, stack_depth);
   }
@@ -3233,7 +3238,7 @@ static ctool_status_t cemit_emit_indirect_call(
     ctool_u32 stack_depth) {
   const ctool_c_type_node_t *pointer_type;
   const ctool_c_type_node_t *function_type;
-  ctool_bool uses_structure;
+  ctool_bool uses_outgoing_area;
   ctool_u32 argument;
   ctool_u32 argument_bytes;
   ctool_u32 consumed_bytes;
@@ -3269,26 +3274,27 @@ static ctool_status_t cemit_emit_indirect_call(
       instruction->integer_bits != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
-  uses_structure = cemit_ir_type_is_structure_value(
+  uses_outgoing_area = cemit_ir_type_is_structure_value(
       context, instruction->type);
   for (argument = 0u; argument < function_type->parameter_count;
        argument++) {
     ctool_u32 parameter_type =
         context->unit->graph
             .parameter_types[function_type->first_parameter + argument];
-    if (cemit_ir_type_is_represented_scalar(context, parameter_type) ==
+    if (cemit_ir_type_is_value_scalar(context, parameter_type) ==
             CTOOL_FALSE &&
         cemit_ir_type_is_structure_value(context, parameter_type) ==
             CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
     if (cemit_ir_type_is_structure_value(context, parameter_type) ==
-        CTOOL_TRUE) {
-      uses_structure = CTOOL_TRUE;
+            CTOOL_TRUE ||
+        cemit_ir_type_is_wide_integer(context, parameter_type) == CTOOL_TRUE) {
+      uses_outgoing_area = CTOOL_TRUE;
     }
   }
-  if (uses_structure == CTOOL_TRUE) {
-    return cemit_emit_structure_call(
+  if (uses_outgoing_area == CTOOL_TRUE) {
+    return cemit_emit_outgoing_area_call(
         context, instruction, function_type, CTOOL_FALSE,
         CTOOL_C_AST_NONE, temporary_offset, frame_size,
         stack_depth);
@@ -3385,7 +3391,7 @@ static ctool_status_t cemit_emit_ir_instruction(
             ir_instruction->type ||
         context->unit->graph.parameter_types[ir_instruction->reference] >=
             context->unit->graph.type_count ||
-        ((cemit_ir_type_is_represented_scalar(
+        ((cemit_ir_type_is_value_scalar(
               context, ir_instruction->type) == CTOOL_TRUE &&
           cemit_ir_scalar_types_match(
               context,
@@ -3399,7 +3405,7 @@ static ctool_status_t cemit_emit_ir_instruction(
               context->unit->graph
                   .parameter_types[ir_instruction->reference],
               ir_instruction->type) == CTOOL_FALSE) ||
-         (cemit_ir_type_is_represented_scalar(
+         (cemit_ir_type_is_value_scalar(
               context, ir_instruction->type) == CTOOL_FALSE &&
           cemit_ir_type_is_structure_value(
               context, ir_instruction->type) == CTOOL_FALSE)) ||

@@ -36,7 +36,7 @@ The shared x86 contract encodes and decodes `RET 4` as `C2 04 00`, rejects an im
 
 This remains hosted bootstrap evidence. The host C compiler still produces normal root and user C objects, and the private in-kernel CupidC compiler remains the runtime JIT and AOT path. No production artifact, build owner, boot path, or host dependency changes here.
 
-Issue #25 remains open. Union and Cupid class values, volatile and atomic structure access, alignment above four bytes, variadic calls, direct wide and floating runtime values, production integration, staged self-hosting, and the fixed-point bootstrap remain. ADR 0050 later added sixteen-byte alignment for every represented direct and indirect call.
+Issue #25 remains open. Union and Cupid class values, volatile and atomic structure access, alignment above four bytes, wide arithmetic and values without declared parameter types, floating runtime values, production integration, staged self-hosting, and the fixed-point bootstrap remain. ADR 0050 later added sixteen-byte alignment for every represented direct and indirect call.
 
 ## Extension: structure compound literals
 
@@ -47,3 +47,5 @@ ADR 0052 lets a supported structure compound literal build an aggregate value in
 ADR 0065 reuses the one-handle, emitter-private snapshot principle for an eight-byte integer result. It does not use the structure hidden-pointer ABI. The i386 scalar result remains in EDX:EAX until the caller copies both words into its private slot.
 
 ADR 0066 applies the structure copy rule to wide integer lvalues and stores. Each `LOAD` owns an eight-byte snapshot. `STORE_VALUE` copies those bytes and keeps the source snapshot as the assignment result, which preserves value semantics across chains without borrowing an object address.
+
+ADR 0067 passes a declared eight-byte integer in an eight-byte cdecl slot. It reuses the outgoing-area copy path but does not use the structure hidden-result rule. The callee copies the parameter into a wide snapshot before using it as a value.

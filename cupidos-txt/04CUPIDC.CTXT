@@ -130,13 +130,15 @@ four-byte stack slots, and callers and callees normalize narrow results.
 
 The shared path also carries signed and unsigned eight-byte integer values.
 Full-width constants, matching conditional arms, fixed direct and indirect
-call results, and object loads use one Linear IR handle backed by a private
-eight-byte frame snapshot. File objects, block statics, fixed automatic
-objects, pointer dereferences, ordinary members, and indexed elements can be
-initialized, loaded, assigned, chained, discarded, and returned. The i386
-return boundary places the low word in EAX and the high word in EDX.
-Eight-byte parameters and call arguments, conditions, arithmetic, mutation,
-variadic transport, and mixed-width conversion remain unsupported.
+call results, object loads, declared parameters, and named call arguments use
+one Linear IR handle backed by a private eight-byte frame snapshot. File
+objects, block statics, fixed automatic objects, pointer dereferences,
+ordinary members, and indexed elements can be initialized, loaded, assigned,
+chained, discarded, and returned. A declared wide argument occupies eight
+cdecl stack bytes, and later parameter addresses include its full width. The
+i386 return boundary places the low word in EAX and the high word in EDX.
+Values passed through an ellipsis or an unprototyped call, wide conditions,
+arithmetic, mutation, and mixed-width conversion remain unsupported.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -185,20 +187,22 @@ explicit argument bytes.
 Supported fixed direct and indirect calls place ESP on a sixteen-byte boundary
 immediately before CALL. The emitter chooses zero, four, eight, or twelve bytes
 of padding from the function frame, live Linear IR stack, and outgoing
-structure area. Nested calls and structure-result calls follow the same rule.
+structure or wide argument area. Nested calls and structure-result calls follow
+the same rule.
 
 For a scalar variadic call, the frontend applies lvalue, array, function, and
 integer default promotions to the ellipsis arguments. Linear IR retains the
 actual argument count. The emitter uses it for cdecl order, the saved indirect
 callee, stack alignment, and caller cleanup. Direct and indirect calls can
-pass represented four-byte integers and pointers.
+pass represented four-byte integers and pointers through an ellipsis. A
+declared eight-byte parameter in the named part keeps its wide slot.
 
 In GNU C mode, __builtin_va_list is a target char pointer cursor. The shared
 frontend retains start, argument, copy, and end operations. The i386 emitter
-starts the cursor after the final named cdecl parameter, reads represented
-non-atomic four-byte integer, enum, and pointer slots, and advances the cursor
-by four bytes for each read. The unchanged Doom compatibility header parses
-under its generated profile.
+starts the cursor after the full width of the final named cdecl parameter,
+reads represented non-atomic four-byte integer, enum, and pointer slots, and
+advances the cursor by four bytes for each read. The unchanged Doom
+compatibility header parses under its generated profile.
 
 An empty identifier-list definition has zero parameters and keeps its
 non-prototype function type. Direct and indirect calls without a prototype
@@ -278,7 +282,7 @@ indexing, and returns. Supported structure graphs have alignment no greater
 than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
-case, explicit bit-field initializer leaves, Boolean mutation, wide parameters
+case, explicit bit-field initializer leaves, Boolean mutation, wide conditions
 and arithmetic, floating-point runtime values, wider or aggregate variadic
 values, wide strings, literal pooling, and block-static addresses in other
 block-static initializers remain unfinished in the shared path.

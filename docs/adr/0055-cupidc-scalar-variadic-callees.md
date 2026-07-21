@@ -31,3 +31,7 @@ The IR contract pins the start, scalar copy, argument, and end sequence, its max
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, and the normal Cupid OS build still uses the host C compiler for its C objects. No production owner, image ABI, or host dependency changes in this decision.
 
 Issue #25 remains open. Old-style definitions, floating and wider runtime values, aggregate variadic values, the rest of the C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap still remain.
+
+## Extension: final named wide parameter
+
+ADR 0067 lets the final named parameter be an eight-byte integer. The shared parameter-layout operation places the first unnamed argument after all eight bytes. A focused execution oracle starts the cursor there and reads the following four-byte value. Reading an eight-byte value with `va_arg` remains unsupported.

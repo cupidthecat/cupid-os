@@ -38,4 +38,4 @@ Fixed direct calls later gained complete supported structure parameters and resu
 
 ## Extension: eight-byte integer results
 
-ADR 0065 lets a fixed direct call return an eight-byte integer without changing its represented four-byte parameter boundary. The caller snapshots EAX and EDX into instruction-owned frame storage and leaves one logical value handle. A later return restores that pair. ADR 0066 adds object loads and plain stores for the same handle. Wide parameters, variadic transport, arithmetic, mutation, and mixed-width conversion remain open.
+ADR 0065 lets a fixed direct call return an eight-byte integer without changing the parameter boundary established by this decision. The caller snapshots EAX and EDX into instruction-owned frame storage and leaves one logical value handle. A later return restores that pair. ADR 0066 adds object loads and plain stores for the same handle. ADR 0067 adds declared wide parameters and named call arguments. Wide values without a declared parameter type, arithmetic, mutation, and mixed-width conversion remain open.

@@ -26,7 +26,7 @@ The focused contract covers direct zero- and one-argument calls, a nested direct
 
 Alignment changes the bytes and relocation offsets of earlier call-bearing object proofs. Their refreshed exact oracles cover the combined function object, pre-test and post-test loops, function pointers, automatic objects, narrow calls, casts to `void`, and structure calls. The structure-value object remains 928 text bytes, with FNV fingerprint `31D58B50` after its call padding changed.
 
-This is still hosted bootstrap evidence. GCC or Clang builds the emitter and its contracts, and no normal Cupid OS C object has moved to this path. Issue #25 remains open for variadic calls, direct wide and floating runtime values, the deferred aggregate forms, whole-unit production integration, staged self-hosting, and the fixed-point bootstrap.
+This is still hosted bootstrap evidence. GCC or Clang builds the emitter and its contracts, and no normal Cupid OS C object has moved to this path. Issue #25 remains open for wide values without declared parameter types, floating runtime values, the deferred aggregate forms, whole-unit production integration, staged self-hosting, and the fixed-point bootstrap.
 
 This decision closes the call-alignment boundary recorded by ADR 0017, ADR 0043, and ADR 0049. Their original scope statements remain part of the historical record.
 
@@ -37,3 +37,7 @@ ADR 0054 applies the same alignment pass to scalar variadic calls. The public ca
 ## Extension: wide result handles
 
 ADR 0065 keeps one live Linear IR handle for an eight-byte call result. The existing control-flow analysis therefore counts one four-byte handle while the emitter stores the two target words in frame storage. Direct and indirect calls still reach a sixteen-byte ESP boundary before the call, and the private result snapshot does not change the outgoing argument calculation.
+
+## Extension: wide argument slots
+
+ADR 0067 gives each declared eight-byte argument one logical Linear IR handle and eight target bytes in the outgoing cdecl area. Call alignment counts the eight target bytes plus any represented scalar or structure slots. The handle still contributes one live semantic stack entry while arguments are being evaluated.

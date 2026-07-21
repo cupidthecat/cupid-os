@@ -5547,3 +5547,58 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Eight-byte parameters and call arguments, conditions, arithmetic, mutation, variadic values, mixed-width conversion, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC passes eight-byte integer parameters
+
+### Decision and active requirement
+
+Hosted CupidC now accepts signed and unsigned eight-byte integers in declared parameter positions. Direct and indirect calls can pass those values when the function type declares their full width. The unchanged `ctool_buffer_put_le64(ctool_buffer_t *, ctool_u64)` declaration in `toolchain/ctool.c` and its unchanged call from `toolchain/cupidasm.c` drive this boundary.
+
+A wide parameter occupies eight adjacent cdecl bytes in little-endian word order. Parameter addresses include the full size of every earlier parameter. Loading the parameter copies both words into one private eight-byte snapshot, so Linear IR still counts one C value as one stack handle.
+
+The caller reserves one outgoing area for all declared arguments. Represented scalar arguments use four bytes, wide integers use eight bytes, and structures retain their four-byte-rounded inline spans. The emitter clears the area, copies each wide snapshot into its slot, and includes the complete byte count in the existing sixteen-byte pre-call alignment calculation. Direct and indirect calls share this path. The caller removes the outgoing area and private argument handles after the call.
+
+A declared wide parameter in the named part of a variadic function follows the same rule. `va_start` begins after the full width of the final named parameter, including an eight-byte final parameter. Values passed through an ellipsis or through an unprototyped call still require the represented four-byte scalar path and receive the focused ABI diagnostic when they are wide.
+
+The complete active `ctool_buffer_put_le64` body does not compile yet. Its shifts and narrowing still need wide arithmetic and mixed-width conversion support. Wide conditions, compound mutation, increment and decrement, undeclared wide argument positions, and floating values also remain outside this increment.
+
+ADR 0067 records the design. ADR 0017, ADR 0043, ADR 0049, ADR 0050, ADR 0055, ADR 0065, and ADR 0066 point to the new parameter and call boundary.
+
+### Contract evidence and corrections
+
+- The dedicated IR fixture contains nine functions. It covers one wide parameter, mixed four-byte and eight-byte parameters, conditional selection, direct and indirect calls, a named wide parameter before an ellipsis, and a variadic cursor after a final wide parameter. The stream contains fourteen parameter addresses, eleven wide parameter loads, three wide-result direct calls, one wide-result indirect call, one narrow-result direct call, seven named wide argument positions, seven wide returns, and one complete variadic start, read, and end sequence.
+- Repeated IR lowering is deterministic, leaves the frozen frontend unit unchanged, and publishes no partial unit after a rejected ellipsis or unprototyped wide argument.
+- The deterministic ELF32 fixture contains the same nine functions, ten symbols, four `R_386_PC32` relocations with addend `-4`, and one `R_386_32` relocation with addend zero. Each relocation is tied to its caller span and intended target symbol. Shared decoding checks every wide copy, outgoing-area clear, return, and call site.
+- A relocated i386 oracle executes the single, mixed, conditional, direct, indirect, named-variadic, and cursor-after-wide cases. It checks full EDX:EAX results, original argument words, ESP restoration, and EBP restoration. The oracle now understands the `CLD`, `REP MOVSB`, and `REP STOSB` sequences used by the shared outgoing-area path.
+- The first focused IR run stopped at the old represented-scalar parameter check. The first object run then stopped at the four-byte parameter-address and argument-size assumptions. Direct and indirect call fixtures next stopped at the old declared-call restriction. Extending those exact seams made the focused modes pass without changing `ctool.c`, `cupidasm.c`, or another active OS source.
+- Three older negative fixtures became positive contracts for the intended reason: a wide parameter return, a declared direct call, and a declared indirect call. Each now uses same-width values and checks an exact IR shape. Dedicated cast and conversion cases continue to cover unsupported mixed widths.
+- The first complete hosted run exposed the emitter source-gate totals changed by the shared outgoing-area path. It also found the three stale negative contracts above. Updating those deliberate expectations made the complete hosted suite pass.
+- The first sanitizer launcher stopped at shell parsing before compilation because its symbol-check expression did not survive the Windows-to-WSL command boundary. Full-stream symbol checks replaced it. Fresh instrumented binaries then exposed both sanitizer runtimes and passed the focused modes under GCC and Clang. The failed wrapper changed no tracked file and is not counted as evidence.
+- Regenerating the active-source audit moved six deliberate lexical locks. The canonical record and its locks now agree, `make check-bootstrap-audit` reproduces the files, and the full repository suite passes the temporary-tree copy of the same check.
+- Specification review found that the IR contract counted every argument in calls with wide results instead of counting declared wide positions. It also found that the object contract did not bind each relocation to one exact caller and callee. The corrected contracts count seven wide positions and verify all five caller-to-callee mappings.
+- Standards review found old limits in the root README, ADR 0043, and the host-dependency summary. It also found stale source-gate and audit values in the current bootstrap summaries. The corrected records now describe declared wide calls and the final generated inventory. Historical log entries remain unchanged.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 174/5,329/46,660/649/212; `cupidc_emit.c` has 136/3,364/30,148/446/223; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 79,840 checked lines, and `toolchain_core` has 53,056.
+
+The generated audit records 625 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,363 `goto`, 62 `do`, 206 `switch`, 1,588 `case`, 137 `default`, 2,536 `while`, 1,738 `break`, 1,002 `continue`, 27,753 `if`, 3,732 `else`, 3,266 `for`, 16,926 `return`, and 3,607 `sizeof` occurrences. The canonical active-source digest is `b0f78c974cc7dc2733536bfdaba7d395603d37a194cd4ce2f9668276074ff8ee`; the complete audit JSON has SHA-256 `7d8c81966319b386b4127233470f8a27d479d644838fb9aaf192260640098db1`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first rejected the active wide parameter. Object emission then stopped at the four-byte parameter-address and argument-size assumptions. The final `wide-returns` modes pass their positive, negative, deterministic, transactional, relocation, decoder, and execution-oracle checks. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite, all registered IR and object modes, and all 22 assembly demos in 8.4 seconds. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC 13.3 and Clang 18.1 builds pass the complete hosted suite in 73.3 and 73.4 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds contain both runtimes and pass the affected IR and object modes with leak detection and halt-on-error enabled. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding across `cupidc_ir.c`, `cupidc_emit.c`, and the three changed C contracts. The five-file runs finish in 163.3 and 120.1 seconds. Both analyzers also pass the two post-review contract edits. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the post-review records in 39.9 seconds. The final reproduction check passes in 39.4 seconds after the four lexical drift locks are updated. |
+| Full repository gate | PASS | The final `make test` run passes all 352 tests in 524.101 seconds with one expected platform skip; Make returns in 565.9 seconds. |
+| Production image build | PASS | The final `make all` run rebuilds and stages the normal image in 21.4 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 20 seconds with the established 0.60-second key timing. CupidC emits 911 code bytes and 71 data bytes, reaches `JIT execution complete`, and reports zero stack bytes used. The accepted log contains no panic or exception marker. |
+| Two-axis review | PASS AFTER CONTRACT AND DOC FIXES | Specification review prompted exact wide-position and relocation checks. Standards review prompted current-summary corrections. The final review reports no implementation or documentation blocker. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles. The private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result checks the rebuilt OS but does not assign production ownership to the hosted wide-parameter path.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide shifts, arithmetic, conditions, mutation, mixed-width conversion, undeclared wide argument positions, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

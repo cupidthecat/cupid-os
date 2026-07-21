@@ -719,7 +719,7 @@ static const char function_pointer_value_source[] =
 
 static const char wide_function_pointer_source[] =
     "typedef long long (*wide_callback_t)(long long);\n"
-    "int call_wide(wide_callback_t callback) { return callback(1); }\n";
+    "long long call_wide(wide_callback_t callback) { return callback(1LL); }\n";
 
 static const char wide_return_source[] =
     "typedef unsigned int ctool_u32;\n"
@@ -743,8 +743,51 @@ static const char wide_return_source[] =
     "void discard_mask(void) { integer_mask(WIDE_I32); }\n";
 
 static const char wide_parameter_source[] =
+    "typedef unsigned int ctool_u32;\n"
     "typedef unsigned long long ctool_u64;\n"
-    "ctool_u64 pass_wide(ctool_u64 value) { return value; }\n";
+    "typedef __builtin_va_list va_list;\n"
+    "typedef ctool_u64 (*wide_callback_t)(ctool_u32, ctool_u64,\n"
+    "                                     ctool_u32, ctool_u64);\n"
+    "ctool_u64 pass_wide(ctool_u64 value) { return value; }\n"
+    "ctool_u64 choose_wide(ctool_u32 choose_second, ctool_u64 first,\n"
+    "                       ctool_u32 marker, ctool_u64 second) {\n"
+    "  (void)marker;\n"
+    "  return choose_second ? second : first;\n"
+    "}\n"
+    "ctool_u64 call_wide(ctool_u64 value) { return pass_wide(value); }\n"
+    "ctool_u64 call_mixed(ctool_u64 first, ctool_u64 second) {\n"
+    "  return choose_wide(1u, first, 0xa5a5a5a5u, second);\n"
+    "}\n"
+    "ctool_u64 call_indirect(ctool_u32 choose_second, ctool_u64 first,\n"
+    "                         ctool_u64 second) {\n"
+    "  wide_callback_t callback = choose_wide;\n"
+    "  return callback(choose_second, first, 0x5a5a5a5au, second);\n"
+    "}\n"
+    "ctool_u64 variadic_named(ctool_u64 value, ...) { return value; }\n"
+    "ctool_u64 call_variadic_named(ctool_u64 value) {\n"
+    "  return variadic_named(value, 0x13579bdfu);\n"
+    "}\n"
+    "ctool_u32 read_after_wide(ctool_u64 value, ...) {\n"
+    "  va_list arguments;\n"
+    "  ctool_u32 next;\n"
+    "  __builtin_va_start(arguments, value);\n"
+    "  next = __builtin_va_arg(arguments, ctool_u32);\n"
+    "  __builtin_va_end(arguments);\n"
+    "  return next;\n"
+    "}\n"
+    "ctool_u32 call_read_after_wide(ctool_u64 value) {\n"
+    "  return read_after_wide(value, 0x13579bdfu);\n"
+    "}\n";
+
+static const char wide_variadic_argument_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "void sink(int marker, ...);\n"
+    "void pass_variadic(ctool_u64 value) { sink(0, value); }\n";
+
+static const char wide_unprototyped_argument_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "void sink();\n"
+    "void pass_unprototyped(ctool_u64 value) { sink(value); }\n";
 
 static const char wide_arithmetic_source[] =
     "typedef unsigned long long ctool_u64;\n"
@@ -855,6 +898,13 @@ static const char active_invocation_body_check[] =
 
 static const char active_invocation_body_call[] =
     "    status = body(&invocation, user_data);";
+
+static const char active_wide_parameter_function[] =
+    "ctool_status_t ctool_buffer_put_le64(ctool_buffer_t *buffer, "
+    "ctool_u64 value) {";
+
+static const char active_wide_argument_call[] =
+    "              status = ctool_buffer_put_le64(output, evaluated);";
 
 static const char active_linker_selector_call[] =
     "          selector(section, selector_context) == CTOOL_TRUE &&";
@@ -1311,7 +1361,9 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data,
              active_invocation_body_check) == NULL ||
       strstr((const char *)source.contents.data,
-             active_invocation_body_call) == NULL) {
+             active_invocation_body_call) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_wide_parameter_function) == NULL) {
     (void)fprintf(stderr, "an active CupidC source guard changed\n");
     return 0;
   }
@@ -1380,7 +1432,9 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   if (!check_status(status, CTOOL_OK, "load active assembler source") ||
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data, active_branch_fits) == NULL ||
-      strstr((const char *)source.contents.data, active_asm_lower) == NULL) {
+      strstr((const char *)source.contents.data, active_asm_lower) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_wide_argument_call) == NULL) {
     (void)fprintf(stderr, "an active assembler helper changed\n");
     return 0;
   }
@@ -6986,7 +7040,7 @@ static int run_active_leaf(const char *host_root) {
       "int wide_cast(int value) { return (long long)value; }\n";
   static const char wide_call_source[] =
       "int wide_target(long long value);\n"
-      "int call_wide(void) { return wide_target(1); }\n";
+      "int call_wide(void) { return wide_target(1LL); }\n";
   static const char wide_comparison_source[] =
       "int wide_less_equal(void) { return 1LL <= 2LL; }\n";
   static const char wide_logical_or_source[] =
@@ -9296,14 +9350,28 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-call.c", wide_call_source,
-                    &wide_call_unit) ||
-      !expect_ir_failure(
-          job, &wide_call_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports calls with "
-          "represented scalar or structure arguments and void, scalar, or "
-          "structure results",
-          "wide direct call")) {
+                    &wide_call_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&wide_call_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &wide_call_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide direct call lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_call_unit) != fingerprint ||
+      wide_call_unit.function_definition_count != 1u ||
+      ir.function_count != 1u || ir.instruction_count != 3u ||
+      ir.functions == NULL || ir.instructions == NULL ||
+      ir.functions[0].instruction_count != 3u ||
+      ir.functions[0].maximum_stack_depth != 1u ||
+      ir.instructions[0].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      ir.instructions[0].integer_bits != 1u ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+      ir.instructions[1].argument_count != 1u ||
+      ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+    (void)fprintf(stderr, "wide direct call IR differs\n");
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   if (!parse_source(job, "/variadic-call.c", variadic_call_source,
@@ -9342,14 +9410,32 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (!parse_source(job, "/unsupported-abi.c", abi_source, &abi_unit) ||
-      !expect_ir_failure(
-          job, &abi_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports cdecl functions with represented "
-          "scalar or structure parameters and void, scalar, or structure "
-          "results",
-          "unsupported ABI")) {
+  if (!parse_source(job, "/wide-parameter.c", abi_source, &abi_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&abi_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &abi_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide parameter lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&abi_unit) != fingerprint ||
+      abi_unit.function_definition_count != 1u ||
+      abi_unit.parameter_count != 1u || ir.function_count != 1u ||
+      ir.instruction_count != 3u || ir.functions == NULL ||
+      ir.instructions == NULL || ir.functions[0].instruction_count != 3u ||
+      ir.functions[0].maximum_stack_depth != 1u ||
+      ir.instructions[0].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      ir.instructions[0].type != abi_unit.parameters[0].type ||
+      ir.instructions[0].reference != 0u ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      ir.instructions[1].type != abi_unit.parameters[0].type ||
+      ir.instructions[1].input_type != abi_unit.parameters[0].type ||
+      ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      ir.instructions[2].type != abi_unit.parameters[0].type) {
+    (void)fprintf(stderr, "wide parameter IR differs\n");
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
 
@@ -13236,13 +13322,38 @@ static int run_function_pointers(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-function-pointer.c",
-                    wide_function_pointer_source, &wide_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_unit, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports calls with "
-          "represented scalar or structure arguments and void, scalar, or "
-          "structure results",
-          "wide indirect call")) {
+                    wide_function_pointer_source, &wide_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&wide_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &wide_unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide indirect call lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_unit) != fingerprint ||
+      wide_unit.function_definition_count != 1u || ir.function_count != 1u ||
+      ir.instruction_count != 5u || ir.functions == NULL ||
+      ir.instructions == NULL || ir.functions[0].instruction_count != 5u ||
+      ir.functions[0].maximum_stack_depth != 2u ||
+      ir.instructions[0].kind !=
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      ir.instructions[0].reference >= wide_unit.parameter_count ||
+      ir.instructions[0].type !=
+          wide_unit.parameters[ir.instructions[0].reference].type ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      ir.instructions[1].type != ir.instructions[0].type ||
+      ir.instructions[1].input_type != ir.instructions[0].type ||
+      ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      ir.instructions[2].integer_bits != 1u ||
+      ir.instructions[3].kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+      ir.instructions[3].type != ir.instructions[2].type ||
+      ir.instructions[3].input_type != ir.instructions[1].type ||
+      ir.instructions[3].argument_count != 1u ||
+      ir.instructions[4].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      ir.instructions[4].type != ir.instructions[3].type) {
+    (void)fprintf(stderr, "wide indirect call IR differs\n");
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   if (!parse_source(job, "/atomic-function-pointer.c",
@@ -20469,6 +20580,199 @@ static int validate_wide_return_ir(const ctool_c_translation_unit_t *unit,
              : 0;
 }
 
+static int wide_call_named_argument_count(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_u32 *wide_count_out) {
+  const ctool_c_type_node_t *function;
+  ctool_u32 parameter;
+  if (unit == NULL || instruction == NULL || wide_count_out == NULL ||
+      instruction->input_type >= unit->graph.type_count ||
+      (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+       instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT)) {
+    return 0;
+  }
+  *wide_count_out = 0u;
+  function = &unit->graph.types[instruction->input_type];
+  if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+    if (function->kind != CTOOL_C_TYPE_POINTER ||
+        function->referenced_type >= unit->graph.type_count) {
+      return 0;
+    }
+    function = &unit->graph.types[function->referenced_type];
+  }
+  if (function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->has_prototype != CTOOL_TRUE ||
+      function->first_parameter > unit->graph.parameter_type_count ||
+      function->parameter_count >
+          unit->graph.parameter_type_count - function->first_parameter ||
+      instruction->argument_count < function->parameter_count) {
+    return 0;
+  }
+  for (parameter = 0u; parameter < function->parameter_count; parameter++) {
+    if (ir_type_is_wide_integer(
+            unit, unit->graph.parameter_types
+                      [function->first_parameter + parameter]) != 0) {
+      (*wide_count_out)++;
+    }
+  }
+  return 1;
+}
+
+static int validate_wide_parameter_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 parameter_addresses = 0u;
+  ctool_u32 wide_parameter_addresses = 0u;
+  ctool_u32 wide_loads = 0u;
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 wide_call_arguments = 0u;
+  ctool_u32 narrow_direct_calls = 0u;
+  ctool_u32 narrow_call_arguments = 0u;
+  ctool_u32 wide_returns = 0u;
+  ctool_u32 narrow_returns = 0u;
+  ctool_u32 variadic_starts = 0u;
+  ctool_u32 variadic_arguments = 0u;
+  ctool_u32 variadic_ends = 0u;
+  ctool_u32 expected_first = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      unit->function_definition_count != 9u ||
+      unit->parameter_count != 19u || ir->function_count != 9u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr,
+                  "wide parameter IR shape differs: definitions=%u "
+                  "parameters=%u functions=%u instructions=%u\n",
+                  unit == NULL ? 0u
+                               : (unsigned int)unit->function_definition_count,
+                  unit == NULL ? 0u : (unsigned int)unit->parameter_count,
+                  ir == NULL ? 0u : (unsigned int)ir->function_count,
+                  ir == NULL ? 0u : (unsigned int)ir->instruction_count);
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    if (function->binding != definition->binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != expected_first ||
+        function->instruction_count == 0u ||
+        function->maximum_stack_depth == 0u ||
+        function->instruction_count >
+            ir->instruction_count - expected_first) {
+      (void)fprintf(stderr,
+                    "wide parameter function %u differs: first=%u "
+                    "count=%u depth=%u expected-first=%u\n",
+                    (unsigned int)index,
+                    (unsigned int)function->first_instruction,
+                    (unsigned int)function->instruction_count,
+                    (unsigned int)function->maximum_stack_depth,
+                    (unsigned int)expected_first);
+      return 0;
+    }
+    expected_first += function->instruction_count;
+  }
+  if (expected_first != ir->instruction_count) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind ==
+        CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS) {
+      if (instruction->reference >= unit->parameter_count ||
+          unit->parameters[instruction->reference].type !=
+              instruction->type ||
+          instruction->input_type != CTOOL_C_TYPE_NONE) {
+        return 0;
+      }
+      parameter_addresses++;
+      if (ir_type_is_wide_integer(unit, instruction->type) != 0) {
+        wide_parameter_addresses++;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+               ir_type_is_wide_integer(unit, instruction->type) != 0) {
+      if (ir_type_is_wide_integer(unit, instruction->input_type) == 0 ||
+          instruction->conversion !=
+              CTOOL_C_CONVERSION_LVALUE_TO_VALUE) {
+        return 0;
+      }
+      wide_loads++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+               instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+      ctool_u32 call_wide_arguments;
+      if (!wide_call_named_argument_count(
+              unit, instruction, &call_wide_arguments) ||
+          wide_call_arguments > 0xffffffffu - call_wide_arguments) {
+        return 0;
+      }
+      wide_call_arguments += call_wide_arguments;
+      if (ir_type_is_wide_integer(unit, instruction->type) != 0) {
+        if (instruction->argument_count != 1u &&
+            instruction->argument_count != 2u &&
+            instruction->argument_count != 4u) {
+          return 0;
+        }
+        if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+          direct_calls++;
+        } else {
+          indirect_calls++;
+        }
+      } else {
+        if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+            instruction->argument_count != 2u) {
+          return 0;
+        }
+        narrow_direct_calls++;
+        narrow_call_arguments += instruction->argument_count;
+      }
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+      if (ir_type_is_wide_integer(unit, instruction->type) != 0) {
+        if (ir_type_is_wide_integer(unit, instruction->input_type) == 0) {
+          return 0;
+        }
+        wide_returns++;
+      } else {
+        narrow_returns++;
+      }
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_VARIADIC_START) {
+      variadic_starts++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT) {
+      variadic_arguments++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_VARIADIC_END) {
+      variadic_ends++;
+    }
+  }
+  if (parameter_addresses != 14u || wide_parameter_addresses != 11u ||
+      wide_loads != 11u || direct_calls != 3u || indirect_calls != 1u ||
+      wide_call_arguments != 7u || narrow_direct_calls != 1u ||
+      narrow_call_arguments != 2u || wide_returns != 7u ||
+      narrow_returns != 2u || variadic_starts != 1u ||
+      variadic_arguments != 1u || variadic_ends != 1u) {
+    (void)fprintf(
+        stderr,
+        "wide parameter IR inventory differs: parameters=%u wide=%u "
+        "loads=%u direct=%u indirect=%u wide-arguments=%u narrow-calls=%u "
+        "narrow-arguments=%u returns=%u/%u variadic=%u/%u/%u\n",
+        (unsigned int)parameter_addresses,
+        (unsigned int)wide_parameter_addresses, (unsigned int)wide_loads,
+        (unsigned int)direct_calls, (unsigned int)indirect_calls,
+        (unsigned int)wide_call_arguments, (unsigned int)narrow_direct_calls,
+        (unsigned int)narrow_call_arguments, (unsigned int)wide_returns,
+        (unsigned int)narrow_returns, (unsigned int)variadic_starts,
+        (unsigned int)variadic_arguments, (unsigned int)variadic_ends);
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_wide_object_ir(const ctool_c_translation_unit_t *unit,
                                    const ctool_c_ir_unit_t *ir) {
   static const struct {
@@ -20748,20 +21052,31 @@ static int run_wide_returns(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t parameter_unit;
+  ctool_c_translation_unit_t variadic_argument_unit;
+  ctool_c_translation_unit_t unprototyped_argument_unit;
   ctool_c_translation_unit_t arithmetic_unit;
   ctool_c_translation_unit_t conversion_unit;
   ctool_c_ir_unit_t first_ir;
   ctool_c_ir_unit_t second_ir;
+  ctool_c_ir_unit_t parameter_ir;
+  ctool_c_ir_unit_t parameter_repeat_ir;
   uint64_t fingerprint;
   ctool_u32 diagnostic_count;
   ctool_status_t status;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&parameter_unit, 0, sizeof(parameter_unit));
+  (void)memset(&variadic_argument_unit, 0,
+               sizeof(variadic_argument_unit));
+  (void)memset(&unprototyped_argument_unit, 0,
+               sizeof(unprototyped_argument_unit));
   (void)memset(&arithmetic_unit, 0, sizeof(arithmetic_unit));
   (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
   (void)memset(&first_ir, 0xa5, sizeof(first_ir));
   (void)memset(&second_ir, 0xa5, sizeof(second_ir));
+  (void)memset(&parameter_ir, 0xa5, sizeof(parameter_ir));
+  (void)memset(&parameter_repeat_ir, 0xa5,
+               sizeof(parameter_repeat_ir));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job) ||
       !parse_source(job, "/wide-returns.c", wide_return_source, &unit)) {
@@ -20787,15 +21102,52 @@ static int run_wide_returns(const char *host_root) {
     (void)fprintf(stderr, "wide return lowering is not deterministic\n");
     goto cleanup;
   }
-  if (!parse_source(job, "/wide-parameter.c", wide_parameter_source,
-                    &parameter_unit) ||
+  if (!parse_source_mode(job, "/wide-parameter.c", wide_parameter_source,
+                         CTOOL_TRUE, &parameter_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&parameter_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &parameter_unit, &parameter_ir);
+  if (!check_status(status, CTOOL_OK, "wide parameter lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&parameter_unit) != fingerprint ||
+      !validate_wide_parameter_ir(&parameter_unit, &parameter_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &parameter_unit,
+                            &parameter_repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat wide parameter lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&parameter_unit) != fingerprint ||
+      !validate_wide_parameter_ir(&parameter_unit,
+                                  &parameter_repeat_ir) ||
+      ir_instruction_fingerprint(&parameter_ir) !=
+          ir_instruction_fingerprint(&parameter_repeat_ir)) {
+    (void)fprintf(stderr,
+                  "wide parameter lowering is not deterministic\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/wide-variadic-argument.c",
+                    wide_variadic_argument_source,
+                    &variadic_argument_unit) ||
       !expect_ir_failure_preserves_unit(
-          job, &parameter_unit, CTOOL_ERR_UNSUPPORTED,
+          job, &variadic_argument_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports cdecl functions with represented "
-          "scalar or structure parameters and void, scalar, or structure "
-          "results",
-          "wide parameter ABI") ||
+          "CupidC IR lowering supports arguments without declared "
+          "parameter types only for represented scalar values",
+          "wide variadic argument") ||
+      !parse_source(job, "/wide-unprototyped-argument.c",
+                    wide_unprototyped_argument_source,
+                    &unprototyped_argument_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &unprototyped_argument_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports arguments without declared "
+          "parameter types only for represented scalar values",
+          "wide unprototyped argument") ||
       !parse_source(job, "/wide-arithmetic.c", wide_arithmetic_source,
                     &arithmetic_unit) ||
       !expect_ir_failure_preserves_unit(

@@ -4272,8 +4272,7 @@ static ctool_status_t cir_lower_call(
     if (argument_type >= context->unit->graph.type_count) {
       return cir_invalid_unit(context, &expression->location);
     }
-    if (cir_type_is_represented_scalar(context, argument_type) ==
-        CTOOL_FALSE) {
+    if (cir_type_is_value_scalar(context, argument_type) == CTOOL_FALSE) {
       if (cir_type_is_structure_candidate(context, argument_type) ==
           CTOOL_FALSE) {
         return cir_emit_failure(
@@ -4295,8 +4294,7 @@ static ctool_status_t cir_lower_call(
     }
     if (context->stack_depth != argument_base + argument + 1u ||
         context->stack[argument_base + argument].kind != CIR_STACK_VALUE ||
-        (cir_type_is_represented_scalar(context, argument_type) ==
-                 CTOOL_TRUE
+        (cir_type_is_value_scalar(context, argument_type) == CTOOL_TRUE
              ? (context->stack[argument_base + argument].type !=
                         argument_type &&
                 cir_scalar_value_types_match(
@@ -4628,8 +4626,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
             expression->type) {
       return cir_invalid_unit(context, &expression->location);
     }
-    if (cir_type_is_represented_scalar(context, expression->type) ==
-        CTOOL_FALSE) {
+    if (cir_type_is_value_scalar(context, expression->type) == CTOOL_FALSE) {
       status = cir_require_structure_value(
           context, expression->type, &expression->location);
       if (status != CTOOL_OK) {
@@ -8674,12 +8671,10 @@ static ctool_status_t cir_lower_function(
       return cir_invalid_unit(
           context, &context->unit->parameters[absolute].location);
     }
-    if (cir_type_is_represented_scalar(context, declared_type) == CTOOL_TRUE ||
-        cir_type_is_represented_scalar(context, object_type) == CTOOL_TRUE) {
-      if (cir_type_is_represented_scalar(context, declared_type) ==
-              CTOOL_FALSE ||
-          cir_type_is_represented_scalar(context, object_type) ==
-              CTOOL_FALSE ||
+    if (cir_type_is_value_scalar(context, declared_type) == CTOOL_TRUE ||
+        cir_type_is_value_scalar(context, object_type) == CTOOL_TRUE) {
+      if (cir_type_is_value_scalar(context, declared_type) == CTOOL_FALSE ||
+          cir_type_is_value_scalar(context, object_type) == CTOOL_FALSE ||
           cir_scalar_value_types_match(context, declared_type, object_type) ==
               CTOOL_FALSE) {
         return cir_invalid_unit(
