@@ -5382,3 +5382,60 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Bit-field compound assignments and updates, other storage-unit sizes, atomic access, broader values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC lowers represented bit-field mutation
+
+### Decision and requirement
+
+Hosted CupidC now lowers all ten compound assignments and all four prefix and postfix updates for represented non-atomic integer bit fields. The field must use a four-byte storage unit that fits inside its record. This completes the mutation family left open by ADR 0063 without weakening an OS source file.
+
+No unchanged active Cupid OS expression currently mutates a bit field. Doom still anchors the real layout, read, and plain-assignment paths, while issue #25 calls for the complete C surface needed by the OS and its vendored code. This increment therefore advances that documented compiler roadmap without claiming production-source ownership or retiring a host dependency.
+
+Standards review stopped the commit because the repository normally requires each toolchain slice to serve an unchanged active source. On July 21, 2026, the user approved this represented bit-field mutation work as a narrow exception. The exception does not change the rule for later work. A future slice still needs an active-source requirement unless the user approves another exception.
+
+The new IR path preserves the record designator once, duplicates its completed address, loads the old field value, performs the promoted operation, and stores the converted result. Postfix forms keep the old promoted value on a separate stack lane instead of trying to reconstruct it after truncation or wrap. Prefix forms return the value represented by the stored field. The public instruction enum gained `BIT_FIELD_STORE_OLD_VALUE` at the end, so existing instruction numbers remain stable.
+
+Integer promotion follows the target field range. A narrow unsigned `int` bit field promotes to signed `int` when every value fits; a full-width unsigned field remains unsigned. Division, remainder, shifts, and comparisons in the mutation path therefore select signed or unsigned i386 behavior from the promoted type rather than the declaration spelling alone.
+
+A full-width volatile field is supported with one volatile load and one direct store. Partial volatile mutation remains rejected because the current partial store instruction performs its own complete-unit read after the mutation path has already loaded the old field. Accepting that sequence would promise volatile behavior while issuing two reads. Atomic fields, `_Bool`, character-sized units, compact packed units that cross their record, and storage units other than four bytes remain outside this step.
+
+Reconstructing a postfix result from the stored value was rejected because truncation and wrap can destroy the old value. Treating every unsigned `int` bit field as unsigned was rejected because narrow fields undergo integer promotion. Accepting partial volatile mutation with the current read-modify-write store was rejected because it would duplicate the volatile read. The final model carries the old lane explicitly and keeps the unsupported volatile case visible.
+
+ADR 0064 records the mutation contract and its roadmap provenance. ADR 0016, ADR 0019 through ADR 0029, ADR 0039, ADR 0046, and ADR 0063 now point forward to the completed represented mutation family and retain their historical boundaries.
+
+### Contract evidence and corrections
+
+- The IR contract covers `*=`, `/=`, `%=`, `+=`, `-=`, `<<=`, `>>=`, `&=`, `^=`, and `|=`, together with prefix and postfix increment and decrement. Exact graphs check result order, target-width promotion, signed and unsigned operations, full-width volatile access, deterministic lowering, and transactional recovery.
+- Useful negatives cover character-sized, Boolean, atomic, compact packed, and partial volatile fields. Additional malformed graph and layout cases leave the previously published unit untouched and allow the next function to lower in the same job.
+- The deterministic ELF32 object contains 20 functions, 1,415 bytes of `.text`, 21 symbols including the null symbol, and no relocations. Its decoded i386 oracle executes every compound operator, signed and unsigned wrap, prefix and postfix results, neighboring-bit preservation, the full-width volatile path, argument preservation, stack restoration, and guard integrity.
+- The first execution oracle used only simple pointer designators. Specification review correctly noted that this did not prove the single-evaluation promise. The final object adds `states[(*index)++].value++`: it returns the old value 7, changes only element 1, wraps that field, leaves element 0 alone, and advances the index from 1 to 2 exactly once.
+- Review also found that decoder counters named `storage_loads` and `storage_stores` described a narrower instruction pattern than their names implied. They are now `eax_indirect_loads` and `memory_stores`, and the side-effect case checks both expected memory writes.
+- Standards and specification review both found that this chronological log entry was missing. Standards review also asked for an honest active-source requirement. This entry records that the work comes from issue #25 and the complete C mutation roadmap, while Doom anchors only the already active bit-field layout, read, and plain-assignment behavior.
+- The first sanitizer invocation through a Windows-to-WSL Make wrapper dropped the sanitizer flag list at the shell boundary. That attempt is excluded. Direct compiler invocations preserved the flags, linked both runtimes, and passed the focused IR and object modes under GCC and Clang.
+- Replacing the former unsupported-expression fixtures exposed that their diagnostic was no longer reachable through valid mutation syntax. The final fixtures use deliberately malformed AST expression kinds, so the diagnostic and same-job recovery behavior remain covered without misrepresenting supported C.
+- The implementation semantics did not need a user choice. C integer-promotion and compound-assignment rules, the existing four-byte field representation, and ADR 0063 determine the behavior. The user was asked one process question after Standards review: whether issue #25 could advance this exact mutation slice despite the lack of an unchanged active expression. The user approved that exception on July 21, 2026.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 171/5,307/46,421/647/212; `cupidc_emit.c` has 128/3,233/29,078/434/215; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 77,205 checked lines, and `toolchain_core` has 52,764.
+
+The generated audit records 625 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,330 `goto`, 62 `do`, 206 `switch`, 1,588 `case`, 137 `default`, 2,531 `while`, 1,738 `break`, 995 `continue`, 27,499 `if`, 3,689 `else`, 3,245 `for`, 16,766 `return`, and 3,528 `sizeof` occurrences. The canonical active-source digest is `e9a5288e4f392789d15646ca62e5bc2057cf854b514edd27c3fc3be8c2850973`; the complete audit JSON has SHA-256 `347aabb6c4c850388010ef1f7e9a7ba8300284b61e211ac6bd383fc7bfb14db8`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first stopped at the former compound-mutation boundary. Object emission then stopped at the new old-value store instruction. The final positive, negative, malformed, deterministic, and recovery cases pass together. |
+| Focused CupidC modules | PASS | All 110 frontend, IR, and object tests pass in 26.002 seconds after the side-effecting designator oracle was added. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite, both registered `bit-field-mutations` modes, and all 22 assembly demos in 14.4 seconds. |
+| WSL sanitizers | PASS | Fresh GCC 13.3 and Clang 18.1 AddressSanitizer and UndefinedBehaviorSanitizer builds pass the corrected object mode in 46.1 and 53.8 seconds. Earlier instrumented runs cover the focused IR and object modes together. |
+| Static analysis | PASS | GCC 13.3 `-fanalyzer` and Clang 18.1 `--analyze` report no finding across the changed implementation and contract files. The corrected object contract passes fresh checks in 24.1 and 17.3 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 39.0 seconds, and `make check-bootstrap-audit` reproduces them in 38.3 seconds. |
+| Full repository gate | PASS | `make test` passes all 352 tests in 504.632 seconds with one expected platform skip; Make returns in 544.2 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 21.5 seconds. Later review corrections changed only tests and prose, not an image input. |
+| Emulator gate | PASS | The rebuilt image passes the GUI terminal smoke with `/bin/ls.cc` in 18.6 seconds. Later review corrections did not change the image. |
+| Two-axis review | PASS AFTER APPROVAL | Specification review is clean after the side-effecting designator oracle was added. Standards review is clean after the user-approved sequencing exception was recorded in ADR 0064 and this log. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result verifies the unchanged production path but does not assign ownership to hosted bit-field mutation.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Other bit-field storage units, partial volatile mutation, atomic ordering, wider and floating values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

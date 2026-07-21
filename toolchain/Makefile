@@ -420,6 +420,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) block-functions ..
 	$(CUPIDC_IR_CONTRACT) block-enums ..
 	$(CUPIDC_IR_CONTRACT) bit-field-stores ..
+	$(CUPIDC_IR_CONTRACT) bit-field-mutations ..
 	$(CUPIDC_IR_CONTRACT) block-typedefs ..
 	$(CUPIDC_IR_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_IR_CONTRACT) structure-values ..
@@ -440,6 +441,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) block-functions ..
 	$(CUPIDC_OBJECT_CONTRACT) block-enums ..
 	$(CUPIDC_OBJECT_CONTRACT) bit-field-stores ..
+	$(CUPIDC_OBJECT_CONTRACT) bit-field-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) block-typedefs ..
 	$(CUPIDC_OBJECT_CONTRACT) aggregate-initializers ..
 	$(CUPIDC_OBJECT_CONTRACT) structure-values ..

@@ -22,13 +22,13 @@ Qualified volatile destinations keep their qualified type on the address path an
 
 The i386 emitter gives `DUPLICATE_ADDRESS` the same machine sequence as value duplication: `POP EAX`, `PUSH EAX`, and `PUSH EAX`. The separate public IR kind preserves the address/value distinction even though both represented values occupy one 32-bit machine word.
 
-This decision did not add pointer arithmetic, bit-field writes, narrow or wide integer mutation, floating or aggregate mutation, or atomic ordering. ADR 0042 later adds pointer mutation, ADR 0046 adds non-Boolean byte and word integer mutation, and ADR 0063 adds plain bit-field assignment without adding bit-field mutation. The hosted scope remains unchanged. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
+This decision did not add pointer arithmetic, bit-field writes, narrow or wide integer mutation, floating or aggregate mutation, or atomic ordering. ADR 0042 later adds pointer mutation, ADR 0046 adds non-Boolean byte and word integer mutation, ADR 0063 adds plain bit-field assignment, and ADR 0064 adds represented four-byte bit-field mutation. The hosted scope remains unchanged. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path.
 
 ## Consequences and evidence
 
 The update contract covers prefix increment, prefix decrement, postfix increment, and postfix decrement in 32 exact IR instructions. The general compound contract covers all ten operators plus signed division and signed right shift in 102 exact instructions. Conversion contracts cover enum promotion, volatile access, mixed signed and unsigned operands, and a signed enum that needs both promotion and usual arithmetic conversion.
 
-Active-source guards pin the three unchanged `ctool.c` statements. The original atomic, pointer, narrow, wide, and bit-field fixtures retained precise unsupported diagnostics. Later pointer and narrow decisions replaced those two negative cases with positive contracts while keeping Boolean, atomic, wide, and bit-field boundaries explicit. Mutated frozen units reject a missing update operator and an out-of-range computation type. Every failure leaves the public result empty, rewinds operation allocations, and preserves the input translation unit.
+Active-source guards pin the three unchanged `ctool.c` statements. The original atomic, pointer, narrow, wide, and bit-field fixtures retained precise unsupported diagnostics. Later pointer, narrow, and represented four-byte bit-field decisions replaced those negative cases with positive contracts while keeping Boolean, atomic, wide, and out-of-slice bit-field boundaries explicit. Mutated frozen units reject a missing update operator and an out-of-range computation type. Every failure leaves the public result empty, rewinds operation allocations, and preserves the input translation unit.
 
 The deterministic mutation object contains four functions of 35, 45, 78, and 43 bytes. Its 201-byte text section covers prefix update, postfix update, multiplication assignment, logical right-shift assignment, and a file-object update. It has six symbols, one four-byte BSS object, and one `R_386_32` relocation at text offset 162. Repeated emission is byte-identical. CupidDis decodes the complete text and finds three additions, two subtractions, one multiplication, one logical right shift, and four returns.
 
@@ -36,4 +36,4 @@ The first update and compound contracts reached the public unsupported-expressio
 
 No active source was weakened or rewritten. This change transfers no production build ownership, removes no host dependency, changes no kernel artifact, and makes no boot claim.
 
-Issue #25 remains open. Boolean and bit-field mutation, 64-bit integers, floating and aggregate values, atomic ordering, broader address forms and calls, production integration, staged self-hosting, and the final fixed-point bootstrap remain.
+Issue #25 remains open. Boolean mutation, bit fields outside the represented four-byte boundary, 64-bit integers, floating and aggregate values, atomic ordering, broader address forms and calls, production integration, staged self-hosting, and the final fixed-point bootstrap remain.

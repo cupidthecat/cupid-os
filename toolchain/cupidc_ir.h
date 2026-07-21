@@ -41,7 +41,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_VARIADIC_START,
   CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT,
   CTOOL_C_IR_INSTRUCTION_VARIADIC_END,
-  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE,
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -55,9 +56,10 @@ typedef struct {
    * result type. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
-   * BIT_FIELD_LOAD and BIT_FIELD_STORE_VALUE retain their record operand
-   * type. STORE and STORE_VALUE retain the stored value type. DISCARD retains
-   * its consumed value type.
+   * BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
+   * BIT_FIELD_STORE_OLD_VALUE retain their record operand type. STORE and
+   * STORE_VALUE retain the stored value type. DISCARD retains its consumed
+   * value type.
    * UNARY and BINARY retain their operand type. POINTER_BINARY retains its
    * left operand type. ARRAY_TO_POINTER retains its array operand type.
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
@@ -92,8 +94,9 @@ typedef struct {
    * semantic initializer index. FILE_ADDRESS,
    * CALL_DIRECT, and
    * FUNCTION_ADDRESS use an absolute file-binding index.
-   * MEMBER_ADDRESS, BIT_FIELD_LOAD, and BIT_FIELD_STORE_VALUE use an absolute
-   * graph-member index.
+   * MEMBER_ADDRESS, BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
+   * BIT_FIELD_STORE_OLD_VALUE use an absolute graph-member index. A CONVERT
+   * that records a width-aware bit-field integer promotion does too.
    * ELEMENT_ADDRESS uses a direct fixed-array element index.
    * POINTER_BINARY uses an absolute graph-type index for its right operand.
    * VARIADIC_START uses the absolute final named parameter index.
@@ -248,7 +251,8 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * initializer lists zero the complete object once, then evaluate represented
  * scalar or supported structure expression leaves in source order and store
  * them through ELEMENT_ADDRESS and MEMBER_ADDRESS paths. DUPLICATE_ADDRESS
- * preserves an address while a supported integer or pointer compound
+ * preserves a represented scalar address, or a complete record address for
+ * bit-field mutation, while a supported integer or pointer compound
  * assignment or update loads and stores the object. This evaluates the
  * destination once. Integer mutation supports
  * non-Boolean scalar objects that occupy one, two, or four bytes. Narrow
@@ -264,6 +268,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * BIT_FIELD_STORE_VALUE consumes a record address followed by a converted
  * integer value, replaces the selected field within its storage unit, and
  * pushes the stored field value after width truncation and signed extension.
+ * BIT_FIELD_STORE_OLD_VALUE consumes a record address, the previously loaded
+ * field value, and a converted replacement value. It stores the replacement
+ * once and pushes the earlier value for postfix update.
  * DEREFERENCE consumes a pointer value and pushes the referenced object
  * address or function designator. It emits no target instruction because
  * both forms occupy one 32-bit machine word, while the public IR keeps their

@@ -60,6 +60,10 @@ _Avoid_: AST, x86 bytecode, machine code
 A plain Cupid C assignment to a non-atomic integer bit field whose declared storage unit is four bytes and fits inside its record. Linear IR retains the graph member, while i386 emission preserves neighboring bits and returns the value represented by the stored field.
 _Avoid_: bit-field address, ordinary member store
 
+**Represented bit-field mutation**:
+A compound assignment or prefix or postfix update to a represented bit field. Linear IR evaluates the record address once, applies target-width promotion, and keeps the extracted old value when postfix semantics require it. Partial fields are nonvolatile because their current store path needs a second complete-unit read. A volatile 32-bit field uses one read and one direct store.
+_Avoid_: bit-field address, reconstructing a postfix value after truncation
+
 **Block-static object**:
 A block-scope object with static storage duration. It keeps its absolute frontend block-binding identity, receives a local ELF object symbol, and never consumes an automatic frame slot.
 _Avoid_: automatic local, file-scope object

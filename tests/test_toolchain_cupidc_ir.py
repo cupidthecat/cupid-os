@@ -176,6 +176,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "integer-mutation-rejections: ok\n")
 
+    def test_bit_field_mutations_evaluate_the_record_address_once(self):
+        result = subprocess.run(
+            [str(self.contract_path), "bit-field-mutations", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-mutations: ok\n")
+
     def test_object_pointer_parameters_reach_indirect_members(self):
         result = subprocess.run(
             [

@@ -219,6 +219,54 @@ static const char bit_field_compound_source[] =
     "struct flags state;\n"
     "unsigned int add_bit_field(void) { return state.value += 1; }\n";
 
+static const char bit_field_compound_matrix_source[] =
+    "struct flags { unsigned int value : 3; };\n"
+    "unsigned int multiply_field(struct flags *state, int right) {\n"
+    "  return state->value *= right;\n"
+    "}\n"
+    "unsigned int divide_field(struct flags *state, int right) {\n"
+    "  return state->value /= right;\n"
+    "}\n"
+    "unsigned int remainder_field(struct flags *state, int right) {\n"
+    "  return state->value %= right;\n"
+    "}\n"
+    "unsigned int add_field(struct flags *state, int right) {\n"
+    "  return state->value += right;\n"
+    "}\n"
+    "unsigned int subtract_field(struct flags *state, int right) {\n"
+    "  return state->value -= right;\n"
+    "}\n"
+    "unsigned int shift_left_field(struct flags *state, int right) {\n"
+    "  return state->value <<= right;\n"
+    "}\n"
+    "unsigned int shift_right_field(struct flags *state, int right) {\n"
+    "  return state->value >>= right;\n"
+    "}\n"
+    "unsigned int and_field(struct flags *state, int right) {\n"
+    "  return state->value &= right;\n"
+    "}\n"
+    "unsigned int xor_field(struct flags *state, int right) {\n"
+    "  return state->value ^= right;\n"
+    "}\n"
+    "unsigned int or_field(struct flags *state, int right) {\n"
+    "  return state->value |= right;\n"
+    "}\n";
+
+static const char bit_field_postfix_source[] =
+    "struct flags { unsigned int value : 3; };\n"
+    "struct flags state;\n"
+    "unsigned int increment_bit_field(void) { return state.value++; }\n"
+    "unsigned int decrement_bit_field(void) { return state.value--; }\n";
+
+static const char bit_field_volatile_whole_source[] =
+    "struct whole { volatile unsigned int value : 32; };\n"
+    "unsigned int increment_whole(struct whole *state) {\n"
+    "  return ++state->value;\n"
+    "}\n"
+    "unsigned int read_then_increment_whole(struct whole *state) {\n"
+    "  return state->value++;\n"
+    "}\n";
+
 static const char narrow_update_source[] =
     "unsigned short state;\n"
     "unsigned int update_narrow(void) { return ++state; }\n";
@@ -6671,9 +6719,7 @@ static int run_active_leaf(const char *host_root) {
       "  }\n"
       "}\n";
   static const char expression_source[] =
-      "struct bits { unsigned int value : 3; };\n"
-      "static struct bits state;\n"
-      "unsigned int update(void) { return ++state.value; }\n";
+      "int unsupported_expression(void) { return 1; }\n";
   static const char integer_unary_source[] =
       "int unary_plus(int value) { return +value; }\n"
       "int signed_negate(int value) { return -value; }\n"
@@ -6961,6 +7007,7 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_initializer_t *void_initializers = NULL;
   ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *unsupported_expressions = NULL;
   ctool_c_expression_t *cpuid_expressions = NULL;
   ctool_c_expression_t *align_up_expressions = NULL;
   ctool_c_expression_t *integer_unary_expressions = NULL;
@@ -8866,7 +8913,30 @@ static int run_active_leaf(const char *host_root) {
   }
   if (!parse_source(job, "/unsupported-expression.c", expression_source,
                     &expression_unit) ||
-      !expect_ir_failure(
+      expression_unit.expression_count == 0u) {
+    goto cleanup;
+  }
+  unsupported_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)expression_unit.expression_count *
+      sizeof(*unsupported_expressions));
+  if (unsupported_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(unsupported_expressions, expression_unit.expressions,
+               (size_t)expression_unit.expression_count *
+                   sizeof(*unsupported_expressions));
+  for (index = 0u; index < expression_unit.expression_count; index++) {
+    if (unsupported_expressions[index].kind ==
+        CTOOL_C_EXPRESSION_INTEGER_CONSTANT) {
+      unsupported_expressions[index].kind = (ctool_c_expression_kind_t)0;
+      break;
+    }
+  }
+  if (index == expression_unit.expression_count) {
+    goto cleanup;
+  }
+  expression_unit.expressions = unsupported_expressions;
+  if (!expect_ir_failure(
           job, &expression_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
           "CupidC IR lowering does not yet support this expression",
@@ -9065,6 +9135,7 @@ static int run_active_leaf(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(unsupported_expressions);
   if (limited_job != NULL) {
     ctool_job_close(limited_job);
   }
@@ -10928,14 +10999,542 @@ cleanup:
   return 1;
 }
 
+static int validate_bit_field_mutation_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    const char *path) {
+  static const ctool_c_ir_instruction_kind_t expected_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_INTEGER,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 member;
+  ctool_u32 state;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || path == NULL ||
+      unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir->instruction_count != 9u) {
+    (void)fprintf(stderr, "bit-field mutation IR inventory differs\n");
+    return 0;
+  }
+  member = find_member(unit, "value");
+  state = find_binding(unit, "state");
+  function = &ir->functions[0];
+  instructions = &ir->instructions[function->first_instruction];
+  if (member == CTOOL_C_AST_NONE || state == CTOOL_C_AST_NONE ||
+      member >= unit->graph.member_count || member >= unit->layout.member_count ||
+      unit->graph.members[member].is_bit_field != CTOOL_TRUE ||
+      unit->graph.members[member].bit_width != 3u ||
+      unit->layout.members[member].bit_width != 3u ||
+      unit->layout.members[member].size != 4u ||
+      function->binding != unit->function_definitions[0].binding ||
+      function->declared_type != unit->function_definitions[0].declared_type ||
+      function->first_instruction != 0u || function->instruction_count != 9u ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "bit-field mutation metadata differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 9u; index++) {
+    if (instructions[index].kind != expected_kinds[index]) {
+      (void)fprintf(stderr, "bit-field mutation instruction %u differs\n",
+                    (unsigned)index);
+      return 0;
+    }
+  }
+  if (instructions[0].reference != state ||
+      instructions[1].type != instructions[0].type ||
+      instructions[1].input_type != instructions[0].type ||
+      instructions[2].reference != member ||
+      instructions[2].input_type != instructions[0].type ||
+      instructions[2].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[3].input_type != instructions[2].type ||
+      instructions[3].conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      instructions[3].reference != member ||
+      instructions[4].type != instructions[3].type ||
+      instructions[4].integer_bits != 1u ||
+      instructions[5].type != instructions[3].type ||
+      instructions[5].input_type != instructions[3].type ||
+      instructions[5].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[6].type != instructions[2].type ||
+      instructions[6].input_type != instructions[3].type ||
+      instructions[6].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+      instructions[7].type != instructions[2].type ||
+      instructions[7].input_type != instructions[0].type ||
+      instructions[7].reference != member ||
+      instructions[8].type != instructions[7].type ||
+      instructions[8].input_type != instructions[7].type ||
+      !string_equal(instructions[7].location.path, path) ||
+      !string_equal(instructions[7].physical_location.path, path)) {
+    (void)fprintf(stderr, "bit-field mutation instruction metadata differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_bit_field_postfix_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_ir_instruction_kind_t expected_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_INTEGER,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  ctool_u32 member;
+  ctool_u32 state;
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 2u ||
+      ir->function_count != 2u || ir->functions == NULL ||
+      ir->instructions == NULL || ir->instruction_count != 20u) {
+    (void)fprintf(stderr, "bit-field postfix IR inventory differs\n");
+    return 0;
+  }
+  member = find_member(unit, "value");
+  state = find_binding(unit, "state");
+  if (member == CTOOL_C_AST_NONE || state == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "bit-field postfix fixture differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 2u; function_index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[function->first_instruction];
+    ctool_u32 index;
+    if (function->binding !=
+            unit->function_definitions[function_index].binding ||
+        function->declared_type !=
+            unit->function_definitions[function_index].declared_type ||
+        function->first_instruction != function_index * 10u ||
+        function->instruction_count != 10u ||
+        function->maximum_stack_depth != 4u) {
+      (void)fprintf(stderr, "bit-field postfix function differs\n");
+      return 0;
+    }
+    for (index = 0u; index < 10u; index++) {
+      if (instructions[index].kind != expected_kinds[index]) {
+        (void)fprintf(stderr,
+                      "bit-field postfix instruction %u differs\n",
+                      (unsigned)index);
+        return 0;
+      }
+    }
+    if (instructions[0].reference != state ||
+        instructions[2].reference != member ||
+        instructions[3].type != instructions[2].type ||
+        instructions[3].input_type != instructions[2].type ||
+        instructions[4].conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+        instructions[4].reference != member ||
+        instructions[5].integer_bits != 1u ||
+        instructions[6].operation !=
+            (function_index == 0u ? CTOOL_C_EXPRESSION_OPERATOR_ADD
+                                  : CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) ||
+        instructions[7].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+        instructions[8].reference != member ||
+        instructions[8].type != instructions[2].type ||
+        instructions[8].input_type != instructions[0].type ||
+        instructions[9].type != instructions[8].type ||
+        !string_equal(instructions[8].location.path,
+                      "/bit-field-postfix.c") ||
+        !string_equal(instructions[8].physical_location.path,
+                      "/bit-field-postfix.c")) {
+      (void)fprintf(stderr, "bit-field postfix metadata differs\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_bit_field_compound_matrix_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR};
+  static const ctool_c_ir_instruction_kind_t expected_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_CONVERT,
+      CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  ctool_u32 member;
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 10u ||
+      ir->function_count != 10u || ir->functions == NULL ||
+      ir->instructions == NULL || ir->instruction_count != 120u) {
+    (void)fprintf(stderr, "bit-field compound matrix inventory differs\n");
+    return 0;
+  }
+  member = find_member(unit, "value");
+  if (member == CTOOL_C_AST_NONE || member >= unit->graph.member_count ||
+      member >= unit->layout.member_count ||
+      unit->graph.members[member].is_bit_field != CTOOL_TRUE ||
+      unit->graph.members[member].bit_width != 3u ||
+      unit->layout.members[member].bit_width != 3u ||
+      unit->layout.members[member].size != 4u) {
+    (void)fprintf(stderr, "bit-field compound matrix member differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 10u; function_index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[function->first_instruction];
+    ctool_u32 instruction_index;
+    if (function->binding !=
+            unit->function_definitions[function_index].binding ||
+        function->declared_type !=
+            unit->function_definitions[function_index].declared_type ||
+        function->first_instruction != function_index * 12u ||
+        function->instruction_count != 12u ||
+        function->maximum_stack_depth != 3u) {
+      (void)fprintf(stderr, "bit-field compound function %u differs\n",
+                    (unsigned)function_index);
+      return 0;
+    }
+    for (instruction_index = 0u; instruction_index < 12u;
+         instruction_index++) {
+      if (instructions[instruction_index].kind !=
+          expected_kinds[instruction_index]) {
+        (void)fprintf(stderr,
+                      "bit-field compound instruction %u:%u differs\n",
+                      (unsigned)function_index,
+                      (unsigned)instruction_index);
+        return 0;
+      }
+    }
+    if (instructions[0].reference != function_index * 2u ||
+        instructions[4].reference != member ||
+        instructions[4].conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        instructions[5].reference != member ||
+        instructions[5].conversion !=
+            CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+        instructions[6].reference != function_index * 2u + 1u ||
+        instructions[8].operation != operations[function_index] ||
+        instructions[9].conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+        instructions[10].reference != member ||
+        instructions[10].type != instructions[4].type ||
+        instructions[10].input_type != instructions[2].type ||
+        instructions[11].type != instructions[10].type ||
+        instructions[11].input_type != instructions[10].type ||
+        !string_equal(instructions[10].location.path,
+                      "/bit-field-compound-matrix.c") ||
+        !string_equal(instructions[10].physical_location.path,
+                      "/bit-field-compound-matrix.c")) {
+      (void)fprintf(stderr, "bit-field compound metadata %u differs\n",
+                    (unsigned)function_index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_volatile_whole_bit_field_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  ctool_u32 member;
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 2u ||
+      ir->function_count != 2u || ir->functions == NULL ||
+      ir->instructions == NULL || ir->instruction_count != 19u) {
+    (void)fprintf(stderr, "volatile whole bit-field inventory differs\n");
+    return 0;
+  }
+  member = find_member(unit, "value");
+  if (member == CTOOL_C_AST_NONE || member >= unit->graph.member_count ||
+      member >= unit->layout.member_count ||
+      unit->graph.members[member].is_bit_field != CTOOL_TRUE ||
+      unit->graph.members[member].bit_width != 32u ||
+      unit->layout.members[member].bit_width != 32u ||
+      unit->layout.members[member].size != 4u ||
+      unit->graph.members[member].type >= unit->graph.type_count ||
+      (unit->graph.types[unit->graph.members[member].type].qualifiers &
+       CTOOL_C_QUAL_VOLATILE) == 0u) {
+    (void)fprintf(stderr, "volatile whole bit-field member differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 2u; function_index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[function->first_instruction];
+    ctool_u32 store_index = function_index == 0u ? 7u : 8u;
+    if (function->first_instruction != (function_index == 0u ? 0u : 9u) ||
+        function->instruction_count != (function_index == 0u ? 9u : 10u) ||
+        function->maximum_stack_depth !=
+            (function_index == 0u ? 3u : 4u) ||
+        instructions[0].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        instructions[2].kind != CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+        instructions[3].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
+        instructions[4].kind != CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD ||
+        instructions[4].reference != member ||
+        (function_index == 1u &&
+         instructions[5].kind != CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE) ||
+        instructions[store_index].kind !=
+            (function_index == 0u
+                 ? CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE
+                 : CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE) ||
+        instructions[store_index].reference != member ||
+        instructions[store_index + 1u].kind !=
+            CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+      (void)fprintf(stderr, "volatile whole bit-field function %u differs\n",
+                    (unsigned)function_index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_bit_field_mutations(const char *host_root) {
+  static const char narrow_source[] =
+      "struct flags { unsigned char value : 3; };\n"
+      "unsigned int update(struct flags *state) {\n"
+      "  return ++state->value;\n"
+      "}\n";
+  static const char bool_source[] =
+      "struct flags { _Bool value : 1; };\n"
+      "_Bool update(struct flags *state) { return state->value += 1; }\n";
+  static const char atomic_source[] =
+      "struct flags { _Atomic unsigned int value : 3; };\n"
+      "unsigned int update(struct flags *state) {\n"
+      "  return state->value++;\n"
+      "}\n";
+  static const char packed_source[] =
+      "struct flags { unsigned int value : 3; } "
+      "__attribute__((packed));\n"
+      "unsigned int update(struct flags *state) {\n"
+      "  return --state->value;\n"
+      "}\n";
+  static const char volatile_source[] =
+      "struct flags { volatile unsigned int value : 3; };\n"
+      "unsigned int update(struct flags *state) {\n"
+      "  return state->value++;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t update_unit;
+  ctool_c_translation_unit_t compound_unit;
+  ctool_c_translation_unit_t matrix_unit;
+  ctool_c_translation_unit_t postfix_unit;
+  ctool_c_translation_unit_t volatile_whole_unit;
+  ctool_c_translation_unit_t narrow_unit;
+  ctool_c_translation_unit_t bool_unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t packed_unit;
+  ctool_c_translation_unit_t volatile_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t update_ir;
+  ctool_c_ir_unit_t compound_ir;
+  ctool_c_ir_unit_t matrix_ir;
+  ctool_c_ir_unit_t postfix_ir;
+  ctool_c_ir_unit_t volatile_whole_ir;
+  ctool_c_ir_unit_t recovery_ir;
+  ctool_c_member_layout_t *invalid_layouts = NULL;
+  ctool_c_record_member_t *invalid_members = NULL;
+  ctool_u64 fingerprint;
+  ctool_u64 ir_fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_u32 member;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&update_unit, 0, sizeof(update_unit));
+  (void)memset(&compound_unit, 0, sizeof(compound_unit));
+  (void)memset(&matrix_unit, 0, sizeof(matrix_unit));
+  (void)memset(&postfix_unit, 0, sizeof(postfix_unit));
+  (void)memset(&volatile_whole_unit, 0, sizeof(volatile_whole_unit));
+  (void)memset(&narrow_unit, 0, sizeof(narrow_unit));
+  (void)memset(&bool_unit, 0, sizeof(bool_unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&packed_unit, 0, sizeof(packed_unit));
+  (void)memset(&volatile_unit, 0, sizeof(volatile_unit));
+  (void)memset(&invalid_unit, 0, sizeof(invalid_unit));
+  (void)memset(&update_ir, 0xa5, sizeof(update_ir));
+  (void)memset(&compound_ir, 0xa5, sizeof(compound_ir));
+  (void)memset(&matrix_ir, 0xa5, sizeof(matrix_ir));
+  (void)memset(&postfix_ir, 0xa5, sizeof(postfix_ir));
+  (void)memset(&volatile_whole_ir, 0xa5, sizeof(volatile_whole_ir));
+  (void)memset(&recovery_ir, 0xa5, sizeof(recovery_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/bit-field-update.c", bit_field_update_source,
+                    &update_unit) ||
+      !parse_source(job, "/bit-field-compound.c", bit_field_compound_source,
+                    &compound_unit) ||
+      !parse_source(job, "/bit-field-compound-matrix.c",
+                    bit_field_compound_matrix_source, &matrix_unit) ||
+      !parse_source(job, "/bit-field-postfix.c", bit_field_postfix_source,
+                    &postfix_unit) ||
+      !parse_source(job, "/volatile-whole-bit-field.c",
+                    bit_field_volatile_whole_source,
+                    &volatile_whole_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&update_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &update_unit, &update_ir);
+  if (!check_status(status, CTOOL_OK, "bit-field update lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&update_unit) != fingerprint ||
+      !validate_bit_field_mutation_ir(&update_unit, &update_ir,
+                                      "/bit-field-update.c")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_fingerprint = ir_instruction_fingerprint(&update_ir);
+  status = ctool_c_lower_ir(job, &compound_unit, &compound_ir);
+  if (!check_status(status, CTOOL_OK, "bit-field compound lowering") ||
+      !validate_bit_field_mutation_ir(&compound_unit, &compound_ir,
+                                      "/bit-field-compound.c")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &matrix_unit, &matrix_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "bit-field compound matrix lowering") ||
+      !validate_bit_field_compound_matrix_ir(&matrix_unit, &matrix_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &postfix_unit, &postfix_ir);
+  if (!check_status(status, CTOOL_OK, "bit-field postfix lowering") ||
+      !validate_bit_field_postfix_ir(&postfix_unit, &postfix_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &volatile_whole_unit, &volatile_whole_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "volatile whole bit-field lowering") ||
+      !validate_volatile_whole_bit_field_ir(&volatile_whole_unit,
+                                            &volatile_whole_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/narrow-bit-field-mutation.c", narrow_source,
+                    &narrow_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &narrow_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow bit-field mutation") ||
+      !parse_source(job, "/bool-bit-field-mutation.c", bool_source,
+                    &bool_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &bool_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "Boolean bit-field mutation") ||
+      !parse_source(job, "/atomic-bit-field-mutation.c", atomic_source,
+                    &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic bit-field mutation") ||
+      !parse_source_mode(job, "/packed-bit-field-mutation.c", packed_source,
+                         CTOOL_TRUE, &packed_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &packed_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "packed bit-field mutation") ||
+      !parse_source(job, "/volatile-bit-field-mutation.c", volatile_source,
+                    &volatile_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &volatile_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "volatile bit-field mutation")) {
+    goto cleanup;
+  }
+  member = find_member(&update_unit, "value");
+  invalid_layouts = (ctool_c_member_layout_t *)malloc(
+      (size_t)update_unit.layout.member_count * sizeof(*invalid_layouts));
+  invalid_members = (ctool_c_record_member_t *)malloc(
+      (size_t)update_unit.graph.member_count * sizeof(*invalid_members));
+  if (member == CTOOL_C_AST_NONE || invalid_layouts == NULL ||
+      invalid_members == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = update_unit;
+  invalid_unit.layout.members = invalid_layouts;
+  (void)memcpy(invalid_layouts, update_unit.layout.members,
+               (size_t)update_unit.layout.member_count *
+                   sizeof(*invalid_layouts));
+  invalid_layouts[member].bit_width++;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "bit-field mutation layout width")) {
+    goto cleanup;
+  }
+  invalid_unit = update_unit;
+  invalid_unit.graph.members = invalid_members;
+  (void)memcpy(invalid_members, update_unit.graph.members,
+               (size_t)update_unit.graph.member_count *
+                   sizeof(*invalid_members));
+  invalid_members[member].bit_width++;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "bit-field mutation graph width")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &update_unit, &recovery_ir);
+  if (!check_status(status, CTOOL_OK, "bit-field mutation recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&update_unit) != fingerprint ||
+      ir_instruction_fingerprint(&recovery_ir) != ir_fingerprint) {
+    (void)fprintf(stderr, "bit-field mutation lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_members);
+  free(invalid_layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("bit-field-mutations: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_integer_mutation_rejections(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t wide_unit;
-  ctool_c_translation_unit_t bit_field_unit;
-  ctool_c_translation_unit_t bit_field_compound_unit;
   ctool_c_translation_unit_t bool_unit;
   ctool_c_translation_unit_t bool_compound_unit;
   ctool_c_translation_unit_t valid_unit;
@@ -10946,9 +11545,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
   int passed = 0;
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   (void)memset(&wide_unit, 0, sizeof(wide_unit));
-  (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
-  (void)memset(&bit_field_compound_unit, 0,
-               sizeof(bit_field_compound_unit));
   (void)memset(&bool_unit, 0, sizeof(bool_unit));
   (void)memset(&bool_compound_unit, 0, sizeof(bool_compound_unit));
   (void)memset(&valid_unit, 0, sizeof(valid_unit));
@@ -10967,21 +11563,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide integer compound assignment") ||
-      !parse_source(job, "/bit-field-update.c", bit_field_update_source,
-                    &bit_field_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &bit_field_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "bit-field update") ||
-      !parse_source(job, "/bit-field-compound.c",
-                    bit_field_compound_source,
-                    &bit_field_compound_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &bit_field_compound_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
-          "CupidC IR lowering does not yet support this expression",
-          "bit-field compound assignment") ||
       !parse_source(job, "/bool-update.c", bool_update_source, &bool_unit) ||
       !expect_ir_failure_preserves_unit(
           job, &bool_unit, CTOOL_ERR_UNSUPPORTED,
@@ -19587,6 +20168,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "bit-field-stores") == 0) {
     return run_bit_field_stores(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "bit-field-mutations") == 0) {
+    return run_bit_field_mutations(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-values") == 0) {
     return run_narrow_values(argv[2]);
   }
@@ -19606,7 +20190,7 @@ int main(int argc, char **argv) {
                 "aggregate-initializers|"
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|block-records|"
-                "block-enums|bit-field-stores|"
+                "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts "
                 "HOST_ROOT\n");
   return 2;

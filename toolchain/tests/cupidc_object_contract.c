@@ -5147,11 +5147,7 @@ static int run_static_data(const char *host_root) {
       "                                                      : CTOOL_FALSE;\n"
       "}\n";
   static const char unsupported_function_text[] =
-      "struct unsupported_bits { unsigned int value : 3; };\n"
-      "static struct unsupported_bits unsupported_state;\n"
-      "unsigned int unsupported(void) {\n"
-      "  return ++unsupported_state.value;\n"
-      "}\n";
+      "int unsupported(void) { return 1; }\n";
   static const char wide_selection_text[] =
       "int choose_wide(void) {\n"
       "  if (1LL) return 1;\n"
@@ -5443,6 +5439,7 @@ static int run_static_data(const char *host_root) {
   ctool_c_statement_t *lexical_declaration_statements = NULL;
   ctool_c_statement_t *unreachable_statements = NULL;
   ctool_c_statement_t *loop_control_statements = NULL;
+  ctool_c_expression_t *unsupported_expressions = NULL;
   ctool_c_expression_t invalid_expression;
   unit_snapshot_t snapshot;
   unit_snapshot_t function_snapshot;
@@ -5518,6 +5515,7 @@ static int run_static_data(const char *host_root) {
   ctool_u32 definition_index;
   ctool_u32 duplicate_initializer = CTOOL_C_AST_NONE;
   ctool_u32 initializer_index;
+  ctool_u32 expression_index;
   ctool_u32 statement_index;
   ctool_u32 masked_child = CTOOL_C_AST_NONE;
   ctool_u32 masked_edge = CTOOL_C_AST_NONE;
@@ -7161,7 +7159,34 @@ static int run_static_data(const char *host_root) {
       !parse_source(job, "/unsupported-function.c",
                     unsupported_function_text,
                     &unsupported_function_unit) ||
-      !expect_object_failure(
+      unsupported_function_unit.expression_count == 0u) {
+    goto cleanup;
+  }
+  unsupported_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unsupported_function_unit.expression_count *
+      sizeof(*unsupported_expressions));
+  if (unsupported_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(unsupported_expressions,
+               unsupported_function_unit.expressions,
+               (size_t)unsupported_function_unit.expression_count *
+                   sizeof(*unsupported_expressions));
+  for (expression_index = 0u;
+       expression_index < unsupported_function_unit.expression_count;
+       expression_index++) {
+    if (unsupported_expressions[expression_index].kind ==
+        CTOOL_C_EXPRESSION_INTEGER_CONSTANT) {
+      unsupported_expressions[expression_index].kind =
+          (ctool_c_expression_kind_t)0;
+      break;
+    }
+  }
+  if (expression_index == unsupported_function_unit.expression_count) {
+    goto cleanup;
+  }
+  unsupported_function_unit.expressions = unsupported_expressions;
+  if (!expect_object_failure(
           job, &unsupported_function_unit, second, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
           "CupidC IR lowering does not yet support this expression",
@@ -7514,6 +7539,7 @@ static int run_static_data(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(unsupported_expressions);
   free(invalid_elements);
   free(invalid_layout_initializers);
   free(invalid_bindings);
@@ -10471,6 +10497,7 @@ static int validate_narrow_value_object(
 #define NARROW_ORACLE_MEMORY_SIZE 256u
 #define NARROW_ORACLE_INITIAL_ESP 192u
 #define NARROW_ORACLE_EAX 0u
+#define NARROW_ORACLE_EDX 2u
 #define NARROW_ORACLE_ESP 4u
 #define NARROW_ORACLE_EBP 5u
 
@@ -10715,6 +10742,14 @@ static int narrow_oracle_step(narrow_oracle_machine_t *machine,
     *returned = CTOOL_TRUE;
     return 1;
   }
+  if (instruction->mnemonic == CTOOL_X86_MN_CDQ &&
+      instruction->operand_count == 0u) {
+    machine->registers[NARROW_ORACLE_EDX] =
+        (machine->registers[NARROW_ORACLE_EAX] & 0x80000000u) != 0u
+            ? 0xffffffffu
+            : 0u;
+    return 1;
+  }
   if (instruction->mnemonic == CTOOL_X86_MN_LEAVE &&
       instruction->operand_count == 0u) {
     machine->registers[NARROW_ORACLE_ESP] =
@@ -10754,6 +10789,45 @@ static int narrow_oracle_step(narrow_oracle_machine_t *machine,
     machine->registers[NARROW_ORACLE_ESP] = stack_pointer + 4u;
     return 1;
   }
+  if ((instruction->mnemonic == CTOOL_X86_MN_DIV ||
+       instruction->mnemonic == CTOOL_X86_MN_IDIV) &&
+      right == NULL && narrow_oracle_read_operand(machine, left, &left_value)) {
+    if (left_value == 0u) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_DIV) {
+      uint64_t dividend =
+          ((uint64_t)machine->registers[NARROW_ORACLE_EDX] << 32u) |
+          machine->registers[NARROW_ORACLE_EAX];
+      uint64_t quotient = dividend / left_value;
+      if (quotient > 0xffffffffu) {
+        return 0;
+      }
+      machine->registers[NARROW_ORACLE_EAX] = (ctool_u32)quotient;
+      machine->registers[NARROW_ORACLE_EDX] =
+          (ctool_u32)(dividend % left_value);
+    } else {
+      int64_t dividend =
+          (int64_t)(int32_t)machine->registers[NARROW_ORACLE_EDX] *
+              INT64_C(4294967296) +
+          machine->registers[NARROW_ORACLE_EAX];
+      int64_t divisor = (int64_t)(int32_t)left_value;
+      int64_t quotient;
+      if (divisor == 0) {
+        return 0;
+      }
+      quotient = dividend / divisor;
+      if (quotient < INT64_C(-2147483647) - 1 ||
+          quotient > INT64_C(2147483647)) {
+        return 0;
+      }
+      machine->registers[NARROW_ORACLE_EAX] =
+          (ctool_u32)(int32_t)quotient;
+      machine->registers[NARROW_ORACLE_EDX] =
+          (ctool_u32)(int32_t)(dividend % divisor);
+    }
+    return 1;
+  }
   if (right == NULL) {
     return 0;
   }
@@ -10788,6 +10862,9 @@ static int narrow_oracle_step(narrow_oracle_machine_t *machine,
     left_value += right_value;
   } else if (instruction->mnemonic == CTOOL_X86_MN_SUB) {
     left_value -= right_value;
+  } else if (instruction->mnemonic == CTOOL_X86_MN_IMUL) {
+    left_value =
+        (ctool_u32)((uint64_t)left_value * (uint64_t)right_value);
   } else if (instruction->mnemonic == CTOOL_X86_MN_AND) {
     left_value &= right_value;
   } else if (instruction->mnemonic == CTOOL_X86_MN_OR) {
@@ -15897,6 +15974,435 @@ cleanup:
   return 1;
 }
 
+static int validate_bit_field_mutation_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    ctool_u32 expected_eax_indirect_loads,
+    ctool_u32 expected_memory_stores) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 eax_indirect_loads = 0u;
+  ctool_u32 memory_stores = 0u;
+  ctool_u32 returns = 0u;
+  if (job == NULL || text == NULL || symbol == NULL || symbol->size == 0u ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "bit-field mutation decode failed at %u\n",
+                    (unsigned)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+        instruction->operand_count == 2u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_REGISTER &&
+        instruction->operands[0].as.reg.class_id == CTOOL_X86_REG_GPR32 &&
+        instruction->operands[0].as.reg.index == NARROW_ORACLE_EAX &&
+        instruction->operands[1].kind == CTOOL_X86_OPERAND_MEMORY &&
+        instruction->operands[1].width_bits == 32u &&
+        instruction->operands[1].as.memory.base.class_id ==
+            CTOOL_X86_REG_GPR32 &&
+        instruction->operands[1].as.memory.base.index ==
+            NARROW_ORACLE_EAX) {
+      eax_indirect_loads++;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+        instruction->operand_count == 2u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+        instruction->operands[0].width_bits == 32u &&
+        instruction->operands[1].kind == CTOOL_X86_OPERAND_REGISTER &&
+        instruction->operands[1].as.reg.class_id ==
+            CTOOL_X86_REG_GPR32) {
+      memory_stores++;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+      returns++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size ||
+      eax_indirect_loads != expected_eax_indirect_loads ||
+      memory_stores != expected_memory_stores || returns != 1u) {
+    (void)fprintf(stderr,
+                  "bit-field mutation instruction inventory differs: "
+                  "loads=%u stores=%u returns=%u\n",
+                  (unsigned)eax_indirect_loads, (unsigned)memory_stores,
+                  (unsigned)returns);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_bit_field_designator_side_effect(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text) {
+  narrow_oracle_machine_t machine;
+  const ctool_elf32_symbol_t *symbol =
+      find_symbol(object, "indexed_postfix_increment_once");
+  const ctool_u32 array_address = 32u;
+  const ctool_u32 index_address = 48u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 observed;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == NULL || object == NULL || text == NULL || symbol == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  (void)memset(&machine, 0xcd, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = 64u;
+  if (!narrow_oracle_write_memory(&machine, array_address, 32u,
+                                  0x11223344u) ||
+      !narrow_oracle_write_memory(&machine, array_address + 4u, 32u,
+                                  0xa5b6c7ffu) ||
+      !narrow_oracle_write_memory(&machine, index_address, 32u, 1u) ||
+      !narrow_oracle_write_memory(&machine, NARROW_ORACLE_INITIAL_ESP, 32u,
+                                  0x13579bdfu) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u, array_address) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u, index_address)) {
+    return 0;
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        !narrow_oracle_step(&machine, &decoded.instruction, &returned)) {
+      (void)fprintf(stderr,
+                    "bit-field designator oracle stopped at %u\n",
+                    (unsigned)cursor);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      machine.registers[NARROW_ORACLE_EAX] != 7u ||
+      machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
+      machine.registers[NARROW_ORACLE_EBP] != 64u ||
+      !narrow_oracle_read_memory(&machine, array_address, 32u, &observed) ||
+      observed != 0x11223344u ||
+      !narrow_oracle_read_memory(&machine, array_address + 4u, 32u,
+                                 &observed) ||
+      observed != 0xa5b6c78fu ||
+      !narrow_oracle_read_memory(&machine, index_address, 32u, &observed) ||
+      observed != 2u ||
+      !narrow_oracle_read_memory(&machine, array_address - 4u, 32u,
+                                 &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(&machine, array_address + 8u, 32u,
+                                 &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(&machine, index_address - 4u, 32u,
+                                 &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(&machine, index_address + 4u, 32u,
+                                 &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(&machine, NARROW_ORACLE_INITIAL_ESP, 32u,
+                                 &observed) ||
+      observed != 0x13579bdfu ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u, &observed) ||
+      observed != array_address ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u, &observed) ||
+      observed != index_address) {
+    (void)fprintf(stderr, "bit-field designator side effect differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_bit_field_mutation_results(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text) {
+  typedef struct {
+    const char *name;
+    ctool_u32 initial_storage;
+    ctool_u32 right;
+    ctool_u32 expected_result;
+    ctool_u32 expected_storage;
+  } bit_field_mutation_case_t;
+  static const bit_field_mutation_case_t cases[] = {
+      {"prefix_increment", 0xa5b6c7ffu, 0u, 0u, 0xa5b6c78fu},
+      {"prefix_decrement", 0xa5b6c78fu, 0u, 7u, 0xa5b6c7ffu},
+      {"postfix_increment", 0xa5b6c7ffu, 0u, 7u, 0xa5b6c78fu},
+      {"postfix_decrement", 0xa5b6c78fu, 0u, 0u, 0xa5b6c7ffu},
+      {"multiply_field", 0xa5b6c7bfu, 3u, 1u, 0xa5b6c79fu},
+      {"divide_field", 0xa5b6c7ffu, 2u, 3u, 0xa5b6c7bfu},
+      {"remainder_field", 0xa5b6c7ffu, 4u, 3u, 0xa5b6c7bfu},
+      {"add_field", 0xa5b6c7efu, 5u, 3u, 0xa5b6c7bfu},
+      {"subtract_field", 0xa5b6c79fu, 3u, 6u, 0xa5b6c7efu},
+      {"shift_left_field", 0xa5b6c7bfu, 2u, 4u, 0xa5b6c7cfu},
+      {"shift_right_field", 0xa5b6c7efu, 1u, 3u, 0xa5b6c7bfu},
+      {"and_field", 0xa5b6c7ffu, 2u, 2u, 0xa5b6c7afu},
+      {"xor_field", 0xa5b6c7dfu, 3u, 6u, 0xa5b6c7efu},
+      {"or_field", 0xa5b6c79fu, 4u, 5u, 0xa5b6c7dfu},
+      {"signed_prefix_decrement", 0xa5b6c7cfu, 0u, 3u,
+       0xa5b6c7bfu},
+      {"signed_postfix_increment", 0xa5b6c7bfu, 0u, 3u,
+       0xa5b6c7cfu},
+      {"signed_add_field", 0xa5b6c7efu, 1u, 0xffffffffu,
+       0xa5b6c7ffu},
+      {"whole_prefix_increment", 0xffffffffu, 0u, 0u, 0u},
+      {"whole_postfix_increment", 0xffffffffu, 0u, 0xffffffffu, 0u}};
+  ctool_u32 index;
+  for (index = 0u; index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, cases[index].name);
+    ctool_u32 result = 0u;
+    ctool_u32 stored_value = 0u;
+    if (symbol == NULL ||
+        !bit_field_store_oracle_execute(
+            job, text, symbol, cases[index].initial_storage,
+            cases[index].right, &result, &stored_value) ||
+        result != cases[index].expected_result ||
+        stored_value != cases[index].expected_storage) {
+      (void)fprintf(stderr,
+                    "bit-field mutation result %s case %u differs: "
+                    "eax=%08x storage=%08x\n",
+                    cases[index].name, (unsigned)index, (unsigned)result,
+                    (unsigned)stored_value);
+      return 0;
+    }
+  }
+  return validate_bit_field_designator_side_effect(job, object, text);
+}
+
+static int validate_bit_field_mutation_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  typedef struct {
+    const char *name;
+    ctool_u32 eax_indirect_loads;
+    ctool_u32 memory_stores;
+  } bit_field_mutation_function_t;
+  static const bit_field_mutation_function_t functions[] = {
+      {"prefix_increment", 3u, 1u},
+      {"prefix_decrement", 3u, 1u},
+      {"postfix_increment", 3u, 1u},
+      {"postfix_decrement", 3u, 1u},
+      {"indexed_postfix_increment_once", 5u, 2u},
+      {"multiply_field", 4u, 1u},
+      {"divide_field", 4u, 1u},
+      {"remainder_field", 4u, 1u},
+      {"add_field", 4u, 1u},
+      {"subtract_field", 4u, 1u},
+      {"shift_left_field", 4u, 1u},
+      {"shift_right_field", 4u, 1u},
+      {"and_field", 4u, 1u},
+      {"xor_field", 4u, 1u},
+      {"or_field", 4u, 1u},
+      {"signed_prefix_decrement", 3u, 1u},
+      {"signed_postfix_increment", 3u, 1u},
+      {"signed_add_field", 4u, 1u},
+      {"whole_prefix_increment", 2u, 1u},
+      {"whole_postfix_increment", 2u, 1u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 expected_offset = 0u;
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 1415u ||
+      text->relocation_count != 0u || object->relocation_count != 0u ||
+      object->symbol_count != 21u) {
+    (void)fprintf(stderr,
+                  "bit-field mutation ELF inventory differs: text=%u "
+                  "symbols=%u relocations=%u\n",
+                  text == NULL ? 0u : (unsigned)text->contents.size,
+                  object == NULL ? 0u : (unsigned)object->symbol_count,
+                  object == NULL ? 0u : (unsigned)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(functions) / sizeof(functions[0]));
+       index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, functions[index].name);
+    if (symbol == NULL || symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        symbol->section_file_index != text->file_index ||
+        symbol->value != expected_offset ||
+        !validate_bit_field_mutation_function(
+            job, text, symbol, functions[index].eax_indirect_loads,
+            functions[index].memory_stores)) {
+      (void)fprintf(stderr, "bit-field mutation function %s differs\n",
+                    functions[index].name);
+      return 0;
+    }
+    expected_offset += symbol->size;
+  }
+  if (expected_offset != text->contents.size) {
+    (void)fprintf(stderr, "bit-field mutation text coverage differs\n");
+    return 0;
+  }
+  return validate_bit_field_mutation_results(job, object, text);
+}
+
+static int run_bit_field_mutation_object(const char *host_root) {
+  static const char source[] =
+      "struct flags {\n"
+      "  unsigned int before : 4;\n"
+      "  unsigned int value : 3;\n"
+      "  unsigned int after : 25;\n"
+      "};\n"
+      "unsigned int prefix_increment(struct flags *state) {\n"
+      "  return ++state->value;\n"
+      "}\n"
+      "unsigned int prefix_decrement(struct flags *state) {\n"
+      "  return --state->value;\n"
+      "}\n"
+      "unsigned int postfix_increment(struct flags *state) {\n"
+      "  return state->value++;\n"
+      "}\n"
+      "unsigned int postfix_decrement(struct flags *state) {\n"
+      "  return state->value--;\n"
+      "}\n"
+      "unsigned int indexed_postfix_increment_once(\n"
+      "    struct flags *states, unsigned int *index) {\n"
+      "  return states[(*index)++].value++;\n"
+      "}\n"
+      "unsigned int multiply_field(struct flags *state, int right) {\n"
+      "  return state->value *= right;\n"
+      "}\n"
+      "unsigned int divide_field(struct flags *state, int right) {\n"
+      "  return state->value /= right;\n"
+      "}\n"
+      "unsigned int remainder_field(struct flags *state, int right) {\n"
+      "  return state->value %= right;\n"
+      "}\n"
+      "unsigned int add_field(struct flags *state, int right) {\n"
+      "  return state->value += right;\n"
+      "}\n"
+      "unsigned int subtract_field(struct flags *state, int right) {\n"
+      "  return state->value -= right;\n"
+      "}\n"
+      "unsigned int shift_left_field(struct flags *state, int right) {\n"
+      "  return state->value <<= right;\n"
+      "}\n"
+      "unsigned int shift_right_field(struct flags *state, int right) {\n"
+      "  return state->value >>= right;\n"
+      "}\n"
+      "unsigned int and_field(struct flags *state, int right) {\n"
+      "  return state->value &= right;\n"
+      "}\n"
+      "unsigned int xor_field(struct flags *state, int right) {\n"
+      "  return state->value ^= right;\n"
+      "}\n"
+      "unsigned int or_field(struct flags *state, int right) {\n"
+      "  return state->value |= right;\n"
+      "}\n"
+      "struct signed_flags {\n"
+      "  unsigned int before : 4;\n"
+      "  signed int value : 3;\n"
+      "  unsigned int after : 25;\n"
+      "};\n"
+      "int signed_prefix_decrement(struct signed_flags *state) {\n"
+      "  return --state->value;\n"
+      "}\n"
+      "int signed_postfix_increment(struct signed_flags *state) {\n"
+      "  return state->value++;\n"
+      "}\n"
+      "int signed_add_field(struct signed_flags *state, int right) {\n"
+      "  return state->value += right;\n"
+      "}\n"
+      "struct whole { volatile unsigned int value : 32; };\n"
+      "unsigned int whole_prefix_increment(struct whole *state) {\n"
+      "  return ++state->value;\n"
+      "}\n"
+      "unsigned int whole_postfix_increment(struct whole *state) {\n"
+      "  return state->value++;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/bit-field-mutation-object.c", source, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "bit-field mutation object buffer") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output, "bit-field mutation object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output, "repeat bit-field mutation object emission")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  if (bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0) {
+    (void)fprintf(stderr, "bit-field mutation object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/bit-field-mutation-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read bit-field mutation object") ||
+      !validate_bit_field_mutation_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("bit-field-mutations: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -15943,6 +16449,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "bit-field-stores") == 0) {
     return run_bit_field_store_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "bit-field-mutations") == 0) {
+    return run_bit_field_mutation_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializer_object(argv[2]);
   }
@@ -15982,7 +16491,7 @@ int main(int argc, char **argv) {
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|automatic-objects|"
                 "block-externs|block-functions|block-typedefs|block-enums|"
-                "bit-field-stores|"
+                "bit-field-stores|bit-field-mutations|"
                 "aggregate-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"

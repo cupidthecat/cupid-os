@@ -44,4 +44,4 @@ A 64-bit logical OR fixture receives the unsupported-type diagnostic and publish
 
 This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, and ELF32 modules and their contracts. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC path remains the embedded runtime JIT and AOT path. No production artifact, ABI owner, build transform, host dependency, boot path, or runtime behavior changes here.
 
-Issue #25 remains open. The remaining bitwise and comparison operators, bit-field writes, non-four-byte values, subscript and pointer-based addresses, compound and update lowering, atomic ordering, general statements, broader calls and ABI work, production integration, and staged self-hosting still remain.
+Later decisions close several frontiers that were open here. ADRs 0063 and 0064 add assignment and mutation for represented bit fields in four-byte storage units. Issue #25 remains open for non-four-byte field storage, partial volatile mutation, atomic ordering, broader values, production integration, and staged self-hosting.

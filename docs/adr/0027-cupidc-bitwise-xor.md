@@ -28,4 +28,4 @@ A 64-bit XOR fixture receives the unsupported-type diagnostic. A copied frozen u
 
 This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
-Issue #25 remains open. GNU inline assembly, broader statement lowering, unary operations, bit-field writes, non-four-byte values, pointer and subscript addresses, broader calls, production integration, and staged self-hosting still remain.
+Later decisions close several frontiers that were open here. ADRs 0063 and 0064 add assignment and mutation for represented bit fields in four-byte storage units. Issue #25 remains open for non-four-byte field storage, partial volatile mutation, atomic ordering, broader values, production integration, and staged self-hosting.

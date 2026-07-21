@@ -128,13 +128,15 @@ declared width. Signed byte and word mutation wraps through the low i386 lane
 and then sign-extends the result. Represented cdecl scalar arguments keep
 four-byte stack slots, and callers and callees normalize narrow results.
 
-Plain assignment works for non-atomic integer bit fields whose declared storage
-unit is four bytes and fits inside the record. A partial-field store keeps the
-other bits in that unit. The expression returns the stored field value after
-width truncation and signed extension. A 32-bit field uses a direct store
-without reading the old unit. Pointer-derived and indexed record members use
-the same path. Compound bit-field operations, atomic fields, and other storage
-unit sizes remain unfinished.
+Plain assignment, all ten compound assignments, and prefix and postfix update
+work for non-atomic integer bit fields whose declared storage unit is four
+bytes and fits inside the record. The record designator is evaluated once, and
+compound operations use the target's integer promotions. Partial fields keep
+the other bits in their unit. Assignment, compound assignment, and prefix
+update return the stored lane after width truncation and signed extension.
+Postfix update returns the extracted old value. Volatile 32-bit updates perform
+one read and one store. Partial volatile mutation, atomic fields, and other
+storage-unit sizes remain unfinished.
 
 An explicit cast to void evaluates its operand once. The shared IR discards a
 represented integer, object pointer, function pointer, or supported structure
