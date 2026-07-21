@@ -29,3 +29,7 @@ Issue #25 remains open for Boolean mutation, aggregate initialization and values
 ## Extension: discarded structure values
 
 A later structure-value path allows a cast to `void` to consume a complete supported structure. Lowering still evaluates the operand once. Lvalue conversion captures the structure in an instruction-owned snapshot, then typed `DISCARD` removes its one abstract handle. This does not skip a copy or invent a scalar conversion. Union, Cupid class, array-value, over-aligned, volatile, and atomic operands remain unsupported at their normal evaluation boundaries. The extension remains host-built proof and changes no ownership or dependency count.
+
+## Extension: discarded eight-byte integers
+
+ADR 0065 allows a cast to `void` to consume an eight-byte constant or supported fixed-call result. Lowering still evaluates the operand and discards its one snapshot handle. An eight-byte lvalue remains unsupported because this extension does not add wide object access.

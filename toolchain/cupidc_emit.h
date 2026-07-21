@@ -28,6 +28,9 @@ ctool_status_t ctool_c_emit_object(
  * narrow string literals, one-byte, two-byte, or four-byte integer loads and
  * stores, represented four-byte bit-field loads and plain assignments, and
  * four-byte pointer values, through CupidC linear IR and the shared x86 model.
+ * Eight-byte integer constants and call results use private frame snapshots.
+ * Calls preserve the i386 low word in EAX and high word in EDX, and matching
+ * returns restore the same register pair.
  * Direct object and literal addresses use text `R_386_32` relocations,
  * including linked objects first declared by a block extern.
  * Block typedefs consume no frame storage and produce no target record.

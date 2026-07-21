@@ -53,8 +53,12 @@ The compiler for C and Cupid C source.
 _Avoid_: Cupid C when referring to the compiler
 
 **Linear IR**:
-The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from scalar and structure values. Branch targets stay relative to one function, while parameters, represented automatic objects, compound-literal objects, runtime string literals, block-static objects, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, frame offsets, literal symbols, and structure snapshot storage remain private to target emission.
+The typed, target-neutral instruction sequence between CupidC's function-body AST and machine-code emission. Its stack entries distinguish object addresses from scalar and structure values. Branch targets stay relative to one function, while parameters, represented automatic objects, compound-literal objects, runtime string literals, block-static objects, linked file objects, and linked function references retain their absolute frontend identities. Machine addresses, section offsets, symbol-table indices, frame offsets, literal symbols, and value snapshot storage remain private to target emission.
 _Avoid_: AST, x86 bytecode, machine code
+
+**Wide integer value**:
+An eight-byte integer carried through the hosted Linear IR as one logical value. The i386 emitter stores its two words in a private frame snapshot and returns the low word in EAX and the high word in EDX. The current boundary covers constants, matching conditionals, fixed call results, discard, and return, but not parameters, lvalue access, arithmetic, or mixed-width conversion.
+_Avoid_: two unrelated 32-bit values, a public IR register pair
 
 **Represented bit-field assignment**:
 A plain Cupid C assignment to a non-atomic integer bit field whose declared storage unit is four bytes and fits inside its record. Linear IR retains the graph member, while i386 emission preserves neighboring bits and returns the value represented by the stored field.

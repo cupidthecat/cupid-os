@@ -421,6 +421,29 @@ static ctool_bool cir_type_is_represented_integer(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_type_is_wide_integer(const cir_context_t *context,
+                                           ctool_u32 type) {
+  const ctool_c_type_layout_t *layout;
+  if (type >= context->unit->layout.type_count) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[type];
+  return layout->is_integer == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 8u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_is_value_integer(const cir_context_t *context,
+                                            ctool_u32 type) {
+  return cir_type_is_represented_integer(context, type) == CTOOL_TRUE ||
+                 cir_type_is_wide_integer(context, type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_type_is_i32_pointer(const cir_context_t *context,
                                           ctool_u32 type) {
   const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
@@ -481,6 +504,14 @@ static ctool_bool cir_type_is_represented_scalar(
     const cir_context_t *context, ctool_u32 type) {
   return cir_type_is_represented_integer(context, type) == CTOOL_TRUE ||
                  cir_type_is_i32_pointer_value(context, type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_is_value_scalar(const cir_context_t *context,
+                                           ctool_u32 type) {
+  return cir_type_is_represented_scalar(context, type) == CTOOL_TRUE ||
+                 cir_type_is_wide_integer(context, type) == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -1294,8 +1325,8 @@ static ctool_bool cir_integer_value_types_match(
 static ctool_bool cir_scalar_value_types_match(
     cir_context_t *context, ctool_u32 object_type,
     ctool_u32 value_type) {
-  if (cir_type_is_represented_integer(context, object_type) == CTOOL_TRUE &&
-      cir_type_is_represented_integer(context, value_type) == CTOOL_TRUE) {
+  if (cir_type_is_value_integer(context, object_type) == CTOOL_TRUE &&
+      cir_type_is_value_integer(context, value_type) == CTOOL_TRUE) {
     return cir_integer_value_types_match(context, object_type, value_type);
   }
   return cir_pointer_value_types_match(context, object_type, value_type);
@@ -1387,6 +1418,21 @@ static ctool_bool cir_usual_integer_conversion_is_valid(
 static ctool_bool cir_integer_conversion_is_valid(
     const cir_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
+  if (cir_type_is_wide_integer(context, source_type) == CTOOL_TRUE ||
+      cir_type_is_wide_integer(context, target_type) == CTOOL_TRUE) {
+    if (cir_type_is_wide_integer(context, source_type) == CTOOL_FALSE ||
+        cir_type_is_wide_integer(context, target_type) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    if (conversion == CTOOL_C_CONVERSION_NONE ||
+        conversion == CTOOL_C_CONVERSION_ASSIGNMENT) {
+      return CTOOL_TRUE;
+    }
+    return conversion == CTOOL_C_CONVERSION_QUALIFICATION
+               ? cir_integer_value_types_match(context, source_type,
+                                                target_type)
+               : CTOOL_FALSE;
+  }
   if (cir_type_is_represented_integer(context, source_type) == CTOOL_FALSE ||
       cir_type_is_represented_integer(context, target_type) == CTOOL_FALSE) {
     return CTOOL_FALSE;
@@ -2099,8 +2145,8 @@ static ctool_status_t cir_lower_conversion(
              expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
              expression->conversion == CTOOL_C_CONVERSION_POINTER) {
     ctool_bool integer_types =
-        cir_type_is_represented_integer(context, source.type) == CTOOL_TRUE &&
-                cir_type_is_represented_integer(context, expression->type) ==
+        cir_type_is_value_integer(context, source.type) == CTOOL_TRUE &&
+                cir_type_is_value_integer(context, expression->type) ==
                     CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
@@ -2180,7 +2226,7 @@ static ctool_status_t cir_lower_cast(
   source_type = context->unit->expressions[child].type;
   if (cir_type_is_void(context, expression->type) == CTOOL_TRUE) {
     if (cir_type_is_void(context, source_type) == CTOOL_FALSE &&
-        cir_type_is_represented_scalar(context, source_type) == CTOOL_FALSE) {
+        cir_type_is_value_scalar(context, source_type) == CTOOL_FALSE) {
       status = cir_require_structure_value(
           context, source_type, &expression->location);
       if (status != CTOOL_OK) {
@@ -2226,6 +2272,9 @@ static ctool_status_t cir_lower_cast(
         (cir_type_is_represented_integer(
              context, source_type) == CTOOL_TRUE &&
          cir_type_is_represented_integer(context, expression->type) ==
+             CTOOL_TRUE) ||
+        (cir_type_is_wide_integer(context, source_type) == CTOOL_TRUE &&
+         cir_type_is_wide_integer(context, expression->type) ==
              CTOOL_TRUE))) {
     return cir_unsupported_type(context, &expression->location);
   }
@@ -3976,7 +4025,7 @@ static ctool_status_t cir_lower_conditional(
         CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
         "CupidC IR lowering does not yet support this value type");
   }
-  if (cir_type_is_represented_scalar(context, expression->type) ==
+  if (cir_type_is_value_scalar(context, expression->type) ==
       CTOOL_FALSE) {
     status = cir_require_structure_value(
         context, expression->type, &expression->location);
@@ -4148,7 +4197,7 @@ static ctool_status_t cir_lower_call(
     }
   }
   if (cir_type_is_void(context, expression->type) == CTOOL_FALSE &&
-      cir_type_is_represented_scalar(context, expression->type) ==
+      cir_type_is_value_scalar(context, expression->type) ==
           CTOOL_FALSE) {
     if (cir_type_is_structure_candidate(context, expression->type) ==
         CTOOL_FALSE) {
@@ -4810,8 +4859,9 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   }
   if (expression->kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT) {
     ctool_bool is_signed;
+    ctool_u64 integer_bits;
     if (expression->child_count != 0u ||
-        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+        cir_type_is_value_integer(context, expression->type) == CTOOL_FALSE) {
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
@@ -4821,18 +4871,23 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     if (is_signed != CTOOL_FALSE && is_signed != CTOOL_TRUE) {
       return cir_invalid_unit(context, &expression->location);
     }
-    if (cir_i32_bits_are_canonical(expression->integer_bits, is_signed) ==
-        CTOOL_FALSE) {
+    if (cir_type_is_wide_integer(context, expression->type) == CTOOL_FALSE &&
+        cir_i32_bits_are_canonical(expression->integer_bits, is_signed) ==
+            CTOOL_FALSE) {
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
           "CupidC IR lowering does not yet support this value type");
     }
+    integer_bits = cir_type_is_wide_integer(context, expression->type) ==
+                           CTOOL_TRUE
+                       ? expression->integer_bits
+                       : expression->integer_bits & 0xffffffffu;
     status = cir_append_instruction(
         context, CTOOL_C_IR_INSTRUCTION_INTEGER, expression->type,
         CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
-        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
-        expression->integer_bits & 0xffffffffu, &expression->location,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, integer_bits,
+        &expression->location,
         &expression->physical_location, (ctool_u32 *)0);
     if (status != CTOOL_OK) {
       return status;
@@ -6197,8 +6252,8 @@ static ctool_status_t cir_lower_return(
   if (result.kind != CIR_STACK_VALUE || context->stack_depth != 0u) {
     return cir_invalid_unit(context, &statement->location);
   }
-  if (cir_type_is_represented_scalar(context,
-                                     context->function_result_type) ==
+  if (cir_type_is_value_scalar(context,
+                              context->function_result_type) ==
       CTOOL_TRUE) {
     if (result.type != context->function_result_type &&
         cir_scalar_value_types_match(context, context->function_result_type,
@@ -8015,8 +8070,8 @@ static ctool_status_t cir_append_unreachable_exit(
         CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u, &body->location,
         &body->physical_location, (ctool_u32 *)0);
   }
-  if (cir_type_is_represented_scalar(context,
-                                     context->function_result_type) ==
+  if (cir_type_is_value_scalar(context,
+                              context->function_result_type) ==
       CTOOL_FALSE) {
     status = cir_require_structure_value(
         context, context->function_result_type, &body->location);
@@ -8591,7 +8646,7 @@ static ctool_status_t cir_lower_function(
   }
   if (cir_type_is_void(context, function_type->referenced_type) ==
           CTOOL_FALSE &&
-      cir_type_is_represented_scalar(
+      cir_type_is_value_scalar(
           context, function_type->referenced_type) == CTOOL_FALSE) {
     if (cir_type_is_structure_candidate(
             context, function_type->referenced_type) == CTOOL_FALSE) {

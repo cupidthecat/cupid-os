@@ -85,3 +85,7 @@ A later hosted extension carries complete supported structures through the same 
 ### Runtime narrow string extension
 
 ADR 0053 adds `STRING_LITERAL_ADDRESS` and `COPY_STRING`. A runtime literal address retains its absolute frontend expression index, while a copy retains its semantic initializer index and consumes a selected character-array address. The i386 emitter owns each local `.rodata` symbol, emits its `R_386_32` use, and copies initializer bytes with `CLD` plus `REP MOVSB`. Automatic destinations are zeroed first, so bytes beyond the retained string keep their implicit zero value.
+
+### Eight-byte integer result extension
+
+ADR 0065 carries an eight-byte integer through constants, matching conditionals, fixed call results, discard, and return. One public scalar stack entry names an emitter-private two-word snapshot. This keeps the IR independent of the i386 EDX:EAX return pair. Parameters, lvalue access, arithmetic, and mixed-width conversion remain outside the extension.

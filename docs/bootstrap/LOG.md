@@ -5439,3 +5439,55 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Other bit-field storage units, partial volatile mutation, atomic ordering, wider and floating values, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC carries eight-byte integer returns
+
+### Decision and active requirement
+
+Hosted CupidC now carries an eight-byte integer through constants, matching conditional arms, fixed direct and indirect call results, discarded expressions, casts to `void`, and returns. The complete unchanged `cfront_integer_mask` helper in `toolchain/cupidc_frontend.c` drives the work. It returns either `0xffffffffull` or `0xffffffffffffffffull` from one conditional expression.
+
+One wide value occupies one Linear IR stack entry. The i386 emitter backs that handle with an instruction-owned eight-byte frame snapshot. Constants write both target words into their snapshot. Direct and indirect calls save EAX and EDX before later evaluation can overwrite either register. A return restores the low word to EAX and the high word to EDX. Discard removes the handle without exposing the target pair in public IR.
+
+The same one-handle model keeps the existing control-flow joins and sixteen-byte call-alignment analysis valid. Giving one C value two public stack entries was rejected because it would make value identity, branch joins, discard, and call accounting depend on the i386 register pair. Publishing an address or word-pair payload was also rejected because frame layout and target transport belong to emission. Truncating the result or changing the active helper would hide the compiler requirement.
+
+Eight-byte parameters, lvalue loads and stores, conditions, arithmetic, mutation, variadic transport, and mixed-width conversion remain unsupported. Each needs its own complete semantic and ABI contract. A wide parameter receives the focused ABI diagnostic. Wide addition and a four-byte to eight-byte cast receive the focused unsupported-value diagnostic. Failed operations preserve the frozen frontend unit, publish no partial output, rewind temporary storage, and allow same-job recovery.
+
+ADR 0065 records the decision. ADR 0016, ADR 0017, ADR 0043, ADR 0047, ADR 0049, and ADR 0050 now point to the extension from the earlier IR, call, discard, structure-snapshot, and alignment boundaries.
+
+### Contract evidence and corrections
+
+- The IR fixture contains six functions. It checks three full-width constants, one conditional, two direct calls, one indirect call, four wide returns, and one discard. Consecutive lowering is deterministic and leaves the input unit unchanged.
+- The deterministic ELF32 object contains 439 bytes of `.text`, fingerprint `181CA1EC`, seven symbols, three `R_386_PC32` relocations with addend `-4`, and one `R_386_32` relocation with addend zero. Shared decoding checks constant snapshots, call-result snapshots, direct and indirect relays, discard, and call alignment.
+- A decoder-driven i386 execution oracle applies the four text relocations in memory. It runs both `integer_mask` outcomes, both outcomes through `direct_relay`, both outcomes through `indirect_relay`, and the literal return. Every case checks EDX:EAX, nested i386 call and return stack effects, EBP restoration, the caller return word, and the unchanged argument slot.
+- The first focused IR run stopped at the former unsupported eight-byte value boundary. The first object run stopped in IR before any object could be published. Adding the snapshot-backed value path made both stages green without changing the active helper or another OS source.
+- Two older negative fixtures became valid for the intended reason. A discarded eight-byte constant in an unreachable terminal `for` iteration now validates without emitting iteration code, and a cast of an eight-byte constant to `void` now emits a typed discard. Both cases are positive exact-IR contracts. Wide lvalue evaluation remains a focused negative.
+- The first full repository run exposed six deliberate audit-drift assertions with old lexical totals. The regenerated audit was already correct. Updating the `sizeof`, `for`, `while`, `if`, `else`, `goto`, and `return` expectations made the six focused tests pass in 116.886 seconds, including the temporary-tree manifest check. The repeated full gate then passed.
+- The in-app browser inventory was empty for the final runtime check. The repository's own QEMU GUI-terminal harness booted the rebuilt image and ran `/bin/ls.cc` with the established 0.60-second key timing. This is direct OS runtime evidence; no browser result is claimed.
+- Two-axis review found no standards violation. It noted duplicated call-result publication and existing primitive register indices as possible cleanup work. Specification review found that decoding alone did not execute the conditional helper or either relay. Extending the relocated-object oracle to run all three paths closed that proof gap.
+- The review oracle added 220 checked contract lines. The generated inventory then moved to 999 `continue`, 27,612 `if`, 3,705 `else`, 3,249 `for`, and 16,843 `return` occurrences. Four fixed drift assertions were updated from the generated record. The five focused inventory and temporary-tree checks pass in 119.034 seconds, and the final full repository run passes the complete audit module.
+- No user question was needed. The unchanged helper, the target's established i386 cdecl contract, and the existing snapshot ownership rule determine this boundary.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 174/5,329/46,660/649/212; `cupidc_emit.c` has 136/3,358/30,068/444/221; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 78,095 checked lines, and `toolchain_core` has 53,047.
+
+The generated audit records 625 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,341 `goto`, 62 `do`, 206 `switch`, 1,588 `case`, 137 `default`, 2,533 `while`, 1,738 `break`, 999 `continue`, 27,612 `if`, 3,705 `else`, 3,249 `for`, 16,843 `return`, and 3,542 `sizeof` occurrences. The canonical active-source digest is `58eeea3b09a1f6e591e4f6a70b4ec92ee7f5e9e18dd22fb76b854f9fcf2af403`; the complete audit JSON has SHA-256 `ef25e7fbb31725e15f4b0a25fe1e34f25193f32db9ab39bcd9973f4f01c5dc54`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first rejected the active wide value, and object emission stopped before output. The final focused modes pass their positive, negative, deterministic, transactional, ABI, and execution-oracle checks. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the final complete hosted suite, both registered `wide-returns` modes, and all 22 assembly demos in 11.3 seconds. |
+| Linux hosted Toolchain | PASS | Fresh WSL GCC 13.3 and Clang 18.1 strict builds pass the complete hosted suite and both focused modes. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass both focused modes with leak detection and halt-on-error enabled. Fresh post-review builds pass the expanded object mode in 40.3 and 45.9 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding in `cupidc_ir.c`, `cupidc_emit.c`, or either expanded C contract. Both analyzers pass the final object contract after the execution oracle was extended. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 37.9 seconds, and `make check-bootstrap-audit` reproduces them in 38.2 seconds. |
+| Full repository gate | PASS | `make test` passes all 352 tests in 476.363 seconds with one expected platform skip; Make returns in 514.6 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.6 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds. CupidC emits 911 code bytes and 71 data bytes, reaches `JIT execution complete`, and reports zero stack bytes used. The accepted log contains no panic or exception marker. |
+| Two-axis review | PASS AFTER ORACLE FIX | Standards review found no violation and recorded two non-blocking cleanup opportunities. Specification review requested execution of the active conditional and both relay paths. The relocated-object oracle now covers each path and both enum outcomes. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles, while the private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result verifies the rebuilt image but does not assign production ownership to the hosted wide-result path.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Eight-byte parameters, object access, conditions, arithmetic, conversion, mutation, variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

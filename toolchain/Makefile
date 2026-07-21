@@ -429,6 +429,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) variadic-callees ..
 	$(CUPIDC_IR_CONTRACT) narrow-values ..
 	$(CUPIDC_IR_CONTRACT) void-casts ..
+	$(CUPIDC_IR_CONTRACT) wide-returns ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
 	$(CUPIDC_OBJECT_CONTRACT) integer-mutation ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-values ..
@@ -453,6 +454,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..
 	$(CUPIDC_OBJECT_CONTRACT) void-casts ..
+	$(CUPIDC_OBJECT_CONTRACT) wide-returns ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

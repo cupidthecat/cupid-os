@@ -128,6 +128,14 @@ declared width. Signed byte and word mutation wraps through the low i386 lane
 and then sign-extends the result. Represented cdecl scalar arguments keep
 four-byte stack slots, and callers and callees normalize narrow results.
 
+The shared path also carries a limited eight-byte integer value. Full-width
+constants, matching conditional arms, fixed direct and indirect call results,
+discarded expressions, casts to void, and returns use one Linear IR handle
+backed by a private two-word frame snapshot. The i386 return boundary places
+the low word in EAX and the high word in EDX. Eight-byte parameters, lvalue
+access, conditions, arithmetic, mutation, variadic transport, and mixed-width
+conversion remain unsupported.
+
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
 bytes and fits inside the record. The record designator is evaluated once, and
@@ -140,7 +148,9 @@ storage-unit sizes remain unfinished.
 
 An explicit cast to void evaluates its operand once. The shared IR discards a
 represented integer, object pointer, function pointer, or supported structure
-value. A void operand leaves no value on the abstract stack.
+value. An eight-byte constant or supported call result can also be discarded.
+An eight-byte lvalue still stops at its unsupported evaluation boundary. A
+void operand leaves no value on the abstract stack.
 
 Automatic initializer lists work for fixed arrays and complete structures
 whose alignment does not exceed four bytes. The lowerer zero-initializes the
@@ -158,7 +168,7 @@ direct and indirect calls, parameters, and returns. This includes casts to
 void and other discarded structure expressions. Each lvalue conversion and
 structure call result receives its own frame snapshot. Copies cover the full
 target object size, so a supported structure may contain wide or floating
-members even though those members do not yet work as separate runtime values.
+members even when the member's separate runtime operations remain unsupported.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before
@@ -264,10 +274,10 @@ indexing, and returns. Supported structure graphs have alignment no greater
 than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
-case, explicit bit-field initializer leaves, Boolean mutation, separate 64-bit and
-floating-point runtime values, wider or aggregate variadic values, wide strings,
-literal pooling, and block-static addresses in other block-static initializers
-remain unfinished in the shared path.
+case, explicit bit-field initializer leaves, Boolean mutation, most eight-byte
+integer operations, floating-point runtime values, wider or aggregate variadic
+values, wide strings, literal pooling, and block-static addresses in other
+block-static initializers remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C
 compiler for its C objects, and the private in-kernel CupidC compiler still

@@ -204,10 +204,11 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * Each function owns a contiguous instruction slice and a typed abstract
  * stack that begins and ends empty. Represented one-byte and two-byte integer
  * values occupy canonical 32-bit stack words after signed or unsigned
- * extension. A supported structure value also occupies one abstract stack
- * entry. The i386 emitter stores its copied bytes in private frame storage,
- * so temporary addresses do not become part of the public IR. Branch targets
- * are relative to that slice, and every join has the same address/value stack
+ * extension. An eight-byte integer constant or call result also occupies one
+ * abstract stack entry. The i386 emitter stores its two words in private frame
+ * storage and keeps the temporary address out of the public IR. A supported
+ * structure value uses the same one-entry snapshot model. Branch targets are
+ * relative to that slice, and every join has the same address/value stack
  * shape on each incoming path. A pre-test while loop uses BRANCH_ZERO for its
  * forward exit
  * and JUMP for its backward edge. A for loop evaluates its optional expression
@@ -305,6 +306,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * storage, returns its address in EAX, and removes the hidden pointer with
  * RET 4. Either call pushes one result unless its result type is void. Narrow
  * caller and callee results are normalized from the declared AL or AX lane.
+ * An eight-byte integer result arrives with its low word in EAX and its high
+ * word in EDX. RETURN_VALUE restores those registers from the private
+ * snapshot. Eight-byte integer parameters, lvalue access, and arithmetic are
+ * not represented yet.
  * Supported structure values are complete, nonvolatile, nonatomic structures
  * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
  * into the caller-provided result object.

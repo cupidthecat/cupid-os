@@ -41,3 +41,7 @@ Issue #25 remains open. Union and Cupid class values, volatile and atomic struct
 ## Extension: structure compound literals
 
 ADR 0052 lets a supported structure compound literal build an aggregate value in target-private staging and commit it to its persistent unnamed frame object. The existing lvalue-to-value path then applies. `LOAD` still creates a separate private snapshot before a call, assignment, conditional, or return uses the value. Staging, the persistent object, and a later value snapshot have distinct storage, so initialization can read the prior object and reevaluation cannot change a structure value that was already copied.
+
+## Parallel eight-byte integer snapshots
+
+ADR 0065 reuses the one-handle, emitter-private snapshot principle for an eight-byte integer result. It does not use the structure hidden-pointer ABI. The i386 scalar result remains in EDX:EAX until the caller copies both words into its private slot.

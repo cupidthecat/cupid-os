@@ -33,3 +33,7 @@ This decision closes the call-alignment boundary recorded by ADR 0017, ADR 0043,
 ## Extension: scalar variadic calls
 
 ADR 0054 applies the same alignment pass to scalar variadic calls. The public call instruction now retains the actual argument count, so stack-depth analysis and padding no longer assume that the function type's named parameter count describes the full call site. Fixed-call behavior is unchanged.
+
+## Extension: wide result handles
+
+ADR 0065 keeps one live Linear IR handle for an eight-byte call result. The existing control-flow analysis therefore counts one four-byte handle while the emitter stores the two target words in frame storage. Direct and indirect calls still reach a sixteen-byte ESP boundary before the call, and the private result snapshot does not change the outgoing argument calculation.

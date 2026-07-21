@@ -35,3 +35,7 @@ This decision transfers no production build ownership. GCC or Clang still builds
 ## Extension: structure calls
 
 Fixed direct calls later gained complete supported structure parameters and results. Source-order evaluation still publishes one completed handle per argument. When any structure participates, the emitter reserves one outgoing block, zeros it for deterministic padding, and copies arguments into cdecl order. A structure argument occupies its inline object size rounded to four bytes. A structure result adds a hidden destination pointer before the explicit arguments; the callee reads it at `EBP + 8`, starts explicit parameters at `EBP + 12`, returns the pointer in EAX, and removes the hidden slot with encoded `RET 4`. The caller removes only the explicit outgoing argument bytes plus its saved IR handles. Scalar-only calls keep the original byte path. Variadic calls, floating calls, 16-byte call-site alignment, and aggregate categories outside the supported structure slice remain open. This extension changes no production owner.
+
+## Extension: eight-byte integer results
+
+ADR 0065 lets a fixed direct call return an eight-byte integer without changing its represented four-byte parameter boundary. The caller snapshots EAX and EDX into instruction-owned frame storage and leaves one logical value handle. A later return restores that pair. Wide parameters, variadic transport, lvalue access, arithmetic, and mixed-width conversion remain open.

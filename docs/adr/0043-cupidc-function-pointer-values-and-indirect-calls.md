@@ -37,3 +37,7 @@ Active-source guards pin the unchanged invocation callback in `toolchain/ctool.c
 ## Extension: structure-valued indirect calls
 
 Fixed indirect calls later gained the same supported structure ABI as direct calls. The callee handle remains below the source-ordered argument handles. The emitter builds a rounded, zero-padded outgoing object area, loads the saved callee into EAX, and emits `CALL EAX`. Structure results use an instruction-owned destination passed as the hidden first argument. The callee returns that pointer in EAX and removes its hidden slot with `RET 4`; the caller removes the explicit outgoing bytes, argument handles, and saved callee handle. Scalar-only indirect calls keep their original slot-reversal path. Variadic, floating, atomic, and unsupported aggregate forms remain deferred. This extension transfers no production ownership.
+
+## Extension: eight-byte integer results
+
+ADR 0065 lets a fixed indirect call return an eight-byte integer. The saved callee still follows the existing register-indirect call path. Immediately after `CALL EAX`, the emitter stores EAX and EDX in an instruction-owned snapshot and publishes one logical result handle. Eight-byte parameters and other wide operations remain deferred.
