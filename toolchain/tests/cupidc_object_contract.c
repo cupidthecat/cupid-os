@@ -326,15 +326,100 @@ static const char wide_parameter_object_source[] =
     "  return read_after_wide(value, 0x13579bdfu);\n"
     "}\n";
 
-static const char wide_variadic_argument_object_source[] =
+static const char wide_variadic_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
     "typedef unsigned long long ctool_u64;\n"
-    "void sink(int marker, ...);\n"
-    "void pass_variadic(ctool_u64 value) { sink(0, value); }\n";
-
-static const char wide_unprototyped_argument_object_source[] =
-    "typedef unsigned long long ctool_u64;\n"
-    "void sink();\n"
-    "void pass_unprototyped(ctool_u64 value) { sink(value); }\n";
+    "typedef long long ctool_i64;\n"
+    "typedef __builtin_va_list va_list;\n"
+    "typedef enum wide_value {\n"
+    "  WIDE_VALUE = 0x123456789abcdef0ull\n"
+    "} wide_enum;\n"
+    "typedef ctool_i64 (*signed_variadic_callback_t)(ctool_u32, ...);\n"
+    "typedef ctool_u64 (*unprototyped_callback_t)();\n"
+    "ctool_u64 read_unsigned(ctool_u32 marker, ...) {\n"
+    "  va_list arguments;\n"
+    "  ctool_u32 first;\n"
+    "  ctool_u64 middle;\n"
+    "  ctool_u32 last;\n"
+    "  __builtin_va_start(arguments, marker);\n"
+    "  first = __builtin_va_arg(arguments, ctool_u32);\n"
+    "  middle = __builtin_va_arg(arguments, ctool_u64);\n"
+    "  last = __builtin_va_arg(arguments, ctool_u32);\n"
+    "  __builtin_va_end(arguments);\n"
+    "  return middle ^ ((ctool_u64)first << 32u) ^ (ctool_u64)last;\n"
+    "}\n"
+    "ctool_i64 read_signed(ctool_u32 marker, ...) {\n"
+    "  va_list arguments;\n"
+    "  ctool_u32 first;\n"
+    "  ctool_i64 middle;\n"
+    "  ctool_u32 last;\n"
+    "  __builtin_va_start(arguments, marker);\n"
+    "  first = __builtin_va_arg(arguments, ctool_u32);\n"
+    "  middle = __builtin_va_arg(arguments, ctool_i64);\n"
+    "  last = __builtin_va_arg(arguments, ctool_u32);\n"
+    "  __builtin_va_end(arguments);\n"
+    "  return middle + (ctool_i64)first - (ctool_i64)last;\n"
+    "}\n"
+    "wide_enum read_enum(ctool_u32 marker, ...) {\n"
+    "  va_list arguments;\n"
+    "  wide_enum value;\n"
+    "  __builtin_va_start(arguments, marker);\n"
+    "  value = __builtin_va_arg(arguments, wide_enum);\n"
+    "  __builtin_va_end(arguments);\n"
+    "  return value;\n"
+    "}\n"
+    "ctool_u64 read_successive(ctool_u32 marker, ...) {\n"
+    "  va_list arguments;\n"
+    "  va_list copy;\n"
+    "  ctool_u64 copied_first;\n"
+    "  ctool_u64 original_first;\n"
+    "  ctool_u64 original_second;\n"
+    "  __builtin_va_start(arguments, marker);\n"
+    "  __builtin_va_copy(copy, arguments);\n"
+    "  copied_first = __builtin_va_arg(copy, ctool_u64);\n"
+    "  original_first = __builtin_va_arg(arguments, ctool_u64);\n"
+    "  original_second = __builtin_va_arg(arguments, ctool_u64);\n"
+    "  __builtin_va_end(copy);\n"
+    "  __builtin_va_end(arguments);\n"
+    "  return copied_first + original_first + original_second;\n"
+    "}\n"
+    "ctool_u64 call_direct_variadic(void) {\n"
+    "  return read_unsigned(0x01020304u, 0x11111111u,\n"
+    "                       0x2222222233333333ull, 0x44444444u);\n"
+    "}\n"
+    "ctool_i64 call_indirect_variadic(\n"
+    "    signed_variadic_callback_t callback) {\n"
+    "  return callback(0xa5a5a5a5u, 5u, -4294967296ll, 3u);\n"
+    "}\n"
+    "wide_enum call_wide_enum(wide_enum value) {\n"
+    "  return read_enum(0u, value);\n"
+    "}\n"
+    "ctool_u64 call_direct_unprototyped(void) {\n"
+    "  extern ctool_u64 accept_unprototyped();\n"
+    "  return accept_unprototyped(0xaaaaaaaau,\n"
+    "                              0x123456789abcdef0ull,\n"
+    "                              0x0f0f0f0fu);\n"
+    "}\n"
+    "ctool_u64 call_indirect_unprototyped(\n"
+    "    unprototyped_callback_t callback) {\n"
+    "  return callback(0x01020304u, 0x1122334455667788ull,\n"
+    "                  0x99aabbccu);\n"
+    "}\n"
+    "ctool_u64 accept_unprototyped(ctool_u32 first, ctool_u64 middle,\n"
+    "                               ctool_u32 last) {\n"
+    "  return middle ^ ((ctool_u64)first << 32u) ^ (ctool_u64)last;\n"
+    "}\n"
+    "ctool_u64 call_successive_wide(void) {\n"
+    "  return read_successive(0u, 0x0000000100000002ull,\n"
+    "                         0x0000000300000004ull);\n"
+    "}\n"
+    "ctool_u64 call_nested_wide(void) {\n"
+    "  return read_unsigned(0x01020304u, 0x11111111u,\n"
+    "                       read_successive(\n"
+    "                           0u, 0x0000000100000002ull,\n"
+    "                           0x0000000300000004ull),\n"
+    "                       0x44444444u);\n"
+    "}\n";
 
 static const char wide_conversion_object_source[] =
     "typedef signed char ctool_i8;\n"
@@ -21009,6 +21094,242 @@ cleanup:
   return 1;
 }
 
+static int validate_wide_variadic_call_kind(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, ctool_bool indirect,
+    ctool_u32 expected_calls, const char *context) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 calls = 0u;
+  if (job == NULL || text == NULL || function == NULL || context == NULL ||
+      (indirect != CTOOL_FALSE && indirect != CTOOL_TRUE) ||
+      function->size == 0u || function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: call decode failed at %u\n", context,
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      calls++;
+      if (instruction->operand_count != 1u ||
+          (indirect == CTOOL_TRUE &&
+           instruction->operands[0].kind == CTOOL_X86_OPERAND_RELATIVE) ||
+          (indirect == CTOOL_FALSE &&
+           instruction->operands[0].kind != CTOOL_X86_OPERAND_RELATIVE)) {
+        (void)fprintf(stderr, "%s: call target kind differs\n", context);
+        return 0;
+      }
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != function->size || calls != expected_calls) {
+    (void)fprintf(stderr, "%s: expected %u calls, found %u\n", context,
+                  (unsigned int)expected_calls, (unsigned int)calls);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_variadic_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  typedef struct {
+    const char *name;
+    ctool_bool indirect;
+    ctool_u32 calls;
+  } wide_variadic_call_case_t;
+  static const wide_variadic_call_case_t call_cases[] = {
+      {"call_direct_variadic", CTOOL_FALSE, 1u},
+      {"call_indirect_variadic", CTOOL_TRUE, 1u},
+      {"call_wide_enum", CTOOL_FALSE, 1u},
+      {"call_direct_unprototyped", CTOOL_FALSE, 1u},
+      {"call_indirect_unprototyped", CTOOL_TRUE, 1u},
+      {"call_successive_wide", CTOOL_FALSE, 1u},
+      {"call_nested_wide", CTOOL_FALSE, 2u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *read_unsigned =
+      find_symbol(object, "read_unsigned");
+  const ctool_elf32_symbol_t *read_signed =
+      find_symbol(object, "read_signed");
+  const ctool_elf32_symbol_t *read_enum =
+      find_symbol(object, "read_enum");
+  const ctool_elf32_symbol_t *read_successive =
+      find_symbol(object, "read_successive");
+  const ctool_elf32_symbol_t *accept_unprototyped =
+      find_symbol(object, "accept_unprototyped");
+  ctool_u32 indirect_variadic_arguments[1];
+  ctool_u32 indirect_unprototyped_arguments[1];
+  ctool_u32 wide_enum_arguments[2];
+  ctool_u32 index;
+  if (text == NULL || text->contents.data == NULL ||
+      !wide_function_symbol_is_valid(object, text, read_unsigned) ||
+      !wide_function_symbol_is_valid(object, text, read_signed) ||
+      !wide_function_symbol_is_valid(object, text, read_enum) ||
+      !wide_function_symbol_is_valid(object, text, read_successive) ||
+      !wide_function_symbol_is_valid(object, text, accept_unprototyped)) {
+    (void)fprintf(stderr, "wide variadic callee symbols differ\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(call_cases) / sizeof(call_cases[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, call_cases[index].name);
+    if (!wide_function_symbol_is_valid(object, text, function) ||
+        !validate_call_alignment_function(
+            job, text, function, call_cases[index].calls, 0u, 0u, 0u, 0u,
+            call_cases[index].name) ||
+        !validate_wide_variadic_call_kind(
+            job, text, function, call_cases[index].indirect,
+            call_cases[index].calls, call_cases[index].name)) {
+      return 0;
+    }
+  }
+  indirect_variadic_arguments[0] = read_signed->value;
+  indirect_unprototyped_arguments[0] = accept_unprototyped->value;
+  wide_enum_arguments[0] = 0x9abcdef0u;
+  wide_enum_arguments[1] = 0x12345678u;
+  return expect_wide_oracle_result(
+             job, object, text, "call_direct_variadic", NULL, 0u,
+             0x77777777u, 0x33333333u, "direct wide variadic call") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "call_indirect_variadic",
+                     indirect_variadic_arguments, 1u, 0x00000002u,
+                     0xffffffffu, "indirect signed wide variadic call") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "call_wide_enum",
+                     wide_enum_arguments, 2u,
+                     0x9abcdef0u, 0x12345678u,
+                     "wide enum variadic argument") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "call_direct_unprototyped", NULL,
+                     0u, 0x95b3d1ffu, 0xb89efcd2u,
+                     "direct wide unprototyped call") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "call_indirect_unprototyped",
+                     indirect_unprototyped_arguments, 1u, 0xcccccc44u,
+                     0x10203040u, "indirect wide unprototyped call") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "call_successive_wide", NULL, 0u,
+                     0x00000008u, 0x00000005u,
+                     "copied and successive wide variadic arguments") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "call_nested_wide", NULL, 0u,
+                     0x4444444cu, 0x11111114u,
+                     "nested wide variadic calls")
+             ? 1
+             : 0;
+}
+
+static int run_wide_variadic_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/wide-variadics.c",
+                         wide_variadic_object_source, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 12u) {
+    (void)fprintf(stderr, "wide variadic object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "wide variadic object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first wide variadic object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat wide variadic object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "wide variadic objects are not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          NULL, "limited wide variadic object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered wide variadic object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "wide variadic object recovery changed the output\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-variadics.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide variadic object") ||
+      !validate_wide_variadic_object(job, &object)) {
+    (void)fprintf(stderr, "wide variadic object differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-variadics: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_wide_return_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -21027,8 +21348,6 @@ static int run_wide_return_object(const char *host_root) {
   ctool_buffer_t *limited = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t parameter_unit;
-  ctool_c_translation_unit_t variadic_argument_unit;
-  ctool_c_translation_unit_t unprototyped_argument_unit;
   ctool_c_translation_unit_t conversion_unit;
   ctool_c_translation_unit_t invalid_conversion_unit;
   ctool_c_translation_unit_t invalid_reverse_conversion_unit;
@@ -21060,10 +21379,6 @@ static int run_wide_return_object(const char *host_root) {
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&parameter_unit, 0, sizeof(parameter_unit));
-  (void)memset(&variadic_argument_unit, 0,
-               sizeof(variadic_argument_unit));
-  (void)memset(&unprototyped_argument_unit, 0,
-               sizeof(unprototyped_argument_unit));
   (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
   (void)memset(&operation_unit, 0, sizeof(operation_unit));
   (void)memset(&wide_count_operation_unit, 0,
@@ -21076,12 +21391,6 @@ static int run_wide_return_object(const char *host_root) {
       !parse_source_mode(job, "/wide-parameter-object.c",
                          wide_parameter_object_source, CTOOL_TRUE,
                          &parameter_unit) ||
-      !parse_source(job, "/wide-variadic-argument-object.c",
-                    wide_variadic_argument_object_source,
-                    &variadic_argument_unit) ||
-      !parse_source(job, "/wide-unprototyped-argument-object.c",
-                    wide_unprototyped_argument_object_source,
-                    &unprototyped_argument_unit) ||
       !parse_source(job, "/wide-conversion-object.c",
                     wide_conversion_object_source, &conversion_unit) ||
       !parse_source_mode(job, "/wide-operation-object.c",
@@ -21313,18 +21622,6 @@ static int run_wide_return_object(const char *host_root) {
   status = ctool_elf32_read(job, &object_source, &object);
   if (!check_status(status, CTOOL_OK, "read wide parameter object") ||
       !validate_wide_parameter_object(job, &object) ||
-      !expect_object_failure_preserves_unit(
-          job, &variadic_argument_unit, failure, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports arguments without declared "
-          "parameter types only for represented scalar values",
-          "wide variadic argument object") ||
-      !expect_object_failure_preserves_unit(
-          job, &unprototyped_argument_unit, failure,
-          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
-          "CupidC IR lowering supports arguments without declared "
-          "parameter types only for represented scalar values",
-          "wide unprototyped argument object") ||
       !expect_object_success_preserves_unit(
           job, &conversion_unit, conversion_output,
           "wide conversion object") ||
@@ -21558,6 +21855,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callee_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-variadics") == 0) {
+    return run_wide_variadic_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     if (run_wide_multiplication_object(argv[2]) != 0) {
       return 1;
@@ -21588,8 +21888,8 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
-                "variadic-callees|wide-returns|wide-conditions|wide-objects|"
-                "wide-mutations "
+                "variadic-callees|wide-variadics|wide-returns|"
+                "wide-conditions|wide-objects|wide-mutations "
                 "HOST_ROOT\n");
   return 2;
 }

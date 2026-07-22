@@ -6755,12 +6755,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 177u, 5393u,
-       47381u, 655u, 216u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 150u, 4124u,
-       35174u, 503u, 256u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 180u, 5483u,
+       47961u, 666u, 222u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 154u, 4217u,
+       35750u, 512u, 256u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 303u,
-       11901u, 77125u, 1765u, 1205u, 0u, 0u}};
+       11901u, 77147u, 1765u, 1205u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -21751,6 +21751,384 @@ cleanup:
   return failed;
 }
 
+static const ctool_c_expression_t *wide_variadic_function_call(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  const ctool_c_function_definition_t *definition =
+      find_function_definition(unit, name);
+  const ctool_c_statement_t *body;
+  const ctool_c_statement_t *statement;
+  ctool_u32 statement_index;
+  if (definition == NULL || definition->body >= unit->statement_count) {
+    return NULL;
+  }
+  body = &unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND || body->child_count != 1u ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count >
+          unit->statement_child_count - body->first_child) {
+    return NULL;
+  }
+  statement_index = unit->statement_children[body->first_child];
+  if (statement_index >= unit->statement_count) {
+    return NULL;
+  }
+  statement = &unit->statements[statement_index];
+  if (statement->kind != CTOOL_C_STATEMENT_EXPRESSION ||
+      statement->expression >= unit->expression_count) {
+    return NULL;
+  }
+  return unit->expressions[statement->expression].kind ==
+                 CTOOL_C_EXPRESSION_CALL
+             ? &unit->expressions[statement->expression]
+             : NULL;
+}
+
+static int wide_variadic_argument_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_expression_t *call, ctool_u32 child,
+    ctool_u32 expected_type, ctool_u32 expected_parameter,
+    ctool_c_conversion_kind_t required_conversion) {
+  ctool_u32 expression_index = expression_child(unit, call, child);
+  ctool_u32 terminal = unwrap_conversions(unit, expression_index);
+  const ctool_c_expression_t *expression =
+      expression_index < unit->expression_count
+          ? &unit->expressions[expression_index]
+          : NULL;
+  const ctool_c_expression_t *parameter =
+      terminal < unit->expression_count ? &unit->expressions[terminal] : NULL;
+  return expression != NULL && expression->type == expected_type &&
+                 conversion_chain_has(
+                     unit, expression_index,
+                     CTOOL_C_CONVERSION_LVALUE_TO_VALUE) == CTOOL_TRUE &&
+                 (required_conversion == CTOOL_C_CONVERSION_NONE ||
+                  conversion_chain_has(unit, expression_index,
+                                       required_conversion) == CTOOL_TRUE) &&
+                 parameter != NULL &&
+                 parameter->kind == CTOOL_C_EXPRESSION_PARAMETER &&
+                 parameter->reference == expected_parameter
+             ? 1
+             : 0;
+}
+
+static int validate_wide_variadic_calls(
+    const ctool_c_translation_unit_t *unit) {
+  static const struct {
+    const char *caller;
+    const char *callee;
+    ctool_bool direct;
+    ctool_bool prototyped;
+  } cases[] = {
+      {"call_variadic_direct", "variadic_sink", CTOOL_TRUE, CTOOL_TRUE},
+      {"call_variadic_indirect", NULL, CTOOL_FALSE, CTOOL_TRUE},
+      {"call_unprototyped_direct", "unprototyped_sink", CTOOL_TRUE,
+       CTOOL_FALSE},
+      {"call_unprototyped_indirect", NULL, CTOOL_FALSE, CTOOL_FALSE}};
+  const ctool_c_binding_t *signed_alias = find_binding(unit, "wide_i64");
+  const ctool_c_binding_t *unsigned_alias = find_binding(unit, "wide_u64");
+  const ctool_c_binding_t *variadic_sink = find_binding(unit, "variadic_sink");
+  const ctool_c_type_node_t *variadic_type =
+      variadic_sink == NULL
+          ? NULL
+          : unwrapped_type_node(unit, variadic_sink->type);
+  const ctool_c_type_layout_t *signed_layout =
+      signed_alias == NULL ? NULL : type_layout(unit, signed_alias->type);
+  const ctool_c_type_layout_t *unsigned_layout =
+      unsigned_alias == NULL ? NULL : type_layout(unit, unsigned_alias->type);
+  const ctool_c_type_node_t *signed_type =
+      signed_alias == NULL
+          ? NULL
+          : unwrapped_type_node(unit, signed_alias->type);
+  const ctool_c_type_node_t *unsigned_type =
+      unsigned_alias == NULL
+          ? NULL
+          : unwrapped_type_node(unit, unsigned_alias->type);
+  ctool_u32 int_type;
+  ctool_u32 index;
+
+  if (signed_alias == NULL || unsigned_alias == NULL ||
+      signed_alias->kind != CTOOL_C_BINDING_TYPEDEF ||
+      unsigned_alias->kind != CTOOL_C_BINDING_TYPEDEF ||
+      signed_type == NULL ||
+      signed_type->kind != CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+      unsigned_type == NULL ||
+      unsigned_type->kind != CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+      signed_layout == NULL || signed_layout->size != 8u ||
+      signed_layout->is_integer != CTOOL_TRUE || unsigned_layout == NULL ||
+      unsigned_layout->size != 8u ||
+      unsigned_layout->is_integer != CTOOL_TRUE || variadic_type == NULL ||
+      variadic_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      variadic_type->has_prototype != CTOOL_TRUE ||
+      variadic_type->variadic != CTOOL_TRUE ||
+      variadic_type->parameter_count != 1u ||
+      variadic_type->first_parameter >= unit->graph.parameter_type_count) {
+    return 1;
+  }
+  int_type = unit->graph.parameter_types[variadic_type->first_parameter];
+  if (underlying_type_kind(unit, int_type, NULL) !=
+      CTOOL_C_TYPE_SIGNED_INT) {
+    return 1;
+  }
+
+  for (index = 0u; index < ARRAY_COUNT(cases); index++) {
+    const ctool_c_function_definition_t *definition =
+        find_function_definition(unit, cases[index].caller);
+    const ctool_c_type_node_t *function =
+        definition == NULL
+            ? NULL
+            : unwrapped_type_node(unit, definition->declared_type);
+    const ctool_c_expression_t *call =
+        wide_variadic_function_call(unit, cases[index].caller);
+    ctool_u32 callee_index = expression_child(unit, call, 0u);
+    ctool_u32 callee_terminal = unwrap_conversions(unit, callee_index);
+    const ctool_c_expression_t *callee =
+        callee_terminal < unit->expression_count
+            ? &unit->expressions[callee_terminal]
+            : NULL;
+    ctool_u32 first_argument_parameter;
+    ctool_c_conversion_kind_t marker_conversion =
+        cases[index].prototyped == CTOOL_TRUE
+            ? CTOOL_C_CONVERSION_ASSIGNMENT
+            : CTOOL_C_CONVERSION_INTEGER_PROMOTION;
+    if (definition == NULL || function == NULL ||
+        function->kind != CTOOL_C_TYPE_FUNCTION || call == NULL ||
+        call->child_count != 4u ||
+        underlying_type_kind(unit, call->type, NULL) != CTOOL_C_TYPE_VOID ||
+        callee == NULL) {
+      return 1;
+    }
+    if (cases[index].direct == CTOOL_TRUE) {
+      ctool_u32 expected_binding =
+          find_binding_index(unit, cases[index].callee);
+      if (expected_binding == CTOOL_C_AST_NONE ||
+          callee->kind != CTOOL_C_EXPRESSION_IDENTIFIER ||
+          callee->reference != expected_binding ||
+          conversion_chain_has(
+              unit, callee_index,
+              CTOOL_C_CONVERSION_FUNCTION_TO_POINTER) != CTOOL_TRUE ||
+          function->parameter_count != 3u) {
+        return 1;
+      }
+      first_argument_parameter = function->first_parameter;
+    } else {
+      if (callee->kind != CTOOL_C_EXPRESSION_PARAMETER ||
+          callee->reference != function->first_parameter ||
+          conversion_chain_has(
+              unit, callee_index,
+              CTOOL_C_CONVERSION_LVALUE_TO_VALUE) != CTOOL_TRUE ||
+          function->parameter_count != 4u) {
+        return 1;
+      }
+      first_argument_parameter = function->first_parameter + 1u;
+    }
+    if (wide_variadic_argument_matches(
+            unit, call, 1u, int_type, first_argument_parameter,
+            marker_conversion) == 0 ||
+        wide_variadic_argument_matches(
+            unit, call, 2u, signed_alias->type,
+            first_argument_parameter + 1u,
+            CTOOL_C_CONVERSION_NONE) == 0 ||
+        wide_variadic_argument_matches(
+            unit, call, 3u, unsigned_alias->type,
+            first_argument_parameter + 2u,
+            CTOOL_C_CONVERSION_NONE) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_wide_variadic_reads(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *signed_alias = find_binding(unit, "wide_i64");
+  const ctool_c_binding_t *unsigned_alias = find_binding(unit, "wide_u64");
+  const ctool_c_binding_t *enum_alias = find_binding(unit, "wide_enum");
+  const ctool_c_type_node_t *enum_type =
+      enum_alias == NULL ? NULL : unwrapped_type_node(unit, enum_alias->type);
+  const ctool_c_type_layout_t *enum_layout =
+      enum_alias == NULL ? NULL : type_layout(unit, enum_alias->type);
+  ctool_u32 expected_types[3];
+  ctool_u32 starts = 0u;
+  ctool_u32 arguments = 0u;
+  ctool_u32 ends = 0u;
+  ctool_u32 index;
+
+  if (signed_alias == NULL || unsigned_alias == NULL || enum_alias == NULL ||
+      enum_alias->kind != CTOOL_C_BINDING_TYPEDEF || enum_type == NULL ||
+      enum_type->kind != CTOOL_C_TYPE_ENUM || enum_layout == NULL ||
+      enum_layout->is_integer != CTOOL_TRUE || enum_layout->size != 8u) {
+    return 1;
+  }
+  expected_types[0] = signed_alias->type;
+  expected_types[1] = unsigned_alias->type;
+  expected_types[2] = enum_alias->type;
+
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_START) {
+      starts++;
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_END) {
+      ends++;
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+      ctool_u32 cursor_index = expression_child(unit, expression, 0u);
+      const ctool_c_expression_t *cursor =
+          cursor_index < unit->expression_count
+              ? &unit->expressions[cursor_index]
+              : NULL;
+      const ctool_c_type_layout_t *layout;
+      if (arguments >= ARRAY_COUNT(expected_types) ||
+          expression->type != expected_types[arguments] ||
+          expression->child_count != 1u ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE ||
+          expression->integer_bits != 0u ||
+          expression->string_bytes.data != NULL ||
+          expression->string_bytes.size != 0u || cursor == NULL ||
+          cursor->kind != CTOOL_C_EXPRESSION_BLOCK_BINDING ||
+          cursor->reference >= unit->block_binding_count ||
+          string_equal(unit->block_bindings[cursor->reference].name, "ap") ==
+              0) {
+        return 1;
+      }
+      layout = type_layout(unit, expression->type);
+      if (layout == NULL || layout->is_integer != CTOOL_TRUE ||
+          layout->size != 8u) {
+        return 1;
+      }
+      arguments++;
+    }
+  }
+  return starts == 3u && arguments == 3u && ends == 3u ? 0 : 1;
+}
+
+static int run_wide_variadics(const char *host_root) {
+  static const char call_source[] =
+      "typedef long long wide_i64;\n"
+      "typedef unsigned long long wide_u64;\n"
+      "typedef void (*variadic_callback_t)(int, ...);\n"
+      "typedef void (*unprototyped_callback_t)();\n"
+      "void variadic_sink(int marker, ...);\n"
+      "void unprototyped_sink();\n"
+      "void call_variadic_direct(signed char marker, wide_i64 signed_value,\n"
+      "                          wide_u64 unsigned_value) {\n"
+      "  variadic_sink(marker, signed_value, unsigned_value);\n"
+      "}\n"
+      "void call_variadic_indirect(variadic_callback_t callback,\n"
+      "                            signed char marker,\n"
+      "                            wide_i64 signed_value,\n"
+      "                            wide_u64 unsigned_value) {\n"
+      "  callback(marker, signed_value, unsigned_value);\n"
+      "}\n"
+      "void call_unprototyped_direct(signed char marker,\n"
+      "                              wide_i64 signed_value,\n"
+      "                              wide_u64 unsigned_value) {\n"
+      "  unprototyped_sink(marker, signed_value, unsigned_value);\n"
+      "}\n"
+      "void call_unprototyped_indirect(unprototyped_callback_t callback,\n"
+      "                                signed char marker,\n"
+      "                                wide_i64 signed_value,\n"
+      "                                wide_u64 unsigned_value) {\n"
+      "  callback(marker, signed_value, unsigned_value);\n"
+      "}\n";
+  static const char read_source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "typedef long long wide_i64;\n"
+      "typedef unsigned long long wide_u64;\n"
+      "typedef enum wide_value { WIDE_VALUE = 0x100000000ull } wide_enum;\n"
+      "wide_i64 read_signed(int marker, ...) {\n"
+      "  va_list ap;\n"
+      "  wide_i64 value;\n"
+      "  __builtin_va_start(ap, marker);\n"
+      "  value = __builtin_va_arg(ap, wide_i64);\n"
+      "  __builtin_va_end(ap);\n"
+      "  return value;\n"
+      "}\n"
+      "wide_u64 read_unsigned(int marker, ...) {\n"
+      "  va_list ap;\n"
+      "  wide_u64 value;\n"
+      "  __builtin_va_start(ap, marker);\n"
+      "  value = __builtin_va_arg(ap, wide_u64);\n"
+      "  __builtin_va_end(ap);\n"
+      "  return value;\n"
+      "}\n"
+      "wide_enum read_enum(int marker, ...) {\n"
+      "  va_list ap;\n"
+      "  wide_enum value;\n"
+      "  __builtin_va_start(ap, marker);\n"
+      "  value = __builtin_va_arg(ap, wide_enum);\n"
+      "  __builtin_va_end(ap);\n"
+      "  return value;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"atomic wide variadic argument read",
+        "long long bad(int marker, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  return __builtin_va_arg(ap, _Atomic long long);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 10u,
+       "atomic variadic argument reads are outside this ABI slice"},
+      {{"floating variadic argument read",
+        "void bad(int marker, ...) {\n"
+        "  __builtin_va_list ap;\n"
+        "  __builtin_va_arg(ap, double);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       3u, 3u,
+       "variadic argument reads support only 4-byte pointers and 4-byte or "
+       "8-byte integers"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t call_unit;
+  ctool_c_translation_unit_t read_unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "wide-variadics", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/wide-variadic-calls.c", call_source,
+                          &call_unit) != 0 ||
+      validate_wide_variadic_calls(&call_unit) != 0) {
+    (void)fprintf(stderr, "wide-variadics: call AST differs\n");
+    goto cleanup;
+  }
+  if (parse_valid_fixture(&fixture, "/wide-variadic-reads.c", read_source,
+                          &read_unit) != 0 ||
+      validate_wide_variadic_reads(&read_unit) != 0) {
+    (void)fprintf(stderr, "wide-variadics: variadic read AST differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/wide-variadic-read-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_wide_variadic_calls(&call_unit) != 0 ||
+        validate_wide_variadic_reads(&read_unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("wide-variadics: ok\n");
+  }
+  return failed;
+}
+
 static int variadic_cursor_child_is(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_expression_t *expression, ctool_u32 child_offset,
@@ -22058,15 +22436,6 @@ static int run_variadic_callees(const char *host_root) {
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        4u, 10u,
        "atomic variadic argument reads are outside this ABI slice"},
-      {{"wide enum variadic argument read",
-        "int bad(int last, ...) {\n"
-        "  __builtin_va_list ap;\n"
-        "  return __builtin_va_arg(\n"
-        "      ap, enum { VALUE = 0x100000000ull });\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       3u, 10u,
-       "variadic argument reads support only 4-byte integer and pointer types"},
       {{"floating variadic argument read",
         "int bad(int last, ...) {\n"
         "  __builtin_va_list ap;\n"
@@ -22076,7 +22445,8 @@ static int run_variadic_callees(const char *host_root) {
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        4u, 3u,
-       "variadic argument reads support only 4-byte integer and pointer types"}};
+       "variadic argument reads support only 4-byte pointers and 4-byte or "
+       "8-byte integers"}};
   static const frontend_exact_failure_case_t disabled_gnu_case = {
       {"variadic builtins without GNU extensions",
        "typedef __builtin_va_list va_list;\n", CTOOL_ERR_UNSUPPORTED,
@@ -22185,7 +22555,8 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "variadic-callees|block-bindings|block-functions|"
+                   "wide-variadics|variadic-callees|block-bindings|"
+                   "block-functions|"
                    "block-typedefs|"
                    "block-externs|block-enums|block-records|"
                    "scalar-initializers|"
@@ -22224,6 +22595,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "old-style-empty-functions") == 0) {
     return run_old_style_empty_functions(argv[2]);
+  }
+  if (strcmp(argv[1], "wide-variadics") == 0) {
+    return run_wide_variadics(argv[2]);
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

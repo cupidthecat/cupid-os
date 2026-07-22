@@ -32,3 +32,7 @@ The deterministic ELF32 proof contains 17 functions in 4,410 bytes of `.text`, h
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform, OS object, boot path, host dependency, or ownership count changes.
 
 Issue #25 remains open. Eight-byte values passed through an ellipsis or an unprototyped call, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+
+## Extension: wide variadic transport
+
+ADR 0075 carries signed and unsigned eight-byte values through ellipsis and unprototyped calls and returns wide `va_arg` reads in private snapshots. A retrieved value can enter the mutation path defined here, while the destination still follows the non-atomic wide-object rules of this decision.

@@ -33,3 +33,7 @@ The object contract emits direct and register-indirect three-argument calls, a n
 This is hosted bootstrap evidence. GCC or Clang still builds the shared compiler and the normal Cupid OS C objects. The private in-kernel compiler remains the embedded JIT and AOT path, and no production artifact or host dependency changes here.
 
 Issue #25 remains open. ADR 0055 adds scalar unnamed-argument reads. Floating and wider runtime values, remaining aggregate forms, production integration, staged self-hosting, and the fixed-point bootstrap still remain.
+
+## Extension: eight-byte ellipsis arguments
+
+ADR 0075 extends caller-owned metadata from an actual count to a packed slice of actual post-conversion types. Direct and indirect callers use that slice to place signed or unsigned eight-byte ellipsis arguments in two adjacent cdecl words while retaining the alignment and cleanup rules from this decision.

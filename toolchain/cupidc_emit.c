@@ -2951,6 +2951,61 @@ static ctool_status_t cemit_x86_copy_edx_to_eax(
   return status;
 }
 
+/* EAX holds the current cursor and EDX holds the cursor object's address. */
+static ctool_status_t cemit_x86_push_wide_variadic_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_u32 cursor_type) {
+  ctool_status_t status;
+  if (temporary_offset < 8u || temporary_offset > 0x7fffffffu ||
+      (temporary_offset & 3u) != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 2u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_copy_edx_to_eax(context, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_add_eax_constant(context, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 1u,
+        CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_ecx_at_eax(context, cursor_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_x86_return_and_pop(
     cemit_context_t *context, ctool_u32 byte_count) {
   ctool_x86_instruction_t instruction =
@@ -3232,19 +3287,28 @@ static ctool_bool cemit_ir_type_is_variadic_cursor(
 static ctool_bool cemit_ir_type_is_variadic_argument(
     const cemit_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
+  const ctool_c_type_layout_t *layout;
   if (node == (const ctool_c_type_node_t *)0 ||
-      type >= context->unit->layout.type_count ||
-      context->unit->layout.types[type].is_object == CTOOL_FALSE ||
-      context->unit->layout.types[type].is_complete_object == CTOOL_FALSE ||
-      context->unit->layout.types[type].size != 4u) {
+      type >= context->unit->layout.type_count) {
     return CTOOL_FALSE;
   }
-  return node->kind == CTOOL_C_TYPE_POINTER ||
-                 node->kind == CTOOL_C_TYPE_SIGNED_INT ||
-                 node->kind == CTOOL_C_TYPE_UNSIGNED_INT ||
-                 node->kind == CTOOL_C_TYPE_SIGNED_LONG ||
-                 node->kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
-                 node->kind == CTOOL_C_TYPE_ENUM
+  layout = &context->unit->layout.types[type];
+  if (layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (node->kind == CTOOL_C_TYPE_POINTER) {
+    return layout->size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  return layout->is_integer == CTOOL_TRUE &&
+                 (layout->size == 4u || layout->size == 8u) &&
+                 (node->kind == CTOOL_C_TYPE_SIGNED_INT ||
+                  node->kind == CTOOL_C_TYPE_UNSIGNED_INT ||
+                  node->kind == CTOOL_C_TYPE_SIGNED_LONG ||
+                  node->kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
+                  node->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+                  node->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+                  node->kind == CTOOL_C_TYPE_ENUM)
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -3903,6 +3967,99 @@ static ctool_bool cemit_call_argument_count_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_status_t cemit_validate_argument_type_slices(
+    cemit_context_t *context) {
+  ctool_bool valid = CTOOL_FALSE;
+  ctool_status_t status = ctool_c_ir_validate_call_slices(
+      context->unit, &context->ir, &valid);
+  if (status != CTOOL_OK) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  return valid == CTOOL_TRUE
+             ? CTOOL_OK
+             : cemit_invalid_unit(
+                   context, (const ctool_c_pp_location_t *)0);
+}
+
+static ctool_status_t cemit_call_argument_transport_type(
+    cemit_context_t *context,
+    const ctool_c_type_node_t *function_type,
+    const ctool_c_ir_instruction_t *instruction, ctool_u32 argument,
+    ctool_u32 *type_out) {
+  ctool_u32 actual_type;
+  if (function_type == (const ctool_c_type_node_t *)0 ||
+      instruction == (const ctool_c_ir_instruction_t *)0 ||
+      type_out == (ctool_u32 *)0 ||
+      cemit_call_argument_count_is_valid(function_type, instruction) ==
+          CTOOL_FALSE ||
+      argument >= instruction->argument_count ||
+      instruction->first_argument_type > context->ir.argument_type_count ||
+      instruction->argument_count >
+          context->ir.argument_type_count -
+              instruction->first_argument_type ||
+      context->ir.argument_types == (const ctool_u32 *)0) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  actual_type = context->ir.argument_types
+      [instruction->first_argument_type + argument];
+  if (actual_type >= context->unit->graph.type_count ||
+      actual_type >= context->unit->layout.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (argument < function_type->parameter_count) {
+    ctool_u32 declared_type =
+        context->unit->graph.parameter_types
+            [function_type->first_parameter + argument];
+    if ((cemit_ir_type_is_value_scalar(context, declared_type) ==
+             CTOOL_TRUE &&
+         cemit_ir_type_is_value_scalar(context, actual_type) ==
+             CTOOL_TRUE &&
+         cemit_ir_scalar_types_match(context, declared_type, actual_type) ==
+             CTOOL_TRUE) ||
+        cemit_ir_structure_types_match(
+            context, declared_type, actual_type) == CTOOL_TRUE) {
+      *type_out = declared_type;
+      return CTOOL_OK;
+    }
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (cemit_ir_type_is_value_scalar(context, actual_type) == CTOOL_FALSE ||
+      (cemit_ir_type_is_represented_integer(context, actual_type) ==
+           CTOOL_TRUE &&
+       context->unit->layout.types[actual_type].size < 4u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *type_out = actual_type;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cemit_call_uses_outgoing_area(
+    cemit_context_t *context,
+    const ctool_c_type_node_t *function_type,
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_bool *uses_outgoing_area_out) {
+  ctool_u32 argument;
+  if (uses_outgoing_area_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *uses_outgoing_area_out = cemit_ir_function_returns_structure(
+      context, function_type);
+  for (argument = 0u; argument < instruction->argument_count; argument++) {
+    ctool_u32 transport_type;
+    ctool_status_t status = cemit_call_argument_transport_type(
+        context, function_type, instruction, argument, &transport_type);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (cemit_ir_type_is_structure_value(context, transport_type) ==
+            CTOOL_TRUE ||
+        cemit_ir_type_is_wide_integer(context, transport_type) == CTOOL_TRUE) {
+      *uses_outgoing_area_out = CTOOL_TRUE;
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_emit_outgoing_area_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
@@ -3930,13 +4087,13 @@ static ctool_status_t cemit_emit_outgoing_area_call(
     return CTOOL_ERR_INTERNAL;
   }
   for (argument = 0u; argument < instruction->argument_count; argument++) {
-    ctool_u32 argument_size = 4u;
-    if (argument < function_type->parameter_count) {
+    ctool_u32 transport_type;
+    ctool_u32 argument_size;
+    status = cemit_call_argument_transport_type(
+        context, function_type, instruction, argument, &transport_type);
+    if (status == CTOOL_OK) {
       status = cemit_ir_argument_size(
-          context,
-          context->unit->graph.parameter_types
-              [function_type->first_parameter + argument],
-          &argument_size);
+          context, transport_type, &argument_size);
     }
     if (status != CTOOL_OK) {
       return status;
@@ -3995,14 +4152,13 @@ static ctool_status_t cemit_emit_outgoing_area_call(
   for (argument = 0u; status == CTOOL_OK &&
                       argument < instruction->argument_count;
        argument++) {
-    ctool_u32 parameter_type = CTOOL_C_TYPE_NONE;
-    ctool_u32 argument_size = 4u;
+    ctool_u32 transport_type;
+    ctool_u32 argument_size;
     ctool_u32 handle_offset;
-    if (argument < function_type->parameter_count) {
-      parameter_type =
-          context->unit->graph
-              .parameter_types[function_type->first_parameter + argument];
-      status = cemit_ir_argument_size(context, parameter_type,
+    status = cemit_call_argument_transport_type(
+        context, function_type, instruction, argument, &transport_type);
+    if (status == CTOOL_OK) {
+      status = cemit_ir_argument_size(context, transport_type,
                                       &argument_size);
     }
     if (status != CTOOL_OK ||
@@ -4019,16 +4175,15 @@ static ctool_status_t cemit_emit_outgoing_area_call(
     handle_offset += reserved_bytes;
     status = cemit_x86_load_stack(context, 2u, handle_offset);
     if (status == CTOOL_OK &&
-        (argument >= function_type->parameter_count ||
-         cemit_ir_type_is_represented_scalar(context, parameter_type) ==
-             CTOOL_TRUE)) {
+        cemit_ir_type_is_represented_scalar(context, transport_type) ==
+            CTOOL_TRUE) {
       status = cemit_x86_store_stack(context, destination_offset, 2u);
     } else if (status == CTOOL_OK) {
       status = cemit_x86_lea_stack(context, 0u, destination_offset);
       if (status == CTOOL_OK) {
         status = cemit_x86_copy_edx_to_eax(
             context,
-            context->unit->layout.types[parameter_type].size);
+            context->unit->layout.types[transport_type].size);
       }
     }
     if (status == CTOOL_OK) {
@@ -4130,24 +4285,10 @@ static ctool_status_t cemit_emit_direct_call(
       instruction->integer_bits != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
-  uses_outgoing_area = cemit_ir_type_is_structure_value(
-      context, instruction->type);
-  for (argument = 0u; argument < function_type->parameter_count;
-       argument++) {
-    ctool_u32 parameter_type =
-        context->unit->graph
-            .parameter_types[function_type->first_parameter + argument];
-    if (cemit_ir_type_is_value_scalar(context, parameter_type) ==
-            CTOOL_FALSE &&
-        cemit_ir_type_is_structure_value(context, parameter_type) ==
-            CTOOL_FALSE) {
-      return CTOOL_ERR_INTERNAL;
-    }
-    if (cemit_ir_type_is_structure_value(context, parameter_type) ==
-            CTOOL_TRUE ||
-        cemit_ir_type_is_wide_integer(context, parameter_type) == CTOOL_TRUE) {
-      uses_outgoing_area = CTOOL_TRUE;
-    }
+  status = cemit_call_uses_outgoing_area(
+      context, function_type, instruction, &uses_outgoing_area);
+  if (status != CTOOL_OK) {
+    return status;
   }
   symbol = context->binding_symbols[instruction->reference];
   if (symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count) {
@@ -4258,24 +4399,10 @@ static ctool_status_t cemit_emit_indirect_call(
       instruction->integer_bits != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
-  uses_outgoing_area = cemit_ir_type_is_structure_value(
-      context, instruction->type);
-  for (argument = 0u; argument < function_type->parameter_count;
-       argument++) {
-    ctool_u32 parameter_type =
-        context->unit->graph
-            .parameter_types[function_type->first_parameter + argument];
-    if (cemit_ir_type_is_value_scalar(context, parameter_type) ==
-            CTOOL_FALSE &&
-        cemit_ir_type_is_structure_value(context, parameter_type) ==
-            CTOOL_FALSE) {
-      return CTOOL_ERR_INTERNAL;
-    }
-    if (cemit_ir_type_is_structure_value(context, parameter_type) ==
-            CTOOL_TRUE ||
-        cemit_ir_type_is_wide_integer(context, parameter_type) == CTOOL_TRUE) {
-      uses_outgoing_area = CTOOL_TRUE;
-    }
+  status = cemit_call_uses_outgoing_area(
+      context, function_type, instruction, &uses_outgoing_area);
+  if (status != CTOOL_OK) {
+    return status;
   }
   if (uses_outgoing_area == CTOOL_TRUE) {
     return cemit_emit_outgoing_area_call(
@@ -4548,10 +4675,17 @@ static ctool_status_t cemit_emit_ir_instruction(
     return status;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT) {
+    ctool_bool wide = cemit_ir_type_is_wide_integer(
+        context, ir_instruction->type);
     if (cemit_ir_type_is_variadic_cursor(
             context, ir_instruction->input_type) == CTOOL_FALSE ||
         cemit_ir_type_is_variadic_argument(context, ir_instruction->type) ==
             CTOOL_FALSE ||
+        (wide == CTOOL_TRUE &&
+         (value_temporary_offset == CTOOL_C_AST_NONE ||
+          value_temporary_offset < 8u ||
+          value_temporary_offset > 0x7fffffffu ||
+          (value_temporary_offset & 3u) != 0u)) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
         ir_instruction->reference != CTOOL_C_AST_NONE ||
@@ -4567,6 +4701,13 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     if (status == CTOOL_OK) {
       status = cemit_x86_load_eax(context, ir_instruction->input_type);
+    }
+    if (status == CTOOL_OK && wide == CTOOL_TRUE) {
+      status = cemit_x86_push_wide_variadic_snapshot(
+          context, value_temporary_offset, ir_instruction->input_type);
+    }
+    if (wide == CTOOL_TRUE) {
+      return status;
     }
     if (status == CTOOL_OK) {
       status = cemit_x86_one_register(
@@ -6398,6 +6539,8 @@ static ctool_status_t cemit_prepare_local_offsets(
         ((instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY ||
+          instruction->kind ==
+              CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT ||
           (instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY &&
            (instruction->operation ==
                 CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE ||
@@ -6837,6 +6980,9 @@ ctool_status_t ctool_c_emit_object(
   status = cemit_validate_unit_shape(&context);
   if (status == CTOOL_OK) {
     status = ctool_c_lower_ir(job, unit, &context.ir);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_validate_argument_type_slices(&context);
   }
   if (status == CTOOL_OK) {
     for (index = 0u; index < unit->block_binding_count; index++) {

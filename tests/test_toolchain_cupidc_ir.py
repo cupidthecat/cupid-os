@@ -364,6 +364,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "variadic-callees: ok\n")
 
+    def test_wide_variadics_publish_packed_argument_types(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-variadics", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-variadics: ok\n")
+
     def test_old_style_empty_functions_lower_with_zero_parameters(self):
         result = subprocess.run(
             [

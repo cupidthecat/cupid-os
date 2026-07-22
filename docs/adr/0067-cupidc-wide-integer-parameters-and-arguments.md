@@ -43,3 +43,7 @@ Issue #25 remains open. At this decision boundary, the full `ctool_buffer_put_le
 ADR 0068 adds the wide shifts, usual arithmetic widening, bitwise AND, and explicit byte narrowing used by both active little-endian helpers. Their complete unchanged bodies now lower and emit. The declared-parameter ABI in this decision is unchanged.
 
 ADRs 0069 and 0070 later add wide comparisons, scalar conditions, addition, subtraction, unary plus, unary minus, and bitwise complement. ADR 0071 adds signed and unsigned wide switch dispatch, ADR 0072 adds multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds compound assignment and prefix or postfix update. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+
+## Extension: arguments without declared parameter types
+
+ADR 0075 extends the eight-byte caller layout to ellipsis positions and calls through function types without prototypes. Each call carries its actual post-conversion type slice, so the emitter can use the same adjacent low-word and high-word placement without relying on a declared parameter type.

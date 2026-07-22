@@ -29,3 +29,7 @@ Full-body source guards bind the preprocessor magnitude helper to its exact impl
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, the contracts, and every normal C object. No production transform or host dependency changes owner.
 
 Issue #25 remains open. ADR 0072 later adds wide multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds mutation. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+
+## Extension: wide variadic transport
+
+ADR 0075 carries signed and unsigned eight-byte values through ellipsis and unprototyped calls and returns wide `va_arg` reads in private snapshots. The arithmetic operations in this decision consume those snapshots without changing their result or overflow rules.

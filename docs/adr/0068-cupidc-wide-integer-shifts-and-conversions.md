@@ -39,3 +39,7 @@ A relocated i386 oracle executes every defined shift count from 0 through 63 on 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, the contracts, and every normal C object. No production transform, OS object, boot path, or host dependency changes owner.
 
 Issue #25 remains open. ADR 0069 later adds wide comparisons and scalar conditions, ADR 0070 adds wide addition, subtraction, and nonlogical unary operations, ADR 0071 adds full-width switch dispatch, ADR 0072 adds multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds compound assignment and prefix or postfix update. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+
+## Extension: wide variadic transport
+
+ADR 0075 carries signed and unsigned eight-byte values through ellipsis and unprototyped calls and through `va_arg`. The frontend completes the conversions recorded here before a call's actual type slice is published. The conversion rules in this decision are unchanged.

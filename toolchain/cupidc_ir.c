@@ -83,6 +83,9 @@ typedef struct {
   ctool_c_ir_instruction_t *instructions;
   ctool_u32 instruction_count;
   ctool_u32 instruction_capacity;
+  ctool_u32 *argument_types;
+  ctool_u32 argument_type_count;
+  ctool_u32 argument_type_capacity;
   ctool_u32 function_first_instruction;
   ctool_u32 function_first_parameter;
   ctool_u32 function_parameter_count;
@@ -115,6 +118,61 @@ typedef struct {
   ctool_bool failure_reported;
   ctool_status_t relation_status;
 } cir_context_t;
+
+ctool_status_t ctool_c_ir_validate_call_slices(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_bool *valid_out) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 instruction_index;
+  if (unit == (const ctool_c_translation_unit_t *)0 ||
+      ir == (const ctool_c_ir_unit_t *)0 ||
+      valid_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *valid_out = CTOOL_FALSE;
+  if ((unit->graph.type_count == 0u) !=
+          (unit->graph.types == (const ctool_c_type_node_t *)0) ||
+      (ir->instruction_count == 0u) !=
+          (ir->instructions ==
+           (const ctool_c_ir_instruction_t *)0) ||
+      (ir->argument_type_count == 0u) !=
+          (ir->argument_types == (const ctool_u32 *)0)) {
+    return CTOOL_OK;
+  }
+  for (instruction_index = 0u;
+       instruction_index < ir->instruction_count;
+       instruction_index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[instruction_index];
+    ctool_bool call =
+        instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+                instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if (call == CTOOL_FALSE) {
+      if (instruction->argument_count != 0u ||
+          instruction->first_argument_type != CTOOL_C_AST_NONE) {
+        return CTOOL_OK;
+      }
+      continue;
+    }
+    if (cursor > ir->argument_type_count ||
+        instruction->first_argument_type != cursor ||
+        instruction->argument_count > ir->argument_type_count - cursor) {
+      return CTOOL_OK;
+    }
+    while (cursor < instruction->first_argument_type +
+                        instruction->argument_count) {
+      if (ir->argument_types[cursor] >= unit->graph.type_count) {
+        return CTOOL_OK;
+      }
+      cursor++;
+    }
+  }
+  *valid_out = cursor == ir->argument_type_count ? CTOOL_TRUE
+                                                 : CTOOL_FALSE;
+  return CTOOL_OK;
+}
 
 static ctool_status_t cir_alloc_array(cir_context_t *context,
                                       ctool_u32 count,
@@ -1563,6 +1621,7 @@ static ctool_status_t cir_append_instruction(
   instruction->input_type = input_type;
   instruction->operation = operation;
   instruction->conversion = conversion;
+  instruction->first_argument_type = CTOOL_C_AST_NONE;
   instruction->reference = reference;
   instruction->integer_bits = integer_bits;
   if (location != (const ctool_c_pp_location_t *)0) {
@@ -1570,6 +1629,24 @@ static ctool_status_t cir_append_instruction(
   }
   if (physical_location != (const ctool_c_pp_location_t *)0) {
     instruction->physical_location = *physical_location;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_append_argument_type(cir_context_t *context,
+                                               ctool_u32 type) {
+  ctool_u32 index = context->argument_type_count;
+  if (type >= context->unit->graph.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (index >= CTOOL_C_AST_NONE - 1u ||
+      (context->argument_types != (ctool_u32 *)0 &&
+       index >= context->argument_type_capacity)) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  context->argument_type_count++;
+  if (context->argument_types != (ctool_u32 *)0) {
+    context->argument_types[index] = type;
   }
   return CTOOL_OK;
 }
@@ -4269,6 +4346,7 @@ static ctool_status_t cir_lower_call(
   ctool_u32 base_depth = context->stack_depth;
   ctool_u32 argument_base;
   ctool_u32 argument_count;
+  ctool_u32 first_argument_type;
   ctool_u32 argument;
   ctool_bool direct = CTOOL_FALSE;
   ctool_status_t status;
@@ -4401,8 +4479,10 @@ static ctool_status_t cir_lower_call(
       if (layout == (const ctool_c_type_layout_t *)0) {
         return cir_invalid_unit(context, &argument_expression->location);
       }
-      if (cir_type_is_represented_scalar(
-              context, argument_expression->type) == CTOOL_FALSE) {
+      if (cir_type_is_value_scalar(
+              context, argument_expression->type) == CTOOL_FALSE ||
+          cir_type_has_atomic_qualification(
+              context, argument_expression->type) == CTOOL_TRUE) {
         return cir_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
             &argument_expression->location,
@@ -4455,6 +4535,14 @@ static ctool_status_t cir_lower_call(
       return cir_invalid_unit(context, &expression->location);
     }
   }
+  first_argument_type = context->argument_type_count;
+  for (argument = 0u; argument < argument_count; argument++) {
+    status = cir_append_argument_type(
+        context, context->stack[argument_base + argument].type);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
   context->stack_depth = base_depth;
   {
     ctool_u32 instruction_index;
@@ -4472,6 +4560,8 @@ static ctool_status_t cir_lower_call(
         context->instructions != (ctool_c_ir_instruction_t *)0) {
       context->instructions[instruction_index].argument_count =
           argument_count;
+      context->instructions[instruction_index].first_argument_type =
+          first_argument_type;
     }
   }
   if (status != CTOOL_OK ||
@@ -4518,20 +4608,29 @@ static ctool_bool cir_variadic_cursor_type(
 static ctool_bool cir_variadic_argument_type(
     const cir_context_t *context, ctool_u32 type) {
   const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
+  const ctool_c_type_layout_t *layout;
   if (node == (const ctool_c_type_node_t *)0 ||
       type >= context->unit->layout.type_count ||
-      context->unit->layout.types[type].is_object == CTOOL_FALSE ||
-      context->unit->layout.types[type].is_complete_object == CTOOL_FALSE ||
-      context->unit->layout.types[type].size != 4u ||
       cir_type_has_atomic_qualification(context, type) == CTOOL_TRUE) {
     return CTOOL_FALSE;
   }
-  return node->kind == CTOOL_C_TYPE_POINTER ||
-                 node->kind == CTOOL_C_TYPE_SIGNED_INT ||
-                 node->kind == CTOOL_C_TYPE_UNSIGNED_INT ||
-                 node->kind == CTOOL_C_TYPE_SIGNED_LONG ||
-                 node->kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
-                 node->kind == CTOOL_C_TYPE_ENUM
+  layout = &context->unit->layout.types[type];
+  if (layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (node->kind == CTOOL_C_TYPE_POINTER) {
+    return layout->size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  return layout->is_integer == CTOOL_TRUE &&
+                 (layout->size == 4u || layout->size == 8u) &&
+                 (node->kind == CTOOL_C_TYPE_SIGNED_INT ||
+                  node->kind == CTOOL_C_TYPE_UNSIGNED_INT ||
+                  node->kind == CTOOL_C_TYPE_SIGNED_LONG ||
+                  node->kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
+                  node->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+                  node->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+                  node->kind == CTOOL_C_TYPE_ENUM)
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -6435,6 +6534,9 @@ static void cir_prepare_count_only_validation(cir_context_t *validation,
   validation->instructions = (ctool_c_ir_instruction_t *)0;
   validation->instruction_count = 0u;
   validation->instruction_capacity = 0u;
+  validation->argument_types = (ctool_u32 *)0;
+  validation->argument_type_count = 0u;
+  validation->argument_type_capacity = 0u;
   validation->function_first_instruction = 0u;
   validation->maximum_stack_depth = 0u;
   validation->count_only_validation = CTOOL_TRUE;
@@ -8899,6 +9001,7 @@ static ctool_status_t cir_lower_functions(cir_context_t *context) {
   ctool_u32 function;
   ctool_status_t status = CTOOL_OK;
   context->instruction_count = 0u;
+  context->argument_type_count = 0u;
   context->block_binding_cursor = 0u;
   context->label_cursor = 0u;
   context->statement_cursor = 0u;
@@ -8921,6 +9024,23 @@ static ctool_status_t cir_lower_functions(cir_context_t *context) {
     status = cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
   }
   return status;
+}
+
+static ctool_status_t cir_validate_argument_type_slices(
+    const cir_context_t *context) {
+  ctool_c_ir_unit_t candidate;
+  ctool_bool valid = CTOOL_FALSE;
+  ctool_status_t status;
+  cir_zero(&candidate, (ctool_u32)sizeof(candidate));
+  candidate.instructions = context->instructions;
+  candidate.instruction_count = context->instruction_count;
+  candidate.argument_types = context->argument_types;
+  candidate.argument_type_count = context->argument_type_count;
+  status = ctool_c_ir_validate_call_slices(
+      context->unit, &candidate, &valid);
+  return status == CTOOL_OK && valid == CTOOL_TRUE
+             ? CTOOL_OK
+             : CTOOL_ERR_INTERNAL;
 }
 
 static ctool_status_t cir_alloc_array(cir_context_t *context,
@@ -9109,6 +9229,7 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
   cir_context_t context;
   ctool_arena_mark_t mark;
   ctool_u32 instruction_count = 0u;
+  ctool_u32 argument_type_count = 0u;
   ctool_u32 diagnostic_count;
   ctool_status_t status;
   ctool_status_t rewind_status;
@@ -9148,6 +9269,7 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
   if (status == CTOOL_OK) {
     status = cir_lower_functions(&context);
     instruction_count = context.instruction_count;
+    argument_type_count = context.argument_type_count;
   }
   if (status == CTOOL_OK) {
     status = cir_alloc_array(
@@ -9162,12 +9284,22 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
         (void **)&context.instructions);
   }
   if (status == CTOOL_OK) {
+    status = cir_alloc_array(
+        &context, argument_type_count, (ctool_u32)sizeof(ctool_u32),
+        (void **)&context.argument_types);
+  }
+  if (status == CTOOL_OK) {
     context.instruction_capacity = instruction_count;
+    context.argument_type_capacity = argument_type_count;
     status = cir_lower_functions(&context);
     if (status == CTOOL_OK &&
-        context.instruction_count != instruction_count) {
+        (context.instruction_count != instruction_count ||
+         context.argument_type_count != argument_type_count)) {
       status = CTOOL_ERR_INTERNAL;
     }
+  }
+  if (status == CTOOL_OK) {
+    status = cir_validate_argument_type_slices(&context);
   }
   if (status != CTOOL_OK && context.failure_reported == CTOOL_FALSE &&
       ctool_job_diagnostic_count(job) == diagnostic_count) {
@@ -9193,5 +9325,7 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
   result_out->function_count = unit->function_definition_count;
   result_out->instructions = context.instructions;
   result_out->instruction_count = instruction_count;
+  result_out->argument_types = context.argument_types;
+  result_out->argument_type_count = argument_type_count;
   return CTOOL_OK;
 }

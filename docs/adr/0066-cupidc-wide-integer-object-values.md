@@ -45,3 +45,7 @@ Issue #25 remains open. ADRs 0067 through 0074 later add declared parameters, co
 ## Extension: operation result snapshots
 
 ADR 0068 allocates the same private object-shaped storage for every wide shift, bitwise result, and represented-to-wide conversion. Wide-to-represented conversion reads the snapshot without borrowing its address as a C value. The object load and store rules from this decision do not change.
+
+## Extension: wide variadic snapshots
+
+ADR 0075 uses the same private-copy model when a callee reads an eight-byte variadic value. `VARIADIC_ARGUMENT` owns the snapshot, so later cursor movement cannot change the value. Caller transport copies the snapshot bytes into the outgoing area without changing the object rules in this decision.

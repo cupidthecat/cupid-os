@@ -35,3 +35,7 @@ Issue #25 remains open. Old-style definitions, floating and wider runtime values
 ## Extension: final named wide parameter
 
 ADR 0067 lets the final named parameter be an eight-byte integer. The shared parameter-layout operation places the first unnamed argument after all eight bytes. A focused execution oracle starts the cursor there and reads the following four-byte value. Reading an eight-byte value with `va_arg` remains unsupported.
+
+## Extension: eight-byte variadic reads
+
+ADR 0075 lets `VARIADIC_ARGUMENT` read a non-atomic signed or unsigned eight-byte integer, including a represented wide enum. The read copies the value into an instruction-owned snapshot and advances the cursor by eight. Four-byte integer and pointer reads keep the cursor rule from this decision.

@@ -43,3 +43,7 @@ Fixed indirect calls later gained the same supported structure ABI as direct cal
 ADR 0065 lets a fixed indirect call return an eight-byte integer. The saved callee still follows the existing register-indirect call path. Immediately after `CALL EAX`, the emitter stores EAX and EDX in an instruction-owned snapshot and publishes one logical result handle. ADR 0067 later adds declared signed and unsigned eight-byte parameters and named arguments. The caller copies each wide snapshot into an eight-byte slot in the shared outgoing area before `CALL EAX`. Wide values passed through an ellipsis or an unprototyped call, along with other wide operations, remain deferred.
 
 ADR 0068 later adds wide shifts, AND, OR, XOR, and conversion to or from represented integer widths. Indirect-call evaluation, argument placement, and result capture keep the rules above. Values passed through an ellipsis or an unprototyped call remain unsupported.
+
+## Extension: wide values without declared parameter types
+
+ADR 0075 gives every direct or indirect call a packed slice of its actual post-conversion argument types. An indirect call can therefore place a signed or unsigned eight-byte ellipsis or unprototyped argument in the aligned outgoing area while preserving the saved-callee rule from this decision.

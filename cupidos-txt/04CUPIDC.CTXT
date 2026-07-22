@@ -118,10 +118,10 @@ compiler described elsewhere in this guide.
 
 The shared path allocates target-sized i386 stack storage for referenced fixed
 arrays and records with alignment up to four bytes. It carries one-byte,
-two-byte, and four-byte integers through locals, file
-objects, members, indexed access, conditions, conversions, assignment,
-mutation, and fixed or scalar variadic direct and indirect calls. Narrow loads
-extend into canonical 32-bit values. Stores use the declared byte or word
+two-byte, and four-byte integers through locals, file objects, members, indexed
+access, conditions, conversions, assignment, mutation, and prototyped,
+variadic, or unprototyped direct and indirect calls. Narrow loads extend into
+canonical 32-bit values. Stores use the declared byte or word
 width. Byte and word compound assignments and increment or decrement compute through 32-bit
 integer promotion, evaluate their destination once, and store once at the
 declared width. Signed byte and word mutation wraps through the low i386 lane
@@ -159,8 +159,9 @@ multiplication. Division and remainder use a fixed
 dividend sign. The complete
 cfront_constant_apply_binary body guards signed and unsigned quotient and
 remainder, while CupidASM's number parser guards an active wide divisor. Cases
-that C leaves undefined promise neither a runtime trap nor a result. Values
-passed through an ellipsis or an unprototyped call remain unsupported.
+that C leaves undefined promise neither a runtime trap nor a result. Signed and
+unsigned wide integers can also pass through an ellipsis or a call without a
+prototype.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -206,31 +207,46 @@ reads its first explicit argument at EBP+12, copies the result into the
 destination, returns the pointer in EAX, and uses RET 4. The caller cleans the
 explicit argument bytes.
 
-Supported fixed direct and indirect calls place ESP on a sixteen-byte boundary
+Supported direct and indirect calls place ESP on a sixteen-byte boundary
 immediately before CALL. The emitter chooses zero, four, eight, or twelve bytes
 of padding from the function frame, live Linear IR stack, and outgoing
-structure or wide argument area. Nested calls and structure-result calls follow
-the same rule.
+target-sized argument area. Prototyped, variadic, unprototyped, nested,
+structure, and wide calls follow the same rule.
 
-For a scalar variadic call, the frontend applies lvalue, array, function, and
-integer default promotions to the ellipsis arguments. Linear IR retains the
-actual argument count. The emitter uses it for cdecl order, the saved indirect
-callee, stack alignment, and caller cleanup. Direct and indirect calls can
-pass represented four-byte integers and pointers through an ellipsis. A
-declared eight-byte parameter in the named part keeps its wide slot.
+For a variadic call, the frontend applies lvalue, array, and function
+conversions plus the integer default argument promotions to the ellipsis
+arguments. Every call instruction owns a contiguous slice of post-conversion
+actual argument types in a packed Linear IR array. Named slots use declared
+parameter types after compatibility checking. Unnamed slots use the packed
+actual types. A shared validator rejects gaps, overlaps, invalid types,
+trailing entries, and metadata on non-call instructions. The emitter uses the
+validated slice and actual count for cdecl order, slot widths, the saved
+indirect callee, stack alignment, and caller cleanup. Direct
+and indirect calls can pass represented four-byte integers and pointers or
+signed and unsigned eight-byte integers through an ellipsis. A wide unnamed
+argument selects the outgoing-area path. Arguments occupy increasing addresses
+in source order, with the low word before the high word for a wide integer.
+Each argument still has one abstract IR handle. An indirect callee remains
+below the argument handles while the emitter prepares the outgoing area.
 
 In GNU C mode, __builtin_va_list is a target char pointer cursor. The shared
 frontend retains start, argument, copy, and end operations. The i386 emitter
-starts the cursor after the full width of the final named cdecl parameter,
-reads represented non-atomic four-byte integer, enum, and pointer slots, and
-advances the cursor by four bytes for each read. The unchanged Doom
-compatibility header parses under its generated profile.
+starts the cursor after the full width of the final named cdecl parameter. A
+four-byte pointer, integer, or enum read advances the stored cursor by four
+bytes. A signed or unsigned eight-byte integer or 64-bit enum is copied into a
+fresh private snapshot and advances the cursor by eight bytes. Both forms keep
+the i386 cursor on four-byte slot alignment. The execution contract reads two
+wide slots through the original cursor and the first slot through a copied
+cursor. A nested wide caller checks both aligned calls, cleanup, and the full
+returned value. Atomic, floating, and aggregate reads remain unsupported. The
+unchanged Doom compatibility header parses under its generated profile.
 
 An empty identifier-list definition has zero parameters and keeps its
 non-prototype function type. Direct and indirect calls without a prototype
-apply default argument promotions to every argument and retain the actual count
-through Linear IR and i386 emission. The represented path accepts four-byte
-integers and pointers.
+apply default argument promotions to every argument. Each call keeps its actual
+count and post-conversion type slice in Linear IR. The i386 emitter accepts
+represented four-byte integers and pointers plus signed or unsigned eight-byte
+integers.
 
 Block-scope struct and union tags follow lexical C scope. Forward declarations,
 same-scope completion, ordinary references, nested shadowing, and restoration
@@ -276,9 +292,9 @@ Represented uses become integer constants with no frame slot, symbol,
 relocation, or runtime declaration instruction. This covers the cursor
 constants in kernel/gui/desktop.c and the REPL limits in kernel/lang/shell.c
 without moving them. Block declaration attributes, nested function
-definitions, nonempty identifier lists, floating default promotions,
-non-scalar arguments without declared parameter types, atomic cursor access,
-and wider or aggregate variadic reads remain open.
+definitions, nonempty identifier lists, floating default promotions, atomic
+variadic access, floating or aggregate arguments without declared parameter
+types, and floating or aggregate variadic reads remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects
@@ -305,9 +321,10 @@ than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field initializer leaves, Boolean mutation, floating-point
-runtime values, wider or aggregate variadic values, wide strings, literal
-pooling, and block-static addresses in other block-static initializers remain
-unfinished in the shared path.
+runtime values, atomic variadic access, floating or aggregate arguments without
+declared parameter types, floating or aggregate variadic reads, wide strings,
+literal pooling, and block-static addresses in other block-static initializers
+remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C
 compiler for its C objects, and the private in-kernel CupidC compiler still

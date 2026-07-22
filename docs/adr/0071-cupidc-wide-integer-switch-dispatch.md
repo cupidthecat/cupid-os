@@ -29,3 +29,7 @@ The first red run stopped at `/wide-switch.c:2:11` with the existing unsupported
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform or host dependency changes owner.
 
 Issue #25 remains open. ADR 0072 later adds wide multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds mutation. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+
+## Extension: wide variadic transport
+
+ADR 0075 carries signed and unsigned eight-byte values through ellipsis and unprototyped calls and returns wide `va_arg` reads in private snapshots. A value obtained at either boundary can drive the switch dispatch defined here without changing duplication or case matching.

@@ -7996,7 +7996,9 @@ static ctool_status_t cfront_validate_variadic_argument_type(
       node.kind == CTOOL_C_TYPE_SIGNED_INT ||
       node.kind == CTOOL_C_TYPE_UNSIGNED_INT ||
       node.kind == CTOOL_C_TYPE_SIGNED_LONG ||
-      node.kind == CTOOL_C_TYPE_UNSIGNED_LONG) {
+      node.kind == CTOOL_C_TYPE_UNSIGNED_LONG ||
+      node.kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+      node.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG) {
     return CTOOL_OK;
   }
   if (node.kind == CTOOL_C_TYPE_ENUM) {
@@ -8006,14 +8008,15 @@ static ctool_status_t cfront_validate_variadic_argument_type(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           builtin_token, "variadic enum argument type is unavailable");
     }
-    if (integer.width == 32u) {
+    if (integer.width == 32u || integer.width == 64u) {
       return CTOOL_OK;
     }
   }
   return cfront_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
       builtin_token,
-      "variadic argument reads support only 4-byte integer and pointer types");
+      "variadic argument reads support only 4-byte pointers and 4-byte or "
+      "8-byte integers");
 }
 
 static ctool_status_t cfront_parse_variadic_builtin(

@@ -82,8 +82,14 @@ typedef struct {
    * an implicit conversion. */
   ctool_c_conversion_kind_t conversion;
   /* CALL_DIRECT and CALL_INDIRECT retain the actual argument count after
-   * default argument promotions. Other instructions keep zero. */
+   * named argument conversions and default argument promotions. Other
+   * instructions keep zero. */
   ctool_u32 argument_count;
+  /* CALL_DIRECT and CALL_INDIRECT use this as the first entry in the owning
+   * unit's packed argument_types array. Each call owns exactly argument_count
+   * contiguous entries. A zero-argument call keeps the current packed cursor.
+   * Other instructions use CTOOL_C_AST_NONE. */
+  ctool_u32 first_argument_type;
   /* PARAMETER_ADDRESS uses an absolute frontend parameter index.
    * LOCAL_ADDRESS uses an absolute frontend block-binding index for a
    * represented scalar or a complete fixed array or record.
@@ -125,7 +131,22 @@ typedef struct {
   ctool_u32 function_count;
   const ctool_c_ir_instruction_t *instructions;
   ctool_u32 instruction_count;
+  /* Post-conversion actual argument types, packed in call-instruction order.
+   * Each call owns exactly argument_count contiguous entries starting at
+   * first_argument_type. */
+  const ctool_u32 *argument_types;
+  ctool_u32 argument_type_count;
 } ctool_c_ir_unit_t;
+
+/* Reports whether call instructions own one complete, ordered partition of
+ * the packed post-conversion argument types. Non-call instructions may not
+ * own call metadata, and every packed type must name a type in the borrowed
+ * translation unit. This checks the call-slice interchange contract only;
+ * instruction semantics remain the responsibility of the lowerer and
+ * emitter. */
+ctool_status_t ctool_c_ir_validate_call_slices(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_bool *valid_out);
 
 /* Reports whether two published semantic types are compatible function
  * types. The query follows qualified and aligned wrappers and compares return
@@ -259,12 +280,13 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * preserves a represented scalar address, or a complete record address for
  * bit-field mutation, while a supported integer or pointer compound
  * assignment or update loads and stores the object. This evaluates the
- * destination once. Integer mutation supports
- * non-Boolean scalar objects that occupy one, two, or four bytes. Narrow
- * values are promoted for the 32-bit computation and converted back before
- * an exact-width store. Compound assignments retain integer-promotion, usual
- * arithmetic, and assignment conversions. Pointer compound assignments and
- * updates use POINTER_BINARY with a complete-object stride.
+ * destination once. Integer mutation supports non-Boolean scalar objects that
+ * occupy one, two, four, or eight bytes. Narrow values are promoted for the
+ * 32-bit computation and converted back before an exact-width store.
+ * Eight-byte mutation uses a private snapshot and keeps one semantic load and
+ * store. Compound assignments retain integer-promotion, usual arithmetic, and
+ * assignment conversions. Pointer compound assignments and updates use
+ * POINTER_BINARY with a complete-object stride.
  * Prefix updates produce the stored value. Postfix updates produce the value
  * from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
@@ -298,23 +320,38 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * its incoming depth and emits no extra instruction.
  * CALL_DIRECT consumes its arguments after they have been evaluated in source
  * order. CALL_INDIRECT also consumes the function pointer below those
- * arguments. The instruction retains the actual argument count, including
- * variadic and unprototyped arguments after the frontend applies the
- * represented default promotions. Argument zero is deepest among the
- * arguments, and the final argument is on top. Each argument occupies one
- * abstract stack entry. The i386 emitter gives represented scalar arguments
- * one four-byte slot, gives named eight-byte integer arguments one eight-byte
- * slot, and copies named structure arguments inline, rounded up to four bytes.
- * Parameter addresses account for the full width of every earlier argument.
- * Arguments without declared parameter types are limited to represented
- * four-byte scalar values. A structure result uses a hidden pointer before the
- * explicit arguments. The callee copies into that
- * storage, returns its address in EAX, and removes the hidden pointer with
- * RET 4. Either call pushes one result unless its result type is void. Narrow
- * caller and callee results are normalized from the declared AL or AX lane.
+ * arguments. Each call owns its actual argument count and a contiguous packed
+ * slice containing one post-conversion type per argument. Named arguments use
+ * assignment conversions. Ellipsis and unprototyped arguments use the default
+ * argument promotions. Argument zero is deepest among the arguments, and the
+ * final argument is on top. Each argument occupies one abstract stack entry.
+ * After compatibility checks, the i386 emitter uses declared parameter types
+ * for named slots and packed actual types for unnamed slots. Represented
+ * four-byte scalar arguments use one slot. Signed and unsigned eight-byte
+ * integers use two slots. Named structure arguments are copied inline and
+ * rounded up to four bytes. Arguments occupy increasing addresses in source
+ * order, and a wide integer stores its low word before its high word. A call
+ * with a structure or wide argument reserves one outgoing area before filling
+ * those slots. An indirect callee remains below the argument handles while the
+ * emitter fills that area. Parameter addresses account for the full width of
+ * every earlier argument. Ellipsis and unprototyped calls accept represented
+ * four-byte integer and pointer types or signed and unsigned eight-byte
+ * integers. Atomic, floating, and aggregate unnamed arguments remain
+ * unsupported. A structure result uses a hidden pointer before the explicit
+ * arguments. The callee copies into that storage, returns its address in EAX,
+ * and removes the hidden pointer with RET 4. Either call pushes one result
+ * unless its result type is void. Narrow caller and callee results are
+ * normalized from the declared AL or AX lane.
  * An eight-byte integer result arrives with its low word in EAX and its high
  * word in EDX. RETURN_VALUE restores those registers from the private
- * snapshot. Eight-byte integer BINARY records support addition, subtraction,
+ * snapshot. VARIADIC_START places the cursor after the full width of the final
+ * named cdecl parameter. VARIADIC_ARGUMENT reads a represented four-byte
+ * pointer, integer, or enum and advances the stored cursor by four bytes. A
+ * signed or unsigned eight-byte integer or 64-bit enum is copied into a fresh
+ * private snapshot, produces one abstract handle, and advances the cursor by
+ * eight bytes. Both forms keep the cursor on i386 four-byte slot alignment.
+ * Atomic, floating, and aggregate variadic reads remain unsupported.
+ * Eight-byte integer BINARY records support addition, subtraction,
  * multiplication, division, remainder, left shift, signed or unsigned right
  * shift, AND, OR, XOR, and all six comparisons. UNARY records support plus,
  * negate, complement, and logical not. Wide values also feed short-circuit
@@ -325,9 +362,8 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * to a represented integer. They
  * also support the same-rank signed-to-unsigned usual arithmetic conversion
  * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
- * unsigned integer type. Boolean narrowing tests both source words.
- * Mutation and arguments without declared parameter types are not represented
- * yet.
+ * unsigned integer type. Boolean narrowing tests both source words. Boolean
+ * integer mutation remains unsupported.
  * Supported structure values are complete, nonvolatile, nonatomic structures
  * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
  * into the caller-provided result object.

@@ -5971,3 +5971,54 @@ This increment transfers no production C object and retires no host dependency. 
 No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC carries wide integers through open call positions
+
+### Decision and active requirement
+
+Hosted CupidC now carries signed and unsigned eight-byte integers through supported ellipsis and unprototyped call positions. The frontend applies the existing conversions first. Each direct or indirect call instruction then owns a source-ordered slice of post-conversion actual types in the IR unit's packed `argument_types` array. `first_argument_type` locates the slice, and `argument_count` gives its length. Calls appear in the packed array in emitted instruction order, so a nested inner call precedes its enclosing call. Zero-argument calls keep the current packed cursor. Non-call instructions keep the sentinel and an argument count of zero.
+
+Each semantic argument still uses one four-byte Linear IR handle. The i386 emitter reads the packed actual type before it lays out the outgoing area. A signed or unsigned wide integer receives eight consecutive bytes, with the low word followed by the high word. Direct and indirect calls use the same placement rule and retain sixteen-byte alignment at `CALL`. The emitter cleans up the true outgoing byte count rather than treating every open-position argument as one word.
+
+The matching callee path accepts represented four-byte pointers and four-byte or eight-byte non-atomic integers. A wide `VARIADIC_ARGUMENT` copies eight bytes from the old cursor into an instruction-owned snapshot, advances the stored cursor by eight, and publishes one snapshot handle. A represented enum with an eight-byte compatible integer type follows the same rule. A final named wide parameter still places the initial cursor after its complete eight-byte cdecl slot.
+
+The former count-only call contract could not distinguish a wide value from its four-byte snapshot handle. Passing that handle would have exposed a private emitter address as the argument. A predicate-only relaxation was therefore rejected. The packed type slice keeps the width decision explicit without changing the one-handle wide-value model.
+
+Two unchanged active-source fragments pin the caller requirement. `toolchain/tests/cupidc_object_contract.c::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.c::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover these call fragments only. They do not prove complete lowering or object emission for either function, and they do not establish whole-function CupidC ownership.
+
+No active-source guard currently covers a wide `va_arg` or an unprototyped wide call. Those paths have focused ABI fixture evidence only. Atomic cursor operations and atomic argument reads remain unsupported. Floating default promotion, floating transport and reads, aggregate open-position values, and other unrepresented open-position categories remain outside this slice.
+
+ADR 0075 records the packed metadata, caller layout, cursor behavior, validation rules, unsupported boundary, and unchanged ownership.
+
+### Contract evidence
+
+- The frontend contract covers signed and unsigned wide integers in direct and indirect variadic calls and direct and indirect unprototyped calls. It also covers signed, unsigned, and enum variadic reads with an eight-byte compatible integer type. Atomic wide reads and floating reads retain focused diagnostics.
+- The IR contract covers zero-argument, direct, indirect, unprototyped, and nested calls. It checks the packed post-conversion types, call slice boundaries, non-call sentinels, wide cursor-result types, deterministic repeat lowering, malformed input, allocation limits, and same-job recovery. The shared validator receives direct missing-array, missing-entry, gap, overlap, out-of-range span, out-of-range type, non-call-owner, and trailing-entry cases. It accepts the unchanged unit after every rejection.
+- The object contract executes direct and indirect variadic calls, direct and indirect unprototyped calls, mixed four-byte and eight-byte argument lists, signed reads, two successive wide reads through one cursor, and a wide read through a copied cursor. A nested fixture evaluates one wide variadic call as an argument to another. Decoder and execution checks cover both nested call sites, word order, cursor movement, call alignment, cleanup, preserved arguments, the full result, and restored frame state.
+- `ctool_c_ir_validate_call_slices` owns packed-sequence validation, and the emitter calls it before reading metadata. Limit failure leaves no partial object, and recovery reproduces the accepted output.
+
+The first Standards review found that the recorded malformed-slice and copied-cursor evidence was broader than the tests. The first Spec review also found an unsequenced pair of `va_arg` operations and no nested object execution case. The final fixtures call the shared production validator directly, sequence each cursor mutation in its own statement, copy a wide cursor, and execute a nested wide caller. The validator and object modes pass after those corrections.
+
+All nine hosted Toolchain source gates parse completely. Their definitions, statements, expressions, block bindings, and initializers are: `cupidc_pp.c` 143/3,904/25,107/475/282; `cupidc_ir.c` 180/5,483/47,961/666/222; `cupidc_emit.c` 154/4,217/35,750/512/256; and `cupidc_frontend.c` 303/11,901/77,147/1,765/1,205. The graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 88,011 checked lines, and `toolchain_core` has 54,718.
+
+The generated audit records 637 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,484 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,544 `while`, 1,750 `break`, 1,025 `continue`, 28,564 `if`, 3,822 `else`, 3,325 `for`, 17,303 `return`, and 3,759 `sizeof` occurrences. The canonical active-source digest is `8b2cba1472e9f86391fe63fa9dcd2e2e59bb9bcb9d1c2192d2c45df728d3c933`; the complete audit JSON has SHA-256 `cce4dd009b35ce826c851fde6c2237585129ba864b004e885c31d95f72b5d504`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Test-first contract | PASS | The new IR contract first failed to link because `ctool_c_ir_validate_call_slices` did not exist. The shared production validator and its recovery cases made that contract green. |
+| Focused public modules | PASS | 119 tests are green: 51 frontend, 37 IR, and 31 object tests. Each module includes `wide-variadics`, and the neighboring `variadic-callees`, `old-style-empty-functions`, and `wide-returns` modes remain green. |
+| Complete hosted Toolchain | PASS | The strict Windows suite passes. Fresh WSL builds also pass the complete suite with GCC and Clang. |
+| Sanitizers | PASS | Fresh GCC and Clang builds run the IR and object `wide-variadics` modes with AddressSanitizer and UndefinedBehaviorSanitizer, leak detection, and immediate failure enabled. An earlier wrapper quoted the flags incorrectly and only compiled with `-std=c11`; that run was discarded rather than counted as sanitizer evidence. |
+| Static analysis | PASS | GCC `-fanalyzer -fsyntax-only` and Clang static analysis report no findings in the changed frontend, IR, emitter, and contract sources. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerated the report, and `make check-bootstrap-audit` accepts the checked-in Markdown and JSON. The first full repository run found six stale audit expectations after the source changed. Updating those exact values made the complete run green. |
+| Repository tests | PASS | The final root `make test` completes 361 tests in 501.663 seconds with one expected skip. |
+| Production image | PASS | Root `make all` builds the complete Cupid OS image, including the updated CupidC CTXT reference. |
+| Boot smoke | PASS | The QEMU GUI terminal smoke runs `/bin/ls.cc` successfully and exits in 18.5 seconds. |
+| Review | PASS | The final Standards and Spec reviews report no actionable findings after the malformed-slice, cursor-copy, sequencing, nested-call, and validator-reuse corrections. |
+| Patch hygiene | PASS | `git diff --check` passes. Documentation and publication text were reviewed with the humanizer guidance. |
+
+This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler and contracts, and the host C compiler still owns every normal C object. No production object, build transform, boot path, dependency count, or ownership count changes.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for floating and aggregate call forms, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this focused result.

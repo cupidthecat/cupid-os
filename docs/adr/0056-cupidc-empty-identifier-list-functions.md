@@ -29,3 +29,7 @@ The object contract emits byte-identical ELF32 output twice. It pins 181 `.text`
 The exact Doom profile now passes `doomgeneric_Tick()` and reaches `kernel/doom/src/d_main.c:689`. Its next failure is the anonymous block-scope `struct` in the static `packs` declaration. This advances the measured frontend boundary without claiming a complete Doom translation unit or moving any production C object.
 
 GCC or Clang still builds the shared compiler and its contracts. The normal Cupid OS build still uses the host C compiler for C objects, and the private in-kernel CupidC remains the embedded JIT and AOT path. Nonempty identifier-list definitions, implicit function declarations, floating and wider runtime values, aggregate arguments without declared parameter types, the remaining C and GNU surface, production integration, staged self-hosting, and the fixed-point bootstrap remain open under issue #25.
+
+## Extension: eight-byte unprototyped arguments
+
+ADR 0075 carries each call's actual post-conversion types in Linear IR. Direct and indirect calls through a function type without a prototype can now place signed or unsigned eight-byte integer arguments in their full cdecl spans. Empty identifier-list definitions and default promotion rules remain as recorded here.

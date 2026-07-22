@@ -36,3 +36,7 @@ The unchanged `asm_parse_number` and `fe_mul_u32` bodies guard the active requir
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform, OS object, boot path, host dependency, or ownership count changes.
 
 Issue #25 remains open. ADR 0073 later adds wide division and remainder, and ADR 0074 adds compound assignment and prefix or postfix update. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+
+## Extension: wide variadic transport
+
+ADR 0075 carries signed and unsigned eight-byte values through ellipsis and unprototyped calls and returns wide `va_arg` reads in private snapshots. Multiplication consumes those snapshots through the same immutable operand path defined here.
