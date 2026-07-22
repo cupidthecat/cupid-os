@@ -16,7 +16,7 @@ An eight-byte scalar can also be used directly by logical not, logical AND, logi
 
 The emitter reads wide operands from their private frame snapshots. A comparison consumes two snapshot handles and pushes one normalized four-byte result. A direct condition or logical-not operation ORs the low and high words before testing zero. Branch joins, stack depth, and the EDX:EAX return boundary therefore keep the value model established by ADR 0065.
 
-Switch dispatch remains separate. It needs a wide duplicate operation in addition to comparison support, and that operation should receive its own malformed-IR and control-flow coverage. Wide arithmetic and mutation also remain separate work.
+Switch dispatch was separate at this boundary because it needed a wide duplicate operation and its own malformed-IR and control-flow coverage. ADR 0071 later adds it. ADRs 0070, 0072, and 0073 fill the arithmetic path, and ADR 0074 adds mutation.
 
 Lowering and object emission keep their transaction rules. Unsupported or malformed input publishes no partial unit or object, restores operation storage, and leaves the frontend translation unit unchanged.
 
@@ -28,4 +28,4 @@ Full-body source guards keep the active preprocessor helpers tied to the require
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, the contracts, and every normal C object. No production transform or host dependency changes owner.
 
-Issue #25 remains open. ADR 0070 later adds wide addition, subtraction, unary plus, unary minus, and bitwise complement. ADR 0071 reuses wide equality for full-width switch dispatch, ADR 0072 adds multiplication, and ADR 0073 adds division and remainder. Mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0070 later adds wide addition, subtraction, unary plus, unary minus, and bitwise complement. ADR 0071 reuses wide equality for full-width switch dispatch, ADR 0072 adds multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds mutation. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

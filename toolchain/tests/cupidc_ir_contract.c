@@ -221,9 +221,81 @@ static const char atomic_update_source[] =
     "_Atomic unsigned int state;\n"
     "unsigned int update_atomic(void) { return ++state; }\n";
 
+static const char atomic_wide_update_source[] =
+    "_Atomic unsigned long long state;\n"
+    "unsigned long long update_atomic_wide(void) { return state++; }\n";
+
+static const char wide_mutation_count_source[] =
+    "unsigned long long shift_wide_count(unsigned long long value,\n"
+    "                                    unsigned long long count) {\n"
+    "  return value <<= count;\n"
+    "}\n";
+
+static const char narrow_destination_wide_rhs_source[] =
+    "unsigned int update(unsigned int value, unsigned long long right) {\n"
+    "  return value += right;\n"
+    "}\n";
+
+static const char bit_field_wide_rhs_source[] =
+    "struct flags { unsigned int value : 3; };\n"
+    "unsigned int update(struct flags *state, unsigned long long right) {\n"
+    "  return state->value += right;\n"
+    "}\n";
+
+static const char bit_field_wide_shift_source[] =
+    "struct flags { unsigned int value : 3; };\n"
+    "unsigned int shift(struct flags *state, unsigned long long count) {\n"
+    "  return state->value <<= count;\n"
+    "}\n";
+
 static const char wide_compound_source[] =
-    "long long state;\n"
-    "int update_wide(void) { state += 1; return 0; }\n";
+    "typedef unsigned long long wide_u64;\n"
+    "typedef signed long long wide_i64;\n"
+    "wide_u64 all_wide_compounds(wide_u64 value, wide_u64 right,\n"
+    "                            int count) {\n"
+    "  value *= right;\n"
+    "  value /= right;\n"
+    "  value %= right;\n"
+    "  value += right;\n"
+    "  value -= right;\n"
+    "  value <<= count;\n"
+    "  value >>= count;\n"
+    "  value &= right;\n"
+    "  value ^= right;\n"
+    "  value |= right;\n"
+    "  return value;\n"
+    "}\n"
+    "wide_i64 signed_prefix_increment(wide_i64 value) { return ++value; }\n"
+    "wide_i64 signed_prefix_decrement(wide_i64 value) { return --value; }\n"
+    "wide_i64 signed_postfix_increment(wide_i64 value) { return value++; }\n"
+    "wide_i64 signed_postfix_decrement(wide_i64 value) { return value--; }\n"
+    "wide_u64 unsigned_prefix_increment(wide_u64 value) { return ++value; }\n"
+    "wide_u64 unsigned_prefix_decrement(wide_u64 value) { return --value; }\n"
+    "wide_u64 unsigned_postfix_increment(wide_u64 value) { return value++; }\n"
+    "wide_u64 unsigned_postfix_decrement(wide_u64 value) { return value--; }\n"
+    "wide_i64 signed_wide_compounds(wide_i64 value, wide_i64 right,\n"
+    "                               int count) {\n"
+    "  value /= right;\n"
+    "  value %= right;\n"
+    "  value >>= count;\n"
+    "  return value;\n"
+    "}\n"
+    "wide_i64 mixed_add(wide_i64 value, wide_u64 right) {\n"
+    "  return value += right;\n"
+    "}\n"
+    "wide_u64 narrow_add(wide_u64 value, unsigned int right) {\n"
+    "  return value += right;\n"
+    "}\n"
+    "volatile wide_u64 volatile_state;\n"
+    "wide_u64 volatile_postfix(void) { return volatile_state++; }\n"
+    "wide_u64 *select_wide_slot(void);\n"
+    "wide_u64 one_evaluation(wide_u64 right) {\n"
+    "  return *select_wide_slot() += right;\n"
+    "}\n"
+    "wide_u64 chained_store(wide_u64 *destination, wide_u64 *source,\n"
+    "                       wide_u64 right) {\n"
+    "  return *destination = (*source += right);\n"
+    "}\n";
 
 static const char bit_field_update_source[] =
     "struct flags { unsigned int value : 3; };\n"
@@ -1794,6 +1866,24 @@ static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
           UINT64_C(0xcf0e333fec913171))) {
     (void)fprintf(stderr,
                   "the active frontend constant arithmetic helper changed\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int wide_mutation_active_source_is_unchanged(ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/kernel/crypto/x25519.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active X25519 carry source") ||
+      !source_function_fingerprint_matches(
+          &source, "static void fe_carry(", "static void fe_add(", 1332u,
+          UINT64_C(0x9dbf6e234e6018b9))) {
+    (void)fprintf(stderr, "the active X25519 carry helper changed\n");
     return 0;
   }
   return 1;
@@ -12475,6 +12565,8 @@ static int run_bit_field_mutations(const char *host_root) {
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t packed_unit;
   ctool_c_translation_unit_t volatile_unit;
+  ctool_c_translation_unit_t wide_rhs_unit;
+  ctool_c_translation_unit_t wide_shift_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_ir_unit_t update_ir;
   ctool_c_ir_unit_t compound_ir;
@@ -12500,6 +12592,8 @@ static int run_bit_field_mutations(const char *host_root) {
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   (void)memset(&packed_unit, 0, sizeof(packed_unit));
   (void)memset(&volatile_unit, 0, sizeof(volatile_unit));
+  (void)memset(&wide_rhs_unit, 0, sizeof(wide_rhs_unit));
+  (void)memset(&wide_shift_unit, 0, sizeof(wide_shift_unit));
   (void)memset(&invalid_unit, 0, sizeof(invalid_unit));
   (void)memset(&update_ir, 0xa5, sizeof(update_ir));
   (void)memset(&compound_ir, 0xa5, sizeof(compound_ir));
@@ -12595,7 +12689,21 @@ static int run_bit_field_mutations(const char *host_root) {
           job, &volatile_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "volatile bit-field mutation")) {
+          "volatile bit-field mutation") ||
+      !parse_source(job, "/bit-field-wide-rhs.c", bit_field_wide_rhs_source,
+                    &wide_rhs_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_rhs_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "bit-field destination with wide mutation computation") ||
+      !parse_source(job, "/bit-field-wide-shift.c",
+                    bit_field_wide_shift_source, &wide_shift_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_shift_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "bit-field shift with wide count")) {
     goto cleanup;
   }
   member = find_member(&update_unit, "value");
@@ -12657,12 +12765,1036 @@ cleanup:
   return 1;
 }
 
+static int wide_mutation_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_c_conversion_kind_t conversion, ctool_u32 reference,
+    ctool_u64 integer_bits) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == integer_bits &&
+                 string_equal(instruction->location.path,
+                              "/wide-mutations.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/wide-mutations.c") != 0
+             ? 1
+             : 0;
+}
+
+static int validate_wide_compound_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR,
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, "all_wide_compounds");
+  ctool_u32 value_parameter;
+  ctool_u32 right_parameter;
+  ctool_u32 count_parameter;
+  ctool_u32 value_type;
+  ctool_u32 count_type;
+  ctool_u32 operation_index;
+  if (unit->function_definition_count == 0u || ir->function_count == 0u ||
+      ir->instruction_count < 83u || ir->functions == NULL ||
+      ir->instructions == NULL || function_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "wide compound IR inventory differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[0];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 3u ||
+      function_type->first_parameter > unit->parameter_count ||
+      3u > unit->parameter_count - function_type->first_parameter) {
+    (void)fprintf(stderr, "wide compound function type differs\n");
+    return 0;
+  }
+  value_parameter = function_type->first_parameter;
+  right_parameter = value_parameter + 1u;
+  count_parameter = value_parameter + 2u;
+  value_type = unit->parameters[value_parameter].type;
+  count_type = unit->parameters[count_parameter].type;
+  function = &ir->functions[0];
+  instructions = ir->instructions;
+  if (unit->parameters[right_parameter].type != value_type ||
+      value_type >= unit->layout.type_count ||
+      unit->layout.types[value_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[value_type].is_signed != CTOOL_FALSE ||
+      unit->layout.types[value_type].size != 8u ||
+      count_type >= unit->layout.type_count ||
+      unit->layout.types[count_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[count_type].size != 4u ||
+      function_type->referenced_type != value_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u || function->instruction_count != 83u ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "wide compound function inventory differs\n");
+    return 0;
+  }
+  for (operation_index = 0u; operation_index < 10u; operation_index++) {
+    ctool_u32 base = operation_index * 8u;
+    ctool_bool shift =
+        operations[operation_index] ==
+                    CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT ||
+                operations[operation_index] ==
+                    CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_u32 operand_parameter =
+        shift == CTOOL_TRUE ? count_parameter : right_parameter;
+    ctool_u32 operand_type = shift == CTOOL_TRUE ? count_type : value_type;
+    if (!wide_mutation_instruction_matches(
+            &instructions[base], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+            value_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            value_parameter, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 1u],
+            CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, value_type, value_type,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 2u], CTOOL_C_IR_INSTRUCTION_LOAD,
+            value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 3u],
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, operand_type,
+            CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, operand_parameter, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 4u], CTOOL_C_IR_INSTRUCTION_LOAD,
+            operand_type, operand_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 5u], CTOOL_C_IR_INSTRUCTION_BINARY,
+            value_type, value_type, operations[operation_index],
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 6u], CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+            value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 7u], CTOOL_C_IR_INSTRUCTION_DISCARD,
+            CTOOL_C_TYPE_NONE, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+      (void)fprintf(stderr, "wide compound operation %lu differs\n",
+                    (unsigned long)operation_index);
+      return 0;
+    }
+  }
+  if (!wide_mutation_instruction_matches(
+          &instructions[80], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          value_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, value_parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[81], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[82], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "wide compound return differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_update_function(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 function_index,
+    const char *name, ctool_bool is_signed,
+    ctool_c_expression_operator_t operation, ctool_bool postfix,
+    ctool_u32 *instruction_cursor_io) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 function_binding = find_binding(unit, name);
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  ctool_u32 instruction_count = postfix == CTOOL_TRUE ? 9u : 7u;
+  ctool_c_expression_operator_t inverse_operation =
+      operation == CTOOL_C_EXPRESSION_OPERATOR_ADD
+          ? CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT
+          : CTOOL_C_EXPRESSION_OPERATOR_ADD;
+  if (function_index >= unit->function_definition_count ||
+      function_index >= ir->function_count ||
+      function_binding == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  definition = &unit->function_definitions[function_index];
+  if (definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  function = &ir->functions[function_index];
+  instructions = &ir->instructions[*instruction_cursor_io];
+  if (value_type >= unit->layout.type_count ||
+      unit->layout.types[value_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[value_type].is_signed != is_signed ||
+      unit->layout.types[value_type].size != 8u ||
+      function_type->referenced_type != value_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != *instruction_cursor_io ||
+      function->instruction_count != instruction_count ||
+      function->maximum_stack_depth != 3u ||
+      !wide_mutation_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          value_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_INTEGER, value_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_BINARY, value_type,
+          value_type, operation, CTOOL_C_CONVERSION_NONE,
+          CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_STORE_VALUE, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "%s update IR prefix differs\n", name);
+    return 0;
+  }
+  if (postfix == CTOOL_FALSE) {
+    if (!wide_mutation_instruction_matches(
+            &instructions[6], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+            value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+      (void)fprintf(stderr, "%s prefix result differs\n", name);
+      return 0;
+    }
+  } else if (!wide_mutation_instruction_matches(
+                 &instructions[6], CTOOL_C_IR_INSTRUCTION_INTEGER,
+                 value_type, CTOOL_C_TYPE_NONE,
+                 CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+                 CTOOL_C_AST_NONE, 1u) ||
+             !wide_mutation_instruction_matches(
+                 &instructions[7], CTOOL_C_IR_INSTRUCTION_BINARY,
+                 value_type, value_type, inverse_operation,
+                 CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+             !wide_mutation_instruction_matches(
+                 &instructions[8], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+                 value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+                 CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "%s postfix result differs\n", name);
+    return 0;
+  }
+  *instruction_cursor_io += instruction_count;
+  return 1;
+}
+
+static int validate_signed_wide_compound_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 *instruction_cursor_io) {
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+      CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT};
+  const ctool_c_function_definition_t *definition =
+      &unit->function_definitions[9];
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function = &ir->functions[9];
+  const ctool_c_ir_instruction_t *instructions =
+      &ir->instructions[*instruction_cursor_io];
+  ctool_u32 function_binding = find_binding(unit, "signed_wide_compounds");
+  ctool_u32 value_parameter;
+  ctool_u32 right_parameter;
+  ctool_u32 count_parameter;
+  ctool_u32 value_type;
+  ctool_u32 count_type;
+  ctool_u32 operation_index;
+  if (definition->declared_type >= unit->graph.type_count ||
+      function_binding == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 3u ||
+      function_type->first_parameter > unit->parameter_count ||
+      3u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  value_parameter = function_type->first_parameter;
+  right_parameter = value_parameter + 1u;
+  count_parameter = value_parameter + 2u;
+  value_type = unit->parameters[value_parameter].type;
+  count_type = unit->parameters[count_parameter].type;
+  if (unit->parameters[right_parameter].type != value_type ||
+      value_type >= unit->layout.type_count ||
+      unit->layout.types[value_type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[value_type].is_signed != CTOOL_TRUE ||
+      unit->layout.types[value_type].size != 8u ||
+      count_type >= unit->layout.type_count ||
+      unit->layout.types[count_type].size != 4u ||
+      function_type->referenced_type != value_type ||
+      definition->binding != function_binding ||
+      function->binding != function_binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != *instruction_cursor_io ||
+      function->instruction_count != 27u ||
+      function->maximum_stack_depth != 3u) {
+    (void)fprintf(stderr, "signed wide compound inventory differs\n");
+    return 0;
+  }
+  for (operation_index = 0u; operation_index < 3u; operation_index++) {
+    ctool_u32 base = operation_index * 8u;
+    ctool_bool shift = operation_index == 2u ? CTOOL_TRUE : CTOOL_FALSE;
+    ctool_u32 operand_parameter =
+        shift == CTOOL_TRUE ? count_parameter : right_parameter;
+    ctool_u32 operand_type = shift == CTOOL_TRUE ? count_type : value_type;
+    if (!wide_mutation_instruction_matches(
+            &instructions[base], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+            value_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            value_parameter, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 1u],
+            CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS, value_type, value_type,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 2u], CTOOL_C_IR_INSTRUCTION_LOAD,
+            value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 3u],
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, operand_type,
+            CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, operand_parameter, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 4u], CTOOL_C_IR_INSTRUCTION_LOAD,
+            operand_type, operand_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 5u], CTOOL_C_IR_INSTRUCTION_BINARY,
+            value_type, value_type, operations[operation_index],
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 6u], CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+            value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_mutation_instruction_matches(
+            &instructions[base + 7u], CTOOL_C_IR_INSTRUCTION_DISCARD,
+            CTOOL_C_TYPE_NONE, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+      (void)fprintf(stderr, "signed wide compound operation %lu differs\n",
+                    (unsigned long)operation_index);
+      return 0;
+    }
+  }
+  if (!wide_mutation_instruction_matches(
+          &instructions[24], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          value_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, value_parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[25], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[26], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "signed wide compound return differs\n");
+    return 0;
+  }
+  *instruction_cursor_io += 27u;
+  return 1;
+}
+
+static int validate_wide_mixed_and_narrow_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 *instruction_cursor_io) {
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 first_parameter;
+  ctool_u32 signed_type;
+  ctool_u32 unsigned_type;
+  ctool_u32 narrow_type;
+  ctool_u32 mixed_binding = find_binding(unit, "mixed_add");
+  ctool_u32 narrow_binding = find_binding(unit, "narrow_add");
+  if (mixed_binding == CTOOL_C_AST_NONE ||
+      narrow_binding == CTOOL_C_AST_NONE ||
+      unit->function_definitions[10].declared_type >= unit->graph.type_count ||
+      unit->function_definitions[11].declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type =
+      &unit->graph.types[unit->function_definitions[10].declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  signed_type = unit->parameters[first_parameter].type;
+  unsigned_type = unit->parameters[first_parameter + 1u].type;
+  instructions = &ir->instructions[*instruction_cursor_io];
+  if (signed_type >= unit->layout.type_count ||
+      unsigned_type >= unit->layout.type_count || signed_type == unsigned_type ||
+      unit->layout.types[signed_type].size != 8u ||
+      unit->layout.types[signed_type].is_signed != CTOOL_TRUE ||
+      unit->layout.types[unsigned_type].size != 8u ||
+      unit->layout.types[unsigned_type].is_signed != CTOOL_FALSE ||
+      function_type->referenced_type != signed_type ||
+      ir->functions[10].binding != mixed_binding ||
+      ir->functions[10].first_instruction != *instruction_cursor_io ||
+      ir->functions[10].instruction_count != 10u ||
+      ir->functions[10].maximum_stack_depth != 3u ||
+      !wide_mutation_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          signed_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, first_parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+          signed_type, signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_LOAD, signed_type,
+          signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_CONVERT, unsigned_type,
+          signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_USUAL_ARITHMETIC, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          first_parameter + 1u, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_LOAD, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[6], CTOOL_C_IR_INSTRUCTION_BINARY, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_CONVERT, signed_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_ASSIGNMENT, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[8], CTOOL_C_IR_INSTRUCTION_STORE_VALUE, signed_type,
+          signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[9], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          signed_type, signed_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "mixed wide mutation conversion differs\n");
+    return 0;
+  }
+  *instruction_cursor_io += 10u;
+  function_type =
+      &unit->graph.types[unit->function_definitions[11].declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 2u ||
+      function_type->first_parameter > unit->parameter_count ||
+      2u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  unsigned_type = unit->parameters[first_parameter].type;
+  narrow_type = unit->parameters[first_parameter + 1u].type;
+  instructions = &ir->instructions[*instruction_cursor_io];
+  if (unsigned_type >= unit->layout.type_count ||
+      narrow_type >= unit->layout.type_count ||
+      unit->layout.types[unsigned_type].size != 8u ||
+      unit->layout.types[narrow_type].size != 4u ||
+      function_type->referenced_type != unsigned_type ||
+      ir->functions[11].binding != narrow_binding ||
+      ir->functions[11].first_instruction != *instruction_cursor_io ||
+      ir->functions[11].instruction_count != 9u ||
+      ir->functions[11].maximum_stack_depth != 3u ||
+      !wide_mutation_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          unsigned_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          first_parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+          unsigned_type, unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_LOAD, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          narrow_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, first_parameter + 1u, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_LOAD, narrow_type,
+          narrow_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_CONVERT, unsigned_type,
+          narrow_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_USUAL_ARITHMETIC, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[6], CTOOL_C_IR_INSTRUCTION_BINARY, unsigned_type,
+          unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+          unsigned_type, unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[8], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          unsigned_type, unsigned_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "narrow-to-wide mutation conversion differs\n");
+    return 0;
+  }
+  *instruction_cursor_io += 9u;
+  return 1;
+}
+
+static int validate_wide_volatile_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 *instruction_cursor_io) {
+  const ctool_c_function_definition_t *definition =
+      &unit->function_definitions[12];
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions =
+      &ir->instructions[*instruction_cursor_io];
+  ctool_u32 function_binding = find_binding(unit, "volatile_postfix");
+  ctool_u32 object_binding = find_binding(unit, "volatile_state");
+  ctool_u32 value_type;
+  ctool_u32 qualified_type;
+  if (function_binding == CTOOL_C_AST_NONE ||
+      object_binding == CTOOL_C_AST_NONE ||
+      definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  value_type = function_type->referenced_type;
+  qualified_type = unit->bindings[object_binding].type;
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 0u ||
+      value_type >= unit->layout.type_count ||
+      qualified_type >= unit->graph.type_count ||
+      qualified_type >= unit->layout.type_count ||
+      value_type == qualified_type ||
+      unit->layout.types[value_type].size != 8u ||
+      unit->layout.types[qualified_type].size != 8u ||
+      (unit->graph.types[qualified_type].qualifiers & CTOOL_C_QUAL_VOLATILE) ==
+          0u ||
+      ir->functions[12].binding != function_binding ||
+      ir->functions[12].first_instruction != *instruction_cursor_io ||
+      ir->functions[12].instruction_count != 9u ||
+      ir->functions[12].maximum_stack_depth != 3u ||
+      !wide_mutation_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS,
+          qualified_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          object_binding, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+          qualified_type, qualified_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          qualified_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_INTEGER, value_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_BINARY, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_STORE_VALUE, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[6], CTOOL_C_IR_INSTRUCTION_INTEGER, value_type,
+          CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 1u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_BINARY, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[8], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "volatile wide postfix IR differs\n");
+    return 0;
+  }
+  *instruction_cursor_io += 9u;
+  return 1;
+}
+
+static int validate_wide_one_evaluation_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 *instruction_cursor_io) {
+  const ctool_c_function_definition_t *definition =
+      &unit->function_definitions[13];
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *pointer_type;
+  const ctool_c_ir_instruction_t *instructions =
+      &ir->instructions[*instruction_cursor_io];
+  ctool_u32 function_binding = find_binding(unit, "one_evaluation");
+  ctool_u32 selector_binding = find_binding(unit, "select_wide_slot");
+  ctool_u32 parameter;
+  ctool_u32 value_type;
+  ctool_u32 result_pointer_type;
+  if (function_binding == CTOOL_C_AST_NONE ||
+      selector_binding == CTOOL_C_AST_NONE ||
+      definition->declared_type >= unit->graph.type_count ||
+      unit->bindings[selector_binding].type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  value_type = unit->parameters[parameter].type;
+  pointer_type = &unit->graph.types[unit->bindings[selector_binding].type];
+  if (pointer_type->kind != CTOOL_C_TYPE_FUNCTION) {
+    return 0;
+  }
+  result_pointer_type = pointer_type->referenced_type;
+  if (result_pointer_type >= unit->graph.type_count ||
+      unit->graph.types[result_pointer_type].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[result_pointer_type].referenced_type != value_type ||
+      function_type->referenced_type != value_type ||
+      ir->functions[13].binding != function_binding ||
+      ir->functions[13].first_instruction != *instruction_cursor_io ||
+      ir->functions[13].instruction_count != 9u ||
+      ir->functions[13].maximum_stack_depth != 3u ||
+      instructions[0].argument_count != 0u ||
+      !wide_mutation_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_CALL_DIRECT,
+          result_pointer_type, unit->bindings[selector_binding].type,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          selector_binding, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_DEREFERENCE, value_type,
+          result_pointer_type, CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          value_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[6], CTOOL_C_IR_INSTRUCTION_BINARY, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_STORE_VALUE, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[8], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "wide mutation destination was not evaluated once\n");
+    return 0;
+  }
+  *instruction_cursor_io += 9u;
+  return 1;
+}
+
+static int validate_wide_chained_store_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 *instruction_cursor_io) {
+  const ctool_c_function_definition_t *definition =
+      &unit->function_definitions[14];
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_instruction_t *instructions =
+      &ir->instructions[*instruction_cursor_io];
+  ctool_u32 function_binding = find_binding(unit, "chained_store");
+  ctool_u32 first_parameter;
+  ctool_u32 destination_pointer_type;
+  ctool_u32 source_pointer_type;
+  ctool_u32 value_type;
+  if (function_binding == CTOOL_C_AST_NONE ||
+      definition->declared_type >= unit->graph.type_count) {
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 3u ||
+      function_type->first_parameter > unit->parameter_count ||
+      3u > unit->parameter_count - function_type->first_parameter) {
+    return 0;
+  }
+  first_parameter = function_type->first_parameter;
+  destination_pointer_type = unit->parameters[first_parameter].type;
+  source_pointer_type = unit->parameters[first_parameter + 1u].type;
+  value_type = unit->parameters[first_parameter + 2u].type;
+  if (destination_pointer_type >= unit->graph.type_count ||
+      source_pointer_type >= unit->graph.type_count ||
+      unit->graph.types[destination_pointer_type].kind !=
+          CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[source_pointer_type].kind != CTOOL_C_TYPE_POINTER ||
+      unit->graph.types[destination_pointer_type].referenced_type !=
+          value_type ||
+      unit->graph.types[source_pointer_type].referenced_type != value_type ||
+      function_type->referenced_type != value_type ||
+      ir->functions[14].binding != function_binding ||
+      ir->functions[14].first_instruction != *instruction_cursor_io ||
+      ir->functions[14].instruction_count != 14u ||
+      ir->functions[14].maximum_stack_depth != 4u ||
+      !wide_mutation_instruction_matches(
+          &instructions[0], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          destination_pointer_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          first_parameter, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[1], CTOOL_C_IR_INSTRUCTION_LOAD,
+          destination_pointer_type, destination_pointer_type,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[2], CTOOL_C_IR_INSTRUCTION_DEREFERENCE, value_type,
+          destination_pointer_type, CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[3], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          source_pointer_type, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+          first_parameter + 1u, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[4], CTOOL_C_IR_INSTRUCTION_LOAD,
+          source_pointer_type, source_pointer_type,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[5], CTOOL_C_IR_INSTRUCTION_DEREFERENCE, value_type,
+          source_pointer_type, CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[6], CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[7], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[8], CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          value_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, first_parameter + 2u, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[9], CTOOL_C_IR_INSTRUCTION_LOAD, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[10], CTOOL_C_IR_INSTRUCTION_BINARY, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[11], CTOOL_C_IR_INSTRUCTION_STORE_VALUE, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[12], CTOOL_C_IR_INSTRUCTION_STORE_VALUE, value_type,
+          value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_mutation_instruction_matches(
+          &instructions[13], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          value_type, value_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "wide chained store did not reuse its result\n");
+    return 0;
+  }
+  *instruction_cursor_io += 14u;
+  return 1;
+}
+
+static int validate_wide_mutation_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const names[] = {
+      "signed_prefix_increment",   "signed_prefix_decrement",
+      "signed_postfix_increment", "signed_postfix_decrement",
+      "unsigned_prefix_increment", "unsigned_prefix_decrement",
+      "unsigned_postfix_increment", "unsigned_postfix_decrement"};
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT};
+  ctool_u32 instruction_cursor = 83u;
+  ctool_u32 index;
+  if (unit->function_definition_count != 15u || ir->function_count != 15u ||
+      ir->instruction_count != 225u || !validate_wide_compound_ir(unit, ir)) {
+    (void)fprintf(stderr, "wide mutation IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 8u; index++) {
+    if (!validate_wide_update_function(
+            unit, ir, index + 1u, names[index],
+            index < 4u ? CTOOL_TRUE : CTOOL_FALSE, operations[index],
+            index % 4u >= 2u ? CTOOL_TRUE : CTOOL_FALSE,
+            &instruction_cursor)) {
+      return 0;
+    }
+  }
+  if (!validate_signed_wide_compound_ir(unit, ir, &instruction_cursor) ||
+      !validate_wide_mixed_and_narrow_ir(unit, ir, &instruction_cursor) ||
+      !validate_wide_volatile_ir(unit, ir, &instruction_cursor) ||
+      !validate_wide_one_evaluation_ir(unit, ir, &instruction_cursor) ||
+      !validate_wide_chained_store_ir(unit, ir, &instruction_cursor)) {
+    return 0;
+  }
+  return instruction_cursor == ir->instruction_count ? 1 : 0;
+}
+
+static int run_wide_mutations(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t bool_unit;
+  ctool_c_translation_unit_t wide_count_unit;
+  ctool_c_translation_unit_t narrow_destination_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeated_ir;
+  ctool_c_ir_unit_t recovery_ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 update_expression = CTOOL_C_AST_NONE;
+  ctool_u32 compound_expression = CTOOL_C_AST_NONE;
+  ctool_u32 i32_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 diagnostic_count;
+  ctool_u32 index;
+  ctool_status_t status;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&bool_unit, 0, sizeof(bool_unit));
+  (void)memset(&wide_count_unit, 0, sizeof(wide_count_unit));
+  (void)memset(&narrow_destination_unit, 0,
+               sizeof(narrow_destination_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !wide_mutation_active_source_is_unchanged(job) ||
+      !parse_source(job, "/wide-mutations.c", wide_compound_source, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide mutation lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_wide_mutation_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = ir_instruction_fingerprint(&ir);
+  (void)memset(&repeated_ir, 0xa5, sizeof(repeated_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeated_ir);
+  if (!check_status(status, CTOOL_OK, "repeat wide mutation lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_instruction_fingerprint(&repeated_ir) != ir_hash ||
+      !validate_wide_mutation_ir(&unit, &repeated_ir)) {
+    (void)fprintf(stderr, "wide mutation lowering is not deterministic\n");
+    goto cleanup;
+  }
+  if (!parse_source(job, "/atomic-wide-mutation.c",
+                    atomic_wide_update_source, &atomic_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &atomic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic wide mutation") ||
+      !parse_source(job, "/bool-wide-mutation.c", bool_update_source,
+                    &bool_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &bool_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "Boolean wide-mutation boundary") ||
+      !parse_source(job, "/wide-mutation-count.c",
+                    wide_mutation_count_source, &wide_count_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &wide_count_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide mutation shift count") ||
+      !parse_source(job, "/narrow-destination-wide-rhs.c",
+                    narrow_destination_wide_rhs_source,
+                    &narrow_destination_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &narrow_destination_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow destination with wide mutation computation")) {
+    goto cleanup;
+  }
+  if (unit.function_definition_count == 0u ||
+      unit.function_definitions[0].declared_type >= unit.graph.type_count ||
+      unit.graph.types[unit.function_definitions[0].declared_type].kind !=
+          CTOOL_C_TYPE_FUNCTION ||
+      unit.graph.types[unit.function_definitions[0].declared_type]
+              .parameter_count != 3u ||
+      unit.graph.types[unit.function_definitions[0].declared_type]
+              .first_parameter > unit.parameter_count - 3u) {
+    (void)fprintf(stderr, "wide mutation metadata fixture differs\n");
+    goto cleanup;
+  }
+  i32_type = unit.parameters[
+      unit.graph.types[unit.function_definitions[0].declared_type]
+              .first_parameter +
+          2u]
+                 .type;
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (update_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_UPDATE &&
+        expression->type < unit.layout.type_count &&
+        unit.layout.types[expression->type].size == 8u) {
+      update_expression = index;
+    }
+    if (compound_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_ASSIGNMENT &&
+        expression->operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN) {
+      compound_expression = index;
+    }
+  }
+  if (i32_type >= unit.layout.type_count ||
+      unit.layout.types[i32_type].size != 4u ||
+      update_expression == CTOOL_C_AST_NONE ||
+      compound_expression == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "wide mutation metadata fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    (void)fprintf(stderr, "wide mutation metadata allocation failed\n");
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[update_expression].computation_type = i32_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide update with a narrow computation type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[compound_expression].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide compound mutation with conversion metadata")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&recovery_ir, 0xa5, sizeof(recovery_ir));
+  status = ctool_c_lower_ir(job, &unit, &recovery_ir);
+  if (!check_status(status, CTOOL_OK, "wide mutation recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_instruction_fingerprint(&recovery_ir) != ir_hash ||
+      !validate_wide_mutation_ir(&unit, &recovery_ir)) {
+    (void)fprintf(stderr, "wide mutation lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-mutations: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_integer_mutation_rejections(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t atomic_unit;
-  ctool_c_translation_unit_t wide_unit;
   ctool_c_translation_unit_t bool_unit;
   ctool_c_translation_unit_t bool_compound_unit;
   ctool_c_translation_unit_t valid_unit;
@@ -12672,7 +13804,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
   ctool_u32 index;
   int passed = 0;
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
-  (void)memset(&wide_unit, 0, sizeof(wide_unit));
   (void)memset(&bool_unit, 0, sizeof(bool_unit));
   (void)memset(&bool_compound_unit, 0, sizeof(bool_compound_unit));
   (void)memset(&valid_unit, 0, sizeof(valid_unit));
@@ -12684,13 +13815,6 @@ static int run_integer_mutation_rejections(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "atomic integer update") ||
-      !parse_source(job, "/wide-compound.c", wide_compound_source,
-                    &wide_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide integer compound assignment") ||
       !parse_source(job, "/bool-update.c", bool_update_source, &bool_unit) ||
       !expect_ir_failure_preserves_unit(
           job, &bool_unit, CTOOL_ERR_UNSUPPORTED,
@@ -23543,6 +24667,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-objects") == 0) {
     return run_wide_objects(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-mutations") == 0) {
+    return run_wide_mutations(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -23558,7 +24685,7 @@ int main(int argc, char **argv) {
                 "old-style-empty-functions|variadic-callees|block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"
-                "wide-objects "
+                "wide-objects|wide-mutations "
                 "HOST_ROOT\n");
   return 2;
 }

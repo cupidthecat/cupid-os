@@ -103,6 +103,44 @@ static const char active_x25519_wide_multiply_body_crlf[] =
     "    fe_carry(r, r0, r1, r2, r3, r4, r5, r6, r7);\r\n"
     "}\r\n";
 
+static const char active_x25519_wide_mutation_first[] =
+    "    r1 += r0 >> 32; r0 &= 0xFFFFFFFFu;\n"
+    "    r2 += r1 >> 32; r1 &= 0xFFFFFFFFu;\n"
+    "    r3 += r2 >> 32; r2 &= 0xFFFFFFFFu;\n"
+    "    r4 += r3 >> 32; r3 &= 0xFFFFFFFFu;\n"
+    "    r5 += r4 >> 32; r4 &= 0xFFFFFFFFu;\n"
+    "    r6 += r5 >> 32; r5 &= 0xFFFFFFFFu;\n"
+    "    r7 += r6 >> 32; r6 &= 0xFFFFFFFFu;";
+
+static const char active_x25519_wide_mutation_first_crlf[] =
+    "    r1 += r0 >> 32; r0 &= 0xFFFFFFFFu;\r\n"
+    "    r2 += r1 >> 32; r1 &= 0xFFFFFFFFu;\r\n"
+    "    r3 += r2 >> 32; r2 &= 0xFFFFFFFFu;\r\n"
+    "    r4 += r3 >> 32; r3 &= 0xFFFFFFFFu;\r\n"
+    "    r5 += r4 >> 32; r4 &= 0xFFFFFFFFu;\r\n"
+    "    r6 += r5 >> 32; r5 &= 0xFFFFFFFFu;\r\n"
+    "    r7 += r6 >> 32; r6 &= 0xFFFFFFFFu;";
+
+static const char active_x25519_wide_mutation_second[] =
+    "    r0 += c * 19u;\n"
+    "    r1 += r0 >> 32; r0 &= 0xFFFFFFFFu;\n"
+    "    r2 += r1 >> 32; r1 &= 0xFFFFFFFFu;\n"
+    "    r3 += r2 >> 32; r2 &= 0xFFFFFFFFu;\n"
+    "    r4 += r3 >> 32; r3 &= 0xFFFFFFFFu;\n"
+    "    r5 += r4 >> 32; r4 &= 0xFFFFFFFFu;\n"
+    "    r6 += r5 >> 32; r5 &= 0xFFFFFFFFu;\n"
+    "    r7 += r6 >> 32; r6 &= 0xFFFFFFFFu;";
+
+static const char active_x25519_wide_mutation_second_crlf[] =
+    "    r0 += c * 19u;\r\n"
+    "    r1 += r0 >> 32; r0 &= 0xFFFFFFFFu;\r\n"
+    "    r2 += r1 >> 32; r1 &= 0xFFFFFFFFu;\r\n"
+    "    r3 += r2 >> 32; r2 &= 0xFFFFFFFFu;\r\n"
+    "    r4 += r3 >> 32; r3 &= 0xFFFFFFFFu;\r\n"
+    "    r5 += r4 >> 32; r4 &= 0xFFFFFFFFu;\r\n"
+    "    r6 += r5 >> 32; r5 &= 0xFFFFFFFFu;\r\n"
+    "    r7 += r6 >> 32; r6 &= 0xFFFFFFFFu;";
+
 static const char active_cfront_wide_divide_remainder_body_first[] =
     "static ctool_status_t cfront_parse_constant_multiply(\n"
     "    cfront_context_t *context, cfront_integer_t *value_out) {\n"
@@ -471,6 +509,120 @@ static const char wide_division_object_source[] =
     "ctool_u64 divide_then_reuse_left(ctool_u64 left,\n"
     "                                 ctool_u64 right) {\n"
     "  return (left / right) + left;\n"
+    "}\n";
+
+static const char wide_mutation_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "ctool_u64 multiply_assign(ctool_u64 input, ctool_u32 right) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value *= right;\n"
+    "}\n"
+    "ctool_i64 divide_assign(ctool_i64 input, ctool_i64 right) {\n"
+    "  ctool_i64 value = input;\n"
+    "  return value /= right;\n"
+    "}\n"
+    "ctool_i64 remainder_assign(ctool_i64 input, ctool_i64 right) {\n"
+    "  ctool_i64 value = input;\n"
+    "  return value %= right;\n"
+    "}\n"
+    "ctool_i64 mixed_add_assign(ctool_i64 input, ctool_u64 right) {\n"
+    "  ctool_i64 value = input;\n"
+    "  return value += right;\n"
+    "}\n"
+    "ctool_u64 subtract_assign(ctool_u64 input, ctool_u64 right) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value -= right;\n"
+    "}\n"
+    "ctool_u64 shift_left_assign(ctool_u64 input, ctool_u32 right) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value <<= right;\n"
+    "}\n"
+    "ctool_i64 shift_right_assign(ctool_i64 input, ctool_u32 right) {\n"
+    "  ctool_i64 value = input;\n"
+    "  return value >>= right;\n"
+    "}\n"
+    "ctool_u64 and_assign(ctool_u64 input, ctool_u64 right) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value &= right;\n"
+    "}\n"
+    "ctool_u64 xor_assign(ctool_u64 input, ctool_u64 right) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value ^= right;\n"
+    "}\n"
+    "ctool_u64 or_assign(ctool_u64 input, ctool_u64 right) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value |= right;\n"
+    "}\n"
+    "ctool_u64 prefix_increment(ctool_u64 input) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return ++value;\n"
+    "}\n"
+    "ctool_i64 prefix_decrement(ctool_i64 input) {\n"
+    "  ctool_i64 value = input;\n"
+    "  return --value;\n"
+    "}\n"
+    "ctool_u64 postfix_increment(ctool_u64 input) {\n"
+    "  ctool_u64 value = input;\n"
+    "  return value++;\n"
+    "}\n"
+    "ctool_i64 postfix_decrement(ctool_i64 input) {\n"
+    "  ctool_i64 value = input;\n"
+    "  return value--;\n"
+    "}\n"
+    "ctool_u64 postfix_snapshot(ctool_u64 input) {\n"
+    "  ctool_u64 value = input;\n"
+    "  ctool_u64 old = value++;\n"
+    "  return old + value;\n"
+    "}\n"
+    "ctool_u64 indexed_postfix_once(void) {\n"
+    "  ctool_u64 values[2] = {9ull, 77ull};\n"
+    "  ctool_u32 index = 0u;\n"
+    "  ctool_u64 old = values[index++]++;\n"
+    "  return old + index;\n"
+    "}\n"
+    "ctool_u64 volatile_prefix_increment(volatile ctool_u64 *value) {\n"
+    "  return ++*value;\n"
+    "}\n";
+
+static const char wide_atomic_mutation_object_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "_Atomic ctool_u64 state;\n"
+    "ctool_u64 atomic_prefix_increment(void) { return ++state; }\n";
+
+static const char narrow_destination_wide_mutation_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "ctool_u32 narrow_add_assign(ctool_u32 value, ctool_u64 right) {\n"
+    "  return value += right;\n"
+    "}\n";
+
+static const char bit_field_wide_mutation_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "struct flags { ctool_u32 value : 3; };\n"
+    "ctool_u32 bit_field_add_assign(struct flags *state,\n"
+    "                               ctool_u64 right) {\n"
+    "  return state->value += right;\n"
+    "}\n";
+
+static const char bit_field_wide_shift_left_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "struct flags { ctool_u32 value : 3; };\n"
+    "ctool_u32 bit_field_shift_left(struct flags *state,\n"
+    "                                 ctool_u64 count) {\n"
+    "  return state->value <<= count;\n"
+    "}\n";
+
+static const char bit_field_wide_shift_right_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "struct flags { ctool_u32 value : 3; };\n"
+    "ctool_u32 bit_field_shift_right(struct flags *state,\n"
+    "                                  ctool_u64 count) {\n"
+    "  return state->value >>= count;\n"
     "}\n";
 
 static const char wide_condition_object_source[] =
@@ -20398,6 +20550,465 @@ cleanup:
   return passed != 0 ? 0 : 1;
 }
 
+static int validate_wide_mutation_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const struct {
+    const char *name;
+    ctool_u32 size;
+    ctool_u32 copies;
+    ctool_u32 zeroes;
+  } expected[] = {
+      {"multiply_assign", 227u, 4u, 0u},
+      {"divide_assign", 490u, 5u, 0u},
+      {"remainder_assign", 490u, 5u, 0u},
+      {"mixed_add_assign", 188u, 5u, 0u},
+      {"subtract_assign", 188u, 5u, 0u},
+      {"shift_left_assign", 183u, 4u, 0u},
+      {"shift_right_assign", 183u, 4u, 0u},
+      {"and_assign", 188u, 5u, 0u},
+      {"xor_assign", 188u, 5u, 0u},
+      {"or_assign", 188u, 5u, 0u},
+      {"prefix_increment", 186u, 4u, 0u},
+      {"prefix_decrement", 186u, 4u, 0u},
+      {"postfix_increment", 254u, 4u, 0u},
+      {"postfix_decrement", 254u, 4u, 0u},
+      {"postfix_snapshot", 368u, 7u, 0u},
+      {"indexed_postfix_once", 506u, 6u, 1u},
+      {"volatile_prefix_increment", 143u, 2u, 0u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 mnemonic_counts[CTOOL_X86_MN_COUNT];
+  ctool_u32 expected_offset = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  ctool_u32 fingerprint;
+  if (job == (ctool_job_t *)0 || object == (const ctool_elf32_object_t *)0 ||
+      text == (const ctool_elf32_section_t *)0 ||
+      text->contents.data == (const ctool_u8 *)0 ||
+      text->contents.size == 0u || object->symbol_count != 18u ||
+      object->relocation_count != 0u || text->relocation_count != 0u) {
+    (void)fprintf(stderr, "wide mutation object inventory differs\n");
+    return 0;
+  }
+  (void)memset(mnemonic_counts, 0, sizeof(mnemonic_counts));
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(expected) / sizeof(expected[0]));
+       index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, expected[index].name);
+    if (!wide_function_symbol_is_valid(object, text, symbol) ||
+        symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        symbol->value != expected_offset ||
+        symbol->size != expected[index].size ||
+        !validate_wide_value_function(
+            job, text, symbol, expected[index].copies,
+            expected[index].zeroes)) {
+      (void)fprintf(stderr, "wide mutation function %s differs\n",
+                    expected[index].name);
+      return 0;
+    }
+    expected_offset += symbol->size;
+  }
+  if (expected_offset != text->contents.size) {
+    (void)fprintf(stderr, "wide mutation function coverage differs\n");
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.instruction.mnemonic <= CTOOL_X86_MN_INVALID ||
+        decoded.instruction.mnemonic >= CTOOL_X86_MN_COUNT) {
+      (void)fprintf(stderr, "wide mutation decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    mnemonic_counts[decoded.instruction.mnemonic]++;
+    cursor += decoded.consumed;
+  }
+  fingerprint = structure_text_fingerprint(text->contents);
+  if (text->contents.size != 4410u || fingerprint != 0x4b337038u ||
+      mnemonic_counts[CTOOL_X86_MN_MOVSB] != 78u ||
+      mnemonic_counts[CTOOL_X86_MN_CLD] != 79u ||
+      mnemonic_counts[CTOOL_X86_MN_MUL] != 1u ||
+      mnemonic_counts[CTOOL_X86_MN_IMUL] != 3u ||
+      mnemonic_counts[CTOOL_X86_MN_ADD] != 14u ||
+      mnemonic_counts[CTOOL_X86_MN_ADC] != 9u ||
+      mnemonic_counts[CTOOL_X86_MN_SUB] != 34u ||
+      mnemonic_counts[CTOOL_X86_MN_SBB] != 14u ||
+      mnemonic_counts[CTOOL_X86_MN_SHL] != 5u ||
+      mnemonic_counts[CTOOL_X86_MN_SHR] != 0u ||
+      mnemonic_counts[CTOOL_X86_MN_SAR] != 7u ||
+      mnemonic_counts[CTOOL_X86_MN_RCL] != 9u ||
+      mnemonic_counts[CTOOL_X86_MN_RCR] != 1u ||
+      mnemonic_counts[CTOOL_X86_MN_AND] != 4u ||
+      mnemonic_counts[CTOOL_X86_MN_XOR] != 21u ||
+      mnemonic_counts[CTOOL_X86_MN_OR] != 2u ||
+      mnemonic_counts[CTOOL_X86_MN_STOSB] != 1u ||
+      mnemonic_counts[CTOOL_X86_MN_RET] != 17u ||
+      mnemonic_counts[CTOOL_X86_MN_CALL] != 0u ||
+      mnemonic_counts[CTOOL_X86_MN_DIV] != 0u ||
+      mnemonic_counts[CTOOL_X86_MN_IDIV] != 0u) {
+    (void)fprintf(
+        stderr,
+        "wide mutation inventory: text=%u fingerprint=%08x "
+        "movsb=%u cld=%u mul=%u imul=%u add=%u adc=%u sub=%u sbb=%u "
+        "shl=%u shr=%u sar=%u rcl=%u rcr=%u and=%u xor=%u or=%u "
+        "stosb=%u ret=%u call=%u div=%u idiv=%u\n",
+        (unsigned int)text->contents.size, (unsigned int)fingerprint,
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_MOVSB],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CLD],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_MUL],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_IMUL],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_ADD],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_ADC],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_SUB],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_SBB],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_SHL],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_SHR],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_SAR],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_RCL],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_RCR],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_AND],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_XOR],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_OR],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_STOSB],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_RET],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CALL],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_DIV],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_IDIV]);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_mutation_execution(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_u32 multiply_arguments[] = {3u, 2u, 5u};
+  const ctool_u32 signed_arguments[] = {
+      0xffffff9cu, 0xffffffffu, 7u, 0u};
+  const ctool_u32 mixed_arguments[] = {40u, 0u, 2u, 0u};
+  const ctool_u32 subtract_arguments[] = {0u, 2u, 1u, 0u};
+  const ctool_u32 shift_left_arguments[] = {0x80000001u, 1u, 4u};
+  const ctool_u32 shift_right_arguments[] = {0u, 0xfffffffeu, 2u};
+  const ctool_u32 and_arguments[] = {
+      0xaaaa5555u, 0xf0f0f0f0u, 0x00ff00ffu, 0x0ff00ff0u};
+  const ctool_u32 bitwise_arguments[] = {
+      0x55667788u, 0x11223344u, 0x00ff00ffu, 0xff00ff00u};
+  const ctool_u32 increment_arguments[] = {0xffffffffu, 0xffffffffu};
+  const ctool_u32 decrement_arguments[] = {5u, 0u};
+  const ctool_u32 signed_postfix_arguments[] = {
+      0xfffffffbu, 0xffffffffu};
+  const ctool_u32 snapshot_arguments[] = {0xffffffffu, 1u};
+  const ctool_u32 volatile_arguments[] = {128u};
+  if (text == (const ctool_elf32_section_t *)0) {
+    return 0;
+  }
+  return expect_wide_oracle_result(
+             job, object, text, "multiply_assign", multiply_arguments, 3u,
+             15u, 10u, "wide multiply assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "divide_assign", signed_arguments, 4u,
+             0xfffffff2u, 0xffffffffu, "wide signed divide assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "remainder_assign", signed_arguments, 4u,
+             0xfffffffeu, 0xffffffffu,
+             "wide signed remainder assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "mixed_add_assign", mixed_arguments, 4u,
+             42u, 0u, "wide mixed addition assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "subtract_assign", subtract_arguments, 4u,
+             0xffffffffu, 1u, "wide subtraction assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "shift_left_assign", shift_left_arguments,
+             3u, 0x00000010u, 0x00000018u,
+             "wide left shift assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "shift_right_assign",
+             shift_right_arguments, 3u, 0x80000000u, 0xffffffffu,
+             "wide signed right shift assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "and_assign", and_arguments, 4u,
+             0x00aa0055u, 0x00f000f0u, "wide AND assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "xor_assign", bitwise_arguments, 4u,
+             0x55997777u, 0xee22cc44u, "wide XOR assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "or_assign", bitwise_arguments, 4u,
+             0x55ff77ffu, 0xff22ff44u, "wide OR assignment") &&
+         expect_wide_oracle_result(
+             job, object, text, "prefix_increment", increment_arguments,
+             2u, 0u, 0u, "wide unsigned prefix increment") &&
+         expect_wide_oracle_result(
+             job, object, text, "prefix_decrement", decrement_arguments,
+             2u, 4u, 0u, "wide signed prefix decrement") &&
+         expect_wide_oracle_result(
+             job, object, text, "postfix_increment", increment_arguments,
+             2u, 0xffffffffu, 0xffffffffu,
+             "wide unsigned postfix increment") &&
+         expect_wide_oracle_result(
+             job, object, text, "postfix_decrement",
+             signed_postfix_arguments, 2u, 0xfffffffbu, 0xffffffffu,
+             "wide signed postfix decrement") &&
+         expect_wide_oracle_result(
+             job, object, text, "postfix_snapshot", snapshot_arguments, 2u,
+             0xffffffffu, 3u, "wide postfix snapshot preservation") &&
+         expect_wide_oracle_result(
+             job, object, text, "indexed_postfix_once", NULL, 0u, 10u, 0u,
+             "wide postfix designator evaluation") &&
+         expect_wide_oracle_result(
+             job, object, text, "volatile_prefix_increment",
+             volatile_arguments, 1u, 1u, 0u,
+             "wide volatile prefix increment")
+             ? 1
+             : 0;
+}
+
+static int run_wide_mutation_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t narrow_destination_unit;
+  ctool_c_translation_unit_t bit_field_unit;
+  ctool_c_translation_unit_t bit_field_shift_left_unit;
+  ctool_c_translation_unit_t bit_field_shift_right_unit;
+  ctool_c_translation_unit_t invalid_computation_unit;
+  ctool_c_translation_unit_t invalid_operation_unit;
+  ctool_c_expression_t *invalid_computation_expressions = NULL;
+  ctool_c_expression_t *invalid_operation_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 compound_expression = CTOOL_C_AST_NONE;
+  ctool_u32 narrow_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&narrow_destination_unit, 0,
+               sizeof(narrow_destination_unit));
+  (void)memset(&bit_field_unit, 0, sizeof(bit_field_unit));
+  (void)memset(&bit_field_shift_left_unit, 0,
+               sizeof(bit_field_shift_left_unit));
+  (void)memset(&bit_field_shift_right_unit, 0,
+               sizeof(bit_field_shift_right_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_contains(
+          job, "/kernel/crypto/x25519.c",
+          "load active X25519 mutation source",
+          "the first active X25519 wide mutation chain changed",
+          active_x25519_wide_mutation_first,
+          active_x25519_wide_mutation_first_crlf) ||
+      !active_source_contains(
+          job, "/kernel/crypto/x25519.c",
+          "load active X25519 mutation source",
+          "the second active X25519 wide mutation chain changed",
+          active_x25519_wide_mutation_second,
+          active_x25519_wide_mutation_second_crlf) ||
+      !parse_source(job, "/wide-mutation-object.c",
+                    wide_mutation_object_source, &unit) ||
+      !parse_source(job, "/wide-atomic-mutation-object.c",
+                    wide_atomic_mutation_object_source, &atomic_unit) ||
+      !parse_source(job, "/narrow-destination-wide-mutation-object.c",
+                    narrow_destination_wide_mutation_object_source,
+                    &narrow_destination_unit) ||
+      !parse_source(job, "/bit-field-wide-mutation-object.c",
+                    bit_field_wide_mutation_object_source,
+                    &bit_field_unit) ||
+      !parse_source(job, "/bit-field-wide-shift-left-object.c",
+                    bit_field_wide_shift_left_object_source,
+                    &bit_field_shift_left_unit) ||
+      !parse_source(job, "/bit-field-wide-shift-right-object.c",
+                    bit_field_wide_shift_right_object_source,
+                    &bit_field_shift_right_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (compound_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_ASSIGNMENT &&
+        expression->operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY_ASSIGN &&
+        expression->computation_type < unit.layout.type_count &&
+        unit.layout.types[expression->computation_type].is_integer ==
+            CTOOL_TRUE &&
+        unit.layout.types[expression->computation_type].size == 8u) {
+      compound_expression = index;
+    }
+  }
+  for (index = 0u; index < unit.graph.type_count; index++) {
+    if (index < unit.layout.type_count &&
+        unit.graph.types[index].kind == CTOOL_C_TYPE_UNSIGNED_INT &&
+        unit.layout.types[index].is_integer == CTOOL_TRUE &&
+        unit.layout.types[index].size == 4u) {
+      narrow_type = index;
+      break;
+    }
+  }
+  if (compound_expression == CTOOL_C_AST_NONE ||
+      narrow_type == CTOOL_C_TYPE_NONE || unit.expression_count == 0u ||
+      sizeof(*invalid_computation_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "wide mutation fixture metadata differs\n");
+    goto cleanup;
+  }
+  invalid_computation_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count *
+      sizeof(*invalid_computation_expressions));
+  invalid_operation_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_operation_expressions));
+  if (invalid_computation_expressions == NULL ||
+      invalid_operation_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_computation_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_computation_expressions));
+  invalid_computation_expressions[compound_expression].computation_type =
+      narrow_type;
+  invalid_computation_unit = unit;
+  invalid_computation_unit.expressions = invalid_computation_expressions;
+  (void)memcpy(invalid_operation_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_operation_expressions));
+  invalid_operation_expressions[compound_expression].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_NONE;
+  invalid_operation_unit = unit;
+  invalid_operation_unit.expressions = invalid_operation_expressions;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "wide mutation object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "wide mutation object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat wide mutation object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != 5272u || first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_computation_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide mutation narrow computation metadata") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_operation_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide mutation missing operation metadata") ||
+      !expect_object_failure_preserves_unit(
+          job, &atomic_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic wide mutation object") ||
+      !expect_object_failure_preserves_unit(
+          job, &narrow_destination_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "narrow destination with wide mutation computation") ||
+      !expect_object_failure_preserves_unit(
+          job, &bit_field_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "bit-field destination with wide mutation computation") ||
+      !expect_object_failure_preserves_unit(
+          job, &bit_field_shift_left_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "bit-field left shift with a wide count") ||
+      !expect_object_failure_preserves_unit(
+          job, &bit_field_shift_right_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "bit-field right shift with a wide count") ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL, "limited wide mutation object") ||
+      ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "recovered wide mutation object")) {
+    (void)fprintf(
+        stderr, "wide mutation object transaction differs: %u bytes\n",
+        (unsigned int)first_bytes.size);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "wide mutation objects are not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-mutation-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide mutation object") ||
+      !validate_wide_mutation_object(job, &object) ||
+      !validate_wide_mutation_execution(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_operation_expressions);
+  free(invalid_computation_expressions);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-mutations: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_wide_return_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -20962,6 +21573,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-objects") == 0) {
     return run_wide_value_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-mutations") == 0) {
+    return run_wide_mutation_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
@@ -20974,7 +21588,8 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
-                "variadic-callees|wide-returns|wide-conditions|wide-objects "
+                "variadic-callees|wide-returns|wide-conditions|wide-objects|"
+                "wide-mutations "
                 "HOST_ROOT\n");
   return 2;
 }

@@ -12,7 +12,7 @@ Hosted CupidC accepts a switch condition when its promoted type is either a repr
 
 The condition is evaluated once. `DUPLICATE_VALUE` copies its logical stack entry before each equality test. For a wide value, that entry is the 32-bit handle of an immutable eight-byte snapshot, not either data word. The existing wide equality path compares both words. Matching and default paths discard the saved handle before they jump to the resolved case body.
 
-Object validation now treats value duplication and address duplication separately. `DUPLICATE_VALUE` accepts represented scalar values and wide integer snapshots. `DUPLICATE_ADDRESS` keeps its prior represented-scalar or complete-record object rule. Both instructions still emit the same handle duplication sequence, so this change adds no public word lanes, ABI state, relocation, or helper call.
+Object validation now treats value duplication and address duplication separately. `DUPLICATE_VALUE` accepts represented scalar values and wide integer snapshots. At this boundary, `DUPLICATE_ADDRESS` kept its represented-scalar or complete-record object rule. ADR 0074 later admits an address whose object type is a wide integer. Both instructions still emit the same handle duplication sequence, so neither change adds public word lanes, ABI state, relocation, or a helper call.
 
 Unreachable dispatch remains validation-only. The lowerer checks the condition and case types but publishes no comparison chain when the switch has no reachable source entry. Malformed type relations, unpromoted controls, and constrained output keep the existing transactional failure and recovery rules.
 
@@ -28,4 +28,4 @@ The first red run stopped at `/wide-switch.c:2:11` with the existing unsupported
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform or host dependency changes owner.
 
-Issue #25 remains open. ADR 0072 later adds wide multiplication, and ADR 0073 adds division and remainder. Mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0072 later adds wide multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds mutation. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

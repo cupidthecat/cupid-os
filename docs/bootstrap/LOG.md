@@ -5919,3 +5919,55 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices and log, generated audit, wiki, CTXT manual, public headers, and ADR records now describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide compound assignment, increment and decrement, values without declared parameter types, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC mutates wide integers
+
+### Decision and active requirement
+
+Hosted CupidC now lowers and emits all ten compound assignments plus prefix and postfix increment and decrement for signed and unsigned eight-byte integer objects. The frontend still owns integer promotion, the usual arithmetic conversions, and assignment conversion. Wide shift assignments keep a represented four-byte count. Signed overflow remains undefined, while unsigned updates wrap modulo 2^64.
+
+The mutation path evaluates the lvalue address once, duplicates that single-word address handle, and loads one immutable eight-byte snapshot. Existing conversion and binary instructions compute the replacement, and `STORE_VALUE` copies it back while leaving the stored snapshot available to the expression. Prefix update returns that value. Postfix update applies the inverse one-step operation to the stored snapshot, which recovers the earlier value without another object load. A volatile wide object therefore has one semantic load and one store. The multi-instruction copy is not atomic, and `_Atomic` wide mutation remains unsupported.
+
+No public IR instruction, target opcode, helper call, relocation, or wide-value representation changed. The emitter only extends `DUPLICATE_ADDRESS` validation because the duplicated machine item is still the 32-bit address of a private snapshot or object. A public word-pair mutation operation would leak an emitter detail into the frontend and IR. Reusing a snapshot in place would break later readers, and a second postfix load would repeat volatile access.
+
+Active source sets the requirement. The unchanged `fe_carry` body in `kernel/crypto/x25519.c` repeatedly uses wide `+=` and `&=` while propagating and masking limbs. The focused guard covers 1,332 normalized bytes with FNV fingerprint `9DBF6E234E6018B9`. No kernel source was rewritten around the compiler.
+
+ADR 0074 records the boundary. Earlier wide-value and mutation ADRs now point to it, and the root context, README, bootstrap records, wiki, and CTXT manual describe the same supported and unsupported cases.
+
+### Contract evidence and corrections
+
+- The mutation fixture publishes 15 functions and 225 exact IR instructions. It covers every unsigned compound operator, signed `/=`, `%=`, and `>>=`, signed and unsigned prefix and postfix updates, mixed signedness, a narrow right operand widened before computation, volatile postfix update, a side-effecting destination call, and a chained assignment that reuses the stored result.
+- The deterministic ELF32 object is 5,272 bytes overall. Its 17 functions occupy 4,410 bytes of `.text`; the object has fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Decoder evidence includes 17 returns and no call, hardware divide, or signed-divide instruction. The execution oracle checks defined results, saved registers, ESP, EBP, the return sentinel, and unchanged incoming argument words.
+- Atomic wide update, Boolean update, and a wide shift count retain useful unsupported diagnostics. A valid byte, word, doubleword, or bit-field destination paired with an eight-byte right operand also remains outside this increment. Separate bit-field `+=`, `<<=`, and `>>=` regressions require the unsupported-type diagnostic at the IR and object seams, then prove same-job recovery. Malformed update computation metadata and compound conversion metadata return the invalid-unit diagnostic. A 64-byte output limit publishes no partial object. Each rejection preserves its frozen input, rewinds temporary work, and permits the same job to reproduce the accepted IR or object.
+- The first compound fixture stopped at `/wide-mutations.c:4:9` with the old unsupported-value diagnostic. Broadening that gate exposed an unconditional four-byte right-operand check. Restricting the check to shift counts moved all ten operators forward. Wide update then stopped at `/wide-mutations.c:17:59` until the same integer-mutation classification accepted eight-byte computation and result types.
+- The first complete frontend and build-graph runs found the expected inventory drift from the new contracts. Their exact occurrence gates were refreshed from the generated audit. An audit check launched after the source-gate fixture changed correctly rejected the stale generated JSON; regenerating it after the fixture update restored reproducibility.
+- A loop-based analyzer launcher lost its shell variable at the PowerShell-to-WSL boundary and invoked both compilers without an input file. It changed nothing and is excluded. The accepted Clang and GCC analyzer runs use explicit source paths; GCC compiles analyzed objects to `/dev/null` rather than relying on its ineffective syntax-only path.
+- Wide values in an ellipsis or unprototyped call remain a separate ABI slice. The current call instruction records an argument count but not each actual type, so a predicate-only change would pass an eight-byte snapshot address as a four-byte argument. The next coherent design records a flat post-conversion actual-type slice, copies wide outgoing values into two adjacent i386 words, and advances `va_arg(long long)` by eight. Caller transport and wide cursor reads should land together.
+- Review found that the first gate also admitted narrow and bit-field destinations with wide computations. Restricting the new capability restored the earlier boundary. A second review followed the distinct shift-typing path and found that a valid wide bit-field count was still mislabeled as malformed input. One shared right-operand check now gives both ordinary and bit-field mutation the same useful diagnostic without duplicating the rule.
+- No user question was needed. The existing mutation sequence, private snapshot contract, C conversion records, i386 cdecl rules, and active X25519 body determine this increment.
+
+All nine hosted Toolchain source gates parse completely. Their definitions, statements, expressions, block bindings, and initializers are: `cupidc_pp.c` 143/3,904/25,107/475/282; `cupidc_ir.c` 177/5,393/47,381/655/216; `cupidc_emit.c` 150/4,124/35,174/503/256; and `cupidc_frontend.c` 303/11,901/77,125/1,765/1,205. The graph still contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 86,791 checked lines, and `toolchain_core` has 54,399.
+
+The generated audit records 637 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,454 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,542 `while`, 1,749 `break`, 1,022 `continue`, 28,434 `if`, 3,818 `else`, 3,312 `for`, 17,221 `return`, and 3,731 `sizeof` occurrences. The canonical active-source digest is `9305fe224339c59ce5b009f72d21dde37b35f7d8dccf9ef52839b87a00a33cd5`; the complete audit JSON has SHA-256 `354b5516fd7c00c2928c23ff5a0090fc27e0c0b80401e81106ca5c8c4b8be438`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR and object emission first rejected wide mutation. The final contracts cover positive behavior, useful negatives, deterministic output, rollback, recovery, decoding, ABI state, and execution. |
+| Focused Windows modules | PASS | All 116 frontend, IR, and object tests pass in 26.295 seconds. The deliberate active-manifest drift test passes independently in 115.178 seconds. |
+| Windows hosted Toolchain | PASS | `make -C toolchain test` passes every registered contract, including both new `wide-mutations` modes, in 18.6 seconds. |
+| Linux hosted Toolchain | PASS | Strict GCC 13.3 and Clang 18.1 builds pass the source gate, wide mutation, bit-field mutation, rejection, and object modes. The final refresh completes in 31.9 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass wide and bit-field mutation with leak detection and immediate failure enabled. The shared-helper refresh also passes under both runtimes. |
+| Static analysis | PASS | Clang `--analyze` and GCC `-fanalyzer` report no finding across both implementation files and all three changed C contracts. The final shared-helper pass completes in 59.8 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records, and `make check-bootstrap-audit` reproduces them. The final pair completes in 78.1 seconds. |
+| Full repository gate | PASS | `make test` passes all 358 tests in 499.585 seconds with one expected platform skip; Make returns in 538.7 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 21.1 seconds. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds with the established 0.60-second key timing. |
+| Two-axis review | PASS AFTER FIXES | Standards and Spec reviews found the overbroad destination gate, the wide bit-field shift diagnostic, duplicated classification, stale evidence, and one source-guard overclaim. The final reviewers report no remaining actionable finding. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their production roles. The private in-kernel CupidC remains the embedded JIT and AOT path.
+
+No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

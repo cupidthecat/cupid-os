@@ -11,7 +11,7 @@ Active source needs the normal C operation. CupidASM's `asm_parse_number` multip
 
 ## Decision
 
-Linear IR accepts `MULTIPLY` when the result and both post-conversion operands are the same represented signed or unsigned eight-byte integer type. The frontend continues to own integer promotion and the usual arithmetic conversions. This keeps mixed signedness and a represented narrow operand out of the backend until an explicit conversion instruction makes the types agree. Wide division, remainder, and mutation remain separate boundaries in this decision. ADR 0073 later adds division and remainder.
+Linear IR accepts `MULTIPLY` when the result and both post-conversion operands are the same represented signed or unsigned eight-byte integer type. The frontend continues to own integer promotion and the usual arithmetic conversions. This keeps mixed signedness and a represented narrow operand out of the backend until an explicit conversion instruction makes the types agree. Wide division, remainder, and mutation were separate boundaries in this decision. ADR 0073 later adds division and remainder, and ADR 0074 reuses multiplication for compound assignment.
 
 Let each operand be `a0 + 2^32 a1` and `b0 + 2^32 b1`. The i386 emitter computes the result modulo 2^64 as:
 
@@ -35,4 +35,4 @@ The unchanged `asm_parse_number` and `fe_mul_u32` bodies guard the active requir
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform, OS object, boot path, host dependency, or ownership count changes.
 
-Issue #25 remains open. ADR 0073 later adds wide division and remainder. Wide compound assignment, increment and decrement, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0073 later adds wide division and remainder, and ADR 0074 adds compound assignment and prefix or postfix update. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

@@ -23,7 +23,7 @@ A runtime helper was rejected because it would add a call, relocation, ABI surfa
 
 ## Consequences and evidence
 
-The arithmetic IR fixture has 26 functions and 165 instructions. Its original 83-instruction prefix keeps fingerprint `245E6D8F4F77588E`, and every multiplication slice is unchanged. Seven exact slices cover signed and unsigned quotient and remainder, mixed signedness, a narrow divisor widened by the frontend, and a chained quotient/remainder expression. Invalid conversion and result metadata fail transactionally. Wide mutation and an invalid wide shift count remain useful unsupported contracts.
+The arithmetic IR fixture has 26 functions and 165 instructions. Its original 83-instruction prefix keeps fingerprint `245E6D8F4F77588E`, and every multiplication slice is unchanged. Seven exact slices cover signed and unsigned quotient and remainder, mixed signedness, a narrow divisor widened by the frontend, and a chained quotient/remainder expression. Invalid conversion and result metadata fail transactionally. The earlier wide-mutation rejection became the red baseline for ADR 0074; an invalid wide shift count remains a useful unsupported contract.
 
 The deterministic ELF32 proof contains eleven functions, 4,775 bytes of `.text`, fingerprint `55F1A495`, twelve symbols including the null symbol, and no relocations. Thirteen emitted divide or remainder operations each have one fixed loop. Decoder checks pin the carry branch, unsigned high- and low-word comparisons, shared subtraction block, repeat edge, sign handling, balanced scratch, and absence of calls or hardware divide instructions. Thirty-three defined execution checks cover low- and high-word operands, all four signed sign combinations, unsigned high-bit divisors, mixed and narrow conversions, chaining, input reuse, ABI state, and stack sentinels.
 
@@ -33,4 +33,4 @@ Repeat emission is byte-identical. A constrained output leaves no partial object
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform, OS object, boot path, host dependency, or ownership count changes.
 
-Issue #25 remains open. Wide compound assignment, increment and decrement, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0074 later adds wide compound assignment and prefix or postfix update. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

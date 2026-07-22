@@ -14,7 +14,7 @@ Unary plus keeps the existing immutable snapshot handle. Unary minus loads both 
 
 The snapshot rule matters for nested expressions. A result cannot overwrite either operand because another use of that operand may still be live. Linear IR continues to count one C value as one stack item and does not expose EDX:EAX or two public word lanes.
 
-Signed operations follow C's existing rule that overflow is undefined. Unsigned addition, subtraction, negation, and complement wrap modulo 2^64. Division, remainder, wide compound assignment, and increment and decrement remain separate work at this boundary. ADR 0071 later adds wide switch dispatch, ADR 0072 adds multiplication, and ADR 0073 adds division and remainder.
+Signed operations follow C's existing rule that overflow is undefined. Unsigned addition, subtraction, negation, and complement wrap modulo 2^64. Division, remainder, wide compound assignment, and increment and decrement were separate work at this boundary. ADR 0071 later adds wide switch dispatch, ADR 0072 adds multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds mutation.
 
 Lowering and object emission keep their transaction rules. Malformed operation metadata or a constrained output buffer publishes no partial unit or object, rewinds temporary storage, and leaves the frontend translation unit unchanged.
 
@@ -28,4 +28,4 @@ Full-body source guards bind the preprocessor magnitude helper to its exact impl
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, the contracts, and every normal C object. No production transform or host dependency changes owner.
 
-Issue #25 remains open. ADR 0072 later adds wide multiplication, and ADR 0073 adds division and remainder. Mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0072 later adds wide multiplication, ADR 0073 adds division and remainder, and ADR 0074 adds mutation. Values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

@@ -5272,6 +5272,8 @@ static ctool_status_t cemit_emit_ir_instruction(
             ? cemit_ir_type_is_value_scalar(context, ir_instruction->type)
             : (cemit_ir_type_is_represented_scalar(
                    context, ir_instruction->type) == CTOOL_TRUE ||
+               cemit_ir_type_is_wide_integer(
+                   context, ir_instruction->type) == CTOOL_TRUE ||
                cemit_ir_type_is_complete_record_object(
                    context, ir_instruction->type) == CTOOL_TRUE)
                   ? CTOOL_TRUE

@@ -26,7 +26,7 @@ The deterministic ELF32 proof emits 439 bytes of `.text` with fingerprint `181CA
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. The private in-kernel CupidC compiler remains the runtime JIT and AOT path. No production object, build transform, boot path, host dependency, or ownership count changes.
 
-Issue #25 remains open. Eight-byte values without declared parameter types, conditions, arithmetic, conversions, mutation, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADRs 0066 through 0074 later add wide object values, declared parameters, conversions, conditions, arithmetic, switch dispatch, and mutation. Eight-byte values without declared parameter types, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
 
 ## Extension: eight-byte integer objects
 
