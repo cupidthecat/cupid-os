@@ -231,8 +231,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * zero-width targets inside one function.
  * Direct goto statements use JUMP with a function-relative target. Forward
  * targets are resolved before the immutable result is published.
- * A switch evaluates its promoted integer condition once. DUPLICATE_VALUE
- * preserves that value while equality tests select resolved case targets.
+ * A switch evaluates its promoted four- or eight-byte integer condition once.
+ * DUPLICATE_VALUE preserves that value while equality tests select resolved
+ * case targets.
  * LOCAL_ADDRESS, COMPOUND_LITERAL_ADDRESS,
  * COMPOUND_LITERAL_STAGING_ADDRESS, STRING_LITERAL_ADDRESS, and FILE_ADDRESS
  * push object addresses.
@@ -324,8 +325,8 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * also support the same-rank signed-to-unsigned usual arithmetic conversion
  * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
  * unsigned integer type. Boolean narrowing tests both source words.
- * Multiplication, division, remainder, switch dispatch, mutation, and
- * arguments without declared parameter types are not represented yet.
+ * Multiplication, division, remainder, mutation, and arguments without
+ * declared parameter types are not represented yet.
  * Supported structure values are complete, nonvolatile, nonatomic structures
  * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
  * into the caller-provided result object.

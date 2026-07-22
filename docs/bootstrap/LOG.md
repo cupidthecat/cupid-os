@@ -5762,3 +5762,51 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide multiplication, division, remainder, `switch`, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC dispatches wide integer switches
+
+### Decision and scope
+
+Hosted CupidC now lowers `switch` statements whose promoted controlling type is signed or unsigned eight-byte integer. The frontend already promotes the condition, converts each folded case value to that type, and rejects duplicate values after conversion. Linear IR now accepts an exact represented 32-bit integer or a represented wide integer at the switch boundary. Byte and word conditions remain invalid there because a valid frontend unit promotes them before lowering.
+
+The condition is evaluated once. Each case duplicates the private wide-snapshot handle, compares both words through the existing wide equality path, and branches on the resulting represented `int`. The emitter's value-duplication contract now accepts every represented scalar value, while address duplication keeps its prior scalar-or-complete-record boundary. No public IR shape, calling convention, or wide-value representation changed.
+
+No complete active-source function currently requires a wide switch. This work removes one language blocker for issue #25 without moving a production object to CupidC. ADR 0071 records the boundary and points the earlier switch and wide-integer decisions to it.
+
+### Contract evidence and corrections
+
+- The switch fixture contains three functions and exactly 46 IR instructions with fingerprint `CA2D36687BA73C9A`. Its signed and unsigned functions each have 22 reachable instructions and maximum stack depth three. The unreachable recovery fixture has two instructions and maximum depth one.
+- The signed cases use `0x1122334455667788` and `0xeeddccbbaa998878`. The unsigned cases use `0x0123456789abcdef` and `0xfedcba9876543210`. A validation-only case uses `UINT64_MAX` after an unreachable return.
+- The deterministic ELF32 object contains 504 bytes of `.text`, has fingerprint `DBC82148`, publishes three symbols including the null symbol, and has no relocations. The two functions occupy 252 bytes each.
+- The i386 execution oracle covers signed negative and positive cases, unsigned low- and high-bit cases, defaults, and misses whose operands differ in only one word. It verifies unchanged arguments, the stack pointer, EBP, EBX, ESI, EDI, and a stack sentinel after every call.
+- Useful production negatives reject a case whose type does not match the controlling type and an unpromoted unsigned-byte condition. Both preserve the input unit. A 64-byte object limit publishes no partial output, and the next emission in the same job reproduces the complete object byte for byte.
+- The red run stopped at `/wide-switch.c:2:11` with the previous unsupported-type diagnostic. Extending the IR switch predicate and emitter value-duplication predicate connected the existing frontend and wide-equality behavior.
+- An initial copied-IR check only exercised a test-side matcher, not production validation. Review caught the overclaim, so the pseudo-negative was removed and the documentation now names only failures that pass through production code.
+- The first sanitizer launcher lost its intended flags at the Windows-to-WSL shell boundary and created no build directory. That run is excluded. Fresh commands with literal flag strings passed under both compilers.
+- Two early full-suite launchers used short process timeouts and lost the final exit status even though their child process continued. They changed no tracked file and are excluded. The authoritative run used the correct long timeout and recorded its exit code.
+- No user question was needed. C switch conversions, the existing wide equality operation, and the private snapshot representation determine the implementation.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 176/5,364/47,106/655/216; `cupidc_emit.c` has 147/3,772/33,033/484/246; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 83,331 checked lines, and `toolchain_core` has 53,826.
+
+The generated audit records 637 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,424 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,537 `while`, 1,747 `break`, 1,018 `continue`, 28,129 `if`, 3,794 `else`, 3,295 `for`, 17,087 `return`, and 3,674 `sizeof` occurrences. The canonical active-source digest is `e734c7734499af754b0c66c86cc92894485e7b93bbc53c4adb7983ee93a2aa3c`; the complete audit JSON has SHA-256 `c8c86d317e2d7cfdd95743db9e65a28de36fbe621773c4f40f02a0ed41dea198`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and focused contracts | PASS | The old IR boundary rejected the signed wide condition. The final switch-lowering, IR `wide-conditions`, object `wide-conditions`, and `switch-object` modes pass their positive, negative, deterministic, transactional, decoder, ABI, and execution checks. |
+| Focused public modules | PASS | All 163 frontend, IR, object, and build-graph tests pass. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC and Clang builds pass all four affected modes in 18.7 and 19.3 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass all four modes in 61.7 and 70.2 seconds with leak detection and halt-on-error enabled. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding across both implementation files and the three changed C contracts in 166.6 and 125.7 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the record in 38 seconds, and `make check-bootstrap-audit` reproduces it in 38.019 seconds. |
+| Full repository gate | PASS | The authoritative `make test` passes all 356 tests in 487.436 seconds with one expected platform skip; Make returns in 525.508 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.194 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.258 seconds with the established 0.60-second key timing. |
+| Two-axis review | PASS AFTER FIXES | Standards and specification review found no remaining issue. Earlier review removed a test-side pseudo-negative, added this log entry, corrected stale ADR references, and narrowed the claims to production checks. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles. The private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result checks the rebuilt OS but does not assign production ownership to the hosted wide-switch path.
+
+The root context and README, bootstrap matrices and log, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide multiplication, division, remainder, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

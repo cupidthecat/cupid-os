@@ -42,4 +42,4 @@ Issue #25 remains open. At this decision boundary, the full `ctool_buffer_put_le
 
 ADR 0068 adds the wide shifts, usual arithmetic widening, bitwise AND, and explicit byte narrowing used by both active little-endian helpers. Their complete unchanged bodies now lower and emit. The declared-parameter ABI in this decision is unchanged.
 
-ADRs 0069 and 0070 later add wide comparisons, scalar conditions, addition, subtraction, unary plus, unary minus, and bitwise complement. Wide multiplication, division, remainder, `switch`, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+ADRs 0069 and 0070 later add wide comparisons, scalar conditions, addition, subtraction, unary plus, unary minus, and bitwise complement. ADR 0071 adds signed and unsigned wide switch dispatch. Wide multiplication, division, remainder, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

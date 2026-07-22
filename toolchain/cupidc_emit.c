@@ -4774,13 +4774,17 @@ static ctool_status_t cemit_emit_ir_instruction(
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE ||
       ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS) {
+    ctool_bool supported_type =
+        ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE
+            ? cemit_ir_type_is_value_scalar(context, ir_instruction->type)
+            : (cemit_ir_type_is_represented_scalar(
+                   context, ir_instruction->type) == CTOOL_TRUE ||
+               cemit_ir_type_is_complete_record_object(
+                   context, ir_instruction->type) == CTOOL_TRUE)
+                  ? CTOOL_TRUE
+                  : CTOOL_FALSE;
     if (ir_instruction->type != ir_instruction->input_type ||
-        (cemit_ir_type_is_represented_scalar(
-             context, ir_instruction->type) == CTOOL_FALSE &&
-         (ir_instruction->kind !=
-              CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS ||
-          cemit_ir_type_is_complete_record_object(
-              context, ir_instruction->type) == CTOOL_FALSE)) ||
+        supported_type == CTOOL_FALSE ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
         ir_instruction->reference != CTOOL_C_AST_NONE ||

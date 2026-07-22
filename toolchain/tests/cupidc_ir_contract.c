@@ -485,12 +485,43 @@ static const char switch_nesting_source[] =
     "}\n";
 
 static const char wide_switch_source[] =
-    "int wide_switch(int value) {\n"
-    "  switch ((long long)value) {\n"
-    "  case 0:\n"
+    "int signed_wide_switch(long long value) {\n"
+    "  switch (value) {\n"
+    "  case 0x1122334455667788ll:\n"
+    "    return 1;\n"
+    "  case -0x1122334455667788ll:\n"
+    "    return 2;\n"
+    "  default:\n"
+    "    return 0;\n"
+    "  }\n"
+    "}\n"
+    "int unsigned_wide_switch(unsigned long long value) {\n"
+    "  switch (value) {\n"
+    "  case 0x0123456789abcdefull:\n"
+    "    return 3;\n"
+    "  case 0xfedcba9876543210ull:\n"
+    "    return 4;\n"
+    "  default:\n"
+    "    return 0;\n"
+    "  }\n"
+    "}\n"
+    "int unreachable_wide_switch(unsigned long long value) {\n"
+    "  return 5;\n"
+    "  switch (value) {\n"
+    "  case 0xffffffffffffffffull:\n"
+    "    return 6;\n"
+    "  default:\n"
+    "    return 7;\n"
+    "  }\n"
+    "}\n";
+
+static const char unpromoted_narrow_switch_source[] =
+    "int unpromoted_narrow_switch(unsigned char value) {\n"
+    "  switch (value) {\n"
+    "  case 1:\n"
     "    return 1;\n"
     "  default:\n"
-    "    return 2;\n"
+    "    return 0;\n"
     "  }\n"
     "}\n";
 
@@ -10032,25 +10063,287 @@ static int validate_switch_lowering_ir(
   return 1;
 }
 
+static int wide_switch_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_c_conversion_kind_t conversion, ctool_u32 reference,
+    ctool_u64 integer_bits) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == integer_bits &&
+                 string_equal(instruction->location.path,
+                              "/wide-switch.c") != 0 &&
+                 string_equal(instruction->physical_location.path,
+                              "/wide-switch.c") != 0
+             ? 1
+             : 0;
+}
+
+static int wide_switch_duplicate_matches(
+    const ctool_c_ir_instruction_t *instruction, ctool_u32 wide_type) {
+  return wide_switch_instruction_matches(
+      instruction, CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE, wide_type,
+      wide_type, CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+      CTOOL_C_AST_NONE, 0u);
+}
+
+static int validate_reachable_wide_switch_function(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, ctool_u32 function_index,
+    const char *expected_name, ctool_bool expected_signed,
+    const ctool_u64 case_values[2],
+    const ctool_u64 return_values[3]) {
+  static const ctool_u32 next_case_targets[] = {8u, 14u};
+  static const ctool_u32 case_body_targets[] = {16u, 18u};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 first_instruction;
+  ctool_u32 parameter;
+  ctool_u32 result_type;
+  ctool_u32 wide_type;
+  ctool_u32 index;
+  if (function_index >= unit->function_definition_count ||
+      function_index >= ir->function_count) {
+    (void)fprintf(stderr, "wide switch function range differs\n");
+    return 0;
+  }
+  definition = &unit->function_definitions[function_index];
+  if (definition->binding >= unit->binding_count ||
+      definition->declared_type >= unit->graph.type_count ||
+      !string_equal(unit->bindings[definition->binding].name,
+                    expected_name)) {
+    (void)fprintf(stderr, "wide switch definition differs\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "wide switch function type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  result_type = function_type->referenced_type;
+  wide_type = unit->parameters[parameter].type;
+  if (result_type >= unit->layout.type_count ||
+      wide_type >= unit->layout.type_count ||
+      unit->layout.types[result_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[result_type].size != 4u ||
+      unit->layout.types[result_type].is_signed != CTOOL_TRUE ||
+      unit->layout.types[wide_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[wide_type].size != 8u ||
+      unit->layout.types[wide_type].is_signed != expected_signed) {
+    (void)fprintf(stderr, "wide switch value types differ\n");
+    return 0;
+  }
+  function = &ir->functions[function_index];
+  first_instruction = function_index * 22u;
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != first_instruction ||
+      function->instruction_count != 22u ||
+      function->maximum_stack_depth != 3u ||
+      !wide_switch_instruction_matches(
+          &ir->instructions[first_instruction],
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          wide_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, parameter, 0u) ||
+      !wide_switch_instruction_matches(
+          &ir->instructions[first_instruction + 1u],
+          CTOOL_C_IR_INSTRUCTION_LOAD, wide_type, wide_type,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "wide switch condition differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 2u; index++) {
+    ctool_u32 base = first_instruction + 2u + index * 6u;
+    if (!wide_switch_duplicate_matches(&ir->instructions[base], wide_type) ||
+        !wide_switch_instruction_matches(
+            &ir->instructions[base + 1u], CTOOL_C_IR_INSTRUCTION_INTEGER,
+            wide_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, case_values[index]) ||
+        !wide_switch_instruction_matches(
+            &ir->instructions[base + 2u], CTOOL_C_IR_INSTRUCTION_BINARY,
+            result_type, wide_type, CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_switch_instruction_matches(
+            &ir->instructions[base + 3u],
+            CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO, CTOOL_C_TYPE_NONE,
+            result_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, next_case_targets[index], 0u) ||
+        !wide_switch_instruction_matches(
+            &ir->instructions[base + 4u], CTOOL_C_IR_INSTRUCTION_DISCARD,
+            CTOOL_C_TYPE_NONE, wide_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !wide_switch_instruction_matches(
+            &ir->instructions[base + 5u], CTOOL_C_IR_INSTRUCTION_JUMP,
+            CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            case_body_targets[index], 0u)) {
+      (void)fprintf(stderr, "wide switch case %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  if (!wide_switch_instruction_matches(
+          &ir->instructions[first_instruction + 14u],
+          CTOOL_C_IR_INSTRUCTION_DISCARD,
+          CTOOL_C_TYPE_NONE, wide_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+      !wide_switch_instruction_matches(
+          &ir->instructions[first_instruction + 15u],
+          CTOOL_C_IR_INSTRUCTION_JUMP,
+          CTOOL_C_TYPE_NONE, CTOOL_C_TYPE_NONE,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE, 20u,
+          0u)) {
+    (void)fprintf(stderr, "wide switch default dispatch differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 3u; index++) {
+    ctool_u32 base = first_instruction + 16u + index * 2u;
+    if (!wide_switch_instruction_matches(
+            &ir->instructions[base], CTOOL_C_IR_INSTRUCTION_INTEGER,
+            result_type, CTOOL_C_TYPE_NONE,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, return_values[index]) ||
+        !wide_switch_instruction_matches(
+            &ir->instructions[base + 1u],
+            CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, result_type, result_type,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+            CTOOL_C_AST_NONE, 0u)) {
+      (void)fprintf(stderr, "wide switch return %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_wide_switch_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const names[] = {
+      "signed_wide_switch", "unsigned_wide_switch"};
+  static const ctool_bool signedness[] = {CTOOL_TRUE, CTOOL_FALSE};
+  static const ctool_u64 case_values[][2] = {
+      {UINT64_C(0x1122334455667788), UINT64_C(0xeeddccbbaa998878)},
+      {UINT64_C(0x0123456789abcdef), UINT64_C(0xfedcba9876543210)}};
+  static const ctool_u64 return_values[][3] = {
+      {1u, 2u, 0u}, {3u, 4u, 0u}};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 parameter;
+  ctool_u32 result_type;
+  ctool_u32 wide_type;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      unit->function_definition_count != 3u || ir->function_count != 3u ||
+      ir->instruction_count != 46u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "wide switch IR inventory differs\n");
+    return 0;
+  }
+  if (ir_instruction_fingerprint(ir) !=
+      UINT64_C(0xca2d36687ba73c9a)) {
+    (void)fprintf(stderr, "wide switch IR fingerprint differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 2u; index++) {
+    if (!validate_reachable_wide_switch_function(
+            unit, ir, index, names[index], signedness[index],
+            case_values[index], return_values[index])) {
+      return 0;
+    }
+  }
+  definition = &unit->function_definitions[2];
+  if (definition->binding >= unit->binding_count ||
+      definition->declared_type >= unit->graph.type_count ||
+      !string_equal(unit->bindings[definition->binding].name,
+                    "unreachable_wide_switch")) {
+    (void)fprintf(stderr, "unreachable wide switch definition differs\n");
+    return 0;
+  }
+  function_type = &unit->graph.types[definition->declared_type];
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      function_type->parameter_count != 1u ||
+      function_type->first_parameter >= unit->parameter_count) {
+    (void)fprintf(stderr, "unreachable wide switch type differs\n");
+    return 0;
+  }
+  parameter = function_type->first_parameter;
+  result_type = function_type->referenced_type;
+  wide_type = unit->parameters[parameter].type;
+  if (result_type >= unit->layout.type_count ||
+      wide_type >= unit->layout.type_count ||
+      unit->layout.types[result_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[result_type].size != 4u ||
+      unit->layout.types[result_type].is_signed != CTOOL_TRUE ||
+      unit->layout.types[wide_type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[wide_type].size != 8u ||
+      unit->layout.types[wide_type].is_signed != CTOOL_FALSE) {
+    (void)fprintf(stderr, "unreachable wide switch value types differ\n");
+    return 0;
+  }
+  function = &ir->functions[2];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 44u ||
+      function->instruction_count != 2u ||
+      function->maximum_stack_depth != 1u ||
+      !wide_switch_instruction_matches(
+          &ir->instructions[44], CTOOL_C_IR_INSTRUCTION_INTEGER,
+          result_type, CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 5u) ||
+      !wide_switch_instruction_matches(
+          &ir->instructions[45], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+          result_type, result_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+          CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+    (void)fprintf(stderr, "unreachable wide switch emitted runtime work\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_switch_lowering(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t wide_unit;
+  ctool_c_translation_unit_t narrow_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t wide_ir;
+  ctool_c_ir_unit_t wide_repeat_ir;
   ctool_c_statement_t *invalid_statements = NULL;
+  ctool_c_statement_t *invalid_narrow_statements = NULL;
   ctool_c_binding_t *invalid_bindings = NULL;
+  ctool_c_expression_t *invalid_wide_expressions = NULL;
   ctool_u32 diagnostic_count;
   ctool_u32 case_statement = CTOOL_C_AST_NONE;
   ctool_u32 default_statement = CTOOL_C_AST_NONE;
   ctool_u32 enumerator_binding = CTOOL_C_AST_NONE;
+  ctool_u32 unreachable_case_expression = CTOOL_C_AST_NONE;
+  ctool_u32 narrow_switch_statement = CTOOL_C_AST_NONE;
+  ctool_u32 narrow_condition_child = CTOOL_C_AST_NONE;
+  ctool_u32 signed_wide_type;
   ctool_u32 index;
   ctool_status_t status;
   uint64_t fingerprint;
+  uint64_t wide_fingerprint;
+  uint64_t wide_ir_fingerprint;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&wide_unit, 0, sizeof(wide_unit));
+  (void)memset(&narrow_unit, 0, sizeof(narrow_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_is_unchanged(job) ||
       !parse_source(job, "/switch-lowering.c", switch_lowering_source,
@@ -10068,12 +10361,151 @@ static int run_switch_lowering(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (!parse_source(job, "/wide-switch.c", wide_switch_source, &wide_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_unit, CTOOL_ERR_UNSUPPORTED,
+  if (!parse_source(job, "/wide-switch.c", wide_switch_source, &wide_unit)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  wide_fingerprint = unit_fingerprint(&wide_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&wide_ir, 0xa5, sizeof(wide_ir));
+  status = ctool_c_lower_ir(job, &wide_unit, &wide_ir);
+  if (!check_status(status, CTOOL_OK, "wide switch lowering")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)fprintf(stderr, "wide switch lowering added a diagnostic\n");
+    goto cleanup;
+  }
+  if (unit_fingerprint(&wide_unit) != wide_fingerprint) {
+    (void)fprintf(stderr, "wide switch lowering changed the frontend unit\n");
+    goto cleanup;
+  }
+  if (!validate_wide_switch_ir(&wide_unit, &wide_ir)) {
+    goto cleanup;
+  }
+  signed_wide_type = wide_ir.instructions[2].type;
+  wide_ir_fingerprint = ir_instruction_fingerprint(&wide_ir);
+  (void)memset(&wide_repeat_ir, 0xa5, sizeof(wide_repeat_ir));
+  status = ctool_c_lower_ir(job, &wide_unit, &wide_repeat_ir);
+  if (!check_status(status, CTOOL_OK, "repeated wide switch lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&wide_unit) != wide_fingerprint ||
+      ir_instruction_fingerprint(&wide_repeat_ir) != wide_ir_fingerprint ||
+      !validate_wide_switch_ir(&wide_unit, &wide_repeat_ir)) {
+    (void)fprintf(stderr, "repeated wide switch IR differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < wide_unit.statement_count; index++) {
+    if (wide_unit.statements[index].kind == CTOOL_C_STATEMENT_CASE &&
+        wide_unit.statements[index].expression < wide_unit.expression_count &&
+        wide_unit.expressions[wide_unit.statements[index].expression]
+                .kind == CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+        wide_unit.expressions[wide_unit.statements[index].expression]
+                .integer_bits == UINT64_MAX) {
+      unreachable_case_expression =
+          wide_unit.statements[index].expression;
+      break;
+    }
+  }
+  if (unreachable_case_expression == CTOOL_C_AST_NONE ||
+      wide_unit.expression_count == 0u ||
+      sizeof(*invalid_wide_expressions) >
+          SIZE_MAX / (size_t)wide_unit.expression_count) {
+    (void)fprintf(stderr, "unreachable wide case target differs\n");
+    goto cleanup;
+  }
+  invalid_wide_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)wide_unit.expression_count *
+      sizeof(*invalid_wide_expressions));
+  if (invalid_wide_expressions == NULL) {
+    (void)fprintf(stderr,
+                  "unreachable wide case allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_wide_expressions, wide_unit.expressions,
+               (size_t)wide_unit.expression_count *
+                   sizeof(*invalid_wide_expressions));
+  invalid_wide_expressions[unreachable_case_expression].type =
+      signed_wide_type;
+  invalid_unit = wide_unit;
+  invalid_unit.expressions = invalid_wide_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unreachable wide case type") ||
+      unit_fingerprint(&wide_unit) != wide_fingerprint) {
+    goto cleanup;
+  }
+  if (!parse_source(job, "/unpromoted-narrow-switch.c",
+                    unpromoted_narrow_switch_source, &narrow_unit)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < narrow_unit.statement_count; index++) {
+    if (narrow_unit.statements[index].kind == CTOOL_C_STATEMENT_SWITCH) {
+      if (narrow_switch_statement != CTOOL_C_AST_NONE) {
+        (void)fprintf(stderr, "narrow switch fixture has extra switches\n");
+        goto cleanup;
+      }
+      narrow_switch_statement = index;
+    }
+  }
+  if (narrow_switch_statement == CTOOL_C_AST_NONE ||
+      narrow_unit.statements[narrow_switch_statement].condition >=
+          narrow_unit.expression_count) {
+    (void)fprintf(stderr, "narrow switch condition was not found\n");
+    goto cleanup;
+  }
+  {
+    const ctool_c_expression_t *condition =
+        &narrow_unit.expressions[
+            narrow_unit.statements[narrow_switch_statement].condition];
+    if (condition->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        condition->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+        condition->child_count != 1u ||
+        condition->first_child >= narrow_unit.expression_child_count) {
+      (void)fprintf(stderr, "narrow switch promotion differs\n");
+      goto cleanup;
+    }
+    narrow_condition_child =
+        narrow_unit.expression_children[condition->first_child];
+  }
+  if (narrow_condition_child >= narrow_unit.expression_count ||
+      narrow_unit.expressions[narrow_condition_child].type >=
+          narrow_unit.layout.type_count ||
+      narrow_unit.layout
+              .types[narrow_unit.expressions[narrow_condition_child].type]
+              .is_integer != CTOOL_TRUE ||
+      narrow_unit.layout
+              .types[narrow_unit.expressions[narrow_condition_child].type]
+              .size != 1u ||
+      narrow_unit.statement_count == 0u ||
+      sizeof(*invalid_narrow_statements) >
+          SIZE_MAX / (size_t)narrow_unit.statement_count) {
+    (void)fprintf(stderr, "narrow switch source value differs\n");
+    goto cleanup;
+  }
+  invalid_narrow_statements = (ctool_c_statement_t *)malloc(
+      (size_t)narrow_unit.statement_count *
+      sizeof(*invalid_narrow_statements));
+  if (invalid_narrow_statements == NULL) {
+    (void)fprintf(stderr, "narrow switch fixture allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_narrow_statements, narrow_unit.statements,
+               (size_t)narrow_unit.statement_count *
+                   sizeof(*invalid_narrow_statements));
+  invalid_narrow_statements[narrow_switch_statement].condition =
+      narrow_condition_child;
+  invalid_unit = narrow_unit;
+  invalid_unit.statements = invalid_narrow_statements;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "wide switch condition")) {
+          "unpromoted narrow switch condition")) {
     goto cleanup;
   }
   if (unit.statement_count == 0u || unit.binding_count == 0u ||
@@ -10166,6 +10598,8 @@ static int run_switch_lowering(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_wide_expressions);
+  free(invalid_narrow_statements);
   free(invalid_bindings);
   free(invalid_statements);
   if (job != NULL) {

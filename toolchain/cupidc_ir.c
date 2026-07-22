@@ -7304,7 +7304,8 @@ static ctool_status_t cir_duplicate_value(
   if (context->stack_depth == 0u ||
       context->stack[context->stack_depth - 1u].kind != CIR_STACK_VALUE ||
       context->stack[context->stack_depth - 1u].type != type ||
-      cir_type_is_i32_integer(context, type) == CTOOL_FALSE) {
+      (cir_type_is_i32_integer(context, type) == CTOOL_FALSE &&
+       cir_type_is_wide_integer(context, type) == CTOOL_FALSE)) {
     return cir_invalid_unit(context, location);
   }
   status = cir_append_instruction(
@@ -7607,7 +7608,8 @@ static ctool_status_t cir_lower_switch(cir_context_t *context,
   if (status == CTOOL_OK) {
     condition = context->stack[base_depth];
     if (condition.kind != CIR_STACK_VALUE ||
-        cir_type_is_i32_integer(context, condition.type) == CTOOL_FALSE) {
+        (cir_type_is_i32_integer(context, condition.type) == CTOOL_FALSE &&
+         cir_type_is_wide_integer(context, condition.type) == CTOOL_FALSE)) {
       status = cir_unsupported_type(context, &condition_expression->location);
     }
   }

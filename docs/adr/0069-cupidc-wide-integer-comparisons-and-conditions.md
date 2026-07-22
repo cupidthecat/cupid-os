@@ -28,4 +28,4 @@ Full-body source guards keep the active preprocessor helpers tied to the require
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, the contracts, and every normal C object. No production transform or host dependency changes owner.
 
-Issue #25 remains open. ADR 0070 later adds wide addition, subtraction, unary plus, unary minus, and bitwise complement. Wide switch dispatch, multiplication, division, remainder, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0070 later adds wide addition, subtraction, unary plus, unary minus, and bitwise complement. ADR 0071 reuses wide equality for full-width switch dispatch. Multiplication, division, remainder, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

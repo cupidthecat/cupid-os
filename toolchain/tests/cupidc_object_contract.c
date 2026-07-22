@@ -338,6 +338,30 @@ static const char wide_condition_object_source[] =
     "  return left < right ? CTOOL_TRUE : CTOOL_FALSE;\n"
     "}\n";
 
+static const char wide_switch_object_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "int signed_wide_switch(ctool_i64 value) {\n"
+    "  switch (value) {\n"
+    "  case -0x112233445566778ll:\n"
+    "    return 11;\n"
+    "  case 0x1122334455667788ll:\n"
+    "    return 13;\n"
+    "  default:\n"
+    "    return 17;\n"
+    "  }\n"
+    "}\n"
+    "int unsigned_wide_switch(ctool_u64 value) {\n"
+    "  switch (value) {\n"
+    "  case 0x1122334455667788ull:\n"
+    "    return 19;\n"
+    "  case 0x8877665544332211ull:\n"
+    "    return 23;\n"
+    "  default:\n"
+    "    return 29;\n"
+    "  }\n"
+    "}\n";
+
 static const char active_pp_if_value_truth_object[] =
     "static ctool_bool pp_if_value_truth(pp_if_value_t value) {\n"
     "  return value.bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
@@ -18932,6 +18956,85 @@ static int validate_wide_condition_execution(
              : 0;
 }
 
+static int validate_wide_switch_execution(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u32 signed_case_negative[] = {
+      0xbaa99888u, 0xfeeddccbu};
+  static const ctool_u32 signed_case_positive[] = {
+      0x55667788u, 0x11223344u};
+  static const ctool_u32 signed_same_low[] = {
+      0x55667788u, 0x11223345u};
+  static const ctool_u32 signed_same_high[] = {
+      0x55667789u, 0x11223344u};
+  static const ctool_u32 unsigned_case_positive[] = {
+      0x55667788u, 0x11223344u};
+  static const ctool_u32 unsigned_case_high_bit[] = {
+      0x44332211u, 0x88776655u};
+  static const ctool_u32 unsigned_same_low[] = {
+      0x55667788u, 0x11223345u};
+  static const ctool_u32 unsigned_same_high[] = {
+      0x55667789u, 0x11223344u};
+  static const ctool_u32 default_value[] = {0u, 0u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *signed_switch =
+      find_symbol(object, "signed_wide_switch");
+  const ctool_elf32_symbol_t *unsigned_switch =
+      find_symbol(object, "unsigned_wide_switch");
+  ctool_u32 fingerprint =
+      text == NULL ? 0u : structure_text_fingerprint(text->contents);
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size != 504u || fingerprint != 0xdbc82148u ||
+      object->symbol_count != 3u || object->relocation_count != 0u ||
+      !symbol_matches(signed_switch, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      252u) ||
+      !symbol_matches(unsigned_switch, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 252u,
+                      252u)) {
+    (void)fprintf(stderr,
+                  "wide switch object differs: text=%u fingerprint=%08x "
+                  "symbols=%u relocations=%u\n",
+                  text == NULL ? 0u : text->contents.size,
+                  fingerprint, object->symbol_count,
+                  object->relocation_count);
+    return 0;
+  }
+  return wide_condition_result_matches(
+             job, object, text, "signed_wide_switch",
+             signed_case_negative, 2u, 11u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "signed_wide_switch",
+                     signed_case_positive, 2u, 13u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "signed_wide_switch",
+                     signed_same_low, 2u, 17u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "signed_wide_switch",
+                     signed_same_high, 2u, 17u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "signed_wide_switch",
+                     default_value, 2u, 17u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "unsigned_wide_switch",
+                     unsigned_case_positive, 2u, 19u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "unsigned_wide_switch",
+                     unsigned_case_high_bit, 2u, 23u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "unsigned_wide_switch",
+                     unsigned_same_low, 2u, 29u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "unsigned_wide_switch",
+                     unsigned_same_high, 2u, 29u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "unsigned_wide_switch",
+                     default_value, 2u, 29u)
+             ? 1
+             : 0;
+}
+
 static int run_wide_condition_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -18940,19 +19043,26 @@ static int run_wide_condition_object(const char *host_root) {
   ctool_buffer_t *second = (ctool_buffer_t *)0;
   ctool_buffer_t *failure = (ctool_buffer_t *)0;
   ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_buffer_t *switch_first = (ctool_buffer_t *)0;
+  ctool_buffer_t *switch_second = (ctool_buffer_t *)0;
+  ctool_buffer_t *switch_limited = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t switch_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
+  ctool_bytes_t switch_first_bytes;
+  ctool_bytes_t switch_second_bytes;
   ctool_u32 comparison_expression = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&switch_unit, 0, sizeof(switch_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
           job, "/toolchain/cupidc_pp.c",
@@ -18970,7 +19080,9 @@ static int run_wide_condition_object(const char *host_root) {
           "the active preprocessor comparison helper changed",
           active_pp_if_signed_less_object, NULL) ||
       !parse_source(job, "/wide-condition-object.c",
-                    wide_condition_object_source, &unit)) {
+                    wide_condition_object_source, &unit) ||
+      !parse_source(job, "/wide-switch.c", wide_switch_object_source,
+                    &switch_unit)) {
     goto cleanup;
   }
   for (index = 0u; index < unit.expression_count; index++) {
@@ -19022,6 +19134,17 @@ static int run_wide_condition_object(const char *host_root) {
   if (status == CTOOL_OK) {
     status = ctool_job_open_buffer(job, 16u, 64u, &limited);
   }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &switch_first);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &switch_second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &switch_limited);
+  }
   if (!check_status(status, CTOOL_OK, "wide condition object buffer") ||
       !expect_object_success_preserves_unit(
           job, &unit, first, "wide comparison and condition object") ||
@@ -19035,7 +19158,14 @@ static int run_wide_condition_object(const char *host_root) {
       !expect_object_failure_preserves_unit(
           job, &unit, limited, CTOOL_ERR_LIMIT,
           CTOOL_C_EMIT_DIAG_LIMIT, NULL,
-          "limited wide comparison and condition object")) {
+          "limited wide comparison and condition object") ||
+      !expect_object_success_preserves_unit(
+          job, &switch_unit, switch_first, "wide switch object") ||
+      !expect_object_success_preserves_unit(
+          job, &switch_unit, switch_second, "repeat wide switch object") ||
+      !expect_object_failure_preserves_unit(
+          job, &switch_unit, switch_limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL, "limited wide switch object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -19050,6 +19180,23 @@ static int run_wide_condition_object(const char *host_root) {
           "recovered wide comparison and condition object")) {
     (void)fprintf(stderr,
                   "wide comparison and condition objects are not deterministic\n");
+    goto cleanup;
+  }
+  switch_first_bytes = ctool_buffer_view(switch_first);
+  switch_second_bytes = ctool_buffer_view(switch_second);
+  if (switch_first_bytes.size != switch_second_bytes.size ||
+      memcmp(switch_first_bytes.data, switch_second_bytes.data,
+             (size_t)switch_first_bytes.size) != 0 ||
+      ctool_buffer_rewind(switch_first, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &switch_unit, switch_first, "recovered wide switch object")) {
+    (void)fprintf(stderr, "wide switch objects are not deterministic\n");
+    goto cleanup;
+  }
+  switch_first_bytes = ctool_buffer_view(switch_first);
+  if (switch_first_bytes.size != switch_second_bytes.size ||
+      memcmp(switch_first_bytes.data, switch_second_bytes.data,
+             (size_t)switch_first_bytes.size) != 0) {
     goto cleanup;
   }
   first_bytes = ctool_buffer_view(first);
@@ -19067,10 +19214,28 @@ static int run_wide_condition_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  object_source.path.text = ctool_string("/wide-switch.o");
+  object_source.contents = switch_second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide switch object") ||
+      !validate_wide_switch_execution(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
   free(invalid_expressions);
+  if (switch_limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(switch_limited);
+  }
+  if (switch_second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(switch_second);
+  }
+  if (switch_first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(switch_first);
+  }
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
   }

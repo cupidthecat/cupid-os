@@ -35,10 +35,11 @@ ctool_status_t ctool_c_emit_object(
  * conversion and GNU wide-enum promotion preserve the snapshot bits. It also
  * emits two-word addition, subtraction, unary negate, complement, left and
  * signed or unsigned right shifts, AND, OR, XOR, comparisons, logical
- * operations, conditional selection, and structured scalar conditions. Unary
- * plus keeps its immutable input snapshot. Calls preserve the i386 low word in
- * EAX and high word in EDX, and matching returns restore the same register
- * pair.
+ * operations, conditional selection, structured scalar conditions, and signed
+ * or unsigned switch dispatch. A wide switch duplicates the immutable snapshot
+ * handle while it compares full-width case values. Unary plus keeps its input
+ * snapshot. Calls preserve the i386 low word in EAX and high word in EDX, and
+ * matching returns restore the same register pair.
  * Direct object and literal addresses use text `R_386_32` relocations,
  * including linked objects first declared by a block extern.
  * Block typedefs consume no frame storage and produce no target record.
