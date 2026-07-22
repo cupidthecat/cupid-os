@@ -47,3 +47,7 @@ ADR 0068 later adds wide shifts, AND, OR, XOR, and conversion to or from represe
 ## Extension: wide values without declared parameter types
 
 ADR 0075 gives every direct or indirect call a packed slice of its actual post-conversion argument types. An indirect call can therefore place a signed or unsigned eight-byte ellipsis or unprototyped argument in the aligned outgoing area while preserving the saved-callee rule from this decision.
+
+## Extension: floating indirect calls
+
+ADR 0076 carries exact `float` and `double` arguments through the saved-callee path. A `double` uses the shared outgoing area, while a `float` keeps one four-byte slot. An indirect floating result arrives in x87 `ST0` and is spilled before another IR instruction runs.

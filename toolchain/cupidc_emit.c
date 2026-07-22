@@ -1450,6 +1450,27 @@ static ctool_status_t cemit_x86_no_operand(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_x87_memory(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u8 base_register, ctool_i32 displacement,
+    ctool_u16 width_bits) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, width_bits);
+  if ((mnemonic != CTOOL_X86_MN_FLD &&
+       mnemonic != CTOOL_X86_MN_FSTP) ||
+      (width_bits != 32u && width_bits != 64u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 1u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, base_register),
+      displacement, 0u);
+  instruction.operands[0].width_bits = width_bits;
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_repeat_string(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u16 operand_bits) {
@@ -3243,11 +3264,33 @@ static ctool_bool cemit_ir_type_is_i32_scalar(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_type_is_floating_value(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
+  const ctool_c_type_layout_t *layout;
+  if (node == (const ctool_c_type_node_t *)0 ||
+      type >= context->unit->layout.type_count ||
+      (node->kind != CTOOL_C_TYPE_FLOAT &&
+       node->kind != CTOOL_C_TYPE_DOUBLE)) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[type];
+  return layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 ((node->kind == CTOOL_C_TYPE_FLOAT && layout->size == 4u) ||
+                  (node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u))
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_ir_type_is_represented_scalar(
     const cemit_context_t *context, ctool_u32 type) {
   return cemit_ir_type_is_represented_integer(context, type) == CTOOL_TRUE ||
                  cemit_ir_type_is_i32_pointer_value(context, type) ==
-                     CTOOL_TRUE
+                     CTOOL_TRUE ||
+                 (cemit_ir_type_is_floating_value(context, type) ==
+                      CTOOL_TRUE &&
+                  context->unit->layout.types[type].size == 4u)
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -3255,7 +3298,17 @@ static ctool_bool cemit_ir_type_is_represented_scalar(
 static ctool_bool cemit_ir_type_is_value_scalar(
     const cemit_context_t *context, ctool_u32 type) {
   return cemit_ir_type_is_represented_scalar(context, type) == CTOOL_TRUE ||
-                 cemit_ir_type_is_wide_integer(context, type) == CTOOL_TRUE
+                 cemit_ir_type_is_wide_integer(context, type) == CTOOL_TRUE ||
+                 cemit_ir_type_is_floating_value(context, type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_type_is_truth_scalar(
+    const cemit_context_t *context, ctool_u32 type) {
+  return cemit_ir_type_is_value_integer(context, type) == CTOOL_TRUE ||
+                 cemit_ir_type_is_i32_pointer_value(context, type) ==
+                     CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -3299,6 +3352,9 @@ static ctool_bool cemit_ir_type_is_variadic_argument(
   }
   if (node->kind == CTOOL_C_TYPE_POINTER) {
     return layout->size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (node->kind == CTOOL_C_TYPE_DOUBLE) {
+    return layout->size == 8u ? CTOOL_TRUE : CTOOL_FALSE;
   }
   return layout->is_integer == CTOOL_TRUE &&
                  (layout->size == 4u || layout->size == 8u) &&
@@ -3384,6 +3440,18 @@ static ctool_bool cemit_ir_scalar_types_match(
       return CTOOL_FALSE;
     }
     return CTOOL_TRUE;
+  }
+  if (cemit_ir_type_is_floating_value(context, object_type) == CTOOL_TRUE &&
+      cemit_ir_type_is_floating_value(context, value_type) == CTOOL_TRUE) {
+    const ctool_c_type_node_t *object_node =
+        cemit_unwrapped_type(context, object_type);
+    const ctool_c_type_node_t *value_node =
+        cemit_unwrapped_type(context, value_type);
+    return object_node != (const ctool_c_type_node_t *)0 &&
+                   value_node != (const ctool_c_type_node_t *)0 &&
+                   object_node->kind == value_node->kind
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
   }
   return cemit_ir_pointer_types_match(context, object_type, value_type);
 }
@@ -3808,6 +3876,10 @@ static ctool_status_t cemit_ir_argument_size(
     *size_out = 8u;
     return CTOOL_OK;
   }
+  if (cemit_ir_type_is_floating_value(context, type) == CTOOL_TRUE) {
+    *size_out = context->unit->layout.types[type].size;
+    return CTOOL_OK;
+  }
   if (cemit_ir_type_is_structure_value(context, type) == CTOOL_FALSE) {
     return CTOOL_ERR_INTERNAL;
   }
@@ -3865,6 +3937,40 @@ static ctool_status_t cemit_ir_parameter_offset(
   }
   *offset_out = offset;
   return CTOOL_OK;
+}
+
+static ctool_status_t cemit_x86_push_floating_result(
+    cemit_context_t *context, ctool_u32 type,
+    ctool_u32 temporary_offset) {
+  const ctool_c_type_layout_t *layout;
+  ctool_status_t status;
+  if (cemit_ir_type_is_floating_value(context, type) == CTOOL_FALSE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->size == 4u) {
+    status = cemit_x86_reserve_locals(context, 4u);
+    return status == CTOOL_OK
+               ? cemit_x86_x87_memory(
+                     context, CTOOL_X86_MN_FSTP, 4u, 0, 32u)
+               : status;
+  }
+  if (temporary_offset == CTOOL_C_AST_NONE || temporary_offset < 8u ||
+      temporary_offset > 0x7fffffffu ||
+      (temporary_offset & (layout->alignment - 1u)) != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_x87_memory(
+      context, CTOOL_X86_MN_FSTP, 5u,
+      0 - (ctool_i32)temporary_offset, 64u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
 }
 
 static ctool_bool cemit_ir_type_is_automatic_object(
@@ -4023,10 +4129,8 @@ static ctool_status_t cemit_call_argument_transport_type(
     }
     return CTOOL_ERR_INTERNAL;
   }
-  if (cemit_ir_type_is_value_scalar(context, actual_type) == CTOOL_FALSE ||
-      (cemit_ir_type_is_represented_integer(context, actual_type) ==
-           CTOOL_TRUE &&
-       context->unit->layout.types[actual_type].size < 4u)) {
+  if (cemit_ir_type_is_variadic_argument(context, actual_type) ==
+      CTOOL_FALSE) {
     return CTOOL_ERR_INTERNAL;
   }
   *type_out = actual_type;
@@ -4053,7 +4157,10 @@ static ctool_status_t cemit_call_uses_outgoing_area(
     }
     if (cemit_ir_type_is_structure_value(context, transport_type) ==
             CTOOL_TRUE ||
-        cemit_ir_type_is_wide_integer(context, transport_type) == CTOOL_TRUE) {
+        cemit_ir_type_is_wide_integer(context, transport_type) == CTOOL_TRUE ||
+        (cemit_ir_type_is_floating_value(context, transport_type) ==
+             CTOOL_TRUE &&
+         context->unit->layout.types[transport_type].size == 8u)) {
       *uses_outgoing_area_out = CTOOL_TRUE;
     }
   }
@@ -4070,6 +4177,8 @@ static ctool_status_t cemit_emit_outgoing_area_call(
       cemit_ir_function_returns_structure(context, function_type);
   ctool_bool wide_result =
       cemit_ir_type_is_wide_integer(context, instruction->type);
+  ctool_bool floating_result =
+      cemit_ir_type_is_floating_value(context, instruction->type);
   ctool_u32 hidden_bytes = structure_result == CTOOL_TRUE ? 4u : 0u;
   ctool_u32 outgoing_bytes = hidden_bytes;
   ctool_u32 reserved_bytes;
@@ -4123,7 +4232,9 @@ static ctool_status_t cemit_emit_outgoing_area_call(
         (temporary_offset & (layout->alignment - 1u)) != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
-  } else if (wide_result == CTOOL_TRUE) {
+  } else if (wide_result == CTOOL_TRUE ||
+             (floating_result == CTOOL_TRUE &&
+              context->unit->layout.types[instruction->type].size == 8u)) {
     const ctool_c_type_layout_t *layout =
         &context->unit->layout.types[instruction->type];
     if (temporary_offset == CTOOL_C_AST_NONE || temporary_offset == 0u ||
@@ -4230,11 +4341,15 @@ static ctool_status_t cemit_emit_outgoing_area_call(
   if (status == CTOOL_OK && wide_result == CTOOL_TRUE) {
     status = cemit_x86_push_wide_result_snapshot(
         context, temporary_offset);
+  } else if (status == CTOOL_OK && floating_result == CTOOL_TRUE) {
+    status = cemit_x86_push_floating_result(
+        context, instruction->type, temporary_offset);
   } else if (status == CTOOL_OK && structure_result == CTOOL_FALSE &&
       cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE) {
     status = cemit_x86_canonicalize_scalar_eax(context, instruction->type);
   }
   if (status == CTOOL_OK && wide_result == CTOOL_FALSE &&
+      floating_result == CTOOL_FALSE &&
       cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE) {
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
@@ -4343,11 +4458,18 @@ static ctool_status_t cemit_emit_direct_call(
     status = cemit_x86_push_wide_result_snapshot(
         context, temporary_offset);
   } else if (status == CTOOL_OK &&
+             cemit_ir_type_is_floating_value(
+                 context, instruction->type) == CTOOL_TRUE) {
+    status = cemit_x86_push_floating_result(
+        context, instruction->type, temporary_offset);
+  } else if (status == CTOOL_OK &&
       cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE) {
     status = cemit_x86_canonicalize_scalar_eax(context, instruction->type);
   }
   if (status == CTOOL_OK &&
       cemit_ir_type_is_wide_integer(context, instruction->type) ==
+          CTOOL_FALSE &&
+      cemit_ir_type_is_floating_value(context, instruction->type) ==
           CTOOL_FALSE &&
       cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE) {
     status = cemit_x86_one_register(
@@ -4462,11 +4584,18 @@ static ctool_status_t cemit_emit_indirect_call(
     status = cemit_x86_push_wide_result_snapshot(
         context, temporary_offset);
   } else if (status == CTOOL_OK &&
+             cemit_ir_type_is_floating_value(
+                 context, instruction->type) == CTOOL_TRUE) {
+    status = cemit_x86_push_floating_result(
+        context, instruction->type, temporary_offset);
+  } else if (status == CTOOL_OK &&
       cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE) {
     status = cemit_x86_canonicalize_scalar_eax(context, instruction->type);
   }
   if (status == CTOOL_OK &&
       cemit_ir_type_is_wide_integer(context, instruction->type) ==
+          CTOOL_FALSE &&
+      cemit_ir_type_is_floating_value(context, instruction->type) ==
           CTOOL_FALSE &&
       cemit_ir_type_is_void(context, instruction->type) == CTOOL_FALSE) {
     status = cemit_x86_one_register(
@@ -4675,13 +4804,19 @@ static ctool_status_t cemit_emit_ir_instruction(
     return status;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT) {
-    ctool_bool wide = cemit_ir_type_is_wide_integer(
-        context, ir_instruction->type);
+    ctool_bool indirect =
+        cemit_ir_type_is_wide_integer(context, ir_instruction->type) ==
+                CTOOL_TRUE ||
+                (cemit_ir_type_is_floating_value(
+                     context, ir_instruction->type) == CTOOL_TRUE &&
+                 context->unit->layout.types[ir_instruction->type].size == 8u)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if (cemit_ir_type_is_variadic_cursor(
             context, ir_instruction->input_type) == CTOOL_FALSE ||
         cemit_ir_type_is_variadic_argument(context, ir_instruction->type) ==
             CTOOL_FALSE ||
-        (wide == CTOOL_TRUE &&
+        (indirect == CTOOL_TRUE &&
          (value_temporary_offset == CTOOL_C_AST_NONE ||
           value_temporary_offset < 8u ||
           value_temporary_offset > 0x7fffffffu ||
@@ -4702,11 +4837,11 @@ static ctool_status_t cemit_emit_ir_instruction(
     if (status == CTOOL_OK) {
       status = cemit_x86_load_eax(context, ir_instruction->input_type);
     }
-    if (status == CTOOL_OK && wide == CTOOL_TRUE) {
+    if (status == CTOOL_OK && indirect == CTOOL_TRUE) {
       status = cemit_x86_push_wide_variadic_snapshot(
           context, value_temporary_offset, ir_instruction->input_type);
     }
-    if (wide == CTOOL_TRUE) {
+    if (indirect == CTOOL_TRUE) {
       return status;
     }
     if (status == CTOOL_OK) {
@@ -5227,8 +5362,14 @@ static ctool_status_t cemit_emit_ir_instruction(
         context, ir_instruction->input_type, ir_instruction->type);
     ctool_bool structure = cemit_ir_structure_types_match(
         context, ir_instruction->input_type, ir_instruction->type);
-    ctool_bool wide = cemit_ir_type_is_wide_integer(
-        context, ir_instruction->type);
+    ctool_bool indirect =
+        cemit_ir_type_is_wide_integer(context, ir_instruction->type) ==
+                CTOOL_TRUE ||
+                (cemit_ir_type_is_floating_value(
+                     context, ir_instruction->type) == CTOOL_TRUE &&
+                 context->unit->layout.types[ir_instruction->type].size == 8u)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if ((scalar == CTOOL_FALSE && structure == CTOOL_FALSE) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion !=
@@ -5237,7 +5378,7 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
-    if (structure == CTOOL_TRUE || wide == CTOOL_TRUE) {
+    if (structure == CTOOL_TRUE || indirect == CTOOL_TRUE) {
       const ctool_c_type_layout_t *layout =
           &context->unit->layout.types[ir_instruction->type];
       if (value_temporary_offset == CTOOL_C_AST_NONE ||
@@ -5364,8 +5505,14 @@ static ctool_status_t cemit_emit_ir_instruction(
         context, ir_instruction->type, ir_instruction->input_type);
     ctool_bool structure = cemit_ir_structure_types_match(
         context, ir_instruction->type, ir_instruction->input_type);
-    ctool_bool wide = cemit_ir_type_is_wide_integer(
-        context, ir_instruction->type);
+    ctool_bool indirect =
+        cemit_ir_type_is_wide_integer(context, ir_instruction->type) ==
+                CTOOL_TRUE ||
+                (cemit_ir_type_is_floating_value(
+                     context, ir_instruction->type) == CTOOL_TRUE &&
+                 context->unit->layout.types[ir_instruction->type].size == 8u)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if ((scalar == CTOOL_FALSE && structure == CTOOL_FALSE) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
@@ -5373,7 +5520,7 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
-    if (structure == CTOOL_TRUE || wide == CTOOL_TRUE) {
+    if (structure == CTOOL_TRUE || indirect == CTOOL_TRUE) {
       status = cemit_x86_one_register(
           context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
       if (status == CTOOL_OK) {
@@ -5411,9 +5558,7 @@ static ctool_status_t cemit_emit_ir_instruction(
     ctool_bool supported_type =
         ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE
             ? cemit_ir_type_is_value_scalar(context, ir_instruction->type)
-            : (cemit_ir_type_is_represented_scalar(
-                   context, ir_instruction->type) == CTOOL_TRUE ||
-               cemit_ir_type_is_wide_integer(
+            : (cemit_ir_type_is_value_scalar(
                    context, ir_instruction->type) == CTOOL_TRUE ||
                cemit_ir_type_is_complete_record_object(
                    context, ir_instruction->type) == CTOOL_TRUE)
@@ -5605,7 +5750,7 @@ static ctool_status_t cemit_emit_ir_instruction(
                                       ir_instruction->input_type) ==
              CTOOL_FALSE) ||
         (logical_not == CTOOL_TRUE &&
-         cemit_ir_type_is_value_scalar(
+         cemit_ir_type_is_truth_scalar(
              context, ir_instruction->input_type) ==
              CTOOL_FALSE) ||
         (wide_integer == CTOOL_FALSE &&
@@ -6055,7 +6200,7 @@ static ctool_status_t cemit_emit_ir_instruction(
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO) {
     if (ir_instruction->type != CTOOL_C_TYPE_NONE ||
-        cemit_ir_type_is_value_scalar(
+        cemit_ir_type_is_truth_scalar(
             context, ir_instruction->input_type) ==
             CTOOL_FALSE ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
@@ -6120,6 +6265,32 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->reference != CTOOL_C_AST_NONE ||
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
+    }
+    if (cemit_ir_type_is_floating_value(
+            context, ir_instruction->type) == CTOOL_TRUE) {
+      const ctool_c_type_layout_t *layout =
+          &context->unit->layout.types[ir_instruction->type];
+      if (layout->size == 4u) {
+        status = cemit_x86_x87_memory(
+            context, CTOOL_X86_MN_FLD, 4u, 0, 32u);
+        if (status == CTOOL_OK) {
+          status = cemit_x86_discard_arguments(context, 4u);
+        }
+      } else {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+        if (status == CTOOL_OK) {
+          status = cemit_x86_x87_memory(
+              context, CTOOL_X86_MN_FLD, 0u, 0, 64u);
+        }
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_no_operand(context, CTOOL_X86_MN_LEAVE);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_no_operand(context, CTOOL_X86_MN_RET);
+      }
+      return status;
     }
     if (wide == CTOOL_TRUE) {
       status = cemit_x86_pop_wide_result(context);
@@ -6552,7 +6723,15 @@ static ctool_status_t cemit_prepare_local_offsets(
            cemit_ir_type_is_wide_integer(
                context, instruction->input_type) == CTOOL_FALSE)) &&
          cemit_ir_type_is_wide_integer(context, instruction->type) ==
-             CTOOL_TRUE)) {
+             CTOOL_TRUE) ||
+        ((instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD ||
+          instruction->kind ==
+              CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT ||
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) &&
+         cemit_ir_type_is_floating_value(context, instruction->type) ==
+             CTOOL_TRUE &&
+         context->unit->layout.types[instruction->type].size == 8u)) {
       context->value_temporary_offsets[absolute] = 0u;
     }
   }
@@ -6692,7 +6871,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           (cemit_ir_type_is_structure_value(
                context, instruction->type) == CTOOL_FALSE &&
            cemit_ir_type_is_wide_integer(
-               context, instruction->type) == CTOOL_FALSE)) {
+               context, instruction->type) == CTOOL_FALSE &&
+           (cemit_ir_type_is_floating_value(
+                context, instruction->type) == CTOOL_FALSE ||
+            context->unit->layout.types[instruction->type].size != 8u))) {
         return CTOOL_ERR_INTERNAL;
       }
       if (layout->size > 0x7fffffffu ||

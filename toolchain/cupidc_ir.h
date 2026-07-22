@@ -315,9 +315,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * complete object. STORE_VALUE consumes the same pair and pushes the stored
  * scalar value or preserved structure snapshot. DISCARD consumes one value.
  * An explicit cast to void evaluates its operand once and produces no result.
- * A represented integer, object pointer, function pointer, or supported
- * structure operand emits DISCARD. A void operand leaves the abstract stack at
- * its incoming depth and emits no extra instruction.
+ * A represented integer, object pointer, function pointer, `float`, `double`,
+ * or supported structure operand emits DISCARD. A void operand leaves the
+ * abstract stack at its incoming depth and emits no extra instruction.
  * CALL_DIRECT consumes its arguments after they have been evaluated in source
  * order. CALL_INDIRECT also consumes the function pointer below those
  * arguments. Each call owns its actual argument count and a contiguous packed
@@ -327,30 +327,38 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * final argument is on top. Each argument occupies one abstract stack entry.
  * After compatibility checks, the i386 emitter uses declared parameter types
  * for named slots and packed actual types for unnamed slots. Represented
- * four-byte scalar arguments use one slot. Signed and unsigned eight-byte
- * integers use two slots. Named structure arguments are copied inline and
+ * four-byte scalar arguments, including `float`, use one slot. Signed and
+ * unsigned eight-byte integers and `double` use two slots. Named structure
+ * arguments are copied inline and
  * rounded up to four bytes. Arguments occupy increasing addresses in source
  * order, and a wide integer stores its low word before its high word. A call
- * with a structure or wide argument reserves one outgoing area before filling
- * those slots. An indirect callee remains below the argument handles while the
+ * with a structure, wide integer, or `double` argument reserves one outgoing
+ * area before filling those slots. An indirect callee remains below the
+ * argument handles while the
  * emitter fills that area. Parameter addresses account for the full width of
  * every earlier argument. Ellipsis and unprototyped calls accept represented
- * four-byte integer and pointer types or signed and unsigned eight-byte
- * integers. Atomic, floating, and aggregate unnamed arguments remain
- * unsupported. A structure result uses a hidden pointer before the explicit
+ * four-byte integer and pointer types, signed and unsigned eight-byte
+ * integers, or `double`. An unnamed `float` is rejected until default
+ * promotion can convert it to `double`. Atomic, `long double`, and aggregate
+ * unnamed arguments remain unsupported. A structure result uses a hidden
+ * pointer before the explicit
  * arguments. The callee copies into that storage, returns its address in EAX,
  * and removes the hidden pointer with RET 4. Either call pushes one result
  * unless its result type is void. Narrow caller and callee results are
  * normalized from the declared AL or AX lane.
  * An eight-byte integer result arrives with its low word in EAX and its high
  * word in EDX. RETURN_VALUE restores those registers from the private
- * snapshot. VARIADIC_START places the cursor after the full width of the final
- * named cdecl parameter. VARIADIC_ARGUMENT reads a represented four-byte
+ * snapshot. A floating result crosses the i386 ABI in x87 ST0. The emitter
+ * spills an incoming call result immediately, then reloads ST0 for a floating
+ * RETURN_VALUE. VARIADIC_START places the cursor after the full width of the
+ * final named cdecl parameter. VARIADIC_ARGUMENT reads a represented four-byte
  * pointer, integer, or enum and advances the stored cursor by four bytes. A
- * signed or unsigned eight-byte integer or 64-bit enum is copied into a fresh
- * private snapshot, produces one abstract handle, and advances the cursor by
- * eight bytes. Both forms keep the cursor on i386 four-byte slot alignment.
- * Atomic, floating, and aggregate variadic reads remain unsupported.
+ * signed or unsigned eight-byte integer, 64-bit enum, or `double` is copied
+ * into a fresh private snapshot, produces one abstract handle, and advances
+ * the cursor by eight bytes. Both forms keep the cursor on i386 four-byte slot
+ * alignment. `va_arg(arguments, float)` is invalid because default argument
+ * promotion passes a `double`. Atomic, `long double`, and aggregate variadic
+ * reads remain unsupported.
  * Eight-byte integer BINARY records support addition, subtraction,
  * multiplication, division, remainder, left shift, signed or unsigned right
  * shift, AND, OR, XOR, and all six comparisons. UNARY records support plus,

@@ -49,3 +49,5 @@ ADR 0044 extends the same private frame policy to referenced, uninitialized fixe
 ADR 0051 gives `LOCAL_ADDRESS` a storage-duration-aware target meaning. Automatic objects still map to private EBP-relative slots, while block statics map to deterministic local ELF symbols and `R_386_32` address relocations. A block static never receives a frame slot.
 
 ADR 0066 admits eight-byte integer automatic objects under the same checked frame allocator. Declaration initialization and later lvalue conversion use private value snapshots, so the local slot and the copied value remain distinct.
+
+ADR 0076 admits automatic `float` and `double` objects whose effective alignment does not exceed four bytes. A `float` load produces its raw word. A `double` load copies eight bytes into separate instruction-owned snapshot storage. Over-aligned automatic objects remain unsupported.

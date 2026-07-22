@@ -3676,7 +3676,7 @@ static int run_function_bodies(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        2u, 37u,
        "floating arguments governed by default argument promotions require "
-       "double support"},
+       "float-to-double conversion"},
       {{"incompatible call argument",
         "void pointer(const char *value);\n"
         "void bad(unsigned int value) { pointer(value); }\n",
@@ -6755,12 +6755,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 180u, 5483u,
-       47961u, 666u, 222u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 154u, 4217u,
-       35750u, 512u, 256u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 182u, 5507u,
+       48289u, 670u, 225u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4301u,
+       36787u, 521u, 262u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 303u,
-       11901u, 77147u, 1765u, 1205u, 0u, 0u}};
+       11934u, 77333u, 1771u, 1205u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -21695,7 +21695,7 @@ static int run_old_style_empty_functions(const char *host_root) {
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       2u, 36u,
       "floating arguments governed by default argument promotions require "
-      "double support"};
+      "float-to-double conversion"};
   static const frontend_exact_failure_case_t identifier_list_failure = {
       {"nonempty old-style function identifier list",
        "int legacy(value)\n"
@@ -22073,15 +22073,15 @@ static int run_wide_variadics(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 10u,
        "atomic variadic argument reads are outside this ABI slice"},
-      {{"floating variadic argument read",
+      {{"promoted float variadic argument read",
         "void bad(int marker, ...) {\n"
         "  __builtin_va_list ap;\n"
-        "  __builtin_va_arg(ap, double);\n"
+        "  __builtin_va_arg(ap, float);\n"
         "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 3u,
-       "variadic argument reads support only 4-byte pointers and 4-byte or "
-       "8-byte integers"}};
+       "va_arg of float is invalid because float arguments are promoted to "
+       "double"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t call_unit;
   ctool_c_translation_unit_t read_unit;
@@ -22125,6 +22125,245 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("wide-variadics: ok\n");
+  }
+  return failed;
+}
+
+static int validate_floating_transport(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 fixed_sink = find_binding_index(unit, "fixed_sink");
+  ctool_u32 variadic_sink = find_binding_index(unit, "variadic_sink");
+  ctool_u32 automatic_initializers = 0u;
+  ctool_u32 assignments = 0u;
+  ctool_u32 fixed_calls = 0u;
+  ctool_u32 variadic_calls = 0u;
+  ctool_u32 variadic_arguments = 0u;
+  ctool_u32 floating_returns = 0u;
+  ctool_u32 index;
+
+  if (unit == NULL || fixed_sink == CTOOL_C_AST_NONE ||
+      variadic_sink == CTOOL_C_AST_NONE) {
+    return 1;
+  }
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    const ctool_c_type_node_t *type = &unit->graph.types[index];
+    if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
+      float_type = index;
+    } else if (type->qualifiers == 0u &&
+               type->kind == CTOOL_C_TYPE_DOUBLE) {
+      double_type = index;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
+      float_type >= unit->layout.type_count ||
+      double_type >= unit->layout.type_count ||
+      unit->layout.types[float_type].size != 4u ||
+      unit->layout.types[double_type].size != 8u ||
+      unit->layout.types[float_type].alignment != 4u ||
+      unit->layout.types[double_type].alignment != 4u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    const ctool_c_initializer_t *initializer = &unit->initializers[index];
+    if (initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION &&
+        (underlying_type_kind(unit, initializer->type, NULL) ==
+             CTOOL_C_TYPE_FLOAT ||
+         underlying_type_kind(unit, initializer->type, NULL) ==
+             CTOOL_C_TYPE_DOUBLE)) {
+      automatic_initializers++;
+    }
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_ASSIGNMENT &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ASSIGN &&
+        (underlying_type_kind(unit, expression->type, NULL) ==
+             CTOOL_C_TYPE_FLOAT ||
+         underlying_type_kind(unit, expression->type, NULL) ==
+             CTOOL_C_TYPE_DOUBLE) &&
+        expression->computation_type == expression->type) {
+      assignments++;
+    } else if (expression->kind ==
+               CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+      if (expression->type != double_type || expression->child_count != 1u) {
+        return 1;
+      }
+      variadic_arguments++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+      ctool_u32 callee_index = expression_child(unit, expression, 0u);
+      ctool_u32 terminal = unwrap_conversions(unit, callee_index);
+      const ctool_c_expression_t *callee =
+          terminal < unit->expression_count
+              ? &unit->expressions[terminal]
+              : NULL;
+      if (callee == NULL || callee->kind != CTOOL_C_EXPRESSION_IDENTIFIER) {
+        return 1;
+      }
+      if (callee->reference == fixed_sink) {
+        if (expression->child_count != 3u ||
+            underlying_type_kind(
+                unit,
+                unit->expressions[expression_child(unit, expression, 1u)]
+                    .type,
+                NULL) != CTOOL_C_TYPE_FLOAT ||
+            underlying_type_kind(
+                unit,
+                unit->expressions[expression_child(unit, expression, 2u)]
+                    .type,
+                NULL) != CTOOL_C_TYPE_DOUBLE) {
+          return 1;
+        }
+        fixed_calls++;
+      } else if (callee->reference == variadic_sink) {
+        if (expression->child_count != 3u ||
+            unit->expressions[expression_child(unit, expression, 2u)].type !=
+                double_type) {
+          return 1;
+        }
+        variadic_calls++;
+      }
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_RETURN &&
+        statement->expression < unit->expression_count &&
+        (unit->expressions[statement->expression].type == float_type ||
+         unit->expressions[statement->expression].type == double_type)) {
+      floating_returns++;
+    }
+  }
+  if (unit->function_definition_count != 9u ||
+      automatic_initializers != 4u || assignments != 7u ||
+      fixed_calls != 4u || variadic_calls != 1u ||
+      variadic_arguments != 1u || floating_returns != 4u) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: inventory differs: functions=%u "
+        "initializers=%u assignments=%u calls=%u/%u va_arg=%u returns=%u\n",
+        (unsigned int)unit->function_definition_count,
+        (unsigned int)automatic_initializers, (unsigned int)assignments,
+        (unsigned int)fixed_calls, (unsigned int)variadic_calls,
+        (unsigned int)variadic_arguments, (unsigned int)floating_returns);
+    return 1;
+  }
+  return 0;
+}
+
+static int run_floating_transport(const char *host_root) {
+  static const char source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "typedef float aligned_float __attribute__((aligned(8)));\n"
+      "typedef double aligned_double __attribute__((aligned(16)));\n"
+      "void fixed_sink(float narrow, double wide);\n"
+      "void variadic_sink(int marker, ...);\n"
+      "void fixed_transport(float narrow, double wide) {\n"
+      "  float narrow_copy = narrow;\n"
+      "  double wide_copy = wide;\n"
+      "  narrow_copy = narrow;\n"
+      "  wide_copy = wide;\n"
+      "  fixed_sink(narrow_copy, wide_copy);\n"
+      "}\n"
+      "void call_variadic(double wide) {\n"
+      "  double copy = wide;\n"
+      "  copy = wide;\n"
+      "  variadic_sink(0, copy);\n"
+      "}\n"
+      "void read_variadic(float narrow, int marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  double wide;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  wide = __builtin_va_arg(arguments, double);\n"
+      "  fixed_sink(narrow, wide);\n"
+      "  __builtin_va_end(arguments);\n"
+      "}\n"
+      "float return_float(float value) { return value; }\n"
+      "double return_double(double value) { return value; }\n"
+      "float call_return_float(float value) {\n"
+      "  return return_float(value);\n"
+      "}\n"
+      "double call_return_double(double value) {\n"
+      "  return return_double(value);\n"
+      "}\n"
+      "void qualified_transport(float narrow, double wide) {\n"
+      "  volatile float narrow_copy;\n"
+      "  const double wide_copy = wide;\n"
+      "  narrow_copy = narrow;\n"
+      "  fixed_sink(narrow_copy, wide_copy);\n"
+      "}\n"
+      "void aligned_transport(float narrow, double wide) {\n"
+      "  aligned_float narrow_copy;\n"
+      "  aligned_double wide_copy;\n"
+      "  narrow_copy = narrow;\n"
+      "  wide_copy = wide;\n"
+      "  fixed_sink(narrow_copy, wide_copy);\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"double to float assignment boundary",
+        "void bad(float left, double right) { left = right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 45u,
+       "floating assignment conversions are outside this body slice"},
+      {{"float to integer assignment boundary",
+        "void bad(int left, float right) { left = right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 42u,
+       "floating assignment conversions are outside this body slice"},
+      {{"long double assignment boundary",
+        "void bad(long double left, long double right) { left = right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 54u,
+       "long double assignment is outside this transport slice"},
+      {{"long double return boundary",
+        "long double bad(long double value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       1u, 38u,
+        "long double function returns are outside this transport slice"},
+      {{"double zero truth boundary",
+        "int bad(void) { return !0.0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 25u, "floating constants are outside this expression slice"},
+      {{"negative float zero truth boundary",
+        "int bad(void) { if (-0.0f) return 1; return 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 22u, "floating constants are outside this expression slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "floating-transport", host_root,
+                             4u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/floating-transport.c", source,
+                          &unit) != 0 ||
+      validate_floating_transport(&unit) != 0) {
+    (void)fprintf(stderr, "floating-transport: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/floating-transport-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_floating_transport(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("floating-transport: ok\n");
   }
   return failed;
 }
@@ -22436,17 +22675,17 @@ static int run_variadic_callees(const char *host_root) {
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        4u, 10u,
        "atomic variadic argument reads are outside this ABI slice"},
-      {{"floating variadic argument read",
+      {{"promoted float variadic argument read",
         "int bad(int last, ...) {\n"
         "  __builtin_va_list ap;\n"
         "  __builtin_va_start(ap, last);\n"
-        "  __builtin_va_arg(ap, double);\n"
+        "  __builtin_va_arg(ap, float);\n"
         "  return 0;\n"
         "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        4u, 3u,
-       "variadic argument reads support only 4-byte pointers and 4-byte or "
-       "8-byte integers"}};
+       "va_arg of float is invalid because float arguments are promoted to "
+       "double"}};
   static const frontend_exact_failure_case_t disabled_gnu_case = {
       {"variadic builtins without GNU extensions",
        "typedef __builtin_va_list va_list;\n", CTOOL_ERR_UNSUPPORTED,
@@ -22555,7 +22794,8 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "wide-variadics|variadic-callees|block-bindings|"
+                   "wide-variadics|floating-transport|variadic-callees|"
+                   "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
                    "block-externs|block-enums|block-records|"
@@ -22598,6 +22838,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "wide-variadics") == 0) {
     return run_wide_variadics(argv[2]);
+  }
+  if (strcmp(argv[1], "floating-transport") == 0) {
+    return run_floating_transport(argv[2]);
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

@@ -198,23 +198,25 @@ Cupid OS has a shared CupidC frontend, linear IR, and ELF32 emitter for the self
 
 The shared path also carries signed and unsigned eight-byte integer values. Full-width constants, matching conditional arms, fixed direct and indirect call results, object loads, declared parameters, and named call arguments use one Linear IR handle backed by a private eight-byte frame snapshot. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. The return boundary places the low word in EAX and the high word in EDX. Addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths use the same snapshot path. A wide switch evaluates its condition once, duplicates the snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and keeps one semantic load and store. Multiplication combines the full low-word product with the low halves of both cross-word products. Division and remainder use a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. The usual arithmetic rules can convert `signed long long` to `unsigned long long`, and GNU wide enums promote to their compatible signed or unsigned wide type. Exact source guards cover `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, and X25519 `fe_carry`; focused fixtures lower and emit the required operation shapes. The unchanged `cfront_constant_apply_binary` body guards signed and unsigned quotient and remainder. CupidASM's number parser and unary expression branch guard the arithmetic, while X25519's `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 
+The shared path copies matching `float` and `double` values without doing floating-point computation. File, block-static, automatic, pointer, member, and indexed objects can feed initialization, plain assignment, discard, fixed direct or indirect calls, call results, and returns. A `float` keeps its raw four-byte representation. A `double` uses one Linear IR handle backed by a private eight-byte snapshot. Arguments occupy four-byte or eight-byte cdecl slots. Floating results return in x87 `ST0`; after call cleanup, a caller stores a `float` result in a four-byte semantic stack slot or a `double` result in a private eight-byte frame snapshot. An existing `double` can cross an ellipsis or an unprototyped call, and `va_arg(double)` advances by eight bytes. Floating values remain invalid truth operands. The decoder-driven oracle checks ESP alignment before each call it executes and models `FLD` and `FSTP` as bit copies. Its zero, infinity, and quiet NaN cases prove transport bytes, not native x87 execution. Floating literals, arithmetic, comparisons, conditions, conditional expressions, value-producing conversions, default `float` promotion, explicit static floating initializers, `long double`, SIMD values, atomic access, and over-aligned object emission remain unfinished. Implicit static zero initialization and casts to `void` are represented.
+
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
-The shared path lowers explicit casts to `void`. It evaluates the operand once, discards a represented integer, pointer, or supported structure result, and leaves a `void` operand off the abstract stack. An eight-byte constant, supported call result, or lvalue can also be discarded. A wide lvalue is copied into its snapshot before that handle is removed.
+The shared path lowers explicit casts to `void`. It evaluates the operand once, discards a represented integer, pointer, supported structure, or floating result, and leaves a `void` operand off the abstract stack. An eight-byte integer or `double` lvalue is copied into its snapshot before that handle is removed; a `float` keeps its raw four-byte value.
 
 Automatic initializer lists work for fixed arrays and complete structures whose alignment does not exceed four bytes. The lowerer zero-initializes the full object once, then evaluates explicit integer, pointer, supported structure, and narrow character-array string leaves in source order. Scalar and structure values store through the selected array and member path. A string leaf copies the retained bytes with `REP MOVSB`, so unused tail elements keep their implicit zero value. Nested lists, direct designators, and omitted subobjects retain their frontend meaning. The i386 emitter performs the initial zeroing with `REP STOSB`.
 
-The shared path carries compatible, complete structure values through lvalue conversion, automatic expression initialization, plain and chained assignment, matching conditional expressions, casts to `void` and other discarded expressions, fixed direct and indirect calls, parameters, and returns. Each lvalue conversion and structure call result receives its own frame snapshot. Copies cover the full target object size, so a supported structure may contain wide or floating members even when the member's separate runtime operations remain unsupported.
+The shared path carries compatible, complete structure values through lvalue conversion, automatic expression initialization, plain and chained assignment, matching conditional expressions, casts to `void` and other discarded expressions, fixed direct and indirect calls, parameters, and returns. Each lvalue conversion and structure call result receives its own frame snapshot. Copies cover the full target object size, so a supported structure may contain wide or floating members even though standalone floating computation remains unsupported.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and each argument is rounded up to four bytes. The caller clears ABI padding before it copies arguments. A structure-returning call passes a hidden destination pointer before the explicit arguments. The callee reads that pointer at `[ebp+8]`, reads its first explicit argument at `[ebp+12]`, copies the result into the destination, returns the pointer in `eax`, and uses `ret 4`. The caller cleans the explicit argument bytes.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
-For a variadic call, the shared frontend applies lvalue, array, and function conversions plus the integer default argument promotions to the ellipsis arguments. Every call instruction owns a contiguous slice of post-conversion actual argument types in a packed Linear IR array. A shared validator requires one complete ordered partition and rejects gaps, overlaps, invalid types, trailing entries, and metadata on non-call instructions. Named slots use declared parameter types after compatibility checking, while unnamed slots use the packed actual types. The emitter uses the validated slice and actual count for cdecl order, slot widths, the saved indirect callee, stack alignment, and caller cleanup. Direct and indirect calls can pass represented four-byte integers and pointers or signed and unsigned eight-byte integers through an ellipsis. A wide unnamed argument selects the outgoing-area path. Arguments occupy increasing addresses in source order, with the low word before the high word for a wide integer. Each argument still has one abstract IR handle, and an indirect callee remains below the argument handles while the emitter prepares the outgoing area.
+For a variadic call, the shared frontend applies lvalue conversion, array and function decay, and the supported integer promotions to the ellipsis arguments. Every call instruction owns a contiguous slice of post-conversion actual argument types in a packed Linear IR array. A shared validator requires one complete ordered partition and rejects gaps, overlaps, invalid types, trailing entries, and metadata on non-call instructions. Named slots use declared parameter types after compatibility checking, while unnamed slots use the packed actual types. The emitter uses the validated slice and actual count for cdecl order, slot widths, the saved indirect callee, stack alignment, and caller cleanup. Direct and indirect calls can pass represented four-byte integers and pointers, signed and unsigned eight-byte integers, or an existing `double` through an ellipsis. An eight-byte unnamed value selects the outgoing-area path. Arguments occupy increasing addresses in source order, with the low word before the high word for an eight-byte value. Each argument still has one abstract IR handle, and an indirect callee remains below the argument handles while the emitter prepares the outgoing area. A `float` remains blocked until its required default promotion to `double` is implemented.
 
-In GNU C mode, the shared frontend treats `__builtin_va_list` as a target `char *` cursor and retains typed start, argument, copy, and end operations. The i386 emitter starts the cursor after the full width of the final named cdecl parameter. A four-byte pointer, integer, or enum read advances the stored cursor by four bytes. A signed or unsigned eight-byte integer or 64-bit enum is copied into a fresh private snapshot and advances the cursor by eight bytes. Both forms keep the i386 cursor on four-byte slot alignment. The execution contract reads successive wide slots through the original cursor and the first slot through a copied cursor. A nested wide caller also checks both aligned calls, cleanup, and the full returned value. Atomic, floating, and aggregate reads remain unsupported. The unchanged Doom compatibility header parses under its generated profile.
+In GNU C mode, the shared frontend treats `__builtin_va_list` as a target `char *` cursor and retains typed start, argument, copy, and end operations. The i386 emitter starts the cursor after the full width of the final named cdecl parameter. A four-byte pointer, integer, or enum read advances the stored cursor by four bytes. A signed or unsigned eight-byte integer, 64-bit enum, or `double` is copied into a fresh private snapshot and advances the cursor by eight bytes. Both widths keep the i386 cursor on four-byte slot alignment. Execution contracts read successive wide integer and `double` slots through the original cursor and the first slot through a copied cursor. Nested callers also check aligned calls, cleanup, and complete returned values. Atomic, `float`, and aggregate reads remain unsupported. Calling `va_arg` with `float` is invalid C because variadic `float` arrives as `double`. The unchanged Doom compatibility header parses under its generated profile.
 
-An empty identifier-list definition has zero parameters and keeps its non-prototype function type. Calls through a function type without a prototype apply default argument promotions to every argument. Each call keeps its actual count and post-conversion type slice in Linear IR, and the i386 emitter accepts represented four-byte integers and pointers plus signed or unsigned eight-byte integers.
+An empty identifier-list definition has zero parameters and keeps its non-prototype function type. Calls through a function type without a prototype apply default argument promotions to every argument. Each call keeps its actual count and post-conversion type slice in Linear IR, and the i386 emitter accepts represented four-byte integers and pointers, signed or unsigned eight-byte integers, and values that are already `double`. A `float` still needs the unimplemented default promotion to `double`.
 
 Block-scope `struct` and `union` tags follow lexical C scope. The shared frontend handles forward declarations, same-scope completion, ordinary references, nested shadowing, and restoration after a nested block ends. A record tag declared in a function definition's parameter list stays visible through the outer body, then expires with the definition. A tag-only declaration may use the represented `typedef`, `extern`, `static`, `auto`, or `register` spelling, or a represented type qualifier, when it introduces a tag, and has no runtime work. An empty declaration with storage or type qualification cannot merely repeat a visible tag. A `for` initializer may use a visible record type or an anonymous record definition for its object, but it cannot introduce a named tag or omit the object. An anonymous definition can supply the type for a local or block-static object, including Doom's unchanged block-static `packs` array.
 
@@ -222,13 +224,13 @@ A block-scope `extern` object keeps a lexical alias to one canonical linked obje
 
 A block function declaration keeps a lexical alias and visible type alongside one canonical linked function. Plain and `extern` forms share compatible identity. A visible prior declaration contributes to the alias's composite type, but an expired sibling prototype does not change the type seen by a later old-style declaration. A visible file-scope `static` function keeps internal linkage, while a function introduced only in a block stays out of file lookup until a later file declaration publishes it. The declaration emits no runtime IR or storage. Direct calls use `R_386_PC32`, and function addresses use `R_386_32`. Active-source guards cover 27 declarations across nine files. The exact Doom profile still parses all of `kernel/doom/src/d_main.c`, including its local `forwardmove` and `sidemove` declarations.
 
-Block enums keep each enumerator in the ordinary lexical binding stream. A later enumerator can use an earlier value, nested tags and constants shadow their outer names, and scope exit restores those names. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function prefixes and expression or initializer activation records preserve the exact point where each name becomes visible. Linear IR checks that lexical order before lowering runtime control flow, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer constants, so enums need no frame slot, symbol, relocation, or runtime declaration instruction. This covers the cursor constants in `kernel/gui/desktop.c` and the REPL limits in `kernel/lang/shell.c` without moving them. Block declaration attributes, nested function definitions, nonempty identifier lists, atomic variadic access, floating default promotions, floating or aggregate arguments without declared parameter types, and floating or aggregate variadic reads remain unfinished.
+Block enums keep each enumerator in the ordinary lexical binding stream. A later enumerator can use an earlier value, nested tags and constants shadow their outer names, and scope exit restores those names. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function prefixes and expression or initializer activation records preserve the exact point where each name becomes visible. Linear IR checks that lexical order before lowering runtime control flow, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer constants, so enums need no frame slot, symbol, relocation, or runtime declaration instruction. This covers the cursor constants in `kernel/gui/desktop.c` and the REPL limits in `kernel/lang/shell.c` without moving them. Block declaration attributes, nested function definitions, nonempty identifier lists, atomic variadic access, default `float` promotion, aggregate arguments without declared parameter types, and aggregate variadic reads remain unfinished.
 
 Block-static objects use static storage in the shared ELF32 path. The emitter places top-level `const` objects in `.rodata`, writable zero-filled objects in `.bss`, and other writable objects in `.data`. Each object receives a local symbol derived from its absolute block-binding index, so shadowed names remain distinct. `LOCAL_ADDRESS` reaches that symbol through an `R_386_32` relocation instead of an EBP-relative frame slot, and the declaration emits no runtime initialization code. Unused and unreachable block statics still receive storage.
 
 Block-scope compound literals use one persistent unnamed automatic object per source site. Their initializer runs each time execution reaches the expression, and the resulting lvalue can flow through ordinary member access, indexing, address-taking, loads, stores, and calls. Repeated evaluation in one function invocation reuses the same object. Recursive calls receive a fresh object in their own frame. Aggregate lists are assembled in separate staging storage and committed only after every initializer read has finished. A narrow string root zeros and copies directly into its persistent character array.
 
-Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, floating-point runtime values, atomic variadic access, floating or aggregate arguments without declared parameter types, floating or aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
+Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. Graphs containing a union or class remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, floating literals and computation, atomic variadic access, default `float` promotion, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C compiler for its C objects, and the private in-kernel CupidC compiler still handles embedded runtime compilation. The hosted shared path does not produce a normal Cupid OS object or change a boot or runtime artifact.
 
@@ -339,13 +341,13 @@ switch (cmd) {
 }
 ```
 
-`break` and `continue` work inside `while`, `for`, `do-while` loops, and `switch` statements.
+`break` works in `while`, `for`, and `do-while` loops and in `switch`. `continue` works in loops. A `switch` nested inside a loop still shares the private emitter's control-depth stack, so `continue` from that nested switch can target the wrong control construct.
 
-CupidC supports up to 32 `break` statements per loop and 64 nested loop levels. The compiler stores the break patch locations and resolves them when the loop ends.
+CupidC supports 128 nested loop-or-switch levels and up to 64 `break` statements at each level. The compiler stores the jump patches and resolves them when the construct ends.
 
 ### Functions
 
-Functions use the cdecl calling convention. Up to 16 parameters per function.
+Functions use the cdecl calling convention and may declare up to 32 parameters.
 
 ```c
 int add(int a, int b) {
@@ -988,7 +990,7 @@ Common ANSI codes:
 
 ### Pipeline
 
-CupidC is a **single-pass** compiler: it lexes, parses, and emits x86 machine code in one pass through the source.
+The private in-kernel compiler preprocesses one translation unit, then lexes, parses, and emits x86 machine code in a direct pass. It does not build an AST or a separate IR.
 
 ```
 Source (.cc)
@@ -1016,27 +1018,26 @@ Source (.cc)
 
 | File | Lines | Role |
 |------|-------|------|
-| `cupidc.h` | ~250 | Header: token types, symbol table, compiler state, public API |
-| `cupidc.c` | ~790 | Driver: JIT/AOT entry points, kernel bindings, state init |
-| `cupidc_lex.c` | ~445 | Lexer: tokenizes source into keywords, literals, operators |
-| `cupidc_parse.c` | ~2485 | Parser + x86 code generator: the core of the compiler |
-| `cupidc_elf.c` | - | ELF32 binary writer for AOT mode |
+| `cupidc.h` | 459 | Tokens, types, limits, compiler state, and public API |
+| `cupidc.c` | 3,959 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
+| `cupidc_lex.c` | 833 | Lexer for keywords, literals, operators, and delimiters |
+| `cupidc_parse.c` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
+| `cupidc_elf.c` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer
 
-The lexer (`cupidc_lex.c`) breaks source text into tokens:
+The lexer (`cupidc_lex.c`) recognizes a broader set than the short list below; these are representative groups:
 
-- **Keywords:** `int`, `char`, `void`, `bool`, `if`, `else`, `while`, `for`, `do`, `return`, `asm`, `break`, `continue`, `struct`, `sizeof`, `switch`, `case`, `default`, `enum`
-- **Identifiers:** variable and function names
-- **Literals:** decimal integers, hex integers (`0xFF`), strings (`"..."`), character literals (`'A'`)
-- **Operators:** all arithmetic, comparison, logical, bitwise, assignment
-- **Delimiters:** `( ) { } [ ] ; ,`
+- **Types and declarations:** C integer spellings, Cupid aliases, `float`, `double`, `float4`, `double2`, pointers, structures, classes, enums, qualifiers, storage classes, and function-pointer declarators
+- **Control and expressions:** selection and loop keywords, `switch`, `goto`, inline `asm`, `new`, `del`, the full operator token set, `?:`, member access, and ellipsis
+- **Literals:** decimal and hexadecimal integers, floating literals with fractions, exponents, or an `f` suffix, strings, and character literals
+- **Names and punctuation:** identifiers plus the usual C delimiters
 
-Skips whitespace and both `//` line comments and `/* */` block comments.
+Whitespace, `//` comments, and `/* ... */` comments are skipped.
 
 ### Parser & Code Generator
 
-The parser (`cupidc_parse.c`) is a **recursive descent** parser that directly emits x86 machine code bytes into a code buffer. There is no AST or intermediate representation.
+The parser (`cupidc_parse.c`) is recursive descent and writes x86 machine-code bytes directly into the code buffer. There is no AST or intermediate representation in this private compiler.
 
 **Key parsing functions:**
 
@@ -1051,14 +1052,14 @@ The parser (`cupidc_parse.c`) is a **recursive descent** parser that directly em
 
 **Code generation pattern:**
 
-- Expressions evaluate into `EAX`
-- Binary operations: push left to stack, evaluate right into `EAX`, pop left into `EBX`, emit operation
-- Function calls: push arguments, `call`, clean stack
-- Locals accessed via `[EBP - offset]`, params via `[EBP + offset]`
+- Integer and pointer expressions use `EAX`; scalar floating and SIMD expressions use XMM registers, normally `XMM0`
+- Integer binary operations use the stack with `EAX` and `EBX`; floating and vector operations use XMM registers and explicit spills when needed
+- Direct calls and stored function-pointer calls use cdecl stack arguments and caller cleanup; floating results use the private compiler's XMM return path
+- Locals use `[EBP - offset]`, parameters use `[EBP + offset]`, and globals live in the data region
 
 ### Symbol Table
 
-Symbols are stored in a flat array (max 256 entries), searched linearly from the end so that locals shadow globals:
+Symbols are stored in a 4,096-entry flat array and searched backward so that locals shadow globals:
 
 | Kind | Description | Storage |
 |------|-------------|---------|
@@ -1076,8 +1077,9 @@ JIT Mode:
   0x01100000 - 0x018FFFFF  Data region (8 MB strings/globals)
 
 AOT Mode:
-  0x00200000+               ELF load address
-  Code and data packed into ELF segments
+  0x01000000 - 0x010FFFFF  Code segment
+  0x01100000 - 0x018FFFFF  Data segment
+  Code and data packed into a fixed-address ELF32 executable
 ```
 
 ### Forward References
@@ -1088,19 +1090,16 @@ When the parser encounters a call to an undefined function, it emits a placehold
 
 ## Limitations
 
-- **1 MB code limit** and **8 MB data/string limit** per program
-- **4096 symbols** maximum (functions + variables + kernel bindings)
-- **1024 functions**, **64 structs**, and **32 fields per struct**
-- **16 parameters** maximum per function
-- **32 struct definitions** with up to 16 fields each
-- **No preprocessor** (`#include`, `#define` not supported) - use `enum` for constants
-- **No multi-file compilation** - single source file only
-- **No floating point** - integer arithmetic only
-- **No standard library** - only kernel bindings are available
-- **No function pointers** - cannot store/call through function pointer variables
-- **No ternary operator** (`?:`) - use `if/else` instead
-- **No variadic definitions in the in-kernel JIT/AOT compiler** - it still uses a fixed parameter count; the hosted self-hosting path has the integer and pointer caller and callee subset described above
-- **Limited optimization** - single-pass compilation with no optimization passes
+- Each invocation has a 1 MiB code buffer, an 8 MiB data/string buffer, and a 1 MiB preprocessor-output ceiling.
+- Compiler state allows 4,096 symbols, 256 locals per function, 32 parameters, 4,096 forward patches, 1,024 functions, 64 structures, and 32 fields per structure.
+- The private preprocessor supports quoted includes, `#pragma once`, object-like `#define`, `#ifdef`, `#ifndef`, `#else`, `#endif`, and Cupid `#exe`. Function-like macros and general `#if` expressions are not implemented.
+- One preprocessed translation unit is compiled per invocation. AOT writes a fixed-address ELF32 executable directly; it does not produce separate relocatable objects for a later link.
+- Programs use Cupid OS kernel bindings rather than a general hosted C standard library.
+- Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
+- A `switch` nested in a loop shares the private emitter's control-depth stack, so `continue` in that shape remains incorrect.
+- Direct code generation has no optimization pass.
+
+Floating-point arithmetic, SIMD values, function pointers, and the ternary operator are implemented in the private compiler. The hosted self-hosting path has a different boundary: it carries four-byte integer and pointer arguments, signed and unsigned eight-byte integers, and values already typed as `double`; it also supports `va_arg(double)`, while default `float` promotion remains open.
 
 ---
 

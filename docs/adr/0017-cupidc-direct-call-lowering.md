@@ -41,3 +41,7 @@ Fixed direct calls later gained complete supported structure parameters and resu
 ADR 0065 lets a fixed direct call return an eight-byte integer without changing the parameter boundary established by this decision. The caller snapshots EAX and EDX into instruction-owned frame storage and leaves one logical value handle. A later return restores that pair. ADR 0066 adds object loads and plain stores for the same handle. ADR 0067 adds declared wide parameters and named call arguments. ADRs 0068 through 0074 add mixed-width conversion, arithmetic, control flow, and mutation. Wide values without a declared parameter type remain open.
 
 ADR 0068 later adds wide shifts, AND, OR, XOR, and conversion to or from represented integer widths. These operations keep the existing call-result snapshot and do not change direct-call relocation or cleanup rules.
+
+## Extension: floating direct calls
+
+ADR 0076 gives fixed direct calls four-byte `float` slots and eight-byte `double` slots. Floating results use x87 `ST0`; the caller immediately stores them as a raw `float` value or private `double` snapshot. Direct-call relocation, source-order evaluation, alignment, and cleanup rules do not change.

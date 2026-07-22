@@ -43,3 +43,7 @@ ADR 0052 gives each referenced block-scope compound literal one target-sized per
 ## Extension: eight-byte integer objects
 
 ADR 0066 lets a fixed automatic eight-byte integer receive a frame slot and an expression initializer. A later `LOAD` uses a separate instruction-owned eight-byte snapshot, allocated after ordinary object storage. Plain and chained stores copy from that snapshot, which prevents assignment results from aliasing the destination.
+
+## Extension: floating frame storage
+
+ADR 0076 lets fixed automatic `float` and `double` objects use the checked frame allocator when their effective alignment is at most four bytes. Instruction-owned `double` loads, variadic reads, and call results receive separate eight-byte snapshots after ordinary object storage. A `float` call result uses one four-byte semantic stack slot.

@@ -7992,6 +7992,16 @@ static ctool_status_t cfront_validate_variadic_argument_type(
         builtin_token,
         "atomic variadic argument reads are outside this ABI slice");
   }
+  if (node.kind == CTOOL_C_TYPE_DOUBLE) {
+    return CTOOL_OK;
+  }
+  if (node.kind == CTOOL_C_TYPE_FLOAT) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "va_arg of float is invalid because float arguments are promoted "
+        "to double");
+  }
   if (node.kind == CTOOL_C_TYPE_POINTER ||
       node.kind == CTOOL_C_TYPE_SIGNED_INT ||
       node.kind == CTOOL_C_TYPE_UNSIGNED_INT ||
@@ -8015,8 +8025,8 @@ static ctool_status_t cfront_validate_variadic_argument_type(
   return cfront_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
       builtin_token,
-      "variadic argument reads support only 4-byte pointers and 4-byte or "
-      "8-byte integers");
+      "variadic argument reads support double, 4-byte pointers, and 4-byte "
+      "or 8-byte integers");
 }
 
 static ctool_status_t cfront_parse_variadic_builtin(
@@ -8283,7 +8293,7 @@ static ctool_status_t cfront_apply_default_argument_promotions(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         token,
         "floating arguments governed by default argument promotions require "
-        "double support");
+        "float-to-double conversion");
   }
   status = cfront_apply_default_conversion(context, value);
   if (status == CTOOL_OK) {
@@ -8440,6 +8450,41 @@ static ctool_status_t cfront_apply_assignment_conversion(
   }
   if (target_is_floating == CTOOL_TRUE ||
       source_is_floating == CTOOL_TRUE) {
+    ctool_c_type_node_t target_node;
+    ctool_c_type_node_t source_node;
+    ctool_u32 target_base;
+    ctool_u32 source_base;
+    ctool_u32 target_qualifiers;
+    ctool_u32 source_qualifiers;
+    status = cfront_underlying_type(
+        context, target_type, &target_base, &target_qualifiers,
+        &target_node);
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(
+          context, value->type, &source_base, &source_qualifiers,
+          &source_node);
+    }
+    (void)target_base;
+    (void)source_base;
+    (void)target_qualifiers;
+    (void)source_qualifiers;
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (target_is_floating == CTOOL_TRUE &&
+        source_is_floating == CTOOL_TRUE &&
+        target_node.kind == source_node.kind &&
+        (target_node.kind == CTOOL_C_TYPE_FLOAT ||
+         target_node.kind == CTOOL_C_TYPE_DOUBLE)) {
+      status = cfront_types_compatible(
+          context, target_type, value->type, &compatible);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (compatible == CTOOL_TRUE) {
+        return CTOOL_OK;
+      }
+    }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         source_token,
@@ -10427,17 +10472,20 @@ static ctool_status_t cfront_validate_assignment_target(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token, "assignment requires a modifiable lvalue");
   }
-  if (node.kind == CTOOL_C_TYPE_FLOAT ||
-      node.kind == CTOOL_C_TYPE_DOUBLE ||
-      node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-    if (form != CFRONT_ASSIGNMENT_COMPOUND) {
+  if (node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+      form == CFRONT_ASSIGNMENT_PLAIN) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "long double assignment is outside this transport slice");
+  }
+  if ((node.kind == CTOOL_C_TYPE_FLOAT ||
+       node.kind == CTOOL_C_TYPE_DOUBLE ||
+       node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
+      form == CFRONT_ASSIGNMENT_UPDATE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          operator_token,
-          form == CFRONT_ASSIGNMENT_UPDATE
-              ? "floating update is outside this body slice"
-              : "floating assignment is outside this body slice");
-    }
+          operator_token, "floating update is outside this body slice");
   }
   if (is_integer == CTOOL_FALSE && node.kind != CTOOL_C_TYPE_POINTER &&
       node.kind != CTOOL_C_TYPE_FLOAT &&
@@ -13954,13 +14002,11 @@ static ctool_status_t cfront_parse_return_statement(
         cfront_peek(context), "non-void function requires a return value");
   }
   if (has_value == CTOOL_TRUE) {
-    if (result.kind == CTOOL_C_TYPE_FLOAT ||
-        result.kind == CTOOL_C_TYPE_DOUBLE ||
-        result.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    if (result.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           return_token,
-          "floating function returns are outside this body slice");
+          "long double function returns are outside this transport slice");
     }
     status = cfront_integer_type(context, function.referenced_type,
                                  &result_integer, &result_is_integer);
@@ -13970,7 +14016,9 @@ static ctool_status_t cfront_parse_return_statement(
     }
     if (result_is_integer == CTOOL_FALSE &&
         result.kind != CTOOL_C_TYPE_POINTER &&
-        result.kind != CTOOL_C_TYPE_RECORD) {
+        result.kind != CTOOL_C_TYPE_RECORD &&
+        result.kind != CTOOL_C_TYPE_FLOAT &&
+        result.kind != CTOOL_C_TYPE_DOUBLE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           return_token,

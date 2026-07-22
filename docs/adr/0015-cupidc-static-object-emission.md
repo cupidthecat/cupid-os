@@ -47,3 +47,7 @@ ADR 0016 extends the object boundary without replacing this static-data policy. 
 ADR 0019 reuses the same direct object-symbol policy for linked four-byte file-object addresses in `.text`. Those instruction fields carry `R_386_32` relocations with addend zero. Static initializer addresses and their checked nonzero addends remain governed by this ADR.
 
 ADR 0051 applies this section, byte-encoding, and direct-symbol relocation policy to block-static objects. File definitions remain first in their sections; block statics follow in absolute block-binding order before function emission.
+
+## Extension: floating object storage
+
+ADR 0076 reuses the existing `.bss` policy for implicitly zero-filled file and block-static `float` and `double` objects. Runtime loads and stores copy their target bytes through the floating transport path. Explicit static floating initializers, including an explicitly written zero, remain unsupported because floating literals and static floating evaluation are not yet represented.

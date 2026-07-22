@@ -4,7 +4,7 @@
 
 ADR 0055 moved the exact Doom profile past its variadic compatibility header. The next failure was the unchanged `void doomgeneric_Tick()` definition at `kernel/doom/src/d_main.c:405`. In C, an empty identifier-list definition has no parameters, but its function type still has no prototype. Calls through that type may supply arguments, and every argument receives the default argument promotions.
 
-The shared frontend already used a distinct `has_prototype` fact and already had the represented default-promotion path for ellipsis arguments. Linear IR and the i386 emitter still required a prototype for every definition and call. Treating `()` as `(void)` would have cleared the immediate parser failure, but it would have changed the declaration's compatibility and call semantics.
+The shared frontend already used a distinct `has_prototype` fact and already applied its supported default argument promotions to ellipsis arguments. Linear IR and the i386 emitter still required a prototype for every definition and call. Treating `()` as `(void)` would have cleared the immediate parser failure, but it would have changed the declaration's compatibility and call semantics.
 
 ## Decision
 
@@ -33,3 +33,7 @@ GCC or Clang still builds the shared compiler and its contracts. The normal Cupi
 ## Extension: eight-byte unprototyped arguments
 
 ADR 0075 carries each call's actual post-conversion types in Linear IR. Direct and indirect calls through a function type without a prototype can now place signed or unsigned eight-byte integer arguments in their full cdecl spans. Empty identifier-list definitions and default promotion rules remain as recorded here.
+
+## Extension: unprototyped double arguments
+
+ADR 0076 lets a value that is already `double` cross a direct or indirect unprototyped call in its eight-byte cdecl span. A `float` remains blocked until default argument promotion can produce `double`. Nonempty identifier-list definitions remain unsupported.

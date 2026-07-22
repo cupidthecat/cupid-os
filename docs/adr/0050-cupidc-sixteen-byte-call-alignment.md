@@ -41,3 +41,7 @@ ADR 0065 keeps one live Linear IR handle for an eight-byte call result. The exis
 ## Extension: wide argument slots
 
 ADR 0067 gives each declared eight-byte argument one logical Linear IR handle and eight target bytes in the outgoing cdecl area. Call alignment counts the eight target bytes plus any represented scalar or structure slots. The handle still contributes one live semantic stack entry while arguments are being evaluated.
+
+## Extension: floating call slots
+
+ADR 0076 counts a `float` as four outgoing bytes and a `double` as eight. Direct, indirect, fixed, variadic, unprototyped, and nested calls still place ESP on a sixteen-byte boundary before `CALL`. The immediate x87 result spill happens after caller cleanup and does not alter the call-site calculation.

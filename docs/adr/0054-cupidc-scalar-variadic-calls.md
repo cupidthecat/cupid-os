@@ -37,3 +37,7 @@ Issue #25 remains open. ADR 0055 adds scalar unnamed-argument reads. Floating an
 ## Extension: eight-byte ellipsis arguments
 
 ADR 0075 extends caller-owned metadata from an actual count to a packed slice of actual post-conversion types. Direct and indirect callers use that slice to place signed or unsigned eight-byte ellipsis arguments in two adjacent cdecl words while retaining the alignment and cleanup rules from this decision.
+
+## Extension: variadic double arguments
+
+ADR 0076 lets a value that is already `double` occupy eight bytes at an ellipsis position. The packed actual type selects that width. A source `float` remains unsupported because C requires the still-unimplemented default promotion to `double`.

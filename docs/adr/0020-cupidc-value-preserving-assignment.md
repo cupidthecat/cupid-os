@@ -41,3 +41,7 @@ ADR 0021 closes the direct ordinary member-address frontier named above. ADR 002
 ## Extension: structure assignment
 
 `STORE` and `STORE_VALUE` later gained complete-object semantics for supported structures. A structure lvalue conversion first creates an instruction-owned snapshot. `STORE` copies that snapshot into the destination and leaves no result. `STORE_VALUE` performs the same copy and preserves the source snapshot handle, which supports chained assignments, returned assignments, and whole-record expression initialization without evaluating a destination twice. The emitter uses `CLD` plus `REP MOVSB` while preserving ESI and EDI. Union, Cupid class, array-value, over-aligned, volatile, and atomic assignment remain unsupported. This hosted extension moves no production C object and retires no host dependency.
+
+## Extension: floating assignment
+
+ADR 0076 applies `STORE` and `STORE_VALUE` to same-kind `float` and `double` values. Assignment evaluates the destination once and preserves the stored value when the expression needs a result. The operation copies bytes only. Mixed floating kinds, integer and floating conversion, compound assignment, updates, and atomic access remain unsupported.

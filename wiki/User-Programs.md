@@ -948,7 +948,7 @@ See also: [Ed Editor](Ed-Editor)
 - **Keep useful comments.** If a real program reaches a tool limit, improve the toolchain or split the source at a natural module boundary rather than deleting documentation to save bytes.
 - **Test with `cupidc`.** Run `cupidc /bin/yourprog.cc` to JIT-compile and test before deploying.
 - **Use `println` for errors.** CupidC programs do not have a separate standard-error stream.
-- **Structs are supported.** Define structs for structured data (max 32 structs, 16 fields each).
+- **Structs are supported.** Compiler state allows up to 64 struct definitions with 32 fields apiece.
 - **Programs in `/home/bin/` persist across reboots** in homefs, whose backing container is `/disk/HOMEFS.SYS`. Programs in `/bin/` are in ramfs and rebuilt from source each boot.
 
 ---

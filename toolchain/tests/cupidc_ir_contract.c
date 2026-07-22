@@ -1423,6 +1423,12 @@ static const char active_unsigned_wide_fprintf_binding[] =
 static const char active_unsigned_wide_fprintf_definition[] =
     "        (unsigned long long)private_definition_bytes);";
 
+static const char active_double_transport_signature[] =
+    "void js_push_num(double v) {";
+
+static const char active_double_transport_store[] =
+    "    jvs_tag[t] = JS_VAL_NUM; jvs_num[t] = v;";
+
 static const char active_linker_selector_call[] =
     "          selector(section, selector_context) == CTOOL_TRUE &&";
 
@@ -1983,6 +1989,28 @@ static int wide_variadic_active_sources_are_unchanged(ctool_job_t *job) {
              active_unsigned_wide_fprintf_definition) == NULL) {
     (void)fprintf(stderr,
                   "the unsigned wide fprintf arguments changed\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int floating_transport_active_source_is_unchanged(
+    ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/bin/browser/js_interp.cc");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active browser floating source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_double_transport_signature) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_double_transport_store) == NULL) {
+    (void)fprintf(stderr,
+                  "the active browser double transport fragment changed\n");
     return 0;
   }
   return 1;
@@ -24543,6 +24571,432 @@ cleanup:
   return 1;
 }
 
+static int validate_floating_transport_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 int_type = find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
+  ctool_u32 fixed_sink = find_binding(unit, "fixed_sink");
+  ctool_u32 variadic_sink = find_binding(unit, "variadic_sink");
+  ctool_u32 return_float = find_binding(unit, "return_float");
+  ctool_u32 return_double = find_binding(unit, "return_double");
+  const ctool_u32 expected_argument_types[] = {
+      float_type, double_type, int_type, double_type, float_type, double_type,
+      float_type, double_type};
+  ctool_u32 float_loads = 0u;
+  ctool_u32 double_loads = 0u;
+  ctool_u32 stores = 0u;
+  ctool_u32 store_values = 0u;
+  ctool_u32 fixed_calls = 0u;
+  ctool_u32 variadic_calls = 0u;
+  ctool_u32 variadic_arguments = 0u;
+  ctool_u32 return_calls = 0u;
+  ctool_u32 floating_returns = 0u;
+  ctool_u32 index;
+
+  if (unit == NULL || ir == NULL || ir->functions == NULL ||
+      ir->instructions == NULL || ir->argument_types == NULL ||
+      unit->function_definition_count != 7u || ir->function_count != 7u ||
+      float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE || int_type == CTOOL_C_TYPE_NONE ||
+      fixed_sink == CTOOL_C_AST_NONE || variadic_sink == CTOOL_C_AST_NONE ||
+      return_float == CTOOL_C_AST_NONE ||
+      return_double == CTOOL_C_AST_NONE ||
+      ir->argument_type_count !=
+          (ctool_u32)(sizeof(expected_argument_types) /
+                      sizeof(expected_argument_types[0]))) {
+    return 0;
+  }
+  for (index = 0u; index < ir->argument_type_count; index++) {
+    if (ir->argument_types[index] != expected_argument_types[index]) {
+      return 0;
+    }
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD) {
+      if (instruction->type == float_type) {
+        float_loads++;
+      } else if (instruction->type == double_type) {
+        double_loads++;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE) {
+      if (instruction->type == float_type ||
+          instruction->type == double_type) {
+        stores++;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) {
+      if (instruction->type == float_type ||
+          instruction->type == double_type) {
+        store_values++;
+      }
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT) {
+      if (instruction->type != double_type) {
+        return 0;
+      }
+      variadic_arguments++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      if (instruction->reference == fixed_sink &&
+          instruction->argument_count == 2u) {
+        fixed_calls++;
+      } else if (instruction->reference == variadic_sink &&
+                 instruction->argument_count == 2u) {
+        variadic_calls++;
+      } else if ((instruction->reference == return_float ||
+                  instruction->reference == return_double) &&
+                 instruction->argument_count == 1u) {
+        return_calls++;
+      } else {
+        return 0;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+               (instruction->type == float_type ||
+                instruction->type == double_type)) {
+      floating_returns++;
+    }
+  }
+  if (float_loads != 6u || double_loads != 9u || stores != 3u ||
+      store_values != 4u || fixed_calls != 2u || variadic_calls != 1u ||
+      variadic_arguments != 1u || return_calls != 2u ||
+      floating_returns != 4u) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: IR inventory differs: loads=%u/%u "
+        "stores=%u/%u calls=%u/%u/%u va_arg=%u returns=%u\n",
+        (unsigned int)float_loads, (unsigned int)double_loads,
+        (unsigned int)stores, (unsigned int)store_values,
+        (unsigned int)fixed_calls, (unsigned int)variadic_calls,
+        (unsigned int)return_calls, (unsigned int)variadic_arguments,
+        (unsigned int)floating_returns);
+    return 0;
+  }
+  return 1;
+}
+
+static int floating_truth_mutations_are_rejected(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit) {
+  static const char *message =
+      "CupidC IR lowering does not yet support this value type";
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *expressions = NULL;
+  ctool_u32 *children = NULL;
+  ctool_c_statement_t *statements = NULL;
+  ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 float_value = CTOOL_C_AST_NONE;
+  ctool_u32 double_value = CTOOL_C_AST_NONE;
+  ctool_u32 logical_not = CTOOL_C_AST_NONE;
+  ctool_u32 logical_and = CTOOL_C_AST_NONE;
+  ctool_u32 conditional = CTOOL_C_AST_NONE;
+  ctool_u32 selection = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  int result = 0;
+
+  if (job == NULL || unit == NULL || unit->expression_count == 0u ||
+      unit->expression_child_count == 0u || unit->statement_count == 0u ||
+      float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
+      sizeof(*expressions) > SIZE_MAX / (size_t)unit->expression_count ||
+      sizeof(*children) > SIZE_MAX / (size_t)unit->expression_child_count ||
+      sizeof(*statements) > SIZE_MAX / (size_t)unit->statement_count) {
+    return 0;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE) {
+      if (expression->type == float_type) {
+        float_value = index;
+      } else if (expression->type == double_type) {
+        double_value = index;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT) {
+      logical_not = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND) {
+      logical_and = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CONDITIONAL) {
+      conditional = index;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    if (unit->statements[index].kind == CTOOL_C_STATEMENT_IF) {
+      selection = index;
+      break;
+    }
+  }
+  if (float_value == CTOOL_C_AST_NONE || double_value == CTOOL_C_AST_NONE ||
+      logical_not == CTOOL_C_AST_NONE || logical_and == CTOOL_C_AST_NONE ||
+      conditional == CTOOL_C_AST_NONE || selection == CTOOL_C_AST_NONE ||
+      unit->expressions[logical_not].child_count != 1u ||
+      unit->expressions[logical_and].child_count != 2u ||
+      unit->expressions[conditional].child_count != 3u ||
+      unit->expressions[logical_not].first_child >=
+          unit->expression_child_count ||
+      unit->expressions[logical_and].first_child >
+          unit->expression_child_count - 2u ||
+      unit->expressions[conditional].first_child >
+          unit->expression_child_count - 3u) {
+    (void)fprintf(stderr, "floating truth mutation fixture differs\n");
+    return 0;
+  }
+  expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit->expression_count * sizeof(*expressions));
+  children = (ctool_u32 *)malloc(
+      (size_t)unit->expression_child_count * sizeof(*children));
+  statements = (ctool_c_statement_t *)malloc(
+      (size_t)unit->statement_count * sizeof(*statements));
+  if (expressions == NULL || children == NULL || statements == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = *unit;
+  invalid_unit.expressions = expressions;
+  invalid_unit.expression_children = children;
+  invalid_unit.statements = statements;
+
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(children, unit->expression_children,
+               (size_t)unit->expression_child_count * sizeof(*children));
+  (void)memcpy(statements, unit->statements,
+               (size_t)unit->statement_count * sizeof(*statements));
+  children[expressions[logical_not].first_child] = float_value;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
+          "floating logical-not operand")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(children, unit->expression_children,
+               (size_t)unit->expression_child_count * sizeof(*children));
+  children[expressions[logical_and].first_child] = double_value;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
+          "double short-circuit operand")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(children, unit->expression_children,
+               (size_t)unit->expression_child_count * sizeof(*children));
+  children[expressions[conditional].first_child] = double_value;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
+          "double conditional condition")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(children, unit->expression_children,
+               (size_t)unit->expression_child_count * sizeof(*children));
+  expressions[conditional].type = float_type;
+  children[expressions[conditional].first_child + 1u] = float_value;
+  children[expressions[conditional].first_child + 2u] = float_value;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
+          "floating conditional result")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(expressions, unit->expressions,
+               (size_t)unit->expression_count * sizeof(*expressions));
+  (void)memcpy(children, unit->expression_children,
+               (size_t)unit->expression_child_count * sizeof(*children));
+  (void)memcpy(statements, unit->statements,
+               (size_t)unit->statement_count * sizeof(*statements));
+  statements[selection].condition = float_value;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
+          "floating statement condition")) {
+    goto cleanup;
+  }
+  result = 1;
+
+cleanup:
+  free(statements);
+  free(children);
+  free(expressions);
+  return result;
+}
+
+static int run_floating_transport(const char *host_root) {
+  static const char source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "void fixed_sink(float narrow, double wide);\n"
+      "void variadic_sink(int marker, ...);\n"
+      "void fixed_transport(float narrow, double wide) {\n"
+      "  float narrow_copy = narrow;\n"
+      "  double wide_copy = wide;\n"
+      "  narrow_copy = narrow;\n"
+      "  wide_copy = wide;\n"
+      "  fixed_sink(narrow_copy, wide_copy);\n"
+      "}\n"
+      "void call_variadic(double wide) {\n"
+      "  double copy = wide;\n"
+      "  copy = wide;\n"
+      "  variadic_sink(0, copy);\n"
+      "}\n"
+      "void read_variadic(float narrow, int marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  double wide;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  wide = __builtin_va_arg(arguments, double);\n"
+      "  fixed_sink(narrow, wide);\n"
+      "  __builtin_va_end(arguments);\n"
+      "}\n"
+      "float return_float(float value) { return value; }\n"
+      "double return_double(double value) { return value; }\n"
+      "float call_return_float(float value) {\n"
+      "  return return_float(value);\n"
+      "}\n"
+       "double call_return_double(double value) {\n"
+       "  return return_double(value);\n"
+       "}\n";
+  static const char condition_source[] =
+      "void condition_fixture(float narrow, double wide, int condition) {\n"
+      "  (void)narrow;\n"
+      "  (void)wide;\n"
+      "  (void)!condition;\n"
+      "  (void)(condition && condition);\n"
+      "  (void)(condition ? condition : condition);\n"
+      "  if (condition) return;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_host_adapter_t limited_adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_job_t *limited_job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t condition_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_type_node_t *invalid_types = NULL;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  ctool_u32 fixed_sink;
+  ctool_u32 function_type;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !floating_transport_active_source_is_unchanged(job) ||
+      !parse_source_mode(job, "/floating-transport.c", source, CTOOL_TRUE,
+                         &unit) ||
+      !parse_source_mode(job, "/floating-truth-boundary.c",
+                         condition_source, CTOOL_TRUE, &condition_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &condition_unit, "floating truth boundary baseline")) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "floating transport lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_floating_transport_ir(&unit, &ir) ||
+      !call_slices_have_validity(&unit, &ir, CTOOL_TRUE,
+                                 "floating transport call slices")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = wide_variadic_ir_fingerprint(&ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK, "repeat floating transport lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      wide_variadic_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_floating_transport_ir(&unit, &repeat_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!floating_truth_mutations_are_rejected(job, &condition_unit)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  fixed_sink = find_binding(&unit, "fixed_sink");
+  if (fixed_sink == CTOOL_C_AST_NONE ||
+      unit.graph.type_count == 0u ||
+      sizeof(*invalid_types) >
+          SIZE_MAX / (size_t)unit.graph.type_count) {
+    goto cleanup;
+  }
+  invalid_types = (ctool_c_type_node_t *)malloc(
+      (size_t)unit.graph.type_count * sizeof(*invalid_types));
+  if (invalid_types == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_types, unit.graph.types,
+               (size_t)unit.graph.type_count * sizeof(*invalid_types));
+  function_type = unit.bindings[fixed_sink].type;
+  if (function_type >= unit.graph.type_count ||
+      invalid_types[function_type].kind != CTOOL_C_TYPE_FUNCTION) {
+    goto cleanup;
+  }
+  invalid_types[function_type].has_prototype = CTOOL_TRUE;
+  invalid_types[function_type].variadic = CTOOL_TRUE;
+  invalid_types[function_type].parameter_count = 0u;
+  invalid_unit = unit;
+  invalid_unit.graph.types = invalid_types;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering requires float-to-double promotion before "
+          "an argument without a declared parameter type",
+          "unpromoted floating open-position argument")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "floating transport recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      wide_variadic_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !validate_floating_transport_ir(&unit, &recovered_ir) ||
+      !open_limited_job(host_root, &limited_adapter, &limited_job) ||
+      !expect_ir_failure_preserves_unit(
+          limited_job, &unit, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+          "CupidC IR lowering exceeded a configured resource limit",
+          "floating transport constrained allocation")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_types);
+  if (limited_job != NULL) {
+    ctool_job_close(limited_job);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-transport: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_wide_returns(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -25185,6 +25639,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-variadics") == 0) {
     return run_wide_variadics(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-transport") == 0) {
+    return run_floating_transport(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);
   }
@@ -25228,6 +25685,7 @@ int main(int argc, char **argv) {
                 "aggregate-initializers|"
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|wide-variadics|"
+                "floating-transport|"
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"

@@ -216,10 +216,10 @@ kfree(bytes);
 
 ## Limitations
 
-- Maximum 32 `break` statements per loop
-- Maximum 64 nested loops
-- No `switch` statement with more than 64 cases
-- No preprocessor macros
+- Maximum 64 `break` statements at one loop or switch level
+- Maximum 128 nested loop-or-switch levels
+- Object-like preprocessor macros are supported; function-like macros and general `#if` expressions are not
+- A `switch` nested in a loop still shares the private emitter's control-depth stack, so `continue` in that shape can target the wrong construct
 - Not full hosted GCC C; accepted wide integer spellings still target the
   32-bit flat kernel ABI unless a binding explicitly handles wider data
 

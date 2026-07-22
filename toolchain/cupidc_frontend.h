@@ -556,8 +556,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * function type and has no parameters; nonempty old-style identifier lists
  * remain an explicit boundary. Calls apply assignment conversion to declared
  * parameters and default argument promotions to ellipsis arguments or every
- * argument passed without a prototype. Floating default promotion remains
- * deferred until `double` values are represented. Runtime
+ * argument passed without a prototype. Exact `float` and `double` values can
+ * cross assignments, initializers, named calls, and returns. An unnamed
+ * `double` value and `va_arg(arguments, double)` are also represented.
+ * Floating default promotion remains deferred until `float` to `double`
+ * conversion is available. Runtime
  * integer expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
  * nodes. Valid floating arithmetic compounds and updates remain explicit
@@ -587,8 +590,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * Chained, promoted, or overriding designators, union lists, arithmetic and
  * casts on static addresses, floating constants, static-data allocation, and
  * relocation lowering remain pending. Comma
- * expressions, floating arithmetic and non-void conversions,
- * universal-character/non-ordinary literals, wider and floating call values,
+ * expressions, floating arithmetic and non-void floating conversions,
+ * universal-character/non-ordinary literals, `long double` call values,
  * non-scalar arguments without declared parameter types, code generation,
  * object emission, and Cupid #exe execution remain later frontend work and are
  * diagnosed rather than skipped. */

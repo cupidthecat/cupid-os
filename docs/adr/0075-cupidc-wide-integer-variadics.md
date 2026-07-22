@@ -13,7 +13,7 @@ ADRs 0065 through 0074 later gave signed and unsigned eight-byte integers one Li
 
 Every `CALL_DIRECT` and `CALL_INDIRECT` instruction owns a source-ordered slice of its actual post-conversion argument types. `first_argument_type` selects the first entry in the unit's immutable `argument_types` array, and `argument_count` gives the slice length. The unit publishes the array and `argument_type_count`. A zero-argument call points at the current packed cursor. A non-call instruction uses `CTOOL_C_AST_NONE` and keeps an argument count of zero.
 
-The lowerer records types after lvalue conversion, array or function decay, assignment conversion, integer promotion, or the represented default argument promotions have run. The frontend AST needs no duplicate table because each converted call child already retains its final type. The lowerer appends a call's slice after lowering all operands, so an inner call appears before its enclosing call in both instruction and type-slice order. Count-only validation uses separate type-slice state. The count and fill passes must agree before the result is published.
+The lowerer records types after lvalue conversion, array or function decay, assignment conversion, integer promotion, or another supported default argument promotion has run. The frontend AST needs no duplicate table because each converted call child already retains its final type. The lowerer appends a call's slice after lowering all operands, so an inner call appears before its enclosing call in both instruction and type-slice order. Count-only validation uses separate type-slice state. The count and fill passes must agree before the result is published.
 
 Named arguments still match their declared parameter types. An ellipsis position or a call through a function type without a prototype now accepts a non-atomic signed or unsigned eight-byte integer in addition to the represented four-byte integer and pointer forms. Signedness does not change transport.
 
@@ -38,3 +38,7 @@ The verified hosted suites pass 51 frontend tests, 37 IR tests, and 31 object te
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production object, build transform, boot path, host dependency, or ownership count changes.
 
 Issue #25 remains open for atomic cursor and read semantics, floating and aggregate call forms, production integration, staged self-hosting, and the fixed-point bootstrap.
+
+## Extension: floating scalar transport
+
+ADR 0076 reuses the packed actual-type slices and eight-byte cursor machinery for values that are already `double`. It also adds `va_arg(double)`. The earlier floating gap remains accurate for default `float` promotion, `va_arg(float)`, floating computation and conversion, `long double`, SIMD, and atomic access.

@@ -11455,6 +11455,9 @@ static int validate_narrow_value_object(
 typedef struct {
   ctool_u32 registers[8];
   ctool_u8 memory[NARROW_ORACLE_MEMORY_SIZE];
+  ctool_u64 x87_bits;
+  ctool_u16 x87_width_bits;
+  ctool_bool x87_valid;
 } narrow_oracle_machine_t;
 
 typedef struct {
@@ -12677,10 +12680,8 @@ static int run_void_cast_object(const char *host_root) {
       ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/float-void-cast-object.c", float_source,
                     &float_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &float_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_object_success_preserves_unit(
+          job, &float_unit, second,
           "floating void-cast object operand") ||
       ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/record-void-cast-object.c", record_source,
@@ -17467,6 +17468,7 @@ static int validate_wide_snapshot_function(
 }
 
 #define WIDE_ORACLE_TEXT_LIMIT 16384u
+#define WIDE_ORACLE_BSS_BASE 32u
 #define WIDE_ORACLE_INITIAL_ESP 204u
 #define WIDE_ORACLE_RETURN_SENTINEL 0x13579bdfu
 #define WIDE_ORACLE_EBX_SENTINEL 0xc3d2e1f0u
@@ -17524,8 +17526,8 @@ static int wide_oracle_relocate_text_with_data(
       target_value = (int64_t)target->value;
     } else if (data != NULL &&
                target->section_file_index == data->file_index &&
-               target->value <= data->contents.size &&
-               target->size <= data->contents.size - target->value &&
+               target->value <= data->size &&
+               target->size <= data->size - target->value &&
                target->value <= 0xffffffffu - data_base) {
       target_value = (int64_t)(data_base + target->value);
     } else {
@@ -17555,8 +17557,10 @@ static int wide_oracle_relocate_text(
     const ctool_elf32_object_t *object,
     const ctool_elf32_section_t *text, ctool_u8 *relocated,
     ctool_u32 relocated_capacity) {
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
   return wide_oracle_relocate_text_with_data(
-      object, text, NULL, 0u, relocated, relocated_capacity);
+      object, text, bss, WIDE_ORACLE_BSS_BASE, relocated,
+      relocated_capacity);
 }
 
 static int wide_oracle_add_subtract_step(
@@ -17856,6 +17860,58 @@ static int wide_oracle_flag_step(
   return 1;
 }
 
+static int floating_oracle_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction, ctool_bool *handled) {
+  const ctool_x86_operand_t *operand;
+  ctool_u32 address;
+  ctool_u32 low;
+  ctool_u32 high = 0u;
+  if (machine == NULL || instruction == NULL || handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if (instruction->mnemonic != CTOOL_X86_MN_FLD &&
+      instruction->mnemonic != CTOOL_X86_MN_FSTP) {
+    return 1;
+  }
+  if (instruction->operand_count != 1u) {
+    return 0;
+  }
+  operand = &instruction->operands[0];
+  if (operand->kind != CTOOL_X86_OPERAND_MEMORY ||
+      (operand->width_bits != 32u && operand->width_bits != 64u) ||
+      !narrow_oracle_memory_address(machine, &operand->as.memory, &address)) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
+    if (!narrow_oracle_read_memory(machine, address, 32u, &low) ||
+        (operand->width_bits == 64u &&
+         !narrow_oracle_read_memory(machine, address + 4u, 32u, &high))) {
+      return 0;
+    }
+    machine->x87_bits = (ctool_u64)low | ((ctool_u64)high << 32u);
+    machine->x87_width_bits = operand->width_bits;
+    machine->x87_valid = CTOOL_TRUE;
+  } else {
+    if (machine->x87_valid == CTOOL_FALSE ||
+        machine->x87_width_bits != operand->width_bits ||
+        !narrow_oracle_write_memory(
+            machine, address, 32u, (ctool_u32)machine->x87_bits) ||
+        (operand->width_bits == 64u &&
+         !narrow_oracle_write_memory(
+             machine, address + 4u, 32u,
+             (ctool_u32)(machine->x87_bits >> 32u)))) {
+      return 0;
+    }
+    machine->x87_valid = CTOOL_FALSE;
+    machine->x87_width_bits = 0u;
+    machine->x87_bits = 0u;
+  }
+  *handled = CTOOL_TRUE;
+  return 1;
+}
+
 static int wide_oracle_execute_arguments(
     ctool_job_t *job, const ctool_elf32_object_t *object,
     const ctool_elf32_section_t *text,
@@ -17930,7 +17986,8 @@ static int wide_oracle_execute_arguments(
     next_pc = pc + decoded.consumed;
     if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
       if (call_depth >= WIDE_ORACLE_CALL_LIMIT ||
-          instruction->operand_count != 1u) {
+          instruction->operand_count != 1u ||
+          (machine.registers[NARROW_ORACLE_ESP] & 15u) != 0u) {
         return 0;
       }
       if (instruction->operands[0].kind == CTOOL_X86_OPERAND_RELATIVE) {
@@ -18055,6 +18112,8 @@ static int wide_oracle_execute_arguments(
          !wide_oracle_flag_step(&machine, instruction, &zero_flag,
                                 &carry_flag, &sign_flag, &overflow_flag,
                                 &handled)) ||
+        (handled == CTOOL_FALSE &&
+         !floating_oracle_step(&machine, instruction, &handled)) ||
         (handled == CTOOL_FALSE &&
          !narrow_oracle_step(&machine, instruction, &leaf_return)) ||
         leaf_return != CTOOL_FALSE) {
@@ -21330,6 +21389,607 @@ cleanup:
   return 1;
 }
 
+static int validate_floating_transport_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u32 float_patterns[] = {
+      0x00000000u, 0x80000000u, 0x7f800000u, 0x7fc12345u};
+  static const ctool_u32 double_patterns[][2] = {
+      {0x00000000u, 0x00000000u},
+      {0x00000000u, 0x80000000u},
+      {0x00000000u, 0x7ff00000u},
+      {0x89abcdefu, 0x7ff81234u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_symbol_t *global_float =
+      find_symbol(object, "global_float");
+  const ctool_elf32_symbol_t *global_double =
+      find_symbol(object, "global_double");
+  const ctool_elf32_symbol_t *return_float =
+      find_symbol(object, "return_float");
+  const ctool_elf32_symbol_t *return_double =
+      find_symbol(object, "return_double");
+  const ctool_elf32_symbol_t *double_bits_xor =
+      find_symbol(object, "double_bits_xor");
+  const ctool_elf32_symbol_t *read_double_xor =
+      find_symbol(object, "read_double_xor");
+  ctool_u32 index;
+  if (text == NULL || bss == NULL || global_float == NULL ||
+      global_double == NULL ||
+      global_float->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      global_double->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      global_float->section_file_index != bss->file_index ||
+      global_double->section_file_index != bss->file_index ||
+      global_float->size != 4u || global_double->size != 8u ||
+      (global_float->value & 3u) != 0u ||
+      (global_double->value & 3u) != 0u ||
+      text->contents.size != 4121u ||
+      structure_text_fingerprint(text->contents) != 0x438a39abu ||
+      bss->size != 24u || object->symbol_count != 44u ||
+      object->relocation_count != 36u ||
+      !wide_function_symbol_is_valid(object, text, return_float) ||
+      !wide_function_symbol_is_valid(object, text, return_double) ||
+      !wide_function_symbol_is_valid(object, text, double_bits_xor) ||
+      !wide_function_symbol_is_valid(object, text, read_double_xor)) {
+    (void)fprintf(
+        stderr,
+        "floating transport inventory: text=%u fingerprint=%08x "
+        "bss=%u symbols=%u relocations=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        (unsigned int)object->symbol_count,
+        (unsigned int)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(float_patterns) /
+                           sizeof(float_patterns[0]));
+       index++) {
+    const ctool_u32 arguments[] = {float_patterns[index]};
+    const ctool_u32 indirect_arguments[] = {
+        return_float->value, float_patterns[index]};
+    if (!expect_wide_oracle_low_result(
+            job, object, text, "float_bits", arguments, 1u,
+            float_patterns[index], "direct float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_float", arguments, 1u,
+            float_patterns[index], "fixed-call float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "global_float_roundtrip", arguments, 1u,
+            float_patterns[index], "file-scope float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "static_float_roundtrip", arguments, 1u,
+            float_patterns[index], "block-static float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "pointer_float_roundtrip", arguments, 1u,
+            float_patterns[index], "pointer-derived float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "indexed_float_roundtrip", arguments, 1u,
+            float_patterns[index], "indexed float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "member_float_roundtrip", arguments, 1u,
+            float_patterns[index], "ordinary-member float transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "returned_float_bits", arguments, 1u,
+            float_patterns[index], "x87 float return transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "nested_float_bits", arguments, 1u,
+            float_patterns[index], "nested x87 float return") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "indirect_float_bits", indirect_arguments,
+            2u, float_patterns[index], "indirect x87 float return")) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(double_patterns) /
+                           sizeof(double_patterns[0]));
+       index++) {
+    const ctool_u32 direct_arguments[] = {
+        double_patterns[index][0], double_patterns[index][1]};
+    const ctool_u32 variadic_arguments[] = {
+        0x13579bdfu, double_patterns[index][0], double_patterns[index][1]};
+    const ctool_u32 successive_arguments[] = {
+        0x2468ace0u, 0x55667788u, 0x11223344u,
+        double_patterns[index][0], double_patterns[index][1]};
+    const ctool_u32 paired_arguments[] = {
+        0x55667788u, 0x11223344u,
+        double_patterns[index][0], double_patterns[index][1]};
+    const ctool_u32 indirect_arguments[] = {
+        return_double->value, double_patterns[index][0],
+        double_patterns[index][1]};
+    const ctool_u32 indirect_open_arguments[] = {
+        double_bits_xor->value, double_patterns[index][0],
+        double_patterns[index][1]};
+    const ctool_u32 indirect_variadic_arguments[] = {
+        read_double_xor->value, double_patterns[index][0],
+        double_patterns[index][1]};
+    ctool_u32 expected_xor =
+        double_patterns[index][0] ^ double_patterns[index][1];
+    if (!expect_wide_oracle_low_result(
+            job, object, text, "double_low", direct_arguments, 2u,
+            double_patterns[index][0], "direct double low transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "double_high", direct_arguments, 2u,
+            double_patterns[index][1], "direct double high transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_double_low", direct_arguments, 2u,
+            double_patterns[index][0], "fixed-call double transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "global_double_low_roundtrip",
+            direct_arguments, 2u, double_patterns[index][0],
+            "file-scope double low transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "global_double_high_roundtrip",
+            direct_arguments, 2u, double_patterns[index][1],
+            "file-scope double high transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "static_double_low_roundtrip",
+            direct_arguments, 2u, double_patterns[index][0],
+            "block-static double transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "pointer_double_roundtrip",
+            direct_arguments, 2u, expected_xor,
+            "pointer-derived double transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "indexed_double_roundtrip",
+            direct_arguments, 2u, expected_xor,
+            "indexed double transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "member_double_roundtrip",
+            direct_arguments, 2u, expected_xor,
+            "ordinary-member double transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "read_double_low", variadic_arguments, 3u,
+            double_patterns[index][0], "variadic double read") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "read_second_double_low",
+            successive_arguments, 5u, double_patterns[index][0],
+            "successive variadic double read") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "read_copied_double_low", variadic_arguments,
+            3u, double_patterns[index][0], "copied variadic double read") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "read_double_xor", variadic_arguments, 3u,
+            expected_xor, "complete variadic double read") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_variadic", direct_arguments, 2u,
+            double_patterns[index][0], "variadic double call") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_two_variadic", paired_arguments, 4u,
+            double_patterns[index][0], "successive variadic double call") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_variadic_indirect",
+            indirect_variadic_arguments, 3u, expected_xor,
+            "indirect variadic double call") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_open_direct", direct_arguments, 2u,
+            expected_xor, "direct unprototyped double call") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "relay_open_indirect",
+            indirect_open_arguments, 3u, expected_xor,
+            "indirect unprototyped double call") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "discard_double", direct_arguments, 2u,
+            0x6d3a9c51u, "discarded double transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "returned_double_low", direct_arguments, 2u,
+            double_patterns[index][0], "x87 double low return transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "returned_double_high", direct_arguments, 2u,
+            double_patterns[index][1], "x87 double high return transport") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "nested_double_low", direct_arguments, 2u,
+            double_patterns[index][0], "nested x87 double low return") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "nested_double_high", direct_arguments, 2u,
+            double_patterns[index][1], "nested x87 double high return") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "indirect_double_low", indirect_arguments,
+            3u, double_patterns[index][0], "indirect double low return") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "indirect_double_high", indirect_arguments,
+            3u, double_patterns[index][1], "indirect double high return")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_floating_transport_object(const char *host_root) {
+  static const char source_prefix[] =
+      "typedef unsigned int u32;\n"
+      "typedef __builtin_va_list va_list;\n"
+      "typedef union { float value; u32 bits; } float_box;\n"
+      "typedef union {\n"
+      "  double value;\n"
+      "  struct { u32 low; u32 high; } words;\n"
+      "} double_box;\n"
+      "typedef float (*float_callback)(float);\n"
+      "typedef double (*double_callback)(double);\n"
+      "typedef u32 (*variadic_callback)(u32, ...);\n"
+      "typedef u32 (*open_callback)();\n"
+      "u32 open_double_hash();\n"
+      "float global_float;\n"
+      "double global_double;\n"
+      "u32 float_bits(float value) {\n"
+      "  float_box box;\n"
+      "  box.value = value;\n"
+      "  return box.bits;\n"
+      "}\n"
+      "u32 double_low(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = value;\n"
+      "  return box.words.low;\n"
+      "}\n"
+      "u32 double_high(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = value;\n"
+      "  return box.words.high;\n"
+      "}\n"
+      "u32 double_bits_xor(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = value;\n"
+      "  return box.words.low ^ box.words.high;\n"
+      "}\n"
+      "u32 relay_float(float value) { return float_bits(value); }\n"
+      "u32 relay_double_low(double value) { return double_low(value); }\n"
+      "u32 global_float_roundtrip(float value) {\n"
+      "  global_float = value;\n"
+      "  return float_bits(global_float);\n"
+      "}\n"
+      "u32 global_double_low_roundtrip(double value) {\n"
+      "  global_double = value;\n"
+      "  return double_low(global_double);\n"
+      "}\n"
+      "u32 global_double_high_roundtrip(double value) {\n"
+      "  global_double = value;\n"
+      "  return double_high(global_double);\n"
+      "}\n"
+      "u32 static_float_roundtrip(float value) {\n"
+      "  static float state;\n"
+      "  state = value;\n"
+      "  return float_bits(state);\n"
+      "}\n"
+      "u32 static_double_low_roundtrip(double value) {\n"
+      "  static double state;\n"
+      "  state = value;\n"
+      "  return double_low(state);\n"
+      "}\n"
+      "u32 pointer_float_roundtrip(float value) {\n"
+      "  float local;\n"
+      "  float *pointer = &local;\n"
+      "  *pointer = value;\n"
+      "  return float_bits(*pointer);\n"
+      "}\n"
+      "u32 pointer_double_roundtrip(double value) {\n"
+      "  double local;\n"
+      "  double *pointer = &local;\n"
+      "  *pointer = value;\n"
+      "  return double_bits_xor(*pointer);\n"
+      "}\n"
+      "u32 indexed_float_roundtrip(float value) {\n"
+      "  float values[1];\n"
+      "  values[0] = value;\n"
+      "  return float_bits(values[0]);\n"
+      "}\n"
+      "u32 indexed_double_roundtrip(double value) {\n"
+      "  double values[1];\n"
+      "  values[0] = value;\n"
+      "  return double_bits_xor(values[0]);\n"
+      "}\n"
+      "u32 member_float_roundtrip(float value) {\n"
+      "  struct { float lane; } state;\n"
+      "  state.lane = value;\n"
+      "  return float_bits(state.lane);\n"
+      "}\n"
+      "u32 member_double_roundtrip(double value) {\n"
+      "  struct { double lane; } state;\n"
+      "  state.lane = value;\n"
+      "  return double_bits_xor(state.lane);\n"
+      "}\n";
+  static const char source_suffix[] =
+      "u32 read_double_low(u32 marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  double_box box;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  box.value = __builtin_va_arg(arguments, double);\n"
+      "  __builtin_va_end(arguments);\n"
+      "  return box.words.low;\n"
+      "}\n"
+      "u32 read_second_double_low(u32 marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  double_box first;\n"
+      "  double_box second;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  first.value = __builtin_va_arg(arguments, double);\n"
+      "  second.value = __builtin_va_arg(arguments, double);\n"
+      "  __builtin_va_end(arguments);\n"
+      "  return second.words.low;\n"
+      "}\n"
+      "u32 read_copied_double_low(u32 marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  va_list copied;\n"
+      "  double_box box;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  __builtin_va_copy(copied, arguments);\n"
+      "  box.value = __builtin_va_arg(copied, double);\n"
+      "  __builtin_va_end(copied);\n"
+      "  __builtin_va_end(arguments);\n"
+      "  return box.words.low;\n"
+      "}\n"
+      "u32 read_double_xor(u32 marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  double_box box;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  box.value = __builtin_va_arg(arguments, double);\n"
+      "  __builtin_va_end(arguments);\n"
+      "  return box.words.low ^ box.words.high;\n"
+      "}\n"
+      "u32 relay_variadic(double value) {\n"
+      "  return read_double_low(0u, value);\n"
+      "}\n"
+      "u32 relay_two_variadic(double first, double second) {\n"
+      "  return read_second_double_low(0u, first, second);\n"
+      "}\n"
+      "u32 relay_variadic_indirect(variadic_callback callback,\n"
+      "                            double value) {\n"
+      "  return callback(0u, value);\n"
+      "}\n"
+      "u32 relay_open_direct(double value) {\n"
+      "  return open_double_hash(value);\n"
+      "}\n"
+      "u32 open_double_hash(double value) {\n"
+      "  return double_bits_xor(value);\n"
+      "}\n"
+      "u32 relay_open_indirect(open_callback callback, double value) {\n"
+      "  return callback(value);\n"
+      "}\n"
+      "u32 discard_double(double value) {\n"
+      "  (void)value;\n"
+      "  return 0x6d3a9c51u;\n"
+      "}\n"
+      "float return_float(float value) { return value; }\n"
+      "double return_double(double value) { return value; }\n"
+      "u32 returned_float_bits(float value) {\n"
+      "  float_box box;\n"
+      "  box.value = return_float(value);\n"
+      "  return box.bits;\n"
+      "}\n"
+      "u32 returned_double_low(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = return_double(value);\n"
+      "  return box.words.low;\n"
+      "}\n"
+      "u32 returned_double_high(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = return_double(value);\n"
+      "  return box.words.high;\n"
+      "}\n"
+      "u32 nested_float_bits(float value) {\n"
+      "  float_box box;\n"
+      "  box.value = return_float(return_float(value));\n"
+      "  return box.bits;\n"
+      "}\n"
+      "u32 nested_double_low(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = return_double(return_double(value));\n"
+      "  return box.words.low;\n"
+      "}\n"
+      "u32 nested_double_high(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = return_double(return_double(value));\n"
+      "  return box.words.high;\n"
+      "}\n"
+      "u32 indirect_float_bits(float_callback callback, float value) {\n"
+      "  float_box box;\n"
+      "  box.value = callback(value);\n"
+      "  return box.bits;\n"
+      "}\n"
+      "u32 indirect_double_low(double_callback callback, double value) {\n"
+      "  double_box box;\n"
+      "  box.value = callback(value);\n"
+      "  return box.words.low;\n"
+      "}\n"
+      "u32 indirect_double_high(double_callback callback, double value) {\n"
+      "  double_box box;\n"
+      "  box.value = callback(value);\n"
+      "  return box.words.high;\n"
+      "}\n";
+  static const char condition_source[] =
+      "void condition_fixture(float narrow, double wide, int condition) {\n"
+      "  (void)narrow;\n"
+      "  (void)wide;\n"
+      "  if (condition) return;\n"
+      "}\n";
+  char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t condition_unit;
+  ctool_c_translation_unit_t invalid_condition_unit;
+  ctool_c_statement_t *invalid_condition_statements = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 float_value = CTOOL_C_AST_NONE;
+  ctool_u32 double_value = CTOOL_C_AST_NONE;
+  ctool_u32 selection = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  int passed = 0;
+
+  (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
+               sizeof(source_suffix));
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-transport.c", source, CTOOL_TRUE,
+                          &unit) ||
+      !parse_source_mode(job, "/floating-truth-boundary.c",
+                         condition_source, CTOOL_TRUE, &condition_unit) ||
+      unit.function_definition_count != 39u) {
+    (void)fprintf(stderr, "floating transport object setup failed\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < condition_unit.graph.type_count; index++) {
+    const ctool_c_type_node_t *type = &condition_unit.graph.types[index];
+    if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
+      float_type = index;
+    } else if (type->qualifiers == 0u &&
+               type->kind == CTOOL_C_TYPE_DOUBLE) {
+      double_type = index;
+    }
+  }
+  for (index = 0u; index < condition_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &condition_unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE) {
+      if (expression->type == float_type) {
+        float_value = index;
+      } else if (expression->type == double_type) {
+        double_value = index;
+      }
+    }
+  }
+  for (index = 0u; index < condition_unit.statement_count; index++) {
+    if (condition_unit.statements[index].kind == CTOOL_C_STATEMENT_IF) {
+      selection = index;
+      break;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE || float_value == CTOOL_C_AST_NONE ||
+      double_value == CTOOL_C_AST_NONE || selection == CTOOL_C_AST_NONE ||
+      condition_unit.statement_count == 0u ||
+      sizeof(*invalid_condition_statements) >
+          SIZE_MAX / (size_t)condition_unit.statement_count) {
+    (void)fprintf(stderr, "floating truth object fixture differs\n");
+    goto cleanup;
+  }
+  invalid_condition_statements = (ctool_c_statement_t *)malloc(
+      (size_t)condition_unit.statement_count *
+      sizeof(*invalid_condition_statements));
+  if (invalid_condition_statements == NULL) {
+    goto cleanup;
+  }
+  invalid_condition_unit = condition_unit;
+  invalid_condition_unit.statements = invalid_condition_statements;
+  (void)memcpy(invalid_condition_statements, condition_unit.statements,
+               (size_t)condition_unit.statement_count *
+                   sizeof(*invalid_condition_statements));
+  invalid_condition_statements[selection].condition = float_value;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                  &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "floating transport buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first floating transport object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating transport object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_condition_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating branch metadata at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_condition_statements, condition_unit.statements,
+               (size_t)condition_unit.statement_count *
+                   sizeof(*invalid_condition_statements));
+  invalid_condition_statements[selection].condition = double_value;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_condition_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "double branch metadata at object boundary")) {
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "floating transport objects are not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          NULL, "limited floating transport object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered floating transport object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "floating transport recovery changed the output\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/floating-transport.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read floating transport object") ||
+      !validate_floating_transport_object(job, &object)) {
+    (void)fprintf(stderr, "floating transport object differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_condition_statements);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-transport: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_wide_return_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -21858,6 +22518,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-variadics") == 0) {
     return run_wide_variadic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-transport") == 0) {
+    return run_floating_transport_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     if (run_wide_multiplication_object(argv[2]) != 0) {
       return 1;
@@ -21888,7 +22551,8 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
-                "variadic-callees|wide-variadics|wide-returns|"
+                "variadic-callees|wide-variadics|floating-transport|"
+                "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations "
                 "HOST_ROOT\n");
   return 2;

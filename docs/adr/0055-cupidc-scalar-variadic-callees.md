@@ -39,3 +39,7 @@ ADR 0067 lets the final named parameter be an eight-byte integer. The shared par
 ## Extension: eight-byte variadic reads
 
 ADR 0075 lets `VARIADIC_ARGUMENT` read a non-atomic signed or unsigned eight-byte integer, including a represented wide enum. The read copies the value into an instruction-owned snapshot and advances the cursor by eight. Four-byte integer and pointer reads keep the cursor rule from this decision.
+
+## Extension: variadic double reads
+
+ADR 0076 lets `VARIADIC_ARGUMENT` read a non-atomic `double`. The read copies eight bytes into a fresh snapshot and advances the cursor by eight. `va_arg(float)` remains invalid C because an unnamed `float` is promoted before the call.
