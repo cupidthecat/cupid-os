@@ -31,3 +31,7 @@ The first indexed-load contract stopped at the unsupported integer-conversion bo
 This is hosted bootstrap evidence. GCC or Clang still builds the shared frontend, IR, emitter, x86, ELF32, and contract modules. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC compiler remains the embedded runtime JIT and AOT path. No production artifact, build transform, host dependency, boot path, or runtime behavior changes ownership here.
 
 Issue #25 remains open for the rest of the C and ABI surface, production integration, staged self-hosting, and the fixed-point bootstrap.
+
+## Extension: conversion across the wide boundary
+
+ADR 0068 carries represented byte, word, and doubleword integers into an eight-byte snapshot and narrows a snapshot back to those lanes. The destination signedness controls canonical sign or zero extension. A wide-to-`_Bool` conversion tests both source words. This keeps the canonical 32-bit value rule from this decision while adding the previously deferred wide boundary.

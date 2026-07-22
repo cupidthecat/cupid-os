@@ -45,6 +45,15 @@ typedef struct {
 static ctool_bool cemit_ir_function_types_match(
     cemit_context_t *context, ctool_u32 left, ctool_u32 right);
 
+static ctool_status_t cemit_patch_branch(ctool_buffer_t *text,
+                                         ctool_u32 patch,
+                                         ctool_u32 after,
+                                         ctool_u32 target);
+
+static ctool_status_t cemit_x86_branch(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 *patch_out, ctool_u32 *after_out);
+
 static void cemit_zero(void *destination, ctool_u32 size) {
   ctool_u8 *bytes = (ctool_u8 *)destination;
   ctool_u32 index;
@@ -1764,7 +1773,8 @@ static ctool_status_t cemit_x86_shift_register(
       cemit_x86_instruction(mnemonic, 32u);
   if (count >= 32u ||
       (mnemonic != CTOOL_X86_MN_SHL && mnemonic != CTOOL_X86_MN_SHR &&
-       mnemonic != CTOOL_X86_MN_SAR)) {
+       mnemonic != CTOOL_X86_MN_SAR && mnemonic != CTOOL_X86_MN_RCL &&
+       mnemonic != CTOOL_X86_MN_RCR)) {
     return CTOOL_ERR_INTERNAL;
   }
   if (count == 0u) {
@@ -1892,6 +1902,27 @@ static ctool_status_t cemit_x86_load_register_at_register(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_binary_register_at_register(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u8 destination_register, ctool_u8 address_register,
+    ctool_u32 byte_offset) {
+  ctool_x86_instruction_t instruction = cemit_x86_instruction(mnemonic, 32u);
+  if (byte_offset > 0x7fffffffu ||
+      (mnemonic != CTOOL_X86_MN_AND && mnemonic != CTOOL_X86_MN_OR &&
+       mnemonic != CTOOL_X86_MN_XOR)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_register_operand(
+      CTOOL_X86_REG_GPR32, destination_register);
+  instruction.operands[1] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, address_register),
+      (ctool_i32)byte_offset, 32u);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_push_wide_constant_snapshot(
     cemit_context_t *context, ctool_u32 temporary_offset,
     ctool_u64 bits) {
@@ -1941,6 +1972,233 @@ static ctool_status_t cemit_x86_push_wide_result_snapshot(
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_widened_integer_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_bool source_signed) {
+  ctool_status_t status;
+  if (temporary_offset < 8u || temporary_offset > 0x7fffffffu ||
+      (source_signed != CTOOL_FALSE && source_signed != CTOOL_TRUE)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK && source_signed == CTOOL_TRUE) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SAR, 2u, 31u);
+  } else if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 4u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_narrowed_wide_integer(
+    cemit_context_t *context, ctool_u32 target_type,
+    ctool_bool target_boolean) {
+  ctool_status_t status;
+  if (target_boolean != CTOOL_FALSE && target_boolean != CTOOL_TRUE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 0u, 1u, 0u);
+  }
+  if (status == CTOOL_OK && target_boolean == CTOOL_TRUE) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK && target_boolean == CTOOL_TRUE) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_OR, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_convert_eax_to_integer(context, target_type);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_register_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_u8 low_register, ctool_u8 high_register) {
+  ctool_status_t status;
+  if (temporary_offset < 8u || temporary_offset > 0x7fffffffu) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_store_local_register(
+      context, temporary_offset, 0u, low_register);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 4u, high_register);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_bitwise_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_x86_mnemonic_t mnemonic) {
+  ctool_status_t status;
+  if (mnemonic != CTOOL_X86_MN_AND && mnemonic != CTOOL_X86_MN_OR &&
+      mnemonic != CTOOL_X86_MN_XOR) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, mnemonic, 2u, 1u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 0u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, mnemonic, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 4u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_shift_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_bool shift_left, ctool_bool value_signed) {
+  ctool_u32 done_patch = CTOOL_C_AST_NONE;
+  ctool_u32 done_after = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_patch = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_after = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_target;
+  ctool_u32 done_target;
+  ctool_status_t status;
+  if ((shift_left != CTOOL_FALSE && shift_left != CTOOL_TRUE) ||
+      (value_signed != CTOOL_FALSE && value_signed != CTOOL_TRUE)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_and_register_constant(context, 1u, 63u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 0u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_TEST, CTOOL_X86_REG_GPR32, 1u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JE, &done_patch, &done_after);
+  }
+  repeat_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK && shift_left == CTOOL_TRUE) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SHL, 0u, 1u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_shift_register(
+          context, CTOOL_X86_MN_RCL, 2u, 1u);
+    }
+  } else if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context,
+        value_signed == CTOOL_TRUE ? CTOOL_X86_MN_SAR
+                                   : CTOOL_X86_MN_SHR,
+        2u, 1u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_shift_register(
+          context, CTOOL_X86_MN_RCR, 0u, 1u);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_DEC, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JNE, &repeat_patch, &repeat_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, repeat_patch, repeat_after, repeat_target);
+  }
+  done_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, done_patch, done_after, done_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_push_wide_register_snapshot(
+        context, temporary_offset, 0u, 2u);
   }
   return status;
 }
@@ -2490,6 +2748,14 @@ static ctool_bool cemit_ir_promoted_i32_integer_kind(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_wide_standard_integer_kind(
+    ctool_c_type_kind_t kind) {
+  return kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_ir_integer_promotion_is_valid(
     const cemit_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type) {
@@ -2499,8 +2765,7 @@ static ctool_bool cemit_ir_integer_promotion_is_valid(
       cemit_unwrapped_type(context, target_type);
   ctool_c_type_kind_t expected;
   if (source == (const ctool_c_type_node_t *)0 ||
-      target == (const ctool_c_type_node_t *)0 ||
-      cemit_ir_type_is_i32_integer(context, target_type) == CTOOL_FALSE) {
+      target == (const ctool_c_type_node_t *)0) {
     return CTOOL_FALSE;
   }
   if (source->kind == CTOOL_C_TYPE_ENUM) {
@@ -2518,9 +2783,14 @@ static ctool_bool cemit_ir_integer_promotion_is_valid(
   } else {
     return CTOOL_FALSE;
   }
-  return cemit_ir_promoted_i32_integer_kind(expected) == CTOOL_TRUE &&
-                 target->kind == expected
-             ? CTOOL_TRUE
+  if (target->kind != expected) {
+    return CTOOL_FALSE;
+  }
+  if (cemit_ir_type_is_i32_integer(context, target_type) == CTOOL_TRUE) {
+    return cemit_ir_promoted_i32_integer_kind(expected);
+  }
+  return cemit_ir_type_is_wide_integer(context, target_type) == CTOOL_TRUE
+             ? cemit_ir_wide_standard_integer_kind(expected)
              : CTOOL_FALSE;
 }
 
@@ -2554,22 +2824,60 @@ static ctool_bool cemit_ir_usual_integer_conversion_is_valid(
   return CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_wide_usual_integer_conversion_is_valid(
+    const cemit_context_t *context, ctool_u32 source_type,
+    ctool_u32 target_type) {
+  const ctool_c_type_node_t *source =
+      cemit_unwrapped_type(context, source_type);
+  const ctool_c_type_node_t *target =
+      cemit_unwrapped_type(context, target_type);
+  if (source == (const ctool_c_type_node_t *)0 ||
+      target == (const ctool_c_type_node_t *)0 ||
+      cemit_ir_type_is_wide_integer(context, target_type) == CTOOL_FALSE ||
+      cemit_ir_wide_standard_integer_kind(target->kind) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (cemit_ir_type_is_wide_integer(context, source_type) == CTOOL_TRUE) {
+    return source->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG &&
+                   target->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  return cemit_ir_type_is_i32_integer(context, source_type) == CTOOL_TRUE
+             ? cemit_ir_promoted_i32_integer_kind(source->kind)
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_ir_integer_conversion_is_valid(
     const cemit_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
   const ctool_c_type_node_t *target;
   const ctool_c_type_node_t *source;
-  if (cemit_ir_type_is_wide_integer(context, source_type) == CTOOL_TRUE ||
-      cemit_ir_type_is_wide_integer(context, target_type) == CTOOL_TRUE) {
-    if (cemit_ir_type_is_wide_integer(context, source_type) == CTOOL_FALSE ||
-        cemit_ir_type_is_wide_integer(context, target_type) == CTOOL_FALSE) {
+  ctool_bool source_wide =
+      cemit_ir_type_is_wide_integer(context, source_type);
+  ctool_bool target_wide =
+      cemit_ir_type_is_wide_integer(context, target_type);
+  if (source_wide == CTOOL_TRUE || target_wide == CTOOL_TRUE) {
+    if (cemit_ir_type_is_value_integer(context, source_type) == CTOOL_FALSE ||
+        cemit_ir_type_is_value_integer(context, target_type) == CTOOL_FALSE) {
       return CTOOL_FALSE;
     }
     if (conversion == CTOOL_C_CONVERSION_NONE ||
         conversion == CTOOL_C_CONVERSION_ASSIGNMENT) {
       return CTOOL_TRUE;
     }
-    if (conversion != CTOOL_C_CONVERSION_QUALIFICATION) {
+    if (conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+      return cemit_ir_wide_usual_integer_conversion_is_valid(
+          context, source_type, target_type);
+    }
+    if (conversion == CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+      return source_wide == CTOOL_TRUE && target_wide == CTOOL_TRUE
+                 ? cemit_ir_integer_promotion_is_valid(
+                       context, source_type, target_type)
+                 : CTOOL_FALSE;
+    }
+    if (conversion != CTOOL_C_CONVERSION_QUALIFICATION ||
+        source_wide == CTOOL_FALSE || target_wide == CTOOL_FALSE) {
       return CTOOL_FALSE;
     }
     source = cemit_unwrapped_type(context, source_type);
@@ -4343,6 +4651,10 @@ static ctool_status_t cemit_emit_ir_instruction(
         context, (ctool_u32)ir_instruction->integer_bits);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
+    ctool_bool source_wide = cemit_ir_type_is_wide_integer(
+        context, ir_instruction->input_type);
+    ctool_bool target_wide = cemit_ir_type_is_wide_integer(
+        context, ir_instruction->type);
     ctool_bool bit_field_promotion =
         cemit_bit_field_promotion_is_valid(context, ir_instruction);
     ctool_bool integer_conversion =
@@ -4416,6 +4728,24 @@ static ctool_status_t cemit_emit_ir_instruction(
          ir_instruction->reference != CTOOL_C_AST_NONE) ||
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
+    }
+    if (source_wide == CTOOL_FALSE && target_wide == CTOOL_TRUE) {
+      const ctool_c_type_layout_t *source_layout =
+          &context->unit->layout.types[ir_instruction->input_type];
+      return cemit_x86_push_widened_integer_snapshot(
+          context, value_temporary_offset, source_layout->is_signed);
+    }
+    if (source_wide == CTOOL_TRUE && target_wide == CTOOL_FALSE) {
+      const ctool_c_type_node_t *target =
+          cemit_unwrapped_type(context, ir_instruction->type);
+      if (target == (const ctool_c_type_node_t *)0 ||
+          cemit_ir_type_is_represented_integer(
+              context, ir_instruction->type) == CTOOL_FALSE) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      return cemit_x86_push_narrowed_wide_integer(
+          context, ir_instruction->type,
+          target->kind == CTOOL_C_TYPE_BOOL ? CTOOL_TRUE : CTOOL_FALSE);
     }
     if (integer_conversion == CTOOL_TRUE &&
         context->unit->layout.types[ir_instruction->type].size < 4u) {
@@ -4595,6 +4925,14 @@ static ctool_status_t cemit_emit_ir_instruction(
     return status;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY) {
+    ctool_bool wide_integer =
+        cemit_ir_type_is_wide_integer(
+            context, ir_instruction->input_type) == CTOOL_TRUE &&
+                cemit_ir_type_is_wide_integer(
+                    context, ir_instruction->type) == CTOOL_TRUE &&
+                ir_instruction->input_type == ir_instruction->type
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool relational_comparison =
         ir_instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_LESS ||
                 ir_instruction->operation ==
@@ -4631,6 +4969,46 @@ static ctool_status_t cemit_emit_ir_instruction(
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     ctool_u8 result_register = 0u;
+    if (wide_integer == CTOOL_TRUE) {
+      ctool_x86_mnemonic_t mnemonic = CTOOL_X86_MN_AND;
+      ctool_bool bitwise = CTOOL_FALSE;
+      if (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          ir_instruction->reference != CTOOL_C_AST_NONE ||
+          ir_instruction->integer_bits != 0u) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      if (ir_instruction->operation ==
+              CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT ||
+          ir_instruction->operation ==
+              CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT) {
+        return cemit_x86_push_wide_shift_snapshot(
+            context, value_temporary_offset,
+            ir_instruction->operation ==
+                    CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT
+                ? CTOOL_TRUE
+                : CTOOL_FALSE,
+            context->unit->layout.types[ir_instruction->input_type]
+                .is_signed);
+      }
+      if (ir_instruction->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {
+        mnemonic = CTOOL_X86_MN_AND;
+        bitwise = CTOOL_TRUE;
+      } else if (ir_instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR) {
+        mnemonic = CTOOL_X86_MN_OR;
+        bitwise = CTOOL_TRUE;
+      } else if (ir_instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR) {
+        mnemonic = CTOOL_X86_MN_XOR;
+        bitwise = CTOOL_TRUE;
+      }
+      if (bitwise == CTOOL_FALSE) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      return cemit_x86_push_wide_bitwise_snapshot(
+          context, value_temporary_offset, mnemonic);
+    }
     if ((pointer_comparison == CTOOL_FALSE &&
          cemit_ir_type_is_i32_integer(context,
                                       ir_instruction->input_type) ==
@@ -5239,8 +5617,12 @@ static ctool_status_t cemit_prepare_local_offsets(
              CTOOL_TRUE) ||
         ((instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD ||
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
-          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) &&
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+          (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+           cemit_ir_type_is_wide_integer(
+               context, instruction->input_type) == CTOOL_FALSE)) &&
          cemit_ir_type_is_wide_integer(context, instruction->type) ==
              CTOOL_TRUE)) {
       context->value_temporary_offsets[absolute] = 0u;

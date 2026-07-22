@@ -41,3 +41,7 @@ The first IR and object runs stopped at the former unsupported file-object load.
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. The private in-kernel CupidC compiler remains the runtime JIT and AOT path. No production object, build transform, boot path, host dependency, or ownership count changes.
 
 Issue #25 remains open. Eight-byte values without declared parameter types, conditions, arithmetic, mutation, mixed-width conversion, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. ADR 0067 adds declared wide parameters and named call arguments without changing the object-copy model.
+
+## Extension: operation result snapshots
+
+ADR 0068 allocates the same private object-shaped storage for every wide shift, bitwise result, and represented-to-wide conversion. Wide-to-represented conversion reads the snapshot without borrowing its address as a C value. The object load and store rules from this decision do not change.

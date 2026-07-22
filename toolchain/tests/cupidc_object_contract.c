@@ -141,6 +141,112 @@ static const char wide_unprototyped_argument_object_source[] =
     "void sink();\n"
     "void pass_unprototyped(ctool_u64 value) { sink(value); }\n";
 
+static const char wide_conversion_object_source[] =
+    "typedef signed char ctool_i8;\n"
+    "typedef unsigned char ctool_u8;\n"
+    "typedef short ctool_i16;\n"
+    "typedef unsigned short ctool_u16;\n"
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "ctool_u64 widen_unsigned(ctool_u32 value) { return value; }\n"
+    "ctool_i64 widen_signed(int value) { return value; }\n"
+    "ctool_u64 widen_byte(ctool_u8 value) { return value; }\n"
+    "ctool_i64 widen_word(ctool_i16 value) { return value; }\n"
+    "ctool_i64 cast_signed_byte(ctool_i8 value) {\n"
+    "  return (ctool_i64)value;\n"
+    "}\n"
+    "ctool_u64 cast_unsigned_word(ctool_u16 value) {\n"
+    "  return (ctool_u64)value;\n"
+    "}\n"
+    "ctool_i64 retype_assignment(ctool_u64 value) { return value; }\n"
+    "ctool_u32 narrow_unsigned(ctool_u64 value) {\n"
+    "  return (ctool_u32)value;\n"
+    "}\n"
+    "ctool_u8 narrow_byte(ctool_u64 value) { return (ctool_u8)value; }\n"
+    "ctool_u16 narrow_word(ctool_u64 value) { return (ctool_u16)value; }\n"
+    "ctool_u16 narrow_assignment(ctool_u64 value) { return value; }\n"
+    "ctool_i8 narrow_signed(ctool_i64 value) { return (ctool_i8)value; }\n"
+    "ctool_i16 narrow_signed_word(ctool_i64 value) {\n"
+    "  return (ctool_i16)value;\n"
+    "}\n"
+    "_Bool narrow_bool(ctool_u64 value) { return (_Bool)value; }\n";
+
+static const char wide_operation_object_source[] =
+    "typedef unsigned char ctool_u8;\n"
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "enum wide_enum { WIDE_ENUM_NEGATIVE = -1,\n"
+    "                 WIDE_ENUM_LARGE = 0xffffffffu };\n"
+    "ctool_u64 shift_left(ctool_u64 value, ctool_u32 count) {\n"
+    "  return value << count;\n"
+    "}\n"
+    "ctool_u64 shift_right_unsigned(ctool_u64 value, ctool_u32 count) {\n"
+    "  return value >> count;\n"
+    "}\n"
+    "ctool_i64 shift_right_signed(ctool_i64 value, ctool_u32 count) {\n"
+    "  return value >> count;\n"
+    "}\n"
+    "ctool_u64 bitwise_and(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left & right;\n"
+    "}\n"
+    "ctool_u64 bitwise_mixed(ctool_i64 left, ctool_u64 right) {\n"
+    "  return left & right;\n"
+    "}\n"
+    "ctool_u64 bitwise_enum(enum wide_enum left, ctool_u64 right) {\n"
+    "  return left & right;\n"
+    "}\n"
+    "ctool_u64 bitwise_or(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left | right;\n"
+    "}\n"
+    "ctool_u64 bitwise_xor(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left ^ right;\n"
+    "}\n"
+    "ctool_u8 extract_byte(ctool_u64 value, ctool_u32 index) {\n"
+    "  return (ctool_u8)((value >> (index * 8u)) & 0xffu);\n"
+    "}\n";
+
+static const char wide_count_operation_object_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "ctool_u64 shift_wide_count(ctool_u64 value, ctool_u64 count) {\n"
+    "  return value << count;\n"
+    "}\n";
+
+static const char active_wide_helper_object_source[] =
+    "typedef unsigned char ctool_u8;\n"
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef int ctool_status_t;\n"
+    "typedef struct ctool_buffer ctool_buffer_t;\n"
+    "typedef struct { const ctool_u8 *data; ctool_u32 size; } ctool_bytes_t;\n"
+    "ctool_bytes_t ctool_bytes(const void *data, ctool_u32 size);\n"
+    "ctool_status_t ctool_buffer_append(ctool_buffer_t *buffer,\n"
+    "                                    ctool_bytes_t bytes);\n"
+    "ctool_status_t ctool_buffer_patch(ctool_buffer_t *buffer,\n"
+    "                                   ctool_u32 offset,\n"
+    "                                   const ctool_u8 *bytes,\n"
+    "                                   ctool_u32 count);\n"
+    "ctool_status_t ctool_buffer_put_le64(ctool_buffer_t *buffer, "
+    "ctool_u64 value) {\n"
+    "  ctool_u8 bytes[8];\n"
+    "  ctool_u32 index;\n"
+    "  for (index = 0; index < 8u; index++) {\n"
+    "    bytes[index] = (ctool_u8)((value >> (index * 8u)) & 0xffu);\n"
+    "  }\n"
+    "  return ctool_buffer_append(buffer, ctool_bytes(bytes, 8u));\n"
+    "}\n"
+    "ctool_status_t ctool_buffer_patch_le64(ctool_buffer_t *buffer,\n"
+    "                                       ctool_u32 offset, "
+    "ctool_u64 value) {\n"
+    "  ctool_u8 bytes[8];\n"
+    "  ctool_u32 index;\n"
+    "  for (index = 0; index < 8u; index++) {\n"
+    "    bytes[index] = (ctool_u8)((value >> (index * 8u)) & 0xffu);\n"
+    "  }\n"
+    "  return ctool_buffer_patch(buffer, offset, bytes, 8u);\n"
+    "}\n";
+
 static const char wide_value_object_source[] =
     "typedef unsigned int ctool_u32;\n"
     "typedef unsigned long long ctool_u64;\n"
@@ -398,6 +504,50 @@ static const char active_wide_parameter_function[] =
     "ctool_status_t ctool_buffer_put_le64(ctool_buffer_t *buffer, "
     "ctool_u64 value) {";
 
+static const char active_wide_put_body[] =
+    "ctool_status_t ctool_buffer_put_le64(ctool_buffer_t *buffer, "
+    "ctool_u64 value) {\n"
+    "  ctool_u8 bytes[8];\n"
+    "  ctool_u32 index;\n"
+    "  for (index = 0; index < 8u; index++) {\n"
+    "    bytes[index] = (ctool_u8)((value >> (index * 8u)) & 0xffu);\n"
+    "  }\n"
+    "  return ctool_buffer_append(buffer, ctool_bytes(bytes, 8u));\n"
+    "}";
+
+static const char active_wide_put_body_crlf[] =
+    "ctool_status_t ctool_buffer_put_le64(ctool_buffer_t *buffer, "
+    "ctool_u64 value) {\r\n"
+    "  ctool_u8 bytes[8];\r\n"
+    "  ctool_u32 index;\r\n"
+    "  for (index = 0; index < 8u; index++) {\r\n"
+    "    bytes[index] = (ctool_u8)((value >> (index * 8u)) & 0xffu);\r\n"
+    "  }\r\n"
+    "  return ctool_buffer_append(buffer, ctool_bytes(bytes, 8u));\r\n"
+    "}";
+
+static const char active_wide_patch_body[] =
+    "ctool_status_t ctool_buffer_patch_le64(ctool_buffer_t *buffer,\n"
+    "                                       ctool_u32 offset, ctool_u64 value) {\n"
+    "  ctool_u8 bytes[8];\n"
+    "  ctool_u32 index;\n"
+    "  for (index = 0; index < 8u; index++) {\n"
+    "    bytes[index] = (ctool_u8)((value >> (index * 8u)) & 0xffu);\n"
+    "  }\n"
+    "  return ctool_buffer_patch(buffer, offset, bytes, 8u);\n"
+    "}";
+
+static const char active_wide_patch_body_crlf[] =
+    "ctool_status_t ctool_buffer_patch_le64(ctool_buffer_t *buffer,\r\n"
+    "                                       ctool_u32 offset, ctool_u64 value) {\r\n"
+    "  ctool_u8 bytes[8];\r\n"
+    "  ctool_u32 index;\r\n"
+    "  for (index = 0; index < 8u; index++) {\r\n"
+    "    bytes[index] = (ctool_u8)((value >> (index * 8u)) & 0xffu);\r\n"
+    "  }\r\n"
+    "  return ctool_buffer_patch(buffer, offset, bytes, 8u);\r\n"
+    "}";
+
 static const char active_wide_argument_call[] =
     "              status = ctool_buffer_put_le64(output, evaluated);";
 
@@ -637,6 +787,14 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
               job, "/toolchain/ctool.c", "load active core source",
               "the active wide parameter function changed",
               active_wide_parameter_function, NULL) &&
+          active_source_contains(
+              job, "/toolchain/ctool.c", "load active core source",
+              "the active wide put helper changed", active_wide_put_body,
+              active_wide_put_body_crlf) &&
+          active_source_contains(
+              job, "/toolchain/ctool.c", "load active core source",
+              "the active wide patch helper changed", active_wide_patch_body,
+              active_wide_patch_body_crlf) &&
           active_source_contains(
               job, "/toolchain/cupidasm.c", "load active assembler source",
               "the active wide argument call changed",
@@ -5416,8 +5574,6 @@ static int run_static_data(const char *host_root) {
       "int logical_not(unsigned int value) { return !value; }\n";
   static const char wide_logical_not_text[] =
       "int wide_logical_not(void) { return !1LL; }\n";
-  static const char wide_cast_text[] =
-      "int wide_cast(int value) { return (long long)value; }\n";
   static const char multiplication_text[] =
       "int CANVAS_X = 56;\n"
       "int CANVAS_Y = 20;\n"
@@ -5581,7 +5737,6 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t nonvoid_selection_fallthrough_unit;
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
-  ctool_c_translation_unit_t wide_cast_unit;
   ctool_c_translation_unit_t external_inline_unit;
   ctool_c_translation_unit_t layout_unit;
   ctool_c_translation_unit_t invalid_unit;
@@ -5723,7 +5878,6 @@ static int run_static_data(const char *host_root) {
   (void)memset(&wide_selection_unit, 0, sizeof(wide_selection_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
-  (void)memset(&wide_cast_unit, 0, sizeof(wide_cast_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
@@ -7408,13 +7562,6 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "wide logical-not object") ||
-      !parse_source(job, "/wide-cast.c", wide_cast_text,
-                    &wide_cast_unit) ||
-      !expect_object_failure(
-          job, &wide_cast_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide integer cast object") ||
       !parse_source(job, "/external-inline.c", external_inline_text,
                     &external_inline_unit) ||
       !expect_object_failure(
@@ -10651,6 +10798,7 @@ static int validate_narrow_value_object(
 #define NARROW_ORACLE_EAX 0u
 #define NARROW_ORACLE_ECX 1u
 #define NARROW_ORACLE_EDX 2u
+#define NARROW_ORACLE_EBX 3u
 #define NARROW_ORACLE_ESP 4u
 #define NARROW_ORACLE_EBP 5u
 
@@ -16671,6 +16819,7 @@ static int validate_wide_snapshot_function(
 #define WIDE_ORACLE_TEXT_LIMIT 2048u
 #define WIDE_ORACLE_INITIAL_ESP 204u
 #define WIDE_ORACLE_RETURN_SENTINEL 0x13579bdfu
+#define WIDE_ORACLE_EBX_SENTINEL 0xc3d2e1f0u
 #define WIDE_ORACLE_STEP_LIMIT 4096u
 #define WIDE_ORACLE_CALL_LIMIT 32u
 
@@ -16758,6 +16907,64 @@ static int wide_oracle_relocate_text(
       object, text, NULL, 0u, relocated, relocated_capacity);
 }
 
+static int wide_oracle_shift_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction, ctool_bool *carry_flag,
+    ctool_bool *handled) {
+  ctool_u32 value;
+  ctool_u32 count;
+  ctool_u32 step;
+  if (machine == NULL || instruction == NULL || carry_flag == NULL ||
+      handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if (instruction->mnemonic != CTOOL_X86_MN_SHL &&
+      instruction->mnemonic != CTOOL_X86_MN_SHR &&
+      instruction->mnemonic != CTOOL_X86_MN_SAR &&
+      instruction->mnemonic != CTOOL_X86_MN_RCL &&
+      instruction->mnemonic != CTOOL_X86_MN_RCR) {
+    return 1;
+  }
+  if (instruction->operand_count != 2u ||
+      !narrow_oracle_read_operand(machine, &instruction->operands[0],
+                                  &value) ||
+      !narrow_oracle_read_operand(machine, &instruction->operands[1],
+                                  &count)) {
+    return 0;
+  }
+  count &= 31u;
+  for (step = 0u; step < count; step++) {
+    ctool_bool next_carry;
+    if (instruction->mnemonic == CTOOL_X86_MN_SHL) {
+      next_carry = (value & 0x80000000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+      value <<= 1u;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SHR) {
+      next_carry = (value & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+      value >>= 1u;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SAR) {
+      ctool_u32 sign = value & 0x80000000u;
+      next_carry = (value & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+      value = (value >> 1u) | sign;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_RCL) {
+      next_carry = (value & 0x80000000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+      value = (value << 1u) |
+              (*carry_flag == CTOOL_TRUE ? 1u : 0u);
+    } else {
+      next_carry = (value & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+      value = (value >> 1u) |
+              (*carry_flag == CTOOL_TRUE ? 0x80000000u : 0u);
+    }
+    *carry_flag = next_carry;
+  }
+  if (!narrow_oracle_write_operand(machine, &instruction->operands[0],
+                                   value)) {
+    return 0;
+  }
+  *handled = CTOOL_TRUE;
+  return 1;
+}
+
 static int wide_oracle_flag_step(
     narrow_oracle_machine_t *machine,
     const ctool_x86_instruction_t *instruction, ctool_bool *zero_flag,
@@ -16769,6 +16976,19 @@ static int wide_oracle_flag_step(
     return 0;
   }
   *handled = CTOOL_FALSE;
+  if (instruction->mnemonic == CTOOL_X86_MN_DEC &&
+      instruction->operand_count == 1u &&
+      narrow_oracle_read_operand(machine, &instruction->operands[0],
+                                 &left)) {
+    left--;
+    if (!narrow_oracle_write_operand(machine, &instruction->operands[0],
+                                     left)) {
+      return 0;
+    }
+    *zero_flag = left == 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
   if ((instruction->mnemonic == CTOOL_X86_MN_CMP ||
        instruction->mnemonic == CTOOL_X86_MN_TEST) &&
       instruction->operand_count == 2u) {
@@ -16786,11 +17006,15 @@ static int wide_oracle_flag_step(
     *handled = CTOOL_TRUE;
     return 1;
   }
-  if (instruction->mnemonic == CTOOL_X86_MN_SETE &&
+  if ((instruction->mnemonic == CTOOL_X86_MN_SETE ||
+       instruction->mnemonic == CTOOL_X86_MN_SETNE) &&
       instruction->operand_count == 1u) {
     if (!narrow_oracle_write_operand(
             machine, &instruction->operands[0],
-            *zero_flag == CTOOL_TRUE ? 1u : 0u)) {
+            (instruction->mnemonic == CTOOL_X86_MN_SETE) ==
+                    (*zero_flag == CTOOL_TRUE)
+                ? 1u
+                : 0u)) {
       return 0;
     }
     *handled = CTOOL_TRUE;
@@ -16813,6 +17037,7 @@ static int wide_oracle_execute_arguments(
   ctool_u32 stack_pointer;
   ctool_u32 argument;
   ctool_bool zero_flag = CTOOL_FALSE;
+  ctool_bool carry_flag = CTOOL_FALSE;
   ctool_bool direction_clear = CTOOL_FALSE;
   ctool_bool returned = CTOOL_FALSE;
   if (job == NULL || object == NULL || text == NULL || symbol == NULL ||
@@ -16829,6 +17054,7 @@ static int wide_oracle_execute_arguments(
   (void)memset(&machine, 0, sizeof(machine));
   machine.registers[NARROW_ORACLE_ESP] = WIDE_ORACLE_INITIAL_ESP;
   machine.registers[NARROW_ORACLE_EBP] = 64u;
+  machine.registers[NARROW_ORACLE_EBX] = WIDE_ORACLE_EBX_SENTINEL;
   if (!narrow_oracle_write_memory(&machine, WIDE_ORACLE_INITIAL_ESP, 32u,
                                   WIDE_ORACLE_RETURN_SENTINEL)) {
     return 0;
@@ -16912,13 +17138,17 @@ static int wide_oracle_execute_arguments(
       continue;
     }
     if (instruction->mnemonic == CTOOL_X86_MN_JMP ||
-        instruction->mnemonic == CTOOL_X86_MN_JE) {
+        instruction->mnemonic == CTOOL_X86_MN_JE ||
+        instruction->mnemonic == CTOOL_X86_MN_JNE) {
       if (!call_alignment_branch_target(&decoded, pc,
                                         text->contents.size, &target)) {
         return 0;
       }
       pc = instruction->mnemonic == CTOOL_X86_MN_JMP ||
-                   zero_flag == CTOOL_TRUE
+                   (instruction->mnemonic == CTOOL_X86_MN_JE &&
+                    zero_flag == CTOOL_TRUE) ||
+                   (instruction->mnemonic == CTOOL_X86_MN_JNE &&
+                    zero_flag == CTOOL_FALSE)
                ? target
                : next_pc;
       continue;
@@ -16966,8 +17196,11 @@ static int wide_oracle_execute_arguments(
       pc = next_pc;
       continue;
     }
-    if (!wide_oracle_flag_step(&machine, instruction, &zero_flag,
-                               &handled) ||
+    if (!wide_oracle_shift_step(&machine, instruction, &carry_flag,
+                                &handled) ||
+        (handled == CTOOL_FALSE &&
+         !wide_oracle_flag_step(&machine, instruction, &zero_flag,
+                                &handled)) ||
         (handled == CTOOL_FALSE &&
          !narrow_oracle_step(&machine, instruction, &leaf_return)) ||
         leaf_return != CTOOL_FALSE) {
@@ -16982,6 +17215,7 @@ static int wide_oracle_execute_arguments(
       step_count >= WIDE_ORACLE_STEP_LIMIT ||
       machine.registers[NARROW_ORACLE_ESP] != WIDE_ORACLE_INITIAL_ESP + 4u ||
       machine.registers[NARROW_ORACLE_EBP] != 64u ||
+      machine.registers[NARROW_ORACLE_EBX] != WIDE_ORACLE_EBX_SENTINEL ||
       !narrow_oracle_read_memory(&machine, WIDE_ORACLE_INITIAL_ESP, 32u,
                                  &preserved) ||
       preserved != WIDE_ORACLE_RETURN_SENTINEL) {
@@ -17775,6 +18009,332 @@ static int validate_wide_parameter_object(
              : 0;
 }
 
+static int expect_wide_oracle_result(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, const char *symbol_name,
+    const ctool_u32 *arguments, ctool_u32 argument_count,
+    ctool_u32 expected_low, ctool_u32 expected_high,
+    const char *context) {
+  const ctool_elf32_symbol_t *symbol = find_symbol(object, symbol_name);
+  ctool_u32 low;
+  ctool_u32 high;
+  if (!wide_function_symbol_is_valid(object, text, symbol) ||
+      !wide_oracle_execute_arguments(job, object, text, symbol, arguments,
+                                     argument_count, &low, &high) ||
+      low != expected_low || high != expected_high) {
+    (void)fprintf(stderr, "%s: wide execution result differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int expect_wide_oracle_low_result(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, const char *symbol_name,
+    const ctool_u32 *arguments, ctool_u32 argument_count,
+    ctool_u32 expected_low, const char *context) {
+  const ctool_elf32_symbol_t *symbol = find_symbol(object, symbol_name);
+  ctool_u32 low;
+  ctool_u32 ignored_high;
+  if (!wide_function_symbol_is_valid(object, text, symbol) ||
+      !wide_oracle_execute_arguments(job, object, text, symbol, arguments,
+                                     argument_count, &low, &ignored_high) ||
+      low != expected_low) {
+    (void)fprintf(stderr, "%s: scalar execution result differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_conversion_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_u32 widen_unsigned_arguments[] = {0x89abcdefu};
+  const ctool_u32 widen_signed_arguments[] = {0x80000001u};
+  const ctool_u32 widen_byte_arguments[] = {0x000000ffu};
+  const ctool_u32 widen_word_arguments[] = {0xffff8001u};
+  const ctool_u32 cast_signed_byte_arguments[] = {0xffffff80u};
+  const ctool_u32 cast_unsigned_word_arguments[] = {0x0000ffffu};
+  const ctool_u32 retype_assignment_arguments[] = {
+      0x89abcdefu, 0x81234567u};
+  const ctool_u32 narrow_unsigned_arguments[] = {
+      0x89abcdefu, 0x81234567u};
+  const ctool_u32 narrow_byte_arguments[] = {0x123400ffu, 0x81234567u};
+  const ctool_u32 narrow_word_arguments[] = {0x1234ffffu, 0x81234567u};
+  const ctool_u32 narrow_assignment_arguments[] = {
+      0x12348001u, 0x81234567u};
+  const ctool_u32 narrow_signed_arguments[] = {0x00000080u, 0xffffffffu};
+  const ctool_u32 narrow_signed_word_arguments[] = {
+      0x00008000u, 0xffffffffu};
+  const ctool_u32 bool_zero_arguments[] = {0u, 0u};
+  const ctool_u32 bool_low_arguments[] = {1u, 0u};
+  const ctool_u32 bool_high_arguments[] = {0u, 1u};
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size == 0u ||
+      object->relocation_count != 0u || text->relocation_count != 0u) {
+    (void)fprintf(stderr, "wide conversion object inventory differs\n");
+    return 0;
+  }
+  return expect_wide_oracle_result(
+             job, object, text, "widen_unsigned", widen_unsigned_arguments,
+             1u, 0x89abcdefu, 0u, "unsigned wide conversion") &&
+         expect_wide_oracle_result(
+             job, object, text, "widen_signed", widen_signed_arguments, 1u,
+             0x80000001u, 0xffffffffu, "signed wide conversion") &&
+         expect_wide_oracle_result(
+             job, object, text, "widen_byte", widen_byte_arguments, 1u,
+             0x000000ffu, 0u, "unsigned byte widening") &&
+         expect_wide_oracle_result(
+             job, object, text, "widen_word", widen_word_arguments, 1u,
+             0xffff8001u, 0xffffffffu, "signed word widening") &&
+         expect_wide_oracle_result(
+             job, object, text, "cast_signed_byte",
+             cast_signed_byte_arguments, 1u, 0xffffff80u, 0xffffffffu,
+             "explicit signed byte widening") &&
+         expect_wide_oracle_result(
+             job, object, text, "cast_unsigned_word",
+             cast_unsigned_word_arguments, 1u, 0x0000ffffu, 0u,
+             "explicit unsigned word widening") &&
+         expect_wide_oracle_result(
+             job, object, text, "retype_assignment",
+             retype_assignment_arguments, 2u, 0x89abcdefu, 0x81234567u,
+             "wide assignment retyping") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_unsigned", narrow_unsigned_arguments,
+             2u, 0x89abcdefu, "unsigned word narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_byte", narrow_byte_arguments, 2u,
+             0x000000ffu, "unsigned byte narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_word", narrow_word_arguments, 2u,
+             0x0000ffffu, "unsigned short narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_assignment",
+             narrow_assignment_arguments, 2u, 0x00008001u,
+             "implicit unsigned short narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_signed", narrow_signed_arguments, 2u,
+             0xffffff80u, "signed byte narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_signed_word",
+             narrow_signed_word_arguments, 2u, 0xffff8000u,
+             "signed short narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_bool", bool_zero_arguments, 2u, 0u,
+             "zero Boolean narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_bool", bool_low_arguments, 2u, 1u,
+             "low-word Boolean narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "narrow_bool", bool_high_arguments, 2u, 1u,
+             "high-word Boolean narrowing");
+}
+
+static int validate_wide_shift_branches(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, const char *context) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 zero_branches = 0u;
+  ctool_u32 repeat_branches = 0u;
+  if (job == NULL || text == NULL || symbol == NULL || context == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_u32 target;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_JE ||
+        decoded.instruction.mnemonic == CTOOL_X86_MN_JNE) {
+      if (!call_alignment_branch_target(
+              &decoded, symbol->value + cursor, text->contents.size,
+              &target) ||
+          target < symbol->value || target >= symbol->value + symbol->size) {
+        (void)fprintf(stderr, "%s: branch leaves its function\n", context);
+        return 0;
+      }
+      if (decoded.instruction.mnemonic == CTOOL_X86_MN_JE) {
+        zero_branches++;
+      } else {
+        repeat_branches++;
+      }
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && zero_branches == 1u &&
+                 repeat_branches == 1u
+             ? 1
+             : 0;
+}
+
+static int validate_wide_operation_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 extracted[] = {
+      0xefu, 0xcdu, 0xabu, 0x89u, 0x67u, 0x45u, 0x23u, 0x81u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *shift_left =
+      find_symbol(object, "shift_left");
+  const ctool_elf32_symbol_t *shift_right_unsigned =
+      find_symbol(object, "shift_right_unsigned");
+  const ctool_elf32_symbol_t *shift_right_signed =
+      find_symbol(object, "shift_right_signed");
+  const ctool_elf32_symbol_t *extract_byte =
+      find_symbol(object, "extract_byte");
+  const ctool_u32 bitwise_arguments[] = {
+      0x89abcdefu, 0x81234567u, 0xaa55aa55u, 0x0ff00ff0u};
+  ctool_u32 shift_arguments[] = {0x89abcdefu, 0x81234567u, 0u};
+  const uint64_t value = UINT64_C(0x8123456789abcdef);
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size == 0u ||
+      object->relocation_count != 0u || text->relocation_count != 0u) {
+    (void)fprintf(stderr, "wide operation object inventory differs\n");
+    return 0;
+  }
+  if (!wide_function_symbol_is_valid(object, text, shift_left) ||
+      !wide_function_symbol_is_valid(object, text,
+                                     shift_right_unsigned) ||
+      !wide_function_symbol_is_valid(object, text, shift_right_signed) ||
+      !wide_function_symbol_is_valid(object, text, extract_byte) ||
+      !validate_wide_shift_branches(
+          job, text, shift_left, "wide left shift") ||
+      !validate_wide_shift_branches(
+          job, text, shift_right_unsigned, "unsigned wide right shift") ||
+      !validate_wide_shift_branches(
+          job, text, shift_right_signed, "signed wide right shift") ||
+      !validate_wide_shift_branches(
+          job, text, extract_byte, "wide byte extraction")) {
+    return 0;
+  }
+  for (index = 0u; index < 64u; index++) {
+    uint64_t expected_left = value << index;
+    uint64_t expected_unsigned = value >> index;
+    uint64_t expected_signed =
+        index == 0u
+            ? value
+            : (value >> index) |
+                  (~UINT64_C(0) << (64u - index));
+    shift_arguments[2] = index;
+    if (!expect_wide_oracle_result(
+            job, object, text, "shift_left", shift_arguments, 3u,
+            (ctool_u32)expected_left,
+            (ctool_u32)(expected_left >> 32u), "wide left shift") ||
+        !expect_wide_oracle_result(
+            job, object, text, "shift_right_unsigned", shift_arguments, 3u,
+            (ctool_u32)expected_unsigned,
+            (ctool_u32)(expected_unsigned >> 32u),
+            "unsigned wide right shift") ||
+        !expect_wide_oracle_result(
+            job, object, text, "shift_right_signed", shift_arguments, 3u,
+            (ctool_u32)expected_signed,
+            (ctool_u32)(expected_signed >> 32u),
+            "signed wide right shift")) {
+      return 0;
+    }
+  }
+  if (!expect_wide_oracle_result(
+          job, object, text, "bitwise_and", bitwise_arguments, 4u,
+          0x88018845u, 0x01200560u, "wide bitwise AND") ||
+      !expect_wide_oracle_result(
+          job, object, text, "bitwise_mixed", bitwise_arguments, 4u,
+          0x88018845u, 0x01200560u,
+          "mixed-signedness wide bitwise AND") ||
+      !expect_wide_oracle_result(
+          job, object, text, "bitwise_enum", bitwise_arguments, 4u,
+          0x88018845u, 0x01200560u,
+          "wide enum bitwise AND") ||
+      !expect_wide_oracle_result(
+          job, object, text, "bitwise_or", bitwise_arguments, 4u,
+          0xabffefffu, 0x8ff34ff7u, "wide bitwise OR") ||
+      !expect_wide_oracle_result(
+          job, object, text, "bitwise_xor", bitwise_arguments, 4u,
+          0x23fe67bau, 0x8ed34a97u, "wide bitwise XOR")) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(extracted) / sizeof(extracted[0]));
+       index++) {
+    shift_arguments[2] = index;
+    if (!expect_wide_oracle_low_result(
+            job, object, text, "extract_byte", shift_arguments, 3u,
+            (ctool_u32)extracted[index], "wide byte extraction")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_active_wide_helper_object(
+    const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *put =
+      find_symbol(object, "ctool_buffer_put_le64");
+  const ctool_elf32_symbol_t *patch =
+      find_symbol(object, "ctool_buffer_patch_le64");
+  ctool_u32 ctool_bytes_calls = 0u;
+  ctool_u32 append_calls = 0u;
+  ctool_u32 patch_calls = 0u;
+  ctool_u32 index;
+  if (object == NULL || text == NULL || rel_text == NULL ||
+      !wide_function_symbol_is_valid(object, text, put) ||
+      !wide_function_symbol_is_valid(object, text, patch) ||
+      object->relocation_count != 3u || text->relocation_count != 3u) {
+    (void)fprintf(stderr, "active wide helper object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation = &object->relocations[index];
+    const ctool_elf32_symbol_t *target = wide_oracle_symbol_by_file_index(
+        object, relocation->symbol_file_index);
+    const ctool_elf32_symbol_t *caller;
+    if (relocation->offset >= put->value &&
+        relocation->offset - put->value < put->size) {
+      caller = put;
+    } else if (relocation->offset >= patch->value &&
+               relocation->offset - patch->value < patch->size) {
+      caller = patch;
+    } else {
+      return 0;
+    }
+    if (target == NULL ||
+        target->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+        relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_PC32 ||
+        relocation->addend_known != CTOOL_TRUE || relocation->addend != -4 ||
+        caller->size < 4u || relocation->offset < caller->value ||
+        relocation->offset - caller->value > caller->size - 4u) {
+      return 0;
+    }
+    if (string_equal(target->name, "ctool_bytes") != 0 && caller == put) {
+      ctool_bytes_calls++;
+    } else if (string_equal(target->name, "ctool_buffer_append") != 0 &&
+               caller == put) {
+      append_calls++;
+    } else if (string_equal(target->name, "ctool_buffer_patch") != 0 &&
+               caller == patch) {
+      patch_calls++;
+    } else {
+      return 0;
+    }
+  }
+  return ctool_bytes_calls == 1u && append_calls == 1u && patch_calls == 1u
+             ? 1
+             : 0;
+}
+
 static int run_wide_return_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -17783,17 +18343,45 @@ static int run_wide_return_object(const char *host_root) {
   ctool_buffer_t *second = (ctool_buffer_t *)0;
   ctool_buffer_t *parameter_output = (ctool_buffer_t *)0;
   ctool_buffer_t *parameter_repeat = (ctool_buffer_t *)0;
+  ctool_buffer_t *conversion_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *conversion_repeat = (ctool_buffer_t *)0;
+  ctool_buffer_t *operation_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *operation_repeat = (ctool_buffer_t *)0;
+  ctool_buffer_t *active_helper_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *active_helper_repeat = (ctool_buffer_t *)0;
   ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t parameter_unit;
   ctool_c_translation_unit_t variadic_argument_unit;
   ctool_c_translation_unit_t unprototyped_argument_unit;
+  ctool_c_translation_unit_t conversion_unit;
+  ctool_c_translation_unit_t invalid_conversion_unit;
+  ctool_c_translation_unit_t invalid_reverse_conversion_unit;
+  ctool_c_translation_unit_t operation_unit;
+  ctool_c_translation_unit_t invalid_promotion_unit;
+  ctool_c_translation_unit_t wide_count_operation_unit;
+  ctool_c_translation_unit_t active_helper_unit;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
   ctool_bytes_t parameter_bytes;
   ctool_bytes_t parameter_repeat_bytes;
+  ctool_bytes_t conversion_bytes;
+  ctool_bytes_t conversion_repeat_bytes;
+  ctool_bytes_t operation_bytes;
+  ctool_bytes_t operation_repeat_bytes;
+  ctool_bytes_t active_helper_bytes;
+  ctool_bytes_t active_helper_repeat_bytes;
+  ctool_c_expression_t *invalid_conversion_expressions = NULL;
+  ctool_c_expression_t *invalid_reverse_conversion_expressions = NULL;
+  ctool_c_expression_t *invalid_promotion_expressions = NULL;
+  ctool_u32 narrowing_conversion = CTOOL_C_AST_NONE;
+  ctool_u32 reverse_conversion = CTOOL_C_AST_NONE;
+  ctool_u32 wide_enum_promotion = CTOOL_C_AST_NONE;
+  ctool_u32 unsigned_wide_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
@@ -17802,6 +18390,11 @@ static int run_wide_return_object(const char *host_root) {
                sizeof(variadic_argument_unit));
   (void)memset(&unprototyped_argument_unit, 0,
                sizeof(unprototyped_argument_unit));
+  (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
+  (void)memset(&operation_unit, 0, sizeof(operation_unit));
+  (void)memset(&wide_count_operation_unit, 0,
+               sizeof(wide_count_operation_unit));
+  (void)memset(&active_helper_unit, 0, sizeof(active_helper_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_object_sources_are_unchanged(job) ||
       !parse_source(job, "/wide-return-object.c", wide_return_object_source,
@@ -17814,9 +18407,147 @@ static int run_wide_return_object(const char *host_root) {
                     &variadic_argument_unit) ||
       !parse_source(job, "/wide-unprototyped-argument-object.c",
                     wide_unprototyped_argument_object_source,
-                    &unprototyped_argument_unit)) {
+                    &unprototyped_argument_unit) ||
+      !parse_source(job, "/wide-conversion-object.c",
+                    wide_conversion_object_source, &conversion_unit) ||
+      !parse_source_mode(job, "/wide-operation-object.c",
+                         wide_operation_object_source, CTOOL_TRUE,
+                         &operation_unit) ||
+      !parse_source(job, "/wide-count-operation-object.c",
+                    wide_count_operation_object_source,
+                    &wide_count_operation_unit) ||
+      !parse_source(job, "/active-wide-helper-object.c",
+                    active_wide_helper_object_source,
+                    &active_helper_unit)) {
     goto cleanup;
   }
+  for (index = 0u; index < conversion_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &conversion_unit.expressions[index];
+    ctool_u32 child;
+    if (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        expression->conversion != CTOOL_C_CONVERSION_ASSIGNMENT ||
+        expression->child_count != 1u ||
+        expression->first_child >= conversion_unit.expression_child_count) {
+      continue;
+    }
+    child = conversion_unit.expression_children[expression->first_child];
+    if (child >= conversion_unit.expression_count ||
+        expression->type >= conversion_unit.layout.type_count ||
+        conversion_unit.expressions[child].type >=
+            conversion_unit.layout.type_count) {
+      continue;
+    }
+    if (conversion_unit.layout.types[expression->type].size == 2u &&
+        conversion_unit.layout.types
+                [conversion_unit.expressions[child].type]
+                    .size == 8u) {
+      narrowing_conversion = index;
+    } else if (conversion_unit.layout.types[expression->type].size == 8u &&
+               conversion_unit.layout.types[expression->type].is_signed ==
+                   CTOOL_TRUE &&
+               conversion_unit.layout.types
+                       [conversion_unit.expressions[child].type]
+                           .size == 8u &&
+               conversion_unit.layout.types
+                       [conversion_unit.expressions[child].type]
+                           .is_signed == CTOOL_FALSE) {
+      reverse_conversion = index;
+    }
+  }
+  if (narrowing_conversion == CTOOL_C_AST_NONE ||
+      reverse_conversion == CTOOL_C_AST_NONE ||
+      conversion_unit.expression_count == 0u ||
+      sizeof(*invalid_conversion_expressions) >
+          SIZE_MAX / (size_t)conversion_unit.expression_count) {
+    (void)fprintf(stderr,
+                  "wide object conversion fixture metadata differs\n");
+    goto cleanup;
+  }
+  invalid_conversion_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)conversion_unit.expression_count *
+      sizeof(*invalid_conversion_expressions));
+  invalid_reverse_conversion_expressions =
+      (ctool_c_expression_t *)malloc(
+          (size_t)conversion_unit.expression_count *
+          sizeof(*invalid_reverse_conversion_expressions));
+  if (invalid_conversion_expressions == NULL ||
+      invalid_reverse_conversion_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_conversion_expressions, conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_conversion_expressions));
+  invalid_conversion_expressions[narrowing_conversion].conversion =
+      CTOOL_C_CONVERSION_INTEGER_PROMOTION;
+  (void)memcpy(invalid_reverse_conversion_expressions,
+               conversion_unit.expressions,
+               (size_t)conversion_unit.expression_count *
+                   sizeof(*invalid_reverse_conversion_expressions));
+  invalid_reverse_conversion_expressions[reverse_conversion].conversion =
+      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
+  invalid_conversion_unit = conversion_unit;
+  invalid_conversion_unit.expressions = invalid_conversion_expressions;
+  invalid_reverse_conversion_unit = conversion_unit;
+  invalid_reverse_conversion_unit.expressions =
+      invalid_reverse_conversion_expressions;
+  for (index = 0u; index < operation_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &operation_unit.expressions[index];
+    ctool_u32 child;
+    if (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        expression->child_count != 1u ||
+        expression->first_child >= operation_unit.expression_child_count ||
+        expression->type >= operation_unit.layout.type_count) {
+      continue;
+    }
+    child = operation_unit.expression_children[expression->first_child];
+    if (child >= operation_unit.expression_count ||
+        operation_unit.expressions[child].type >=
+            operation_unit.layout.type_count ||
+        operation_unit.expressions[child].type >=
+            operation_unit.graph.type_count) {
+      continue;
+    }
+    if (expression->conversion == CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+        operation_unit.layout.types[expression->type].size == 8u &&
+        operation_unit.layout.types
+                [operation_unit.expressions[child].type]
+                    .size == 8u &&
+        operation_unit.graph.types
+                [operation_unit.expressions[child].type]
+                    .kind == CTOOL_C_TYPE_ENUM) {
+      wide_enum_promotion = index;
+    } else if (expression->conversion ==
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+               operation_unit.layout.types[expression->type].size == 8u &&
+               operation_unit.layout.types[expression->type].is_signed ==
+                   CTOOL_FALSE) {
+      unsigned_wide_type = expression->type;
+    }
+  }
+  if (wide_enum_promotion == CTOOL_C_AST_NONE ||
+      unsigned_wide_type == CTOOL_C_TYPE_NONE ||
+      operation_unit.expression_count == 0u ||
+      sizeof(*invalid_promotion_expressions) >
+          SIZE_MAX / (size_t)operation_unit.expression_count) {
+    (void)fprintf(stderr,
+                  "wide object promotion fixture metadata differs\n");
+    goto cleanup;
+  }
+  invalid_promotion_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)operation_unit.expression_count *
+      sizeof(*invalid_promotion_expressions));
+  if (invalid_promotion_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_promotion_expressions, operation_unit.expressions,
+               (size_t)operation_unit.expression_count *
+                   sizeof(*invalid_promotion_expressions));
+  invalid_promotion_expressions[wide_enum_promotion].type =
+      unsigned_wide_type;
+  invalid_promotion_unit = operation_unit;
+  invalid_promotion_unit.expressions = invalid_promotion_expressions;
   status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
                                  &first);
   if (status == CTOOL_OK) {
@@ -17833,7 +18564,34 @@ static int run_wide_return_object(const char *host_root) {
   }
   if (status == CTOOL_OK) {
     status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &conversion_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &conversion_repeat);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &operation_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &operation_repeat);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &active_helper_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &active_helper_repeat);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
                                    &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
   }
   if (!check_status(status, CTOOL_OK, "wide return object buffers") ||
       !expect_object_success_preserves_unit(job, &unit, first,
@@ -17892,15 +18650,135 @@ static int run_wide_return_object(const char *host_root) {
           CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
           "CupidC IR lowering supports arguments without declared "
           "parameter types only for represented scalar values",
-          "wide unprototyped argument object")) {
+          "wide unprototyped argument object") ||
+      !expect_object_success_preserves_unit(
+          job, &conversion_unit, conversion_output,
+          "wide conversion object") ||
+      !expect_object_success_preserves_unit(
+          job, &conversion_unit, conversion_repeat,
+          "repeat wide conversion object") ||
+      !expect_object_success_preserves_unit(
+          job, &operation_unit, operation_output,
+          "wide operation object") ||
+      !expect_object_success_preserves_unit(
+          job, &operation_unit, operation_repeat,
+          "repeat wide operation object") ||
+      !expect_object_failure_preserves_unit(
+          job, &wide_count_operation_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "wide shift count object") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_conversion_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide object narrowing mislabeled as integer promotion") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_reverse_conversion_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unsigned wide object conversion mislabeled as usual "
+          "arithmetic") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_promotion_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide enum object promotion to the wrong compatible type") ||
+      !expect_object_success_preserves_unit(
+          job, &active_helper_unit, active_helper_output,
+          "active wide helper object") ||
+      !expect_object_success_preserves_unit(
+          job, &active_helper_unit, active_helper_repeat,
+          "repeat active wide helper object") ||
+      !expect_object_failure_preserves_unit(
+          job, &operation_unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited wide operation object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(operation_output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &operation_unit, operation_output,
+          "recovered wide operation object")) {
+    goto cleanup;
+  }
+  conversion_bytes = ctool_buffer_view(conversion_output);
+  conversion_repeat_bytes = ctool_buffer_view(conversion_repeat);
+  operation_bytes = ctool_buffer_view(operation_output);
+  operation_repeat_bytes = ctool_buffer_view(operation_repeat);
+  active_helper_bytes = ctool_buffer_view(active_helper_output);
+  active_helper_repeat_bytes = ctool_buffer_view(active_helper_repeat);
+  if (conversion_bytes.size != conversion_repeat_bytes.size ||
+      memcmp(conversion_bytes.data, conversion_repeat_bytes.data,
+             (size_t)conversion_bytes.size) != 0 ||
+      operation_bytes.size != operation_repeat_bytes.size ||
+      memcmp(operation_bytes.data, operation_repeat_bytes.data,
+             (size_t)operation_bytes.size) != 0 ||
+      active_helper_bytes.size != active_helper_repeat_bytes.size ||
+      memcmp(active_helper_bytes.data, active_helper_repeat_bytes.data,
+             (size_t)active_helper_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "wide conversion or operation objects are not "
+                  "deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-conversion-object.o");
+  object_source.contents = conversion_repeat_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide conversion object") ||
+      !validate_wide_conversion_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-operation-object.o");
+  object_source.contents = operation_repeat_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide operation object") ||
+      !validate_wide_operation_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/active-wide-helper-object.o");
+  object_source.contents = active_helper_repeat_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read active wide helper object") ||
+      !validate_active_wide_helper_object(&object)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   passed = 1;
 
 cleanup:
+  free(invalid_conversion_expressions);
+  free(invalid_reverse_conversion_expressions);
+  free(invalid_promotion_expressions);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
   if (failure != (ctool_buffer_t *)0) {
     ctool_buffer_close(failure);
+  }
+  if (active_helper_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(active_helper_output);
+  }
+  if (active_helper_repeat != (ctool_buffer_t *)0) {
+    ctool_buffer_close(active_helper_repeat);
+  }
+  if (operation_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(operation_output);
+  }
+  if (operation_repeat != (ctool_buffer_t *)0) {
+    ctool_buffer_close(operation_repeat);
+  }
+  if (conversion_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(conversion_output);
+  }
+  if (conversion_repeat != (ctool_buffer_t *)0) {
+    ctool_buffer_close(conversion_repeat);
   }
   if (parameter_repeat != (ctool_buffer_t *)0) {
     ctool_buffer_close(parameter_repeat);

@@ -6755,10 +6755,10 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 174u, 5329u,
-       46660u, 649u, 212u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 136u, 3364u,
-       30148u, 446u, 223u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 176u, 5357u,
+       46961u, 654u, 216u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 144u, 3599u,
+       31754u, 469u, 239u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 303u,
        11901u, 77125u, 1765u, 1205u, 0u, 0u}};
   ctool_u32 index;

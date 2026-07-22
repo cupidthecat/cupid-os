@@ -137,8 +137,14 @@ ordinary members, and indexed elements can be initialized, loaded, assigned,
 chained, discarded, and returned. A declared wide argument occupies eight
 cdecl stack bytes, and later parameter addresses include its full width. The
 i386 return boundary places the low word in EAX and the high word in EDX.
-Values passed through an ellipsis or an unprototyped call, wide conditions,
-arithmetic, mutation, and mixed-width conversion remain unsupported.
+Left shift, signed or unsigned right shift, AND, OR, XOR, and conversion to
+or from represented byte, word, and doubleword integers use the same snapshot
+path. Signed long long converts to unsigned long long when the usual arithmetic
+rules select the unsigned type. In GNU mode, a wide enum promotes to its exact
+compatible signed or unsigned wide type. The complete ctool_buffer_put_le64
+and ctool_buffer_patch_le64 bodies now lower and emit unchanged. Values
+passed through an ellipsis or an unprototyped call, wide conditions, other
+arithmetic, and mutation remain unsupported.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -283,9 +289,10 @@ than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field initializer leaves, Boolean mutation, wide conditions
-and arithmetic, floating-point runtime values, wider or aggregate variadic
-values, wide strings, literal pooling, and block-static addresses in other
-block-static initializers remain unfinished in the shared path.
+and arithmetic beyond shifts and bitwise operations, floating-point runtime
+values, wider or aggregate variadic values, wide strings, literal pooling, and
+block-static addresses in other block-static initializers remain unfinished
+in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C
 compiler for its C objects, and the private in-kernel CupidC compiler still

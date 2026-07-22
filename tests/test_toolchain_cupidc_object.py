@@ -322,6 +322,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "block-records: ok\n")
 
+    def test_wide_shifts_bitwise_operations_and_conversions_execute(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-returns", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-returns: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

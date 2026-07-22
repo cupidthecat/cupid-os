@@ -35,3 +35,7 @@ ADR 0066 carries the same one-handle value through file, block-static, automatic
 ## Extension: eight-byte integer parameters
 
 ADR 0067 uses the same snapshot handle for declared wide parameters and named call arguments. The caller copies eight bytes into the outgoing cdecl area, and the callee copies the parameter into a new value snapshot. Values passed through an ellipsis or an unprototyped call remain unsupported.
+
+## Extension: wide operations and mixed-width conversion
+
+ADR 0068 gives wide shift, AND, OR, XOR, widening, and narrowing results their own snapshots. Public IR still carries one logical value, and the return path still restores EDX:EAX. Wide arithmetic outside that named set remains open.

@@ -1352,6 +1352,14 @@ static ctool_bool cir_promoted_i32_integer_kind(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_wide_standard_integer_kind(
+    ctool_c_type_kind_t kind) {
+  return kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+                 kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_integer_promotion_is_valid(
     const cir_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type) {
@@ -1361,8 +1369,7 @@ static ctool_bool cir_integer_promotion_is_valid(
       cir_unwrapped_type(context, target_type);
   ctool_c_type_kind_t expected;
   if (source == (const ctool_c_type_node_t *)0 ||
-      target == (const ctool_c_type_node_t *)0 ||
-      cir_type_is_i32_integer(context, target_type) == CTOOL_FALSE) {
+      target == (const ctool_c_type_node_t *)0) {
     return CTOOL_FALSE;
   }
   if (source->kind == CTOOL_C_TYPE_ENUM) {
@@ -1379,9 +1386,14 @@ static ctool_bool cir_integer_promotion_is_valid(
   } else {
     return CTOOL_FALSE;
   }
-  return cir_promoted_i32_integer_kind(expected) == CTOOL_TRUE &&
-                 target->kind == expected
-             ? CTOOL_TRUE
+  if (target->kind != expected) {
+    return CTOOL_FALSE;
+  }
+  if (cir_type_is_i32_integer(context, target_type) == CTOOL_TRUE) {
+    return cir_promoted_i32_integer_kind(expected);
+  }
+  return cir_type_is_wide_integer(context, target_type) == CTOOL_TRUE
+             ? cir_wide_standard_integer_kind(expected)
              : CTOOL_FALSE;
 }
 
@@ -1415,22 +1427,59 @@ static ctool_bool cir_usual_integer_conversion_is_valid(
   return CTOOL_FALSE;
 }
 
+static ctool_bool cir_wide_usual_integer_conversion_is_valid(
+    const cir_context_t *context, ctool_u32 source_type,
+    ctool_u32 target_type) {
+  const ctool_c_type_node_t *source =
+      cir_unwrapped_type(context, source_type);
+  const ctool_c_type_node_t *target =
+      cir_unwrapped_type(context, target_type);
+  if (source == (const ctool_c_type_node_t *)0 ||
+      target == (const ctool_c_type_node_t *)0 ||
+      cir_type_is_wide_integer(context, target_type) == CTOOL_FALSE ||
+      cir_wide_standard_integer_kind(target->kind) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (cir_type_is_wide_integer(context, source_type) == CTOOL_TRUE) {
+    return source->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG &&
+                   target->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  return cir_type_is_i32_integer(context, source_type) == CTOOL_TRUE
+             ? cir_promoted_i32_integer_kind(source->kind)
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_integer_conversion_is_valid(
     const cir_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
-  if (cir_type_is_wide_integer(context, source_type) == CTOOL_TRUE ||
-      cir_type_is_wide_integer(context, target_type) == CTOOL_TRUE) {
-    if (cir_type_is_wide_integer(context, source_type) == CTOOL_FALSE ||
-        cir_type_is_wide_integer(context, target_type) == CTOOL_FALSE) {
+  ctool_bool source_wide = cir_type_is_wide_integer(context, source_type);
+  ctool_bool target_wide = cir_type_is_wide_integer(context, target_type);
+  if (source_wide == CTOOL_TRUE || target_wide == CTOOL_TRUE) {
+    if (cir_type_is_value_integer(context, source_type) == CTOOL_FALSE ||
+        cir_type_is_value_integer(context, target_type) == CTOOL_FALSE) {
       return CTOOL_FALSE;
     }
     if (conversion == CTOOL_C_CONVERSION_NONE ||
         conversion == CTOOL_C_CONVERSION_ASSIGNMENT) {
       return CTOOL_TRUE;
     }
-    return conversion == CTOOL_C_CONVERSION_QUALIFICATION
-               ? cir_integer_value_types_match(context, source_type,
-                                                target_type)
+    if (conversion == CTOOL_C_CONVERSION_QUALIFICATION) {
+      return source_wide == CTOOL_TRUE && target_wide == CTOOL_TRUE
+                 ? cir_integer_value_types_match(context, source_type,
+                                                  target_type)
+                 : CTOOL_FALSE;
+    }
+    if (conversion == CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+      return source_wide == CTOOL_TRUE && target_wide == CTOOL_TRUE
+                 ? cir_integer_promotion_is_valid(
+                       context, source_type, target_type)
+                 : CTOOL_FALSE;
+    }
+    return conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC
+               ? cir_wide_usual_integer_conversion_is_valid(
+                     context, source_type, target_type)
                : CTOOL_FALSE;
   }
   if (cir_type_is_represented_integer(context, source_type) == CTOOL_FALSE ||
@@ -2273,8 +2322,8 @@ static ctool_status_t cir_lower_cast(
              context, source_type) == CTOOL_TRUE &&
          cir_type_is_represented_integer(context, expression->type) ==
              CTOOL_TRUE) ||
-        (cir_type_is_wide_integer(context, source_type) == CTOOL_TRUE &&
-         cir_type_is_wide_integer(context, expression->type) ==
+        (cir_type_is_value_integer(context, source_type) == CTOOL_TRUE &&
+         cir_type_is_value_integer(context, expression->type) ==
              CTOOL_TRUE))) {
     return cir_unsupported_type(context, &expression->location);
   }
@@ -2398,6 +2447,7 @@ static ctool_status_t cir_lower_binary(
   ctool_bool is_relational_comparison;
   ctool_bool is_shift;
   ctool_bool is_bitwise_xor;
+  ctool_bool is_wide_integer_binary;
   ctool_u32 left_child;
   ctool_u32 right_child;
   ctool_status_t status;
@@ -2471,6 +2521,22 @@ static ctool_status_t cir_lower_binary(
                            CTOOL_C_EXPRESSION_OPERATOR_BITWISE_XOR
                        ? CTOOL_TRUE
                        : CTOOL_FALSE;
+  is_wide_integer_binary =
+      cir_type_is_wide_integer(context, expression->type) == CTOOL_TRUE &&
+              cir_type_is_wide_integer(context, left.type) == CTOOL_TRUE &&
+              ((is_shift == CTOOL_TRUE && expression->type == left.type &&
+                cir_type_is_i32_integer(context, right.type) ==
+                    CTOOL_TRUE) ||
+               ((expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND ||
+                 expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR ||
+                 is_bitwise_xor == CTOOL_TRUE) &&
+                expression->type == left.type && left.type == right.type &&
+                cir_type_is_wide_integer(context, right.type) ==
+                    CTOOL_TRUE))
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (is_pointer_arithmetic == CTOOL_TRUE) {
     return cir_append_pointer_binary(
         context, &left, &right, expression->type, expression->operation,
@@ -2478,8 +2544,10 @@ static ctool_status_t cir_lower_binary(
   }
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
       (is_pointer_comparison == CTOOL_FALSE &&
+       is_wide_integer_binary == CTOOL_FALSE &&
        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) ||
       (is_pointer_comparison == CTOOL_FALSE &&
+       is_wide_integer_binary == CTOOL_FALSE &&
        (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
         cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE))) {
     return cir_emit_failure(

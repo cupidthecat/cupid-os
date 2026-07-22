@@ -5602,3 +5602,58 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide shifts, arithmetic, conditions, mutation, mixed-width conversion, undeclared wide argument positions, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-21: CupidC lowers wide integer shifts and conversions
+
+### Decision and active requirement
+
+Hosted CupidC now lowers left shift, signed and unsigned right shift, AND, OR, and XOR for eight-byte integers. It also converts between represented integer widths and signed or unsigned eight-byte integers. The complete unchanged `ctool_buffer_put_le64` and `ctool_buffer_patch_le64` functions in `toolchain/ctool.c` drive this work.
+
+Each operation still produces one Linear IR value backed by a private eight-byte frame snapshot. Bitwise operations combine the low and high words separately. A left shift uses `SHL` and `RCL`; a logical right shift uses `SHR` and `RCR`; and a signed right shift uses `SAR` and `RCR`. The count stays a represented integer, and the backend handles every C-defined count from zero through 63. An eight-byte count remains unsupported.
+
+Widening first canonicalizes the represented source. Unsigned values clear the high word, while signed values fill it from the source sign. Narrowing reads the low word and then applies the target byte, word, Boolean, or doubleword conversion. Conversion to `_Bool` ORs both source words before normalization, so a value with only high bits set remains true.
+
+The usual arithmetic conversion may widen a represented operand to the matching wide result. This covers the active `value & 0xffu` expressions without weakening the source. Other eight-byte arithmetic, comparisons, conditions, unary operations, compound mutation, increment, and decrement remain unsupported.
+
+Two public word handles were rejected because Linear IR should continue to model one C value as one stack item. Keeping a result live only in EDX:EAX was rejected because later evaluation and calls can overwrite those registers. Rewriting the active helpers into four-byte arithmetic was also rejected because that would move a compiler limitation into normal source. The private snapshot model extends the existing wide value, object, result, and parameter decisions instead.
+
+ADR 0068 records the operation and conversion rules. ADR 0016, ADR 0017, ADR 0026, ADR 0030, ADR 0043, ADR 0045, ADR 0065, ADR 0066, and ADR 0067 now point to this extension.
+
+### Contract evidence and corrections
+
+- The conversion fixture covers implicit unsigned and signed widening from byte, word, and doubleword sources; explicit casts from a signed byte and an unsigned word; explicit narrowing to every represented width; an implicit wide-to-word assignment; a same-width unsigned-to-signed assignment retype; and Boolean conversion with truth in the low word, high word, or neither word.
+- The operation fixture covers runtime left shift, logical right shift, arithmetic right shift, cross-word AND, OR, XOR, mixed `signed long long` and `unsigned long long`, GNU wide-enum promotion, and byte extraction from all eight lanes. Its relocated i386 oracle executes every defined shift count from zero through 63.
+- The complete active helper bodies lower without source edits. Their object has exactly three `R_386_PC32` relocations tied to `ctool_bytes`, `ctool_buffer_append`, and `ctool_buffer_patch` and to the correct caller spans.
+- The execution oracle poisons EBX, checks ESP and EBP, preserves argument slots, follows the internal conditional and loop branches, and validates `RCL`, `RCR`, `DEC`, `JE`, `JNE`, `SETE`, and `SETNE` behavior.
+- Repeated lowering and object emission are deterministic. A constrained output buffer publishes nothing, and a later operation in the same job reproduces the original object.
+- Useful negative cases keep eight-byte shift counts, addition, variadic arguments, and unprototyped arguments outside the supported boundary. Malformed conversions tagged as reverse same-rank usual arithmetic conversion or wide-enum promotion to the wrong compatible type fail transactionally.
+- The red IR contract first rejected the active wide shift. After lowering accepted the operation, object emission stopped at the missing wide backend path. Conversion cases then exposed the old represented-only conversion rule. The final implementation closes those exact seams without adding a public opcode or changing active source.
+- The first complete repository run found seven stale lexical inventory locks. The generated audit was correct; the new implementation and contracts had added real `sizeof`, `return`, `for`, `while`, `switch`, `case`, `default`, `if`, `else`, and `goto` occurrences. The corrected focused locks pass all seven tests in 124.998 seconds, and the clean full rerun passes.
+- The two-axis review found three missing semantic proofs: mixed same-rank signedness, a wide enum's integer promotion, and explicit represented-to-wide casts. The first usual-arithmetic fix accepted the reverse direction too broadly. The final validator permits `signed long long` to `unsigned long long`, rejects the reverse label, and accepts a GNU wide enum only when it promotes to its exact compatible signed or unsigned wide type. Positive IR and execution cases and transactional mutations now pin those rules.
+- A strict C11 parse correctly rejected the wide-enum fixture because its enumerator is not representable as `int`. Only that focused operation fixture now uses GNU mode, which matches the frontend extension under test. An earlier Windows rerun also reused Linux ELF objects and stopped at the PE linker. A fresh Windows build directory removed that host-artifact mismatch; neither failed wrapper changed a tracked source.
+- The first parallel WSL launcher lost its shell build-directory variable at the PowerShell boundary, so Make tried and failed to write `/ctool.o` before compilation. Literal host-specific paths fixed the launcher. A later analyzer loop hit the same quoting boundary and stopped at shell parsing; four explicit commands replaced it. Both failed wrappers left the repository unchanged and are not counted as evidence.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 176/5,357/46,961/654/216; `cupidc_emit.c` has 144/3,599/31,754/469/239; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 81,337 checked lines, and `toolchain_core` has 53,518.
+
+The generated audit records 635 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,387 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,537 `while`, 1,743 `break`, 1,013 `continue`, 27,940 `if`, 3,771 `else`, 3,277 `for`, 17,003 `return`, and 3,640 `sizeof` occurrences. The canonical active-source digest is `77a2ed275c159f8c04321b0c887abae3ba1c2e85c2c516e8af8257f9268492b8`; the complete audit JSON has SHA-256 `7f34a828ae94c63d05aa1b5301237ee8bd09459045de232e3a33177de0c6543c`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first rejected the active wide shift, then object emission stopped at the missing backend path. The final `wide-returns` modes pass their positive, negative, deterministic, transactional, relocation, decoder, and execution-oracle checks. |
+| Windows hosted Toolchain | PASS | Fresh strict Clang passes the complete hosted suite, every registered IR and object mode, and all 22 assembly demos in 28.1 seconds. The targeted Python inventory checks also pass. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC 13.3 and Clang 18.1 builds pass the affected IR, object, and frontend modes in 26.3 and 27.2 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass both affected modes with leak detection and halt-on-error enabled in 72.7 and 78.4 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding in either implementation file or either expanded C contract. The final four-file passes finish in 263.4 and 75.8 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 37.5 seconds, and `make check-bootstrap-audit` reproduces them in 37.6 seconds. The temporary-tree audit test also passes. |
+| Full repository gate | PASS | The final `make test` run passes all 354 tests in 482.446 seconds with one expected platform skip; Make returns in 520.161 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.135 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.25 seconds. CupidC emits 911 code bytes and 71 data bytes, reaches `JIT execution complete`, and reports zero stack bytes used. The accepted log contains no panic or exception marker. |
+| Two-axis review | PASS AFTER SEMANTIC AND DOC FIXES | Specification review prompted mixed-signedness, wide-enum, explicit-cast, and malformed-metadata proofs. Standards review prompted public-contract and current-audit corrections. Both final reviews report no remaining finding. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles. The private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result checks the rebuilt OS but does not assign production ownership to the hosted wide-operation path.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide conditions, comparisons, arithmetic outside shifts and bitwise operations, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

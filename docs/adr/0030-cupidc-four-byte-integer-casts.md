@@ -31,3 +31,7 @@ The deterministic ELF32 contract emits both functions in 52 text bytes. Their si
 This is hosted bootstrap evidence. The host C compiler still produces the normal root and user C objects. The private in-kernel compiler remains the embedded runtime JIT and AOT path. No production artifact, build owner, host dependency, boot path, or runtime ABI changed.
 
 Issue #25 remains open. Loops, `switch`, labels, `goto`, the other cast families, broader object and ABI work, production integration, and staged self-hosting still remain.
+
+## Extension: eight-byte integer conversions
+
+ADR 0068 extends `CONVERT` between represented integer widths and signed or unsigned eight-byte integers. Widening sign-extends or zero-extends a canonical represented value into a private snapshot. Narrowing reads the selected low lane, while conversion to `_Bool` tests both source words. Floating and pointer conversion rules from this decision remain unchanged.

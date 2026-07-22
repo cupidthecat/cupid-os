@@ -60,8 +60,10 @@ typedef struct {
    * BIT_FIELD_STORE_OLD_VALUE retain their record operand type. STORE and
    * STORE_VALUE retain the stored value type. DISCARD retains its consumed
    * value type.
-   * UNARY and BINARY retain their operand type. POINTER_BINARY retains its
-   * left operand type. ARRAY_TO_POINTER retains its array operand type.
+   * UNARY retains its operand type. BINARY retains its left operand type;
+   * supported wide shifts validate their represented count before the
+   * instruction is published. POINTER_BINARY retains its left operand type.
+   * ARRAY_TO_POINTER retains its array operand type.
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
    * retains the duplicated object's type. DEREFERENCE retains its pointer
    * operand type. ADDRESS_OF retains its object or function operand type.
@@ -311,8 +313,16 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * caller and callee results are normalized from the declared AL or AX lane.
  * An eight-byte integer result arrives with its low word in EAX and its high
  * word in EDX. RETURN_VALUE restores those registers from the private
- * snapshot. Eight-byte integer arithmetic, cross-width conversions, and
- * arguments without declared parameter types are not represented yet.
+ * snapshot. Eight-byte integer BINARY records support left shift, signed or
+ * unsigned right shift, AND, OR, and XOR. Supported shift counts are
+ * represented 32-bit integers, and defined C counts from zero through 63
+ * preserve both words. CONVERT records support represented integer widening
+ * to eight bytes and explicit or assignment narrowing back to a represented
+ * integer. They also support the same-rank signed-to-unsigned usual arithmetic
+ * conversion and, in GNU mode, promotion of a wide enum to its exact
+ * compatible signed or unsigned integer type. Boolean narrowing tests both
+ * source words. Other eight-byte arithmetic and arguments without declared
+ * parameter types are not represented yet.
  * Supported structure values are complete, nonvolatile, nonatomic structures
  * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
  * into the caller-provided result object.
