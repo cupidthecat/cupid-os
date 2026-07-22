@@ -6185,3 +6185,41 @@ The active graph still contains 688 sources, 498 reachable transforms, 251 featu
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production object, build transform, boot path, source owner, or host dependency moved. The root README and context, bootstrap records, generated audit, wiki, CTXT manual, and ADR now describe the capability and its limits. `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for the rest of floating semantics, the remaining C and ABI surface, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidDis decodes mixed-mode raw images
+
+### Decision and active requirement
+
+CupidDis raw requests can now describe mode changes inside one image. `CTOOL_DIS_RAW_MODE_MAP` selects the mapped form, and an ordered array of `ctool_dis_raw_range_t` entries supplies the offset and 16-bit or 32-bit mode for each range. The first range starts at offset zero. Later offsets must be strictly increasing and stay inside the input. The request and report borrow the caller's range storage for the duration of the job and report inspection.
+
+Fixed 16-bit and 32-bit requests still use the existing path and must leave the range pointer null with a zero count. Raw maps reject missing storage, an empty input, an empty map, a nonzero first offset, invalid modes, offsets outside the input, duplicate or descending offsets, and more ranges than input bytes. Report validation checks the same shape again. A failed request rolls the job back so a corrected request can run in the same job.
+
+The command-line tool accepts repeated `--mode-at OFFSET:16|32` options after the initial raw `--mode`. For example, `--mode 16 --mode-at 4:32 --mode-at 11:16` decodes three ranges without splitting the file. Mode maps are rejected for ELF input because ELF sections already determine their decoding context. The caller chooses instruction-boundary offsets; CupidDis does not guess where a mode transition belongs.
+
+The unchanged boot and SMP assembly require 16-bit to 32-bit and 32-bit to 16-bit transitions. Exact active-source guards keep those transitions visible without changing either assembly file. The build still invokes CupidDis on ELF32 kernel images for symbol generation, so no production raw-image consumer or build owner moved in this increment. ADR 0080 records the API, validation boundary, alternatives, and remaining integration work.
+
+### Contract evidence and corrections
+
+- The raw contract decodes one deterministic 16-bit, 32-bit, then 16-bit fixture. It checks addresses, instruction widths, a label exactly on a range boundary, repeated rendering, a zeroed report, report-shape rejection after mutation, rollback, and same-job recovery.
+- Negative cases cover every malformed map shape and the accidental use of map fields with a fixed-mode request. The CLI contract covers both `--mode-at VALUE` and `--mode-at=VALUE` spellings and rejects maps on ELF input.
+- Both in-kernel request constructors now initialize the new fields explicitly. This keeps the freestanding caller independent of automatic-storage contents and lets strict compilation verify the public shape.
+- The hosted CupidC source gate parses the expanded CupidDis implementation completely. It records 68 definitions, 1,553 statements, 10,065 expressions, 154 block bindings, and 118 initializers.
+- A repository-wide audit check started while the separate CupidC frontier work was changing its IR source. It correctly reported that the checked audit no longer described that shared working tree. The isolated CupidDis checkout then reproduced its own audit and passed the complete suite. This was concurrent source drift, not a CupidDis failure.
+
+The graph for this checkpoint contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. The `cupiddis` cohort has five files and 2,900 checked lines. The `toolchain_contract` cohort has 91,502 checked lines, and `toolchain_core` has 55,521. The canonical active-source digest is `310ba3857b2f6c155517083931242049cd8139443fec2e7aa5d3f873b1f37bda`. The complete audit JSON has SHA-256 `e7c9c6839bd192ca8db70dfcd66bf7654c902c7880a9a9c9fe349cb30f22bb81`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| CupidDis contracts | PASS | The raw, relocatable object, executable, symbol, and error selectors pass. All 14 public CupidDis tests pass in 25.580 seconds with one expected optional-tool skip. |
+| Frontend and kernel callers | PASS | The aggregate hosted-source gate parses the changed CupidDis implementation, and `kernel/lang/dis.c` compiles under the strict freestanding production flags. |
+| Active-source audit | PASS | The checked JSON and Markdown reproduce in the isolated checkpoint as part of the complete repository suite. |
+| Full repository gate | PASS | `make test` passes all 368 tests in 574.319 seconds with one expected platform skip. Make returns in 617.9 seconds. |
+| Production image | PASS | `make all` rebuilds and stages the complete image in 25.6 seconds. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 19.3 seconds with the established 0.60-second key timing. |
+| Patch hygiene | PASS | `git diff --check` passes, publication prose received a humanizer review, and `TempleOS/` has no tracked diff. |
+
+CupidDis now represents the active raw mode transitions in one request, but the normal build has not adopted that raw path. GCC or Clang still builds the shared disassembler and the normal C objects. No production object, transform, boot path, source owner, or host dependency moved. The root context and README, capability and migration records, host-dependency record, generated audit, wiki, CTXT manual, and related ADRs describe the new boundary. `TempleOS/` remains untouched reference material.
+
+[Issue #13](https://github.com/cupidthecat/cupid-os/issues/13) remains open because the boot path, complete toolchain ownership transfer, staged self-hosting, and fixed-point bootstrap are unfinished. No issue is ready to close from this increment.

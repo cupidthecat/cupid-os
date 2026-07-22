@@ -12,9 +12,10 @@ and kernel drivers own argument parsing, file loading, VFS status mapping, and
 their stdout or shell adapters.  They do not own ELF traversal, opcode tables,
 operand formatting, relocation overlays, or report ordering.
 
-Raw inspection requires an explicit 16-bit or 32-bit mode and base address;
-one request has one mode, so a mixed-mode flat image must currently be split
-into homogeneous ranges before inspection.  ELF inspection accepts static
+Raw inspection requires an explicit base address and either one 16-bit or
+32-bit mode or the ordered mode ranges recorded by ADR 0080. A mapped request
+can decode one mixed-mode flat image without copying or splitting its bytes.
+ELF inspection accepts static
 little-endian i386 relocatable objects and executables.  Dynamic symbol tables
 and their relocation ownership are explicitly unsupported until the typed
 model represents multiple symbol-table domains.

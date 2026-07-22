@@ -536,7 +536,7 @@ CupidScript (`cupidscript*.c`) is a shell scripting language for `.cup` files:
 - Arrays, string operations
 - Calls shell commands and kernel functions directly
 
-CupidDis (`dis.c/.h`) is the x86-32 disassembler used for debugging.
+CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes.
 
 ### Program execution
 

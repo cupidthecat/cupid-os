@@ -46,6 +46,81 @@ static ctool_status_t dis_bad_request(ctool_job_t *job,
                   CTOOL_ERR_INVALID_ARGUMENT);
 }
 
+typedef enum {
+  DIS_RAW_MAP_VALID = 0,
+  DIS_RAW_MAP_NO_RANGES,
+  DIS_RAW_MAP_MISSING_STORAGE,
+  DIS_RAW_MAP_EMPTY_INPUT,
+  DIS_RAW_MAP_TOO_MANY_RANGES,
+  DIS_RAW_MAP_NONZERO_START,
+  DIS_RAW_MAP_INVALID_MODE,
+  DIS_RAW_MAP_OUTSIDE_INPUT,
+  DIS_RAW_MAP_UNORDERED
+} dis_raw_map_issue_t;
+
+static ctool_bool dis_x86_mode_valid(ctool_x86_mode_t mode) {
+  return mode == CTOOL_X86_MODE_16 || mode == CTOOL_X86_MODE_32
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static dis_raw_map_issue_t dis_raw_map_issue(
+    ctool_u32 source_size, const ctool_dis_raw_range_t *ranges,
+    ctool_u32 range_count) {
+  ctool_u32 index;
+  if (range_count == 0u) {
+    return DIS_RAW_MAP_NO_RANGES;
+  }
+  if (ranges == (const ctool_dis_raw_range_t *)0) {
+    return DIS_RAW_MAP_MISSING_STORAGE;
+  }
+  if (source_size == 0u) {
+    return DIS_RAW_MAP_EMPTY_INPUT;
+  }
+  if (range_count > source_size) {
+    return DIS_RAW_MAP_TOO_MANY_RANGES;
+  }
+  if (ranges[0].offset != 0u) {
+    return DIS_RAW_MAP_NONZERO_START;
+  }
+  for (index = 0u; index < range_count; index++) {
+    if (dis_x86_mode_valid(ranges[index].mode) == CTOOL_FALSE) {
+      return DIS_RAW_MAP_INVALID_MODE;
+    }
+    if (ranges[index].offset >= source_size) {
+      return DIS_RAW_MAP_OUTSIDE_INPUT;
+    }
+    if (index != 0u && ranges[index].offset <= ranges[index - 1u].offset) {
+      return DIS_RAW_MAP_UNORDERED;
+    }
+  }
+  return DIS_RAW_MAP_VALID;
+}
+
+static const char *dis_raw_map_message(dis_raw_map_issue_t issue) {
+  switch (issue) {
+  case DIS_RAW_MAP_NO_RANGES:
+    return "raw mode map requires at least one range";
+  case DIS_RAW_MAP_MISSING_STORAGE:
+    return "raw mode map storage is missing";
+  case DIS_RAW_MAP_EMPTY_INPUT:
+    return "raw mode map requires nonempty input";
+  case DIS_RAW_MAP_TOO_MANY_RANGES:
+    return "raw mode map has too many ranges";
+  case DIS_RAW_MAP_NONZERO_START:
+    return "raw mode map must start at offset zero";
+  case DIS_RAW_MAP_INVALID_MODE:
+    return "raw mode map requires 16-bit or 32-bit range modes";
+  case DIS_RAW_MAP_OUTSIDE_INPUT:
+    return "raw mode map offset is outside input";
+  case DIS_RAW_MAP_UNORDERED:
+    return "raw mode map offsets must increase";
+  case DIS_RAW_MAP_VALID:
+  default:
+    return "raw mode map is invalid";
+  }
+}
+
 ctool_status_t ctool_dis_inspect(ctool_job_t *job,
                                   const ctool_source_t *source,
                                   const ctool_dis_request_t *request,
@@ -71,14 +146,26 @@ ctool_status_t ctool_dis_inspect(ctool_job_t *job,
     return dis_bad_request(job, source, "CupidDis view selection is invalid");
   }
   if (request->input == CTOOL_DIS_INPUT_RAW) {
+    dis_raw_map_issue_t map_issue = DIS_RAW_MAP_VALID;
     if (request->views != CTOOL_DIS_VIEW_DISASSEMBLY) {
       return dis_bad_request(job, source,
                              "raw input only supports disassembly");
     }
-    if (request->raw_mode != CTOOL_X86_MODE_16 &&
-        request->raw_mode != CTOOL_X86_MODE_32) {
+    if (request->raw_mode == CTOOL_DIS_RAW_MODE_MAP) {
+      map_issue = dis_raw_map_issue(source->contents.size,
+                                    request->raw_ranges,
+                                    request->raw_range_count);
+      if (map_issue != DIS_RAW_MAP_VALID) {
+        return dis_bad_request(job, source, dis_raw_map_message(map_issue));
+      }
+    } else if (dis_x86_mode_valid(request->raw_mode) == CTOOL_FALSE) {
       return dis_bad_request(job, source,
                              "raw input requires 16-bit or 32-bit mode");
+    } else if (request->raw_ranges !=
+                   (const ctool_dis_raw_range_t *)0 ||
+               request->raw_range_count != 0u) {
+      return dis_bad_request(job, source,
+                             "raw mode ranges require mapped mode");
     }
     if (request->label_count != 0u &&
         request->labels == (const ctool_dis_label_t *)0) {
@@ -103,6 +190,10 @@ ctool_status_t ctool_dis_inspect(ctool_job_t *job,
     report_out->views = request->views;
     report_out->mode = request->raw_mode;
     report_out->base_address = request->raw_base_address;
+    if (request->raw_mode == CTOOL_DIS_RAW_MODE_MAP) {
+      report_out->raw_ranges = request->raw_ranges;
+      report_out->raw_range_count = request->raw_range_count;
+    }
     report_out->labels = request->labels;
     report_out->label_count = request->label_count;
     arena = ctool_job_arena(job);
@@ -1173,9 +1264,10 @@ static ctool_status_t dis_render_elf_labels(
 
 static ctool_status_t dis_render_region(
     ctool_job_t *job, const ctool_dis_report_t *report, ctool_bytes_t bytes,
-    ctool_u32 base_address, const ctool_elf32_object_t *object,
-    ctool_u32 section_file_index, ctool_bool section_specific,
-    ctool_u32 *label_cursor, ctool_text_sink_t output) {
+    ctool_u32 base_address, ctool_x86_mode_t mode,
+    const ctool_elf32_object_t *object, ctool_u32 section_file_index,
+    ctool_bool section_specific, ctool_u32 *label_cursor,
+    ctool_text_sink_t output) {
   ctool_u32 offset = 0u;
   ctool_status_t status = CTOOL_OK;
   if (bytes.size == 0u) {
@@ -1191,7 +1283,7 @@ static ctool_status_t dis_render_region(
                                      section_specific, label_cursor, output);
     }
     if (status == CTOOL_OK) {
-      status = ctool_x86_decode(job, report->mode, bytes, offset, &decoded);
+      status = ctool_x86_decode(job, mode, bytes, offset, &decoded);
     }
     if (status != CTOOL_OK) {
       break;
@@ -1234,11 +1326,27 @@ static ctool_status_t dis_render_disassembly(ctool_job_t *job,
   ctool_u32 label_cursor = 0u;
   if (report->input == CTOOL_DIS_INPUT_RAW) {
     status = dis_literal(output, "[disassembly raw]\n");
-    if (status == CTOOL_OK) {
+    if (status == CTOOL_OK && report->mode != CTOOL_DIS_RAW_MODE_MAP) {
       status = dis_render_region(job, report, report->source->contents,
-                                 report->base_address,
+                                 report->base_address, report->mode,
                                  (const ctool_elf32_object_t *)0, 0u,
                                  CTOOL_FALSE, &label_cursor, output);
+    }
+    for (index = 0u;
+         status == CTOOL_OK && report->mode == CTOOL_DIS_RAW_MODE_MAP &&
+         index < report->raw_range_count;
+         index++) {
+      ctool_u32 first = report->raw_ranges[index].offset;
+      ctool_u32 last = index + 1u < report->raw_range_count
+                           ? report->raw_ranges[index + 1u].offset
+                           : report->source->contents.size;
+      ctool_bytes_t bytes = ctool_bytes(report->source->contents.data + first,
+                                        last - first);
+      status = dis_render_region(
+          job, report, bytes, report->base_address + first,
+          report->raw_ranges[index].mode,
+          (const ctool_elf32_object_t *)0, 0u, CTOOL_FALSE, &label_cursor,
+          output);
     }
     return status;
   }
@@ -1266,7 +1374,8 @@ static ctool_status_t dis_render_disassembly(ctool_job_t *job,
             dis_function_lower_bound(report, program->virtual_address);
         status = dis_render_region(
             job, report, program->contents, program->virtual_address,
-            &report->elf32, 0u, CTOOL_FALSE, &label_cursor, output);
+            report->mode, &report->elf32, 0u, CTOOL_FALSE, &label_cursor,
+            output);
       }
     }
     return status;
@@ -1291,7 +1400,8 @@ static ctool_status_t dis_render_disassembly(ctool_job_t *job,
     }
     if (status == CTOOL_OK) {
       status = dis_render_region(job, report, section->contents,
-                                  section->address, &report->elf32,
+                                  section->address, report->mode,
+                                  &report->elf32,
                                   section->file_index, CTOOL_TRUE,
                                   &label_cursor, output);
     }
@@ -1780,13 +1890,22 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
   }
   if (report->input == CTOOL_DIS_INPUT_RAW) {
     if (report->views != CTOOL_DIS_VIEW_DISASSEMBLY ||
-        (report->mode != CTOOL_X86_MODE_16 &&
-         report->mode != CTOOL_X86_MODE_32) ||
         (report->label_count != 0u &&
          report->labels == (const ctool_dis_label_t *)0) ||
         (report->source->contents.size != 0u &&
          report->base_address >
              DIS_U32_MAX - (report->source->contents.size - 1u))) {
+      return CTOOL_FALSE;
+    }
+    if (report->mode == CTOOL_DIS_RAW_MODE_MAP) {
+      if (dis_raw_map_issue(report->source->contents.size,
+                            report->raw_ranges,
+                            report->raw_range_count) != DIS_RAW_MAP_VALID) {
+        return CTOOL_FALSE;
+      }
+    } else if (dis_x86_mode_valid(report->mode) == CTOOL_FALSE ||
+               report->raw_ranges != (const ctool_dis_raw_range_t *)0 ||
+               report->raw_range_count != 0u) {
       return CTOOL_FALSE;
     }
     for (index = 0u; index < report->label_count; index++) {

@@ -91,6 +91,18 @@ class CupidDisContractTests(unittest.TestCase):
         cls.object_path = Path(cls._fixture_directory.name) / "cupid.o"
         cls.raw_path = Path(cls._fixture_directory.name) / "boot.bin"
         cls.raw_path.write_bytes(bytes([0xB8, 0x34, 0x12, 0xC3]))
+        cls.mixed_raw_path = (
+            Path(cls._fixture_directory.name) / "mixed-mode.bin"
+        )
+        cls.mixed_raw_path.write_bytes(
+            bytes(
+                [
+                    0xB8, 0x34, 0x12,
+                    0xB8, 0x78, 0x56, 0x34, 0x12,
+                    0xB8, 0xCD, 0xAB, 0xC3,
+                ]
+            )
+        )
         cls.not_elf_path = Path(cls._fixture_directory.name) / "not-elf.bin"
         cls.not_elf_path.write_bytes(b"not elf")
         cls.bad_elf_path = Path(cls._fixture_directory.name) / "bad.elf"
@@ -233,6 +245,49 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(decoded.returncode, 0, decoded.stderr)
         self.assertIn("00007C00", decoded.stdout)
         self.assertIn("mov ax, 0x1234", decoded.stdout)
+
+    def test_cli_raw_mode_changes_decode_one_flat_image(self):
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--mode-at",
+                "3:32",
+                "--mode-at=8:16",
+                "--base",
+                "0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn("00007C00", decoded.stdout)
+        self.assertIn("mov ax, 0x1234", decoded.stdout)
+        self.assertIn("00007C03", decoded.stdout)
+        self.assertIn("mov eax, 0x12345678", decoded.stdout)
+        self.assertIn("00007C08", decoded.stdout)
+        self.assertIn("mov ax, 0xABCD", decoded.stdout)
+
+        duplicate_start = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--mode-at=0:32",
+                "--base=0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(duplicate_start.returncode, 1)
+        self.assertIn(
+            "raw mode map offsets must increase", duplicate_start.stderr
+        )
 
     def test_cli_distinguishes_usage_and_processing_failures(self):
         not_elf = subprocess.run(

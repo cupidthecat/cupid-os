@@ -15,6 +15,41 @@ typedef struct {
   ctool_bool emitted;
 } capture_t;
 
+static const char active_boot_initial_mode[] =
+    " [org 0x7c00]\n"
+    "[bits 16]\n";
+
+static const char active_boot_mode_transition[] =
+    "; 32-bit protected mode entry\n"
+    "[bits 32]\n"
+    "init_pm:\n"
+    "    mov ax, DATA_SEG\n"
+    "    mov ds, ax\n"
+    "    mov es, ax\n"
+    "    mov fs, ax\n"
+    "    mov gs, ax\n"
+    "    mov ss, ax\n";
+
+static const char active_boot_mode_return[] =
+    "; GDT\n"
+    "[bits 16]\n"
+    "gdt_start:\n";
+
+static const char active_smp_initial_mode[] =
+    "BITS 16\n"
+    "ORG 0x8000\n\n"
+    "ap_start:\n";
+
+static const char active_smp_mode_transition[] =
+    "times 0x210 - ($ - $$) db 0\n\n"
+    "BITS 32\n"
+    "pm32:\n"
+    "    mov ax, 0x10\n"
+    "    mov ds, ax\n"
+    "    mov es, ax\n"
+    "    mov fs, ax\n"
+    "    mov ss, ax\n";
+
 static ctool_status_t capture_write(void *context, ctool_bytes_t text) {
   capture_t *capture = (capture_t *)context;
   if (capture->emit_job != (ctool_job_t *)0 &&
@@ -81,6 +116,45 @@ static int contains(const capture_t *capture, const char *needle,
   return 1;
 }
 
+static int is_zeroed(const void *value, size_t size) {
+  const unsigned char *bytes = (const unsigned char *)value;
+  size_t index;
+  for (index = 0u; index < size; index++) {
+    if (bytes[index] != 0u) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int source_contains_fragment(ctool_bytes_t source,
+                                    const char *fragment) {
+  ctool_string_t expected = ctool_string(fragment);
+  ctool_u32 start;
+  for (start = 0u; start < source.size; start++) {
+    ctool_u32 source_index = start;
+    ctool_u32 expected_index = 0u;
+    while (source_index < source.size && expected_index < expected.size) {
+      if (source.data[source_index] == (ctool_u8)'\r' &&
+          source_index + 1u < source.size &&
+          source.data[source_index + 1u] == (ctool_u8)'\n' &&
+          expected.data[expected_index] == '\n') {
+        source_index++;
+      }
+      if (source.data[source_index] !=
+          (ctool_u8)(unsigned char)expected.data[expected_index]) {
+        break;
+      }
+      source_index++;
+      expected_index++;
+    }
+    if (expected_index == expected.size) {
+      return 1;
+    }
+  }
+  return expected.size == 0u ? 1 : 0;
+}
+
 static int check_diagnostic(const ctool_job_t *job, ctool_u32 index,
                             ctool_u32 code, const char *message,
                             const char *operation) {
@@ -103,6 +177,62 @@ static int open_job(ctool_host_adapter_t *adapter, ctool_job_t **job) {
   config = ctool_host_job_config(adapter, ctool_default_limits());
   status = ctool_job_open(&config, job);
   return check_status(status, CTOOL_OK, "job open");
+}
+
+static int active_mode_transitions_are_unchanged(void) {
+  static const char *const roots[] = {".", ".."};
+  ctool_u32 root_index;
+  for (root_index = 0u;
+       root_index < (ctool_u32)(sizeof(roots) / sizeof(roots[0]));
+       root_index++) {
+    ctool_host_adapter_t adapter;
+    ctool_job_config_t config;
+    ctool_job_t *job = (ctool_job_t *)0;
+    ctool_path_t path;
+    ctool_source_t boot_source;
+    ctool_source_t smp_source;
+    ctool_status_t status = ctool_host_adapter_init(&adapter,
+                                                     roots[root_index]);
+    if (status == CTOOL_OK) {
+      config = ctool_host_job_config(&adapter, ctool_default_limits());
+      status = ctool_job_open(&config, &job);
+    }
+    path.text = ctool_string("/boot/boot.asm");
+    if (status == CTOOL_OK) {
+      status = ctool_job_load_source(job, &path, &boot_source);
+    }
+    path.text = ctool_string("/kernel/smp/smp_trampoline.S");
+    if (status == CTOOL_OK) {
+      status = ctool_job_load_source(job, &path, &smp_source);
+    }
+    if (status == CTOOL_OK) {
+      int boot_initial = source_contains_fragment(
+          boot_source.contents, active_boot_initial_mode);
+      int boot_transition = source_contains_fragment(
+          boot_source.contents, active_boot_mode_transition);
+      int boot_return = source_contains_fragment(
+          boot_source.contents, active_boot_mode_return);
+      int smp_initial = source_contains_fragment(
+          smp_source.contents, active_smp_initial_mode);
+      int smp_transition = source_contains_fragment(
+          smp_source.contents, active_smp_mode_transition);
+      ctool_job_close(job);
+      if (boot_initial != 0 && boot_transition != 0 && boot_return != 0 &&
+          smp_initial != 0 && smp_transition != 0) {
+        return 1;
+      }
+      (void)fprintf(stderr, "active raw-mode transition guard changed: "
+                            "boot=%d/%d/%d smp=%d/%d\n",
+                    boot_initial, boot_transition, boot_return, smp_initial,
+                    smp_transition);
+      return 0;
+    }
+    if (job != (ctool_job_t *)0) {
+      ctool_job_close(job);
+    }
+  }
+  (void)fprintf(stderr, "cannot load active raw-mode transition sources\n");
+  return 0;
 }
 
 static ctool_dis_request_t raw_request(ctool_x86_mode_t mode,
@@ -139,6 +269,10 @@ static int run_raw(void) {
   static const ctool_u8 raw16[] = {0xb8u, 0x34u, 0x12u, 0xc3u};
   static const ctool_u8 raw32[] = {0xb8u, 0x78u, 0x56u, 0x34u,
                                     0x12u, 0xc3u};
+  static const ctool_u8 mixed_mode[] = {
+      0xb8u, 0x34u, 0x12u,
+      0xb8u, 0x78u, 0x56u, 0x34u, 0x12u,
+      0xb8u, 0xcdu, 0xabu, 0xc3u};
   static const ctool_u8 return_cleanup[] = {0xc2u, 0x04u, 0x00u};
   static const ctool_u8 direct[] = {0xa1u, 0u, 0u, 0u, 0xf0u, 0xc3u};
   static const ctool_u8 relative[] = {0xebu, 0u, 0xc3u};
@@ -153,9 +287,16 @@ static int run_raw(void) {
   ctool_dis_request_t request;
   ctool_dis_report_t report;
   ctool_dis_label_t label;
+  ctool_dis_raw_range_t mixed_ranges[3];
+  ctool_dis_raw_range_t invalid_ranges[3];
   capture_t capture;
+  capture_t repeat;
   ctool_status_t status;
   if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+  if (!active_mode_transitions_are_unchanged()) {
+    ctool_job_close(job);
     return 1;
   }
 
@@ -189,6 +330,239 @@ static int run_raw(void) {
   if (!check_status(status, CTOOL_OK, "raw32 inspection") ||
       !contains(&capture, "00400000", "raw32 base") ||
       !contains(&capture, "mov eax, 0x12345678", "raw32 operands")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  mixed_ranges[0].offset = 0u;
+  mixed_ranges[0].mode = CTOOL_X86_MODE_16;
+  mixed_ranges[1].offset = 3u;
+  mixed_ranges[1].mode = CTOOL_X86_MODE_32;
+  mixed_ranges[2].offset = 8u;
+  mixed_ranges[2].mode = CTOOL_X86_MODE_16;
+  label.address = 0x00007c03u;
+  label.name = ctool_string("protected_mode");
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/mixed-mode.bin");
+  source.contents =
+      ctool_bytes(mixed_mode, (ctool_u32)sizeof(mixed_mode));
+  request = raw_request(CTOOL_DIS_RAW_MODE_MAP, 0x00007c00u);
+  request.raw_ranges = mixed_ranges;
+  request.raw_range_count = 3u;
+  request.labels = &label;
+  request.label_count = 1u;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  (void)memset(&repeat, 0, sizeof(repeat));
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&repeat));
+  }
+  if (!check_status(status, CTOOL_OK, "mixed-mode raw inspection") ||
+      report.mode != CTOOL_DIS_RAW_MODE_MAP ||
+      report.raw_ranges != mixed_ranges || report.raw_range_count != 3u ||
+      !contains(&capture, "00007C00", "mixed-mode 16-bit address") ||
+      !contains(&capture, "mov ax, 0x1234", "mixed-mode 16-bit operand") ||
+      !contains(&capture, "00007C03 <protected_mode>:",
+                "mixed-mode boundary label") ||
+      !contains(&capture, "00007C03", "mixed-mode 32-bit address") ||
+      !contains(&capture, "mov eax, 0x12345678",
+                "mixed-mode 32-bit operand") ||
+      !contains(&capture, "00007C08", "mixed-mode return address") ||
+      !contains(&capture, "mov ax, 0xABCD",
+                "mixed-mode return to 16-bit") ||
+      capture.size != repeat.size ||
+      memcmp(capture.bytes, repeat.bytes, (size_t)capture.size) != 0) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  request = raw_request(CTOOL_DIS_RAW_MODE_MAP, 0x00007c00u);
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "zero-range raw mode map") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      !check_diagnostic(job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map requires at least one range",
+                        "zero-range mode-map diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  request.raw_range_count = 1u;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "missing raw mode-map storage") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 2u ||
+      !check_diagnostic(job, 1u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map storage is missing",
+                        "missing mode-map storage diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  invalid_ranges[0].offset = 0u;
+  invalid_ranges[0].mode = CTOOL_X86_MODE_16;
+  request.raw_ranges = invalid_ranges;
+  source.contents = ctool_bytes((const void *)0, 0u);
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "empty mapped raw input") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 3u ||
+      !check_diagnostic(job, 2u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map requires nonempty input",
+                        "empty mode-map input diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.contents =
+      ctool_bytes(mixed_mode, (ctool_u32)sizeof(mixed_mode));
+  invalid_ranges[0].offset = 1u;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "nonzero raw mode-map start") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 4u ||
+      !check_diagnostic(job, 3u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map must start at offset zero",
+                        "mode-map start diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  invalid_ranges[0].offset = 0u;
+  invalid_ranges[0].mode = (ctool_x86_mode_t)64;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "invalid raw range mode") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 5u ||
+      !check_diagnostic(job, 4u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map requires 16-bit or 32-bit range modes",
+                        "raw range mode diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  invalid_ranges[0].mode = CTOOL_X86_MODE_16;
+  invalid_ranges[1].offset = (ctool_u32)sizeof(mixed_mode);
+  invalid_ranges[1].mode = CTOOL_X86_MODE_32;
+  request.raw_range_count = 2u;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "raw range outside input") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 6u ||
+      !check_diagnostic(job, 5u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map offset is outside input",
+                        "raw range boundary diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  invalid_ranges[1].offset = 3u;
+  invalid_ranges[2].offset = 3u;
+  invalid_ranges[2].mode = CTOOL_X86_MODE_16;
+  request.raw_range_count = 3u;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "duplicate raw range offset") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 7u ||
+      !check_diagnostic(job, 6u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map offsets must increase",
+                        "duplicate raw range diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  invalid_ranges[1].offset = 8u;
+  invalid_ranges[2].offset = 3u;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "decreasing raw range offsets") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 8u ||
+      !check_diagnostic(job, 7u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map offsets must increase",
+                        "decreasing raw range diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.contents = ctool_bytes(mixed_mode, 2u);
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "raw mode-map range limit") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 9u ||
+      !check_diagnostic(job, 8u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode map has too many ranges",
+                        "raw mode-map range limit diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.contents =
+      ctool_bytes(mixed_mode, (ctool_u32)sizeof(mixed_mode));
+  request = raw_request(CTOOL_DIS_RAW_MODE_MAP, 0x00007c00u);
+  request.raw_ranges = mixed_ranges;
+  request.raw_range_count = 3u;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  (void)memset(&capture, 0, sizeof(capture));
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, "raw mode-map recovery") ||
+      ctool_job_diagnostic_count(job) != 9u ||
+      !contains(&capture, "mov eax, 0x12345678",
+                "recovered mapped raw output")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  {
+    ctool_dis_report_t invalid_report = report;
+    invalid_report.raw_range_count = 0u;
+    (void)memset(&capture, 0, sizeof(capture));
+    status = ctool_dis_render(job, &invalid_report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "mutated raw mode-map report") ||
+        capture.size != 0u || ctool_job_diagnostic_count(job) != 9u) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  request = raw_request(CTOOL_X86_MODE_16, 0x00007c00u);
+  request.raw_ranges = mixed_ranges;
+  request.raw_range_count = 3u;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "fixed raw mode with range data") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 10u ||
+      !check_diagnostic(job, 9u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "raw mode ranges require mapped mode",
+                        "fixed raw mode range diagnostic")) {
     ctool_job_close(job);
     return 1;
   }

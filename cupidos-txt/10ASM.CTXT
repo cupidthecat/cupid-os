@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-07-19
+Verified against source on: 2026-07-22
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -71,6 +71,15 @@ caller still cleans ordinary explicit cdecl arguments.
 
 CupidASM encodes RET 4 as C2 04 00 and rejects RET 65536 because the operand
 does not fit the 16-bit field. CupidDis renders C2 04 00 as ret 0x4.
+
+Hosted CupidDis can inspect one flat image that changes between 16-bit and
+32-bit code. Start with --mode 16 or --mode 32 and add each later transition:
+  cupiddis --raw --mode 16 --mode-at 0x80:32 --mode-at 0x140:16 \
+      --base 0x7c00 boot.bin
+
+Mode offsets are relative to the start of the file. They must increase and
+remain inside the input. CupidDis validates those rules. The caller places
+each transition between instructions.
 
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.

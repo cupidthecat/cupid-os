@@ -160,6 +160,10 @@ _Avoid_: objcopy
 The Cupid Toolchain disassembler and binary inspector.
 _Avoid_: Cupid disassembler when naming the tool
 
+**Raw mode map**:
+An ordered set of borrowed byte ranges that assigns 16-bit or 32-bit x86 decoding to one flat image. The first range starts at offset zero. Later offsets increase within the source, and the caller places each transition at an instruction boundary.
+_Avoid_: automatic mode detection, one mode per retained instruction
+
 ### Bootstrap
 
 **Self-hosting**:

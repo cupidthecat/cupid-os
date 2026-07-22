@@ -18,6 +18,9 @@ typedef struct {
   ctool_x86_mode_t mode;
   ctool_u32 base_address;
   ctool_u32 views;
+  ctool_dis_raw_range_t *mode_ranges;
+  ctool_u32 mode_change_count;
+  ctool_u32 mode_range_capacity;
   const char *input;
 } cupiddis_cli_t;
 
@@ -26,25 +29,28 @@ static void cupiddis_usage(FILE *stream) {
       stream,
       "usage: cupiddis [--headers] [--sections] [--symbols] "
       "[--relocations] [--disassemble] [--all] [--nm] FILE\n"
-      "       cupiddis --raw --mode 16|32 --base ADDRESS FILE\n");
+      "       cupiddis --raw --mode 16|32 "
+      "[--mode-at OFFSET:16|32]... --base ADDRESS FILE\n");
 }
 
-static int cupiddis_parse_u32(const char *text, ctool_u32 *value_out) {
+static int cupiddis_parse_u32_span(const char *text, size_t size,
+                                   ctool_u32 *value_out) {
   ctool_u32 base = 10u;
   ctool_u32 value = 0u;
-  ctool_u32 index = 0u;
-  if (text == (const char *)0 || text[0] == '\0' ||
+  size_t index = 0u;
+  if (text == (const char *)0 || size == 0u ||
       value_out == (ctool_u32 *)0) {
     return 0;
   }
-  if (text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+  if (size >= 2u && text[0] == '0' &&
+      (text[1] == 'x' || text[1] == 'X')) {
     base = 16u;
     index = 2u;
-    if (text[index] == '\0') {
+    if (index == size) {
       return 0;
     }
   }
-  while (text[index] != '\0') {
+  while (index < size) {
     ctool_u32 digit;
     char character = text[index];
     if (character >= '0' && character <= '9') {
@@ -66,6 +72,12 @@ static int cupiddis_parse_u32(const char *text, ctool_u32 *value_out) {
   return 1;
 }
 
+static int cupiddis_parse_u32(const char *text, ctool_u32 *value_out) {
+  return text == (const char *)0
+             ? 0
+             : cupiddis_parse_u32_span(text, strlen(text), value_out);
+}
+
 static int cupiddis_parse_mode(const char *text, ctool_x86_mode_t *mode_out) {
   if (strcmp(text, "16") == 0) {
     *mode_out = CTOOL_X86_MODE_16;
@@ -76,6 +88,60 @@ static int cupiddis_parse_mode(const char *text, ctool_x86_mode_t *mode_out) {
     return 1;
   }
   return 0;
+}
+
+static int cupiddis_parse_mode_change(const char *text,
+                                      ctool_dis_raw_range_t *range_out) {
+  const char *separator;
+  size_t offset_size;
+  if (text == (const char *)0 || range_out == (ctool_dis_raw_range_t *)0) {
+    return 0;
+  }
+  separator = strchr(text, ':');
+  if (separator == (const char *)0 || separator == text ||
+      separator[1] == '\0' || strchr(separator + 1, ':') != (char *)0) {
+    return 0;
+  }
+  offset_size = (size_t)(separator - text);
+  return cupiddis_parse_u32_span(text, offset_size, &range_out->offset) != 0 &&
+                 cupiddis_parse_mode(separator + 1, &range_out->mode) != 0
+             ? 1
+             : 0;
+}
+
+static int cupiddis_append_mode_change(cupiddis_cli_t *cli,
+                                       ctool_dis_raw_range_t range) {
+  ctool_u32 required;
+  if (cli->mode_change_count > 4294967293u) {
+    return 0;
+  }
+  required = cli->mode_change_count + 2u;
+  if (required > cli->mode_range_capacity) {
+    ctool_u32 capacity = cli->mode_range_capacity == 0u
+                             ? 4u
+                             : cli->mode_range_capacity;
+    ctool_dis_raw_range_t *resized;
+    while (capacity < required) {
+      if (capacity > 2147483647u) {
+        capacity = required;
+        break;
+      }
+      capacity *= 2u;
+    }
+    if ((size_t)capacity > (size_t)-1 / sizeof(*resized)) {
+      return 0;
+    }
+    resized = (ctool_dis_raw_range_t *)realloc(
+        cli->mode_ranges, (size_t)capacity * sizeof(*resized));
+    if (resized == (ctool_dis_raw_range_t *)0) {
+      return 0;
+    }
+    cli->mode_ranges = resized;
+    cli->mode_range_capacity = capacity;
+  }
+  cli->mode_ranges[cli->mode_change_count + 1u] = range;
+  cli->mode_change_count++;
+  return 1;
 }
 
 static int cupiddis_take_value(int argc, char **argv, int *index,
@@ -166,6 +232,16 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
       cli->have_base = CTOOL_TRUE;
       continue;
     }
+    taken = cupiddis_take_value(argc, argv, &index, argument, "--mode-at",
+                                &value);
+    if (taken != 0) {
+      ctool_dis_raw_range_t range;
+      if (taken < 0 || cupiddis_parse_mode_change(value, &range) == 0 ||
+          cupiddis_append_mode_change(cli, range) == 0) {
+        return 0;
+      }
+      continue;
+    }
     if (argument[0] == '-') {
       return 0;
     }
@@ -187,8 +263,13 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     if (cli->have_views == CTOOL_FALSE) {
       cli->views = CTOOL_DIS_VIEW_DISASSEMBLY;
     }
+    if (cli->mode_change_count != 0u) {
+      cli->mode_ranges[0].offset = 0u;
+      cli->mode_ranges[0].mode = cli->mode;
+    }
   } else {
     if (cli->have_mode == CTOOL_TRUE || cli->have_base == CTOOL_TRUE ||
+        cli->mode_change_count != 0u ||
         (cli->nm == CTOOL_TRUE && cli->have_views == CTOOL_TRUE)) {
       return 0;
     }
@@ -302,14 +383,17 @@ int main(int argc, char **argv) {
   int exit_code = 1;
   if (parsed < 0) {
     cupiddis_usage(stdout);
+    free(cli.mode_ranges);
     return 0;
   }
   if (parsed == 0) {
     cupiddis_usage(stderr);
+    free(cli.mode_ranges);
     return 2;
   }
   if (!cupiddis_split_path(cli.input, &native_root, &logical_name)) {
     (void)fprintf(stderr, "cupiddis: invalid input path\n");
+    free(cli.mode_ranges);
     return 1;
   }
   limits.source_bytes = CUPIDDIS_HOST_SOURCE_BYTES;
@@ -344,8 +428,14 @@ int main(int argc, char **argv) {
   request.input = cli.raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
                                         : CTOOL_DIS_INPUT_ELF32;
   request.views = cli.views;
-  request.raw_mode = cli.mode;
+  request.raw_mode = cli.mode_change_count == 0u
+                         ? cli.mode
+                         : CTOOL_DIS_RAW_MODE_MAP;
   request.raw_base_address = cli.base_address;
+  if (cli.mode_change_count != 0u) {
+    request.raw_ranges = cli.mode_ranges;
+    request.raw_range_count = cli.mode_change_count + 1u;
+  }
   status = ctool_dis_inspect(job, &source, &request, &report);
   output.context = stdout;
   output.write = cupiddis_stdout_write;
@@ -374,5 +464,6 @@ done:
     ctool_job_close(job);
   }
   free(native_root);
+  free(cli.mode_ranges);
   return exit_code;
 }
