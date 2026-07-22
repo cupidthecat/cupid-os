@@ -137,8 +137,8 @@ ordinary members, and indexed elements can be initialized, loaded, assigned,
 chained, discarded, and returned. A declared wide argument occupies eight
 cdecl stack bytes, and later parameter addresses include its full width. The
 i386 return boundary places the low word in EAX and the high word in EDX.
-Addition, subtraction, unary plus, unary minus, bitwise complement, left
-shift, signed or unsigned right shift, AND, OR, XOR, all six signed or
+Addition, subtraction, multiplication, unary plus, unary minus, bitwise
+complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or
 unsigned comparisons, logical not, short-circuit logical operators,
 conditional selection, structured scalar conditions, signed or unsigned
 switch dispatch, and conversion to or from represented byte, word, and
@@ -149,9 +149,10 @@ arithmetic rules select the unsigned type. In GNU mode, a wide enum promotes
 to its exact compatible signed or unsigned wide type. The complete
 ctool_buffer_put_le64, ctool_buffer_patch_le64, pp_if_value_truth,
 pp_if_is_negative, pp_if_signed_less, and pp_if_signed_magnitude bodies now
-lower and emit unchanged. CupidASM's unary expression branch guards the same
-arithmetic. Values passed through an ellipsis or an unprototyped call,
-multiplication, division, remainder, and mutation remain unsupported.
+lower and emit unchanged. CupidASM's number parser and unary expression branch
+guard the arithmetic, and X25519's fe_mul_u32 helper guards wide-by-narrow
+multiplication. Values passed through an ellipsis or an unprototyped call,
+division, remainder, and mutation remain unsupported.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -295,8 +296,8 @@ indexing, and returns. Supported structure graphs have alignment no greater
 than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
-case, explicit bit-field initializer leaves, Boolean mutation, wide
-multiplication, division, remainder, mutation, floating-point
+case, explicit bit-field initializer leaves, Boolean mutation, wide division,
+remainder, mutation, floating-point
 runtime values, wider or aggregate variadic values, wide strings, literal
 pooling, and block-static addresses in other block-static initializers remain
 unfinished in the shared path.

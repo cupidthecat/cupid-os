@@ -77,6 +77,32 @@ static const char active_asm_wide_unary_arithmetic_object[] =
     "      *value_out = ~right;\n"
     "    }\n";
 
+static const char active_x25519_wide_multiply_body[] =
+    "static void fe_mul_u32(fe r, const fe a, uint32_t n) {\n"
+    "    uint64_t r0 = (uint64_t)a[0] * n;\n"
+    "    uint64_t r1 = (uint64_t)a[1] * n;\n"
+    "    uint64_t r2 = (uint64_t)a[2] * n;\n"
+    "    uint64_t r3 = (uint64_t)a[3] * n;\n"
+    "    uint64_t r4 = (uint64_t)a[4] * n;\n"
+    "    uint64_t r5 = (uint64_t)a[5] * n;\n"
+    "    uint64_t r6 = (uint64_t)a[6] * n;\n"
+    "    uint64_t r7 = (uint64_t)a[7] * n;\n"
+    "    fe_carry(r, r0, r1, r2, r3, r4, r5, r6, r7);\n"
+    "}\n";
+
+static const char active_x25519_wide_multiply_body_crlf[] =
+    "static void fe_mul_u32(fe r, const fe a, uint32_t n) {\r\n"
+    "    uint64_t r0 = (uint64_t)a[0] * n;\r\n"
+    "    uint64_t r1 = (uint64_t)a[1] * n;\r\n"
+    "    uint64_t r2 = (uint64_t)a[2] * n;\r\n"
+    "    uint64_t r3 = (uint64_t)a[3] * n;\r\n"
+    "    uint64_t r4 = (uint64_t)a[4] * n;\r\n"
+    "    uint64_t r5 = (uint64_t)a[5] * n;\r\n"
+    "    uint64_t r6 = (uint64_t)a[6] * n;\r\n"
+    "    uint64_t r7 = (uint64_t)a[7] * n;\r\n"
+    "    fe_carry(r, r0, r1, r2, r3, r4, r5, r6, r7);\r\n"
+    "}\r\n";
+
 static const char active_cpu_frequency[] =
     "uint64_t get_cpu_freq(void) {\n"
     "    return tsc_freq;\n"
@@ -262,6 +288,31 @@ static const char wide_count_operation_object_source[] =
     "typedef unsigned long long ctool_u64;\n"
     "ctool_u64 shift_wide_count(ctool_u64 value, ctool_u64 count) {\n"
     "  return value << count;\n"
+    "}\n";
+
+static const char wide_multiplication_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "ctool_u64 multiply_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left * right;\n"
+    "}\n"
+    "ctool_i64 multiply_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left * right;\n"
+    "}\n"
+    "ctool_u64 multiply_mixed(ctool_i64 left, ctool_u64 right) {\n"
+    "  return left * right;\n"
+    "}\n"
+    "ctool_u64 multiply_wide_narrow(ctool_u64 left, ctool_u32 right) {\n"
+    "  return left * right;\n"
+    "}\n"
+    "ctool_u64 multiply_chained(ctool_u64 left, ctool_u64 right,\n"
+    "                             ctool_u64 third) {\n"
+    "  return (left * right) * third;\n"
+    "}\n"
+    "ctool_u64 multiply_then_reuse_left(ctool_u64 left,\n"
+    "                                    ctool_u64 right) {\n"
+    "  return (left * right) + left;\n"
     "}\n";
 
 static const char wide_condition_object_source[] =
@@ -17172,6 +17223,33 @@ static int wide_oracle_unary_step(
   return 1;
 }
 
+static int wide_oracle_multiply_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction, ctool_bool *handled) {
+  ctool_u32 right;
+  uint64_t product;
+  if (machine == NULL || instruction == NULL || handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if (instruction->mnemonic != CTOOL_X86_MN_MUL) {
+    return 1;
+  }
+  if (instruction->operand_count != 1u ||
+      instruction->operands[0].width_bits != 32u ||
+      !narrow_oracle_read_operand(machine, &instruction->operands[0],
+                                  &right)) {
+    return 0;
+  }
+  product = (uint64_t)machine->registers[NARROW_ORACLE_EAX] *
+            (uint64_t)right;
+  machine->registers[NARROW_ORACLE_EAX] = (ctool_u32)product;
+  machine->registers[NARROW_ORACLE_EDX] =
+      (ctool_u32)(product >> 32u);
+  *handled = CTOOL_TRUE;
+  return 1;
+}
+
 static int wide_oracle_shift_step(
     narrow_oracle_machine_t *machine,
     const ctool_x86_instruction_t *instruction, ctool_bool *carry_flag,
@@ -17532,6 +17610,8 @@ static int wide_oracle_execute_arguments(
         (handled == CTOOL_FALSE &&
          !wide_oracle_unary_step(&machine, instruction, &carry_flag,
                                  &handled)) ||
+        (handled == CTOOL_FALSE &&
+         !wide_oracle_multiply_step(&machine, instruction, &handled)) ||
         (handled == CTOOL_FALSE &&
          !wide_oracle_shift_step(&machine, instruction, &carry_flag,
                                  &handled)) ||
@@ -18765,6 +18845,204 @@ static int validate_wide_operation_object(
   return 1;
 }
 
+static int validate_wide_multiplication_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const function_names[] = {
+      "multiply_unsigned",       "multiply_signed",
+      "multiply_mixed",          "multiply_wide_narrow",
+      "multiply_chained",        "multiply_then_reuse_left"};
+  static const ctool_u32 function_sizes[] = {
+      154u, 154u, 154u, 158u, 259u, 224u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 fingerprint =
+      text == NULL ? 0u : structure_text_fingerprint(text->contents);
+  const ctool_u32 zero_arguments[] = {
+      0x89abcdefu, 0x01234567u, 0u, 0u};
+  const ctool_u32 identity_arguments[] = {
+      0x89abcdefu, 0x01234567u, 1u, 0u};
+  const ctool_u32 carry_arguments[] = {
+      0xffffffffu, 0u, 0xffffffffu, 0u};
+  const ctool_u32 cross_word_arguments[] = {0u, 1u, 2u, 0u};
+  const ctool_u32 high_bit_arguments[] = {0u, 0x80000000u, 2u, 0u};
+  const ctool_u32 signed_negative_arguments[] = {
+      0xfffffffdu, 0xffffffffu, 7u, 0u};
+  const ctool_u32 signed_boundary_arguments[] = {
+      0u, 0x80000000u, 1u, 0u};
+  const ctool_u32 signed_both_negative_arguments[] = {
+      0xfffffffdu, 0xffffffffu, 0xfffffff9u, 0xffffffffu};
+  const ctool_u32 wide_narrow_arguments[] = {1u, 1u, 3u};
+  const ctool_u32 chained_arguments[] = {
+      1u, 1u, 0xffffffffu, 0u, 2u, 0u};
+  const ctool_u32 reused_arguments[] = {
+      1u, 1u, 0xffffffffu, 0u};
+  ctool_u32 expected_offset = 0u;
+  ctool_u32 multiply_count = 0u;
+  ctool_u32 signed_multiply_count = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 divide_count = 0u;
+  ctool_u32 return_count = 0u;
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->type != CTOOL_ELF32_SHT_PROGBITS ||
+      text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
+      text->alignment != 1u || text->contents.data == NULL ||
+      text->contents.size != 1103u || fingerprint != 0xe357be84u ||
+      text->relocation_count != 0u ||
+      object->relocation_count != 0u || object->symbol_count != 7u) {
+    (void)fprintf(stderr,
+                  "wide multiplication ELF inventory differs: text=%u "
+                  "fingerprint=%08x symbols=%u relocations=%u\n",
+                  text == NULL ? 0u : text->contents.size,
+                  fingerprint,
+                  object == NULL ? 0u : object->symbol_count,
+                  object == NULL ? 0u : object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_names) /
+                           sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    ctool_u32 cursor = 0u;
+    ctool_x86_mnemonic_t last = CTOOL_X86_MN_INVALID;
+    if (function == NULL || function->size != function_sizes[index] ||
+        !symbol_matches(function, index + 1u, CTOOL_ELF32_BIND_GLOBAL,
+                        CTOOL_ELF32_SYMBOL_FUNCTION,
+                        CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                        expected_offset, function_sizes[index])) {
+      (void)fprintf(stderr,
+                    "wide multiplication symbol %s differs at %u\n",
+                    function_names[index], (unsigned int)expected_offset);
+      return 0;
+    }
+    while (cursor < function->size) {
+      ctool_x86_decoded_t decoded;
+      const ctool_x86_instruction_t *instruction;
+      ctool_bytes_t remaining = ctool_bytes(
+          text->contents.data + function->value + cursor,
+          function->size - cursor);
+      ctool_status_t status;
+      (void)memset(&decoded, 0xa5, sizeof(decoded));
+      status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                                &decoded);
+      if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+          decoded.consumed == 0u) {
+        (void)fprintf(stderr,
+                      "wide multiplication decode failed in %s at %u\n",
+                      function_names[index], (unsigned int)cursor);
+        return 0;
+      }
+      instruction = &decoded.instruction;
+      last = instruction->mnemonic;
+      if (instruction->mnemonic == CTOOL_X86_MN_MUL) {
+        if (instruction->operand_count != 1u ||
+            instruction->operands[0].width_bits != 32u) {
+          (void)fprintf(stderr,
+                        "wide multiplication MUL form differs in %s\n",
+                        function_names[index]);
+          return 0;
+        }
+        multiply_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_IMUL) {
+        if (instruction->operand_count != 2u ||
+            instruction->operands[0].kind !=
+                CTOOL_X86_OPERAND_REGISTER ||
+            instruction->operands[0].as.reg.class_id !=
+                CTOOL_X86_REG_GPR32 ||
+            instruction->operands[0].width_bits != 32u ||
+            instruction->operands[1].width_bits != 32u) {
+          (void)fprintf(stderr,
+                        "wide multiplication IMUL form differs in %s\n",
+                        function_names[index]);
+          return 0;
+        }
+        signed_multiply_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+        call_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_DIV ||
+                 instruction->mnemonic == CTOOL_X86_MN_IDIV) {
+        divide_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+        return_count++;
+      }
+      cursor += decoded.consumed;
+    }
+    if (cursor != function->size || last != CTOOL_X86_MN_RET) {
+      (void)fprintf(stderr,
+                    "wide multiplication function %s boundary differs\n",
+                    function_names[index]);
+      return 0;
+    }
+    expected_offset += function_sizes[index];
+  }
+  if (expected_offset != text->contents.size || multiply_count != 7u ||
+      signed_multiply_count != 14u || call_count != 0u ||
+      divide_count != 0u || return_count != 6u) {
+    (void)fprintf(stderr,
+                  "wide multiplication instruction inventory differs: "
+                  "mul=%u imul=%u call=%u divide=%u return=%u text=%u "
+                  "fingerprint=%08x\n",
+                  (unsigned int)multiply_count,
+                  (unsigned int)signed_multiply_count,
+                  (unsigned int)call_count, (unsigned int)divide_count,
+                  (unsigned int)return_count,
+                  (unsigned int)text->contents.size,
+                  (unsigned int)fingerprint);
+    return 0;
+  }
+  return expect_wide_oracle_result(
+             job, object, text, "multiply_unsigned", zero_arguments, 4u,
+             0u, 0u, "unsigned wide multiplication by zero") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_unsigned",
+                     identity_arguments, 4u, 0x89abcdefu, 0x01234567u,
+                     "unsigned wide multiplication identity") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_unsigned",
+                     carry_arguments, 4u, 1u, 0xfffffffeu,
+                     "unsigned wide multiplication low-word carry") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_unsigned",
+                     cross_word_arguments, 4u, 0u, 2u,
+                     "unsigned wide multiplication cross word") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_unsigned",
+                     high_bit_arguments, 4u, 0u, 0u,
+                     "unsigned wide multiplication wrap") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_signed",
+                     signed_negative_arguments, 4u, 0xffffffebu,
+                     0xffffffffu, "signed wide multiplication negative") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_signed",
+                     signed_boundary_arguments, 4u, 0u, 0x80000000u,
+                     "signed wide multiplication boundary") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_signed",
+                     signed_both_negative_arguments, 4u, 21u, 0u,
+                     "signed wide multiplication positive") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_mixed",
+                     signed_negative_arguments, 4u, 0xffffffebu,
+                     0xffffffffu,
+                     "mixed-signedness wide multiplication") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_wide_narrow",
+                     wide_narrow_arguments, 3u, 3u, 3u,
+                     "wide multiplication by represented narrow value") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_chained",
+                     chained_arguments, 6u, 0xfffffffeu, 0xffffffffu,
+                     "chained wide multiplication snapshots") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "multiply_then_reuse_left",
+                     reused_arguments, 4u, 0u, 1u,
+                     "wide multiplication preserves its left snapshot")
+             ? 1
+             : 0;
+}
+
 static int validate_active_wide_helper_object(
     const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -19256,6 +19534,104 @@ cleanup:
     return 0;
   }
   return 1;
+}
+
+static int run_wide_multiplication_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_contains(
+          job, "/kernel/crypto/x25519.c",
+          "load active X25519 multiplication source",
+          "the active X25519 wide multiplication helper changed",
+          active_x25519_wide_multiply_body,
+          active_x25519_wide_multiply_body_crlf) ||
+      !parse_source(job, "/wide-multiplication-object.c",
+                    wide_multiplication_object_source, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "wide multiplication object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "wide multiplication object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat wide multiplication object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited wide multiplication object") ||
+      ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "recovered wide multiplication object")) {
+    (void)fprintf(stderr,
+                  "wide multiplication object transaction differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "wide multiplication objects are not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-multiplication-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read wide multiplication object") ||
+      !validate_wide_multiplication_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  return passed != 0 ? 0 : 1;
 }
 
 static int run_wide_return_object(const char *host_root) {
@@ -19808,6 +20184,9 @@ int main(int argc, char **argv) {
     return run_variadic_callee_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
+    if (run_wide_multiplication_object(argv[2]) != 0) {
+      return 1;
+    }
     return run_wide_return_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "wide-conditions") == 0) {

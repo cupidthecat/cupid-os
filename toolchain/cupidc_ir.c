@@ -2536,7 +2536,9 @@ static ctool_status_t cir_lower_binary(
                  expression->operation ==
                      CTOOL_C_EXPRESSION_OPERATOR_ADD ||
                  expression->operation ==
-                     CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) &&
+                     CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+                 expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) &&
                 expression->type == left.type && left.type == right.type &&
                 cir_type_is_wide_integer(context, right.type) ==
                     CTOOL_TRUE))

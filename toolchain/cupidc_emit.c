@@ -1910,6 +1910,7 @@ static ctool_status_t cemit_x86_binary_register_at_register(
   if (byte_offset > 0x7fffffffu ||
       (mnemonic != CTOOL_X86_MN_ADC && mnemonic != CTOOL_X86_MN_ADD &&
        mnemonic != CTOOL_X86_MN_AND && mnemonic != CTOOL_X86_MN_CMP &&
+       mnemonic != CTOOL_X86_MN_IMUL &&
        mnemonic != CTOOL_X86_MN_OR && mnemonic != CTOOL_X86_MN_SBB &&
        mnemonic != CTOOL_X86_MN_SUB && mnemonic != CTOOL_X86_MN_XOR)) {
     return CTOOL_ERR_INTERNAL;
@@ -2171,6 +2172,69 @@ static ctool_status_t cemit_x86_push_wide_add_subtract_snapshot(
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_multiply_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset) {
+  ctool_status_t status;
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_IMUL, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_IMUL, 2u, 1u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_ADD, 2u, 4u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(context, 0u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 0u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 1u, 1u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_MUL, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_ADD, 2u, 4u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_push_wide_register_snapshot(
+        context, temporary_offset, 0u, 2u);
   }
   return status;
 }
@@ -5239,6 +5303,11 @@ static ctool_status_t cemit_emit_ir_instruction(
                     CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT
                 ? CTOOL_TRUE
                 : CTOOL_FALSE);
+      }
+      if (ir_instruction->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
+        return cemit_x86_push_wide_multiply_snapshot(
+            context, value_temporary_offset);
       }
       if (ir_instruction->operation ==
           CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {
