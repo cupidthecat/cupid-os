@@ -213,6 +213,105 @@ static const char wide_count_operation_object_source[] =
     "  return value << count;\n"
     "}\n";
 
+static const char wide_condition_object_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "typedef int ctool_bool;\n"
+    "typedef struct {\n"
+    "  ctool_u64 bits;\n"
+    "  ctool_bool is_unsigned;\n"
+    "} pp_if_value_t;\n"
+    "enum { CTOOL_FALSE = 0, CTOOL_TRUE = 1 };\n"
+    "#define PP_IF_SIGN_BIT 0x8000000000000000ull\n"
+    "int signed_less(ctool_i64 left, ctool_i64 right) { return left < right; }\n"
+    "int signed_less_equal(ctool_i64 left, ctool_i64 right) { return left <= right; }\n"
+    "int signed_greater(ctool_i64 left, ctool_i64 right) { return left > right; }\n"
+    "int signed_greater_equal(ctool_i64 left, ctool_i64 right) { return left >= right; }\n"
+    "int signed_equal(ctool_i64 left, ctool_i64 right) { return left == right; }\n"
+    "int signed_not_equal(ctool_i64 left, ctool_i64 right) { return left != right; }\n"
+    "int unsigned_less(ctool_u64 left, ctool_u64 right) { return left < right; }\n"
+    "int unsigned_less_equal(ctool_u64 left, ctool_u64 right) { return left <= right; }\n"
+    "int unsigned_greater(ctool_u64 left, ctool_u64 right) { return left > right; }\n"
+    "int unsigned_greater_equal(ctool_u64 left, ctool_u64 right) { return left >= right; }\n"
+    "int unsigned_equal(ctool_u64 left, ctool_u64 right) { return left == right; }\n"
+    "int unsigned_not_equal(ctool_u64 left, ctool_u64 right) { return left != right; }\n"
+    "int mixed_less(ctool_i64 left, ctool_u64 right) { return left < right; }\n"
+    "int wide_not(ctool_u64 value) { return !value; }\n"
+    "int wide_and(ctool_u64 value) {\n"
+    "  int observed = 0;\n"
+    "  value && (observed = 1);\n"
+    "  return observed;\n"
+    "}\n"
+    "int wide_or(ctool_u64 value) {\n"
+    "  int observed = 0;\n"
+    "  value || (observed = 1);\n"
+    "  return observed;\n"
+    "}\n"
+    "int wide_select(ctool_u64 value) { return value ? 7 : 9; }\n"
+    "int wide_if(ctool_u64 value) {\n"
+    "  if (value) return 11;\n"
+    "  return 13;\n"
+    "}\n"
+    "int wide_while(ctool_u64 value) {\n"
+    "  int result = 0;\n"
+    "  while (value) { result = 17; break; }\n"
+    "  return result;\n"
+    "}\n"
+    "int wide_do(ctool_u64 value) {\n"
+    "  int result = 0;\n"
+    "  do { result++; } while (value && result < 2);\n"
+    "  return result;\n"
+    "}\n"
+    "int wide_for(ctool_u64 value) {\n"
+    "  int result = 0;\n"
+    "  for (; value;) { result = 29; break; }\n"
+    "  return result;\n"
+    "}\n"
+    "static ctool_bool pp_if_value_truth(pp_if_value_t value) {\n"
+    "  return value.bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n"
+    "static ctool_bool pp_if_is_negative(pp_if_value_t value) {\n"
+    "  return value.is_unsigned == CTOOL_FALSE &&\n"
+    "                 (value.bits & PP_IF_SIGN_BIT) != 0ull\n"
+    "             ? CTOOL_TRUE\n"
+    "             : CTOOL_FALSE;\n"
+    "}\n"
+    "static ctool_bool pp_if_signed_less(ctool_u64 left, ctool_u64 right) {\n"
+    "  ctool_bool left_negative =\n"
+    "      (left & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  ctool_bool right_negative =\n"
+    "      (right & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  if (left_negative != right_negative) {\n"
+    "    return left_negative;\n"
+    "  }\n"
+    "  return left < right ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char active_pp_if_value_truth_object[] =
+    "static ctool_bool pp_if_value_truth(pp_if_value_t value) {\n"
+    "  return value.bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char active_pp_if_is_negative_object[] =
+    "static ctool_bool pp_if_is_negative(pp_if_value_t value) {\n"
+    "  return value.is_unsigned == CTOOL_FALSE &&\n"
+    "                 (value.bits & PP_IF_SIGN_BIT) != 0ull\n"
+    "             ? CTOOL_TRUE\n"
+    "             : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char active_pp_if_signed_less_object[] =
+    "static ctool_bool pp_if_signed_less(ctool_u64 left, ctool_u64 right) {\n"
+    "  ctool_bool left_negative =\n"
+    "      (left & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  ctool_bool right_negative =\n"
+    "      (right & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  if (left_negative != right_negative) {\n"
+    "    return left_negative;\n"
+    "  }\n"
+    "  return left < right ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
 static const char active_wide_helper_object_source[] =
     "typedef unsigned char ctool_u8;\n"
     "typedef unsigned int ctool_u32;\n"
@@ -7501,31 +7600,27 @@ static int run_static_data(const char *host_root) {
           "CupidC IR lowering does not yet support this expression",
           "unsupported function expression") ||
       !parse_source(job, "/wide-selection.c", wide_selection_text,
-                    &wide_selection_unit) ||
-      !expect_object_failure(
-          job, &wide_selection_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_selection_unit) ||
+      !expect_object_success_preserves_unit(
+          job, &wide_selection_unit, second,
           "wide selection condition object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/wide-while.c", wide_while_text,
-                    &wide_while_unit) ||
-      !expect_object_failure(
-          job, &wide_while_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_while_unit) ||
+      !expect_object_success_preserves_unit(
+          job, &wide_while_unit, second,
           "wide while condition object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/wide-do.c", wide_do_text, &wide_do_unit) ||
-      !expect_object_failure(
-          job, &wide_do_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_object_success_preserves_unit(
+          job, &wide_do_unit, second,
           "wide do condition object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/wide-for.c", wide_for_text, &wide_for_unit) ||
-      !expect_object_failure_preserves_unit(
-          job, &wide_for_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_object_success_preserves_unit(
+          job, &wide_for_unit, second,
           "wide for condition object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/terminal-wide-for-iteration.c",
                     terminal_wide_for_iteration_text,
                     &terminal_wide_for_iteration_unit) ||
@@ -7556,12 +7651,11 @@ static int run_static_data(const char *host_root) {
           "CupidC IR lowering does not yet support this statement",
           "nonvoid selection fallthrough object") ||
       !parse_source(job, "/wide-logical-not.c", wide_logical_not_text,
-                    &wide_logical_not_unit) ||
-      !expect_object_failure(
-          job, &wide_logical_not_unit, second, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_logical_not_unit) ||
+      !expect_object_success_preserves_unit(
+          job, &wide_logical_not_unit, second,
           "wide logical-not object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/external-inline.c", external_inline_text,
                     &external_inline_unit) ||
       !expect_object_failure(
@@ -10801,6 +10895,8 @@ static int validate_narrow_value_object(
 #define NARROW_ORACLE_EBX 3u
 #define NARROW_ORACLE_ESP 4u
 #define NARROW_ORACLE_EBP 5u
+#define NARROW_ORACLE_ESI 6u
+#define NARROW_ORACLE_EDI 7u
 
 typedef struct {
   ctool_u32 registers[8];
@@ -16816,10 +16912,12 @@ static int validate_wide_snapshot_function(
   return 1;
 }
 
-#define WIDE_ORACLE_TEXT_LIMIT 2048u
+#define WIDE_ORACLE_TEXT_LIMIT 16384u
 #define WIDE_ORACLE_INITIAL_ESP 204u
 #define WIDE_ORACLE_RETURN_SENTINEL 0x13579bdfu
 #define WIDE_ORACLE_EBX_SENTINEL 0xc3d2e1f0u
+#define WIDE_ORACLE_ESI_SENTINEL 0x4b5a6978u
+#define WIDE_ORACLE_EDI_SENTINEL 0x8796a5b4u
 #define WIDE_ORACLE_STEP_LIMIT 4096u
 #define WIDE_ORACLE_CALL_LIMIT 32u
 
@@ -16968,10 +17066,14 @@ static int wide_oracle_shift_step(
 static int wide_oracle_flag_step(
     narrow_oracle_machine_t *machine,
     const ctool_x86_instruction_t *instruction, ctool_bool *zero_flag,
+    ctool_bool *carry_flag, ctool_bool *sign_flag,
+    ctool_bool *overflow_flag,
     ctool_bool *handled) {
   ctool_u32 left;
   ctool_u32 right;
+  ctool_u32 result;
   if (machine == NULL || instruction == NULL || zero_flag == NULL ||
+      carry_flag == NULL || sign_flag == NULL || overflow_flag == NULL ||
       handled == NULL) {
     return 0;
   }
@@ -16980,12 +17082,17 @@ static int wide_oracle_flag_step(
       instruction->operand_count == 1u &&
       narrow_oracle_read_operand(machine, &instruction->operands[0],
                                  &left)) {
+    right = left;
     left--;
     if (!narrow_oracle_write_operand(machine, &instruction->operands[0],
                                      left)) {
       return 0;
     }
     *zero_flag = left == 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    *sign_flag =
+        (left & 0x80000000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    *overflow_flag =
+        right == 0x80000000u ? CTOOL_TRUE : CTOOL_FALSE;
     *handled = CTOOL_TRUE;
     return 1;
   }
@@ -16998,23 +17105,76 @@ static int wide_oracle_flag_step(
                                     &right)) {
       return 0;
     }
-    *zero_flag =
-        (instruction->mnemonic == CTOOL_X86_MN_CMP ? left - right
-                                                    : left & right) == 0u
-            ? CTOOL_TRUE
-            : CTOOL_FALSE;
+    result = instruction->mnemonic == CTOOL_X86_MN_CMP
+                 ? left - right
+                 : left & right;
+    *zero_flag = result == 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    *sign_flag =
+        (result & 0x80000000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    if (instruction->mnemonic == CTOOL_X86_MN_CMP) {
+      *carry_flag = left < right ? CTOOL_TRUE : CTOOL_FALSE;
+      *overflow_flag =
+          (((left ^ right) & (left ^ result) & 0x80000000u) != 0u)
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+    } else {
+      *carry_flag = CTOOL_FALSE;
+      *overflow_flag = CTOOL_FALSE;
+    }
     *handled = CTOOL_TRUE;
     return 1;
   }
   if ((instruction->mnemonic == CTOOL_X86_MN_SETE ||
-       instruction->mnemonic == CTOOL_X86_MN_SETNE) &&
+       instruction->mnemonic == CTOOL_X86_MN_SETNE ||
+       instruction->mnemonic == CTOOL_X86_MN_SETB ||
+       instruction->mnemonic == CTOOL_X86_MN_SETBE ||
+       instruction->mnemonic == CTOOL_X86_MN_SETA ||
+       instruction->mnemonic == CTOOL_X86_MN_SETAE ||
+       instruction->mnemonic == CTOOL_X86_MN_SETL ||
+       instruction->mnemonic == CTOOL_X86_MN_SETLE ||
+       instruction->mnemonic == CTOOL_X86_MN_SETG ||
+       instruction->mnemonic == CTOOL_X86_MN_SETGE) &&
       instruction->operand_count == 1u) {
+    ctool_bool predicate = CTOOL_FALSE;
+    if (instruction->mnemonic == CTOOL_X86_MN_SETE) {
+      predicate = *zero_flag;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETNE) {
+      predicate =
+          *zero_flag == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETB) {
+      predicate = *carry_flag;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETBE) {
+      predicate = *carry_flag == CTOOL_TRUE ||
+                          *zero_flag == CTOOL_TRUE
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETA) {
+      predicate = *carry_flag == CTOOL_FALSE &&
+                          *zero_flag == CTOOL_FALSE
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETAE) {
+      predicate =
+          *carry_flag == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETL) {
+      predicate = *sign_flag != *overflow_flag ? CTOOL_TRUE : CTOOL_FALSE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETLE) {
+      predicate = *zero_flag == CTOOL_TRUE ||
+                          *sign_flag != *overflow_flag
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETG) {
+      predicate = *zero_flag == CTOOL_FALSE &&
+                          *sign_flag == *overflow_flag
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
+    } else {
+      predicate =
+          *sign_flag == *overflow_flag ? CTOOL_TRUE : CTOOL_FALSE;
+    }
     if (!narrow_oracle_write_operand(
             machine, &instruction->operands[0],
-            (instruction->mnemonic == CTOOL_X86_MN_SETE) ==
-                    (*zero_flag == CTOOL_TRUE)
-                ? 1u
-                : 0u)) {
+            predicate == CTOOL_TRUE ? 1u : 0u)) {
       return 0;
     }
     *handled = CTOOL_TRUE;
@@ -17038,6 +17198,8 @@ static int wide_oracle_execute_arguments(
   ctool_u32 argument;
   ctool_bool zero_flag = CTOOL_FALSE;
   ctool_bool carry_flag = CTOOL_FALSE;
+  ctool_bool sign_flag = CTOOL_FALSE;
+  ctool_bool overflow_flag = CTOOL_FALSE;
   ctool_bool direction_clear = CTOOL_FALSE;
   ctool_bool returned = CTOOL_FALSE;
   if (job == NULL || object == NULL || text == NULL || symbol == NULL ||
@@ -17055,6 +17217,8 @@ static int wide_oracle_execute_arguments(
   machine.registers[NARROW_ORACLE_ESP] = WIDE_ORACLE_INITIAL_ESP;
   machine.registers[NARROW_ORACLE_EBP] = 64u;
   machine.registers[NARROW_ORACLE_EBX] = WIDE_ORACLE_EBX_SENTINEL;
+  machine.registers[NARROW_ORACLE_ESI] = WIDE_ORACLE_ESI_SENTINEL;
+  machine.registers[NARROW_ORACLE_EDI] = WIDE_ORACLE_EDI_SENTINEL;
   if (!narrow_oracle_write_memory(&machine, WIDE_ORACLE_INITIAL_ESP, 32u,
                                   WIDE_ORACLE_RETURN_SENTINEL)) {
     return 0;
@@ -17198,9 +17362,10 @@ static int wide_oracle_execute_arguments(
     }
     if (!wide_oracle_shift_step(&machine, instruction, &carry_flag,
                                 &handled) ||
-        (handled == CTOOL_FALSE &&
-         !wide_oracle_flag_step(&machine, instruction, &zero_flag,
-                                &handled)) ||
+         (handled == CTOOL_FALSE &&
+          !wide_oracle_flag_step(
+              &machine, instruction, &zero_flag, &carry_flag,
+              &sign_flag, &overflow_flag, &handled)) ||
         (handled == CTOOL_FALSE &&
          !narrow_oracle_step(&machine, instruction, &leaf_return)) ||
         leaf_return != CTOOL_FALSE) {
@@ -17216,6 +17381,8 @@ static int wide_oracle_execute_arguments(
       machine.registers[NARROW_ORACLE_ESP] != WIDE_ORACLE_INITIAL_ESP + 4u ||
       machine.registers[NARROW_ORACLE_EBP] != 64u ||
       machine.registers[NARROW_ORACLE_EBX] != WIDE_ORACLE_EBX_SENTINEL ||
+      machine.registers[NARROW_ORACLE_ESI] != WIDE_ORACLE_ESI_SENTINEL ||
+      machine.registers[NARROW_ORACLE_EDI] != WIDE_ORACLE_EDI_SENTINEL ||
       !narrow_oracle_read_memory(&machine, WIDE_ORACLE_INITIAL_ESP, 32u,
                                  &preserved) ||
       preserved != WIDE_ORACLE_RETURN_SENTINEL) {
@@ -18335,6 +18502,298 @@ static int validate_active_wide_helper_object(
              : 0;
 }
 
+static int wide_condition_result_matches(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, const char *name,
+    const ctool_u32 *arguments, ctool_u32 argument_count,
+    ctool_u32 expected) {
+  const ctool_elf32_symbol_t *symbol = find_symbol(object, name);
+  ctool_u32 low = 0u;
+  ctool_u32 high = 0u;
+  if (!wide_function_symbol_is_valid(object, text, symbol) ||
+      !wide_oracle_execute_arguments(
+          job, object, text, symbol, arguments, argument_count, &low, &high) ||
+      low != expected) {
+    (void)fprintf(stderr, "%s returned %u instead of %u\n", name,
+                  (unsigned int)low, (unsigned int)expected);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_condition_execution(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const signed_names[] = {
+      "signed_less",          "signed_less_equal", "signed_greater",
+      "signed_greater_equal", "signed_equal",      "signed_not_equal"};
+  static const char *const unsigned_names[] = {
+      "unsigned_less",          "unsigned_less_equal", "unsigned_greater",
+      "unsigned_greater_equal", "unsigned_equal",      "unsigned_not_equal"};
+  static const ctool_u32 signed_expected[][6] = {
+      {1u, 1u, 0u, 0u, 0u, 1u},
+      {0u, 1u, 0u, 1u, 1u, 0u},
+      {1u, 1u, 0u, 0u, 0u, 1u},
+      {1u, 1u, 0u, 0u, 0u, 1u}};
+  static const ctool_u32 unsigned_expected[][6] = {
+      {0u, 0u, 1u, 1u, 0u, 1u},
+      {0u, 1u, 0u, 1u, 1u, 0u},
+      {1u, 1u, 0u, 0u, 0u, 1u},
+      {0u, 0u, 1u, 1u, 0u, 1u}};
+  static const ctool_u32 signed_arguments[][4] = {
+      {0xffffffffu, 0xffffffffu, 0u, 0u},
+      {0x76543210u, 1u, 0x76543210u, 1u},
+      {0u, 1u, 0xffffffffu, 1u},
+      {0u, 0x80000000u, 0u, 1u}};
+  static const ctool_u32 unsigned_arguments[][4] = {
+      {0xffffffffu, 0xffffffffu, 0u, 0u},
+      {0x76543210u, 1u, 0x76543210u, 1u},
+      {0u, 1u, 0xffffffffu, 1u},
+      {0u, 0x80000000u, 0u, 1u}};
+  static const char *const condition_names[] = {
+      "wide_not", "wide_and", "wide_or", "wide_select",
+      "wide_if", "wide_while", "wide_do", "wide_for"};
+  static const ctool_u32 zero_expected[] = {1u, 0u, 1u, 9u,
+                                             13u, 0u, 1u, 0u};
+  static const ctool_u32 high_expected[] = {0u, 1u, 0u, 7u,
+                                             11u, 17u, 2u, 29u};
+  static const ctool_u32 zero_argument[] = {0u, 0u};
+  static const ctool_u32 high_argument[] = {0u, 1u};
+  static const ctool_u32 mixed_negative[] = {
+      0xffffffffu, 0xffffffffu, 1u, 0u};
+  static const ctool_u32 mixed_positive[] = {
+      0u, 0u, 0xffffffffu, 0xffffffffu};
+  static const ctool_u32 truth_zero[] = {0u, 0u, 0u};
+  static const ctool_u32 truth_high[] = {0u, 1u, 0u};
+  static const ctool_u32 negative_signed[] = {0u, 0x80000000u, 0u};
+  static const ctool_u32 negative_unsigned[] = {0u, 0x80000000u, 1u};
+  static const ctool_u32 signed_less_arguments[] = {
+      0u, 0x80000000u, 0u, 0u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 operation;
+  ctool_u32 vector;
+  ctool_u32 fingerprint =
+      text == NULL ? 0u : structure_text_fingerprint(text->contents);
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size != 3341u || fingerprint != 0x16626ce1u ||
+      object->symbol_count != 25u || object->relocation_count != 0u) {
+    (void)fprintf(stderr,
+                  "wide condition object differs: text=%u fingerprint=%08x "
+                  "symbols=%u relocations=%u\n",
+                  text == NULL ? 0u : text->contents.size,
+                  fingerprint, object->symbol_count,
+                  object->relocation_count);
+    return 0;
+  }
+  for (vector = 0u; vector < 4u; vector++) {
+    for (operation = 0u; operation < 6u; operation++) {
+      if (!wide_condition_result_matches(
+              job, object, text, signed_names[operation],
+              signed_arguments[vector], 4u,
+              signed_expected[vector][operation]) ||
+          !wide_condition_result_matches(
+              job, object, text, unsigned_names[operation],
+              unsigned_arguments[vector], 4u,
+              unsigned_expected[vector][operation])) {
+        return 0;
+      }
+    }
+  }
+  if (!wide_condition_result_matches(
+          job, object, text, "mixed_less", mixed_negative, 4u, 0u) ||
+      !wide_condition_result_matches(
+          job, object, text, "mixed_less", mixed_positive, 4u, 1u)) {
+    return 0;
+  }
+  for (operation = 0u; operation < 8u; operation++) {
+    if (!wide_condition_result_matches(
+            job, object, text, condition_names[operation],
+            zero_argument, 2u, zero_expected[operation]) ||
+        !wide_condition_result_matches(
+            job, object, text, condition_names[operation],
+            high_argument, 2u, high_expected[operation])) {
+      return 0;
+    }
+  }
+  return wide_condition_result_matches(
+             job, object, text, "pp_if_value_truth",
+             truth_zero, 3u, 0u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "pp_if_value_truth",
+                     truth_high, 3u, 1u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "pp_if_is_negative",
+                     negative_signed, 3u, 1u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "pp_if_is_negative",
+                     negative_unsigned, 3u, 0u) &&
+                 wide_condition_result_matches(
+                     job, object, text, "pp_if_signed_less",
+                     signed_less_arguments, 4u, 1u)
+             ? 1
+             : 0;
+}
+
+static int run_wide_condition_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 comparison_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_contains(
+          job, "/toolchain/cupidc_pp.c",
+          "load active preprocessor condition source",
+          "the active preprocessor truth helper changed",
+          active_pp_if_value_truth_object, NULL) ||
+      !active_source_contains(
+          job, "/toolchain/cupidc_pp.c",
+          "load active preprocessor condition source",
+          "the active preprocessor sign helper changed",
+          active_pp_if_is_negative_object, NULL) ||
+      !active_source_contains(
+          job, "/toolchain/cupidc_pp.c",
+          "load active preprocessor condition source",
+          "the active preprocessor comparison helper changed",
+          active_pp_if_signed_less_object, NULL) ||
+      !parse_source(job, "/wide-condition-object.c",
+                    wide_condition_object_source, &unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LESS &&
+        expression->child_count == 2u &&
+        expression->first_child < unit.expression_child_count) {
+      ctool_u32 child = unit.expression_children[expression->first_child];
+      if (child < unit.expression_count &&
+          unit.expressions[child].type < unit.layout.type_count &&
+          unit.layout.types[unit.expressions[child].type].is_integer ==
+              CTOOL_TRUE &&
+          unit.layout.types[unit.expressions[child].type].size == 8u) {
+        comparison_expression = index;
+        break;
+      }
+    }
+  }
+  if (comparison_expression == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[comparison_expression].type =
+      invalid_expressions[unit.expression_children[
+          invalid_expressions[comparison_expression].first_child]]
+          .type;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "wide condition object buffer") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "wide comparison and condition object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat wide comparison and condition object") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide comparison object with a wide result") ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited wide comparison and condition object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first,
+          "recovered wide comparison and condition object")) {
+    (void)fprintf(stderr,
+                  "wide comparison and condition objects are not deterministic\n");
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-condition-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide condition object") ||
+      !validate_wide_condition_execution(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-conditions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_wide_return_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -18887,6 +19346,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     return run_wide_return_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-conditions") == 0) {
+    return run_wide_condition_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-objects") == 0) {
     return run_wide_value_object(argv[2]);
   }
@@ -18902,7 +19364,7 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
-                "variadic-callees|wide-returns|wide-objects "
+                "variadic-callees|wide-returns|wide-conditions|wide-objects "
                 "HOST_ROOT\n");
   return 2;
 }

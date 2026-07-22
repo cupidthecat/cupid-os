@@ -38,4 +38,4 @@ ADR 0067 uses the same snapshot handle for declared wide parameters and named ca
 
 ## Extension: wide operations and mixed-width conversion
 
-ADR 0068 gives wide shift, AND, OR, XOR, widening, and narrowing results their own snapshots. Public IR still carries one logical value, and the return path still restores EDX:EAX. Wide arithmetic outside that named set remains open.
+ADR 0068 gives wide shift, AND, OR, XOR, widening, and narrowing results their own snapshots. Public IR still carries one logical value, and the return path still restores EDX:EAX. ADR 0069 lets a wide snapshot feed comparisons and scalar conditions; normalized comparison results continue through the existing four-byte return path. Wide arithmetic outside the named operation set remains open.

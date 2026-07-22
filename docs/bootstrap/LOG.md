@@ -5657,3 +5657,55 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide conditions, comparisons, arithmetic outside shifts and bitwise operations, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC compares wide integers and uses them as conditions
+
+### Decision and active requirement
+
+Hosted CupidC now compares signed and unsigned eight-byte integers with `==`, `!=`, `<`, `<=`, `>`, and `>=`. Mixed operands follow the usual arithmetic conversions, including the same-rank rule that converts a signed operand to `unsigned long long`. Wide values also work with logical not, short-circuit AND and OR, conditional expressions, and the conditions of `if`, `while`, `do`, and `for`.
+
+The complete unchanged `pp_if_value_truth`, `pp_if_is_negative`, and `pp_if_signed_less` helpers in `toolchain/cupidc_pp.c` drive the work. Their operands are `int64_t`, and their answers control real preprocessing decisions. Rewriting those helpers as two-word source operations was rejected because it would move a compiler limitation into active code.
+
+The i386 emitter compares high words first. Signed ordering uses a signed high-word predicate, while unsigned ordering uses an unsigned predicate. When the high words match, both forms compare the low words as unsigned. Equality and inequality inspect both words. A wide condition ORs its low and high words before producing the normal zero or one result.
+
+These operations preserve the one-handle snapshot model established by the earlier wide-value work. Comparisons produce represented `int`; conditional joins keep one wide result handle; short-circuit branches do not evaluate the unused operand. Addition, subtraction, nonlogical unary operations, wide `switch`, mutation, undeclared or variadic wide arguments, and floating values remain outside this increment.
+
+ADR 0069 records the comparison and condition rules. ADR 0016, ADR 0065, and ADR 0068 point to this extension from the earlier Linear IR, wide-result, shift, and conversion boundaries.
+
+### Contract evidence and corrections
+
+- The focused IR fixture contains 24 functions and exactly 264 instructions with fingerprint `9EE1D330DE86EDBB`. It covers all six predicates in signed and unsigned forms, mixed signedness, logical operations, conditional joins, and each supported control-flow condition.
+- The deterministic ELF32 object has 24 functions, 25 symbols including the null symbol, 3,341 bytes of `.text`, fingerprint `16626CE1`, and no relocations. Its decoder and execution oracle check both equality words, signed high-word ordering, unsigned low-word ordering after equal high words, integer overflow flags, high-word-only truth, and short-circuit behavior.
+- The execution oracle poisons the preserved registers and checks ESP, EBP, EBX, ESI, and EDI after each call. Full-body guards bind the generated results to the unchanged `pp_if_value_truth`, `pp_if_is_negative`, and `pp_if_signed_less` helpers.
+- Useful negatives reject malformed wide comparison metadata, mismatched conditional arms, and values beyond the supported width. Constrained output and malformed graphs publish no partial unit, rewind temporary storage, and allow the next function in the same job to lower normally.
+- The red IR run first stopped at the old wide signed-comparison boundary with `CTOOL_ERR_UNSUPPORTED`. The first green execution pass exposed an incorrect `DEC` overflow model in the test interpreter. Correcting the interpreter to derive overflow from the pre-decrement value made the signed-order proof match i386 behavior.
+- Older fixtures that treated wide logical expressions and conditions as unsupported are now positive contracts. Separate malformed cases retain useful diagnostics and same-job recovery coverage.
+- The implementation and contracts moved the hosted source gates and seven deliberate lexical inventory locks. Regenerating the audit and updating those locks made the canonical record, temporary-tree reproduction, and public Python modules agree.
+- The previous log entry reported `toolchain_core` as 53,518 checked lines. Its generated record contained 53,521. The current values below come directly from the regenerated audit.
+- One Windows-to-WSL sanitizer wrapper lost most of its flag list at the shell boundary, so that run is excluded. A later analyzer loop also stopped at shell parsing. Direct commands with literal paths preserved every requested flag and passed under both compilers.
+- No user question was needed. C comparison and truth rules, the established i386 cdecl target, and the private wide-snapshot model determine this boundary.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 176/5,364/47,039/655/216; `cupidc_emit.c` has 145/3,692/32,424/478/244; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 82,207 checked lines, and `toolchain_core` has 53,672.
+
+The generated audit records 635 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,400 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,537 `while`, 1,745 `break`, 1,014 `continue`, 28,028 `if`, 3,784 `else`, 3,288 `for`, 17,041 `return`, and 3,657 `sizeof` occurrences. The canonical active-source digest is `a381fbf83bf7a6895fddb81f6b9af2af104a6a7e6de51f59ea013080d829ebdf`; the complete audit JSON has SHA-256 `af1f7838c5a255ef2defa2670f940d2f0fd14ccb0ec16322fee696cd43b87871`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first rejected the active signed comparison. The final `wide-conditions` modes pass positive, negative, deterministic, transactional, ABI, decoder, and execution-oracle checks. |
+| Focused public modules | PASS | All 114 frontend, IR, and object tests pass after the source-gate and lexical inventory locks are updated. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted toolchain suite, every registered IR and object mode, and all 22 assembly demos in 17.9 seconds. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC 13.3 and Clang 18.1 builds pass both focused modes. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass both focused modes in 66.8 and 75.9 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding across both implementation files and both expanded C contracts. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the records in 38.1 seconds, and `make check-bootstrap-audit` reproduces them in 37.3 seconds. |
+| Full repository gate | PASS | `make test` passes all 356 tests in 493.945 seconds with one expected platform skip; Make returns in 531.7 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.7 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 19.5 seconds. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles. The private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result checks the rebuilt OS but does not assign production ownership to the hosted wide-condition path.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide arithmetic outside shifts and bitwise operations, nonlogical unary operations, wide `switch`, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

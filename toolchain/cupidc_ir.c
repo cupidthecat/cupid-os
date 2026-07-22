@@ -2448,6 +2448,7 @@ static ctool_status_t cir_lower_binary(
   ctool_bool is_shift;
   ctool_bool is_bitwise_xor;
   ctool_bool is_wide_integer_binary;
+  ctool_bool is_wide_integer_comparison;
   ctool_u32 left_child;
   ctool_u32 right_child;
   ctool_status_t status;
@@ -2537,6 +2538,12 @@ static ctool_status_t cir_lower_binary(
                     CTOOL_TRUE))
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  is_wide_integer_comparison =
+      is_comparison == CTOOL_TRUE &&
+              cir_type_is_wide_integer(context, left.type) == CTOOL_TRUE &&
+              cir_type_is_wide_integer(context, right.type) == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (is_pointer_arithmetic == CTOOL_TRUE) {
     return cir_append_pointer_binary(
         context, &left, &right, expression->type, expression->operation,
@@ -2545,9 +2552,11 @@ static ctool_status_t cir_lower_binary(
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
       (is_pointer_comparison == CTOOL_FALSE &&
        is_wide_integer_binary == CTOOL_FALSE &&
+       is_wide_integer_comparison == CTOOL_FALSE &&
        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) ||
       (is_pointer_comparison == CTOOL_FALSE &&
        is_wide_integer_binary == CTOOL_FALSE &&
+       is_wide_integer_comparison == CTOOL_FALSE &&
        (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
         cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE))) {
     return cir_emit_failure(
@@ -2561,6 +2570,12 @@ static ctool_status_t cir_lower_binary(
         cir_pointer_comparison_types_match(
             context, left.type, right.type, is_relational_comparison) ==
             CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  } else if (is_wide_integer_comparison == CTOOL_TRUE) {
+    if (cir_type_is_plain_signed_int(context, expression->type) ==
+            CTOOL_FALSE ||
+        left.type != right.type) {
       return cir_invalid_unit(context, &expression->location);
     }
   } else if (is_shift == CTOOL_TRUE) {
@@ -2728,7 +2743,7 @@ static ctool_status_t cir_lower_unary(
   if ((logical_not == CTOOL_FALSE &&
        cir_type_is_i32_integer(context, operand.type) == CTOOL_FALSE) ||
       (logical_not == CTOOL_TRUE &&
-       cir_type_is_represented_scalar(context, operand.type) ==
+       cir_type_is_value_scalar(context, operand.type) ==
            CTOOL_FALSE) ||
       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
@@ -2766,7 +2781,7 @@ static ctool_status_t cir_lower_logical_operand(
       operand_out->kind != CIR_STACK_VALUE) {
     return cir_invalid_unit(context, &expression->location);
   }
-  if (cir_type_is_represented_scalar(context, operand_out->type) ==
+  if (cir_type_is_value_scalar(context, operand_out->type) ==
       CTOOL_FALSE) {
     return cir_unsupported_type(context, &expression->location);
   }
@@ -4086,7 +4101,7 @@ static ctool_status_t cir_lower_conditional(
     return status;
   }
   if (condition.kind != CIR_STACK_VALUE ||
-      cir_type_is_represented_scalar(context, condition.type) ==
+      cir_type_is_value_scalar(context, condition.type) ==
           CTOOL_FALSE) {
     return cir_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
@@ -6731,7 +6746,7 @@ static ctool_status_t cir_lower_scalar_condition_branch(
   if (condition.kind != CIR_STACK_VALUE || context->stack_depth != 0u) {
     return cir_invalid_unit(context, &condition_expression->location);
   }
-  if (cir_type_is_represented_scalar(context, condition.type) ==
+  if (cir_type_is_value_scalar(context, condition.type) ==
       CTOOL_FALSE) {
     return cir_unsupported_type(context, &condition_expression->location);
   }

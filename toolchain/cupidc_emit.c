@@ -1909,7 +1909,7 @@ static ctool_status_t cemit_x86_binary_register_at_register(
   ctool_x86_instruction_t instruction = cemit_x86_instruction(mnemonic, 32u);
   if (byte_offset > 0x7fffffffu ||
       (mnemonic != CTOOL_X86_MN_AND && mnemonic != CTOOL_X86_MN_OR &&
-       mnemonic != CTOOL_X86_MN_XOR)) {
+       mnemonic != CTOOL_X86_MN_XOR && mnemonic != CTOOL_X86_MN_CMP)) {
     return CTOOL_ERR_INTERNAL;
   }
   instruction.operand_count = 2u;
@@ -2989,6 +2989,85 @@ static ctool_x86_mnemonic_t cemit_comparison_predicate(
   }
   return is_signed == CTOOL_TRUE ? CTOOL_X86_MN_SETGE
                                  : CTOOL_X86_MN_SETAE;
+}
+
+static ctool_status_t cemit_x86_push_wide_comparison(
+    cemit_context_t *context, ctool_c_expression_operator_t operation,
+    ctool_bool is_signed) {
+  ctool_u32 equal_patch = CTOOL_C_AST_NONE;
+  ctool_u32 equal_after = CTOOL_C_AST_NONE;
+  ctool_u32 done_patch = CTOOL_C_AST_NONE;
+  ctool_u32 done_after = CTOOL_C_AST_NONE;
+  ctool_u32 equal_target;
+  ctool_u32 done_target;
+  ctool_x86_mnemonic_t predicate;
+  ctool_status_t status;
+  if (is_signed != CTOOL_FALSE && is_signed != CTOOL_TRUE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(context, 2u, 0u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_CMP, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JE, &equal_patch, &equal_after);
+  }
+  predicate = cemit_comparison_predicate(operation, is_signed);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, predicate, CTOOL_X86_REG_GPR8, 2u, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOVZX, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR8, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JMP, &done_patch, &done_after);
+  }
+  equal_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, equal_patch, equal_after, equal_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(context, 2u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_CMP, 2u, 1u, 0u);
+  }
+  predicate = cemit_comparison_predicate(operation, CTOOL_FALSE);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, predicate, CTOOL_X86_REG_GPR8, 2u, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOVZX, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR8, 2u, 32u);
+  }
+  done_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, done_patch, done_after, done_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  return status;
 }
 
 static ctool_bool cemit_ir_type_is_complete_aggregate_object(
@@ -4774,7 +4853,7 @@ static ctool_status_t cemit_emit_ir_instruction(
                                       ir_instruction->input_type) ==
              CTOOL_FALSE) ||
         (logical_not == CTOOL_TRUE &&
-         cemit_ir_type_is_represented_scalar(
+         cemit_ir_type_is_value_scalar(
              context, ir_instruction->input_type) ==
              CTOOL_FALSE) ||
         cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
@@ -4801,8 +4880,26 @@ static ctool_status_t cemit_emit_ir_instruction(
         CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS) {
       return CTOOL_OK;
     }
-    status = cemit_x86_one_register(
-        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (logical_not == CTOOL_TRUE &&
+        cemit_ir_type_is_wide_integer(
+            context, ir_instruction->input_type) == CTOOL_TRUE) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_load_register_at_register(context, 0u, 1u, 0u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_load_register_at_register(context, 2u, 1u, 4u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_two_registers(
+            context, CTOOL_X86_MN_OR, CTOOL_X86_REG_GPR32, 0u,
+            CTOOL_X86_REG_GPR32, 2u, 32u);
+      }
+    } else {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
     if (status == CTOOL_OK &&
         ir_instruction->operation ==
             CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
@@ -4943,6 +5040,18 @@ static ctool_status_t cemit_emit_ir_instruction(
                     CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool wide_comparison =
+        cemit_ir_type_is_wide_integer(
+            context, ir_instruction->input_type) == CTOOL_TRUE &&
+                cemit_ir_type_is_plain_signed_int(
+                    context, ir_instruction->type) == CTOOL_TRUE &&
+                (relational_comparison == CTOOL_TRUE ||
+                 ir_instruction->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+                 ir_instruction->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool pointer_comparison =
         cemit_ir_type_is_i32_pointer_value(
             context, ir_instruction->input_type) ==
@@ -4969,6 +5078,16 @@ static ctool_status_t cemit_emit_ir_instruction(
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     ctool_u8 result_register = 0u;
+    if (wide_comparison == CTOOL_TRUE) {
+      if (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          ir_instruction->reference != CTOOL_C_AST_NONE ||
+          ir_instruction->integer_bits != 0u) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      return cemit_x86_push_wide_comparison(
+          context, ir_instruction->operation,
+          context->unit->layout.types[ir_instruction->input_type].is_signed);
+    }
     if (wide_integer == CTOOL_TRUE) {
       ctool_x86_mnemonic_t mnemonic = CTOOL_X86_MN_AND;
       ctool_bool bitwise = CTOOL_FALSE;
@@ -5151,7 +5270,7 @@ static ctool_status_t cemit_emit_ir_instruction(
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO) {
     if (ir_instruction->type != CTOOL_C_TYPE_NONE ||
-        cemit_ir_type_is_represented_scalar(
+        cemit_ir_type_is_value_scalar(
             context, ir_instruction->input_type) ==
             CTOOL_FALSE ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
@@ -5159,8 +5278,25 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
     }
-    status = cemit_x86_one_register(
-        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (cemit_ir_type_is_wide_integer(
+            context, ir_instruction->input_type) == CTOOL_TRUE) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_load_register_at_register(context, 0u, 1u, 0u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_load_register_at_register(context, 2u, 1u, 4u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_two_registers(
+            context, CTOOL_X86_MN_OR, CTOOL_X86_REG_GPR32, 0u,
+            CTOOL_X86_REG_GPR32, 2u, 32u);
+      }
+    } else {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
     if (status == CTOOL_OK) {
       status = cemit_x86_two_registers(
           context, CTOOL_X86_MN_TEST, CTOOL_X86_REG_GPR32, 0u,

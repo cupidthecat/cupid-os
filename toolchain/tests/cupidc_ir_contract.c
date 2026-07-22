@@ -865,6 +865,105 @@ static const char wide_count_operation_source[] =
     "  return value << count;\n"
     "}\n";
 
+static const char wide_condition_source[] =
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "typedef int ctool_bool;\n"
+    "typedef struct {\n"
+    "  ctool_u64 bits;\n"
+    "  ctool_bool is_unsigned;\n"
+    "} pp_if_value_t;\n"
+    "enum { CTOOL_FALSE = 0, CTOOL_TRUE = 1 };\n"
+    "#define PP_IF_SIGN_BIT 0x8000000000000000ull\n"
+    "int signed_less(ctool_i64 left, ctool_i64 right) { return left < right; }\n"
+    "int signed_less_equal(ctool_i64 left, ctool_i64 right) { return left <= right; }\n"
+    "int signed_greater(ctool_i64 left, ctool_i64 right) { return left > right; }\n"
+    "int signed_greater_equal(ctool_i64 left, ctool_i64 right) { return left >= right; }\n"
+    "int signed_equal(ctool_i64 left, ctool_i64 right) { return left == right; }\n"
+    "int signed_not_equal(ctool_i64 left, ctool_i64 right) { return left != right; }\n"
+    "int unsigned_less(ctool_u64 left, ctool_u64 right) { return left < right; }\n"
+    "int unsigned_less_equal(ctool_u64 left, ctool_u64 right) { return left <= right; }\n"
+    "int unsigned_greater(ctool_u64 left, ctool_u64 right) { return left > right; }\n"
+    "int unsigned_greater_equal(ctool_u64 left, ctool_u64 right) { return left >= right; }\n"
+    "int unsigned_equal(ctool_u64 left, ctool_u64 right) { return left == right; }\n"
+    "int unsigned_not_equal(ctool_u64 left, ctool_u64 right) { return left != right; }\n"
+    "int mixed_less(ctool_i64 left, ctool_u64 right) { return left < right; }\n"
+    "int wide_not(ctool_u64 value) { return !value; }\n"
+    "int wide_and(ctool_u64 value) {\n"
+    "  int observed = 0;\n"
+    "  value && (observed = 1);\n"
+    "  return observed;\n"
+    "}\n"
+    "int wide_or(ctool_u64 value) {\n"
+    "  int observed = 0;\n"
+    "  value || (observed = 1);\n"
+    "  return observed;\n"
+    "}\n"
+    "int wide_select(ctool_u64 value) { return value ? 7 : 9; }\n"
+    "int wide_if(ctool_u64 value) {\n"
+    "  if (value) return 11;\n"
+    "  return 13;\n"
+    "}\n"
+    "int wide_while(ctool_u64 value) {\n"
+    "  int result = 0;\n"
+    "  while (value) { result = 17; break; }\n"
+    "  return result;\n"
+    "}\n"
+    "int wide_do(ctool_u64 value) {\n"
+    "  int result = 0;\n"
+    "  do { result++; } while (value && result < 2);\n"
+    "  return result;\n"
+    "}\n"
+    "int wide_for(ctool_u64 value) {\n"
+    "  int result = 0;\n"
+    "  for (; value;) { result = 29; break; }\n"
+    "  return result;\n"
+    "}\n"
+    "static ctool_bool pp_if_value_truth(pp_if_value_t value) {\n"
+    "  return value.bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n"
+    "static ctool_bool pp_if_is_negative(pp_if_value_t value) {\n"
+    "  return value.is_unsigned == CTOOL_FALSE &&\n"
+    "                 (value.bits & PP_IF_SIGN_BIT) != 0ull\n"
+    "             ? CTOOL_TRUE\n"
+    "             : CTOOL_FALSE;\n"
+    "}\n"
+    "static ctool_bool pp_if_signed_less(ctool_u64 left, ctool_u64 right) {\n"
+    "  ctool_bool left_negative =\n"
+    "      (left & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  ctool_bool right_negative =\n"
+    "      (right & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  if (left_negative != right_negative) {\n"
+    "    return left_negative;\n"
+    "  }\n"
+    "  return left < right ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char active_pp_if_value_truth[] =
+    "static ctool_bool pp_if_value_truth(pp_if_value_t value) {\n"
+    "  return value.bits != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char active_pp_if_is_negative[] =
+    "static ctool_bool pp_if_is_negative(pp_if_value_t value) {\n"
+    "  return value.is_unsigned == CTOOL_FALSE &&\n"
+    "                 (value.bits & PP_IF_SIGN_BIT) != 0ull\n"
+    "             ? CTOOL_TRUE\n"
+    "             : CTOOL_FALSE;\n"
+    "}\n";
+
+static const char active_pp_if_signed_less[] =
+    "static ctool_bool pp_if_signed_less(ctool_u64 left, ctool_u64 right) {\n"
+    "  ctool_bool left_negative =\n"
+    "      (left & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  ctool_bool right_negative =\n"
+    "      (right & PP_IF_SIGN_BIT) != 0ull ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "  if (left_negative != right_negative) {\n"
+    "    return left_negative;\n"
+    "  }\n"
+    "  return left < right ? CTOOL_TRUE : CTOOL_FALSE;\n"
+    "}\n";
+
 static const char active_wide_helper_source[] =
     "typedef unsigned char ctool_u8;\n"
     "typedef unsigned int ctool_u32;\n"
@@ -1434,8 +1533,31 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
 }
 
 static int parse_source(ctool_job_t *job, const char *path, const char *text,
-                        ctool_c_translation_unit_t *unit_out) {
+                         ctool_c_translation_unit_t *unit_out) {
   return parse_source_mode(job, path, text, CTOOL_FALSE, unit_out);
+}
+
+static int wide_condition_active_sources_are_unchanged(ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/toolchain/cupidc_pp.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active preprocessor condition source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_pp_if_value_truth) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_pp_if_is_negative) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_pp_if_signed_less) == NULL) {
+    (void)fprintf(stderr,
+                  "an active preprocessor condition helper changed\n");
+    return 0;
+  }
+  return 1;
 }
 
 static int active_source_is_unchanged(ctool_job_t *job) {
@@ -2330,6 +2452,25 @@ static int expect_ir_failure_preserves_unit(
                  unit_fingerprint(unit) == fingerprint
              ? 1
              : 0;
+}
+
+static int expect_ir_success_preserves_unit(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const char *context) {
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  uint64_t fingerprint = unit_fingerprint(unit);
+  ctool_status_t status;
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, unit, &ir);
+  if (!check_status(status, CTOOL_OK, context) ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(unit) != fingerprint || ir.function_count == 0u ||
+      ir.functions == NULL || ir.instructions == NULL) {
+    (void)fprintf(stderr, "%s: success transaction differs\n", context);
+    return 0;
+  }
+  return 1;
 }
 
 static int instruction_matches(const ctool_c_ir_instruction_t *instruction,
@@ -8613,11 +8754,9 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-while.c", wide_while_source,
-                    &wide_while_unit) ||
-      !expect_ir_failure(
-          job, &wide_while_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_while_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &wide_while_unit,
           "wide while condition")) {
     goto cleanup;
   }
@@ -8652,17 +8791,13 @@ static int run_active_leaf(const char *host_root) {
       unit_fingerprint(&terminal_do_unit) != terminal_do_fingerprint ||
       !validate_terminal_do_ir(&terminal_do_unit, &ir) ||
       !parse_source(job, "/wide-do.c", wide_do_source, &wide_do_unit) ||
-      !expect_ir_failure(
-          job, &wide_do_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_ir_success_preserves_unit(
+          job, &wide_do_unit,
           "wide do condition") ||
       !parse_source(job, "/terminal-wide-do.c", terminal_wide_do_source,
-                    &terminal_wide_do_unit) ||
-      !expect_ir_failure(
-          job, &terminal_wide_do_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &terminal_wide_do_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &terminal_wide_do_unit,
           "unreachable wide do condition")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
@@ -8694,11 +8829,9 @@ static int run_active_leaf(const char *host_root) {
       unit_fingerprint(&for_edge_unit) != for_edge_fingerprint ||
       !validate_for_edge_ir(&for_edge_unit, &ir) ||
       !parse_source(job, "/wide-for.c", wide_for_source,
-                    &wide_for_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_for_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_for_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &wide_for_unit,
           "wide for condition") ||
       !parse_source(job, "/terminal-wide-for-iteration.c",
                     terminal_wide_for_iteration_source,
@@ -8934,11 +9067,9 @@ static int run_active_leaf(const char *host_root) {
           "invalid selection condition") ||
       unit_fingerprint(&statement_unit) != fingerprint ||
       !parse_source(job, "/wide-selection.c", wide_selection_source,
-                    &wide_selection_unit) ||
-      !expect_ir_failure(
-          job, &wide_selection_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_selection_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &wide_selection_unit,
           "wide selection condition") ||
       !parse_source(job, "/nonvoid-selection-fallthrough.c",
                     nonvoid_selection_fallthrough_source,
@@ -9351,20 +9482,16 @@ static int run_active_leaf(const char *host_root) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-comparison.c", wide_comparison_source,
-                    &wide_comparison_unit) ||
-      !expect_ir_failure(
-          job, &wide_comparison_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_comparison_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &wide_comparison_unit,
           "wide less-than-or-equal expression")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-logical-or.c", wide_logical_or_source,
-                    &wide_logical_or_unit) ||
-      !expect_ir_failure(
-          job, &wide_logical_or_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_logical_or_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &wide_logical_or_unit,
           "wide logical-or operand")) {
     goto cleanup;
   }
@@ -9393,11 +9520,9 @@ static int run_active_leaf(const char *host_root) {
           "CupidC IR lowering does not yet support this value type",
           "wide unary-negation expression") ||
       !parse_source(job, "/wide-logical-not.c", wide_logical_not_source,
-                    &wide_logical_not_unit) ||
-      !expect_ir_failure(
-          job, &wide_logical_not_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+                     &wide_logical_not_unit) ||
+      !expect_ir_success_preserves_unit(
+          job, &wide_logical_not_unit,
           "wide logical-not expression") ||
       !parse_source(job, "/wide-bitwise-not.c", wide_bitwise_not_source,
                     &wide_bitwise_not_unit) ||
@@ -21396,6 +21521,285 @@ cleanup:
   return 1;
 }
 
+static const ctool_c_ir_function_t *wide_condition_ir_function(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    const char *name) {
+  ctool_u32 binding = find_binding(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE || ir == NULL || ir->functions == NULL) {
+    return NULL;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    if (ir->functions[index].binding == binding) {
+      return &ir->functions[index];
+    }
+  }
+  return NULL;
+}
+
+static int wide_condition_function_has_instruction(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    const char *name, ctool_c_ir_instruction_kind_t kind,
+    ctool_c_expression_operator_t operation, ctool_bool wide_input) {
+  const ctool_c_ir_function_t *function =
+      wide_condition_ir_function(unit, ir, name);
+  ctool_u32 index;
+  if (function == NULL || function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction) {
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[function->first_instruction + index];
+    if (instruction->kind == kind &&
+        (operation == CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+         instruction->operation == operation) &&
+        (wide_input == CTOOL_FALSE ||
+         ir_type_is_wide_integer(unit, instruction->input_type) != 0)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int wide_condition_comparison_matches(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    const char *name, ctool_c_expression_operator_t operation,
+    ctool_bool is_signed) {
+  const ctool_c_ir_function_t *function =
+      wide_condition_ir_function(unit, ir, name);
+  ctool_u32 matches = 0u;
+  ctool_u32 index;
+  if (function == NULL || function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction) {
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[function->first_instruction + index];
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+        instruction->operation != operation ||
+        ir_type_is_wide_integer(unit, instruction->input_type) == 0) {
+      continue;
+    }
+    if (instruction->input_type >= unit->layout.type_count ||
+        unit->layout.types[instruction->input_type].is_signed != is_signed ||
+        instruction->type >= unit->graph.type_count ||
+        unit->graph.types[instruction->type].kind !=
+            CTOOL_C_TYPE_SIGNED_INT ||
+        unit->graph.types[instruction->type].qualifiers != 0u ||
+        instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        instruction->reference != CTOOL_C_AST_NONE ||
+        instruction->integer_bits != 0u) {
+      return 0;
+    }
+    matches++;
+  }
+  return matches == 1u ? 1 : 0;
+}
+
+static int validate_wide_condition_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *const signed_names[] = {
+      "signed_less",          "signed_less_equal", "signed_greater",
+      "signed_greater_equal", "signed_equal",      "signed_not_equal"};
+  static const char *const unsigned_names[] = {
+      "unsigned_less",          "unsigned_less_equal", "unsigned_greater",
+      "unsigned_greater_equal", "unsigned_equal",      "unsigned_not_equal"};
+  static const ctool_c_expression_operator_t operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_LESS,
+      CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_GREATER,
+      CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_EQUAL,
+      CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL};
+  static const char *const branch_names[] = {
+      "wide_and", "wide_or", "wide_select", "wide_if",
+      "wide_while", "wide_do", "wide_for"};
+  const ctool_c_ir_function_t *mixed;
+  ctool_bool mixed_conversion = CTOOL_FALSE;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 24u ||
+      ir->function_count != 24u || ir->instruction_count != 264u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir_instruction_fingerprint(ir) != UINT64_C(0x9ee1d330de86edbb)) {
+    (void)fprintf(stderr, "wide condition IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(operations) / sizeof(operations[0]));
+       index++) {
+    if (!wide_condition_comparison_matches(
+            unit, ir, signed_names[index], operations[index], CTOOL_TRUE) ||
+        !wide_condition_comparison_matches(
+            unit, ir, unsigned_names[index], operations[index], CTOOL_FALSE)) {
+      (void)fprintf(stderr, "wide comparison IR %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  if (!wide_condition_comparison_matches(
+          unit, ir, "mixed_less", CTOOL_C_EXPRESSION_OPERATOR_LESS,
+          CTOOL_FALSE)) {
+    (void)fprintf(stderr, "mixed wide comparison IR differs\n");
+    return 0;
+  }
+  mixed = wide_condition_ir_function(unit, ir, "mixed_less");
+  for (index = 0u; index < mixed->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[mixed->first_instruction + index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        instruction->input_type < unit->layout.type_count &&
+        instruction->type < unit->layout.type_count &&
+        unit->layout.types[instruction->input_type].size == 8u &&
+        unit->layout.types[instruction->input_type].is_signed == CTOOL_TRUE &&
+        unit->layout.types[instruction->type].size == 8u &&
+        unit->layout.types[instruction->type].is_signed == CTOOL_FALSE &&
+        instruction->conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+      mixed_conversion = CTOOL_TRUE;
+    }
+  }
+  if (mixed_conversion == CTOOL_FALSE ||
+      !wide_condition_function_has_instruction(
+          unit, ir, "wide_not", CTOOL_C_IR_INSTRUCTION_UNARY,
+          CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT, CTOOL_TRUE)) {
+    (void)fprintf(stderr, "wide conversion or logical-not IR differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(branch_names) / sizeof(branch_names[0]));
+       index++) {
+    if (!wide_condition_function_has_instruction(
+            unit, ir, branch_names[index],
+            CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_TRUE)) {
+      (void)fprintf(stderr, "%s lacks a wide truth branch\n",
+                    branch_names[index]);
+      return 0;
+    }
+  }
+  if (!wide_condition_function_has_instruction(
+          unit, ir, "pp_if_value_truth", CTOOL_C_IR_INSTRUCTION_BINARY,
+          CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL, CTOOL_TRUE) ||
+      !wide_condition_function_has_instruction(
+          unit, ir, "pp_if_is_negative", CTOOL_C_IR_INSTRUCTION_BINARY,
+          CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL, CTOOL_TRUE) ||
+      !wide_condition_function_has_instruction(
+          unit, ir, "pp_if_signed_less", CTOOL_C_IR_INSTRUCTION_BINARY,
+          CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL, CTOOL_TRUE) ||
+      !wide_condition_function_has_instruction(
+          unit, ir, "pp_if_signed_less", CTOOL_C_IR_INSTRUCTION_BINARY,
+          CTOOL_C_EXPRESSION_OPERATOR_LESS, CTOOL_TRUE)) {
+    (void)fprintf(stderr, "active wide condition helper IR differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_wide_conditions(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  ctool_u32 comparison_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  uint64_t fingerprint;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !wide_condition_active_sources_are_unchanged(job) ||
+      !parse_source(job, "/wide-conditions.c", wide_condition_source, &unit)) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "wide comparison and condition lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_wide_condition_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat wide comparison and condition lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_wide_condition_ir(&unit, &repeat_ir) ||
+      ir_instruction_fingerprint(&ir) !=
+          ir_instruction_fingerprint(&repeat_ir)) {
+    (void)fprintf(stderr,
+                  "wide comparison and condition lowering is not deterministic\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LESS &&
+        expression->child_count == 2u &&
+        expression->first_child < unit.expression_child_count) {
+      ctool_u32 child = unit.expression_children[expression->first_child];
+      if (child < unit.expression_count &&
+          ir_type_is_wide_integer(
+              &unit, unit.expressions[child].type) != 0) {
+        comparison_expression = index;
+        break;
+      }
+    }
+  }
+  if (comparison_expression == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "wide comparison rejection fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[comparison_expression].type =
+      invalid_expressions[unit.expression_children[
+          invalid_expressions[comparison_expression].first_child]]
+          .type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide comparison with a wide result")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("wide-conditions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_wide_returns(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -21901,6 +22305,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     return run_wide_returns(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "wide-conditions") == 0) {
+    return run_wide_conditions(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-objects") == 0) {
     return run_wide_objects(argv[2]);
   }
@@ -21918,7 +22325,8 @@ int main(int argc, char **argv) {
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
-                "narrow-values|void-casts|wide-returns|wide-objects "
+                "narrow-values|void-casts|wide-returns|wide-conditions|"
+                "wide-objects "
                 "HOST_ROOT\n");
   return 2;
 }

@@ -38,4 +38,4 @@ A relocated i386 oracle executes every defined shift count from 0 through 63 on 
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, the contracts, and every normal C object. No production transform, OS object, boot path, or host dependency changes owner.
 
-Issue #25 remains open. Wide addition, subtraction, multiplication, division, remainder, comparisons, conditions, compound mutation, increment and decrement, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0069 later adds wide comparisons and scalar conditions. Wide addition, subtraction, multiplication, division, remainder, switch dispatch, compound mutation, increment and decrement, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

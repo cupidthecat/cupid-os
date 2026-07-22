@@ -332,6 +332,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "wide-returns: ok\n")
 
+    def test_wide_comparisons_and_conditions_execute(self):
+        result = subprocess.run(
+            [str(self.contract_path), "wide-conditions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "wide-conditions: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()
