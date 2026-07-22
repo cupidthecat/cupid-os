@@ -1908,8 +1908,10 @@ static ctool_status_t cemit_x86_binary_register_at_register(
     ctool_u32 byte_offset) {
   ctool_x86_instruction_t instruction = cemit_x86_instruction(mnemonic, 32u);
   if (byte_offset > 0x7fffffffu ||
-      (mnemonic != CTOOL_X86_MN_AND && mnemonic != CTOOL_X86_MN_OR &&
-       mnemonic != CTOOL_X86_MN_XOR && mnemonic != CTOOL_X86_MN_CMP)) {
+      (mnemonic != CTOOL_X86_MN_ADC && mnemonic != CTOOL_X86_MN_ADD &&
+       mnemonic != CTOOL_X86_MN_AND && mnemonic != CTOOL_X86_MN_CMP &&
+       mnemonic != CTOOL_X86_MN_OR && mnemonic != CTOOL_X86_MN_SBB &&
+       mnemonic != CTOOL_X86_MN_SUB && mnemonic != CTOOL_X86_MN_XOR)) {
     return CTOOL_ERR_INTERNAL;
   }
   instruction.operand_count = 2u;
@@ -2116,6 +2118,108 @@ static ctool_status_t cemit_x86_push_wide_bitwise_snapshot(
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_add_subtract_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_bool subtract) {
+  ctool_x86_mnemonic_t low_mnemonic;
+  ctool_x86_mnemonic_t high_mnemonic;
+  ctool_status_t status;
+  if (subtract != CTOOL_FALSE && subtract != CTOOL_TRUE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  low_mnemonic = subtract == CTOOL_TRUE ? CTOOL_X86_MN_SUB
+                                        : CTOOL_X86_MN_ADD;
+  high_mnemonic = subtract == CTOOL_TRUE ? CTOOL_X86_MN_SBB
+                                         : CTOOL_X86_MN_ADC;
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, low_mnemonic, 2u, 1u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 0u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 0u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, high_mnemonic, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 4u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_unary_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_c_expression_operator_t operation) {
+  ctool_status_t status;
+  if (operation != CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 0u, 1u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(
+        context, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK &&
+      operation == CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+    status = cemit_x86_move_register_constant(context, 1u, 0u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_NEG, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_ADC, CTOOL_X86_REG_GPR32, 2u,
+          CTOOL_X86_REG_GPR32, 1u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_NEG, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+  } else if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_NOT, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_NOT, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_push_wide_register_snapshot(
+        context, temporary_offset, 0u, 2u);
   }
   return status;
 }
@@ -4848,7 +4952,15 @@ static ctool_status_t cemit_emit_ir_instruction(
                 CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool wide_integer =
+        logical_not == CTOOL_FALSE &&
+                cemit_ir_type_is_wide_integer(
+                    context, ir_instruction->input_type) == CTOOL_TRUE &&
+                ir_instruction->input_type == ir_instruction->type
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if ((logical_not == CTOOL_FALSE &&
+         wide_integer == CTOOL_FALSE &&
          cemit_ir_type_is_i32_integer(context,
                                       ir_instruction->input_type) ==
              CTOOL_FALSE) ||
@@ -4856,8 +4968,9 @@ static ctool_status_t cemit_emit_ir_instruction(
          cemit_ir_type_is_value_scalar(
              context, ir_instruction->input_type) ==
              CTOOL_FALSE) ||
-        cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
-            CTOOL_FALSE ||
+        (wide_integer == CTOOL_FALSE &&
+         cemit_ir_type_is_i32_integer(context, ir_instruction->type) ==
+             CTOOL_FALSE) ||
         (logical_not == CTOOL_FALSE &&
          ir_instruction->input_type != ir_instruction->type) ||
         (logical_not == CTOOL_TRUE &&
@@ -4896,6 +5009,9 @@ static ctool_status_t cemit_emit_ir_instruction(
             context, CTOOL_X86_MN_OR, CTOOL_X86_REG_GPR32, 0u,
             CTOOL_X86_REG_GPR32, 2u, 32u);
       }
+    } else if (wide_integer == CTOOL_TRUE) {
+      return cemit_x86_push_wide_unary_snapshot(
+          context, value_temporary_offset, ir_instruction->operation);
     } else {
       status = cemit_x86_one_register(
           context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
@@ -5108,6 +5224,17 @@ static ctool_status_t cemit_emit_ir_instruction(
                 : CTOOL_FALSE,
             context->unit->layout.types[ir_instruction->input_type]
                 .is_signed);
+      }
+      if (ir_instruction->operation ==
+              CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+          ir_instruction->operation ==
+              CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+        return cemit_x86_push_wide_add_subtract_snapshot(
+            context, value_temporary_offset,
+            ir_instruction->operation ==
+                    CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT
+                ? CTOOL_TRUE
+                : CTOOL_FALSE);
       }
       if (ir_instruction->operation ==
           CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {
@@ -5754,6 +5881,11 @@ static ctool_status_t cemit_prepare_local_offsets(
         ((instruction->kind == CTOOL_C_IR_INSTRUCTION_INTEGER ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY ||
+          (instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY &&
+           (instruction->operation ==
+                CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE ||
+            instruction->operation ==
+                CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT)) ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
           (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&

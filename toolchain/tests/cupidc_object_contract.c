@@ -63,6 +63,20 @@ static const char active_integer_mask[] =
     "                                           : 0xffffffffffffffffull;\n"
     "}\n";
 
+static const char active_pp_if_signed_magnitude_arithmetic_object[] =
+    "static ctool_u64 pp_if_signed_magnitude(ctool_u64 bits) {\n"
+    "  return (bits & PP_IF_SIGN_BIT) != 0ull ? (~bits) + 1ull : bits;\n"
+    "}\n";
+
+static const char active_asm_wide_unary_arithmetic_object[] =
+    "    if (expression->as.unary.op == ASM_EXPR_OP_POSITIVE) {\n"
+    "      *value_out = right;\n"
+    "    } else if (expression->as.unary.op == ASM_EXPR_OP_NEGATIVE) {\n"
+    "      *value_out = 0ull - right;\n"
+    "    } else {\n"
+    "      *value_out = ~right;\n"
+    "    }\n";
+
 static const char active_cpu_frequency[] =
     "uint64_t get_cpu_freq(void) {\n"
     "    return tsc_freq;\n"
@@ -177,6 +191,7 @@ static const char wide_operation_object_source[] =
     "typedef unsigned int ctool_u32;\n"
     "typedef unsigned long long ctool_u64;\n"
     "typedef long long ctool_i64;\n"
+    "#define PP_IF_SIGN_BIT 0x8000000000000000ull\n"
     "enum wide_enum { WIDE_ENUM_NEGATIVE = -1,\n"
     "                 WIDE_ENUM_LARGE = 0xffffffffu };\n"
     "ctool_u64 shift_left(ctool_u64 value, ctool_u32 count) {\n"
@@ -203,8 +218,44 @@ static const char wide_operation_object_source[] =
     "ctool_u64 bitwise_xor(ctool_u64 left, ctool_u64 right) {\n"
     "  return left ^ right;\n"
     "}\n"
+    "ctool_u64 add_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left + right;\n"
+    "}\n"
+    "ctool_i64 add_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left + right;\n"
+    "}\n"
+    "ctool_u64 subtract_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left - right;\n"
+    "}\n"
+    "ctool_i64 subtract_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left - right;\n"
+    "}\n"
+    "ctool_u64 chained_add_subtract(ctool_u64 left, ctool_u64 right) {\n"
+    "  return (left + right) - left;\n"
+    "}\n"
+    "ctool_u64 plus_unsigned(ctool_u64 value) { return +value; }\n"
+    "ctool_i64 plus_signed(ctool_i64 value) { return +value; }\n"
+    "ctool_u64 negate_unsigned(ctool_u64 value) { return -value; }\n"
+    "ctool_i64 negate_signed(ctool_i64 value) { return -value; }\n"
+    "ctool_u64 not_unsigned(ctool_u64 value) { return ~value; }\n"
+    "ctool_i64 not_signed(ctool_i64 value) { return ~value; }\n"
+    "ctool_u64 negate_twice_unsigned(ctool_u64 value) {\n"
+    "  return -(-value);\n"
+    "}\n"
+    "ctool_i64 not_twice_signed(ctool_i64 value) {\n"
+    "  return ~(~value);\n"
+    "}\n"
+    "ctool_u64 negate_then_add_unsigned(ctool_u64 value) {\n"
+    "  return -value + value;\n"
+    "}\n"
+    "ctool_u64 not_then_xor_unsigned(ctool_u64 value) {\n"
+    "  return (~value) ^ value;\n"
+    "}\n"
     "ctool_u8 extract_byte(ctool_u64 value, ctool_u32 index) {\n"
     "  return (ctool_u8)((value >> (index * 8u)) & 0xffu);\n"
+    "}\n"
+    "static ctool_u64 pp_if_signed_magnitude(ctool_u64 bits) {\n"
+    "  return (bits & PP_IF_SIGN_BIT) != 0ull ? (~bits) + 1ull : bits;\n"
     "}\n";
 
 static const char wide_count_operation_object_source[] =
@@ -898,6 +949,15 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
               job, "/toolchain/cupidasm.c", "load active assembler source",
               "the active wide argument call changed",
               active_wide_argument_call, NULL) &&
+          active_source_contains(
+              job, "/toolchain/cupidasm.c", "load active assembler source",
+              "the active wide unary branch changed",
+              active_asm_wide_unary_arithmetic_object, NULL) &&
+          active_source_contains(
+              job, "/toolchain/cupidc_pp.c",
+              "load active preprocessor arithmetic source",
+              "the active preprocessor magnitude helper changed",
+              active_pp_if_signed_magnitude_arithmetic_object, NULL) &&
           active_source_contains(
              job, "/toolchain/cupidld.c", "load active linker source",
              "the active linker selector callback changed",
@@ -17005,6 +17065,89 @@ static int wide_oracle_relocate_text(
       object, text, NULL, 0u, relocated, relocated_capacity);
 }
 
+static int wide_oracle_add_subtract_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction, ctool_bool *carry_flag,
+    ctool_bool *handled) {
+  ctool_u32 left;
+  ctool_u32 right;
+  uint64_t result;
+  if (machine == NULL || instruction == NULL || carry_flag == NULL ||
+      handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if (instruction->mnemonic != CTOOL_X86_MN_ADD &&
+      instruction->mnemonic != CTOOL_X86_MN_ADC &&
+      instruction->mnemonic != CTOOL_X86_MN_SUB &&
+      instruction->mnemonic != CTOOL_X86_MN_SBB) {
+    return 1;
+  }
+  if (instruction->operand_count != 2u ||
+      !narrow_oracle_read_operand(machine, &instruction->operands[0],
+                                  &left) ||
+      !narrow_oracle_read_operand(machine, &instruction->operands[1],
+                                  &right)) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_ADD ||
+      instruction->mnemonic == CTOOL_X86_MN_ADC) {
+    result = (uint64_t)left + (uint64_t)right;
+    if (instruction->mnemonic == CTOOL_X86_MN_ADC &&
+        *carry_flag == CTOOL_TRUE) {
+      result++;
+    }
+    *carry_flag = result > UINT64_C(0xffffffff) ? CTOOL_TRUE : CTOOL_FALSE;
+  } else {
+    uint64_t subtrahend = (uint64_t)right;
+    if (instruction->mnemonic == CTOOL_X86_MN_SBB &&
+        *carry_flag == CTOOL_TRUE) {
+      subtrahend++;
+    }
+    result = (uint64_t)left - subtrahend;
+    *carry_flag = (uint64_t)left < subtrahend ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (!narrow_oracle_write_operand(machine, &instruction->operands[0],
+                                   (ctool_u32)result)) {
+    return 0;
+  }
+  *handled = CTOOL_TRUE;
+  return 1;
+}
+
+static int wide_oracle_unary_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction, ctool_bool *carry_flag,
+    ctool_bool *handled) {
+  ctool_u32 value;
+  if (machine == NULL || instruction == NULL || carry_flag == NULL ||
+      handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if (instruction->mnemonic != CTOOL_X86_MN_NEG &&
+      instruction->mnemonic != CTOOL_X86_MN_NOT) {
+    return 1;
+  }
+  if (instruction->operand_count != 1u ||
+      !narrow_oracle_read_operand(machine, &instruction->operands[0],
+                                  &value)) {
+    return 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_NEG) {
+    *carry_flag = value == 0u ? CTOOL_FALSE : CTOOL_TRUE;
+    value = 0u - value;
+  } else {
+    value = ~value;
+  }
+  if (!narrow_oracle_write_operand(machine, &instruction->operands[0],
+                                   value)) {
+    return 0;
+  }
+  *handled = CTOOL_TRUE;
+  return 1;
+}
+
 static int wide_oracle_shift_step(
     narrow_oracle_machine_t *machine,
     const ctool_x86_instruction_t *instruction, ctool_bool *carry_flag,
@@ -17360,12 +17503,18 @@ static int wide_oracle_execute_arguments(
       pc = next_pc;
       continue;
     }
-    if (!wide_oracle_shift_step(&machine, instruction, &carry_flag,
-                                &handled) ||
-         (handled == CTOOL_FALSE &&
-          !wide_oracle_flag_step(
-              &machine, instruction, &zero_flag, &carry_flag,
-              &sign_flag, &overflow_flag, &handled)) ||
+    if (!wide_oracle_add_subtract_step(&machine, instruction, &carry_flag,
+                                       &handled) ||
+        (handled == CTOOL_FALSE &&
+         !wide_oracle_unary_step(&machine, instruction, &carry_flag,
+                                 &handled)) ||
+        (handled == CTOOL_FALSE &&
+         !wide_oracle_shift_step(&machine, instruction, &carry_flag,
+                                 &handled)) ||
+        (handled == CTOOL_FALSE &&
+         !wide_oracle_flag_step(&machine, instruction, &zero_flag,
+                                &carry_flag, &sign_flag, &overflow_flag,
+                                &handled)) ||
         (handled == CTOOL_FALSE &&
          !narrow_oracle_step(&machine, instruction, &leaf_return)) ||
         leaf_return != CTOOL_FALSE) {
@@ -18358,14 +18507,59 @@ static int validate_wide_operation_object(
       find_symbol(object, "shift_right_signed");
   const ctool_elf32_symbol_t *extract_byte =
       find_symbol(object, "extract_byte");
+  const ctool_elf32_symbol_t *add_unsigned =
+      find_symbol(object, "add_unsigned");
+  const ctool_elf32_symbol_t *add_signed =
+      find_symbol(object, "add_signed");
+  const ctool_elf32_symbol_t *subtract_unsigned =
+      find_symbol(object, "subtract_unsigned");
+  const ctool_elf32_symbol_t *subtract_signed =
+      find_symbol(object, "subtract_signed");
+  const ctool_elf32_symbol_t *chained_add_subtract =
+      find_symbol(object, "chained_add_subtract");
+  const ctool_elf32_symbol_t *plus_unsigned =
+      find_symbol(object, "plus_unsigned");
+  const ctool_elf32_symbol_t *negate_unsigned =
+      find_symbol(object, "negate_unsigned");
+  const ctool_elf32_symbol_t *not_unsigned =
+      find_symbol(object, "not_unsigned");
+  const ctool_elf32_symbol_t *pp_if_signed_magnitude =
+      find_symbol(object, "pp_if_signed_magnitude");
   const ctool_u32 bitwise_arguments[] = {
       0x89abcdefu, 0x81234567u, 0xaa55aa55u, 0x0ff00ff0u};
+  const ctool_u32 add_arguments[] = {
+      0xffffffffu, 0x11223344u, 1u, 0u};
+  const ctool_u32 add_full_width_arguments[] = {
+      0x50607080u, 0x10203040u, 0x05060708u, 0x01020304u};
+  const ctool_u32 add_signed_arguments[] = {
+      0xfffffffeu, 0xffffffffu, 1u, 0u};
+  const ctool_u32 subtract_arguments[] = {
+      0u, 0x11223345u, 1u, 0u};
+  const ctool_u32 subtract_wrap_arguments[] = {0u, 0u, 1u, 0u};
+  const ctool_u32 subtract_signed_arguments[] = {0u, 1u, 1u, 0u};
+  const ctool_u32 subtract_signed_negative_arguments[] = {
+      0xffffffffu, 0xffffffffu, 1u, 0u};
+  const ctool_u32 chained_arguments[] = {
+      0x50607080u, 0x10203040u, 0x05060708u, 0x01020304u};
+  const ctool_u32 unary_zero_arguments[] = {0u, 0u};
+  const ctool_u32 unary_full_arguments[] = {
+      0x89abcdefu, 0x81234567u};
+  const ctool_u32 unary_sign_boundary_arguments[] = {0u, 0x80000000u};
+  const ctool_u32 unary_carry_arguments[] = {0xffffffffu, 0u};
+  const ctool_u32 unary_signed_arguments[] = {0u, 0xffffffffu};
+  const ctool_u32 magnitude_positive_arguments[] = {
+      0x89abcdefu, 0x01234567u};
+  const ctool_u32 magnitude_negative_one_arguments[] = {
+      0xffffffffu, 0xffffffffu};
+  const ctool_u32 magnitude_boundary_arguments[] = {0u, 0x80000000u};
   ctool_u32 shift_arguments[] = {0x89abcdefu, 0x81234567u, 0u};
   const uint64_t value = UINT64_C(0x8123456789abcdef);
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size == 0u ||
-      object->relocation_count != 0u || text->relocation_count != 0u) {
+      text->contents.data == NULL || text->contents.size != 3156u ||
+      structure_text_fingerprint(text->contents) != 0xb52392eau ||
+      object->symbol_count != 26u || object->relocation_count != 0u ||
+      text->relocation_count != 0u) {
     (void)fprintf(stderr, "wide operation object inventory differs\n");
     return 0;
   }
@@ -18373,6 +18567,17 @@ static int validate_wide_operation_object(
       !wide_function_symbol_is_valid(object, text,
                                      shift_right_unsigned) ||
       !wide_function_symbol_is_valid(object, text, shift_right_signed) ||
+      !wide_function_symbol_is_valid(object, text, add_unsigned) ||
+      !wide_function_symbol_is_valid(object, text, add_signed) ||
+      !wide_function_symbol_is_valid(object, text, subtract_unsigned) ||
+      !wide_function_symbol_is_valid(object, text, subtract_signed) ||
+      !wide_function_symbol_is_valid(object, text,
+                                     chained_add_subtract) ||
+      !wide_function_symbol_is_valid(object, text, plus_unsigned) ||
+      !wide_function_symbol_is_valid(object, text, negate_unsigned) ||
+      !wide_function_symbol_is_valid(object, text, not_unsigned) ||
+      !wide_function_symbol_is_valid(object, text,
+                                     pp_if_signed_magnitude) ||
       !wide_function_symbol_is_valid(object, text, extract_byte) ||
       !validate_wide_shift_branches(
           job, text, shift_left, "wide left shift") ||
@@ -18382,6 +18587,17 @@ static int validate_wide_operation_object(
           job, text, shift_right_signed, "signed wide right shift") ||
       !validate_wide_shift_branches(
           job, text, extract_byte, "wide byte extraction")) {
+    return 0;
+  }
+  if (!validate_wide_snapshot_function(
+          job, text, plus_unsigned, 0u, 0u, 1u, 0,
+          "wide unary plus snapshot") ||
+      !validate_wide_snapshot_function(
+          job, text, negate_unsigned, 1u, 1u, 2u, 0,
+          "wide unary negation snapshot") ||
+      !validate_wide_snapshot_function(
+          job, text, not_unsigned, 1u, 1u, 2u, 0,
+          "wide bitwise complement snapshot")) {
     return 0;
   }
   for (index = 0u; index < 64u; index++) {
@@ -18426,7 +18642,90 @@ static int validate_wide_operation_object(
           0xabffefffu, 0x8ff34ff7u, "wide bitwise OR") ||
       !expect_wide_oracle_result(
           job, object, text, "bitwise_xor", bitwise_arguments, 4u,
-          0x23fe67bau, 0x8ed34a97u, "wide bitwise XOR")) {
+          0x23fe67bau, 0x8ed34a97u, "wide bitwise XOR") ||
+      !expect_wide_oracle_result(
+          job, object, text, "add_unsigned", add_arguments, 4u,
+          0u, 0x11223345u, "unsigned wide addition carry") ||
+      !expect_wide_oracle_result(
+          job, object, text, "add_unsigned", add_full_width_arguments, 4u,
+          0x55667788u, 0x11223344u,
+          "unsigned wide addition full-width result") ||
+      !expect_wide_oracle_result(
+          job, object, text, "add_signed", add_signed_arguments, 4u,
+          0xffffffffu, 0xffffffffu, "signed wide addition") ||
+      !expect_wide_oracle_result(
+          job, object, text, "subtract_unsigned", subtract_arguments, 4u,
+          0xffffffffu, 0x11223344u,
+          "unsigned wide subtraction borrow") ||
+      !expect_wide_oracle_result(
+          job, object, text, "subtract_unsigned", subtract_wrap_arguments,
+          4u, 0xffffffffu, 0xffffffffu,
+          "unsigned wide subtraction wrap") ||
+      !expect_wide_oracle_result(
+          job, object, text, "subtract_signed", subtract_signed_arguments,
+          4u, 0xffffffffu, 0u, "signed wide subtraction borrow") ||
+      !expect_wide_oracle_result(
+          job, object, text, "subtract_signed",
+          subtract_signed_negative_arguments, 4u, 0xfffffffeu,
+          0xffffffffu, "signed wide subtraction negative result") ||
+      !expect_wide_oracle_result(
+          job, object, text, "chained_add_subtract", chained_arguments, 4u,
+          0x05060708u, 0x01020304u,
+          "fresh wide arithmetic snapshots") ||
+      !expect_wide_oracle_result(
+          job, object, text, "plus_unsigned", unary_full_arguments, 2u,
+          0x89abcdefu, 0x81234567u, "unsigned wide unary plus") ||
+      !expect_wide_oracle_result(
+          job, object, text, "plus_signed", unary_sign_boundary_arguments,
+          2u, 0u, 0x80000000u, "signed wide unary plus boundary") ||
+      !expect_wide_oracle_result(
+          job, object, text, "negate_unsigned", unary_zero_arguments, 2u,
+          0u, 0u, "unsigned wide negation zero") ||
+      !expect_wide_oracle_result(
+          job, object, text, "negate_unsigned", unary_carry_arguments, 2u,
+          1u, 0xffffffffu, "unsigned wide negation carry") ||
+      !expect_wide_oracle_result(
+          job, object, text, "negate_unsigned",
+          unary_sign_boundary_arguments, 2u, 0u, 0x80000000u,
+          "unsigned wide negation boundary") ||
+      !expect_wide_oracle_result(
+          job, object, text, "negate_signed", unary_signed_arguments, 2u,
+          0u, 1u, "signed wide negation") ||
+      !expect_wide_oracle_result(
+          job, object, text, "not_unsigned", unary_zero_arguments, 2u,
+          0xffffffffu, 0xffffffffu, "unsigned wide bitwise complement") ||
+      !expect_wide_oracle_result(
+          job, object, text, "not_signed", unary_sign_boundary_arguments,
+          2u, 0xffffffffu, 0x7fffffffu,
+          "signed wide bitwise complement boundary") ||
+      !expect_wide_oracle_result(
+          job, object, text, "negate_twice_unsigned", unary_full_arguments,
+          2u, 0x89abcdefu, 0x81234567u,
+          "unsigned wide negation involution") ||
+      !expect_wide_oracle_result(
+          job, object, text, "not_twice_signed", unary_full_arguments, 2u,
+          0x89abcdefu, 0x81234567u,
+          "signed wide complement involution") ||
+      !expect_wide_oracle_result(
+          job, object, text, "negate_then_add_unsigned",
+          unary_full_arguments, 2u, 0u, 0u,
+          "fresh wide negation result") ||
+      !expect_wide_oracle_result(
+          job, object, text, "not_then_xor_unsigned",
+          unary_full_arguments, 2u, 0xffffffffu, 0xffffffffu,
+          "fresh wide complement result") ||
+      !expect_wide_oracle_result(
+          job, object, text, "pp_if_signed_magnitude",
+          magnitude_positive_arguments, 2u, 0x89abcdefu, 0x01234567u,
+          "active positive magnitude") ||
+      !expect_wide_oracle_result(
+          job, object, text, "pp_if_signed_magnitude",
+          magnitude_negative_one_arguments, 2u, 1u, 0u,
+          "active negative-one magnitude") ||
+      !expect_wide_oracle_result(
+          job, object, text, "pp_if_signed_magnitude",
+          magnitude_boundary_arguments, 2u, 0u, 0x80000000u,
+          "active signed-boundary magnitude")) {
     return 0;
   }
   for (index = 0u;

@@ -36,8 +36,10 @@ Separate IR and object failures pass an eight-byte value through an ellipsis and
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production object, build transform, boot path, host dependency, or ownership count changes.
 
-Issue #25 remains open. The full `ctool_buffer_put_le64` body still needs wide shifts and narrowing. Wide conditions, arithmetic, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap also remain unfinished.
+Issue #25 remains open. At this decision boundary, the full `ctool_buffer_put_le64` body still needed wide shifts and narrowing. Conditions, arithmetic, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap were also unfinished.
 
 ## Extension: complete little-endian helpers
 
 ADR 0068 adds the wide shifts, usual arithmetic widening, bitwise AND, and explicit byte narrowing used by both active little-endian helpers. Their complete unchanged bodies now lower and emit. The declared-parameter ABI in this decision is unchanged.
+
+ADRs 0069 and 0070 later add wide comparisons, scalar conditions, addition, subtraction, unary plus, unary minus, and bitwise complement. Wide multiplication, division, remainder, `switch`, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

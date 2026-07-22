@@ -791,7 +791,52 @@ static const char wide_unprototyped_argument_source[] =
 
 static const char wide_arithmetic_source[] =
     "typedef unsigned long long ctool_u64;\n"
-    "ctool_u64 add_wide(void) { return 0x1122334455667788ull + 1ull; }\n";
+    "typedef long long ctool_i64;\n"
+    "#define PP_IF_SIGN_BIT 0x8000000000000000ull\n"
+    "ctool_u64 add_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left + right;\n"
+    "}\n"
+    "ctool_u64 subtract_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left - right;\n"
+    "}\n"
+    "ctool_i64 add_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left + right;\n"
+    "}\n"
+    "ctool_i64 subtract_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left - right;\n"
+    "}\n"
+    "ctool_u64 chained_add_subtract(ctool_u64 left, ctool_u64 right) {\n"
+    "  return (left + right) - left;\n"
+    "}\n"
+    "ctool_u64 plus_unsigned(ctool_u64 value) { return +value; }\n"
+    "ctool_i64 plus_signed(ctool_i64 value) { return +value; }\n"
+    "ctool_u64 negate_unsigned(ctool_u64 value) { return -value; }\n"
+    "ctool_i64 negate_signed(ctool_i64 value) { return -value; }\n"
+    "ctool_u64 not_unsigned(ctool_u64 value) { return ~value; }\n"
+    "ctool_i64 not_signed(ctool_i64 value) { return ~value; }\n"
+    "ctool_u64 negate_twice_unsigned(ctool_u64 value) {\n"
+    "  return -(-value);\n"
+    "}\n"
+    "ctool_i64 not_twice_signed(ctool_i64 value) {\n"
+    "  return ~(~value);\n"
+    "}\n"
+    "static ctool_u64 pp_if_signed_magnitude(ctool_u64 bits) {\n"
+    "  return (bits & PP_IF_SIGN_BIT) != 0ull ? (~bits) + 1ull : bits;\n"
+    "}\n";
+
+static const char active_pp_if_signed_magnitude_arithmetic[] =
+    "static ctool_u64 pp_if_signed_magnitude(ctool_u64 bits) {\n"
+    "  return (bits & PP_IF_SIGN_BIT) != 0ull ? (~bits) + 1ull : bits;\n"
+    "}\n";
+
+static const char active_asm_wide_unary_arithmetic[] =
+    "    if (expression->as.unary.op == ASM_EXPR_OP_POSITIVE) {\n"
+    "      *value_out = right;\n"
+    "    } else if (expression->as.unary.op == ASM_EXPR_OP_NEGATIVE) {\n"
+    "      *value_out = 0ull - right;\n"
+    "    } else {\n"
+    "      *value_out = ~right;\n"
+    "    }\n";
 
 static const char wide_conversion_source[] =
     "typedef signed char ctool_i8;\n"
@@ -1555,6 +1600,36 @@ static int wide_condition_active_sources_are_unchanged(ctool_job_t *job) {
              active_pp_if_signed_less) == NULL) {
     (void)fprintf(stderr,
                   "an active preprocessor condition helper changed\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/toolchain/cupidc_pp.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active preprocessor arithmetic source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_pp_if_signed_magnitude_arithmetic) == NULL) {
+    (void)fprintf(stderr,
+                  "the active preprocessor magnitude helper changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupidasm.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active assembler unary source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_asm_wide_unary_arithmetic) == NULL) {
+    (void)fprintf(stderr, "the active assembler unary branch changed\n");
     return 0;
   }
   return 1;
@@ -7314,12 +7389,6 @@ static int run_active_leaf(const char *host_root) {
       "int wide_logical_or(void) { return 1LL || 0LL; }\n";
   static const char wide_multiplication_source[] =
       "int wide_multiply(void) { return 2LL * 3LL; }\n";
-  static const char wide_bitwise_not_source[] =
-      "int wide_bitwise_not(void) { return ~1LL; }\n";
-  static const char wide_unary_plus_source[] =
-      "int wide_unary_plus(void) { return +1LL; }\n";
-  static const char wide_unary_negate_source[] =
-      "int wide_unary_negate(void) { return -1LL; }\n";
   static const char wide_logical_not_source[] =
       "int wide_logical_not(void) { return !1LL; }\n";
   static const char wide_division_source[] =
@@ -7457,9 +7526,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t simd_cpuid_unit;
   ctool_c_translation_unit_t wide_logical_or_unit;
   ctool_c_translation_unit_t wide_multiplication_unit;
-  ctool_c_translation_unit_t wide_bitwise_not_unit;
-  ctool_c_translation_unit_t wide_unary_plus_unit;
-  ctool_c_translation_unit_t wide_unary_negate_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t wide_division_unit;
   ctool_c_translation_unit_t wide_remainder_unit;
@@ -7556,11 +7622,6 @@ static int run_active_leaf(const char *host_root) {
   (void)memset(&conversion_unit, 0, sizeof(conversion_unit));
   (void)memset(&signed_bits_unit, 0, sizeof(signed_bits_unit));
   (void)memset(&simd_cpuid_unit, 0, sizeof(simd_cpuid_unit));
-  (void)memset(&wide_bitwise_not_unit, 0,
-               sizeof(wide_bitwise_not_unit));
-  (void)memset(&wide_unary_plus_unit, 0, sizeof(wide_unary_plus_unit));
-  (void)memset(&wide_unary_negate_unit, 0,
-               sizeof(wide_unary_negate_unit));
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
   (void)memset(&variadic_call_unit, 0, sizeof(variadic_call_unit));
@@ -9505,32 +9566,11 @@ static int run_active_leaf(const char *host_root) {
           "wide multiplication expression")) {
     goto cleanup;
   }
-  if (!parse_source(job, "/wide-unary-plus.c", wide_unary_plus_source,
-                    &wide_unary_plus_unit) ||
-      !expect_ir_failure(
-          job, &wide_unary_plus_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide unary-plus expression") ||
-      !parse_source(job, "/wide-unary-negate.c", wide_unary_negate_source,
-                    &wide_unary_negate_unit) ||
-      !expect_ir_failure(
-          job, &wide_unary_negate_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide unary-negation expression") ||
-      !parse_source(job, "/wide-logical-not.c", wide_logical_not_source,
-                     &wide_logical_not_unit) ||
+  if (!parse_source(job, "/wide-logical-not.c", wide_logical_not_source,
+                    &wide_logical_not_unit) ||
       !expect_ir_success_preserves_unit(
           job, &wide_logical_not_unit,
-          "wide logical-not expression") ||
-      !parse_source(job, "/wide-bitwise-not.c", wide_bitwise_not_source,
-                    &wide_bitwise_not_unit) ||
-      !expect_ir_failure(
-          job, &wide_bitwise_not_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide bitwise-complement expression")) {
+          "wide logical-not expression")) {
     goto cleanup;
   }
   if (!parse_source(job, "/wide-division.c", wide_division_source,
@@ -20991,6 +21031,93 @@ static int validate_wide_operation_ir(
   return 1;
 }
 
+static int validate_wide_arithmetic_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 additions = 0u;
+  ctool_u32 subtractions = 0u;
+  ctool_u32 signed_operations = 0u;
+  ctool_u32 unsigned_operations = 0u;
+  ctool_u32 unary_pluses = 0u;
+  ctool_u32 unary_negations = 0u;
+  ctool_u32 bitwise_nots = 0u;
+  ctool_u32 signed_unary_operations = 0u;
+  ctool_u32 unsigned_unary_operations = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 14u ||
+      ir->function_count != 14u || ir->instruction_count != 83u ||
+      ir->functions == NULL || ir->instructions == NULL ||
+      ir_instruction_fingerprint(ir) !=
+          UINT64_C(0x245e6d8f4f77588e)) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (ir_type_is_wide_integer(unit, instruction->input_type) == 0 ||
+        ir_type_is_wide_integer(unit, instruction->type) == 0) {
+      continue;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY) {
+      if (instruction->input_type != instruction->type ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      if (instruction->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS) {
+        unary_pluses++;
+      } else if (instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+        unary_negations++;
+      } else if (instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
+        bitwise_nots++;
+      } else {
+        return 0;
+      }
+      if (unit->layout.types[instruction->type].is_signed == CTOOL_TRUE) {
+        signed_unary_operations++;
+      } else {
+        unsigned_unary_operations++;
+      }
+      continue;
+    }
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_BINARY) {
+      continue;
+    }
+    if (instruction->operation ==
+        CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {
+      continue;
+    }
+    if ((instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+         instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) ||
+        instruction->input_type != instruction->type ||
+        instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        instruction->reference != CTOOL_C_AST_NONE ||
+        instruction->integer_bits != 0u) {
+      return 0;
+    }
+    if (instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+      additions++;
+    } else {
+      subtractions++;
+    }
+    if (unit->layout.types[instruction->type].is_signed == CTOOL_TRUE) {
+      signed_operations++;
+    } else {
+      unsigned_operations++;
+    }
+  }
+  return additions == 4u && subtractions == 3u &&
+                 signed_operations == 2u && unsigned_operations == 5u &&
+                 unary_pluses == 2u && unary_negations == 4u &&
+                 bitwise_nots == 5u && signed_unary_operations == 5u &&
+                 unsigned_unary_operations == 6u
+             ? 1
+             : 0;
+}
+
 static int validate_active_wide_helper_ir(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
@@ -21809,6 +21936,7 @@ static int run_wide_returns(const char *host_root) {
   ctool_c_translation_unit_t variadic_argument_unit;
   ctool_c_translation_unit_t unprototyped_argument_unit;
   ctool_c_translation_unit_t arithmetic_unit;
+  ctool_c_translation_unit_t invalid_arithmetic_unit;
   ctool_c_translation_unit_t conversion_unit;
   ctool_c_translation_unit_t invalid_conversion_unit;
   ctool_c_translation_unit_t invalid_reverse_conversion_unit;
@@ -21820,6 +21948,8 @@ static int run_wide_returns(const char *host_root) {
   ctool_c_ir_unit_t second_ir;
   ctool_c_ir_unit_t parameter_ir;
   ctool_c_ir_unit_t parameter_repeat_ir;
+  ctool_c_ir_unit_t arithmetic_ir;
+  ctool_c_ir_unit_t arithmetic_repeat_ir;
   ctool_c_ir_unit_t conversion_ir;
   ctool_c_ir_unit_t conversion_repeat_ir;
   ctool_c_ir_unit_t operation_ir;
@@ -21829,12 +21959,15 @@ static int run_wide_returns(const char *host_root) {
   ctool_c_expression_t *invalid_conversion_expressions = NULL;
   ctool_c_expression_t *invalid_reverse_conversion_expressions = NULL;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
+  ctool_c_expression_t *invalid_arithmetic_expressions = NULL;
   uint64_t fingerprint;
   ctool_u32 diagnostic_count;
   ctool_u32 narrowing_conversion = CTOOL_C_AST_NONE;
   ctool_u32 reverse_conversion = CTOOL_C_AST_NONE;
   ctool_u32 wide_enum_promotion = CTOOL_C_AST_NONE;
   ctool_u32 unsigned_wide_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 wide_binary_expression = CTOOL_C_AST_NONE;
+  ctool_u32 wide_unary_expression = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
@@ -21855,6 +21988,9 @@ static int run_wide_returns(const char *host_root) {
   (void)memset(&parameter_ir, 0xa5, sizeof(parameter_ir));
   (void)memset(&parameter_repeat_ir, 0xa5,
                sizeof(parameter_repeat_ir));
+  (void)memset(&arithmetic_ir, 0xa5, sizeof(arithmetic_ir));
+  (void)memset(&arithmetic_repeat_ir, 0xa5,
+               sizeof(arithmetic_repeat_ir));
   (void)memset(&conversion_ir, 0xa5, sizeof(conversion_ir));
   (void)memset(&conversion_repeat_ir, 0xa5,
                sizeof(conversion_repeat_ir));
@@ -21935,15 +22071,104 @@ static int run_wide_returns(const char *host_root) {
           "CupidC IR lowering supports arguments without declared "
           "parameter types only for represented scalar values",
           "wide unprototyped argument") ||
+      !wide_arithmetic_active_sources_are_unchanged(job) ||
       !parse_source(job, "/wide-arithmetic.c", wide_arithmetic_source,
                     &arithmetic_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &arithmetic_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide arithmetic") ||
       !parse_source(job, "/wide-conversion.c", wide_conversion_source,
                     &conversion_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&arithmetic_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &arithmetic_unit, &arithmetic_ir);
+  if (!check_status(status, CTOOL_OK, "wide integer arithmetic") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&arithmetic_unit) != fingerprint ||
+      !validate_wide_arithmetic_ir(&arithmetic_unit, &arithmetic_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < arithmetic_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &arithmetic_unit.expressions[index];
+    if (wide_binary_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+         expression->operation ==
+             CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) &&
+        expression->type < arithmetic_unit.layout.type_count &&
+        arithmetic_unit.layout.types[expression->type].size == 8u) {
+      wide_binary_expression = index;
+    }
+    if (wide_unary_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+        expression->operation ==
+            CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE &&
+        expression->type < arithmetic_unit.layout.type_count &&
+        arithmetic_unit.layout.types[expression->type].size == 8u) {
+      wide_unary_expression = index;
+    }
+    if (wide_binary_expression != CTOOL_C_AST_NONE &&
+        wide_unary_expression != CTOOL_C_AST_NONE) {
+      break;
+    }
+  }
+  if (wide_binary_expression == CTOOL_C_AST_NONE ||
+      wide_unary_expression == CTOOL_C_AST_NONE ||
+      arithmetic_unit.expression_count == 0u ||
+      sizeof(*invalid_arithmetic_expressions) >
+          SIZE_MAX / (size_t)arithmetic_unit.expression_count) {
+    (void)fprintf(stderr,
+                  "wide binary or unary fixture metadata differs\n");
+    goto cleanup;
+  }
+  invalid_arithmetic_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)arithmetic_unit.expression_count *
+      sizeof(*invalid_arithmetic_expressions));
+  if (invalid_arithmetic_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_arithmetic_expressions,
+               arithmetic_unit.expressions,
+               (size_t)arithmetic_unit.expression_count *
+                   sizeof(*invalid_arithmetic_expressions));
+  invalid_arithmetic_expressions[wide_unary_expression].conversion =
+      CTOOL_C_CONVERSION_INTEGER_PROMOTION;
+  invalid_arithmetic_unit = arithmetic_unit;
+  invalid_arithmetic_unit.expressions = invalid_arithmetic_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_arithmetic_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide unary operation with conversion metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_arithmetic_expressions,
+               arithmetic_unit.expressions,
+               (size_t)arithmetic_unit.expression_count *
+                   sizeof(*invalid_arithmetic_expressions));
+  invalid_arithmetic_expressions[wide_binary_expression].conversion =
+      CTOOL_C_CONVERSION_INTEGER_PROMOTION;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_arithmetic_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide binary operation with conversion metadata")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &arithmetic_unit,
+                            &arithmetic_repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat wide integer arithmetic") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&arithmetic_unit) != fingerprint ||
+      !validate_wide_arithmetic_ir(&arithmetic_unit,
+                                   &arithmetic_repeat_ir) ||
+      ir_instruction_fingerprint(&arithmetic_ir) !=
+          ir_instruction_fingerprint(&arithmetic_repeat_ir)) {
+    (void)fprintf(stderr,
+                  "wide integer arithmetic lowering is not deterministic\n");
     goto cleanup;
   }
   fingerprint = unit_fingerprint(&conversion_unit);
@@ -22187,6 +22412,7 @@ static int run_wide_returns(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_arithmetic_expressions);
   free(invalid_conversion_expressions);
   free(invalid_reverse_conversion_expressions);
   free(invalid_promotion_expressions);

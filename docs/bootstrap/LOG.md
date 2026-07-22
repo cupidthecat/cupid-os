@@ -5709,3 +5709,56 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide arithmetic outside shifts and bitwise operations, nonlogical unary operations, wide `switch`, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC lowers wide addition, subtraction, and unary operations
+
+### Decision and active requirement
+
+Hosted CupidC now lowers signed and unsigned eight-byte addition, subtraction, unary plus, unary minus, and bitwise complement. The unchanged `pp_if_signed_magnitude` helper in `toolchain/cupidc_pp.c` requires complement followed by addition. CupidASM's unchanged unary-expression branch preserves a positive value, subtracts a negative operand from zero, or complements both words. These active paths drive the capability; neither source was rewritten around the compiler.
+
+Linear IR continues to treat one eight-byte C value as one stack handle. Addition and subtraction require the same post-conversion operand and result type. The i386 emitter uses `ADD` followed by `ADC` for addition and `SUB` followed by `SBB` for subtraction. Each binary result receives a fresh private snapshot, so a nested expression cannot overwrite an operand that remains live.
+
+Unary plus reuses its immutable input handle. Unary minus negates the low word, carries the low-word borrow into the high word, and negates the adjusted high word. Bitwise complement applies `NOT` to both words. Negation and complement receive fresh snapshots. Logical not keeps the two-word truth path from ADR 0069.
+
+Two public 32-bit lanes were rejected because that would expose an i386 detail in target-neutral IR. Keeping a mutable result only in EDX:EAX was also rejected because later expression work and calls can overwrite those registers. Signed overflow keeps the C undefined-behavior rule, while unsigned results wrap modulo 2^64.
+
+ADR 0070 records the decision. Earlier wide-value ADRs now point to this extension. Wide multiplication, division, remainder, `switch`, compound mutation, increment and decrement, undeclared or variadic wide arguments, and floating values remain outside this increment.
+
+### Contract evidence and corrections
+
+- The arithmetic fixture contains 14 functions and exactly 83 IR instructions with fingerprint `245E6D8F4F77588E`. It covers signed and unsigned addition, subtraction, unary plus, unary minus, complement, chained expressions, and the active magnitude helper.
+- The combined wide-operation object contains 3,156 bytes of `.text`, has fingerprint `B52392EA`, publishes 26 symbols including the null symbol, and has no relocations. Its i386 oracle checks low-word carry, high-word borrow, unsigned full-width wrap, defined signed cases, unary identities, and nested uses that require stable input snapshots.
+- The oracle executes `pp_if_signed_magnitude` with a positive value, negative one, and the signed boundary. Full-body guards also bind that helper and CupidASM's unary-expression branch to their unchanged active source.
+- Malformed binary and unary conversion metadata produces the invalid-unit diagnostic without partial output. Constrained object storage also fails transactionally, and a later operation in the same job reproduces the deterministic object.
+- The red IR run first rejected the wide addition with `CTOOL_ERR_UNSUPPORTED`. Once lowering accepted it, object emission stopped at the missing two-word arithmetic path. Extending those two seams made the positive contract pass without changing active OS or tool source.
+- Comparison and arithmetic work touched the same wide fixture and instruction interpreter. The integrated contract keeps signed and unsigned comparison flag behavior, adds carry and borrow handling before the general flag path, and passes both `wide-returns` and `wide-conditions` modes. It also keeps logical not separate from the new nonlogical unary path.
+- A mistyped focused Make target used an underscore where the executable target uses a hyphen. Make stopped before building anything. The corrected target names passed and the failed command changed no tracked file.
+- The first sanitizer wrapper lost its intended command at the Windows-to-WSL quoting boundary and returned without creating either build directory. That run is excluded. Direct commands with literal build paths and flag strings compiled fresh GCC and Clang binaries with both sanitizer runtimes, then passed every affected mode.
+- Regenerating the active-source audit moved four source-gate totals and five lexical locks. Review then added the binary-metadata negative and corrected the two public header contracts, moving three more lexical locks. The frontend, IR, object, and build-graph public modules now agree with the final generated record, and `make check-bootstrap-audit` reproduces it.
+- No user question was needed. C integer semantics, the established i386 cdecl target, and the existing private-snapshot model determine this boundary.
+
+The hosted source gates publish definitions, statements, expressions, block bindings, and initializers as follows: `cupidc_pp.c` has 143/3,904/25,107/475/282; `cupidc_ir.c` has 176/5,364/47,083/655/216; `cupidc_emit.c` has 147/3,771/33,015/483/245; and `cupidc_frontend.c` has 303/11,901/77,125/1,765/1,205. The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 82,732 checked lines, and `toolchain_core` has 53,818.
+
+The generated audit records 635 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,406 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,537 `while`, 1,746 `break`, 1,018 `continue`, 28,087 `if`, 3,794 `else`, 3,290 `for`, 17,066 `return`, and 3,662 `sizeof` occurrences. The canonical active-source digest is `1b60c68e43d968ba59626e6941cb9221df565a700ea6a5a605da1f2e1e5f3c3e`; the complete audit JSON has SHA-256 `10397127bf12cf5af53c79da7f67b637f4851a0772a7e3987dbe8999ce58ec83`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | IR first rejected wide addition, then object emission stopped at the missing backend path. The final arithmetic proof passes positive, useful negative, deterministic, transactional, decoder, ABI, and execution-oracle checks. |
+| Focused public modules | PASS | All 50 frontend, 35 IR, 29 object, and 49 build-graph tests pass. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite, every registered IR and object mode, and all 22 assembly demos in 11.5 seconds. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC and Clang builds pass the affected IR and object modes in 19.1 and 19.6 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass both affected modes with leak detection and halt-on-error enabled in 70.3 and 72.1 seconds. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding across both implementation files and all three changed C contracts. The complete passes finish in 304.8 and 116.1 seconds; post-review analysis of the strengthened IR contract passes again in 99.7 and 22.9 seconds. |
+| Active-source audit | PASS | `make check-bootstrap-audit` reproduces the generated records in 38 seconds. |
+| Full repository gate | PASS | The final `make test` passes all 356 tests in 489.593 seconds with one expected platform skip; Make returns in 527.7 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.5 seconds. |
+| Emulator gate | PASS | The repository GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.7 seconds with the established 0.60-second key timing. |
+| Two-axis review | PASS AFTER CONTRACT AND DOC FIXES | Standards review found stale public header and bootstrap descriptions. Specification review found that the malformed-operation proof covered unary metadata but not binary metadata. The corrected tree updates both public contracts, adds the binary negative, refreshes the audit, and leaves no semantic, ABI, snapshot, active-source, or scope finding. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles. The private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result checks the rebuilt OS but does not assign production ownership to the hosted wide-arithmetic path.
+
+The root context and README, bootstrap matrices, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide multiplication, division, remainder, `switch`, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

@@ -2532,7 +2532,11 @@ static ctool_status_t cir_lower_binary(
                      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND ||
                  expression->operation ==
                      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_OR ||
-                 is_bitwise_xor == CTOOL_TRUE) &&
+                 is_bitwise_xor == CTOOL_TRUE ||
+                 expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+                 expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) &&
                 expression->type == left.type && left.type == right.type &&
                 cir_type_is_wide_integer(context, right.type) ==
                     CTOOL_TRUE))
@@ -2741,11 +2745,15 @@ static ctool_status_t cir_lower_unary(
     return cir_invalid_unit(context, &expression->location);
   }
   if ((logical_not == CTOOL_FALSE &&
-       cir_type_is_i32_integer(context, operand.type) == CTOOL_FALSE) ||
+       cir_type_is_value_integer(context, operand.type) == CTOOL_FALSE) ||
       (logical_not == CTOOL_TRUE &&
        cir_type_is_value_scalar(context, operand.type) ==
            CTOOL_FALSE) ||
-      cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) {
+      (logical_not == CTOOL_FALSE &&
+       cir_type_is_value_integer(context, expression->type) ==
+           CTOOL_FALSE) ||
+      (logical_not == CTOOL_TRUE &&
+       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE)) {
     return cir_unsupported_type(context, &expression->location);
   }
   if (operand.type != context->unit->expressions[child].type ||
