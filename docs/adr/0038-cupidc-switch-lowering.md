@@ -28,7 +28,7 @@ Represented integer constants now accept both zero-extended unsigned values and 
 
 The i386 emitter implements `DUPLICATE_VALUE` by moving the top 32-bit value through EAX and pushing it twice. Switch jumps remain function-relative and produce no relocation.
 
-This decision covers hosted IR and hosted ELF32 object emission only. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC emitter remains part of the embedded runtime JIT and AOT path. It still has its separate limitation for `continue` inside a switch nested in a loop. ADR 0071 later extends the same dispatch model to signed and unsigned eight-byte integers. Narrow, floating, pointer, and aggregate switch values remain outside the hosted slice, as do computed `goto`, GNU label addresses, production integration, and self-hosting.
+This decision covers hosted IR and hosted ELF32 object emission only. The host C compiler still produces the normal root and user C objects. The private in-kernel CupidC emitter remains part of the embedded runtime JIT and AOT path. ADR 0078 later corrects that private emitter's control frames and saved-selector cleanup. ADR 0071 extends the hosted dispatch model to signed and unsigned eight-byte integers. Narrow, floating, pointer, and aggregate switch values remain outside the hosted slice, as do computed `goto`, GNU label addresses, production integration, and self-hosting.
 
 ## Consequences and evidence
 
@@ -47,3 +47,7 @@ Independent review found that signed negative case constants still failed at the
 This change transfers no build ownership and retires no host dependency. It changes no kernel object, disk image, runtime path, or production ABI, so it does not need an OS boot claim.
 
 Issue #25 remains open. Broader values and addresses, additional local representations and storage durations, production integration, staged self-hosting, and the final fixed-point bootstrap still remain.
+
+## Extension: private compiler control frames
+
+ADR 0078 tags the private in-kernel compiler's breakable controls as loops or switches. A `continue` now finds the nearest loop and removes each saved switch selector that it crosses. A switch-local `break` also removes its selector before reaching the switch exit. This corrects the private runtime path without changing the hosted lowering described here.

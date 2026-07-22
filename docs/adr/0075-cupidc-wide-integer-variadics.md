@@ -42,3 +42,7 @@ Issue #25 remains open for atomic cursor and read semantics, floating and aggreg
 ## Extension: floating scalar transport
 
 ADR 0076 reuses the packed actual-type slices and eight-byte cursor machinery for values that are already `double`. It also adds `va_arg(double)`. The earlier floating gap remains accurate for default `float` promotion, `va_arg(float)`, floating computation and conversion, `long double`, SIMD, and atomic access.
+
+## Extension: float default argument promotion
+
+ADR 0077 records `double` in the packed actual-type slice after promoting a source `float`. The existing eight-byte outgoing-area path then carries the converted value. `va_arg(float)`, fixed-parameter and explicit floating conversions, general floating computation, `long double`, SIMD, and atomic access remain outside the boundary.

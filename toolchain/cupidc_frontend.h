@@ -326,7 +326,9 @@ typedef enum {
    * pointer for equality or assignment conversion. */
   CTOOL_C_CONVERSION_POINTER,
   /* C11 null pointer constant converted to its destination pointer type. */
-  CTOOL_C_CONVERSION_NULL_POINTER
+  CTOOL_C_CONVERSION_NULL_POINTER,
+  /* `float` converted to `double` by the default argument promotions. */
+  CTOOL_C_CONVERSION_FLOAT_PROMOTION
 } ctool_c_conversion_kind_t;
 
 typedef struct {
@@ -558,10 +560,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * parameters and default argument promotions to ellipsis arguments or every
  * argument passed without a prototype. Exact `float` and `double` values can
  * cross assignments, initializers, named calls, and returns. An unnamed
- * `double` value and `va_arg(arguments, double)` are also represented.
- * Floating default promotion remains deferred until `float` to `double`
- * conversion is available. Runtime
- * integer expressions are typed without constant folding. Unevaluated query
+ * `float` argument is promoted to `double`; an unnamed `double` value and
+ * `va_arg(arguments, double)` are also represented. Runtime integer
+ * expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
  * nodes. Valid floating arithmetic compounds and updates remain explicit
  * deferred features, while integer-only floating compounds and aggregate

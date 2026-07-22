@@ -103,6 +103,11 @@ Supported core features include:
 - arithmetic and logical operators
 - #pragma once
 
+The private compiler tags loops and switches separately. Break exits the
+nearest control. Continue finds the nearest loop and removes every crossed
+switch selector before jumping to the loop target. While continues at its
+condition, do-while at its condition trampoline, and for at its iteration.
+
 Current toolchain gaps:
 - C and GNU-extension coverage is incomplete.
 - Macro preprocessing and unsupported-form diagnostics remain incomplete.
@@ -163,24 +168,28 @@ that C leaves undefined promise neither a runtime trap nor a result. Signed and
 unsigned wide integers can also pass through an ellipsis or a call without a
 prototype.
 
-The shared path copies matching float and double values without doing
+The shared path copies matching float and double values without general
 floating-point computation. File, block-static, automatic,
 pointer, member, and indexed objects can feed initialization, plain assignment,
 discard, fixed direct or indirect calls, call results, and returns. A float
 keeps its raw four-byte representation. A double uses one Linear IR handle
 backed by a private eight-byte snapshot. Arguments occupy four-byte or
-eight-byte cdecl slots. Floating results return in x87 ST0. After call cleanup,
+eight-byte cdecl slots. At an ellipsis or unprototyped call, the frontend
+promotes float to double after lvalue conversion. Linear IR records the
+conversion. The i386 emitter loads the four-byte float with FLD and stores the
+converted double in a fresh eight-byte snapshot with FSTP. Floating results
+return in x87 ST0. After call cleanup,
 the caller stores a float result in a four-byte semantic stack slot or a double
-result in a private eight-byte frame snapshot. An existing double can cross an
-ellipsis or an unprototyped call, and va_arg(double) advances by eight bytes.
+result in a private eight-byte frame snapshot. A double can cross an ellipsis
+or an unprototyped call, and va_arg(double) advances by eight bytes.
 Floating values remain invalid truth operands. The decoder-driven oracle checks
-ESP alignment before each call it executes and models FLD and FSTP as bit
-copies. Its zero, infinity, and quiet NaN cases prove transport bytes, not
-native x87 execution. Floating literals, arithmetic, comparisons, conditions,
-conditional expressions, value-producing conversions, default float
-promotion, explicit static floating initializers, long double, SIMD, atomic
-access, and over-aligned object emission remain unfinished. Implicit static
-zero initialization and casts to void are represented.
+ESP alignment before each call it executes and models the supported transport
+and exact widening. It is not native x87 execution proof. Floating literals,
+arithmetic, comparisons, conditions, conditional expressions, fixed-parameter
+and explicit floating conversions, explicit static floating initializers,
+long double, SIMD, atomic access, and over-aligned object emission remain
+unfinished. Implicit static zero initialization and casts to void are
+represented.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -233,7 +242,8 @@ target-sized argument area. Prototyped, variadic, unprototyped, nested,
 structure, and wide calls follow the same rule.
 
 For a variadic call, the frontend applies lvalue conversion, array and function
-decay, and the supported integer promotions to the ellipsis arguments. Every
+decay, integer promotion, and float-to-double promotion to the ellipsis
+arguments as required. Every
 call instruction owns a contiguous slice of post-conversion
 actual argument types in a packed Linear IR array. Named slots use declared
 parameter types after compatibility checking. Unnamed slots use the packed
@@ -242,13 +252,13 @@ trailing entries, and metadata on non-call instructions. The emitter uses the
 validated slice and actual count for cdecl order, slot widths, the saved
 indirect callee, stack alignment, and caller cleanup. Direct
 and indirect calls can pass represented four-byte integers and pointers,
-signed and unsigned eight-byte integers, or an existing double through an
-ellipsis. An eight-byte unnamed value selects the outgoing-area path. Arguments
+signed and unsigned eight-byte integers, existing doubles, or source floats
+promoted to double through an ellipsis. An eight-byte unnamed value selects
+the outgoing-area path. Arguments
 occupy increasing addresses in source order, with the low word before the high
 word for an eight-byte value. Each argument still has one abstract IR handle.
 An indirect callee remains below the argument handles while the emitter
-prepares the outgoing area. A float remains blocked until its required default
-promotion to double is implemented.
+prepares the outgoing area.
 
 In GNU C mode, __builtin_va_list is a target char pointer cursor. The shared
 frontend retains start, argument, copy, and end operations. The i386 emitter
@@ -269,8 +279,7 @@ non-prototype function type. Direct and indirect calls without a prototype
 apply default argument promotions to every argument. Each call keeps its actual
 count and post-conversion type slice in Linear IR. The i386 emitter accepts
 represented four-byte integers and pointers, signed or unsigned eight-byte
-integers, and values that are already double. A float still needs the
-unimplemented default promotion to double.
+integers, existing doubles, and source floats promoted to double.
 
 Block-scope struct and union tags follow lexical C scope. Forward declarations,
 same-scope completion, ordinary references, nested shadowing, and restoration
@@ -316,9 +325,9 @@ Represented uses become integer constants with no frame slot, symbol,
 relocation, or runtime declaration instruction. This covers the cursor
 constants in kernel/gui/desktop.c and the REPL limits in kernel/lang/shell.c
 without moving them. Block declaration attributes, nested function
-definitions, nonempty identifier lists, default float promotion, atomic
-variadic access, aggregate arguments without declared parameter types, and
-aggregate variadic reads remain open.
+definitions, nonempty identifier lists, atomic variadic access, aggregate
+arguments without declared parameter types, and aggregate variadic reads
+remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects
@@ -345,9 +354,10 @@ than four bytes and contain no stored volatile or atomic subobjects. Graphs
 containing a union or class remain unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field initializer leaves, Boolean mutation, floating
-literals and computation, atomic variadic access, default float promotion,
-aggregate arguments without declared parameter types, aggregate variadic
-reads, wide strings, literal pooling, and block-static addresses in other
+literals and general computation, fixed-parameter and explicit floating
+conversions, atomic variadic access, aggregate arguments without declared
+parameter types, aggregate variadic reads, wide strings, literal pooling, and
+block-static addresses in other
 block-static initializers remain unfinished in the shared path.
 
 Production ownership is unchanged. The normal OS build still uses a host C

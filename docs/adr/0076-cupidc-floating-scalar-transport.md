@@ -44,3 +44,7 @@ The deterministic ELF32 proof contains 39 functions, 4,121 text bytes with finge
 The verified hosted suites contain 52 frontend tests, 38 IR tests, and 32 object tests. This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler and every normal Cupid OS C object. No production artifact, boot path, host dependency, or source-ownership count changes.
 
 Issue #25 remains open for floating computation and conversion, the remaining C and ABI surface, production integration, staged self-hosting, and the fixed-point bootstrap.
+
+## Extension: float default argument promotion
+
+ADR 0077 adds the C default argument promotion from represented `float` to `double` at ellipsis and unprototyped call positions. The i386 emitter converts through x87 and publishes a fresh eight-byte snapshot. Fixed-parameter conversion, explicit floating casts, arithmetic conversions, and floating computation remain outside this boundary.

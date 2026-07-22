@@ -43,3 +43,7 @@ ADR 0075 lets `VARIADIC_ARGUMENT` read a non-atomic signed or unsigned eight-byt
 ## Extension: variadic double reads
 
 ADR 0076 lets `VARIADIC_ARGUMENT` read a non-atomic `double`. The read copies eight bytes into a fresh snapshot and advances the cursor by eight. `va_arg(float)` remains invalid C because an unnamed `float` is promoted before the call.
+
+## Extension: promoted float callers
+
+ADR 0077 implements the caller-side promotion that the `va_arg(float)` rule requires. A source `float` now reaches an ellipsis as `double`; the callee continues to retrieve that value with `va_arg(double)` and advance by eight bytes.

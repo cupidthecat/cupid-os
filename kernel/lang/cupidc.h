@@ -31,8 +31,8 @@
 #define CC_MAX_LOCALS 256            /* max locals per function */
 #define CC_MAX_PARAMS 32             /* max function parameters */
 #define CC_MAX_PATCHES 4096          /* max forward-ref patches */
-#define CC_MAX_BREAKS 128            /* max nested loop depth */
-#define CC_MAX_BREAKS_PER_LOOP 64    /* max break statements per loop */
+#define CC_MAX_CONTROL_DEPTH 128     /* max nested breakable controls */
+#define CC_MAX_BREAKS_PER_CONTROL 64 /* max breaks per control */
 #define CC_MAX_IDENT 96              /* max identifier length */
 #define CC_MAX_STRING 1024           /* max string literal length */
 #define CC_MAX_ERRORS 1              /* fail-fast: stop at first */
@@ -273,6 +273,11 @@ typedef struct {
   int patch_count;
 } cc_label_t;
 
+typedef enum {
+  CC_CONTROL_LOOP,
+  CC_CONTROL_SWITCH
+} cc_control_kind_t;
+
 /* Compiler State */
 typedef struct {
   /* Source */
@@ -317,11 +322,12 @@ typedef struct {
   cc_label_t labels[CC_MAX_LABELS];
   int label_count;
 
-  /* Break/continue stack for loops */
-  uint32_t break_patches[CC_MAX_BREAKS][CC_MAX_BREAKS_PER_LOOP];
-  int break_counts[CC_MAX_BREAKS];
-  uint32_t continue_targets[CC_MAX_BREAKS];
-  int loop_depth;
+  /* `break` uses the innermost control. `continue` finds a loop. */
+  uint32_t break_patches[CC_MAX_CONTROL_DEPTH][CC_MAX_BREAKS_PER_CONTROL];
+  int break_counts[CC_MAX_CONTROL_DEPTH];
+  cc_control_kind_t control_kinds[CC_MAX_CONTROL_DEPTH];
+  uint32_t continue_targets[CC_MAX_CONTROL_DEPTH];
+  int control_depth;
 
   /* Error state */
   int error;

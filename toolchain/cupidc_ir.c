@@ -1603,6 +1603,29 @@ static ctool_bool cir_integer_conversion_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_float_promotion_is_valid(
+    const cir_context_t *context, ctool_u32 source_type,
+    ctool_u32 target_type) {
+  const ctool_c_type_node_t *source =
+      cir_unwrapped_type(context, source_type);
+  const ctool_c_type_node_t *target =
+      cir_unwrapped_type(context, target_type);
+  return source != (const ctool_c_type_node_t *)0 &&
+                 target != (const ctool_c_type_node_t *)0 &&
+                 source->kind == CTOOL_C_TYPE_FLOAT &&
+                 target->kind == CTOOL_C_TYPE_DOUBLE &&
+                 cir_type_is_floating_value(context, source_type) ==
+                     CTOOL_TRUE &&
+                 cir_type_is_floating_value(context, target_type) ==
+                     CTOOL_TRUE &&
+                 cir_type_has_atomic_qualification(context, source_type) ==
+                     CTOOL_FALSE &&
+                 cir_type_has_atomic_qualification(context, target_type) ==
+                     CTOOL_FALSE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cir_push(cir_context_t *context,
                                cir_stack_kind_t kind, ctool_u32 type) {
   if (context->stack_depth >= CIR_STACK_LIMIT) {
@@ -2337,6 +2360,20 @@ static ctool_status_t cir_lower_conversion(
     status = cir_append_instruction(
         context, CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER,
         expression->type, source.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        expression->conversion, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+  } else if (expression->conversion ==
+             CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
+    if (source.kind != CIR_STACK_VALUE ||
+        source.type != context->unit->expressions[child].type ||
+        cir_float_promotion_is_valid(
+            context, source.type, expression->type) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_CONVERT, expression->type,
+        source.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
         expression->conversion, CTOOL_C_AST_NONE, 0u,
         &expression->location, &expression->physical_location,
         (ctool_u32 *)0);

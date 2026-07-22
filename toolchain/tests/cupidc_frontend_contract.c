@@ -3670,13 +3670,6 @@ static int run_function_bodies(const char *host_root) {
         "void bad(int value) { one(value, value); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        2u, 34u, "function call has too many arguments"},
-      {{"floating variadic argument promotion boundary",
-        "void variadic(int first, ...);\n"
-        "void bad(float value) { variadic(1, value); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 37u,
-       "floating arguments governed by default argument promotions require "
-       "float-to-double conversion"},
       {{"incompatible call argument",
         "void pointer(const char *value);\n"
         "void bad(unsigned int value) { pointer(value); }\n",
@@ -6755,12 +6748,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 182u, 5507u,
-       48289u, 670u, 225u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 158u, 4301u,
-       36787u, 521u, 262u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 183u, 5517u,
+       48478u, 672u, 227u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 159u, 4313u,
+       36977u, 524u, 265u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 303u,
-       11934u, 77333u, 1771u, 1205u, 0u, 0u}};
+       11943u, 77373u, 1772u, 1205u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -21688,14 +21681,6 @@ static int run_old_style_empty_functions(const char *host_root) {
       "{\n"
       "  return callee(small);\n"
       "}\n";
-  static const frontend_exact_failure_case_t floating_failure = {
-      {"floating non-prototype argument promotion boundary",
-       "extern int sink();\n"
-       "int bad(float value) { return sink(value); }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-      2u, 36u,
-      "floating arguments governed by default argument promotions require "
-      "float-to-double conversion"};
   static const frontend_exact_failure_case_t identifier_list_failure = {
       {"nonempty old-style function identifier list",
        "int legacy(value)\n"
@@ -21722,13 +21707,6 @@ static int run_old_style_empty_functions(const char *host_root) {
       validate_old_style_empty_definition_unit(&unit) != 0) {
     (void)fprintf(stderr,
                   "old-style-empty-functions: public graph differs\n");
-    goto cleanup;
-  }
-  if (expect_frontend_failure_at_message(
-          &fixture, &floating_failure.failure,
-          "/old-style-empty-function-failure.c", floating_failure.line,
-          floating_failure.column, floating_failure.message) != 0 ||
-      validate_old_style_empty_definition_unit(&unit) != 0) {
     goto cleanup;
   }
   if (expect_frontend_failure_at_message(
@@ -22129,6 +22107,109 @@ cleanup:
   return failed;
 }
 
+static int validate_float_default_promotions(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 promotions = 0u;
+  ctool_u32 calls = 0u;
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 variadic_calls = 0u;
+  ctool_u32 unprototyped_calls = 0u;
+  ctool_u32 index;
+
+  if (unit == NULL || unit->function_definition_count != 4u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    const ctool_c_type_node_t *type = &unit->graph.types[index];
+    if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
+      float_type = index;
+    } else if (type->qualifiers == 0u &&
+               type->kind == CTOOL_C_TYPE_DOUBLE) {
+      double_type = index;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
+      ctool_u32 child_index = expression_child(unit, expression, 0u);
+      const ctool_c_expression_t *child =
+          child_index < unit->expression_count
+              ? &unit->expressions[child_index]
+              : NULL;
+      if (expression->type != double_type || expression->child_count != 1u ||
+          child == NULL || child->type != float_type ||
+          child->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          child->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE) {
+        return 1;
+      }
+      promotions++;
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+      ctool_u32 callee_index = expression_child(unit, expression, 0u);
+      ctool_u32 callee_terminal = unwrap_conversions(unit, callee_index);
+      ctool_u32 argument_index =
+          expression_child(unit, expression, expression->child_count - 1u);
+      const ctool_c_expression_t *callee =
+          callee_terminal < unit->expression_count
+              ? &unit->expressions[callee_terminal]
+              : NULL;
+      const ctool_c_expression_t *argument =
+          argument_index < unit->expression_count
+              ? &unit->expressions[argument_index]
+              : NULL;
+      const ctool_c_type_node_t *pointer =
+          callee_index < unit->expression_count
+              ? unwrapped_type_node(
+                    unit, unit->expressions[callee_index].type)
+              : NULL;
+      const ctool_c_type_node_t *function =
+          pointer != NULL && pointer->kind == CTOOL_C_TYPE_POINTER
+              ? unwrapped_type_node(unit, pointer->referenced_type)
+              : NULL;
+      if (expression->child_count < 2u || callee == NULL ||
+          argument == NULL ||
+          argument->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+          argument->conversion != CTOOL_C_CONVERSION_FLOAT_PROMOTION ||
+          argument->type != double_type || function == NULL ||
+          function->kind != CTOOL_C_TYPE_FUNCTION) {
+        return 1;
+      }
+      if (callee->kind == CTOOL_C_EXPRESSION_IDENTIFIER) {
+        direct_calls++;
+      } else if (callee->kind == CTOOL_C_EXPRESSION_PARAMETER) {
+        indirect_calls++;
+      } else {
+        return 1;
+      }
+      if (function->has_prototype == CTOOL_TRUE &&
+          function->variadic == CTOOL_TRUE) {
+        variadic_calls++;
+      } else if (function->has_prototype == CTOOL_FALSE &&
+                 function->variadic == CTOOL_FALSE &&
+                 function->parameter_count == 0u) {
+        unprototyped_calls++;
+      } else {
+        return 1;
+      }
+      calls++;
+    }
+  }
+  return promotions == 4u && calls == 4u && direct_calls == 2u &&
+                 indirect_calls == 2u && variadic_calls == 2u &&
+                 unprototyped_calls == 2u
+             ? 0
+             : 1;
+}
+
 static int validate_floating_transport(
     const ctool_c_translation_unit_t *unit) {
   ctool_u32 float_type = CTOOL_C_TYPE_NONE;
@@ -22253,6 +22334,24 @@ static int validate_floating_transport(
 }
 
 static int run_floating_transport(const char *host_root) {
+  static const char promotion_source[] =
+      "typedef void (*variadic_callback)(int, ...);\n"
+      "typedef void (*open_callback)();\n"
+      "void variadic_sink(int marker, ...);\n"
+      "void open_sink();\n"
+      "void promote_variadic_direct(float value) {\n"
+      "  variadic_sink(1, value);\n"
+      "}\n"
+      "void promote_variadic_indirect(variadic_callback callback,\n"
+      "                               float value) {\n"
+      "  callback(2, value);\n"
+      "}\n"
+      "void promote_open_direct(float value) {\n"
+      "  open_sink(value);\n"
+      "}\n"
+      "void promote_open_indirect(open_callback callback, float value) {\n"
+      "  callback(value);\n"
+      "}\n";
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
       "typedef float aligned_float __attribute__((aligned(8)));\n"
@@ -22306,6 +22405,12 @@ static int run_floating_transport(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 45u,
        "floating assignment conversions are outside this body slice"},
+      {{"float to double named argument boundary",
+        "void sink(double value);\n"
+        "void bad(float value) { sink(value); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 30u,
+       "floating assignment conversions are outside this body slice"},
       {{"float to integer assignment boundary",
         "void bad(int left, float right) { left = right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -22331,6 +22436,7 @@ static int run_floating_transport(const char *host_root) {
        1u, 22u, "floating constants are outside this expression slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t promotion_unit;
   ctool_u32 index;
   int failed = 1;
 
@@ -22342,7 +22448,10 @@ static int run_floating_transport(const char *host_root) {
   fixture.parse_request.gnu_extensions = CTOOL_TRUE;
   if (parse_valid_fixture(&fixture, "/floating-transport.c", source,
                           &unit) != 0 ||
-      validate_floating_transport(&unit) != 0) {
+      validate_floating_transport(&unit) != 0 ||
+      parse_valid_fixture(&fixture, "/float-default-promotions.c",
+                          promotion_source, &promotion_unit) != 0 ||
+      validate_float_default_promotions(&promotion_unit) != 0) {
     (void)fprintf(stderr, "floating-transport: public graph differs\n");
     goto cleanup;
   }
@@ -22352,7 +22461,8 @@ static int run_floating_transport(const char *host_root) {
             &fixture, &test_case->failure,
             "/floating-transport-failure.c", test_case->line,
             test_case->column, test_case->message) != 0 ||
-        validate_floating_transport(&unit) != 0) {
+        validate_floating_transport(&unit) != 0 ||
+        validate_float_default_promotions(&promotion_unit) != 0) {
       goto cleanup;
     }
   }

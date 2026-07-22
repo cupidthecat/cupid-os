@@ -61,8 +61,12 @@ An eight-byte integer carried through hosted Linear IR as one logical value. The
 _Avoid_: two unrelated 32-bit values, a public IR register pair
 
 **Floating scalar value**:
-A `float` or `double` carried through hosted Linear IR as one logical value without floating computation or value-producing conversion. A `float` keeps its raw four-byte representation. A `double` uses an emitter-owned eight-byte snapshot. Same-kind object loads, initialization, plain assignment, discard, fixed arguments and parameters, direct or indirect call results, returns, `double` ellipsis arguments, and non-atomic `va_arg(double)` reads use this path. i386 calls place the value in four or eight cdecl stack bytes. Floating results cross the ABI in x87 `ST0`; after call cleanup, the caller places a `float` in a four-byte semantic stack slot or a `double` in a private eight-byte frame snapshot. Ordinary memory transport copies the stored target bytes. Floating values are not represented truth operands, so IR and emission reject logical or branch metadata that names one. A decoder-driven oracle checks ESP alignment before every executed call and models the x87 bridge as bit copies; it is not a native x87 execution proof.
+A `float` or `double` carried through hosted Linear IR as one logical value without general floating computation. A `float` keeps its raw four-byte representation. A `double` uses an emitter-owned eight-byte snapshot. Same-kind object loads, initialization, plain assignment, discard, fixed arguments and parameters, direct or indirect call results, returns, `double` ellipsis arguments, and non-atomic `va_arg(double)` reads use this path. Default argument promotion is the one supported value-producing floating conversion: an ellipsis or unprototyped source `float` becomes `double` through x87 and a fresh snapshot. i386 calls place the final value in four or eight cdecl stack bytes. Floating results cross the ABI in x87 `ST0`; after call cleanup, the caller places a `float` in a four-byte semantic stack slot or a `double` in a private eight-byte frame snapshot. Ordinary memory transport copies the stored target bytes. Floating values are not represented truth operands, so IR and emission reject logical or branch metadata that names one. A decoder-driven oracle checks ESP alignment before every executed call and models the x87 bridge and exact supported widening; it is not a native x87 execution proof.
 _Avoid_: floating-point arithmetic support, an exposed snapshot pointer
+
+**Private compiler control frame**:
+A tagged loop or switch entry used by the in-kernel CupidC emitter. `break` selects the nearest control frame. `continue` selects the nearest loop and removes the saved selector for each switch crossed on the way.
+_Avoid_: loop-only depth stack
 
 **Represented bit-field assignment**:
 A plain Cupid C assignment to a non-atomic integer bit field whose declared storage unit is four bytes and fits inside its record. Linear IR retains the graph member, while i386 emission preserves neighboring bits and returns the value represented by the stored field.
@@ -117,11 +121,11 @@ An i386 call instruction emitted with ESP on a sixteen-byte boundary before the 
 _Avoid_: sixteen-byte function frame, aligned callee entry
 
 **Variadic call site**:
-A call through a prototyped function type whose final parameter is an ellipsis. Linear IR keeps the named parameter count in the function type. Each call instruction owns its actual argument count and a source-ordered slice of the actual post-conversion types. Hosted i386 emission transports represented four-byte integer and pointer values, signed or unsigned eight-byte integers, and values that are already `double`. An eight-byte argument occupies adjacent low and high four-byte words in the sixteen-byte-aligned outgoing area. A `float` cannot cross this boundary until its required default promotion to `double` is represented.
+A call through a prototyped function type whose final parameter is an ellipsis. Linear IR keeps the named parameter count in the function type. Each call instruction owns its actual argument count and a source-ordered slice of the actual post-conversion types. Hosted i386 emission transports represented four-byte integer and pointer values, signed or unsigned eight-byte integers, existing `double` values, and source `float` values after default promotion to `double`. An eight-byte argument occupies adjacent low and high four-byte words in the sixteen-byte-aligned outgoing area.
 _Avoid_: unprototyped call, variadic macro
 
 **Unprototyped call site**:
-A call through a function type that does not declare parameter types. The frontend applies default argument promotions to every argument. Linear IR keeps the actual count and post-conversion type slice on the call instruction. Hosted i386 emission transports represented four-byte integers and pointers, signed or unsigned eight-byte integers, and values that are already `double` at this boundary. A source `float` remains unsupported until the frontend can promote it to `double`.
+A call through a function type that does not declare parameter types. The frontend applies default argument promotions to every argument. Linear IR keeps the actual count and post-conversion type slice on the call instruction. Hosted i386 emission transports represented four-byte integers and pointers, signed or unsigned eight-byte integers, existing `double` values, and source `float` values after promotion to `double`.
 _Avoid_: variadic call, call with zero parameters
 
 **Variadic cursor**:

@@ -37,3 +37,7 @@ ADR 0075 carries each call's actual post-conversion types in Linear IR. Direct a
 ## Extension: unprototyped double arguments
 
 ADR 0076 lets a value that is already `double` cross a direct or indirect unprototyped call in its eight-byte cdecl span. A `float` remains blocked until default argument promotion can produce `double`. Nonempty identifier-list definitions remain unsupported.
+
+## Extension: float default argument promotion
+
+ADR 0077 lets a source `float` cross a direct or indirect unprototyped call after conversion to `double`. The actual-type slice records the converted type and selects the existing eight-byte cdecl span. Nonempty identifier-list definitions remain unsupported.

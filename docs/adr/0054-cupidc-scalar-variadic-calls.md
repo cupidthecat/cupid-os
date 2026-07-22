@@ -41,3 +41,7 @@ ADR 0075 extends caller-owned metadata from an actual count to a packed slice of
 ## Extension: variadic double arguments
 
 ADR 0076 lets a value that is already `double` occupy eight bytes at an ellipsis position. The packed actual type selects that width. A source `float` remains unsupported because C requires the still-unimplemented default promotion to `double`.
+
+## Extension: float default argument promotion
+
+ADR 0077 promotes a source `float` to `double` after lvalue conversion. The packed actual type is `double`, so direct and indirect variadic calls use the existing eight-byte cdecl path for placement, alignment, and cleanup.

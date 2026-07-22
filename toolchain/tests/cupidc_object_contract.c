@@ -17860,6 +17860,31 @@ static int wide_oracle_flag_step(
   return 1;
 }
 
+static ctool_u64 floating_oracle_widen_float(ctool_u32 bits) {
+  ctool_u64 sign = (ctool_u64)(bits & 0x80000000u) << 32u;
+  ctool_u32 exponent = (bits >> 23u) & 0xffu;
+  ctool_u32 fraction = bits & 0x007fffffu;
+  ctool_u32 widened_exponent;
+  if (exponent == 0u) {
+    ctool_i32 unbiased = -126;
+    if (fraction == 0u) {
+      return sign;
+    }
+    while ((fraction & 0x00800000u) == 0u) {
+      fraction <<= 1u;
+      unbiased--;
+    }
+    fraction &= 0x007fffffu;
+    widened_exponent = (ctool_u32)(unbiased + 1023);
+  } else if (exponent == 0xffu) {
+    widened_exponent = 0x7ffu;
+  } else {
+    widened_exponent = exponent + (1023u - 127u);
+  }
+  return sign | ((ctool_u64)widened_exponent << 52u) |
+         ((ctool_u64)fraction << 29u);
+}
+
 static int floating_oracle_step(
     narrow_oracle_machine_t *machine,
     const ctool_x86_instruction_t *instruction, ctool_bool *handled) {
@@ -17867,6 +17892,7 @@ static int floating_oracle_step(
   ctool_u32 address;
   ctool_u32 low;
   ctool_u32 high = 0u;
+  ctool_u64 stored_bits;
   if (machine == NULL || instruction == NULL || handled == NULL) {
     return 0;
   }
@@ -17894,14 +17920,24 @@ static int floating_oracle_step(
     machine->x87_width_bits = operand->width_bits;
     machine->x87_valid = CTOOL_TRUE;
   } else {
-    if (machine->x87_valid == CTOOL_FALSE ||
-        machine->x87_width_bits != operand->width_bits ||
-        !narrow_oracle_write_memory(
-            machine, address, 32u, (ctool_u32)machine->x87_bits) ||
+    if (machine->x87_valid == CTOOL_FALSE) {
+      return 0;
+    }
+    if (machine->x87_width_bits == operand->width_bits) {
+      stored_bits = machine->x87_bits;
+    } else if (machine->x87_width_bits == 32u &&
+               operand->width_bits == 64u) {
+      stored_bits = floating_oracle_widen_float(
+          (ctool_u32)machine->x87_bits);
+    } else {
+      return 0;
+    }
+    if (!narrow_oracle_write_memory(
+            machine, address, 32u, (ctool_u32)stored_bits) ||
         (operand->width_bits == 64u &&
          !narrow_oracle_write_memory(
              machine, address + 4u, 32u,
-             (ctool_u32)(machine->x87_bits >> 32u)))) {
+             (ctool_u32)(stored_bits >> 32u)))) {
       return 0;
     }
     machine->x87_valid = CTOOL_FALSE;
@@ -21389,6 +21425,71 @@ cleanup:
   return 1;
 }
 
+static int validate_float_promotion_function(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, const char *name) {
+  const ctool_elf32_symbol_t *function = find_symbol(object, name);
+  ctool_u32 cursor = 0u;
+  ctool_u32 fld_m32_count = 0u;
+  ctool_u32 fstp_m64_count = 0u;
+  ctool_u32 call_count = 0u;
+  if (!wide_function_symbol_is_valid(object, text, function)) {
+    (void)fprintf(stderr, "%s: function symbol differs\n", name);
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: decode failed at %u\n", name,
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
+      if (instruction->operand_count != 1u ||
+          instruction->operands[0].kind != CTOOL_X86_OPERAND_MEMORY ||
+          instruction->operands[0].width_bits != 32u) {
+        (void)fprintf(stderr, "%s: FLD operand differs\n", name);
+        return 0;
+      }
+      fld_m32_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP) {
+      if (instruction->operand_count != 1u ||
+          instruction->operands[0].kind != CTOOL_X86_OPERAND_MEMORY ||
+          instruction->operands[0].width_bits != 64u) {
+        (void)fprintf(stderr, "%s: FSTP operand differs\n", name);
+        return 0;
+      }
+      fstp_m64_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      call_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != function->size || fld_m32_count != 1u ||
+      fstp_m64_count != 1u || call_count != 1u ||
+      !validate_call_alignment_function(
+          job, text, function, 1u, 0u, 0u, 0u, 0u, name)) {
+    (void)fprintf(stderr,
+                  "%s: promotion inventory differs: fld-m32=%u "
+                  "fstp-m64=%u calls=%u\n",
+                  name, (unsigned int)fld_m32_count,
+                  (unsigned int)fstp_m64_count,
+                  (unsigned int)call_count);
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_transport_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u32 float_patterns[] = {
@@ -21398,6 +21499,12 @@ static int validate_floating_transport_object(
       {0x00000000u, 0x80000000u},
       {0x00000000u, 0x7ff00000u},
       {0x89abcdefu, 0x7ff81234u}};
+  static const ctool_u32 promotion_patterns[][3] = {
+      {0x00000000u, 0x00000000u, 0x00000000u},
+      {0x80000000u, 0x00000000u, 0x80000000u},
+      {0x3f800001u, 0x20000000u, 0x3ff00000u},
+      {0x00000001u, 0x00000000u, 0x36a00000u},
+      {0x7f800000u, 0x00000000u, 0x7ff00000u}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   const ctool_elf32_symbol_t *global_float =
@@ -21422,10 +21529,10 @@ static int validate_floating_transport_object(
       global_float->size != 4u || global_double->size != 8u ||
       (global_float->value & 3u) != 0u ||
       (global_double->value & 3u) != 0u ||
-      text->contents.size != 4121u ||
-      structure_text_fingerprint(text->contents) != 0x438a39abu ||
-      bss->size != 24u || object->symbol_count != 44u ||
-      object->relocation_count != 36u ||
+      text->contents.size != 4507u ||
+      structure_text_fingerprint(text->contents) != 0x7e3bc543u ||
+      bss->size != 24u || object->symbol_count != 48u ||
+      object->relocation_count != 38u ||
       !wide_function_symbol_is_valid(object, text, return_float) ||
       !wide_function_symbol_is_valid(object, text, return_double) ||
       !wide_function_symbol_is_valid(object, text, double_bits_xor) ||
@@ -21441,6 +21548,16 @@ static int validate_floating_transport_object(
         bss == NULL ? 0u : (unsigned int)bss->size,
         (unsigned int)object->symbol_count,
         (unsigned int)object->relocation_count);
+    return 0;
+  }
+  if (!validate_float_promotion_function(
+          job, object, text, "promote_variadic_direct") ||
+      !validate_float_promotion_function(
+          job, object, text, "promote_variadic_indirect") ||
+      !validate_float_promotion_function(
+          job, object, text, "promote_open_direct") ||
+      !validate_float_promotion_function(
+          job, object, text, "promote_open_indirect")) {
     return 0;
   }
   for (index = 0u;
@@ -21595,6 +21712,35 @@ static int validate_floating_transport_object(
       return 0;
     }
   }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(promotion_patterns) /
+                           sizeof(promotion_patterns[0]));
+       index++) {
+    const ctool_u32 direct_arguments[] = {promotion_patterns[index][0]};
+    const ctool_u32 indirect_variadic_arguments[] = {
+        read_double_xor->value, promotion_patterns[index][0]};
+    const ctool_u32 indirect_open_arguments[] = {
+        double_bits_xor->value, promotion_patterns[index][0]};
+    ctool_u32 expected =
+        promotion_patterns[index][1] ^ promotion_patterns[index][2];
+    if (!expect_wide_oracle_low_result(
+            job, object, text, "promote_variadic_direct",
+            direct_arguments, 1u, expected,
+            "direct variadic float promotion") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "promote_variadic_indirect",
+            indirect_variadic_arguments, 2u, expected,
+            "indirect variadic float promotion") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "promote_open_direct", direct_arguments,
+            1u, expected, "direct unprototyped float promotion") ||
+        !expect_wide_oracle_low_result(
+            job, object, text, "promote_open_indirect",
+            indirect_open_arguments, 2u, expected,
+            "indirect unprototyped float promotion")) {
+      return 0;
+    }
+  }
   return 1;
 }
 
@@ -21741,10 +21887,23 @@ static int run_floating_transport_object(const char *host_root) {
       "u32 relay_open_direct(double value) {\n"
       "  return open_double_hash(value);\n"
       "}\n"
+      "u32 promote_open_direct(float value) {\n"
+      "  return open_double_hash(value);\n"
+      "}\n"
       "u32 open_double_hash(double value) {\n"
       "  return double_bits_xor(value);\n"
       "}\n"
       "u32 relay_open_indirect(open_callback callback, double value) {\n"
+      "  return callback(value);\n"
+      "}\n"
+      "u32 promote_variadic_direct(float value) {\n"
+      "  return read_double_xor(0u, value);\n"
+      "}\n"
+      "u32 promote_variadic_indirect(variadic_callback callback,\n"
+      "                              float value) {\n"
+      "  return callback(0u, value);\n"
+      "}\n"
+      "u32 promote_open_indirect(open_callback callback, float value) {\n"
       "  return callback(value);\n"
       "}\n"
       "u32 discard_double(double value) {\n"
@@ -21815,7 +21974,9 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t condition_unit;
   ctool_c_translation_unit_t invalid_condition_unit;
+  ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_statement_t *invalid_condition_statements = NULL;
+  ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_bytes_t first_bytes;
@@ -21826,6 +21987,8 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_u32 float_value = CTOOL_C_AST_NONE;
   ctool_u32 double_value = CTOOL_C_AST_NONE;
   ctool_u32 selection = CTOOL_C_AST_NONE;
+  ctool_u32 promotion = CTOOL_C_AST_NONE;
+  ctool_u32 invalid_promotion_target = CTOOL_C_TYPE_NONE;
   ctool_u32 index;
   int passed = 0;
 
@@ -21838,10 +22001,53 @@ static int run_floating_transport_object(const char *host_root) {
                           &unit) ||
       !parse_source_mode(job, "/floating-truth-boundary.c",
                          condition_source, CTOOL_TRUE, &condition_unit) ||
-      unit.function_definition_count != 39u) {
+      unit.function_definition_count != 43u) {
     (void)fprintf(stderr, "floating transport object setup failed\n");
     goto cleanup;
   }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
+      promotion = index;
+      break;
+    }
+  }
+  for (index = 0u; index < unit.graph.type_count; index++) {
+    if (unit.graph.types[index].qualifiers == 0u &&
+        unit.graph.types[index].kind == CTOOL_C_TYPE_UNSIGNED_INT) {
+      invalid_promotion_target = index;
+      break;
+    }
+  }
+  if (promotion == CTOOL_C_AST_NONE ||
+      invalid_promotion_target == CTOOL_C_TYPE_NONE ||
+      unit.expressions[promotion].child_count != 1u ||
+      unit.expressions[promotion].first_child >=
+          unit.expression_child_count ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_promotion_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "floating promotion object fixture differs\n");
+    goto cleanup;
+  }
+  invalid_promotion_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count *
+      sizeof(*invalid_promotion_expressions));
+  if (invalid_promotion_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_promotion_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_promotion_expressions));
+  index = unit.expression_children[unit.expressions[promotion].first_child];
+  if (index >= unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_promotion_expressions[promotion].type =
+      invalid_promotion_target;
+  invalid_promotion_unit = unit;
+  invalid_promotion_unit.expressions = invalid_promotion_expressions;
   for (index = 0u; index < condition_unit.graph.type_count; index++) {
     const ctool_c_type_node_t *type = &condition_unit.graph.types[index];
     if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
@@ -21929,6 +22135,13 @@ static int run_floating_transport_object(const char *host_root) {
           "double branch metadata at object boundary")) {
     goto cleanup;
   }
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_promotion_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "floating promotion metadata at object boundary")) {
+    goto cleanup;
+  }
   first_bytes = ctool_buffer_view(first);
   second_bytes = ctool_buffer_view(second);
   if (first_bytes.size != second_bytes.size ||
@@ -21967,6 +22180,7 @@ static int run_floating_transport_object(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_promotion_expressions);
   free(invalid_condition_statements);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);

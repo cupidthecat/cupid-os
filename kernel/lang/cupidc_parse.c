@@ -4863,11 +4863,12 @@ static void cc_parse_while(cc_state_t *cc) {
   uint32_t loop_start = cc->code_pos;
 
   /* Push loop context */
-  int old_depth = cc->loop_depth;
-  if (cc->loop_depth < CC_MAX_BREAKS) {
-    cc->break_counts[cc->loop_depth] = 0;
-    cc->continue_targets[cc->loop_depth] = loop_start;
-    cc->loop_depth++;
+  int old_depth = cc->control_depth;
+  if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
+    cc->break_counts[cc->control_depth] = 0;
+    cc->control_kinds[cc->control_depth] = CC_CONTROL_LOOP;
+    cc->continue_targets[cc->control_depth] = loop_start;
+    cc->control_depth++;
   }
 
   cc_expect(cc, CC_TOK_LPAREN);
@@ -4887,13 +4888,13 @@ static void cc_parse_while(cc_state_t *cc) {
   patch_jump(cc, exit_patch);
 
   /* Patch all break targets */
-  if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+  if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
     for (int i = 0; i < cc->break_counts[old_depth]; i++) {
       patch_jump(cc, cc->break_patches[old_depth][i]);
     }
     cc->break_counts[old_depth] = 0;
   }
-  cc->loop_depth = old_depth;
+  cc->control_depth = old_depth;
 }
 
 static void cc_parse_for(cc_state_t *cc) {
@@ -4926,7 +4927,7 @@ static void cc_parse_for(cc_state_t *cc) {
   uint32_t cond_start = cc->code_pos;
 
   /* Push loop context */
-  int old_depth = cc->loop_depth;
+  int old_depth = cc->control_depth;
 
   /* Condition */
   uint32_t exit_patch = 0;
@@ -4942,10 +4943,11 @@ static void cc_parse_for(cc_state_t *cc) {
   uint32_t inc_start = cc->code_pos;
 
   /* Set continue target to increment */
-  if (cc->loop_depth < CC_MAX_BREAKS) {
-    cc->break_counts[cc->loop_depth] = 0;
-    cc->continue_targets[cc->loop_depth] = inc_start;
-    cc->loop_depth++;
+  if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
+    cc->break_counts[cc->control_depth] = 0;
+    cc->control_kinds[cc->control_depth] = CC_CONTROL_LOOP;
+    cc->continue_targets[cc->control_depth] = inc_start;
+    cc->control_depth++;
   }
 
   /* Increment */
@@ -5017,13 +5019,13 @@ static void cc_parse_for(cc_state_t *cc) {
   }
 
   /* Patch all break targets */
-  if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+  if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
     for (int i = 0; i < cc->break_counts[old_depth]; i++) {
       patch_jump(cc, cc->break_patches[old_depth][i]);
     }
     cc->break_counts[old_depth] = 0;
   }
-  cc->loop_depth = old_depth;
+  cc->control_depth = old_depth;
 }
 
 static void cc_parse_return(cc_state_t *cc) {
@@ -5154,11 +5156,12 @@ static void cc_parse_statement(cc_state_t *cc) {
     uint32_t condition_patch = emit_jmp_placeholder(cc);
     uint32_t loop_start = cc->code_pos;
     patch_jump(cc, body_entry_patch);
-    int old_depth = cc->loop_depth;
-    if (cc->loop_depth < CC_MAX_BREAKS) {
-      cc->break_counts[cc->loop_depth] = 0;
-      cc->continue_targets[cc->loop_depth] = continue_target;
-      cc->loop_depth++;
+    int old_depth = cc->control_depth;
+    if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
+      cc->break_counts[cc->control_depth] = 0;
+      cc->control_kinds[cc->control_depth] = CC_CONTROL_LOOP;
+      cc->continue_targets[cc->control_depth] = continue_target;
+      cc->control_depth++;
     }
     cc_parse_statement(cc);
     cc_expect(cc, CC_TOK_WHILE);
@@ -5176,13 +5179,13 @@ static void cc_parse_statement(cc_state_t *cc) {
       emit32(cc, (uint32_t)rel);
     }
     /* Patch all break targets */
-    if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+    if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
       for (int i = 0; i < cc->break_counts[old_depth]; i++) {
         patch_jump(cc, cc->break_patches[old_depth][i]);
       }
       cc->break_counts[old_depth] = 0;
     }
-    cc->loop_depth = old_depth;
+    cc->control_depth = old_depth;
     break;
   }
 
@@ -5196,10 +5199,12 @@ static void cc_parse_statement(cc_state_t *cc) {
     emit_push_eax(cc);
 
     /* Use break mechanism for 'break' inside switch */
-    int old_depth = cc->loop_depth;
-    if (cc->loop_depth < CC_MAX_BREAKS) {
-      cc->break_counts[cc->loop_depth] = 0;
-      cc->loop_depth++;
+    int old_depth = cc->control_depth;
+    if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
+      cc->break_counts[cc->control_depth] = 0;
+      cc->control_kinds[cc->control_depth] = CC_CONTROL_SWITCH;
+      cc->continue_targets[cc->control_depth] = 0;
+      cc->control_depth++;
     }
 
     cc_expect(cc, CC_TOK_LBRACE);
@@ -5260,13 +5265,13 @@ static void cc_parse_statement(cc_state_t *cc) {
     /* Pop switch value */
     emit_add_esp(cc, 4);
     /* Patch all break targets to here */
-    if (old_depth < CC_MAX_BREAKS && cc->loop_depth > old_depth) {
+    if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
       for (int i = 0; i < cc->break_counts[old_depth]; i++) {
         patch_jump(cc, cc->break_patches[old_depth][i]);
       }
       cc->break_counts[old_depth] = 0;
     }
-    cc->loop_depth = old_depth;
+    cc->control_depth = old_depth;
     break;
   }
 
@@ -5277,16 +5282,18 @@ static void cc_parse_statement(cc_state_t *cc) {
 
   case CC_TOK_BREAK:
     cc_next(cc);
-    if (cc->loop_depth <= 0) {
-      cc_error(cc, "break outside loop");
+    if (cc->control_depth <= 0) {
+      cc_error(cc, "break outside loop or switch");
     } else {
+      int idx = cc->control_depth - 1;
+      if (cc->control_kinds[idx] == CC_CONTROL_SWITCH)
+        emit_add_esp(cc, 4);
       uint32_t patch = emit_jmp_placeholder(cc);
-      int idx = cc->loop_depth - 1;
-      if (cc->break_counts[idx] < CC_MAX_BREAKS_PER_LOOP) {
+      if (cc->break_counts[idx] < CC_MAX_BREAKS_PER_CONTROL) {
         cc->break_patches[idx][cc->break_counts[idx]] = patch;
         cc->break_counts[idx]++;
       } else {
-        cc_error(cc, "too many break statements in loop");
+        cc_error(cc, "too many break statements in control construct");
       }
     }
     cc_expect(cc, CC_TOK_SEMICOLON);
@@ -5294,13 +5301,24 @@ static void cc_parse_statement(cc_state_t *cc) {
 
   case CC_TOK_CONTINUE:
     cc_next(cc);
-    if (cc->loop_depth <= 0) {
-      cc_error(cc, "continue outside loop");
-    } else {
-      uint32_t target = cc->continue_targets[cc->loop_depth - 1];
-      emit8(cc, 0xE9);
-      int32_t rel = (int32_t)(target - (cc->code_pos + 4));
-      emit32(cc, (uint32_t)rel);
+    {
+      int idx = cc->control_depth - 1;
+      int switch_count = 0;
+      while (idx >= 0 && cc->control_kinds[idx] != CC_CONTROL_LOOP) {
+        if (cc->control_kinds[idx] == CC_CONTROL_SWITCH)
+          switch_count++;
+        idx--;
+      }
+      if (idx < 0) {
+        cc_error(cc, "continue outside loop");
+      } else {
+        uint32_t target = cc->continue_targets[idx];
+        if (switch_count > 0)
+          emit_add_esp(cc, switch_count * 4);
+        emit8(cc, 0xE9);
+        int32_t rel = (int32_t)(target - (cc->code_pos + 4));
+        emit32(cc, (uint32_t)rel);
+      }
     }
     cc_expect(cc, CC_TOK_SEMICOLON);
     break;

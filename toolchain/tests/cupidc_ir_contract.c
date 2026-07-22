@@ -1429,6 +1429,9 @@ static const char active_double_transport_signature[] =
 static const char active_double_transport_store[] =
     "    jvs_tag[t] = JS_VAL_NUM; jvs_num[t] = v;";
 
+static const char active_variadic_float_transport_call[] =
+    "fprintf(f, \"%f\", * (float *) defaults[i].location);";
+
 static const char active_linker_selector_call[] =
     "          selector(section, selector_context) == CTOOL_TRUE &&";
 
@@ -2011,6 +2014,18 @@ static int floating_transport_active_source_is_unchanged(
              active_double_transport_store) == NULL) {
     (void)fprintf(stderr,
                   "the active browser double transport fragment changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/kernel/doom/src/m_config.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active Doom floating source") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data,
+             active_variadic_float_transport_call) == NULL) {
+    (void)fprintf(stderr,
+                  "the active Doom variadic float call changed\n");
     return 0;
   }
   return 1;
@@ -24578,10 +24593,13 @@ static int validate_floating_transport_ir(
   ctool_u32 int_type = find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
   ctool_u32 fixed_sink = find_binding(unit, "fixed_sink");
   ctool_u32 variadic_sink = find_binding(unit, "variadic_sink");
+  ctool_u32 open_sink = find_binding(unit, "open_sink");
   ctool_u32 return_float = find_binding(unit, "return_float");
   ctool_u32 return_double = find_binding(unit, "return_double");
   const ctool_u32 expected_argument_types[] = {
-      float_type, double_type, int_type, double_type, float_type, double_type,
+      float_type, double_type, int_type, double_type,
+      int_type,   double_type, int_type, double_type,
+      double_type, double_type, float_type, double_type,
       float_type, double_type};
   ctool_u32 float_loads = 0u;
   ctool_u32 double_loads = 0u;
@@ -24591,15 +24609,19 @@ static int validate_floating_transport_ir(
   ctool_u32 variadic_calls = 0u;
   ctool_u32 variadic_arguments = 0u;
   ctool_u32 return_calls = 0u;
+  ctool_u32 open_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 float_promotions = 0u;
   ctool_u32 floating_returns = 0u;
   ctool_u32 index;
 
   if (unit == NULL || ir == NULL || ir->functions == NULL ||
       ir->instructions == NULL || ir->argument_types == NULL ||
-      unit->function_definition_count != 7u || ir->function_count != 7u ||
+      unit->function_definition_count != 11u || ir->function_count != 11u ||
       float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE || int_type == CTOOL_C_TYPE_NONE ||
       fixed_sink == CTOOL_C_AST_NONE || variadic_sink == CTOOL_C_AST_NONE ||
+      open_sink == CTOOL_C_AST_NONE ||
       return_float == CTOOL_C_AST_NONE ||
       return_double == CTOOL_C_AST_NONE ||
       ir->argument_type_count !=
@@ -24630,6 +24652,14 @@ static int validate_floating_transport_ir(
           instruction->type == double_type) {
         store_values++;
       }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->conversion ==
+                   CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
+      if (instruction->input_type != float_type ||
+          instruction->type != double_type) {
+        return 0;
+      }
+      float_promotions++;
     } else if (instruction->kind ==
                CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT) {
       if (instruction->type != double_type) {
@@ -24643,6 +24673,9 @@ static int validate_floating_transport_ir(
       } else if (instruction->reference == variadic_sink &&
                  instruction->argument_count == 2u) {
         variadic_calls++;
+      } else if (instruction->reference == open_sink &&
+                 instruction->argument_count == 1u) {
+        open_calls++;
       } else if ((instruction->reference == return_float ||
                   instruction->reference == return_double) &&
                  instruction->argument_count == 1u) {
@@ -24650,24 +24683,35 @@ static int validate_floating_transport_ir(
       } else {
         return 0;
       }
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+      if (instruction->argument_count != 1u &&
+          instruction->argument_count != 2u) {
+        return 0;
+      }
+      indirect_calls++;
     } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
                (instruction->type == float_type ||
                 instruction->type == double_type)) {
       floating_returns++;
     }
   }
-  if (float_loads != 6u || double_loads != 9u || stores != 3u ||
-      store_values != 4u || fixed_calls != 2u || variadic_calls != 1u ||
-      variadic_arguments != 1u || return_calls != 2u ||
-      floating_returns != 4u) {
+  if (float_loads != 10u || double_loads != 9u || stores != 3u ||
+      store_values != 4u || fixed_calls != 2u || variadic_calls != 2u ||
+      open_calls != 1u || indirect_calls != 2u ||
+      float_promotions != 4u || variadic_arguments != 1u ||
+      return_calls != 2u || floating_returns != 4u) {
     (void)fprintf(
         stderr,
         "floating-transport: IR inventory differs: loads=%u/%u "
-        "stores=%u/%u calls=%u/%u/%u va_arg=%u returns=%u\n",
+        "stores=%u/%u calls=%u/%u/%u/%u indirect=%u promotions=%u "
+        "va_arg=%u returns=%u\n",
         (unsigned int)float_loads, (unsigned int)double_loads,
         (unsigned int)stores, (unsigned int)store_values,
         (unsigned int)fixed_calls, (unsigned int)variadic_calls,
-        (unsigned int)return_calls, (unsigned int)variadic_arguments,
+        (unsigned int)open_calls, (unsigned int)return_calls,
+        (unsigned int)indirect_calls, (unsigned int)float_promotions,
+        (unsigned int)variadic_arguments,
         (unsigned int)floating_returns);
     return 0;
   }
@@ -24834,8 +24878,11 @@ cleanup:
 static int run_floating_transport(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
+      "typedef void (*variadic_callback)(int, ...);\n"
+      "typedef void (*open_callback)();\n"
       "void fixed_sink(float narrow, double wide);\n"
       "void variadic_sink(int marker, ...);\n"
+      "void open_sink();\n"
       "void fixed_transport(float narrow, double wide) {\n"
       "  float narrow_copy = narrow;\n"
       "  double wide_copy = wide;\n"
@@ -24847,6 +24894,19 @@ static int run_floating_transport(const char *host_root) {
       "  double copy = wide;\n"
       "  copy = wide;\n"
       "  variadic_sink(0, copy);\n"
+      "}\n"
+      "void promote_variadic_direct(float value) {\n"
+      "  variadic_sink(1, value);\n"
+      "}\n"
+      "void promote_variadic_indirect(variadic_callback callback,\n"
+      "                               float value) {\n"
+      "  callback(2, value);\n"
+      "}\n"
+      "void promote_open_direct(float value) {\n"
+      "  open_sink(value);\n"
+      "}\n"
+      "void promote_open_indirect(open_callback callback, float value) {\n"
+      "  callback(value);\n"
       "}\n"
       "void read_variadic(float narrow, int marker, ...) {\n"
       "  va_list arguments;\n"
@@ -24881,14 +24941,19 @@ static int run_floating_transport(const char *host_root) {
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t condition_unit;
   ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_ir_unit_t ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
   ctool_c_type_node_t *invalid_types = NULL;
+  ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   ctool_u32 fixed_sink;
   ctool_u32 function_type;
+  ctool_u32 invalid_promotion_target;
+  ctool_u32 promotion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
   uint64_t unit_hash;
   uint64_t ir_hash;
   int passed = 0;
@@ -24931,6 +24996,57 @@ static int run_floating_transport(const char *host_root) {
   }
   if (!floating_truth_mutations_are_rejected(job, &condition_unit)) {
     (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        unit.expressions[index].conversion ==
+            CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
+      promotion_expression = index;
+      break;
+    }
+  }
+  if (promotion_expression == CTOOL_C_AST_NONE ||
+      sizeof(*invalid_promotion_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_promotion_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count *
+      sizeof(*invalid_promotion_expressions));
+  if (invalid_promotion_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_promotion_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_promotion_expressions));
+  invalid_promotion_expressions[promotion_expression].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  invalid_promotion_unit = unit;
+  invalid_promotion_unit.expressions = invalid_promotion_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_promotion_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "malformed float promotion conversion kind")) {
+    goto cleanup;
+  }
+  invalid_promotion_target =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_SIGNED_INT);
+  if (invalid_promotion_target == CTOOL_C_TYPE_NONE) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_promotion_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_promotion_expressions));
+  invalid_promotion_expressions[promotion_expression].type =
+      invalid_promotion_target;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_promotion_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "malformed float promotion target type")) {
     goto cleanup;
   }
   fixed_sink = find_binding(&unit, "fixed_sink");
@@ -24983,6 +25099,7 @@ static int run_floating_transport(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_promotion_expressions);
   free(invalid_types);
   if (limited_job != NULL) {
     ctool_job_close(limited_job);

@@ -8289,11 +8289,18 @@ static ctool_status_t cfront_apply_default_argument_promotions(
     return cfront_storage_failure(context, status);
   }
   if (node.kind == CTOOL_C_TYPE_FLOAT) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        token,
-        "floating arguments governed by default argument promotions require "
-        "float-to-double conversion");
+    ctool_u32 target;
+    status = cfront_apply_default_conversion(context, value);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = cfront_scalar_type(context, CTOOL_C_TYPE_DOUBLE, token,
+                                &target);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    return cfront_append_conversion(
+        context, CTOOL_C_CONVERSION_FLOAT_PROMOTION, target, value);
   }
   status = cfront_apply_default_conversion(context, value);
   if (status == CTOOL_OK) {
@@ -16775,7 +16782,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       if (expression->child_count != 1u ||
           expression->reference != CTOOL_C_AST_NONE ||
           expression->conversion == CTOOL_C_CONVERSION_NONE ||
-          expression->conversion > CTOOL_C_CONVERSION_NULL_POINTER ||
+          expression->conversion > CTOOL_C_CONVERSION_FLOAT_PROMOTION ||
           expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
           expression->computation_type != CTOOL_C_TYPE_NONE) {
         return cfront_emit_failure(

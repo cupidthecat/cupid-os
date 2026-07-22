@@ -6072,3 +6072,76 @@ The generated audit records 637 direct designated initializers across 18 files, 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production object, transform, boot path, source owner, or host dependency moved. CupidASM, CupidLD, CupidObj, and CupidDis retain their existing production roles, and the private in-kernel CupidC remains the embedded JIT and AOT compiler. `TempleOS/` remains untouched reference material.
 
 The root context and README, capability and migration records, generated audit, wiki, CTXT manual, related ADRs, and public contracts now describe the capability and its limits. [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for floating computation and conversion, the rest of the C and ABI surface, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC promotes float call arguments
+
+### Decision and active requirement
+
+Hosted CupidC now applies the C default argument promotions to `float` arguments passed through an ellipsis or to a function declared with an empty identifier list. The frontend performs lvalue conversion first, then records an exact `float` to `double` conversion. This works for direct and indirect calls. A named `float` parameter still receives a `float`, and general floating conversions remain outside this increment.
+
+Linear IR accepts only that represented, non-atomic conversion. The i386 emitter loads the four-byte value with `FLD`, removes its old semantic slot, and stores the promoted value with `FSTP` into a fresh eight-byte snapshot. Each promoted argument therefore has stable storage before call lowering begins. Fixed calls, nested calls, and later uses of the source value do not depend on a live x87 stack entry.
+
+The unchanged `fprintf(f, "%f", *(float *) defaults[i].location);` call in `kernel/doom/src/m_config.c` supplies the active requirement. Its `float` value crosses a variadic boundary and must occupy the same eight cdecl bytes as a `double`. The contract keeps that source spelling intact. No Doom source or other active C source was changed to avoid the compiler gap.
+
+ADR 0077 records the conversion boundary, representation, and ownership. The ordinary fixed-parameter `float` to `double` conversion, arithmetic conversions, floating computation, comparisons, truth operations, `long double`, and floating static initializers remain open.
+
+### Contract evidence and corrections
+
+- The frontend contract covers direct and indirect variadic calls, direct and indirect empty-list calls, lvalue conversion order, and named `float` parameters that remain unpromoted. Useful negatives reject the same conversion in a named-parameter position, the wrong source type, the wrong target type, and malformed conversion metadata.
+- Linear IR records one `CONVERT` instruction for each required promotion. The fixture checks exact call slices, repeatability, rollback under constrained storage, and recovery in the same job.
+- The deterministic ELF32 object contains 43 functions and 4,507 bytes of `.text` with fingerprint `7E3BC543`. It has 24 BSS bytes, 48 symbols including the null symbol, and 38 relocations.
+- Static decoding finds one `FLD` from four-byte memory and one `FSTP` to eight-byte memory for every promoted call path. The oracle checks positive zero, negative zero, one plus the next `float` value, the smallest positive subnormal, and positive infinity. It also checks sixteen-byte stack alignment at each direct and indirect call and exact caller cleanup afterward.
+- The first Windows strict build inherited the MSVC-style `/Brepro` linker flag and stopped before it could run a test. Clearing that unrelated flag made the focused GCC build pass. The failed launcher is not counted as compiler evidence.
+- Fresh strict GCC and Clang focused builds pass. Focused GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer runs also pass without a reported defect.
+- The first complete repository run reached all 364 tests and found seven stale lexical inventory locks. They covered `sizeof`, `return`, `for`, `while`, `switch` labels, `if`/`else`, and `goto`; no compiler or runtime contract failed. The exact expectations were refreshed from the generated audit. A combined focused rerun exceeded its two-minute wrapper while regenerating an isolated audit, so it is not counted. The six direct inventory checks then passed, and the final complete run supplies the authoritative audit result.
+
+All nine hosted Toolchain source gates parse completely. Their definitions, statements, expressions, block bindings, and initializers are: `cupidc_pp.c` 143/3,904/25,107/475/282; `cupidc_ir.c` 183/5,517/48,478/672/227; `cupidc_emit.c` 159/4,313/36,977/524/265; and `cupidc_frontend.c` 303/11,943/77,373/1,772/1,205. The graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 89,817 checked lines, and `toolchain_core` has 55,111.
+
+The generated audit records 637 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,519 `goto`, 62 `do`, 217 `switch`, 1,598 `case`, 148 `default`, 2,548 `while`, 1,764 `break`, 1,030 `continue`, 28,752 `if`, 3,861 `else`, 3,350 `for`, 17,402 `return`, and 3,813 `sizeof` occurrences. The canonical active-source digest is `a80f0ee446d6da2c306bfeed775f2404668e1453e3bdb2774257248a328e447d`; the complete audit JSON has SHA-256 `c9f3f473f759e1421ba349bfa5e5f09017beac64838fa3de2836f5b12e5b6f7d`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | The new positive fixtures first stopped at the missing default-promotion seam. The final frontend, IR, and object selectors cover direct and indirect calls, diagnostics, deterministic output, rollback, recovery, decoding, ABI state, and the execution model. |
+| Focused public modules | PASS | All 122 frontend, IR, and object tests pass. |
+| Windows hosted Toolchain | PASS | The complete hosted Toolchain suite passes every registered selector after the source gates were refreshed. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC and Clang builds pass the affected promotion selectors. |
+| WSL sanitizers | PASS | Focused GCC and Clang ASan and UBSan runs pass without a finding. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the current graph, source counts, and digests. The standalone `make check-bootstrap-audit` reproduces them in 41.9 seconds. |
+| Full repository gate | PASS | The final `make test` passes all 364 tests in 569.445 seconds with one expected platform skip. Make returns in 616 seconds. |
+
+This is hosted bootstrap evidence. GCC or Clang still builds the shared compiler and all normal C objects. No production object, build transform, boot path, owner, or host dependency moved. [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for floating arithmetic and conversions, aggregate call forms, production integration, staged self-hosting, and the fixed-point bootstrap.
+
+## 2026-07-22: Private CupidC resolves nested switch control
+
+### Decision and runtime behavior
+
+The private in-kernel CupidC compiler now tracks loops and switches as tagged control frames. Each loop frame carries its `break` and `continue` targets. Each switch frame carries its `break` target and the saved selector that its generated code placed on the machine stack.
+
+`break` uses the innermost control frame. When that frame is a switch, the compiler emits `add esp, 4` before the jump so the selector is not stranded. `continue` searches outward for the nearest loop and releases one saved selector for every switch it crosses. It stops at the selected loop, so an enclosing switch or loop keeps the state that still belongs to it. JIT and REPL entry reset the control stack before parsing a new unit.
+
+This fixes runtime stack growth without changing Cupid C source into a weaker control-flow shape. The private compiler retains storage for 128 tagged frames, but this increment does not claim a separately proven fail-closed depth boundary.
+
+ADR 0078 records the tagged-frame model and selector cleanup. ADR 0038 now points to the corrected private lowering. The hosted compiler has its own structured Linear IR path and is unaffected by this private implementation.
+
+### Contract evidence and failed probe
+
+- `feature25` covers `while`, `do`/`while`, and `for`, nested switches, a switch inside a loop, a loop inside a switch, and a second switch inside that loop. The nearest-loop case proves that `continue` stops at the inner loop instead of escaping to an outer one.
+- Sustained checks execute 600,000 switch-crossing `continue` operations and 600,000 switch `break` operations. A stack sentinel and later expressions remain valid after both runs.
+- The REPL still rejects a standalone switch `continue` with `continue outside loop` and returns failure. The running smoke then completes its remaining check. The final marker is `[feature25] PASS do=1 for=1 while=1 stack=1 reject=1 nearest=1`.
+- A proposed 129-switch negative reached the intended parser diagnostic but exhausted the terminal task's 4 MiB stack during recovery. The unoptimized recursive statement parser uses about 67 KiB per native frame. Keeping that test would have turned a parser-stack limit into a false control-depth guarantee, so the test was removed. The 128-entry storage remains, and safe depth handling stays open.
+- Strict private-compiler object builds, repeated complete image builds, targeted manifest tests, and the exact QEMU GUI-terminal smoke pass. The booted image runs `/bin/feature25.cc`, reports the marker above, and shows no panic or corruption during the grace period.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Private compiler objects | PASS | The changed kernel CupidC translation units compile under the strict production flags. |
+| Runtime contract | PASS | The rebuilt image reports the exact `feature25` marker, the standalone-switch diagnostic, and no later panic or stack corruption. |
+| Production image | PASS | The final `make all` rebuilds and stages the complete image in 24.4 seconds with the changed private compiler and current CTXT manual. |
+| Targeted manifest tests | PASS | The private CupidC and feature-manifest tests accept the new marker and nested-control coverage. |
+| Full repository gate | PASS | The final `make test` passes all 364 tests in 569.445 seconds with one expected platform skip. |
+| Boot smoke | PASS | The exact QEMU GUI-terminal run completes in 23 seconds. Its serial log contains `continue outside loop`, the required pass marker, zero reported JIT stack use, and normal JIT completion. |
+
+This change fixes the embedded JIT and AOT compiler already shipped in the OS image. It does not transfer a host-built C object to hosted CupidC and does not remove GCC, Clang, Python, Make, or any native linker dependency. [Issue #31](https://github.com/cupidthecat/cupid-os/issues/31) remains open because its broader private-runtime work is unfinished and it is blocked by issue #30. No issue is ready to close from this increment.

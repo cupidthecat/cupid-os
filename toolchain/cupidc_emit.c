@@ -3649,6 +3649,25 @@ static ctool_bool cemit_ir_integer_conversion_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_float_promotion_is_valid(
+    const cemit_context_t *context, ctool_u32 source_type,
+    ctool_u32 target_type) {
+  const ctool_c_type_node_t *source =
+      cemit_unwrapped_type(context, source_type);
+  const ctool_c_type_node_t *target =
+      cemit_unwrapped_type(context, target_type);
+  return source != (const ctool_c_type_node_t *)0 &&
+                 target != (const ctool_c_type_node_t *)0 &&
+                 source->kind == CTOOL_C_TYPE_FLOAT &&
+                 target->kind == CTOOL_C_TYPE_DOUBLE &&
+                 cemit_ir_type_is_floating_value(context, source_type) ==
+                     CTOOL_TRUE &&
+                 cemit_ir_type_is_floating_value(context, target_type) ==
+                     CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_ir_pointer_conversion_is_valid(
     cemit_context_t *context, ctool_u32 source_type,
     ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
@@ -5632,6 +5651,14 @@ static ctool_status_t cemit_emit_ir_instruction(
                 bit_field_promotion == CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool floating_promotion =
+        ir_instruction->conversion ==
+                    CTOOL_C_CONVERSION_FLOAT_PROMOTION &&
+                cemit_ir_float_promotion_is_valid(
+                    context, ir_instruction->input_type,
+                    ir_instruction->type) == CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool pointer_conversion =
         cemit_ir_type_is_i32_pointer_value(
             context, ir_instruction->input_type) ==
@@ -5673,6 +5700,7 @@ static ctool_status_t cemit_emit_ir_instruction(
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if ((integer_conversion == CTOOL_FALSE &&
+         floating_promotion == CTOOL_FALSE &&
          pointer_conversion == CTOOL_FALSE &&
          null_conversion == CTOOL_FALSE &&
          explicit_scalar_conversion == CTOOL_FALSE) ||
@@ -5685,7 +5713,9 @@ static ctool_status_t cemit_emit_ir_instruction(
              CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_ASSIGNMENT &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_POINTER &&
-         ir_instruction->conversion != CTOOL_C_CONVERSION_NULL_POINTER) ||
+         ir_instruction->conversion != CTOOL_C_CONVERSION_NULL_POINTER &&
+         ir_instruction->conversion !=
+             CTOOL_C_CONVERSION_FLOAT_PROMOTION) ||
         (pointer_conversion == CTOOL_TRUE &&
          explicit_scalar_conversion == CTOOL_FALSE &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
@@ -5696,6 +5726,18 @@ static ctool_status_t cemit_emit_ir_instruction(
          ir_instruction->reference != CTOOL_C_AST_NONE) ||
         ir_instruction->integer_bits != 0u) {
       return CTOOL_ERR_INTERNAL;
+    }
+    if (floating_promotion == CTOOL_TRUE) {
+      status = cemit_x86_x87_memory(
+          context, CTOOL_X86_MN_FLD, 4u, 0, 32u);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_discard_arguments(context, 4u);
+      }
+      return status == CTOOL_OK
+                 ? cemit_x86_push_floating_result(
+                       context, ir_instruction->type,
+                       value_temporary_offset)
+                 : status;
     }
     if (source_wide == CTOOL_FALSE && target_wide == CTOOL_TRUE) {
       const ctool_c_type_layout_t *source_layout =
@@ -6728,7 +6770,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           instruction->kind ==
               CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT ||
           instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
-          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) &&
+          instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT ||
+          (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+           instruction->conversion ==
+               CTOOL_C_CONVERSION_FLOAT_PROMOTION)) &&
          cemit_ir_type_is_floating_value(context, instruction->type) ==
              CTOOL_TRUE &&
          context->unit->layout.types[instruction->type].size == 8u)) {
