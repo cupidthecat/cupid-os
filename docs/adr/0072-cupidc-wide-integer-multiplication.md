@@ -11,7 +11,7 @@ Active source needs the normal C operation. CupidASM's `asm_parse_number` multip
 
 ## Decision
 
-Linear IR accepts `MULTIPLY` when the result and both post-conversion operands are the same represented signed or unsigned eight-byte integer type. The frontend continues to own integer promotion and the usual arithmetic conversions. This keeps mixed signedness and a represented narrow operand out of the backend until an explicit conversion instruction makes the types agree. Wide division, remainder, and mutation remain separate boundaries.
+Linear IR accepts `MULTIPLY` when the result and both post-conversion operands are the same represented signed or unsigned eight-byte integer type. The frontend continues to own integer promotion and the usual arithmetic conversions. This keeps mixed signedness and a represented narrow operand out of the backend until an explicit conversion instruction makes the types agree. Wide division, remainder, and mutation remain separate boundaries in this decision. ADR 0073 later adds division and remainder.
 
 Let each operand be `a0 + 2^32 a1` and `b0 + 2^32 b1`. The i386 emitter computes the result modulo 2^64 as:
 
@@ -27,7 +27,7 @@ A runtime helper was rejected because it would add an ABI and link dependency to
 
 The first red IR run stopped at `/wide-arithmetic.c:35:15` with the existing unsupported-type diagnostic. After IR accepted the operation, object emission stopped transactionally before writing an object. The final implementation closes both seams without changing the frontend or active source.
 
-The arithmetic IR fixture now has 19 functions and 118 instructions. Its original 83-instruction prefix keeps fingerprint `245E6D8F4F77588E`. Five exact slices cover signed multiplication, unsigned multiplication, signed-to-unsigned usual arithmetic conversion, narrow-to-wide conversion, and a chained expression with two fresh results. A malformed multiplication conversion reaches production validation and fails without changing the input unit. Wide division and remainder remain useful unsupported contracts.
+The arithmetic IR fixture at this boundary has 19 functions and 118 instructions. Its original 83-instruction prefix keeps fingerprint `245E6D8F4F77588E`. Five exact slices cover signed multiplication, unsigned multiplication, signed-to-unsigned usual arithmetic conversion, narrow-to-wide conversion, and a chained expression with two fresh results. A malformed multiplication conversion reaches production validation and fails without changing the input unit. Wide division and remainder remain useful unsupported contracts here; ADR 0073 replaces them with positive quotient and remainder proofs.
 
 The deterministic ELF32 multiplication proof contains six functions, 1,103 bytes of `.text`, fingerprint `E357BE84`, seven symbols including the null symbol, and no relocations. Its decoder finds seven one-operand `MUL`, fourteen two-operand `IMUL`, six returns, and no call, `DIV`, or `IDIV`. The execution oracle covers zero, identity, low-word carry, cross-word contribution, high-bit wrap, `INT64_MIN * 1`, negative by positive, negative by negative, mixed signedness, wide by narrow, chaining, and reuse of a still-live input snapshot. It also checks arguments, ESP, EBP, EBX, ESI, EDI, and a stack sentinel after every call.
 
@@ -35,4 +35,4 @@ The unchanged `asm_parse_number` and `fe_mul_u32` bodies guard the active requir
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform, OS object, boot path, host dependency, or ownership count changes.
 
-Issue #25 remains open. Wide division, remainder, compound assignment, increment and decrement, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0073 later adds wide division and remainder. Wide compound assignment, increment and decrement, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

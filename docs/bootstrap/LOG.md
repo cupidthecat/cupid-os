@@ -5862,3 +5862,60 @@ This increment transfers no production C object and retires no host dependency. 
 The root context and README, bootstrap matrices and log, generated audit, wiki, CTXT manual, and ADR records describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide division, remainder, mutation, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC divides wide integers
+
+### Decision and active requirement
+
+Hosted CupidC now lowers and emits signed and unsigned eight-byte division and remainder. The frontend still applies integer promotion and the usual arithmetic conversions. Linear IR accepts the operation only when both converted operands and the result share one represented wide type. A malformed record with matching wide operands but different result metadata is rejected as invalid input.
+
+The i386 emitter uses a fixed 64-step restoring divider. It copies both immutable operands into 40 bytes of temporary machine-stack storage, then keeps the two-word dividend, divisor, quotient, and remainder there. Each round shifts one dividend bit into the remainder, compares the complete unsigned remainder with the divisor, subtracts with `SUB` and `SBB` when needed, and sets the next quotient bit. The loop preserves the extra carry produced while shifting the remainder before its high- and low-word comparisons. It releases the scratch area before publishing a fresh result snapshot.
+
+Signed operations convert both operands to unsigned magnitudes. The quotient sign is the XOR of the operand signs, while the remainder follows the dividend sign. This matches C truncation toward zero for every defined case, including an `INT64_MIN` magnitude divided by a safe operand. Division by zero and `INT64_MIN / -1` or `INT64_MIN % -1` remain undefined C behavior. The software path promises neither a trap nor a result for those inputs; the contracts do not turn its incidental bits into an ABI rule.
+
+A runtime helper was rejected because it would add a call, relocation, link dependency, and new ABI surface. Unrolling all 64 rounds would duplicate several hundred bytes of code for every operation. Reusing either input snapshot would break later expressions that still need the original value. The selected inline loop uses EAX, ECX, EDX, EFLAGS, and private scratch while preserving the established cdecl state.
+
+Active source drives the work. The unchanged `cfront_constant_apply_binary` body performs signed and unsigned wide quotient and remainder while folding target integers. CupidASM's unchanged `asm_parse_number` divides a full-width overflow bound by the selected base. The preprocessor number parser, frontend number parser, static-address overflow checks, type-layout arithmetic, and later OS and Doom paths carry the same requirement. These bodies were not rewritten around the compiler.
+
+ADR 0073 records the algorithm, C undefined-behavior boundary, rejected designs, proof shape, and unchanged ownership. ADRs 0067 through 0072 now point forward to the wider arithmetic boundary.
+
+### Contract evidence and corrections
+
+- The arithmetic fixture now contains 26 functions and exactly 165 IR instructions. Its original 83-instruction prefix keeps fingerprint `245E6D8F4F77588E`, and every multiplication slice remains unchanged. Seven new slices cover signed and unsigned quotient and remainder, mixed signedness, a narrowed operand widened before the operation, and a chained quotient/remainder expression.
+- A complete 9,313-byte normalized source guard binds the fixture to `cfront_constant_apply_binary` with fingerprint `CF0E333FEC913171`. This is a full-body source guard, not a claim that the complete active function is object-emitted by the focused contract.
+- The deterministic quotient/remainder object is 5,452 bytes overall and contains 4,775 bytes of `.text` with fingerprint `55F1A495`. It publishes twelve symbols including the null symbol, has no relocation or `.rel.text` section, and keeps exact function sizes of 353, 353, 421, 421, 353, 353, 357, 357, 657, 727, and 423 bytes.
+- Thirteen generated loops decode to 1,424 instructions. The locked nonzero inventory includes 52 `RCL`, 39 `JB`, 13 `JA`, 13 `JNE`, 30 `SBB`, 26 `SHL`, and 54 `SUB` instructions. `CALL`, `DIV`, and `IDIV` remain at zero. Every loop keeps the carry, high-word, low-word, subtract, and repeat targets in the required order.
+- Thirty-three defined execution checks cover a zero dividend, identity, equal operands, low- and high-word values, a high-bit divisor, a divisor larger than the dividend, all four signed sign combinations, `INT64_MIN / 1`, mixed and narrow conversions, chaining, reuse of both inputs, and a fresh result snapshot. Each call also checks its arguments, ESP, EBP, EBX, ESI, EDI, and a stack sentinel.
+- An independent arithmetic model matched 200,008 unsigned vectors and 200,000 defined signed pairs. Undefined inputs were excluded from both the model and the executable oracle.
+- Malformed conversion and result metadata fail transactionally. Wide compound mutation and an invalid wide shift count remain useful unsupported contracts. A 64-byte object limit leaves the caller's output empty, and a later emission in the same job reproduces the complete object byte for byte.
+- Before the production change, the IR fixture stopped at `/wide-arithmetic.c:50:15` with `CTOOL_ERR_UNSUPPORTED`. The object fixture likewise reported `wide division object: expected ok, got unsupported` and `wide division object: success transaction differs` at `/wide-division-object.c:3:15`. Extending IR acceptance and object emission closed those two seams without changing active OS source.
+- An early loop sketch did not carry the 65th remainder bit into the restoring comparison. The final ordering shifts the dividend first, moves that bit through `RCL`, and branches on the preserved carry before the two-word comparison. Static decoding locks this path even though the carry is mathematically unreachable for a defined 64-by-64 operation that starts with a zero remainder.
+- The first Windows-to-WSL sanitizer wrapper lost its flag list and repeated an ordinary strict build. That run is excluded. Encoded script transport preserved every accepted ASan/UBSan flag under both compilers.
+- Standards review found that the documentation said every signed sign pairing was covered while the oracle lacked positive divided by positive. Two positive/positive quotient and remainder calls raised the final total from 31 to 33. The same review found that ADR 0073 named `INT64_MIN / -1` but not the corresponding remainder expression; the corrected ADR names both. Specification review found no implementation, source-weakening, ownership, or scope defect and required this log entry plus explicit staging of ADR 0073.
+- No user question was needed. C integer semantics, the established i386 cdecl contract, and the private wide-snapshot model determine this boundary.
+
+All nine hosted Toolchain source gates parse completely. Their definitions, statements, expressions, block bindings, and initializers are: `cupidc_pp.c` 143/3,904/25,107/475/282; `cupidc_ir.c` 176/5,367/47,207/655/216; `cupidc_emit.c` 150/4,124/35,160/503/256; and `cupidc_frontend.c` 303/11,901/77,125/1,765/1,205. The graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. Its `toolchain_contract` cohort has 85,049 checked lines, and `toolchain_core` has 54,354.
+
+The generated audit records 637 direct designated initializers across 18 files, 49 variadic declarations across 20 files, 1,437 `goto`, 62 `do`, 207 `switch`, 1,593 `case`, 138 `default`, 2,541 `while`, 1,748 `break`, 1,022 `continue`, 28,350 `if`, 3,817 `else`, 3,305 `for`, 17,155 `return`, and 3,701 `sizeof` occurrences. The canonical active-source digest is `c08e00703c2bb6248ea04a3adc1a7b924c4d78188cfa9b39c919487225ed07a1`; the complete audit JSON has SHA-256 `244AF67D8A7D9F60CC5E65F078D773A6F9A56B79226BADE8E7C2B981CAF7DB1E`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Red and green contracts | PASS | The original IR and object paths rejected wide quotient/remainder. The final fixtures pass positive, production-negative, deterministic, transactional, decoder, ABI, and execution-oracle checks. |
+| Focused public modules | PASS | All 163 frontend, IR, object, and build-graph tests pass in 372.732 seconds after the review-driven oracle correction. |
+| Windows hosted Toolchain | PASS | Strict Clang passes the complete hosted suite, every registered IR and object mode, and all 22 assembly demos. |
+| Linux hosted Toolchain | PASS | Fresh strict GCC 13.3 and Clang 18.1 builds pass IR and object `wide-returns`, `wide-conditions`, and `wide-objects`; the final four-build refresh completes in 69.1 seconds. |
+| WSL sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass all six affected modes with leak detection and immediate failure enabled. The accepted fresh builds take 82.9 and 80.9 seconds; the final oracle refresh passes under both runtimes. |
+| Static analysis | PASS | GCC `-fanalyzer` and Clang `--analyze` report no finding across both implementation files and all three changed C contracts. The final object-contract reruns take 27.78 and 21.47 seconds. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final records in 40.4 seconds, and `make check-bootstrap-audit` reproduces them in 39.1 seconds. |
+| Full repository gate | PASS | The final `make test` passes all 356 tests in 487.064 seconds with one expected platform skip; Make returns in 525.407 seconds. |
+| Production image build | PASS | `make all` rebuilds and stages the normal image in 20.185 seconds. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.345 seconds with the established 0.60-second key timing. |
+| Two-axis review | PASS AFTER FIXES | Standards review added the missing positive/positive signed checks and corrected the remainder UB wording. Specification review found no semantic or scope defect. The final tree includes the required log and ADR. |
+
+This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their existing production roles. The private in-kernel CupidC remains the embedded JIT and AOT path. The emulator result checks the rebuilt OS but does not assign production ownership to the hosted division path.
+
+The root context and README, bootstrap matrices and log, generated audit, wiki, CTXT manual, public headers, and ADR records now describe the capability and its limits. No active OS C or assembly source was weakened or rewritten, and `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open. Wide compound assignment, increment and decrement, values without declared parameter types, wide variadic values, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished. No issue is ready to close from this increment.

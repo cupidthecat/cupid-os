@@ -103,6 +103,123 @@ static const char active_x25519_wide_multiply_body_crlf[] =
     "    fe_carry(r, r0, r1, r2, r3, r4, r5, r6, r7);\r\n"
     "}\r\n";
 
+static const char active_cfront_wide_divide_remainder_body_first[] =
+    "static ctool_status_t cfront_parse_constant_multiply(\n"
+    "    cfront_context_t *context, cfront_integer_t *value_out) {\n"
+    "  value_out->bits = 0ull;\n"
+    "  value_out->kind = CFRONT_INTEGER_SIGNED_32;\n"
+    "  ctool_status_t status = cfront_parse_constant_unary(context, value_out);\n"
+    "  while (status == CTOOL_OK &&\n"
+    "         (cfront_peek_is(context, \"*\") == CTOOL_TRUE ||\n"
+    "          cfront_peek_is(context, \"/\") == CTOOL_TRUE ||\n"
+    "          cfront_peek_is(context, \"%\") == CTOOL_TRUE)) {\n"
+    "    const ctool_c_pp_token_t *operator_token = cfront_advance(context);\n"
+    "    cfront_integer_t right = {0ull, CFRONT_INTEGER_SIGNED_32};\n"
+    "    status = cfront_parse_constant_unary(context, &right);\n"
+    "    if (status != CTOOL_OK) {\n"
+    "      break;\n"
+    "    }\n"
+    "    {\n"
+    "      cfront_integer_kind_t kind =\n"
+    "          cfront_integer_usual_kind(value_out->kind, right.kind);\n"
+    "      cfront_integer_t left = cfront_integer_convert(*value_out, kind);\n"
+    "      right = cfront_integer_convert(right, kind);\n"
+    "      value_out->kind = kind;\n"
+    "      if (cfront_token_is(operator_token, \"*\") == CTOOL_TRUE) {\n"
+    "        if (cfront_integer_unsigned(kind) == CTOOL_TRUE) {\n"
+    "          value_out->bits = cfront_integer_normalize_bits(\n"
+    "              left.bits * right.bits, kind);\n"
+    "        } else {\n"
+    "          ctool_bool negative =\n"
+    "              cfront_integer_negative(&left) != cfront_integer_negative(&right)\n"
+    "                  ? CTOOL_TRUE\n"
+    "                  : CTOOL_FALSE;\n"
+    "          ctool_u64 left_magnitude = cfront_integer_magnitude(&left);\n"
+    "          ctool_u64 right_magnitude = cfront_integer_magnitude(&right);\n"
+    "          ctool_u64 limit =\n"
+    "              negative == CTOOL_TRUE\n"
+    "                  ? (cfront_integer_width(kind) == 32u\n"
+    "                         ? 0x80000000ull\n"
+    "                         : 0x8000000000000000ull)\n"
+    "                  : (cfront_integer_width(kind) == 32u\n"
+    "                         ? 0x7fffffffull\n"
+    "                         : 0x7fffffffffffffffull);\n"
+    "          if (left_magnitude != 0ull &&\n"
+    "              right_magnitude > limit / left_magnitude &&\n"
+    "              context->constant_evaluation_suppression_depth == 0u) {\n"
+    "            return cfront_integer_overflow(context, operator_token);\n"
+    "          }\n"
+    "          value_out->bits = left_magnitude * right_magnitude;\n"
+    "          if (negative == CTOOL_TRUE) {\n"
+    "            value_out->bits = 0ull - value_out->bits;\n"
+    "          }\n"
+    "          value_out->bits =\n"
+    "              cfront_integer_normalize_bits(value_out->bits, kind);\n"
+    "        }\n";
+
+static const char active_cfront_wide_divide_remainder_body_second[] =
+    "      } else {\n"
+    "        ctool_u64 divisor = cfront_integer_magnitude(&right);\n"
+    "        if (divisor == 0ull) {\n"
+    "          if (context->constant_evaluation_suppression_depth == 0u) {\n"
+    "            return cfront_emit_failure(\n"
+    "                context, CTOOL_ERR_INPUT,\n"
+    "                CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, operator_token,\n"
+    "                \"integer constant expression divides by zero\");\n"
+    "          }\n"
+    "          value_out->bits = 0ull;\n"
+    "        } else if (cfront_integer_unsigned(kind) == CTOOL_TRUE) {\n"
+    "          value_out->bits =\n"
+    "              cfront_token_is(operator_token, \"/\") == CTOOL_TRUE\n"
+    "                  ? left.bits / right.bits\n"
+    "                  : left.bits % right.bits;\n"
+    "        } else {\n"
+    "          ctool_u64 dividend = cfront_integer_magnitude(&left);\n"
+    "          if (cfront_integer_negative(&left) == CTOOL_TRUE &&\n"
+    "              cfront_integer_negative(&right) == CTOOL_TRUE &&\n"
+    "              dividend == (cfront_integer_width(kind) == 32u\n"
+    "                                ? 0x80000000ull\n"
+    "                                : 0x8000000000000000ull) &&\n"
+    "              divisor == 1ull &&\n"
+    "              context->constant_evaluation_suppression_depth == 0u) {\n"
+    "            return cfront_integer_overflow(context, operator_token);\n"
+    "          }\n"
+    "          if (cfront_token_is(operator_token, \"/\") == CTOOL_TRUE) {\n"
+    "            ctool_bool negative =\n"
+    "                cfront_integer_negative(&left) !=\n"
+    "                        cfront_integer_negative(&right)\n"
+    "                    ? CTOOL_TRUE\n"
+    "                    : CTOOL_FALSE;\n"
+    "            ctool_u64 quotient = dividend / divisor;\n"
+    "            ctool_u64 limit =\n"
+    "                negative == CTOOL_TRUE\n"
+    "                    ? (cfront_integer_width(kind) == 32u\n"
+    "                           ? 0x80000000ull\n"
+    "                           : 0x8000000000000000ull)\n"
+    "                    : (cfront_integer_width(kind) == 32u\n"
+    "                           ? 0x7fffffffull\n"
+    "                           : 0x7fffffffffffffffull);\n"
+    "            if (quotient > limit &&\n"
+    "                context->constant_evaluation_suppression_depth == 0u) {\n"
+    "              return cfront_integer_overflow(context, operator_token);\n"
+    "            }\n"
+    "            value_out->bits =\n"
+    "                negative == CTOOL_TRUE ? 0ull - quotient : quotient;\n"
+    "          } else {\n"
+    "            ctool_u64 remainder = dividend % divisor;\n"
+    "            value_out->bits = cfront_integer_negative(&left) == CTOOL_TRUE\n"
+    "                                  ? 0ull - remainder\n"
+    "                                  : remainder;\n"
+    "          }\n"
+    "          value_out->bits =\n"
+    "              cfront_integer_normalize_bits(value_out->bits, kind);\n"
+    "        }\n"
+    "      }\n"
+    "    }\n"
+    "  }\n"
+    "  return status;\n"
+    "}\n";
+
 static const char active_cpu_frequency[] =
     "uint64_t get_cpu_freq(void) {\n"
     "    return tsc_freq;\n"
@@ -313,6 +430,47 @@ static const char wide_multiplication_object_source[] =
     "ctool_u64 multiply_then_reuse_left(ctool_u64 left,\n"
     "                                    ctool_u64 right) {\n"
     "  return (left * right) + left;\n"
+    "}\n";
+
+static const char wide_division_object_source[] =
+    "typedef unsigned int ctool_u32;\n"
+    "typedef unsigned long long ctool_u64;\n"
+    "typedef long long ctool_i64;\n"
+    "ctool_u64 divide_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_u64 remainder_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_i64 divide_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_i64 remainder_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_u64 divide_mixed(ctool_i64 left, ctool_u64 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_u64 remainder_mixed(ctool_i64 left, ctool_u64 right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_u64 divide_wide_narrow(ctool_u64 left, ctool_u32 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_u64 remainder_wide_narrow(ctool_u64 left, ctool_u32 right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_u64 divide_chained(ctool_u64 value, ctool_u64 first,\n"
+    "                         ctool_u64 second) {\n"
+    "  return (value / first) / second;\n"
+    "}\n"
+    "ctool_u64 quotient_plus_remainder(ctool_u64 left,\n"
+    "                                  ctool_u64 right) {\n"
+    "  return (left / right) + (left % right);\n"
+    "}\n"
+    "ctool_u64 divide_then_reuse_left(ctool_u64 left,\n"
+    "                                 ctool_u64 right) {\n"
+    "  return (left / right) + left;\n"
     "}\n";
 
 static const char wide_condition_object_source[] =
@@ -939,6 +1097,30 @@ static int active_source_contains(ctool_job_t *job, const char *path_text,
       (strstr((const char *)source.contents.data, expected) == NULL &&
        (alternate == NULL ||
         strstr((const char *)source.contents.data, alternate) == NULL))) {
+    (void)fprintf(stderr, "%s\n", change_message);
+    return 0;
+  }
+  return 1;
+}
+
+static int active_source_contains_joined(
+    ctool_job_t *job, const char *path_text, const char *load_context,
+    const char *change_message, const char *expected_first,
+    const char *expected_second) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  const char *found;
+  path.text = ctool_string(path_text);
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  found = status == CTOOL_OK && source.contents.data != NULL &&
+                  expected_first != NULL && expected_second != NULL
+              ? strstr((const char *)source.contents.data, expected_first)
+              : NULL;
+  if (!check_status(status, CTOOL_OK, load_context) || found == NULL ||
+      strncmp(found + strlen(expected_first), expected_second,
+              strlen(expected_second)) != 0) {
     (void)fprintf(stderr, "%s\n", change_message);
     return 0;
   }
@@ -17053,7 +17235,7 @@ static int validate_wide_snapshot_function(
 #define WIDE_ORACLE_EBX_SENTINEL 0xc3d2e1f0u
 #define WIDE_ORACLE_ESI_SENTINEL 0x4b5a6978u
 #define WIDE_ORACLE_EDI_SENTINEL 0x8796a5b4u
-#define WIDE_ORACLE_STEP_LIMIT 4096u
+#define WIDE_ORACLE_STEP_LIMIT 8192u
 #define WIDE_ORACLE_CALL_LIMIT 32u
 
 static const ctool_elf32_symbol_t *wide_oracle_symbol_by_file_index(
@@ -17323,12 +17505,17 @@ static int wide_oracle_flag_step(
     return 0;
   }
   *handled = CTOOL_FALSE;
-  if (instruction->mnemonic == CTOOL_X86_MN_DEC &&
+  if ((instruction->mnemonic == CTOOL_X86_MN_DEC ||
+       instruction->mnemonic == CTOOL_X86_MN_INC) &&
       instruction->operand_count == 1u &&
       narrow_oracle_read_operand(machine, &instruction->operands[0],
                                  &left)) {
     right = left;
-    left--;
+    if (instruction->mnemonic == CTOOL_X86_MN_DEC) {
+      left--;
+    } else {
+      left++;
+    }
     if (!narrow_oracle_write_operand(machine, &instruction->operands[0],
                                      left)) {
       return 0;
@@ -17337,7 +17524,12 @@ static int wide_oracle_flag_step(
     *sign_flag =
         (left & 0x80000000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
     *overflow_flag =
-        right == 0x80000000u ? CTOOL_TRUE : CTOOL_FALSE;
+        (instruction->mnemonic == CTOOL_X86_MN_DEC &&
+         right == 0x80000000u) ||
+                (instruction->mnemonic == CTOOL_X86_MN_INC &&
+                 right == 0x7fffffffu)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     *handled = CTOOL_TRUE;
     return 1;
   }
@@ -17547,6 +17739,8 @@ static int wide_oracle_execute_arguments(
       continue;
     }
     if (instruction->mnemonic == CTOOL_X86_MN_JMP ||
+        instruction->mnemonic == CTOOL_X86_MN_JA ||
+        instruction->mnemonic == CTOOL_X86_MN_JB ||
         instruction->mnemonic == CTOOL_X86_MN_JE ||
         instruction->mnemonic == CTOOL_X86_MN_JNE) {
       if (!call_alignment_branch_target(&decoded, pc,
@@ -17554,6 +17748,11 @@ static int wide_oracle_execute_arguments(
         return 0;
       }
       pc = instruction->mnemonic == CTOOL_X86_MN_JMP ||
+                   (instruction->mnemonic == CTOOL_X86_MN_JA &&
+                    carry_flag == CTOOL_FALSE &&
+                    zero_flag == CTOOL_FALSE) ||
+                   (instruction->mnemonic == CTOOL_X86_MN_JB &&
+                    carry_flag == CTOOL_TRUE) ||
                    (instruction->mnemonic == CTOOL_X86_MN_JE &&
                     zero_flag == CTOOL_TRUE) ||
                    (instruction->mnemonic == CTOOL_X86_MN_JNE &&
@@ -19043,6 +19242,472 @@ static int validate_wide_multiplication_object(
              : 0;
 }
 
+typedef struct {
+  ctool_x86_mnemonic_t mnemonic;
+  ctool_u32 count;
+} wide_division_opcode_expectation_t;
+
+static int validate_wide_division_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const function_names[] = {
+      "divide_unsigned",         "remainder_unsigned",
+      "divide_signed",           "remainder_signed",
+      "divide_mixed",            "remainder_mixed",
+      "divide_wide_narrow",      "remainder_wide_narrow",
+      "divide_chained",          "quotient_plus_remainder",
+      "divide_then_reuse_left"};
+  static const ctool_u32 function_sizes[] = {
+      353u, 353u, 421u, 421u, 353u, 353u,
+      357u, 357u, 657u, 727u, 423u};
+  static const wide_division_opcode_expectation_t expected_opcodes[] = {
+      {CTOOL_X86_MN_ADC, 2u},    {CTOOL_X86_MN_ADD, 2u},
+      {CTOOL_X86_MN_CALL, 0u},   {CTOOL_X86_MN_CLD, 24u},
+      {CTOOL_X86_MN_CMP, 26u},   {CTOOL_X86_MN_DEC, 13u},
+      {CTOOL_X86_MN_DIV, 0u},    {CTOOL_X86_MN_IDIV, 0u},
+      {CTOOL_X86_MN_INC, 13u},   {CTOOL_X86_MN_JA, 13u},
+      {CTOOL_X86_MN_JB, 39u},    {CTOOL_X86_MN_JNE, 13u},
+      {CTOOL_X86_MN_LEA, 80u},   {CTOOL_X86_MN_LEAVE, 11u},
+      {CTOOL_X86_MN_MOV, 667u},  {CTOOL_X86_MN_MOVSB, 24u},
+      {CTOOL_X86_MN_POP, 117u},  {CTOOL_X86_MN_PUSH, 128u},
+      {CTOOL_X86_MN_RCL, 52u},   {CTOOL_X86_MN_RET, 11u},
+      {CTOOL_X86_MN_SAR, 17u},   {CTOOL_X86_MN_SBB, 30u},
+      {CTOOL_X86_MN_SHL, 26u},   {CTOOL_X86_MN_SUB, 54u},
+      {CTOOL_X86_MN_XOR, 62u}};
+  static const ctool_x86_mnemonic_t loop_branch_sequence[] = {
+      CTOOL_X86_MN_JB, CTOOL_X86_MN_JA, CTOOL_X86_MN_JB,
+      CTOOL_X86_MN_JB, CTOOL_X86_MN_JNE};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  ctool_u32 opcode_counts[CTOOL_X86_MN_COUNT] = {0u};
+  ctool_u32 fingerprint =
+      text == NULL ? 0u : structure_text_fingerprint(text->contents);
+  const ctool_u32 zero_arguments[] = {0u, 0u, 7u, 0u};
+  const ctool_u32 low_arguments[] = {100u, 0u, 7u, 0u};
+  const ctool_u32 identity_arguments[] = {
+      0xffffffffu, 0xffffffffu, 1u, 0u};
+  const ctool_u32 equal_arguments[] = {
+      0x89abcdefu, 0x01234567u, 0x89abcdefu, 0x01234567u};
+  const ctool_u32 high_dividend_arguments[] = {
+      0x76543210u, 0xfedcba98u, 3u, 0u};
+  const ctool_u32 high_divisor_arguments[] = {
+      0x76543210u, 0xfedcba98u, 0x23456789u, 1u};
+  const ctool_u32 high_bit_divisor_arguments[] = {
+      0xffffffffu, 0xffffffffu, 1u, 0x80000000u};
+  const ctool_u32 larger_divisor_arguments[] = {
+      0u, 1u, 0u, 2u};
+  const ctool_u32 signed_positive_positive_arguments[] = {
+      100u, 0u, 7u, 0u};
+  const ctool_u32 signed_negative_positive_arguments[] = {
+      0xffffff9cu, 0xffffffffu, 7u, 0u};
+  const ctool_u32 signed_positive_negative_arguments[] = {
+      100u, 0u, 0xfffffff9u, 0xffffffffu};
+  const ctool_u32 signed_both_negative_arguments[] = {
+      0xffffff9cu, 0xffffffffu, 0xfffffff9u, 0xffffffffu};
+  const ctool_u32 signed_boundary_arguments[] = {
+      0u, 0x80000000u, 1u, 0u};
+  const ctool_u32 mixed_divide_arguments[] = {
+      0xffffffffu, 0xffffffffu, 2u, 0u};
+  const ctool_u32 mixed_remainder_arguments[] = {
+      0xfffffffeu, 0xffffffffu, 3u, 0u};
+  const ctool_u32 wide_narrow_arguments[] = {1u, 1u, 3u};
+  const ctool_u32 chained_arguments[] = {
+      0x76543210u, 0xfedcba98u, 3u, 0u, 5u, 0u};
+  const ctool_u32 reused_arguments[] = {1u, 1u, 3u, 0u};
+  ctool_u32 expected_offset = 0u;
+  ctool_u32 operation_count = 0u;
+  ctool_u32 index;
+  ctool_bool inventory_matches = CTOOL_TRUE;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->type != CTOOL_ELF32_SHT_PROGBITS ||
+      text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
+      text->alignment != 1u || text->contents.data == NULL ||
+      text->relocation_count != 0u || object->relocation_count != 0u ||
+      rel_text != NULL || object->symbol_count != 12u) {
+    (void)fprintf(stderr,
+                  "wide division ELF shape differs: text=%u symbols=%u "
+                  "relocations=%u rel-text=%s\n",
+                  text == NULL ? 0u : text->contents.size,
+                  object == NULL ? 0u : object->symbol_count,
+                  object == NULL ? 0u : object->relocation_count,
+                  rel_text == NULL ? "absent" : "present");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_names) /
+                           sizeof(function_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, function_names[index]);
+    ctool_u32 branch_pcs[5] = {0u};
+    ctool_u32 branch_targets[5] = {0u};
+    ctool_u32 branch_count = 0u;
+    ctool_u32 loop_rcl_count = 0u;
+    ctool_u32 loop_shl_count = 0u;
+    ctool_u32 cursor = 0u;
+    ctool_x86_mnemonic_t last = CTOOL_X86_MN_INVALID;
+    if (!wide_function_symbol_is_valid(object, text, function) ||
+        !symbol_matches(function, index + 1u, CTOOL_ELF32_BIND_GLOBAL,
+                        CTOOL_ELF32_SYMBOL_FUNCTION,
+                        CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                        expected_offset, function->size)) {
+      (void)fprintf(stderr,
+                    "wide division symbol %s differs at %u\n",
+                    function_names[index], (unsigned int)expected_offset);
+      return 0;
+    }
+    if (function->size != function_sizes[index]) {
+      inventory_matches = CTOOL_FALSE;
+    }
+    while (cursor < function->size) {
+      ctool_x86_decoded_t decoded;
+      const ctool_x86_instruction_t *instruction;
+      ctool_bytes_t remaining = ctool_bytes(
+          text->contents.data + function->value + cursor,
+          function->size - cursor);
+      ctool_status_t status;
+      (void)memset(&decoded, 0xa5, sizeof(decoded));
+      status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                                &decoded);
+      if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+          decoded.consumed == 0u ||
+          decoded.instruction.mnemonic <= CTOOL_X86_MN_INVALID ||
+          decoded.instruction.mnemonic >= CTOOL_X86_MN_COUNT) {
+        (void)fprintf(stderr,
+                      "wide division decode failed in %s at %u\n",
+                      function_names[index], (unsigned int)cursor);
+        return 0;
+      }
+      instruction = &decoded.instruction;
+      opcode_counts[instruction->mnemonic]++;
+      last = instruction->mnemonic;
+      if (instruction->mnemonic == CTOOL_X86_MN_RCL) {
+        loop_rcl_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_SHL) {
+        loop_shl_count++;
+      }
+      if (instruction->mnemonic == CTOOL_X86_MN_JA ||
+          instruction->mnemonic == CTOOL_X86_MN_JB ||
+          instruction->mnemonic == CTOOL_X86_MN_JNE) {
+        ctool_u32 pc = function->value + cursor;
+        if (branch_count >=
+                (ctool_u32)(sizeof(loop_branch_sequence) /
+                            sizeof(loop_branch_sequence[0])) ||
+            instruction->mnemonic != loop_branch_sequence[branch_count] ||
+            !call_alignment_branch_target(&decoded, pc,
+                                          text->contents.size,
+                                          &branch_targets[branch_count]) ||
+            branch_targets[branch_count] < function->value ||
+            branch_targets[branch_count] >=
+                function->value + function->size) {
+          (void)fprintf(stderr,
+                        "wide division branch sequence differs in %s "
+                        "at %u\n",
+                        function_names[index], (unsigned int)cursor);
+          return 0;
+        }
+        branch_pcs[branch_count] = pc;
+        branch_count++;
+        if (branch_count ==
+            (ctool_u32)(sizeof(loop_branch_sequence) /
+                        sizeof(loop_branch_sequence[0]))) {
+          ctool_x86_decoded_t subtract_decoded;
+          ctool_x86_decoded_t continue_decoded;
+          ctool_x86_decoded_t repeat_decoded;
+          ctool_u32 block_cursor = branch_targets[0];
+          ctool_u32 block_subtract_count = 0u;
+          ctool_u32 block_borrow_count = 0u;
+          ctool_u32 block_increment_count = 0u;
+          if (loop_shl_count != 2u || loop_rcl_count != 4u ||
+              branch_targets[0] != branch_targets[1] ||
+              branch_targets[2] != branch_targets[3] ||
+              branch_targets[0] <= branch_pcs[3] ||
+              branch_targets[0] >= branch_targets[2] ||
+              branch_targets[2] >= branch_pcs[4] ||
+              branch_targets[4] >= branch_pcs[0]) {
+            (void)fprintf(stderr,
+                          "wide division loop targets differ in %s\n",
+                          function_names[index]);
+            return 0;
+          }
+          (void)memset(&subtract_decoded, 0xa5,
+                       sizeof(subtract_decoded));
+          (void)memset(&continue_decoded, 0xa5,
+                       sizeof(continue_decoded));
+          (void)memset(&repeat_decoded, 0xa5,
+                       sizeof(repeat_decoded));
+          if (ctool_x86_decode(
+                  job, CTOOL_X86_MODE_32,
+                  ctool_bytes(text->contents.data + branch_targets[0],
+                              text->contents.size - branch_targets[0]),
+                  0u, &subtract_decoded) != CTOOL_OK ||
+              subtract_decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+              subtract_decoded.instruction.mnemonic != CTOOL_X86_MN_MOV ||
+              ctool_x86_decode(
+                  job, CTOOL_X86_MODE_32,
+                  ctool_bytes(text->contents.data + branch_targets[2],
+                              text->contents.size - branch_targets[2]),
+                  0u, &continue_decoded) != CTOOL_OK ||
+              continue_decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+              continue_decoded.instruction.mnemonic != CTOOL_X86_MN_DEC ||
+              ctool_x86_decode(
+                  job, CTOOL_X86_MODE_32,
+                  ctool_bytes(text->contents.data + branch_targets[4],
+                              text->contents.size - branch_targets[4]),
+                  0u, &repeat_decoded) != CTOOL_OK ||
+              repeat_decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+              repeat_decoded.instruction.mnemonic != CTOOL_X86_MN_MOV) {
+            (void)fprintf(stderr,
+                          "wide division loop target opcode differs in %s\n",
+                          function_names[index]);
+            return 0;
+          }
+          while (block_cursor < branch_targets[2]) {
+            ctool_x86_decoded_t block_decoded;
+            ctool_bytes_t block_remaining = ctool_bytes(
+                text->contents.data + block_cursor,
+                branch_targets[2] - block_cursor);
+            (void)memset(&block_decoded, 0xa5,
+                         sizeof(block_decoded));
+            if (ctool_x86_decode(job, CTOOL_X86_MODE_32,
+                                 block_remaining, 0u,
+                                 &block_decoded) != CTOOL_OK ||
+                block_decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+                block_decoded.consumed == 0u ||
+                block_decoded.consumed >
+                    branch_targets[2] - block_cursor) {
+              (void)fprintf(stderr,
+                            "wide division subtract block differs in %s\n",
+                            function_names[index]);
+              return 0;
+            }
+            if (block_decoded.instruction.mnemonic == CTOOL_X86_MN_SUB) {
+              block_subtract_count++;
+            } else if (block_decoded.instruction.mnemonic ==
+                       CTOOL_X86_MN_SBB) {
+              block_borrow_count++;
+            } else if (block_decoded.instruction.mnemonic ==
+                       CTOOL_X86_MN_INC) {
+              block_increment_count++;
+            }
+            block_cursor += block_decoded.consumed;
+          }
+          if (block_cursor != branch_targets[2] ||
+              block_subtract_count != 1u ||
+              block_borrow_count != 1u ||
+              block_increment_count != 1u) {
+            (void)fprintf(stderr,
+                          "wide division subtract target differs in %s\n",
+                          function_names[index]);
+            return 0;
+          }
+          operation_count++;
+          branch_count = 0u;
+          loop_rcl_count = 0u;
+          loop_shl_count = 0u;
+        }
+      }
+      cursor += decoded.consumed;
+    }
+    if (cursor != function->size || last != CTOOL_X86_MN_RET ||
+        branch_count != 0u || loop_rcl_count != 0u ||
+        loop_shl_count != 0u) {
+      (void)fprintf(stderr,
+                    "wide division function %s boundary differs\n",
+                    function_names[index]);
+      return 0;
+    }
+    expected_offset += function->size;
+  }
+  if (expected_offset != text->contents.size || operation_count != 13u ||
+      text->contents.size != 4775u || fingerprint != 0x55f1a495u) {
+    inventory_matches = CTOOL_FALSE;
+  }
+  for (index = 1u; index < (ctool_u32)CTOOL_X86_MN_COUNT; index++) {
+    ctool_u32 expected = 0u;
+    ctool_u32 expectation;
+    for (expectation = 0u;
+         expectation <
+         (ctool_u32)(sizeof(expected_opcodes) /
+                     sizeof(expected_opcodes[0]));
+         expectation++) {
+      if ((ctool_u32)expected_opcodes[expectation].mnemonic == index) {
+        expected = expected_opcodes[expectation].count;
+        break;
+      }
+    }
+    if (opcode_counts[index] != expected) {
+      inventory_matches = CTOOL_FALSE;
+    }
+  }
+  if (inventory_matches == CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "wide division inventory: text=%u fingerprint=%08x "
+                  "symbols=%u relocations=%u\n",
+                  (unsigned int)text->contents.size,
+                  (unsigned int)fingerprint,
+                  (unsigned int)object->symbol_count,
+                  (unsigned int)object->relocation_count);
+    for (index = 0u;
+         index < (ctool_u32)(sizeof(function_names) /
+                             sizeof(function_names[0]));
+         index++) {
+      const ctool_elf32_symbol_t *function =
+          find_symbol(object, function_names[index]);
+      (void)fprintf(stderr, "  %s=%u\n", function_names[index],
+                    function == NULL ? 0u :
+                        (unsigned int)function->size);
+    }
+    for (index = 1u; index < (ctool_u32)CTOOL_X86_MN_COUNT; index++) {
+      if (opcode_counts[index] != 0u) {
+        (void)fprintf(stderr, "  %s=%u\n",
+                      ctool_x86_mnemonic_name(
+                          (ctool_x86_mnemonic_t)index).data,
+                      (unsigned int)opcode_counts[index]);
+      }
+    }
+    return 0;
+  }
+  return expect_wide_oracle_result(
+             job, object, text, "divide_unsigned", zero_arguments, 4u,
+             0u, 0u, "unsigned zero dividend quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     zero_arguments, 4u, 0u, 0u,
+                     "unsigned zero dividend remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned",
+                     identity_arguments, 4u, 0xffffffffu,
+                     0xffffffffu, "unsigned quotient identity") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     identity_arguments, 4u, 0u, 0u,
+                     "unsigned remainder identity") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned",
+                     equal_arguments, 4u, 1u, 0u,
+                     "unsigned equal operands quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     equal_arguments, 4u, 0u, 0u,
+                     "unsigned equal operands remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned", low_arguments, 4u,
+                     14u, 0u, "unsigned low-word wide quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     low_arguments, 4u, 2u, 0u,
+                     "unsigned low-word wide remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned",
+                     high_dividend_arguments, 4u, 0xd21c10b0u,
+                     0x54f43e32u,
+                     "unsigned high-word dividend quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     high_dividend_arguments, 4u, 0u, 0u,
+                     "unsigned high-word dividend remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned",
+                     high_divisor_arguments, 4u, 0xe0000000u, 0u,
+                     "unsigned high-word divisor quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     high_divisor_arguments, 4u, 0x96543210u, 0u,
+                     "unsigned high-word divisor remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned",
+                     high_bit_divisor_arguments, 4u, 1u, 0u,
+                     "unsigned high-bit divisor quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     high_bit_divisor_arguments, 4u, 0xfffffffeu,
+                     0x7fffffffu,
+                     "unsigned high-bit divisor remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_unsigned",
+                     larger_divisor_arguments, 4u, 0u, 0u,
+                     "unsigned larger divisor quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_unsigned",
+                     larger_divisor_arguments, 4u, 0u, 1u,
+                     "unsigned larger divisor remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_signed",
+                     signed_positive_positive_arguments, 4u, 14u, 0u,
+                     "signed positive operands quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_signed",
+                     signed_positive_positive_arguments, 4u, 2u, 0u,
+                     "signed positive operands remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_signed",
+                     signed_negative_positive_arguments, 4u,
+                     0xfffffff2u, 0xffffffffu,
+                     "signed negative dividend quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_signed",
+                     signed_negative_positive_arguments, 4u,
+                     0xfffffffeu, 0xffffffffu,
+                     "signed negative dividend remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_signed",
+                     signed_positive_negative_arguments, 4u,
+                     0xfffffff2u, 0xffffffffu,
+                     "signed negative divisor quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_signed",
+                     signed_positive_negative_arguments, 4u, 2u, 0u,
+                     "signed negative divisor remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_signed",
+                     signed_both_negative_arguments, 4u, 14u, 0u,
+                     "signed two-negative quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_signed",
+                     signed_both_negative_arguments, 4u,
+                     0xfffffffeu, 0xffffffffu,
+                     "signed two-negative remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_signed",
+                     signed_boundary_arguments, 4u, 0u, 0x80000000u,
+                     "signed minimum quotient") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_signed",
+                     signed_boundary_arguments, 4u, 0u, 0u,
+                     "signed minimum remainder") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_mixed",
+                     mixed_divide_arguments, 4u, 0xffffffffu,
+                     0x7fffffffu,
+                     "mixed signedness converts dividend") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_mixed",
+                     mixed_remainder_arguments, 4u, 2u, 0u,
+                     "mixed signedness remainder conversion") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_wide_narrow",
+                     wide_narrow_arguments, 3u, 0x55555555u, 0u,
+                     "wide quotient converts narrow divisor") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "remainder_wide_narrow",
+                     wide_narrow_arguments, 3u, 2u, 0u,
+                     "wide remainder converts narrow divisor") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_chained",
+                     chained_arguments, 6u, 0x2a059cf0u,
+                     0x10fda60au, "chained wide quotient snapshots") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "quotient_plus_remainder",
+                     reused_arguments, 4u, 0x55555557u, 0u,
+                     "wide quotient and remainder reuse inputs") &&
+                 expect_wide_oracle_result(
+                     job, object, text, "divide_then_reuse_left",
+                     reused_arguments, 4u, 0x55555556u, 1u,
+                     "wide divide preserves its left snapshot")
+             ? 1
+             : 0;
+}
+
 static int validate_active_wide_helper_object(
     const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -19634,6 +20299,105 @@ cleanup:
   return passed != 0 ? 0 : 1;
 }
 
+static int run_wide_division_object(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_contains_joined(
+          job, "/toolchain/cupidc_frontend.c",
+          "load active CupidC constant arithmetic source",
+          "the active CupidC wide divide/remainder body changed",
+          active_cfront_wide_divide_remainder_body_first,
+          active_cfront_wide_divide_remainder_body_second) ||
+      !parse_source(job, "/wide-division-object.c",
+                    wide_division_object_source, &unit) ||
+      unit.function_definition_count != 11u) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "wide division object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "wide division object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat wide division object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      first_bytes.size != 5452u ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited wide division object") ||
+      ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "recovered wide division object")) {
+    (void)fprintf(stderr,
+                  "wide division object transaction differs: bytes=%u\n",
+                  (unsigned int)first_bytes.size);
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "wide division objects are not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/wide-division-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read wide division object") ||
+      !validate_wide_division_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  return passed != 0 ? 0 : 1;
+}
+
 static int run_wide_return_object(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -20185,6 +20949,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     if (run_wide_multiplication_object(argv[2]) != 0) {
+      return 1;
+    }
+    if (run_wide_division_object(argv[2]) != 0) {
       return 1;
     }
     return run_wide_return_object(argv[2]);

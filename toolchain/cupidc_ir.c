@@ -2538,7 +2538,11 @@ static ctool_status_t cir_lower_binary(
                  expression->operation ==
                      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
                  expression->operation ==
-                     CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) &&
+                     CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY ||
+                 expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_DIVIDE ||
+                 expression->operation ==
+                     CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) &&
                 expression->type == left.type && left.type == right.type &&
                 cir_type_is_wide_integer(context, right.type) ==
                     CTOOL_TRUE))
@@ -2554,6 +2558,13 @@ static ctool_status_t cir_lower_binary(
     return cir_append_pointer_binary(
         context, &left, &right, expression->type, expression->operation,
         &expression->location, &expression->physical_location);
+  }
+  if ((expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE ||
+       expression->operation == CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) &&
+      cir_type_is_wide_integer(context, left.type) == CTOOL_TRUE &&
+      cir_type_is_wide_integer(context, right.type) == CTOOL_TRUE &&
+      left.type == right.type && expression->type != left.type) {
+    return cir_invalid_unit(context, &expression->location);
   }
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
       (is_pointer_comparison == CTOOL_FALSE &&

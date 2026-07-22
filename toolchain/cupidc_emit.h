@@ -33,13 +33,16 @@ ctool_status_t ctool_c_emit_object(
  * integers, narrows wide values to represented integer lanes, and normalizes
  * wide Boolean conversions from both words. Same-width signed-to-unsigned
  * conversion and GNU wide-enum promotion preserve the snapshot bits. It also
- * emits two-word addition, subtraction, multiplication, unary negate,
- * complement, left and signed or unsigned right shifts, AND, OR, XOR,
- * comparisons, logical operations, conditional selection, structured scalar
- * conditions, and signed or unsigned switch dispatch. A wide switch duplicates
- * the immutable snapshot handle while it compares full-width case values.
- * Unary plus keeps its input snapshot. Calls preserve the i386 low word in EAX
- * and high word in EDX, and matching returns restore the same register pair.
+ * emits two-word addition, subtraction, multiplication, division, remainder,
+ * unary negate, complement, left and signed or unsigned right shifts, AND, OR,
+ * XOR, comparisons, logical operations, conditional selection, structured
+ * scalar conditions, and signed or unsigned switch dispatch. Wide division
+ * and remainder use a fixed 64-step restoring loop and fresh result
+ * snapshots. Runtime cases that C leaves undefined promise neither a trap nor
+ * a result. A wide switch duplicates the immutable snapshot handle while it
+ * compares full-width case values. Unary plus keeps its input snapshot. Calls
+ * preserve the i386 low word in EAX and high word in EDX, and matching returns
+ * restore the same register pair.
  * Direct object and literal addresses use text `R_386_32` relocations,
  * including linked objects first declared by a block extern.
  * Block typedefs consume no frame storage and produce no target record.

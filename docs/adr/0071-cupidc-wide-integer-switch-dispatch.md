@@ -28,4 +28,4 @@ The first red run stopped at `/wide-switch.c:2:11` with the existing unsupported
 
 This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production transform or host dependency changes owner.
 
-Issue #25 remains open. ADR 0072 later adds wide multiplication. Division, remainder, mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.
+Issue #25 remains open. ADR 0072 later adds wide multiplication, and ADR 0073 adds division and remainder. Mutation, values without declared parameter types, floating values, production integration, staged self-hosting, and the fixed-point bootstrap remain unfinished.

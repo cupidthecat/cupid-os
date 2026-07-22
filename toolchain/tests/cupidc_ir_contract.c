@@ -868,6 +868,29 @@ static const char wide_arithmetic_source[] =
     "}\n"
     "ctool_u64 chained_multiply(ctool_u64 left, ctool_u64 right) {\n"
     "  return (left * right) * left;\n"
+    "}\n"
+    "ctool_i64 divide_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_i64 remainder_signed(ctool_i64 left, ctool_i64 right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_u64 divide_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_u64 remainder_unsigned(ctool_u64 left, ctool_u64 right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_u64 divide_mixed(ctool_i64 left, ctool_u64 right) {\n"
+    "  return left / right;\n"
+    "}\n"
+    "ctool_u64 remainder_narrow(ctool_u64 left, unsigned int right) {\n"
+    "  return left % right;\n"
+    "}\n"
+    "ctool_u64 chained_divide_remainder(ctool_u64 left,\n"
+    "                                   ctool_u64 divisor,\n"
+    "                                   ctool_u64 modulus) {\n"
+    "  return (left / divisor) % modulus;\n"
     "}\n";
 
 static const char active_pp_if_signed_magnitude_arithmetic[] =
@@ -1694,6 +1717,42 @@ static int wide_condition_active_sources_are_unchanged(ctool_job_t *job) {
   return 1;
 }
 
+static int source_function_fingerprint_matches(
+    const ctool_source_t *source, const char *start_marker,
+    const char *next_function_marker, size_t expected_size,
+    uint64_t expected_fingerprint) {
+  const char *start;
+  const char *end;
+  const char *cursor;
+  size_t size = 0u;
+  uint64_t fingerprint = UINT64_C(1469598103934665603);
+  if (source == NULL || source->contents.data == NULL) {
+    return 0;
+  }
+  start = strstr((const char *)source->contents.data, start_marker);
+  if (start == NULL) {
+    return 0;
+  }
+  end = strstr(start + strlen(start_marker), next_function_marker);
+  if (end == NULL) {
+    return 0;
+  }
+  while (end > start &&
+         (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' ||
+          end[-1] == '\n')) {
+    end--;
+  }
+  for (cursor = start; cursor < end; cursor++) {
+    if (*cursor == '\r') {
+      continue;
+    }
+    fingerprint ^= (uint64_t)(unsigned char)*cursor;
+    fingerprint *= UINT64_C(1099511628211);
+    size++;
+  }
+  return size == expected_size && fingerprint == expected_fingerprint ? 1 : 0;
+}
+
 static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
@@ -1722,6 +1781,19 @@ static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
              active_asm_parse_number_arithmetic) == NULL) {
     (void)fprintf(stderr,
                   "an active assembler arithmetic helper changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/toolchain/cupidc_frontend.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active frontend arithmetic source") ||
+      !source_function_fingerprint_matches(
+          &source, "static void cfront_constant_apply_binary(",
+          "static ctool_bool cfront_is_null_pointer_constant(", 9313u,
+          UINT64_C(0xcf0e333fec913171))) {
+    (void)fprintf(stderr,
+                  "the active frontend constant arithmetic helper changed\n");
     return 0;
   }
   return 1;
@@ -9665,17 +9737,13 @@ static int run_active_leaf(const char *host_root) {
   }
   if (!parse_source(job, "/wide-division.c", wide_division_source,
                     &wide_division_unit) ||
-      !expect_ir_failure(
-          job, &wide_division_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_ir_success_preserves_unit(
+          job, &wide_division_unit,
           "wide division expression") ||
       !parse_source(job, "/wide-remainder.c", wide_remainder_source,
                     &wide_remainder_unit) ||
-      !expect_ir_failure(
-          job, &wide_remainder_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
+      !expect_ir_success_preserves_unit(
+          job, &wide_remainder_unit,
           "wide remainder expression")) {
     goto cleanup;
   }
@@ -21667,6 +21735,143 @@ static int validate_wide_multiply_function(
              : 0;
 }
 
+static int validate_wide_division_function(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    const char *name, ctool_u32 expected_first,
+    ctool_u32 expected_instruction_count, ctool_u32 expected_loads,
+    ctool_bool expected_result_signed, ctool_u32 conversion_source_size,
+    ctool_bool conversion_source_signed,
+    ctool_c_expression_operator_t first_operation,
+    ctool_c_expression_operator_t second_operation) {
+  const ctool_c_ir_function_t *function =
+      wide_arithmetic_ir_function(unit, ir, name);
+  const ctool_c_type_node_t *function_type;
+  ctool_u32 result_type;
+  ctool_u32 alternate_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 parameter_addresses = 0u;
+  ctool_u32 loads = 0u;
+  ctool_u32 alternate_loads = 0u;
+  ctool_u32 conversions = 0u;
+  ctool_u32 operations = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 index;
+  if (function == NULL ||
+      function->declared_type >= unit->graph.type_count ||
+      function->first_instruction != expected_first ||
+      function->instruction_count != expected_instruction_count ||
+      function->maximum_stack_depth != 2u ||
+      function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction) {
+    (void)fprintf(stderr, "%s division function differs\n", name);
+    return 0;
+  }
+  function_type = &unit->graph.types[function->declared_type];
+  result_type = function_type->referenced_type;
+  if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+      result_type >= unit->layout.type_count ||
+      ir_type_is_wide_integer(unit, result_type) == 0 ||
+      unit->layout.types[result_type].is_signed != expected_result_signed) {
+    (void)fprintf(stderr, "%s division result differs\n", name);
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[function->first_instruction + index];
+    if (string_equal(instruction->location.path, "/wide-arithmetic.c") == 0 ||
+        string_equal(instruction->physical_location.path,
+                     "/wide-arithmetic.c") == 0) {
+      return 0;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS) {
+      if (instruction->type >= unit->layout.type_count ||
+          unit->layout.types[instruction->type].is_integer != CTOOL_TRUE ||
+          instruction->input_type != CTOOL_C_TYPE_NONE ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference == CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      parameter_addresses++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD) {
+      if (instruction->type >= unit->layout.type_count ||
+          unit->layout.types[instruction->type].is_integer != CTOOL_TRUE ||
+          instruction->input_type != instruction->type ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      if (instruction->type != result_type) {
+        if (conversion_source_size == 0u ||
+            unit->layout.types[instruction->type].size !=
+                conversion_source_size ||
+            unit->layout.types[instruction->type].is_signed !=
+                conversion_source_signed ||
+            (alternate_type != CTOOL_C_TYPE_NONE &&
+             alternate_type != instruction->type)) {
+          return 0;
+        }
+        alternate_type = instruction->type;
+        alternate_loads++;
+      }
+      loads++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
+      if (conversion_source_size == 0u ||
+          alternate_type == CTOOL_C_TYPE_NONE ||
+          instruction->type != result_type ||
+          instruction->input_type != alternate_type ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_USUAL_ARITHMETIC ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      conversions++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY) {
+      ctool_c_expression_operator_t expected_operation =
+          operations == 0u ? first_operation : second_operation;
+      if (instruction->type != result_type ||
+          instruction->input_type != result_type ||
+          instruction->operation != expected_operation ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u ||
+          operations >= (second_operation == CTOOL_C_EXPRESSION_OPERATOR_NONE
+                             ? 1u
+                             : 2u)) {
+        return 0;
+      }
+      operations++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+      if (instruction->type != result_type ||
+          instruction->input_type != result_type ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      returns++;
+    } else {
+      return 0;
+    }
+  }
+  return parameter_addresses == expected_loads && loads == expected_loads &&
+                 operations ==
+                     (second_operation == CTOOL_C_EXPRESSION_OPERATOR_NONE
+                          ? 1u
+                          : 2u) &&
+                 returns == 1u &&
+                 conversions == (conversion_source_size == 0u ? 0u : 1u) &&
+                 alternate_loads ==
+                     (conversion_source_size == 0u ? 0u : 1u)
+             ? 1
+             : 0;
+}
+
 static int validate_wide_arithmetic_ir(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
@@ -21674,6 +21879,10 @@ static int validate_wide_arithmetic_ir(
   ctool_u32 subtractions = 0u;
   ctool_u32 signed_multiplications = 0u;
   ctool_u32 unsigned_multiplications = 0u;
+  ctool_u32 signed_divisions = 0u;
+  ctool_u32 unsigned_divisions = 0u;
+  ctool_u32 signed_remainders = 0u;
+  ctool_u32 unsigned_remainders = 0u;
   ctool_u32 signed_operations = 0u;
   ctool_u32 unsigned_operations = 0u;
   ctool_u32 unary_pluses = 0u;
@@ -21682,8 +21891,8 @@ static int validate_wide_arithmetic_ir(
   ctool_u32 signed_unary_operations = 0u;
   ctool_u32 unsigned_unary_operations = 0u;
   ctool_u32 index;
-  if (unit == NULL || ir == NULL || unit->function_definition_count != 19u ||
-      ir->function_count != 19u || ir->instruction_count != 118u ||
+  if (unit == NULL || ir == NULL || unit->function_definition_count != 26u ||
+      ir->function_count != 26u || ir->instruction_count != 165u ||
       ir->functions == NULL || ir->instructions == NULL ||
       ir_instruction_slice_fingerprint(ir, 0u, 83u) !=
           UINT64_C(0x245e6d8f4f77588e)) {
@@ -21742,6 +21951,22 @@ static int validate_wide_arithmetic_ir(
       }
       continue;
     }
+    if (instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+      if (unit->layout.types[instruction->type].is_signed == CTOOL_TRUE) {
+        signed_divisions++;
+      } else {
+        unsigned_divisions++;
+      }
+      continue;
+    }
+    if (instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
+      if (unit->layout.types[instruction->type].is_signed == CTOOL_TRUE) {
+        signed_remainders++;
+      } else {
+        unsigned_remainders++;
+      }
+      continue;
+    }
     if (instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
       additions++;
     } else if (instruction->operation ==
@@ -21759,6 +21984,8 @@ static int validate_wide_arithmetic_ir(
   return additions == 4u && subtractions == 3u &&
                  signed_multiplications == 1u &&
                  unsigned_multiplications == 5u &&
+                 signed_divisions == 1u && unsigned_divisions == 3u &&
+                 signed_remainders == 1u && unsigned_remainders == 3u &&
                  signed_operations == 2u && unsigned_operations == 5u &&
                  unary_pluses == 2u && unary_negations == 4u &&
                  bitwise_nots == 5u && signed_unary_operations == 5u &&
@@ -21777,7 +22004,42 @@ static int validate_wide_arithmetic_ir(
                      CTOOL_FALSE, 4u, CTOOL_FALSE) != 0 &&
                  validate_wide_multiply_function(
                      unit, ir, "chained_multiply", 109u, 9u, 3u, 2u,
-                     CTOOL_FALSE, 0u, CTOOL_FALSE) != 0
+                     CTOOL_FALSE, 0u, CTOOL_FALSE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "divide_signed", 118u, 6u, 2u,
+                     CTOOL_TRUE, 0u, CTOOL_FALSE,
+                     CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+                     CTOOL_C_EXPRESSION_OPERATOR_NONE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "remainder_signed", 124u, 6u, 2u,
+                     CTOOL_TRUE, 0u, CTOOL_FALSE,
+                     CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+                     CTOOL_C_EXPRESSION_OPERATOR_NONE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "divide_unsigned", 130u, 6u, 2u,
+                     CTOOL_FALSE, 0u, CTOOL_FALSE,
+                     CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+                     CTOOL_C_EXPRESSION_OPERATOR_NONE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "remainder_unsigned", 136u, 6u, 2u,
+                     CTOOL_FALSE, 0u, CTOOL_FALSE,
+                     CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+                     CTOOL_C_EXPRESSION_OPERATOR_NONE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "divide_mixed", 142u, 7u, 2u,
+                     CTOOL_FALSE, 8u, CTOOL_TRUE,
+                     CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+                     CTOOL_C_EXPRESSION_OPERATOR_NONE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "remainder_narrow", 149u, 7u, 2u,
+                     CTOOL_FALSE, 4u, CTOOL_FALSE,
+                     CTOOL_C_EXPRESSION_OPERATOR_REMAINDER,
+                     CTOOL_C_EXPRESSION_OPERATOR_NONE) != 0 &&
+                 validate_wide_division_function(
+                     unit, ir, "chained_divide_remainder", 156u, 9u, 3u,
+                     CTOOL_FALSE, 0u, CTOOL_FALSE,
+                     CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+                     CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) != 0
              ? 1
              : 0;
 }
@@ -22632,7 +22894,10 @@ static int run_wide_returns(const char *host_root) {
   ctool_u32 unsigned_wide_type = CTOOL_C_TYPE_NONE;
   ctool_u32 wide_binary_expression = CTOOL_C_AST_NONE;
   ctool_u32 wide_multiply_expression = CTOOL_C_AST_NONE;
+  ctool_u32 wide_divide_expression = CTOOL_C_AST_NONE;
+  ctool_u32 wide_remainder_expression = CTOOL_C_AST_NONE;
   ctool_u32 wide_unary_expression = CTOOL_C_AST_NONE;
+  ctool_u32 arithmetic_unsigned_wide_type = CTOOL_C_TYPE_NONE;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
@@ -22772,6 +23037,28 @@ static int run_wide_returns(const char *host_root) {
         arithmetic_unit.layout.types[expression->type].size == 8u) {
       wide_multiply_expression = index;
     }
+    if (wide_divide_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE &&
+        expression->type < arithmetic_unit.layout.type_count &&
+        arithmetic_unit.layout.types[expression->type].size == 8u) {
+      wide_divide_expression = index;
+    }
+    if (wide_remainder_expression == CTOOL_C_AST_NONE &&
+        expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_REMAINDER &&
+        expression->type < arithmetic_unit.layout.type_count &&
+        arithmetic_unit.layout.types[expression->type].size == 8u &&
+        arithmetic_unit.layout.types[expression->type].is_signed ==
+            CTOOL_TRUE) {
+      wide_remainder_expression = index;
+    }
+    if (expression->type < arithmetic_unit.layout.type_count &&
+        arithmetic_unit.layout.types[expression->type].size == 8u &&
+        arithmetic_unit.layout.types[expression->type].is_signed ==
+            CTOOL_FALSE) {
+      arithmetic_unsigned_wide_type = expression->type;
+    }
     if (wide_unary_expression == CTOOL_C_AST_NONE &&
         expression->kind == CTOOL_C_EXPRESSION_UNARY &&
         expression->operation ==
@@ -22782,13 +23069,19 @@ static int run_wide_returns(const char *host_root) {
     }
     if (wide_binary_expression != CTOOL_C_AST_NONE &&
         wide_multiply_expression != CTOOL_C_AST_NONE &&
+        wide_divide_expression != CTOOL_C_AST_NONE &&
+        wide_remainder_expression != CTOOL_C_AST_NONE &&
+        arithmetic_unsigned_wide_type != CTOOL_C_TYPE_NONE &&
         wide_unary_expression != CTOOL_C_AST_NONE) {
       break;
     }
   }
   if (wide_binary_expression == CTOOL_C_AST_NONE ||
       wide_multiply_expression == CTOOL_C_AST_NONE ||
+      wide_divide_expression == CTOOL_C_AST_NONE ||
+      wide_remainder_expression == CTOOL_C_AST_NONE ||
       wide_unary_expression == CTOOL_C_AST_NONE ||
+      arithmetic_unsigned_wide_type == CTOOL_C_TYPE_NONE ||
       arithmetic_unit.expression_count == 0u ||
       sizeof(*invalid_arithmetic_expressions) >
           SIZE_MAX / (size_t)arithmetic_unit.expression_count) {
@@ -22841,6 +23134,32 @@ static int run_wide_returns(const char *host_root) {
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
           "wide multiplication with conversion metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_arithmetic_expressions,
+               arithmetic_unit.expressions,
+               (size_t)arithmetic_unit.expression_count *
+                   sizeof(*invalid_arithmetic_expressions));
+  invalid_arithmetic_expressions[wide_divide_expression].conversion =
+      CTOOL_C_CONVERSION_INTEGER_PROMOTION;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_arithmetic_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide division with conversion metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_arithmetic_expressions,
+               arithmetic_unit.expressions,
+               (size_t)arithmetic_unit.expression_count *
+                   sizeof(*invalid_arithmetic_expressions));
+  invalid_arithmetic_expressions[wide_remainder_expression].type =
+      arithmetic_unsigned_wide_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_arithmetic_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "signed wide remainder with unsigned result metadata")) {
     goto cleanup;
   }
   diagnostic_count = ctool_job_diagnostic_count(job);

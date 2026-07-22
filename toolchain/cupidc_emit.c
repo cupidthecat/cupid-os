@@ -10,6 +10,18 @@
 #define CEMIT_SECTION_BSS 3u
 #define CEMIT_SECTION_COUNT 4u
 
+#define CEMIT_WIDE_DIVIDEND_LOW_STACK 0u
+#define CEMIT_WIDE_DIVIDEND_HIGH_STACK 4u
+#define CEMIT_WIDE_DIVISOR_LOW_STACK 8u
+#define CEMIT_WIDE_DIVISOR_HIGH_STACK 12u
+#define CEMIT_WIDE_QUOTIENT_LOW_STACK 16u
+#define CEMIT_WIDE_QUOTIENT_HIGH_STACK 20u
+#define CEMIT_WIDE_REMAINDER_LOW_STACK 24u
+#define CEMIT_WIDE_REMAINDER_HIGH_STACK 28u
+#define CEMIT_WIDE_QUOTIENT_SIGN_STACK 32u
+#define CEMIT_WIDE_REMAINDER_SIGN_STACK 36u
+#define CEMIT_WIDE_DIVIDE_STACK_SIZE 40u
+
 typedef struct {
   ctool_job_t *job;
   const ctool_c_translation_unit_t *unit;
@@ -2231,6 +2243,423 @@ static ctool_status_t cemit_x86_push_wide_multiply_snapshot(
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_push_wide_register_snapshot(
+        context, temporary_offset, 0u, 2u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_absolute_wide_stack_value(
+    cemit_context_t *context, ctool_u32 low_offset) {
+  ctool_status_t status;
+  if (low_offset > CEMIT_WIDE_DIVIDE_STACK_SIZE - 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_load_stack(context, 0u, low_offset);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(context, 2u, low_offset + 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 1u,
+        CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SAR, 1u, 31u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_SUB, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_SBB, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(context, low_offset, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(context, low_offset + 4u, 2u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_x86_push_wide_divide_remainder_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_bool value_signed, ctool_bool remainder) {
+  ctool_u32 greater_patch = CTOOL_C_AST_NONE;
+  ctool_u32 greater_after = CTOOL_C_AST_NONE;
+  ctool_u32 overflow_patch = CTOOL_C_AST_NONE;
+  ctool_u32 overflow_after = CTOOL_C_AST_NONE;
+  ctool_u32 high_less_patch = CTOOL_C_AST_NONE;
+  ctool_u32 high_less_after = CTOOL_C_AST_NONE;
+  ctool_u32 low_less_patch = CTOOL_C_AST_NONE;
+  ctool_u32 low_less_after = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_patch = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_after = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_target;
+  ctool_u32 subtract_target;
+  ctool_u32 continue_target;
+  ctool_u32 result_low_offset;
+  ctool_u32 result_high_offset;
+  ctool_u32 result_sign_offset;
+  ctool_status_t status;
+  if ((value_signed != CTOOL_FALSE && value_signed != CTOOL_TRUE) ||
+      (remainder != CTOOL_FALSE && remainder != CTOOL_TRUE)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  result_low_offset = remainder == CTOOL_TRUE
+                          ? CEMIT_WIDE_REMAINDER_LOW_STACK
+                          : CEMIT_WIDE_QUOTIENT_LOW_STACK;
+  result_high_offset = remainder == CTOOL_TRUE
+                           ? CEMIT_WIDE_REMAINDER_HIGH_STACK
+                           : CEMIT_WIDE_QUOTIENT_HIGH_STACK;
+  result_sign_offset = remainder == CTOOL_TRUE
+                           ? CEMIT_WIDE_REMAINDER_SIGN_STACK
+                           : CEMIT_WIDE_QUOTIENT_SIGN_STACK;
+
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_reserve_locals(
+        context, CEMIT_WIDE_DIVIDE_STACK_SIZE);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(context, 2u, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_DIVIDEND_LOW_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(context, 2u, 0u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_DIVIDEND_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(context, 2u, 1u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_DIVISOR_LOW_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_register_at_register(context, 2u, 1u, 4u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_DIVISOR_HIGH_STACK, 2u);
+  }
+
+  if (status == CTOOL_OK && value_signed == CTOOL_TRUE) {
+    status = cemit_x86_load_stack(
+        context, 2u, CEMIT_WIDE_DIVIDEND_HIGH_STACK);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_stack(
+          context, 0u, CEMIT_WIDE_DIVISOR_HIGH_STACK);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+          CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_stack(
+          context, CEMIT_WIDE_QUOTIENT_SIGN_STACK, 2u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_stack(
+          context, 2u, CEMIT_WIDE_DIVIDEND_HIGH_STACK);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_stack(
+          context, CEMIT_WIDE_REMAINDER_SIGN_STACK, 2u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_absolute_wide_stack_value(
+          context, CEMIT_WIDE_DIVIDEND_LOW_STACK);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_absolute_wide_stack_value(
+          context, CEMIT_WIDE_DIVISOR_LOW_STACK);
+    }
+  } else if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 2u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_stack(
+          context, CEMIT_WIDE_QUOTIENT_SIGN_STACK, 2u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_stack(
+          context, CEMIT_WIDE_REMAINDER_SIGN_STACK, 2u);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_QUOTIENT_LOW_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_QUOTIENT_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_REMAINDER_LOW_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_REMAINDER_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_register_constant(context, 1u, 64u);
+  }
+
+  repeat_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 0u, CEMIT_WIDE_QUOTIENT_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 2u, CEMIT_WIDE_QUOTIENT_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SHL, 0u, 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_RCL, 2u, 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_QUOTIENT_LOW_STACK, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_QUOTIENT_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 0u, CEMIT_WIDE_DIVIDEND_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 2u, CEMIT_WIDE_DIVIDEND_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SHL, 0u, 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_RCL, 2u, 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_DIVIDEND_LOW_STACK, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_DIVIDEND_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 0u, CEMIT_WIDE_REMAINDER_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 2u, CEMIT_WIDE_REMAINDER_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_RCL, 0u, 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_RCL, 2u, 1u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_REMAINDER_LOW_STACK, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_REMAINDER_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JB, &overflow_patch, &overflow_after);
+  }
+
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 2u, CEMIT_WIDE_REMAINDER_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_CMP, 2u, 4u,
+        CEMIT_WIDE_DIVISOR_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JA, &greater_patch, &greater_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JB, &high_less_patch,
+        &high_less_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 0u, CEMIT_WIDE_REMAINDER_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_CMP, 0u, 4u,
+        CEMIT_WIDE_DIVISOR_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JB, &low_less_patch, &low_less_after);
+  }
+
+  subtract_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, overflow_patch, overflow_after, subtract_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, greater_patch, greater_after, subtract_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 0u, CEMIT_WIDE_REMAINDER_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 2u, CEMIT_WIDE_REMAINDER_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_SUB, 0u, 4u,
+        CEMIT_WIDE_DIVISOR_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_binary_register_at_register(
+        context, CTOOL_X86_MN_SBB, 2u, 4u,
+        CEMIT_WIDE_DIVISOR_HIGH_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_REMAINDER_LOW_STACK, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_REMAINDER_HIGH_STACK, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(
+        context, 0u, CEMIT_WIDE_QUOTIENT_LOW_STACK);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_INC, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_stack(
+        context, CEMIT_WIDE_QUOTIENT_LOW_STACK, 0u);
+  }
+
+  continue_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, high_less_patch, high_less_after,
+        continue_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, low_less_patch, low_less_after,
+        continue_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_DEC, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JNE, &repeat_patch, &repeat_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, repeat_patch, repeat_after, repeat_target);
+  }
+
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(context, 0u, result_low_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(context, 2u, result_high_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_stack(context, 1u, result_sign_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SAR, 1u, 31u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_SUB, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_SBB, CTOOL_X86_REG_GPR32, 2u,
+        CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_stack(
+        context, 4u, CEMIT_WIDE_DIVIDE_STACK_SIZE);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_push_wide_register_snapshot(
@@ -5308,6 +5737,19 @@ static ctool_status_t cemit_emit_ir_instruction(
           CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
         return cemit_x86_push_wide_multiply_snapshot(
             context, value_temporary_offset);
+      }
+      if (ir_instruction->operation ==
+              CTOOL_C_EXPRESSION_OPERATOR_DIVIDE ||
+          ir_instruction->operation ==
+              CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
+        return cemit_x86_push_wide_divide_remainder_snapshot(
+            context, value_temporary_offset,
+            context->unit->layout.types[ir_instruction->input_type]
+                .is_signed,
+            ir_instruction->operation ==
+                    CTOOL_C_EXPRESSION_OPERATOR_REMAINDER
+                ? CTOOL_TRUE
+                : CTOOL_FALSE);
       }
       if (ir_instruction->operation ==
           CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND) {

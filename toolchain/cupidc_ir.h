@@ -315,19 +315,19 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * An eight-byte integer result arrives with its low word in EAX and its high
  * word in EDX. RETURN_VALUE restores those registers from the private
  * snapshot. Eight-byte integer BINARY records support addition, subtraction,
- * multiplication, left shift, signed or unsigned right shift, AND, OR, XOR,
- * and all six comparisons. UNARY records support plus, negate, complement,
- * and logical not. Wide values also feed short-circuit logic, conditional
- * selection, and structured scalar conditions. Supported shift counts are
- * represented 32-bit integers, and defined C counts from zero through 63
- * preserve both words. CONVERT records support represented integer widening
- * to eight bytes
- * and explicit or assignment narrowing back to a represented integer. They
+ * multiplication, division, remainder, left shift, signed or unsigned right
+ * shift, AND, OR, XOR, and all six comparisons. UNARY records support plus,
+ * negate, complement, and logical not. Wide values also feed short-circuit
+ * logic, conditional selection, and structured scalar conditions. Supported
+ * shift counts are represented 32-bit integers, and defined C counts from
+ * zero through 63 preserve both words. CONVERT records support represented
+ * integer widening to eight bytes and explicit or assignment narrowing back
+ * to a represented integer. They
  * also support the same-rank signed-to-unsigned usual arithmetic conversion
  * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
  * unsigned integer type. Boolean narrowing tests both source words.
- * Division, remainder, mutation, and arguments without declared parameter
- * types are not represented yet.
+ * Mutation and arguments without declared parameter types are not represented
+ * yet.
  * Supported structure values are complete, nonvolatile, nonatomic structures
  * whose alignment does not exceed four bytes. Structure RETURN_VALUE copies
  * into the caller-provided result object.
