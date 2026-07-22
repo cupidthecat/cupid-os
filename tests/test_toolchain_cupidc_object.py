@@ -318,6 +318,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "floating-transport: ok\n")
 
+    def test_floating_arithmetic_spills_each_x87_result(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-arithmetic", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-arithmetic: ok\n")
+
     def test_old_style_empty_functions_emit_deterministic_i386_objects(self):
         result = subprocess.run(
             [

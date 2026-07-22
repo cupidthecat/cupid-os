@@ -168,28 +168,22 @@ that C leaves undefined promise neither a runtime trap nor a result. Signed and
 unsigned wide integers can also pass through an ellipsis or a call without a
 prototype.
 
-The shared path copies matching float and double values without general
-floating-point computation. File, block-static, automatic,
-pointer, member, and indexed objects can feed initialization, plain assignment,
-discard, fixed direct or indirect calls, call results, and returns. A float
-keeps its raw four-byte representation. A double uses one Linear IR handle
-backed by a private eight-byte snapshot. Arguments occupy four-byte or
-eight-byte cdecl slots. At an ellipsis or unprototyped call, the frontend
-promotes float to double after lvalue conversion. Linear IR records the
-conversion. The i386 emitter loads the four-byte float with FLD and stores the
-converted double in a fresh eight-byte snapshot with FSTP. Floating results
-return in x87 ST0. After call cleanup,
-the caller stores a float result in a four-byte semantic stack slot or a double
-result in a private eight-byte frame snapshot. A double can cross an ellipsis
-or an unprototyped call, and va_arg(double) advances by eight bytes.
-Floating values remain invalid truth operands. The decoder-driven oracle checks
-ESP alignment before each call it executes and models the supported transport
-and exact widening. It is not native x87 execution proof. Floating literals,
-arithmetic, comparisons, conditions, conditional expressions, fixed-parameter
-and explicit floating conversions, explicit static floating initializers,
-long double, SIMD, atomic access, and over-aligned object emission remain
-unfinished. Implicit static zero initialization and casts to void are
-represented.
+The shared path carries matching float and double values through objects,
+assignment, calls, variadic reads, and returns. It evaluates same-kind unary
+plus and minus and binary addition, subtraction, multiplication, and division.
+Every changed x87 result is stored immediately at its C width. A float rounds
+into a fresh four-byte semantic slot. A double receives a fresh private
+eight-byte snapshot. The unchanged libm_tanh_impl expression
+(e1 - e2) / (e1 + e2) pins nested double arithmetic with call-produced
+operands. At an ellipsis or unprototyped call, the frontend promotes float to
+double after lvalue conversion. Arguments occupy four-byte or eight-byte cdecl
+slots, floating results return in x87 ST0, and va_arg(double) advances by eight
+bytes. Floating values remain invalid truth operands. The decoder-driven model
+checks operand order, immediate spills, selected IEEE patterns, call alignment,
+and frame state. It does not execute native x87 code. Floating literals,
+mixed-kind and integer conversions, comparisons, truth, conditional
+expressions, compound updates, explicit static floating initializers, long
+double, SIMD, atomic access, and over-aligned object emission remain unfinished.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -225,7 +219,8 @@ direct and indirect calls, parameters, and returns. This includes casts to
 void and other discarded structure expressions. Each lvalue conversion and
 structure call result receives its own frame snapshot. Copies cover the full
 target object size, so a supported structure may contain wide or floating
-members even when floating arithmetic on those members remains unsupported.
+members even when an operation on that member remains outside the same-kind
+arithmetic boundary.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

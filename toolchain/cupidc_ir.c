@@ -1626,6 +1626,31 @@ static ctool_bool cir_float_promotion_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_same_floating_conversion_is_valid(
+    const cir_context_t *context, ctool_u32 source_type,
+    ctool_u32 target_type, ctool_c_conversion_kind_t conversion) {
+  const ctool_c_type_node_t *source =
+      cir_unwrapped_type(context, source_type);
+  const ctool_c_type_node_t *target =
+      cir_unwrapped_type(context, target_type);
+  return source != (const ctool_c_type_node_t *)0 &&
+                 target != (const ctool_c_type_node_t *)0 &&
+                 source->kind == target->kind &&
+                 (source->kind == CTOOL_C_TYPE_FLOAT ||
+                  source->kind == CTOOL_C_TYPE_DOUBLE) &&
+                 cir_type_is_floating_value(context, source_type) ==
+                     CTOOL_TRUE &&
+                 cir_type_is_floating_value(context, target_type) ==
+                     CTOOL_TRUE &&
+                 cir_type_has_atomic_qualification(context, source_type) ==
+                     CTOOL_FALSE &&
+                 cir_type_has_atomic_qualification(context, target_type) ==
+                     CTOOL_FALSE &&
+                 conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cir_push(cir_context_t *context,
                                cir_stack_kind_t kind, ctool_u32 type) {
   if (context->stack_depth >= CIR_STACK_LIMIT) {
@@ -2398,12 +2423,17 @@ static ctool_status_t cir_lower_conversion(
                     CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool floating_conversion =
+        cir_same_floating_conversion_is_valid(
+            context, source.type, expression->type,
+            expression->conversion);
     if (integer_types == CTOOL_TRUE && integer_conversion == CTOOL_FALSE) {
       return cir_invalid_unit(context, &expression->location);
     }
     if (source.kind != CIR_STACK_VALUE ||
         (integer_conversion == CTOOL_FALSE &&
-         pointer_conversion == CTOOL_FALSE) ||
+         pointer_conversion == CTOOL_FALSE &&
+         floating_conversion == CTOOL_FALSE) ||
         (pointer_conversion == CTOOL_TRUE &&
          cir_pointer_conversion_is_valid(
              context, source.type, expression->type,
@@ -2640,6 +2670,8 @@ static ctool_status_t cir_lower_binary(
   ctool_bool is_bitwise_xor;
   ctool_bool is_wide_integer_binary;
   ctool_bool is_wide_integer_comparison;
+  ctool_bool has_floating_operand;
+  ctool_bool is_floating_binary;
   ctool_u32 left_child;
   ctool_u32 right_child;
   ctool_status_t status;
@@ -2745,6 +2777,30 @@ static ctool_status_t cir_lower_binary(
               cir_type_is_wide_integer(context, right.type) == CTOOL_TRUE
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  has_floating_operand =
+      cir_type_is_floating_value(context, left.type) == CTOOL_TRUE ||
+              cir_type_is_floating_value(context, right.type) == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  is_floating_binary =
+      cir_type_is_floating_value(context, expression->type) == CTOOL_TRUE &&
+              cir_type_is_floating_value(context, left.type) == CTOOL_TRUE &&
+              cir_type_is_floating_value(context, right.type) == CTOOL_TRUE &&
+              cir_type_has_atomic_qualification(context, expression->type) ==
+                  CTOOL_FALSE &&
+              cir_type_has_atomic_qualification(context, left.type) ==
+                  CTOOL_FALSE &&
+              cir_type_has_atomic_qualification(context, right.type) ==
+                  CTOOL_FALSE &&
+              expression->type == left.type && left.type == right.type &&
+              (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY ||
+               expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE)
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (is_pointer_arithmetic == CTOOL_TRUE) {
     return cir_append_pointer_binary(
         context, &left, &right, expression->type, expression->operation,
@@ -2757,14 +2813,26 @@ static ctool_status_t cir_lower_binary(
       left.type == right.type && expression->type != left.type) {
     return cir_invalid_unit(context, &expression->location);
   }
+  if (has_floating_operand == CTOOL_TRUE &&
+      is_floating_binary == CTOOL_FALSE) {
+    if (cir_type_is_floating_value(context, expression->type) == CTOOL_TRUE &&
+        cir_type_is_floating_value(context, left.type) == CTOOL_TRUE &&
+        cir_type_is_floating_value(context, right.type) == CTOOL_TRUE &&
+        expression->type == left.type && left.type == right.type) {
+      return cir_unsupported_expression(context, &expression->location);
+    }
+    return cir_unsupported_type(context, &expression->location);
+  }
   if (left.kind != CIR_STACK_VALUE || right.kind != CIR_STACK_VALUE ||
       (is_pointer_comparison == CTOOL_FALSE &&
        is_wide_integer_binary == CTOOL_FALSE &&
        is_wide_integer_comparison == CTOOL_FALSE &&
+       is_floating_binary == CTOOL_FALSE &&
        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) ||
       (is_pointer_comparison == CTOOL_FALSE &&
        is_wide_integer_binary == CTOOL_FALSE &&
        is_wide_integer_comparison == CTOOL_FALSE &&
+       is_floating_binary == CTOOL_FALSE &&
        (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
         cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE))) {
     return cir_emit_failure(
@@ -2784,6 +2852,10 @@ static ctool_status_t cir_lower_binary(
     if (cir_type_is_plain_signed_int(context, expression->type) ==
             CTOOL_FALSE ||
         left.type != right.type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  } else if (is_floating_binary == CTOOL_TRUE) {
+    if (expression->type != left.type || left.type != right.type) {
       return cir_invalid_unit(context, &expression->location);
     }
   } else if (is_shift == CTOOL_TRUE) {
@@ -2829,6 +2901,8 @@ static ctool_status_t cir_lower_unary(
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   cir_stack_entry_t operand;
   ctool_bool logical_not;
+  ctool_bool floating_operand;
+  ctool_bool floating_unary;
   ctool_u32 child;
   ctool_status_t status;
   if (expression->reference != CTOOL_C_AST_NONE ||
@@ -2948,14 +3022,40 @@ static ctool_status_t cir_lower_unary(
   if (operand.kind != CIR_STACK_VALUE) {
     return cir_invalid_unit(context, &expression->location);
   }
+  floating_operand = cir_type_is_floating_value(context, operand.type);
+  floating_unary =
+      floating_operand == CTOOL_TRUE &&
+              cir_type_is_floating_value(context, expression->type) ==
+                  CTOOL_TRUE &&
+              cir_type_has_atomic_qualification(context, operand.type) ==
+                  CTOOL_FALSE &&
+              cir_type_has_atomic_qualification(context, expression->type) ==
+                  CTOOL_FALSE &&
+              expression->type == operand.type &&
+              (expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS ||
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE)
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  if (floating_operand == CTOOL_TRUE && logical_not == CTOOL_FALSE &&
+      floating_unary == CTOOL_FALSE) {
+    if (cir_type_is_floating_value(context, expression->type) == CTOOL_TRUE &&
+        expression->type == operand.type) {
+      return cir_unsupported_expression(context, &expression->location);
+    }
+    return cir_unsupported_type(context, &expression->location);
+  }
   if ((logical_not == CTOOL_FALSE &&
-       cir_type_is_value_integer(context, operand.type) == CTOOL_FALSE) ||
+       cir_type_is_value_integer(context, operand.type) == CTOOL_FALSE &&
+       floating_unary == CTOOL_FALSE) ||
       (logical_not == CTOOL_TRUE &&
        cir_type_is_truth_scalar(context, operand.type) ==
            CTOOL_FALSE) ||
       (logical_not == CTOOL_FALSE &&
        cir_type_is_value_integer(context, expression->type) ==
-           CTOOL_FALSE) ||
+               CTOOL_FALSE &&
+       floating_unary == CTOOL_FALSE) ||
       (logical_not == CTOOL_TRUE &&
        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE)) {
     return cir_unsupported_type(context, &expression->location);

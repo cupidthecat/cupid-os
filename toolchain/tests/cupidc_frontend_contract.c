@@ -6748,12 +6748,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 183u, 5517u,
-       48478u, 672u, 227u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 159u, 4313u,
-       36977u, 524u, 265u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 303u,
-       11943u, 77373u, 1772u, 1205u, 0u, 0u}};
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 184u, 5547u,
+       49059u, 679u, 230u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 161u, 4371u,
+       37584u, 532u, 271u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 305u,
+       12041u, 78092u, 1788u, 1209u, 0u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -22210,6 +22210,224 @@ static int validate_float_default_promotions(
              : 1;
 }
 
+static int validate_floating_arithmetic(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 float_unary[2] = {0u, 0u};
+  ctool_u32 double_unary[2] = {0u, 0u};
+  ctool_u32 float_binary[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 double_binary[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 float_calls = 0u;
+  ctool_u32 double_calls = 0u;
+  ctool_u32 index;
+
+  if (unit == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    const ctool_c_type_node_t *type = &unit->graph.types[index];
+    if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
+      float_type = index;
+    } else if (type->qualifiers == 0u &&
+               type->kind == CTOOL_C_TYPE_DOUBLE) {
+      double_type = index;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
+      unit->function_definition_count != 16u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    ctool_u32 *unary_counts = NULL;
+    ctool_u32 *binary_counts = NULL;
+    if (expression->type == float_type) {
+      unary_counts = float_unary;
+      binary_counts = float_binary;
+    } else if (expression->type == double_type) {
+      unary_counts = double_unary;
+      binary_counts = double_binary;
+    } else {
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_UNARY) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      ctool_u32 operation_index;
+      if (expression->operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS) {
+        operation_index = 0u;
+      } else if (expression->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+        operation_index = 1u;
+      } else {
+        return 1;
+      }
+      if (expression->child_count != 1u ||
+          child >= unit->expression_count ||
+          unit->expressions[child].type != expression->type ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE) {
+        return 1;
+      }
+      unary_counts[operation_index]++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
+      ctool_u32 left = expression_child(unit, expression, 0u);
+      ctool_u32 right = expression_child(unit, expression, 1u);
+      ctool_u32 operation_index;
+      if (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+        operation_index = 0u;
+      } else if (expression->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+        operation_index = 1u;
+      } else if (expression->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
+        operation_index = 2u;
+      } else if (expression->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+        operation_index = 3u;
+      } else {
+        return 1;
+      }
+      if (expression->child_count != 2u ||
+          left >= unit->expression_count || right >= unit->expression_count ||
+          unit->expressions[left].type != expression->type ||
+          unit->expressions[right].type != expression->type ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE) {
+        return 1;
+      }
+      binary_counts[operation_index]++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+      if (expression->type == float_type) {
+        float_calls++;
+      } else {
+        double_calls++;
+      }
+    }
+  }
+  if (float_unary[0] != 2u || float_unary[1] != 2u ||
+      double_unary[0] != 2u || double_unary[1] != 2u ||
+      float_binary[0] != 2u || float_binary[1] != 2u ||
+      float_binary[2] != 2u || float_binary[3] != 2u ||
+      double_binary[0] != 2u || double_binary[1] != 2u ||
+      double_binary[2] != 2u || double_binary[3] != 2u ||
+      float_calls != 2u || double_calls != 2u) {
+    (void)fprintf(
+        stderr,
+        "floating-arithmetic: inventory differs: unary=%u/%u/%u/%u "
+        "binary=%u/%u/%u/%u/%u/%u/%u/%u calls=%u/%u\n",
+        (unsigned int)float_unary[0], (unsigned int)float_unary[1],
+        (unsigned int)double_unary[0], (unsigned int)double_unary[1],
+        (unsigned int)float_binary[0], (unsigned int)float_binary[1],
+        (unsigned int)float_binary[2], (unsigned int)float_binary[3],
+        (unsigned int)double_binary[0], (unsigned int)double_binary[1],
+        (unsigned int)double_binary[2], (unsigned int)double_binary[3],
+        (unsigned int)float_calls, (unsigned int)double_calls);
+    return 1;
+  }
+  return 0;
+}
+
+static int run_floating_arithmetic(const char *host_root) {
+  static const char source[] =
+      "float float_identity(float value) { return value; }\n"
+      "float float_positive(float value) { return +value; }\n"
+      "float float_negative(float value) { return -value; }\n"
+      "float float_add(float left, float right) { return left + right; }\n"
+      "float float_subtract(float left, float right) { return left - right; }\n"
+      "float float_multiply(float left, float right) { return left * right; }\n"
+      "float float_divide(float left, float right) { return left / right; }\n"
+      "float float_nested(float left, float right, float third) {\n"
+      "  return -(+float_identity(left) * (right + third)) /\n"
+      "         (float_identity(third) - left);\n"
+      "}\n"
+      "double double_identity(double value) { return value; }\n"
+      "double double_positive(double value) { return +value; }\n"
+      "double double_negative(double value) { return -value; }\n"
+      "double double_add(double left, double right) { return left + right; }\n"
+      "double double_subtract(double left, double right) { return left - right; }\n"
+      "double double_multiply(double left, double right) { return left * right; }\n"
+      "double double_divide(double left, double right) { return left / right; }\n"
+      "double double_nested(double left, double right, double third) {\n"
+      "  return -(+double_identity(left) * (right + third)) /\n"
+      "         (double_identity(third) - left);\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"mixed float and double operands",
+        "float bad(float left, double right) { return left + right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 51u,
+       "mixed floating arithmetic is outside this expression slice"},
+      {{"mixed integer and float operands",
+        "float bad(float left, int right) { return left * right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 48u,
+       "integer and floating arithmetic conversions are outside this expression slice"},
+      {{"long double arithmetic",
+        "void bad(long double left, long double right) { (void)(left / right); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 61u, "long double arithmetic is outside this expression slice"},
+      {{"floating remainder",
+        "float bad(float left, float right) { return left % right; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 50u, "remainder requires integer operands"},
+      {{"floating bitwise complement",
+        "float bad(float value) { return ~value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 33u, "bitwise complement requires an integer operand"},
+      {{"atomic float arithmetic",
+        "float bad(_Atomic float value) { return -value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 41u,
+       "atomic floating arithmetic is outside this expression slice"},
+      {{"floating comparison boundary",
+        "int bad(float left, float right) { return left < right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 48u, "floating comparisons are outside this expression slice"},
+      {{"floating compound assignment boundary",
+        "void bad(float *left, float right) { *left += right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 44u, "floating compound assignment is outside this body slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "floating-arithmetic", host_root,
+                             4u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/floating-arithmetic.c", source,
+                          &unit) != 0 ||
+      validate_floating_arithmetic(&unit) != 0) {
+    (void)fprintf(stderr, "floating-arithmetic: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/floating-arithmetic-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_floating_arithmetic(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("floating-arithmetic: ok\n");
+  }
+  return failed;
+}
+
 static int validate_floating_transport(
     const ctool_c_translation_unit_t *unit) {
   ctool_u32 float_type = CTOOL_C_TYPE_NONE;
@@ -22904,7 +23122,8 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|static-asserts|"
                    "function-bodies|old-style-empty-functions|"
-                   "wide-variadics|floating-transport|variadic-callees|"
+                   "wide-variadics|floating-transport|floating-arithmetic|"
+                   "variadic-callees|"
                    "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
@@ -22951,6 +23170,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "floating-transport") == 0) {
     return run_floating_transport(argv[2]);
+  }
+  if (strcmp(argv[1], "floating-arithmetic") == 0) {
+    return run_floating_arithmetic(argv[2]);
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

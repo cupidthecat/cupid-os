@@ -1314,8 +1314,69 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
 }
 
 static int parse_source(ctool_job_t *job, const char *path, const char *text,
-                        ctool_c_translation_unit_t *unit_out) {
+                         ctool_c_translation_unit_t *unit_out) {
   return parse_source_mode(job, path, text, CTOOL_FALSE, unit_out);
+}
+
+static int source_last_function_fingerprint_matches(
+    const ctool_source_t *source, const char *start_marker,
+    const char *next_function_marker, size_t expected_size,
+    uint64_t expected_fingerprint) {
+  const char *start = NULL;
+  const char *candidate;
+  const char *end;
+  const char *cursor;
+  size_t size = 0u;
+  uint64_t fingerprint = UINT64_C(1469598103934665603);
+  if (source == NULL || source->contents.data == NULL) {
+    return 0;
+  }
+  candidate = strstr((const char *)source->contents.data, start_marker);
+  while (candidate != NULL) {
+    start = candidate;
+    candidate = strstr(candidate + strlen(start_marker), start_marker);
+  }
+  if (start == NULL) {
+    return 0;
+  }
+  end = strstr(start + strlen(start_marker), next_function_marker);
+  if (end == NULL) {
+    return 0;
+  }
+  while (end > start &&
+         (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' ||
+          end[-1] == '\n')) {
+    end--;
+  }
+  for (cursor = start; cursor < end; cursor++) {
+    if (*cursor == '\r') {
+      continue;
+    }
+    fingerprint ^= (uint64_t)(unsigned char)*cursor;
+    fingerprint *= UINT64_C(1099511628211);
+    size++;
+  }
+  return size == expected_size && fingerprint == expected_fingerprint ? 1 : 0;
+}
+
+static int floating_arithmetic_active_source_is_unchanged(
+    ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/kernel/cpu/libm.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active floating arithmetic source") ||
+      !source_last_function_fingerprint_matches(
+          &source, "double libm_tanh_impl(double x)",
+          "float libm_tanhf_impl(float x)", 138u,
+          UINT64_C(0x3616729c17e8431f))) {
+    (void)fprintf(stderr, "the active libm tanh helper changed\n");
+    return 0;
+  }
+  return 1;
 }
 
 static int active_source_contains(ctool_job_t *job, const char *path_text,
@@ -11451,13 +11512,16 @@ static int validate_narrow_value_object(
 #define NARROW_ORACLE_EBP 5u
 #define NARROW_ORACLE_ESI 6u
 #define NARROW_ORACLE_EDI 7u
+#define FLOATING_ORACLE_X87_DEPTH 8u
 
 typedef struct {
   ctool_u32 registers[8];
   ctool_u8 memory[NARROW_ORACLE_MEMORY_SIZE];
-  ctool_u64 x87_bits;
-  ctool_u16 x87_width_bits;
-  ctool_bool x87_valid;
+  long double x87_values[FLOATING_ORACLE_X87_DEPTH];
+  ctool_u64 x87_bits[FLOATING_ORACLE_X87_DEPTH];
+  ctool_u16 x87_width_bits[FLOATING_ORACLE_X87_DEPTH];
+  ctool_bool x87_bits_valid[FLOATING_ORACLE_X87_DEPTH];
+  ctool_u8 x87_depth;
 } narrow_oracle_machine_t;
 
 typedef struct {
@@ -17893,10 +17957,65 @@ static int floating_oracle_step(
   ctool_u32 low;
   ctool_u32 high = 0u;
   ctool_u64 stored_bits;
+  ctool_u8 index;
   if (machine == NULL || instruction == NULL || handled == NULL) {
     return 0;
   }
   *handled = CTOOL_FALSE;
+  if (instruction->mnemonic == CTOOL_X86_MN_FCHS) {
+    if (instruction->operand_count != 0u || machine->x87_depth == 0u) {
+      return 0;
+    }
+    machine->x87_values[0] = -machine->x87_values[0];
+    if (machine->x87_bits_valid[0] == CTOOL_TRUE) {
+      if (machine->x87_width_bits[0] == 32u) {
+        machine->x87_bits[0] ^= 0x80000000u;
+      } else if (machine->x87_width_bits[0] == 64u) {
+        machine->x87_bits[0] ^= UINT64_C(0x8000000000000000);
+      } else {
+        return 0;
+      }
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_FADDP ||
+      instruction->mnemonic == CTOOL_X86_MN_FSUBP ||
+      instruction->mnemonic == CTOOL_X86_MN_FMULP ||
+      instruction->mnemonic == CTOOL_X86_MN_FDIVP) {
+    long double result;
+    if (instruction->operand_count != 1u ||
+        instruction->operands[0].kind != CTOOL_X86_OPERAND_REGISTER ||
+        instruction->operands[0].as.reg.class_id != CTOOL_X86_REG_X87 ||
+        instruction->operands[0].as.reg.index != 1u ||
+        machine->x87_depth < 2u) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_FADDP) {
+      result = machine->x87_values[1] + machine->x87_values[0];
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FSUBP) {
+      result = machine->x87_values[1] - machine->x87_values[0];
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FMULP) {
+      result = machine->x87_values[1] * machine->x87_values[0];
+    } else {
+      result = machine->x87_values[1] / machine->x87_values[0];
+    }
+    machine->x87_values[1] = result;
+    machine->x87_bits[1] = 0u;
+    machine->x87_width_bits[1] = 0u;
+    machine->x87_bits_valid[1] = CTOOL_FALSE;
+    for (index = 0u; index + 1u < machine->x87_depth; index++) {
+      machine->x87_values[index] = machine->x87_values[index + 1u];
+      machine->x87_bits[index] = machine->x87_bits[index + 1u];
+      machine->x87_width_bits[index] =
+          machine->x87_width_bits[index + 1u];
+      machine->x87_bits_valid[index] =
+          machine->x87_bits_valid[index + 1u];
+    }
+    machine->x87_depth--;
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
   if (instruction->mnemonic != CTOOL_X86_MN_FLD &&
       instruction->mnemonic != CTOOL_X86_MN_FSTP) {
     return 1;
@@ -17911,26 +18030,54 @@ static int floating_oracle_step(
     return 0;
   }
   if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
-    if (!narrow_oracle_read_memory(machine, address, 32u, &low) ||
+    float narrow_value;
+    double wide_value;
+    if (machine->x87_depth >= FLOATING_ORACLE_X87_DEPTH ||
+        !narrow_oracle_read_memory(machine, address, 32u, &low) ||
         (operand->width_bits == 64u &&
          !narrow_oracle_read_memory(machine, address + 4u, 32u, &high))) {
       return 0;
     }
-    machine->x87_bits = (ctool_u64)low | ((ctool_u64)high << 32u);
-    machine->x87_width_bits = operand->width_bits;
-    machine->x87_valid = CTOOL_TRUE;
+    for (index = machine->x87_depth; index != 0u; index--) {
+      machine->x87_values[index] = machine->x87_values[index - 1u];
+      machine->x87_bits[index] = machine->x87_bits[index - 1u];
+      machine->x87_width_bits[index] =
+          machine->x87_width_bits[index - 1u];
+      machine->x87_bits_valid[index] =
+          machine->x87_bits_valid[index - 1u];
+    }
+    stored_bits = (ctool_u64)low | ((ctool_u64)high << 32u);
+    machine->x87_bits[0] = stored_bits;
+    machine->x87_width_bits[0] = operand->width_bits;
+    machine->x87_bits_valid[0] = CTOOL_TRUE;
+    if (operand->width_bits == 32u) {
+      (void)memcpy(&narrow_value, &low, sizeof(narrow_value));
+      machine->x87_values[0] = (long double)narrow_value;
+    } else {
+      (void)memcpy(&wide_value, &stored_bits, sizeof(wide_value));
+      machine->x87_values[0] = (long double)wide_value;
+    }
+    machine->x87_depth++;
   } else {
-    if (machine->x87_valid == CTOOL_FALSE) {
+    if (machine->x87_depth == 0u) {
       return 0;
     }
-    if (machine->x87_width_bits == operand->width_bits) {
-      stored_bits = machine->x87_bits;
-    } else if (machine->x87_width_bits == 32u &&
+    if (machine->x87_bits_valid[0] == CTOOL_TRUE &&
+        machine->x87_width_bits[0] == operand->width_bits) {
+      stored_bits = machine->x87_bits[0];
+    } else if (machine->x87_bits_valid[0] == CTOOL_TRUE &&
+               machine->x87_width_bits[0] == 32u &&
                operand->width_bits == 64u) {
       stored_bits = floating_oracle_widen_float(
-          (ctool_u32)machine->x87_bits);
+          (ctool_u32)machine->x87_bits[0]);
+    } else if (operand->width_bits == 32u) {
+      float rounded = (float)machine->x87_values[0];
+      ctool_u32 rounded_bits;
+      (void)memcpy(&rounded_bits, &rounded, sizeof(rounded_bits));
+      stored_bits = rounded_bits;
     } else {
-      return 0;
+      double rounded = (double)machine->x87_values[0];
+      (void)memcpy(&stored_bits, &rounded, sizeof(stored_bits));
     }
     if (!narrow_oracle_write_memory(
             machine, address, 32u, (ctool_u32)stored_bits) ||
@@ -17940,9 +18087,15 @@ static int floating_oracle_step(
              (ctool_u32)(stored_bits >> 32u)))) {
       return 0;
     }
-    machine->x87_valid = CTOOL_FALSE;
-    machine->x87_width_bits = 0u;
-    machine->x87_bits = 0u;
+    for (index = 0u; index + 1u < machine->x87_depth; index++) {
+      machine->x87_values[index] = machine->x87_values[index + 1u];
+      machine->x87_bits[index] = machine->x87_bits[index + 1u];
+      machine->x87_width_bits[index] =
+          machine->x87_width_bits[index + 1u];
+      machine->x87_bits_valid[index] =
+          machine->x87_bits_valid[index + 1u];
+    }
+    machine->x87_depth--;
   }
   *handled = CTOOL_TRUE;
   return 1;
@@ -18162,6 +18315,7 @@ static int wide_oracle_execute_arguments(
   }
   if (returned == CTOOL_FALSE || call_depth != 0u ||
       step_count >= WIDE_ORACLE_STEP_LIMIT ||
+      machine.x87_depth != 0u ||
       machine.registers[NARROW_ORACLE_ESP] != WIDE_ORACLE_INITIAL_ESP + 4u ||
       machine.registers[NARROW_ORACLE_EBP] != 64u ||
       machine.registers[NARROW_ORACLE_EBX] != WIDE_ORACLE_EBX_SENTINEL ||
@@ -21744,6 +21898,613 @@ static int validate_floating_transport_object(
   return 1;
 }
 
+static int floating_result_stack_reserve(
+    const ctool_x86_instruction_t *instruction) {
+  return instruction != NULL &&
+                 instruction->mnemonic == CTOOL_X86_MN_SUB &&
+                 instruction->operand_count == 2u &&
+                 instruction->operands[0].kind ==
+                     CTOOL_X86_OPERAND_REGISTER &&
+                 instruction->operands[0].as.reg.class_id ==
+                     CTOOL_X86_REG_GPR32 &&
+                 instruction->operands[0].as.reg.index ==
+                     NARROW_ORACLE_ESP &&
+                 instruction->operands[1].kind ==
+                     CTOOL_X86_OPERAND_IMMEDIATE &&
+                 instruction->operands[1].as.value.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 instruction->operands[1].as.value.bits == 4u
+             ? 1
+             : 0;
+}
+
+static int validate_floating_arithmetic_x87_inventory(
+    ctool_job_t *job, const ctool_elf32_section_t *text) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 fchs_count = 0u;
+  ctool_u32 faddp_count = 0u;
+  ctool_u32 fsubp_count = 0u;
+  ctool_u32 fmulp_count = 0u;
+  ctool_u32 fdivp_count = 0u;
+  ctool_u32 float_result_spills = 0u;
+  ctool_u32 double_result_spills = 0u;
+  ctool_bool result_pending = CTOOL_FALSE;
+  ctool_bool reserve_seen = CTOOL_FALSE;
+  if (job == NULL || text == NULL || text->contents.data == NULL) {
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor),
+        0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "floating arithmetic decode stopped at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (result_pending == CTOOL_TRUE) {
+      if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+          instruction->operand_count == 1u &&
+          instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+          ((reserve_seen == CTOOL_TRUE &&
+            instruction->operands[0].width_bits == 32u) ||
+           (reserve_seen == CTOOL_FALSE &&
+            instruction->operands[0].width_bits == 64u))) {
+        if (reserve_seen == CTOOL_TRUE) {
+          float_result_spills++;
+        } else {
+          double_result_spills++;
+        }
+        result_pending = CTOOL_FALSE;
+        reserve_seen = CTOOL_FALSE;
+        cursor += decoded.consumed;
+        continue;
+      }
+      if (reserve_seen == CTOOL_FALSE &&
+          floating_result_stack_reserve(instruction)) {
+        reserve_seen = CTOOL_TRUE;
+        cursor += decoded.consumed;
+        continue;
+      }
+      (void)fprintf(stderr,
+                    "floating result was not spilled immediately at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_FCHS) {
+      if (instruction->operand_count != 0u) {
+        return 0;
+      }
+      fchs_count++;
+      result_pending = CTOOL_TRUE;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FADDP ||
+               instruction->mnemonic == CTOOL_X86_MN_FSUBP ||
+               instruction->mnemonic == CTOOL_X86_MN_FMULP ||
+               instruction->mnemonic == CTOOL_X86_MN_FDIVP) {
+      if (instruction->operand_count != 1u ||
+          instruction->operands[0].kind !=
+              CTOOL_X86_OPERAND_REGISTER ||
+          instruction->operands[0].as.reg.class_id !=
+              CTOOL_X86_REG_X87 ||
+          instruction->operands[0].as.reg.index != 1u) {
+        (void)fprintf(stderr,
+                      "floating pop arithmetic does not target ST1\n");
+        return 0;
+      }
+      if (instruction->mnemonic == CTOOL_X86_MN_FADDP) {
+        faddp_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSUBP) {
+        fsubp_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FMULP) {
+        fmulp_count++;
+      } else {
+        fdivp_count++;
+      }
+      result_pending = CTOOL_TRUE;
+    }
+    cursor += decoded.consumed;
+  }
+  if (result_pending == CTOOL_TRUE || fchs_count != 2u ||
+      faddp_count != 6u || fsubp_count != 4u || fmulp_count != 4u ||
+      fdivp_count != 3u || float_result_spills != 9u ||
+      double_result_spills != 10u) {
+    (void)fprintf(
+        stderr,
+        "floating arithmetic x87 inventory: chs=%u add=%u sub=%u "
+        "mul=%u div=%u spills=%u/%u\n",
+        (unsigned int)fchs_count, (unsigned int)faddp_count,
+        (unsigned int)fsubp_count, (unsigned int)fmulp_count,
+        (unsigned int)fdivp_count, (unsigned int)float_result_spills,
+        (unsigned int)double_result_spills);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_double_snapshot_offsets(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, const char *symbol_name,
+    ctool_u32 expected_count) {
+  const ctool_elf32_symbol_t *symbol = find_symbol(object, symbol_name);
+  ctool_i32 offsets[8];
+  ctool_u32 offset_count = 0u;
+  ctool_u32 cursor = 0u;
+  if (!wide_function_symbol_is_valid(object, text, symbol) ||
+      expected_count >
+          (ctool_u32)(sizeof(offsets) / sizeof(offsets[0]))) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_status_t status;
+    ctool_u32 previous;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(text->contents.data + symbol->value + cursor,
+                    symbol->size - cursor),
+        0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+        instruction->operand_count == 1u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+        instruction->operands[0].width_bits == 64u &&
+        instruction->operands[0].as.memory.base.class_id ==
+            CTOOL_X86_REG_GPR32 &&
+        instruction->operands[0].as.memory.base.index ==
+            NARROW_ORACLE_EBP &&
+        instruction->operands[0].as.memory.displacement.kind ==
+            CTOOL_X86_VALUE_CONSTANT &&
+        (ctool_i32)instruction->operands[0].as.memory.displacement.bits <
+            0) {
+      ctool_i32 offset =
+          (ctool_i32)instruction->operands[0].as.memory.displacement.bits;
+      if (offset_count >=
+          (ctool_u32)(sizeof(offsets) / sizeof(offsets[0]))) {
+        return 0;
+      }
+      for (previous = 0u; previous < offset_count; previous++) {
+        if (offsets[previous] == offset) {
+          (void)fprintf(stderr,
+                        "%s reuses a double snapshot offset\n",
+                        symbol_name);
+          return 0;
+        }
+      }
+      offsets[offset_count++] = offset;
+    }
+    cursor += decoded.consumed;
+  }
+  if (offset_count != expected_count) {
+    (void)fprintf(stderr, "%s has %u double snapshots, expected %u\n",
+                  symbol_name, (unsigned int)offset_count,
+                  (unsigned int)expected_count);
+    return 0;
+  }
+  return 1;
+}
+
+typedef struct {
+  const char *symbol_name;
+  ctool_u32 arguments[6];
+  ctool_u32 argument_count;
+  ctool_u32 expected;
+  const char *context;
+} floating_arithmetic_case_t;
+
+static int validate_floating_arithmetic_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *function_names[] = {
+      "float_bits", "double_bits", "float_identity", "double_identity",
+      "float_positive_bits", "float_negative_bits", "float_add_bits",
+      "float_subtract_bits", "float_multiply_bits", "float_divide_bits",
+      "float_nested_bits", "float_call_add_bits",
+      "float_positive_call_bits", "float_divide_is_nan",
+      "double_positive_bits", "double_negative_bits", "double_add_bits",
+      "double_subtract_bits", "double_multiply_bits",
+      "double_divide_bits", "double_nested_bits", "double_call_add_bits",
+      "double_positive_call_bits", "double_divide_is_nan"};
+  static const floating_arithmetic_case_t float_cases[] = {
+      {"float_positive_bits", {0x80000000u}, 1u, 0x80000000u,
+       "float unary plus preserves negative zero"},
+      {"float_negative_bits", {0x00000000u}, 1u, 0x80000000u,
+       "float unary minus produces negative zero"},
+      {"float_negative_bits", {0x80000000u}, 1u, 0x00000000u,
+       "float unary minus flips negative zero"},
+      {"float_positive_call_bits", {0x80000000u}, 1u, 0x80000000u,
+       "float unary plus preserves a call result"},
+      {"float_add_bits", {0x3f800000u, 0x40000000u}, 2u, 0x40400000u,
+       "float addition"},
+      {"float_add_bits", {0x80000000u, 0x80000000u}, 2u, 0x80000000u,
+       "float signed-zero addition"},
+      {"float_add_bits", {0x3f800000u, 0x7f800000u}, 2u, 0x7f800000u,
+       "float infinity addition"},
+      {"float_subtract_bits", {0x40a00000u, 0x40000000u}, 2u,
+       0x40400000u, "float left-minus-right order"},
+      {"float_subtract_bits", {0x3f800000u, 0x7f800000u}, 2u,
+       0xff800000u, "float infinity subtraction"},
+      {"float_subtract_bits", {0x80000000u, 0x00000000u}, 2u,
+       0x80000000u, "float signed-zero subtraction"},
+      {"float_multiply_bits", {0x40400000u, 0x40000000u}, 2u,
+       0x40c00000u, "float multiplication"},
+      {"float_multiply_bits", {0xc0000000u, 0x7f800000u}, 2u,
+       0xff800000u, "float infinity multiplication"},
+      {"float_multiply_bits", {0x80000000u, 0xc0000000u}, 2u,
+       0x00000000u, "float signed-zero multiplication"},
+      {"float_divide_bits", {0x40c00000u, 0x40000000u}, 2u,
+       0x40400000u, "float left-divided-by-right order"},
+      {"float_divide_bits", {0x7f800000u, 0xc0000000u}, 2u,
+       0xff800000u, "float infinity division"},
+      {"float_divide_bits", {0x80000000u, 0xc0000000u}, 2u,
+       0x00000000u, "float signed-zero division"},
+      {"float_divide_bits", {0x3f800000u, 0x00000000u}, 2u,
+       0x7f800000u, "float division by zero"},
+      {"float_divide_is_nan", {0x7f800000u, 0x7f800000u}, 2u, 1u,
+       "float invalid division produces NaN"},
+      {"float_nested_bits",
+       {0x40800000u, 0x40000000u, 0x3f800000u}, 3u, 0x41900000u,
+       "float nested operands stay intact"},
+      {"float_call_add_bits", {0x3fc00000u, 0x40200000u}, 2u,
+       0x40800000u, "float call-produced operands stay intact"}};
+  static const floating_arithmetic_case_t double_cases[] = {
+      {"double_positive_bits", {0u, 0x80000000u}, 2u, 0x80000000u,
+       "double unary plus preserves negative zero"},
+      {"double_negative_bits", {0u, 0u}, 2u, 0x80000000u,
+       "double unary minus produces negative zero"},
+      {"double_negative_bits", {0u, 0x80000000u}, 2u, 0u,
+       "double unary minus flips negative zero"},
+      {"double_positive_call_bits", {0u, 0x80000000u}, 2u,
+       0x80000000u, "double unary plus preserves a call result"},
+      {"double_add_bits", {1u, 0x3ff00000u, 0u, 0u}, 4u,
+       0x3ff00001u, "double addition preserves low mantissa bits"},
+      {"double_add_bits", {0u, 0x80000000u, 0u, 0x80000000u}, 4u,
+       0x80000000u, "double signed-zero addition"},
+      {"double_add_bits", {0u, 0x3ff00000u, 0u, 0x7ff00000u}, 4u,
+       0x7ff00000u, "double infinity addition"},
+      {"double_subtract_bits",
+       {0u, 0x40140000u, 0u, 0x40000000u}, 4u, 0x40080000u,
+       "double left-minus-right order"},
+      {"double_subtract_bits",
+       {0u, 0x3ff00000u, 0u, 0x7ff00000u}, 4u, 0xfff00000u,
+       "double infinity subtraction"},
+      {"double_subtract_bits",
+       {0u, 0x80000000u, 0u, 0u}, 4u, 0x80000000u,
+       "double signed-zero subtraction"},
+      {"double_multiply_bits",
+       {0u, 0x40080000u, 0u, 0x40000000u}, 4u, 0x40180000u,
+       "double multiplication"},
+      {"double_multiply_bits",
+       {0u, 0xc0000000u, 0u, 0x7ff00000u}, 4u, 0xfff00000u,
+       "double infinity multiplication"},
+      {"double_multiply_bits",
+       {0u, 0x80000000u, 0u, 0xc0000000u}, 4u, 0u,
+       "double signed-zero multiplication"},
+      {"double_divide_bits",
+       {0u, 0x40180000u, 0u, 0x40000000u}, 4u, 0x40080000u,
+       "double left-divided-by-right order"},
+      {"double_divide_bits",
+       {0u, 0x7ff00000u, 0u, 0xc0000000u}, 4u, 0xfff00000u,
+       "double infinity division"},
+      {"double_divide_bits",
+       {0u, 0x80000000u, 0u, 0xc0000000u}, 4u, 0u,
+       "double signed-zero division"},
+      {"double_divide_bits",
+       {0u, 0x3ff00000u, 0u, 0u}, 4u, 0x7ff00000u,
+       "double division by zero"},
+      {"double_divide_is_nan",
+       {0u, 0x7ff00000u, 0u, 0x7ff00000u}, 4u, 1u,
+       "double invalid division produces NaN"},
+      {"double_nested_bits",
+       {0u, 0x40100000u, 0u, 0x40000000u, 0u, 0x3ff00000u}, 6u,
+       0x40320000u, "double nested operands stay intact"},
+      {"double_call_add_bits",
+       {0u, 0x3ff80000u, 0u, 0x40040000u}, 4u, 0x40100000u,
+       "double call-produced operands stay intact"}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 2766u ||
+      structure_text_fingerprint(text->contents) != 0x48bbf0cfu ||
+      (bss != NULL && bss->size != 0u) || object->symbol_count != 25u ||
+      object->relocation_count != 25u) {
+    (void)fprintf(
+        stderr,
+        "floating arithmetic inventory: text=%u fingerprint=%08x "
+        "bss=%u symbols=%u relocations=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        (unsigned int)object->symbol_count,
+        (unsigned int)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_names) /
+                           sizeof(function_names[0]));
+       index++) {
+    if (!wide_function_symbol_is_valid(
+            object, text, find_symbol(object, function_names[index]))) {
+      (void)fprintf(stderr, "missing floating arithmetic symbol %s\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  if (!validate_floating_arithmetic_x87_inventory(job, text) ||
+      !validate_double_snapshot_offsets(
+          job, object, text, "double_nested_bits", 3u) ||
+      !validate_double_snapshot_offsets(
+          job, object, text, "double_call_add_bits", 3u) ||
+      !validate_double_snapshot_offsets(
+          job, object, text, "double_positive_call_bits", 1u)) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(float_cases) / sizeof(float_cases[0]));
+       index++) {
+    if (!expect_wide_oracle_low_result(
+            job, object, text, float_cases[index].symbol_name,
+            float_cases[index].arguments,
+            float_cases[index].argument_count, float_cases[index].expected,
+            float_cases[index].context)) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(double_cases) / sizeof(double_cases[0]));
+       index++) {
+    if (!expect_wide_oracle_low_result(
+            job, object, text, double_cases[index].symbol_name,
+            double_cases[index].arguments,
+            double_cases[index].argument_count,
+            double_cases[index].expected, double_cases[index].context)) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_floating_arithmetic_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "typedef union { float value; u32 bits; } float_box;\n"
+      "typedef union {\n"
+      "  double value;\n"
+      "  struct { u32 low; u32 high; } words;\n"
+      "} double_box;\n"
+      "u32 float_bits(float value) {\n"
+      "  float_box box;\n"
+      "  box.value = value;\n"
+      "  return box.bits;\n"
+      "}\n"
+      "u32 double_bits(double value) {\n"
+      "  double_box box;\n"
+      "  box.value = value;\n"
+      "  return box.words.low ^ box.words.high;\n"
+      "}\n"
+      "float float_identity(float value) { return value; }\n"
+      "double double_identity(double value) { return value; }\n"
+      "u32 float_positive_bits(float value) { return float_bits(+value); }\n"
+      "u32 float_negative_bits(float value) { return float_bits(-value); }\n"
+      "u32 float_add_bits(float left, float right) {\n"
+      "  return float_bits(left + right);\n"
+      "}\n"
+      "u32 float_subtract_bits(float left, float right) {\n"
+      "  return float_bits(left - right);\n"
+      "}\n"
+      "u32 float_multiply_bits(float left, float right) {\n"
+      "  return float_bits(left * right);\n"
+      "}\n"
+      "u32 float_divide_bits(float left, float right) {\n"
+      "  return float_bits(left / right);\n"
+      "}\n"
+      "u32 float_nested_bits(float left, float right, float third) {\n"
+      "  return float_bits((left + right) * (left - third));\n"
+      "}\n"
+      "u32 float_call_add_bits(float left, float right) {\n"
+      "  return float_bits(float_identity(left) + float_identity(right));\n"
+      "}\n"
+      "u32 float_positive_call_bits(float value) {\n"
+      "  return float_bits(+float_identity(value));\n"
+      "}\n"
+      "u32 float_divide_is_nan(float left, float right) {\n"
+      "  u32 bits = float_divide_bits(left, right);\n"
+      "  return (bits & 0x7f800000u) == 0x7f800000u &&\n"
+      "         (bits & 0x007fffffu) != 0u;\n"
+      "}\n"
+      "u32 double_positive_bits(double value) { return double_bits(+value); }\n"
+      "u32 double_negative_bits(double value) { return double_bits(-value); }\n"
+      "u32 double_add_bits(double left, double right) {\n"
+      "  return double_bits(left + right);\n"
+      "}\n"
+      "u32 double_subtract_bits(double left, double right) {\n"
+      "  return double_bits(left - right);\n"
+      "}\n"
+      "u32 double_multiply_bits(double left, double right) {\n"
+      "  return double_bits(left * right);\n"
+      "}\n"
+      "u32 double_divide_bits(double left, double right) {\n"
+      "  return double_bits(left / right);\n"
+      "}\n"
+      "u32 double_nested_bits(double left, double right, double third) {\n"
+      "  return double_bits((left + right) * (left - third));\n"
+      "}\n"
+      "u32 double_call_add_bits(double left, double right) {\n"
+      "  return double_bits(double_identity(left) + double_identity(right));\n"
+      "}\n"
+      "u32 double_positive_call_bits(double value) {\n"
+      "  return double_bits(+double_identity(value));\n"
+      "}\n"
+      "u32 double_divide_is_nan(double left, double right) {\n"
+      "  double_box box;\n"
+      "  box.value = left / right;\n"
+      "  return (box.words.high & 0x7ff00000u) == 0x7ff00000u &&\n"
+      "         ((box.words.high & 0x000fffffu) != 0u ||\n"
+      "          box.words.low != 0u);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 floating_binary = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !floating_arithmetic_active_source_is_unchanged(job) ||
+      !parse_source_mode(job, "/floating-arithmetic.c", source,
+                         CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 24u) {
+    (void)fprintf(stderr, "floating arithmetic object setup failed\n");
+    goto cleanup;
+  }
+  if (unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+        expression->type < unit.graph.type_count &&
+        unit.graph.types[expression->type].kind == CTOOL_C_TYPE_FLOAT) {
+      floating_binary = index;
+      break;
+    }
+  }
+  if (floating_binary == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "floating arithmetic mutation fixture differs\n");
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[floating_binary].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_REMAINDER;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "floating arithmetic buffer") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "floating arithmetic object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating arithmetic object") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "floating remainder mutation at object boundary")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "floating arithmetic objects are not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          NULL, "limited floating arithmetic object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered floating arithmetic object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "floating arithmetic recovery changed the object\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/floating-arithmetic.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read floating arithmetic object") ||
+      !validate_floating_arithmetic_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-arithmetic: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_floating_transport_object(const char *host_root) {
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
@@ -22735,6 +23496,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-transport") == 0) {
     return run_floating_transport_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-arithmetic") == 0) {
+    return run_floating_arithmetic_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     if (run_wide_multiplication_object(argv[2]) != 0) {
       return 1;
@@ -22766,6 +23530,7 @@ int main(int argc, char **argv) {
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
+                "floating-arithmetic|"
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations "
                 "HOST_ROOT\n");

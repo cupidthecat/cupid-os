@@ -384,6 +384,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "floating-transport: ok\n")
 
+    def test_same_kind_floating_arithmetic_lowers_to_typed_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-arithmetic", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-arithmetic: ok\n")
+
     def test_old_style_empty_functions_lower_with_zero_parameters(self):
         result = subprocess.run(
             [

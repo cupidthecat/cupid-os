@@ -8364,6 +8364,169 @@ static ctool_status_t cfront_apply_usual_integer_conversions(
       context, CTOOL_C_CONVERSION_USUAL_ARITHMETIC, *type_out, right);
 }
 
+static ctool_status_t cfront_prepare_floating_unary(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation,
+    cfront_expression_value_t *value, ctool_bool *handled_out) {
+  ctool_c_type_node_t node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_status_t status = cfront_underlying_type(
+      context, value->type, &base, &qualifiers, &node);
+  (void)base;
+  *handled_out = CTOOL_FALSE;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (node.kind != CTOOL_C_TYPE_FLOAT &&
+      node.kind != CTOOL_C_TYPE_DOUBLE &&
+      node.kind != CTOOL_C_TYPE_LONG_DOUBLE) {
+    return CTOOL_OK;
+  }
+  *handled_out = CTOOL_TRUE;
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_BITWISE_NOT) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "bitwise complement requires an integer operand");
+  }
+  if (operation != CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        operator_token, "floating unary operator metadata is invalid");
+  }
+  if (node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "long double arithmetic is outside this expression slice");
+  }
+  if (((qualifiers | node.qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "atomic floating arithmetic is outside this expression slice");
+  }
+  return cfront_apply_default_conversion(context, value);
+}
+
+static ctool_status_t cfront_prepare_floating_binary(
+    cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
+    ctool_c_expression_operator_t operation, ctool_bool comparison,
+    cfront_expression_value_t *left, cfront_expression_value_t *right,
+    ctool_u32 *type_out, ctool_bool *handled_out) {
+  ctool_c_type_node_t left_node;
+  ctool_c_type_node_t right_node;
+  ctool_u32 left_base;
+  ctool_u32 right_base;
+  ctool_u32 left_qualifiers;
+  ctool_u32 right_qualifiers;
+  ctool_bool left_floating;
+  ctool_bool right_floating;
+  ctool_u32 target_type;
+  ctool_status_t status = cfront_underlying_type(
+      context, left->type, &left_base, &left_qualifiers, &left_node);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, right->type, &right_base, &right_qualifiers, &right_node);
+  }
+  (void)left_base;
+  (void)right_base;
+  *handled_out = CTOOL_FALSE;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  left_floating =
+      left_node.kind == CTOOL_C_TYPE_FLOAT ||
+              left_node.kind == CTOOL_C_TYPE_DOUBLE ||
+              left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  right_floating =
+      right_node.kind == CTOOL_C_TYPE_FLOAT ||
+              right_node.kind == CTOOL_C_TYPE_DOUBLE ||
+              right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  if (left_floating == CTOOL_FALSE && right_floating == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  *handled_out = CTOOL_TRUE;
+  if (comparison == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "floating comparisons are outside this expression slice");
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "remainder requires integer operands");
+  }
+  if (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
+      operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token, "bitwise operators require integer operands");
+  }
+  if (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+      right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "long double arithmetic is outside this expression slice");
+  }
+  if ((left_floating == CTOOL_TRUE &&
+       ((left_qualifiers | left_node.qualifiers) &
+        CTOOL_C_QUAL_ATOMIC) != 0u) ||
+      (right_floating == CTOOL_TRUE &&
+       ((right_qualifiers | right_node.qualifiers) &
+        CTOOL_C_QUAL_ATOMIC) != 0u)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "atomic floating arithmetic is outside this expression slice");
+  }
+  if (left_floating != right_floating) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "integer and floating arithmetic conversions are outside this expression slice");
+  }
+  if (left_node.kind != right_node.kind) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "mixed floating arithmetic is outside this expression slice");
+  }
+  status = cfront_apply_default_conversion(context, left);
+  if (status == CTOOL_OK) {
+    status = cfront_apply_default_conversion(context, right);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_scalar_type(context, left_node.kind, operator_token,
+                                &target_type);
+  }
+  if (status != CTOOL_OK) {
+    return status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+                   status == CTOOL_ERR_NO_MEMORY
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  status = cfront_append_integer_conversion_if_needed(
+      context, CTOOL_C_CONVERSION_USUAL_ARITHMETIC, target_type, left);
+  if (status == CTOOL_OK) {
+    status = cfront_append_integer_conversion_if_needed(
+        context, CTOOL_C_CONVERSION_USUAL_ARITHMETIC, target_type, right);
+  }
+  if (status == CTOOL_OK) {
+    *type_out = target_type;
+  }
+  return status;
+}
+
 typedef enum {
   CFRONT_SCALAR_VALUE_INTEGER = 0,
   CFRONT_SCALAR_VALUE_POINTER,
@@ -10212,7 +10375,12 @@ static ctool_status_t cfront_parse_body_unary(
              operation == CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
     status = cfront_apply_dereference_operator(context, token, value_out);
   } else if (status == CTOOL_OK) {
-    status = cfront_apply_integer_promotion(context, token, value_out);
+    ctool_bool floating = CTOOL_FALSE;
+    status = cfront_prepare_floating_unary(
+        context, token, operation, value_out, &floating);
+    if (status == CTOOL_OK && floating == CTOOL_FALSE) {
+      status = cfront_apply_integer_promotion(context, token, value_out);
+    }
   }
   if (status == CTOOL_OK &&
       operation != CTOOL_C_EXPRESSION_OPERATOR_ADDRESS &&
@@ -10283,6 +10451,7 @@ static ctool_status_t cfront_reduce_body_binary(
   cfront_expression_value_t right;
   ctool_u32 result_type = CTOOL_C_TYPE_NONE;
   ctool_bool pointer_operation = CTOOL_FALSE;
+  ctool_bool floating_operation = CTOOL_FALSE;
   ctool_status_t status;
   cfront_zero(&pending, (ctool_u32)sizeof(pending));
   if (values->count < 2u || operators->count == 0u) {
@@ -10310,19 +10479,28 @@ static ctool_status_t cfront_reduce_body_binary(
   }
   if (pending.descriptor.semantics == CFRONT_BODY_BINARY_ARITHMETIC ||
       pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
-    if (pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
+    status = cfront_prepare_floating_binary(
+        context, pending.token, pending.descriptor.operation,
+        pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON
+            ? CTOOL_TRUE
+            : CTOOL_FALSE,
+        &left, &right, &result_type, &floating_operation);
+    if (status == CTOOL_OK && floating_operation == CTOOL_FALSE &&
+        pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
       status = cfront_prepare_pointer_comparison(
           context, pending.token, pending.descriptor.operation, &left,
           &right, &pointer_operation);
-    } else if (pending.descriptor.operation ==
+    } else if (status == CTOOL_OK && floating_operation == CTOOL_FALSE &&
+               (pending.descriptor.operation ==
                    CTOOL_C_EXPRESSION_OPERATOR_ADD ||
                pending.descriptor.operation ==
-                   CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+                   CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT)) {
       status = cfront_prepare_pointer_additive(
           context, pending.token, pending.descriptor.operation, &left,
           &right, &pointer_operation, &result_type);
     }
-    if (status == CTOOL_OK && pointer_operation == CTOOL_FALSE) {
+    if (status == CTOOL_OK && pointer_operation == CTOOL_FALSE &&
+        floating_operation == CTOOL_FALSE) {
       status = cfront_apply_usual_integer_conversions(
           context, pending.token, &left, &right, &result_type);
     }

@@ -6145,3 +6145,43 @@ ADR 0078 records the tagged-frame model and selector cleanup. ADR 0038 now point
 | Boot smoke | PASS | The exact QEMU GUI-terminal run completes in 23 seconds. Its serial log contains `continue outside loop`, the required pass marker, zero reported JIT stack use, and normal JIT completion. |
 
 This change fixes the embedded JIT and AOT compiler already shipped in the OS image. It does not transfer a host-built C object to hosted CupidC and does not remove GCC, Clang, Python, Make, or any native linker dependency. [Issue #31](https://github.com/cupidthecat/cupid-os/issues/31) remains open because its broader private-runtime work is unfinished and it is blocked by issue #30. No issue is ready to close from this increment.
+
+## 2026-07-22: Hosted CupidC evaluates same-kind floating arithmetic
+
+### Decision and active requirement
+
+Hosted CupidC now evaluates unary plus and minus and binary addition, subtraction, multiplication, and division when both operands are the same non-atomic floating kind. The result keeps that kind. Mixed `float` and `double` expressions and integer and floating conversions remain outside this slice.
+
+Linear IR uses its existing typed `UNARY` and `BINARY` instructions. The i386 emitter loads operands into x87, uses `FCHS`, `FADDP`, `FSUBP`, `FMULP`, or `FDIVP`, and stores every changed result before the next IR instruction. A `float` result rounds into a fresh four-byte semantic slot. A `double` result receives a fresh private eight-byte snapshot. Subtraction and division load the left operand before the right operand and use the `ST1` operation `ST0` forms. Unary plus keeps the existing immutable value because it changes neither the value nor its type.
+
+The unchanged `libm_tanh_impl` body in `kernel/cpu/libm.c` supplies the active requirement. It calls `libm_exp_impl` twice, then evaluates `(e1 - e2) / (e1 + e2)` with `double` operands. No active C or assembly source was rewritten around the compiler. ADR 0079 records the supported operations, rounding points, operand order, rejected alternatives, and remaining boundary.
+
+Comparisons, truth, conditional expressions, mixed-kind and integer conversions, compound assignments, increment and decrement, remainder, bitwise operations, floating literals, fixed-parameter conversion, explicit floating casts, explicit static floating initializers, `long double`, SIMD, and atomic floating access remain open. No user question was needed because the C result types, the existing private snapshot model, the i386 x87 rules, and the active source expression determine this boundary.
+
+### Contract evidence and corrections
+
+- The frontend contract covers both widths, all six operations, nested expressions, call-produced operands, and useful diagnostics for every adjacent unsupported category.
+- The exact IR fixture has 108 instructions with fingerprint `3BDB49A258F5E7B6`. It checks the typed operation inventory, deterministic repeat lowering, malformed frozen records, constrained storage, rollback, and same-job recovery.
+- The deterministic object has 24 functions and 2,766 bytes of `.text` with fingerprint `48BBF0CF`. It publishes 25 symbols including the null symbol and 25 relocations.
+- Static decoding checks immediate target-width stores and the exact x87 operation inventory. The modeled executor covers asymmetric subtraction and division in both widths, signed zero, infinity, divide by zero, NaN classification, nested expressions, call-produced operands, unary plus across a call, stable snapshots, and restored frame state. This is a decoder-driven proof of the emitted subset, not native x87 execution.
+- The first isolated full repository run passed every semantic contract but rejected six stale lexical inventory locks. The refreshed values came from the generated audit: `sizeof` 3,844, `for` 3,365, `goto` 1,540, `if` 28,916, `else` 3,898, `return` 17,494, and `while` 2,554. The six affected tests then passed independently before the complete rerun.
+- The all-source gate found three stale exact counters that the focused arithmetic modes did not reach. The final hosted source counts are `cupidc_ir.c` 184/5,547/49,059/679/230, `cupidc_emit.c` 161/4,371/37,584/532/271, and `cupidc_frontend.c` 305/12,041/78,092/1,788/1,209 for definitions, statements, expressions, block bindings, and initializers. All nine shared Toolchain translation units parse completely.
+
+The active graph still contains 688 sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. The `toolchain_contract` cohort has 91,128 checked lines, and `toolchain_core` has 55,521. The canonical active-source digest is `40310d6a71fee52d0c2551c319a512829df0f8780c9203469db78be72f6e8d2f`. The complete audit JSON has SHA-256 `079fc12d8e5eae95405aa60f132f0cf841e76a6485808c7ae3520bd120c05571`.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused public modules | PASS | The frontend, IR, and object arithmetic tests pass independently. The final four-layer rerun, including the CupidDis CLI neighbor, passes in 59.131 seconds. |
+| Strict hosted builds | PASS | Fresh Clang and GCC builds pass the arithmetic selectors and neighboring floating and variadic modes in 21.531 and 32.989 seconds. All 31 CupidC object modes pass in 0.776 seconds. |
+| Sanitizers and analysis | PASS | Clang AddressSanitizer and UndefinedBehaviorSanitizer pass the runtime suite after its installed runtime directory is added to `PATH`. Clang static analysis reports no finding in the frontend, IR, or emitter. |
+| Active-source audit | PASS | `make bootstrap-audit` regenerates the final graph, and the full suite reproduces it with `--check`. |
+| Inventory correction | PASS | All six refreshed drift gates pass in 136.426 seconds. |
+| Full repository gate | PASS | The isolated floating-only candidate passes all 367 tests in 554.989 seconds with one expected optional skip. Make returns in 598.9 seconds. |
+| Production image | PASS | `make all` rebuilds and stages the complete image in 27.9 seconds. |
+| Boot smoke | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 19.7 seconds with the established 0.60-second key timing. |
+
+This remains hosted bootstrap evidence. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. No production object, build transform, boot path, source owner, or host dependency moved. The root README and context, bootstrap records, generated audit, wiki, CTXT manual, and ADR now describe the capability and its limits. `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for the rest of floating semantics, the remaining C and ABI surface, production integration, staged self-hosting, and the fixed-point bootstrap. No issue is ready to close from this increment.
