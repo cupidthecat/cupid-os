@@ -183,10 +183,13 @@ on raw and ELF32 assembly, disassembly, symbol listing, fixed-address and
 scripted linking, binary and canonical-text wrapping, executable flattening,
 help, and useful failures.
 
-A host C compiler still builds generation zero, the native oracle and contract
-runners, hosted production commands, and normal Cupid OS C objects. Checked
-seeds, direct native Linux and native Windows evidence, fresh-checkout
-bootstrap independence, and production handoff remain open.
+The checked i386 Linux seed includes CupidASM and binds it to the complete
+toolchain build plan. Checked CupidASM assembles stage-two startup, and the
+stage-two assembler produces the byte-identical stage-three startup. See
+[Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
+The native oracle, contract runners, hosted development commands, and most
+normal Cupid OS C objects still use a host compiler. Native Windows tooling and
+the remaining production handoff stay open.
 
 ### Function Example
 

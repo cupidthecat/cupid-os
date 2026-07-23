@@ -17,6 +17,7 @@
 **Compilers**
 - [CupidC Compiler](CupidC-Compiler)
 - [CupidC Language Reference](CupidC-Language-Reference)
+- [Toolchain Bootstrap](Toolchain-Bootstrap)
 - [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library)
 - [CupidASM Assembler](CupidASM-Assembler)
 - [Floating Point](Floating-Point)

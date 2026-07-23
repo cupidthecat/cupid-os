@@ -4,6 +4,7 @@
 # Keep binary fixtures and assets byte-for-byte.
 *.bin binary
 *.bmp binary
+*.elf binary
 *.iso binary
 *.jpeg binary
 *.jpg binary

@@ -928,6 +928,8 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 BOOTSTRAP_AUDIT_BUILDS := --supplemental-build user:all \
 	--supplemental-build toolchain:all
 BOOTSTRAP_CUPIDC_ACTIVE_CASES := toolchain/tests/cupidc_pp_active_cases.inc
+BOOTSTRAP_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
+BOOTSTRAP_SEED_OUTPUT ?= build/bootstrap/checked-seed
 BOOTSTRAP_WINDOWS_BASELINE ?= docs/bootstrap/baselines/windows-amd64.json
 BOOTSTRAP_LINUX_BASELINE ?= docs/bootstrap/baselines/linux-x86_64.json
 BOOTSTRAP_HOST_COMPARISON ?= docs/bootstrap/baselines/windows-linux.json
@@ -944,6 +946,15 @@ test-cupidc-fixed-point: test-toolchain-fixed-point
 test-toolchain-fixed-point:
 	$(PYTHON) -m unittest -v \
 	  tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupid_built_toolchain_reaches_a_full_static_fixed_point
+
+verify-bootstrap-seed:
+	$(PYTHON) tools/bootstrap_toolchain.py verify \
+	  --manifest $(BOOTSTRAP_SEED_MANIFEST)
+
+bootstrap-from-seed: verify-bootstrap-seed
+	$(PYTHON) tools/bootstrap_toolchain.py bootstrap \
+	  --root . --manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --output $(BOOTSTRAP_SEED_OUTPUT)
 
 # NASM is not part of the normal build.  When it is installed, this optional
 # source-parity suite assembles all four active inputs with both assemblers.
@@ -1197,4 +1208,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

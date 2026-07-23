@@ -107,10 +107,18 @@ raw and ELF32 assembly, disassembly, symbol listing, fixed-address and scripted
 linking, binary and canonical-text wrapping, executable flattening, help, and
 useful failures.
 
-A host C compiler still builds generation zero, the native oracle and contract
-runners, hosted production commands, and normal Cupid OS C objects. Checked
-seeds, direct native Linux and native Windows evidence, fresh-checkout
-bootstrap independence, and production handoff remain open.
+The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
+assembler image to the target ABI, source revision, producer lineage, source
+plan, and link order. The bootstrap freezes the verified manifest and binaries
+and includes link.ld in its 40-input source snapshot. Checked CupidASM
+assembles stage-two startup, then the stage-two assembler produces
+byte-identical stage-three startup. The complete seed build also compares all
+19 C objects and five linked tools and runs 21 behavior checks.
+
+make verify-bootstrap-seed validates the files without executing them.
+make bootstrap-from-seed performs the staged build. Windows runs the static
+Linux tools through WSL. Native contract runners, hosted development commands,
+and most normal Cupid OS C objects still use a host compiler.
 
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.

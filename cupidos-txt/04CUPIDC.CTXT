@@ -278,10 +278,20 @@ CupidASM, CupidDis, CupidLD, and CupidObj image matches byte for byte. Both
 stages also agree on all five help paths, ten successful operations, and six
 failure cases.
 
-The native generation, contract runners, hosted production commands, and
-normal Cupid OS C objects still use a host C compiler. Checked seeds, direct
-native Linux and native Windows evidence, fresh-checkout bootstrap
-independence, and production handoff remain open.
+The repository carries those exact five images as a checked i386 Linux seed.
+Its manifest binds their hashes, sizes, target ABI, source revision, producer
+lineage, exact source plan, startup, and five link orders before execution.
+The harness freezes the verified manifest and binaries and captures 40 current
+inputs, including link.ld. The seed producer trio builds stage two from that
+snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,
+and five linked images match byte for byte. Five help checks, ten successful
+operations, and six failure cases pass at both stages.
+
+make verify-bootstrap-seed checks the seed without executing it.
+make bootstrap-from-seed writes both stages and a report under
+build/bootstrap/checked-seed. Linux runs the static tools directly. Windows
+uses WSL. Native contract runners, hosted development commands, and most
+normal Cupid OS C objects still use a host compiler.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

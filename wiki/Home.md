@@ -14,6 +14,7 @@
 | [Shell Commands](Shell-Commands) | Full reference for built-ins and auto-discovered `/bin` / `/home/bin` commands |
 | [CupidScript](CupidScript) | Scripting language guide - variables, loops, functions, examples |
 | [CupidC Compiler](CupidC-Compiler) | HolyC-inspired C compiler - JIT/AOT, inline assembly, kernel bindings |
+| [Toolchain Bootstrap](Toolchain-Bootstrap) | Checked Cupid tools, staged rebuild, provenance, and fixed-point verification |
 | [CupidDoc CTXT](CupidDoc-CTXT) | TempleOS-inspired executable `.ctxt` documents in Notepad, including clickable code, links, trees, and sprite widgets |
 | [CupidASM Assembler](CupidASM-Assembler) | x86-32 assembler - Intel syntax, JIT/AOT, include files, kernel bindings |
 | [CupidC 2D Graphics Library](CupidC-2D-Graphics-Library) | API reference for the software-rendered 2D graphics library |

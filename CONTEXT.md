@@ -117,7 +117,7 @@ A complete Cupid C `struct` carried by value through Linear IR. One abstract sta
 _Avoid_: aggregate scalar, borrowed object address
 
 **Hosted source frontier**:
-The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units and `kernel/lang/as_elf.c`. The complete static i386 profile adds the hosted adapters, driver, runtime, and runtime contract, for 19 strict C11 units plus the GNU-enabled runtime. Complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. A checked seed and production ownership remain outside the frontier.
+The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units and `kernel/lang/as_elf.c`. The complete static i386 profile adds the hosted adapters, driver, runtime, and runtime contract, for 19 strict C11 units plus the GNU-enabled runtime. Complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. The checked i386 Linux seed consumes this frontier, while production ownership remains a separate boundary.
 _Avoid_: self-hosted toolchain, completed source cohort
 
 **Hosted i386 ABI profile**:
@@ -133,7 +133,7 @@ A compiler process compiling unchanged source from its complete implementation. 
 _Avoid_: checked seed, complete self-hosting
 
 **Static i386 Toolchain fixed point**:
-A stage boundary where generation-one CupidC, CupidASM, and CupidLD build complete stage-two images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj, then the stage-two producer trio repeats that build for stage three. The gate compares all 19 C objects, the independently assembled startup objects, and all five linked images across the two stages. Each stage also executes the five tools through real success and failure cases. The recorded proof covers the static i386 Linux ABI through WSL. It is not direct native Linux evidence, a checked-seed bootstrap, native Windows proof, or normal-build ownership transfer.
+A stage boundary where one generation of CupidC, CupidASM, and CupidLD builds complete stage-two images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj, then the stage-two producer trio repeats that build for stage three. The gate compares all 19 C objects, the independently assembled startup objects, and all five linked images across the two stages. Each stage also executes the five tools through real success and failure cases. The same fixed-point relationship is checked from the repository seed on Linux or through WSL. It is not a native Windows proof or normal-build ownership transfer.
 _Avoid_: fresh-checkout bootstrap, native Windows fixed point, production cutover
 
 **Host adapter link tracer**:
@@ -213,6 +213,10 @@ _Avoid_: merely building Cupid OS with Cupid tools
 **Bootstrap seed**:
 A checked-in Cupid Toolchain executable that starts a bootstrap without an external code-generation toolchain.
 _Avoid_: oracle toolchain
+
+**Checked i386 Linux bootstrap seed**:
+The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. A bootstrap freezes the verified manifest and binaries, then the seed producer trio builds stage two from a captured 40-input source snapshot. Stage two builds the byte-identical stage three.
+_Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Bootstrap stage**:
 One toolchain generation produced by the preceding generation during a bootstrap.

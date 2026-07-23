@@ -7176,3 +7176,77 @@ No production owner moved. The normal Cupid OS C objects still use a host C
 compiler. [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25)
 remains open for the rest of the C11 and GNU surface, the remaining floating
 forms, production integration, and normal-build C ownership.
+
+## 2026-07-23: Checked seed starts the static Toolchain bootstrap
+
+### Seed and trust boundary
+
+The repository now carries one checked generation of CupidC, CupidASM,
+CupidDis, CupidLD, and CupidObj under `bootstrap/seeds/i386-linux/`. These are
+the exact static i386 Linux images established by the ADR 0090 fixed point.
+Their manifest records hashes, sizes, target ABI, entry point, source revision,
+producer lineage, the complete 19-source plan, startup, bounded worker count,
+and all five link orders.
+
+Verification checks the complete manifest before execution. Each listed file
+must have the recorded size and SHA-256 value and must be a static i386 ELF32
+`ET_EXEC` image with entry `0x08048000`. An interpreter, dynamic section,
+writable executable load segment, symbolic link, unlisted ELF file, changed
+build plan, unknown manifest field, or changed producer claim is rejected.
+The 19 source names, paths, order, and GNU-mode flags are fixed independently
+of the plan digest, so recomputing that digest cannot substitute an input.
+Duplicate JSON keys, numeric and Boolean type substitutions, and an entry
+address outside file-backed executable bytes are rejected too.
+
+The seed was produced from
+`d5e4ed784c54ea8dad581ac736ee8b62553627d8`. That historical revision is kept
+separate from the source used by a later bootstrap. Each run records the hashes
+of its 40 current inputs: 19 C sources, startup, 19 project headers, and
+`link.ld`.
+
+### Staged build
+
+`tools/bootstrap_toolchain.py` uses checked CupidC, CupidASM, and CupidLD to
+build stage two. The stage-two producer trio builds stage three. The gate
+compares all 19 C objects, both independently assembled startup objects, and
+all five linked tool images. The two stages also run five help paths, ten
+successful operations, and six useful failures across every command.
+
+The first long run overlapped a compiler edit and reached an object mismatch.
+That exposed a missing run-level source invariant. The next version captured
+the complete input snapshot before stage two and checked it after each stage
+and after behavior tests. A guarded run then stopped with the exact changed
+path, `toolchain/cupidc_frontend.c`, instead of publishing mixed-generation
+evidence. The guard also covers `link.ld`.
+
+The bootstrap reads the manifest and each seed binary once. It verifies those
+captured bytes, copies the binaries into a private mode-0700 snapshot, and
+uses only the snapshot during the long build. The report hashes the captured
+manifest bytes. Replacing a live manifest or binary after verification cannot
+change the running generation.
+
+Linux runs each tool from a private executable copy. Windows translates paths
+and stages a private copy through WSL in a directory made by `mktemp`, with
+permissions limited to the current user. The checked files stay read-only
+inputs to the process. `make verify-bootstrap-seed` checks them without
+execution. `make bootstrap-from-seed` writes both stages, behavior evidence,
+and a JSON report under `build/bootstrap/checked-seed` by default.
+
+### Evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Manifest verifier | PASS | Five exact artifacts, the full build plan digest, producer lineage, target ABI, and static ELF properties pass. Byte, entry-point, plan, and lineage mutations fail before execution. |
+| Source snapshot | PASS | The report contains 40 file hashes and one aggregate SHA-256. Focused C-source and linker-script mutations and one real concurrent edit stop with the changed path. |
+| Stage comparison | PASS | All 19 C objects, startup, and five linked images match byte for byte across stage two and stage three. |
+| Tool behavior | PASS | Five help cases, ten successful operations, and six failure cases agree across the stages. |
+| Host-tool poisoning | PASS | The staged build succeeds with host compiler and linker command names poisoned. |
+| Complete checked-seed gate | PASS | The final post-review Windows/WSL run passed in 503.357 seconds. Its 40-input snapshot is `7BEB7844F46172B7600193ABF66F5FE69A7F42FF91C023EB3EE8FE6A19BD2C11`, and its captured manifest is `CA9C1CCA497717317FFDC7AF3F22EB330074B1FD5656EC4625C379363BB80412`. |
+| Focused tests | PASS | Twelve verifier, manifest, input-freeze, source-drift, private-runner, and reporting tests pass, and both Python modules compile. |
+
+This removes the external code generator from a clean static i386 Linux
+Toolchain bootstrap. It does not transfer the normal OS C graph or the native
+contract runners. [Issue #32](https://github.com/cupidthecat/cupid-os/issues/32)
+remains open for native Windows tools, production command handoff, staged
+normal-build integration, and the remaining host dependencies. ADR 0092
+records the seed and trust boundary.
