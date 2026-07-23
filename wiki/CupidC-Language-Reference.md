@@ -8,6 +8,26 @@ programs: `U0/U8/U16/U32/I8/I16/I32`,
 `signed`, `unsigned`, `extern`, `inline`, `register`, `restrict`, labels,
 `goto`, and skipped `__attribute__((...))` decorations.
 
+## Hosted floating-width rules
+
+The shared self-hosting compiler carries non-atomic `float` and `double`
+values through objects, calls, variadic reads, and returns. Explicit casts and
+assignment conversion work in either direction between those two widths.
+Mixed `float` and `double` arithmetic uses `double`, as do conditional arms
+with one value of each width. Matching floating arms keep their width, and
+the condition may be a represented integer or pointer.
+
+`+=`, `-=`, `*=`, and `/=` compute at the common floating width, then convert
+the stored result back to the left operand's type. The left designator is
+evaluated once. A source `float` passed through an ellipsis or a function type
+without a prototype is promoted to `double`.
+
+The hosted path does not yet support conversion between integer and floating
+types, floating comparisons or truth, a floating controlling expression,
+floating increment or decrement, floating literals, `long double`, SIMD, or
+atomic floating access. The in-kernel compiler has a separate, broader
+floating and SIMD implementation.
+
 ## String Escape Sequences
 
 CupidC supports the following escape sequences in string and character literals:

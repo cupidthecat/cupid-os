@@ -281,15 +281,17 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * scalar or supported structure expression leaves in source order and store
  * them through ELEMENT_ADDRESS and MEMBER_ADDRESS paths. DUPLICATE_ADDRESS
  * preserves a represented scalar address, or a complete record address for
- * bit-field mutation, while a supported integer or pointer compound
- * assignment or update loads and stores the object. This evaluates the
+ * bit-field mutation, while a supported integer, pointer, or floating
+ * compound assignment loads and stores the object. This evaluates the
  * destination once. Integer mutation supports non-Boolean scalar objects that
  * occupy one, two, four, or eight bytes. Narrow values are promoted for the
  * 32-bit computation and converted back before an exact-width store.
  * Eight-byte mutation uses a private snapshot and keeps one semantic load and
  * store. Compound assignments retain integer-promotion, usual arithmetic, and
- * assignment conversions. Pointer compound assignments and updates use
- * POINTER_BINARY with a complete-object stride.
+ * assignment conversions. Floating compound assignments use the common
+ * `float` or `double` computation type and convert the stored result back to
+ * the left type. Pointer compound assignments and updates use POINTER_BINARY
+ * with a complete-object stride.
  * Prefix updates produce the stored value. Postfix updates produce the value
  * from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,
@@ -364,13 +366,19 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * reads remain unsupported.
  * Eight-byte integer BINARY records support addition, subtraction,
  * multiplication, division, remainder, left shift, signed or unsigned right
- * shift, AND, OR, XOR, and all six comparisons. UNARY records support plus,
+ * shift, AND, OR, XOR, and all six comparisons. Floating BINARY records
+ * support addition, subtraction, multiplication, and division after both
+ * operands reach the common width. Floating values can also join through
+ * conditional selection when the controlling value is an integer or pointer.
+ * UNARY records support plus,
  * negate, complement, and logical not. Wide values also feed short-circuit
  * logic, conditional selection, and structured scalar conditions. Supported
  * shift counts are represented 32-bit integers, and defined C counts from
  * zero through 63 preserve both words. CONVERT records support represented
  * integer widening to eight bytes and explicit or assignment narrowing back
- * to a represented integer. They
+ * to a represented integer. They also support explicit and assignment
+ * conversion between `float` and `double`, plus `float` widening for common
+ * arithmetic. They
  * also support the same-rank signed-to-unsigned usual arithmetic conversion
  * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
  * unsigned integer type. Boolean narrowing tests both source words. Boolean

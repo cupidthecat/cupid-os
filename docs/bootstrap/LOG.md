@@ -7063,3 +7063,116 @@ contracts, hosted production commands, and normal Cupid OS C objects still use
 GCC or Clang and its native linker. Fresh-checkout bootstrap independence,
 normal-build handoff, OS C migration, and production ownership remain open
 under [issue #32](https://github.com/cupidthecat/cupid-os/issues/32).
+
+## 2026-07-23: Hosted CupidC converts floating widths
+
+### C value rules
+
+Hosted CupidC now converts between non-atomic `float` and `double`. Explicit
+casts use the written destination type. Initialization, plain assignment,
+fixed arguments, and returns use assignment conversion in either direction.
+
+Addition, subtraction, multiplication, and division accept matching or mixed
+floating operands. Mixed expressions convert the `float` operand to `double`.
+A conditional expression with matching floating arms keeps that width. One
+arm of each width produces `double`. Its controlling expression remains a
+represented integer or pointer.
+
+`+=`, `-=`, `*=`, and `/=` compute at the common floating width. The result is
+then converted back to the left operand's type and stored. The lowerer
+duplicates the evaluated lvalue address, so a side-effecting designator runs
+once.
+
+This slice does not admit conversion between integer and floating values,
+floating comparison or truth, a floating controlling expression, increment
+or decrement, `long double`, atomic floating access, floating literals, SIMD,
+or explicit static floating initializers.
+
+### IR and i386 emission
+
+Linear IR uses `CONVERT` for every real width change. It distinguishes
+explicit casts, assignment conversion, usual arithmetic conversion, and the
+existing default argument promotion. Validation rejects a reverse
+`FLOAT_PROMOTION`, an unrelated conversion kind, atomic values, and malformed
+source or target metadata.
+
+The i386 emitter loads the source with width-specific x87 `FLD`, removes the
+old semantic handle, and writes the result with width-specific `FSTP`. A
+`float` receives a fresh four-byte slot. A `double` receives a private
+eight-byte snapshot. No live x87 value crosses the next Linear IR instruction.
+
+The first compound implementation read left qualifiers after lvalue
+conversion had formed an unqualified result type. The focused atomic negative
+exposed that mistake. Compound analysis now reads qualifiers from the original
+left object type. A later focused negative found the same risk at an atomic
+plain-assignment target, so target validation now rejects that form before
+assignment conversion can erase qualifiers. `_Atomic float` and
+`_Atomic double` remain outside the represented path. Review also found that
+conditional lvalue conversion could erase an arm's atomic qualifier. Both arm
+positions are now rejected before conversion.
+
+### Active source and tests
+
+The unchanged `kernel/cpu/libm.c` slice from `libm_tanhf_impl` through the
+final `float` helper contains 162 normalized bytes with FNV fingerprint
+`03678F60DF3C62E7`. It exercises explicit conversion in both directions,
+fixed double calls, same-width double arithmetic, and a returned `float`
+without changing active OS source.
+
+The frontend fixture publishes 27 function definitions. It covers cross-width
+and same-width casts, assignment conversion in both directions, fixed calls,
+returns, all four mixed arithmetic operators, matching and mixed conditional
+forms, integer and pointer conditions, and same-width and mixed-width compound
+assignment. Sixteen focused failures keep the neighboring unsupported forms
+precise, including atomic conditional arms in either position.
+
+The IR fixture publishes 28 functions. The deterministic object contains 41
+functions, 6,582 text bytes with fingerprint `0EB80E4E`, 42 symbols, and 89
+relocations. Its decoder checks
+32-bit and 64-bit x87 loads and stores, all four arithmetic operations, and
+aligned internal calls. The execution model covers signed zero, the smallest
+subnormal, infinity, NaN class preservation, round-to-even narrowing, values
+above a rounding midpoint, same-width casts, initialization-only conversions,
+mixed arithmetic, matching and mixed conditional selection, all four compound
+operations, stack and frame state, and one-time designator evaluation across
+46 cases.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Frontend selector | PASS | `floating-conversions` accepts the supported graph and rejects the sixteen open neighbors. |
+| Linear IR selector | PASS | The selector checks exact typed conversions, mixed operations, conditional selection, compound lowering, malformed frozen units, deterministic repeat lowering, constrained storage, and same-job recovery. |
+| Object selector | PASS | The 41-function object repeats byte for byte and passes decoding, 46 modeled executions, ABI alignment, constrained-output rollback, and same-job recovery. |
+| Neighboring floating and mutation selectors | PASS | Five frontend, four IR, and four object selectors remain green. They cover floating transport and arithmetic, scalar updates, conditional expressions, integer compounds, and integer mutation. |
+| Strict hosted builds | PASS | Strict Clang and GCC builds pass the focused selectors. Fresh ASan and UBSan builds pass the same path. |
+| Public Python and audit entries | PASS | The three focused contracts and four source-inventory checks pass together in 40.784 seconds. |
+| Generated audit | PASS | `make check-bootstrap-audit` accepts digest `865c22bc91607a74eae89790cebe5f93d09f4826274bcf4b627e628fba7b1a4c`. |
+| OS build | PASS | `make -j2 all` rebuilds `cupidos.img` with the hosted production path. |
+| Boot and runtime smoke | PASS | QEMU reaches the desktop, passes the Toolchain, ELF32, x86, CupidDis, CupidASM, and FPU boot checks, then compiles and runs `/bin/ls.cc` twice in the GUI terminal. |
+| Diff hygiene | PASS | `git diff --check` reports no whitespace error in the implementation patch. |
+
+The first selectors stopped at the missing conversion seams before production
+code changed. The final selectors pass at the frontend, IR, and object seams.
+ADR 0091 records the language, IR, emitter, and ownership decisions.
+
+The first complete Toolchain run reached `aggregate-values`, then stopped
+because the self-host source frontier still pinned the old IR statement and
+expression counts. After those parse locks were refreshed, the object gate
+stopped in turn at the old IR, emitter, and frontend image identities. The
+reviewed locks now describe the final source rather than weakening the
+frontier:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `cupidc_ir.c` | 187 | 354,933 | 379,396 | `84F4E511` |
+| `cupidc_emit.c` | 160 | 272,734 | 291,584 | `52D329D9` |
+| `cupidc_frontend.c` | 306 | 593,008 | 700,996 | `662BF32F` |
+
+The refreshed frontier emits each file twice and still requires byte identity.
+The complete `make -C toolchain test` gate then passed in 34.7 seconds,
+including all frontend, IR, object, hosted adapter, static link, assembler,
+disassembler, object, linker, runtime, and demo contracts.
+
+No production owner moved. The normal Cupid OS C objects still use a host C
+compiler. [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25)
+remains open for the rest of the C11 and GNU surface, the remaining floating
+forms, production integration, and normal-build C ownership.

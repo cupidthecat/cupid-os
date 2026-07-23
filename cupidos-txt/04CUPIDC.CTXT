@@ -168,22 +168,31 @@ that C leaves undefined promise neither a runtime trap nor a result. Signed and
 unsigned wide integers can also pass through an ellipsis or a call without a
 prototype.
 
-The shared path carries matching float and double values through objects,
-assignment, calls, variadic reads, and returns. It evaluates same-kind unary
-plus and minus and binary addition, subtraction, multiplication, and division.
+The shared path carries float and double values through objects, assignment,
+calls, variadic reads, and returns. Explicit casts and assignment conversion
+work in either direction. Unary plus and minus and binary addition,
+subtraction, multiplication, and division accept matching or mixed floating
+widths. Matching floating conditional arms keep their width. Mixed arithmetic
+and conditional arms use double. The four arithmetic
+compound assignments compute at the common width, convert back to the left
+width, and evaluate their lvalue once.
+
 Every changed x87 result is stored immediately at its C width. A float rounds
 into a fresh four-byte semantic slot. A double receives a fresh private
 eight-byte snapshot. The unchanged libm_tanh_impl expression
-(e1 - e2) / (e1 + e2) pins nested double arithmetic with call-produced
-operands. At an ellipsis or unprototyped call, the frontend promotes float to
-double after lvalue conversion. Arguments occupy four-byte or eight-byte cdecl
-slots, floating results return in x87 ST0, and va_arg(double) advances by eight
-bytes. Floating values remain invalid truth operands. The decoder-driven model
-checks operand order, immediate spills, selected IEEE patterns, call alignment,
-and frame state. It does not execute native x87 code. Floating literals,
-mixed-kind and integer conversions, comparisons, truth, conditional
-expressions, compound updates, explicit static floating initializers, long
-double, SIMD, atomic access, and over-aligned object emission remain unfinished.
+(e1 - e2) / (e1 + e2) pins nested double arithmetic, and the following float
+helper slice pins width conversion. At an ellipsis or unprototyped call, the
+frontend promotes float to double after lvalue conversion. Arguments occupy
+four-byte or eight-byte cdecl slots, floating results return in x87 ST0, and
+va_arg(double) advances by eight bytes. Floating values remain invalid truth
+operands.
+
+The decoder-driven model checks width-specific x87 loads and stores, IEEE
+rounding cases, mixed expressions, call alignment, and frame state. It does
+not execute native x87 code. Floating literals, integer and floating
+conversions, comparisons, truth, a floating controlling expression, increment
+and decrement, explicit static floating initializers, long double, SIMD,
+atomic access, and over-aligned object emission remain unfinished.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -402,8 +411,8 @@ may contain a nested union. Top-level union and class values remain
 unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field initializer leaves, Boolean mutation, floating
-literals and general computation, fixed-parameter and explicit floating
-conversions, atomic variadic access, aggregate arguments without declared
+literals, integer and floating conversions, comparisons, truth, floating
+update, atomic variadic access, aggregate arguments without declared
 parameter types, aggregate variadic reads, wide strings, literal pooling, and
 block-static addresses in other
 block-static initializers remain unfinished in the shared path.

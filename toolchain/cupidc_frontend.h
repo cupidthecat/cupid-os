@@ -559,14 +559,17 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * remain an explicit boundary. Calls apply assignment conversion to declared
  * parameters and default argument promotions to ellipsis arguments or every
  * argument passed without a prototype. Exact `float` and `double` values can
- * cross assignments, initializers, named calls, and returns. An unnamed
+ * cross assignments, initializers, named calls, and returns. Assignment and
+ * explicit casts can convert between those widths. Mixed floating arithmetic
+ * and conditional arms use `double`. Floating compound assignments retain
+ * their left type and compute at the common width. An unnamed
  * `float` argument is promoted to `double`; an unnamed `double` value and
  * `va_arg(arguments, double)` are also represented. Runtime integer
  * expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
- * nodes. Valid floating arithmetic compounds and updates remain explicit
- * deferred features, while integer-only floating compounds and aggregate
- * compound/update operands are constraint errors. Block-scope assertions
+ * nodes. Floating updates remain an explicit deferred feature. Mixed integer
+ * and floating compounds and aggregate compound or update operands are
+ * diagnosed. Block-scope assertions
  * remain pending and fail closed.
  * C11 `inline` is also retained as a canonical OR-summary across compatible
  * declarations; external-inline classification remains translation-unit
@@ -593,8 +596,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * pointer qualification. Chained, promoted, or overriding designators, union
  * lists, arithmetic and casts on static addresses, floating constants,
  * static-data allocation, and relocation lowering remain pending. Comma
- * expressions, mixed-kind floating arithmetic and general non-void floating
- * conversions,
+ * expressions, integer/floating conversions,
  * universal-character/non-ordinary literals, `long double` call values,
  * non-scalar arguments without declared parameter types, code generation,
  * object emission, and Cupid #exe execution remain later frontend work and are

@@ -1395,6 +1395,26 @@ static int floating_arithmetic_active_source_is_unchanged(
   return 1;
 }
 
+static int floating_conversion_active_source_is_unchanged(
+    ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/kernel/cpu/libm.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active floating conversion source") ||
+      !source_last_function_fingerprint_matches(
+          &source, "float libm_tanhf_impl(float x)",
+          "/* Task 26 asm wrappers", 162u,
+          UINT64_C(0x03678f60df3c62e7))) {
+    (void)fprintf(stderr, "the active libm tanhf helper changed\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int active_source_contains(ctool_job_t *job, const char *path_text,
                                   const char *load_context,
                                   const char *change_message,
@@ -22516,6 +22536,499 @@ cleanup:
   return 1;
 }
 
+static int validate_floating_conversion_x87_inventory(
+    ctool_job_t *job, const ctool_elf32_section_t *text) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 fld32 = 0u;
+  ctool_u32 fld64 = 0u;
+  ctool_u32 fstp32 = 0u;
+  ctool_u32 fstp64 = 0u;
+  ctool_u32 faddp = 0u;
+  ctool_u32 fsubp = 0u;
+  ctool_u32 fmulp = 0u;
+  ctool_u32 fdivp = 0u;
+  if (job == NULL || text == NULL || text->contents.data == NULL) {
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor),
+        0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "floating conversion decode stopped at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if ((instruction->mnemonic == CTOOL_X86_MN_FLD ||
+         instruction->mnemonic == CTOOL_X86_MN_FSTP) &&
+        instruction->operand_count == 1u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY) {
+      if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+          instruction->operands[0].width_bits == 32u) {
+        fld32++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                 instruction->operands[0].width_bits == 64u) {
+        fld64++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 instruction->operands[0].width_bits == 32u) {
+        fstp32++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 instruction->operands[0].width_bits == 64u) {
+        fstp64++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FADDP) {
+      faddp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FSUBP) {
+      fsubp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FMULP) {
+      fmulp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FDIVP) {
+      fdivp++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (fld32 != 26u || fld64 != 34u ||
+      fstp32 != 40u || fstp64 != 57u ||
+      faddp != 4u || fsubp != 3u ||
+      fmulp != 3u || fdivp != 3u) {
+    (void)fprintf(
+        stderr,
+        "floating conversion x87 inventory: loads=%u/%u stores=%u/%u "
+        "arithmetic=%u/%u/%u/%u\n",
+        (unsigned int)fld32, (unsigned int)fld64,
+        (unsigned int)fstp32, (unsigned int)fstp64,
+        (unsigned int)faddp, (unsigned int)fsubp,
+        (unsigned int)fmulp, (unsigned int)fdivp);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_floating_conversion_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const function_names[] = {
+      "float_from_bits", "double_from_words", "float_bits",
+      "double_low", "double_high", "same_float_cast_bits",
+      "same_double_cast_low", "widen_cast_low", "widen_cast_high",
+      "narrow_cast_bits", "narrow_cast_is_nan", "widen_assign_high",
+      "narrow_assign_bits", "widen_initialize_high",
+      "narrow_initialize_bits", "widen_return", "narrow_return",
+      "widen_return_high", "narrow_return_bits", "take_double",
+      "take_float", "fixed_widen_high", "fixed_narrow_bits",
+      "mixed_add_high", "mixed_subtract_high", "mixed_multiply_high",
+      "mixed_divide_high", "choose_high", "choose_low",
+      "choose_float_bits", "choose_double_high", "choose_pointer_high",
+      "same_add_bits", "same_subtract_high", "same_multiply_bits",
+      "same_divide_high", "mixed_add_assign_bits",
+      "mixed_subtract_assign_high", "mixed_multiply_assign_bits",
+      "mixed_divide_assign_high", "side_effect_compound"};
+  static const floating_arithmetic_case_t cases[] = {
+      {"same_float_cast_bits", {0x80000000u}, 1u, 0x80000000u,
+       "same-width float cast preserves its bits"},
+      {"same_double_cast_low", {0x12345678u, 0x3ff00000u}, 2u,
+       0x12345678u, "same-width double cast preserves its low bits"},
+      {"widen_cast_low", {0x3f800001u}, 1u, 0x20000000u,
+       "explicit float to double keeps low mantissa bits"},
+      {"widen_cast_high", {0u}, 1u, 0u,
+       "explicit float to double keeps positive zero"},
+      {"widen_cast_high", {0x80000000u}, 1u, 0x80000000u,
+       "explicit float to double keeps negative zero"},
+      {"widen_cast_high", {0x3f800001u}, 1u, 0x3ff00000u,
+       "explicit float to double widens a normal value"},
+      {"widen_cast_high", {1u}, 1u, 0x36a00000u,
+       "explicit float to double widens the smallest subnormal"},
+      {"widen_cast_high", {0x7f800000u}, 1u, 0x7ff00000u,
+       "explicit float to double keeps infinity"},
+      {"narrow_cast_bits", {0u, 0u}, 2u, 0u,
+       "explicit double to float keeps positive zero"},
+      {"narrow_cast_bits", {0u, 0x80000000u}, 2u, 0x80000000u,
+       "explicit double to float keeps negative zero"},
+      {"narrow_cast_bits", {0u, 0x3ff00000u}, 2u, 0x3f800000u,
+       "explicit double to float narrows a normal value"},
+      {"narrow_cast_bits", {0x10000000u, 0x3ff00000u}, 2u,
+       0x3f800000u, "double to float midpoint rounds to even"},
+      {"narrow_cast_bits", {0x10000001u, 0x3ff00000u}, 2u,
+       0x3f800001u, "double to float rounds above the midpoint"},
+      {"narrow_cast_bits", {0u, 0x36a00000u}, 2u, 1u,
+       "double to float reaches the smallest subnormal"},
+      {"narrow_cast_bits", {0u, 0x7ff00000u}, 2u, 0x7f800000u,
+       "double to float keeps infinity"},
+      {"narrow_cast_is_nan", {0u, 0x7ff80000u}, 2u, 1u,
+       "double to float keeps the NaN class"},
+      {"widen_assign_high", {0x3f800001u}, 1u, 0x3ff00000u,
+       "float to double assignment conversion"},
+      {"narrow_assign_bits", {0x10000001u, 0x3ff00000u}, 2u,
+       0x3f800001u, "double to float assignment conversion"},
+      {"widen_initialize_high", {0x3f800001u}, 1u, 0x3ff00000u,
+       "float to double initialization conversion"},
+      {"narrow_initialize_bits", {0x10000001u, 0x3ff00000u}, 2u,
+       0x3f800001u, "double to float initialization conversion"},
+      {"widen_return_high", {0x3fc00000u}, 1u, 0x3ff80000u,
+       "float to double return conversion"},
+      {"narrow_return_bits", {0u, 0x40040000u}, 2u, 0x40200000u,
+       "double to float return conversion"},
+      {"fixed_widen_high", {0x3fc00000u}, 1u, 0x3ff80000u,
+       "float to fixed double argument conversion"},
+      {"fixed_narrow_bits", {0u, 0x40040000u}, 2u, 0x40200000u,
+       "double to fixed float argument conversion"},
+      {"mixed_add_high", {0x3f800000u, 0u, 0x40000000u}, 3u,
+       0x40080000u, "mixed floating addition"},
+      {"mixed_subtract_high", {0u, 0x40140000u, 0x40000000u}, 3u,
+       0x40080000u, "mixed floating subtraction"},
+      {"mixed_multiply_high", {0x40400000u, 0u, 0x40000000u}, 3u,
+       0x40180000u, "mixed floating multiplication"},
+      {"mixed_divide_high", {0u, 0x40180000u, 0x40000000u}, 3u,
+       0x40080000u, "mixed floating division"},
+      {"choose_high", {1u, 0x3fc00000u, 0u, 0x40040000u}, 4u,
+       0x3ff80000u, "floating conditional chooses the float arm"},
+      {"choose_high", {0u, 0x3fc00000u, 0u, 0x40040000u}, 4u,
+       0x40040000u, "floating conditional chooses the double arm"},
+      {"choose_low", {1u, 0x3f800001u, 0u, 0x40040000u}, 4u,
+       0x20000000u, "floating conditional widens the float arm"},
+      {"choose_float_bits", {1u, 0x3f800001u, 0x40000000u}, 3u,
+       0x3f800001u, "same-width float conditional chooses the first arm"},
+      {"choose_float_bits", {0u, 0x3f800001u, 0x40000000u}, 3u,
+       0x40000000u, "same-width float conditional chooses the second arm"},
+      {"choose_double_high",
+       {1u, 0u, 0x3ff80000u, 0u, 0x40040000u}, 5u,
+       0x3ff80000u, "same-width double conditional chooses the first arm"},
+      {"choose_double_high",
+       {0u, 0u, 0x3ff80000u, 0u, 0x40040000u}, 5u,
+       0x40040000u, "same-width double conditional chooses the second arm"},
+      {"choose_pointer_high", {1u, 0x3fc00000u, 0u, 0x40040000u},
+       4u, 0x3ff80000u,
+       "pointer-controlled conditional chooses the float arm"},
+      {"choose_pointer_high", {0u, 0x3fc00000u, 0u, 0x40040000u},
+       4u, 0x40040000u,
+       "pointer-controlled conditional chooses the double arm"},
+      {"same_add_bits", {0x3f800000u, 0x40000000u}, 2u,
+       0x40400000u, "same-width float addition assignment"},
+      {"same_subtract_high", {0u, 0x40140000u, 0u, 0x40000000u},
+       4u, 0x40080000u, "same-width double subtraction assignment"},
+      {"same_multiply_bits", {0x40400000u, 0x40000000u}, 2u,
+       0x40c00000u, "same-width float multiplication assignment"},
+      {"same_divide_high", {0u, 0x40180000u, 0u, 0x40000000u},
+       4u, 0x40080000u, "same-width double division assignment"},
+      {"mixed_add_assign_bits",
+       {0x3f800000u, 0u, 0x40000000u}, 3u, 0x40400000u,
+       "mixed float addition assignment"},
+      {"mixed_subtract_assign_high",
+       {0u, 0x40140000u, 0x40000000u}, 3u, 0x40080000u,
+       "mixed double subtraction assignment"},
+      {"mixed_multiply_assign_bits",
+       {0x40400000u, 0u, 0x40000000u}, 3u, 0x40c00000u,
+       "mixed float multiplication assignment"},
+      {"mixed_divide_assign_high",
+       {0u, 0x40180000u, 0x40000000u}, 3u, 0x40080000u,
+       "mixed double division assignment"},
+      {"side_effect_compound",
+       {0x3f800000u, 0x40800000u, 0u, 0x40000000u}, 4u,
+       0x00c00000u, "compound assignment evaluates its designator once"}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  ctool_u32 function_count =
+      (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+  ctool_u32 case_count =
+      (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 6582u ||
+      structure_text_fingerprint(text->contents) != 0x0eb80e4eu ||
+      (bss != NULL && bss->size != 0u) ||
+      object->symbol_count != 42u ||
+      object->relocation_count != 89u) {
+    (void)fprintf(
+        stderr,
+        "floating conversion inventory: text=%u fingerprint=%08x "
+        "bss=%u symbols=%u relocations=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u; index < function_count; index++) {
+    if (!wide_function_symbol_is_valid(
+            object, text, find_symbol(object, function_names[index]))) {
+      (void)fprintf(stderr,
+                    "missing floating conversion symbol %s\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  if (!validate_floating_conversion_x87_inventory(job, text) ||
+      !validate_call_alignment_function(
+          job, text, find_symbol(object, "widen_return_high"),
+          3u, 0u, 0u, 0u, 0u, "widen_return_high") ||
+      !validate_call_alignment_function(
+          job, text, find_symbol(object, "fixed_widen_high"),
+          3u, 0u, 0u, 0u, 0u, "fixed_widen_high") ||
+      !validate_call_alignment_function(
+          job, text, find_symbol(object, "side_effect_compound"),
+          5u, 0u, 0u, 0u, 0u, "side_effect_compound")) {
+    return 0;
+  }
+  for (index = 0u; index < case_count; index++) {
+    if (!expect_wide_oracle_low_result(
+            job, object, text, cases[index].symbol_name,
+            cases[index].arguments, cases[index].argument_count,
+            cases[index].expected, cases[index].context)) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_floating_conversion_object(const char *host_root) {
+  static const char source_prefix[] =
+      "typedef unsigned int u32;\n"
+      "typedef union { float value; u32 bits; } float_box;\n"
+      "typedef union { double value; struct { u32 low; u32 high; } words; } double_box;\n"
+      "float float_from_bits(u32 bits) { float_box box; box.bits = bits; return box.value; }\n"
+      "double double_from_words(u32 low, u32 high) { double_box box; box.words.low = low; box.words.high = high; return box.value; }\n"
+      "u32 float_bits(float value) { float_box box; box.value = value; return box.bits; }\n"
+      "u32 double_low(double value) { double_box box; box.value = value; return box.words.low; }\n"
+      "u32 double_high(double value) { double_box box; box.value = value; return box.words.high; }\n"
+      "u32 same_float_cast_bits(u32 bits) { return float_bits((float)float_from_bits(bits)); }\n"
+      "u32 same_double_cast_low(u32 low, u32 high) { return double_low((double)double_from_words(low, high)); }\n"
+      "u32 widen_cast_low(u32 bits) { return double_low((double)float_from_bits(bits)); }\n"
+      "u32 widen_cast_high(u32 bits) { return double_high((double)float_from_bits(bits)); }\n"
+      "u32 narrow_cast_bits(u32 low, u32 high) { return float_bits((float)double_from_words(low, high)); }\n"
+      "u32 narrow_cast_is_nan(u32 low, u32 high) { u32 bits = narrow_cast_bits(low, high); return (bits & 0x7f800000u) == 0x7f800000u && (bits & 0x007fffffu) != 0u; }\n"
+      "u32 widen_assign_high(u32 bits) { double value = float_from_bits(bits); value = float_from_bits(bits); return double_high(value); }\n"
+      "u32 narrow_assign_bits(u32 low, u32 high) { float value = double_from_words(low, high); value = double_from_words(low, high); return float_bits(value); }\n"
+      "u32 widen_initialize_high(u32 bits) { double value = float_from_bits(bits); return double_high(value); }\n"
+      "u32 narrow_initialize_bits(u32 low, u32 high) { float value = double_from_words(low, high); return float_bits(value); }\n"
+      "double widen_return(float value) { return value; }\n"
+      "float narrow_return(double value) { return value; }\n"
+      "u32 widen_return_high(u32 bits) { return double_high(widen_return(float_from_bits(bits))); }\n"
+      "u32 narrow_return_bits(u32 low, u32 high) { return float_bits(narrow_return(double_from_words(low, high))); }\n"
+      "double take_double(double value) { return value; }\n"
+      "float take_float(float value) { return value; }\n"
+      "u32 fixed_widen_high(u32 bits) { return double_high(take_double(float_from_bits(bits))); }\n"
+      "u32 fixed_narrow_bits(u32 low, u32 high) { return float_bits(take_float(double_from_words(low, high))); }\n"
+      "u32 choose_float_bits(u32 condition, u32 left, u32 right) { return float_bits(condition ? float_from_bits(left) : float_from_bits(right)); }\n"
+      "u32 choose_double_high(u32 condition, u32 left_low, u32 left_high, u32 right_low, u32 right_high) { return double_high(condition ? double_from_words(left_low, left_high) : double_from_words(right_low, right_high)); }\n"
+      "u32 choose_pointer_high(u32 *condition, u32 bits, u32 low, u32 high) { return double_high(condition ? float_from_bits(bits) : double_from_words(low, high)); }\n";
+  static const char source_suffix[] =
+      "u32 mixed_add_high(u32 bits, u32 low, u32 high) { return double_high(float_from_bits(bits) + double_from_words(low, high)); }\n"
+      "u32 mixed_subtract_high(u32 low, u32 high, u32 bits) { return double_high(double_from_words(low, high) - float_from_bits(bits)); }\n"
+      "u32 mixed_multiply_high(u32 bits, u32 low, u32 high) { return double_high(float_from_bits(bits) * double_from_words(low, high)); }\n"
+      "u32 mixed_divide_high(u32 low, u32 high, u32 bits) { return double_high(double_from_words(low, high) / float_from_bits(bits)); }\n"
+      "u32 choose_high(u32 condition, u32 bits, u32 low, u32 high) { return double_high(condition ? float_from_bits(bits) : double_from_words(low, high)); }\n"
+      "u32 choose_low(u32 condition, u32 bits, u32 low, u32 high) { return double_low(condition ? float_from_bits(bits) : double_from_words(low, high)); }\n"
+      "u32 same_add_bits(u32 left_bits, u32 right_bits) { float left = float_from_bits(left_bits); left += float_from_bits(right_bits); return float_bits(left); }\n"
+      "u32 same_subtract_high(u32 left_low, u32 left_high, u32 right_low, u32 right_high) { double left = double_from_words(left_low, left_high); left -= double_from_words(right_low, right_high); return double_high(left); }\n"
+      "u32 same_multiply_bits(u32 left_bits, u32 right_bits) { float left = float_from_bits(left_bits); left *= float_from_bits(right_bits); return float_bits(left); }\n"
+      "u32 same_divide_high(u32 left_low, u32 left_high, u32 right_low, u32 right_high) { double left = double_from_words(left_low, left_high); left /= double_from_words(right_low, right_high); return double_high(left); }\n"
+      "u32 mixed_add_assign_bits(u32 bits, u32 low, u32 high) { float left = float_from_bits(bits); left += double_from_words(low, high); return float_bits(left); }\n"
+      "u32 mixed_subtract_assign_high(u32 low, u32 high, u32 bits) { double left = double_from_words(low, high); left -= float_from_bits(bits); return double_high(left); }\n"
+      "u32 mixed_multiply_assign_bits(u32 bits, u32 low, u32 high) { float left = float_from_bits(bits); left *= double_from_words(low, high); return float_bits(left); }\n"
+      "u32 mixed_divide_assign_high(u32 low, u32 high, u32 bits) { double left = double_from_words(low, high); left /= float_from_bits(bits); return double_high(left); }\n"
+      "u32 side_effect_compound(u32 first, u32 second, u32 low, u32 high) { float values[2]; float *cursor = values; values[0] = float_from_bits(first); values[1] = float_from_bits(second); *cursor++ += double_from_words(low, high); return float_bits(values[0]) ^ float_bits(values[1]) ^ (cursor != &values[1]); }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 reverse_assignment = CTOOL_C_AST_NONE;
+  ctool_u32 narrowing_cast = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  char *source = NULL;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  source = (char *)malloc(
+      sizeof(source_prefix) + sizeof(source_suffix) - 1u);
+  if (source == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
+               sizeof(source_suffix));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !floating_conversion_active_source_is_unchanged(job) ||
+      !parse_source_mode(job, "/floating-conversions.c", source,
+                         CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 41u) {
+    (void)fprintf(stderr, "floating conversion object setup failed\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.graph.type_count; index++) {
+    if (unit.graph.types[index].kind == CTOOL_C_TYPE_FLOAT &&
+        unit.graph.types[index].qualifiers == 0u) {
+      float_type = index;
+    } else if (unit.graph.types[index].kind == CTOOL_C_TYPE_DOUBLE &&
+               unit.graph.types[index].qualifiers == 0u) {
+      double_type = index;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE || unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    ctool_u32 child =
+        expression->child_count == 1u &&
+                expression->first_child < unit.expression_child_count
+            ? unit.expression_children[expression->first_child]
+            : CTOOL_C_AST_NONE;
+    ctool_u32 child_type =
+        child < unit.expression_count
+            ? unit.expressions[child].type
+            : CTOOL_C_TYPE_NONE;
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+        expression->type == float_type && child_type == double_type) {
+      reverse_assignment = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+               expression->type == float_type &&
+               child_type == double_type) {
+      narrowing_cast = index;
+    }
+  }
+  if (reverse_assignment == CTOOL_C_AST_NONE ||
+      narrowing_cast == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[reverse_assignment].conversion =
+      CTOOL_C_CONVERSION_FLOAT_PROMOTION;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "floating conversion buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "floating conversion object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating conversion object") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "reverse floating promotion at object boundary")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "floating conversion objects are not deterministic\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[narrowing_cast].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "malformed floating cast at object boundary") ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          NULL, "limited floating conversion object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered floating conversion object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "floating conversion recovery changed the object\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/floating-conversions.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read floating conversion object") ||
+      !validate_floating_conversion_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(source);
+  free(invalid_expressions);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-conversions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_floating_transport_object(const char *host_root) {
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
@@ -23430,20 +23943,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 185u, 161u, 306u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 187u, 160u, 306u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      188654u, 347162u, 276097u, 587945u, 139612u, 70368u, 77981u,
+      188654u, 354933u, 272734u, 593008u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      224176u, 371240u, 295036u, 695468u, 157796u, 79348u, 131640u,
+      224176u, 379396u, 291584u, 700996u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0x94f54f57u,
-      0xa564f810u, 0xba37dfa8u, 0xd33f8b6bu, 0x3f69aac3u,
+      0x84f4e511u, 0x52d329d9u, 0x662bf32fu, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   for (index = 0u; index <
@@ -25183,6 +25696,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-arithmetic") == 0) {
     return run_floating_arithmetic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
+    return run_floating_conversion_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     if (run_wide_multiplication_object(argv[2]) != 0) {
       return 1;
@@ -25232,7 +25748,7 @@ int main(int argc, char **argv) {
                 "void-casts|structure-values|call-alignment|block-statics|"
                 "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
-                "floating-arithmetic|"
+                "floating-arithmetic|floating-conversions|"
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations|"
                 "self-host-frontier|self-host-hosted-adapters|"

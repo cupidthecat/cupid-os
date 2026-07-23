@@ -8509,19 +8509,18 @@ static ctool_status_t cfront_prepare_floating_binary(
         operator_token,
         "integer and floating arithmetic conversions are outside this expression slice");
   }
-  if (left_node.kind != right_node.kind) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "mixed floating arithmetic is outside this expression slice");
-  }
   status = cfront_apply_default_conversion(context, left);
   if (status == CTOOL_OK) {
     status = cfront_apply_default_conversion(context, right);
   }
   if (status == CTOOL_OK) {
-    status = cfront_scalar_type(context, left_node.kind, operator_token,
-                                &target_type);
+    status = cfront_scalar_type(
+        context,
+        left_node.kind == CTOOL_C_TYPE_DOUBLE ||
+                right_node.kind == CTOOL_C_TYPE_DOUBLE
+            ? CTOOL_C_TYPE_DOUBLE
+            : CTOOL_C_TYPE_FLOAT,
+        operator_token, &target_type);
   }
   if (status != CTOOL_OK) {
     return status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
@@ -8619,6 +8618,7 @@ static ctool_status_t cfront_apply_assignment_conversion(
   ctool_bool source_is_complete = CTOOL_FALSE;
   ctool_bool same = CTOOL_FALSE;
   ctool_bool compatible = CTOOL_FALSE;
+  ctool_u32 original_source_type = value->type;
   ctool_status_t status = cfront_apply_default_conversion(context, value);
   if (status != CTOOL_OK) {
     return status;
@@ -8640,6 +8640,9 @@ static ctool_status_t cfront_apply_assignment_conversion(
     ctool_u32 source_base;
     ctool_u32 target_qualifiers;
     ctool_u32 source_qualifiers;
+    ctool_c_type_node_t original_source_node;
+    ctool_u32 original_source_base;
+    ctool_u32 original_source_qualifiers;
     status = cfront_underlying_type(
         context, target_type, &target_base, &target_qualifiers,
         &target_node);
@@ -8648,18 +8651,31 @@ static ctool_status_t cfront_apply_assignment_conversion(
           context, value->type, &source_base, &source_qualifiers,
           &source_node);
     }
+    if (status == CTOOL_OK) {
+      status = cfront_underlying_type(
+          context, original_source_type, &original_source_base,
+          &original_source_qualifiers, &original_source_node);
+    }
     (void)target_base;
     (void)source_base;
-    (void)target_qualifiers;
+    (void)original_source_base;
     (void)source_qualifiers;
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
     if (target_is_floating == CTOOL_TRUE &&
         source_is_floating == CTOOL_TRUE &&
-        target_node.kind == source_node.kind &&
         (target_node.kind == CTOOL_C_TYPE_FLOAT ||
-         target_node.kind == CTOOL_C_TYPE_DOUBLE)) {
+         target_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+        (source_node.kind == CTOOL_C_TYPE_FLOAT ||
+         source_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+        ((target_qualifiers | target_node.qualifiers |
+          original_source_qualifiers | original_source_node.qualifiers) &
+         CTOOL_C_QUAL_ATOMIC) == 0u) {
+      if (target_node.kind != source_node.kind) {
+        return cfront_append_conversion(
+            context, CTOOL_C_CONVERSION_ASSIGNMENT, target_type, value);
+      }
       status = cfront_types_compatible(
           context, target_type, value->type, &compatible);
       if (status != CTOOL_OK) {
@@ -9489,6 +9505,9 @@ static ctool_status_t cfront_apply_cast(
   ctool_bool source_integer = CTOOL_FALSE;
   ctool_bool exact_void_pointer = CTOOL_FALSE;
   cfront_expression_value_t constant_operand;
+  ctool_c_type_node_t original_source;
+  ctool_u32 original_source_base;
+  ctool_u32 original_source_qualifiers;
   ctool_status_t status = cfront_underlying_type(
       context, target_type, &target_base, &target_qualifiers, &target);
   (void)target_base;
@@ -9496,6 +9515,13 @@ static ctool_status_t cfront_apply_cast(
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, cast_token,
         "cast destination type is unavailable");
+  }
+  status = cfront_underlying_type(
+      context, operand->type, &original_source_base,
+      &original_source_qualifiers, &original_source);
+  (void)original_source_base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
   }
   status = cfront_apply_default_conversion(context, operand);
   if (status != CTOOL_OK) {
@@ -9542,6 +9568,19 @@ static ctool_status_t cfront_apply_cast(
        source.kind == CTOOL_C_TYPE_FLOAT ||
        source.kind == CTOOL_C_TYPE_DOUBLE ||
        source.kind == CTOOL_C_TYPE_LONG_DOUBLE)) {
+    if ((target.kind == CTOOL_C_TYPE_FLOAT ||
+         target.kind == CTOOL_C_TYPE_DOUBLE) &&
+        (source.kind == CTOOL_C_TYPE_FLOAT ||
+         source.kind == CTOOL_C_TYPE_DOUBLE) &&
+        ((target_qualifiers | target.qualifiers |
+          original_source_qualifiers | original_source.qualifiers) &
+         CTOOL_C_QUAL_ATOMIC) == 0u) {
+      return cfront_append_one_child_expression(
+          context, CTOOL_C_EXPRESSION_CAST,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, cast_token, target_type,
+          CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE,
+          operand);
+    }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         cast_token, "floating casts are outside this expression slice");
@@ -9867,7 +9906,32 @@ static ctool_status_t cfront_prepare_conditional_result(
   ctool_bool same = CTOOL_FALSE;
   ctool_bool nonzero_complete = CTOOL_FALSE;
   ctool_bool zero_complete = CTOOL_FALSE;
-  ctool_status_t status = cfront_classify_scalar_value(
+  ctool_status_t status = cfront_underlying_type(
+      context, when_nonzero->type, &nonzero_base, &nonzero_qualifiers,
+      &nonzero_node);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, when_zero->type, &zero_base, &zero_qualifiers, &zero_node);
+  }
+  (void)nonzero_base;
+  (void)zero_base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (((nonzero_node.kind == CTOOL_C_TYPE_FLOAT ||
+        nonzero_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+       ((nonzero_qualifiers | nonzero_node.qualifiers) &
+        CTOOL_C_QUAL_ATOMIC) != 0u) ||
+      ((zero_node.kind == CTOOL_C_TYPE_FLOAT ||
+        zero_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+       ((zero_qualifiers | zero_node.qualifiers) &
+        CTOOL_C_QUAL_ATOMIC) != 0u)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        "atomic floating conditional operands are outside this body slice");
+  }
+  status = cfront_classify_scalar_value(
       context, when_nonzero, &nonzero_kind);
   if (status == CTOOL_OK) {
     status = cfront_classify_scalar_value(context, when_zero, &zero_kind);
@@ -9879,6 +9943,19 @@ static ctool_status_t cfront_prepare_conditional_result(
       zero_kind == CFRONT_SCALAR_VALUE_INTEGER) {
     return cfront_apply_usual_integer_conversions(
         context, operator_token, when_nonzero, when_zero, type_out);
+  }
+  if (nonzero_kind == CFRONT_SCALAR_VALUE_FLOATING &&
+      zero_kind == CFRONT_SCALAR_VALUE_FLOATING) {
+    ctool_bool handled = CTOOL_FALSE;
+    status = cfront_prepare_floating_binary(
+        context, operator_token, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+        CTOOL_FALSE, when_nonzero, when_zero, type_out, &handled);
+    return status == CTOOL_OK && handled == CTOOL_FALSE
+               ? cfront_emit_failure(
+                     context, CTOOL_ERR_INTERNAL,
+                     CTOOL_C_PARSE_DIAG_INTERNAL, operator_token,
+                     "floating conditional type selection failed")
+               : status;
   }
   if ((nonzero_kind == CFRONT_SCALAR_VALUE_INTEGER ||
        nonzero_kind == CFRONT_SCALAR_VALUE_FLOATING) &&
@@ -9914,20 +9991,8 @@ static ctool_status_t cfront_prepare_conditional_result(
         CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
         "conditional pointer and integer operands require a null pointer constant");
   }
-  status = cfront_underlying_type(
-      context, when_nonzero->type, &nonzero_base, &nonzero_qualifiers,
-      &nonzero_node);
-  if (status == CTOOL_OK) {
-    status = cfront_underlying_type(
-        context, when_zero->type, &zero_base, &zero_qualifiers, &zero_node);
-  }
-  (void)nonzero_base;
-  (void)zero_base;
   (void)nonzero_qualifiers;
   (void)zero_qualifiers;
-  if (status != CTOOL_OK) {
-    return cfront_storage_failure(context, status);
-  }
   if (nonzero_node.kind == CTOOL_C_TYPE_VOID &&
       zero_node.kind == CTOOL_C_TYPE_VOID) {
     status = cfront_scalar_type(context, CTOOL_C_TYPE_VOID, operator_token,
@@ -10741,6 +10806,17 @@ static ctool_status_t cfront_validate_assignment_target(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token, "assignment requires a modifiable lvalue");
   }
+  if ((node.kind == CTOOL_C_TYPE_FLOAT ||
+       node.kind == CTOOL_C_TYPE_DOUBLE) &&
+      (qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u &&
+      form != CFRONT_ASSIGNMENT_UPDATE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        operator_token,
+        form == CFRONT_ASSIGNMENT_COMPOUND
+            ? "floating compound assignment is outside this body slice"
+            : "floating assignment conversions are outside this body slice");
+  }
   if (node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
       form == CFRONT_ASSIGNMENT_PLAIN) {
     return cfront_emit_failure(
@@ -10896,6 +10972,7 @@ static ctool_status_t cfront_prepare_compound_assignment(
   ctool_u32 left_qualifiers;
   ctool_u32 right_base;
   ctool_u32 right_qualifiers;
+  ctool_u32 right_original_type = right->type;
   ctool_bool right_was_bit_field = right->is_bit_field;
   ctool_u32 right_bit_width = right->bit_width;
   ctool_status_t status = cfront_integer_promotion_type(
@@ -10905,7 +10982,7 @@ static ctool_status_t cfront_prepare_compound_assignment(
     return cfront_storage_failure(context, status);
   }
   if (left_is_integer == CTOOL_FALSE) {
-    status = cfront_underlying_type(context, result_type, &left_base,
+    status = cfront_underlying_type(context, left->type, &left_base,
                                     &left_qualifiers, &left_node);
     (void)left_base;
     (void)left_qualifiers;
@@ -10915,6 +10992,9 @@ static ctool_status_t cfront_prepare_compound_assignment(
     if (left_node.kind == CTOOL_C_TYPE_FLOAT ||
         left_node.kind == CTOOL_C_TYPE_DOUBLE ||
         left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      ctool_c_type_node_t right_original_node;
+      ctool_u32 right_original_base;
+      ctool_u32 right_original_qualifiers;
       status = cfront_apply_default_conversion(context, right);
       if (status == CTOOL_OK) {
         status = cfront_integer_promotion_type(
@@ -10941,10 +11021,54 @@ static ctool_status_t cfront_prepare_compound_assignment(
             operator_token,
             "compound assignment requires arithmetic operands");
       }
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          operator_token,
-          "floating compound assignment is outside this body slice");
+      if (right_is_integer == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
+            "floating compound assignment is outside this body slice");
+      }
+      status = cfront_underlying_type(
+          context, right_original_type, &right_original_base,
+          &right_original_qualifiers, &right_original_node);
+      (void)right_original_base;
+      if (status == CTOOL_OK) {
+        status = cfront_underlying_type(
+            context, right->type, &right_base, &right_qualifiers,
+            &right_node);
+      }
+      (void)right_base;
+      (void)right_qualifiers;
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+          right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+          (left_node.kind != CTOOL_C_TYPE_FLOAT &&
+           left_node.kind != CTOOL_C_TYPE_DOUBLE) ||
+          (right_node.kind != CTOOL_C_TYPE_FLOAT &&
+           right_node.kind != CTOOL_C_TYPE_DOUBLE) ||
+          ((left_qualifiers | left_node.qualifiers |
+            right_original_qualifiers | right_original_node.qualifiers) &
+           CTOOL_C_QUAL_ATOMIC) != 0u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
+            "floating compound assignment is outside this body slice");
+      }
+      status = cfront_scalar_type(
+          context,
+          left_node.kind == CTOOL_C_TYPE_DOUBLE ||
+                  right_node.kind == CTOOL_C_TYPE_DOUBLE
+              ? CTOOL_C_TYPE_DOUBLE
+              : CTOOL_C_TYPE_FLOAT,
+          operator_token, computation_type_out);
+      if (status == CTOOL_OK) {
+        status = cfront_append_integer_conversion_if_needed(
+            context, CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+            *computation_type_out, right);
+      }
+      return status == CTOOL_OK ? CTOOL_OK
+                                : cfront_storage_failure(context, status);
     }
     if (left_node.kind != CTOOL_C_TYPE_POINTER) {
       return cfront_emit_failure(

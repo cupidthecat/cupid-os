@@ -2108,6 +2108,26 @@ static int floating_arithmetic_active_source_is_unchanged(
   return 1;
 }
 
+static int floating_conversion_active_source_is_unchanged(
+    ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/kernel/cpu/libm.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active floating conversion source") ||
+      !source_last_function_fingerprint_matches(
+          &source, "float libm_tanhf_impl(float x)",
+          "/* Task 26 asm wrappers", 162u,
+          UINT64_C(0x03678f60df3c62e7))) {
+    (void)fprintf(stderr, "the active libm tanhf helper changed\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int active_source_is_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
@@ -24988,6 +25008,514 @@ cleanup:
   return 1;
 }
 
+static const ctool_c_ir_function_t *floating_conversion_ir_function(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, const char *name) {
+  ctool_u32 binding = find_binding(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE || ir == NULL ||
+      ir->functions == NULL) {
+    return NULL;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    if (ir->functions[index].binding == binding) {
+      return &ir->functions[index];
+    }
+  }
+  return NULL;
+}
+
+static int validate_floating_conditional_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, const char *name,
+    ctool_c_type_kind_t condition_kind, ctool_u32 result_type,
+    ctool_u32 expected_widenings) {
+  const ctool_c_ir_function_t *function =
+      floating_conversion_ir_function(unit, ir, name);
+  ctool_u32 branches = 0u;
+  ctool_u32 jumps = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 widenings = 0u;
+  ctool_u32 index;
+  if (unit == NULL || function == NULL ||
+      function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction) {
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[function->first_instruction + index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO) {
+      if (instruction->type != CTOOL_C_TYPE_NONE ||
+          instruction->input_type >= unit->graph.type_count ||
+          unit->graph.types[instruction->input_type].kind != condition_kind) {
+        return 0;
+      }
+      branches++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP) {
+      jumps++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+      if (instruction->type != result_type ||
+          instruction->input_type != result_type) {
+        return 0;
+      }
+      returns++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->conversion ==
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+      if (instruction->type != result_type) {
+        return 0;
+      }
+      widenings++;
+    }
+  }
+  return branches == 1u && jumps == 1u && returns == 1u &&
+                 widenings == expected_widenings
+             ? 1
+             : 0;
+}
+
+static int validate_floating_compound_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir, const char *name,
+    ctool_u32 result_type, ctool_u32 computation_type,
+    ctool_c_expression_operator_t operation, ctool_u32 expected_usual,
+    ctool_u32 expected_assignment, ctool_u32 side_effect_binding) {
+  const ctool_c_ir_function_t *function =
+      floating_conversion_ir_function(unit, ir, name);
+  ctool_u32 duplicate_addresses = 0u;
+  ctool_u32 binaries = 0u;
+  ctool_u32 stores = 0u;
+  ctool_u32 usual = 0u;
+  ctool_u32 assignments = 0u;
+  ctool_u32 side_effect_calls = 0u;
+  ctool_u32 index;
+  if (function == NULL || function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction) {
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[function->first_instruction + index];
+    if (instruction->kind ==
+        CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS) {
+      if (instruction->type != result_type ||
+          instruction->input_type != result_type) {
+        return 0;
+      }
+      duplicate_addresses++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+               instruction->operation == operation) {
+      if (instruction->type != computation_type ||
+          instruction->input_type != computation_type) {
+        return 0;
+      }
+      binaries++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_STORE_VALUE) {
+      if (instruction->type != result_type ||
+          instruction->input_type != result_type) {
+        return 0;
+      }
+      stores++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->conversion ==
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+               instruction->input_type == result_type &&
+               instruction->type == computation_type) {
+      usual++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+               instruction->input_type == computation_type &&
+               instruction->type == result_type) {
+      assignments++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+               instruction->reference == side_effect_binding) {
+      side_effect_calls++;
+    }
+  }
+  return duplicate_addresses == 1u && binaries == 1u && stores == 1u &&
+                 usual == expected_usual &&
+                 assignments == expected_assignment &&
+                 side_effect_calls ==
+                     (side_effect_binding == CTOOL_C_AST_NONE ? 0u : 1u)
+             ? 1
+             : 0;
+}
+
+static int validate_floating_conversion_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const compound_names[] = {
+      "same_add", "same_subtract", "same_multiply", "same_divide",
+      "mixed_add_assign", "mixed_subtract_assign",
+      "mixed_multiply_assign", "mixed_divide_assign",
+      "side_effect_add"};
+  static const ctool_c_expression_operator_t compound_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD,
+      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT,
+      CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY,
+      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE,
+      CTOOL_C_EXPRESSION_OPERATOR_ADD};
+  static const ctool_u32 result_is_double[] = {
+      0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 0u};
+  static const ctool_u32 computation_is_double[] = {
+      0u, 1u, 0u, 1u, 1u, 1u, 1u, 1u, 1u};
+  ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 next_float = find_binding(unit, "next_float");
+  ctool_u32 casts[2] = {0u, 0u};
+  ctool_u32 same_casts[2] = {0u, 0u};
+  ctool_u32 assignments[2] = {0u, 0u};
+  ctool_u32 usual_widenings = 0u;
+  ctool_u32 binary_operations[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 conditional_branches = 0u;
+  ctool_u32 compound_count =
+      (ctool_u32)(sizeof(compound_names) / sizeof(compound_names[0]));
+  ctool_u32 index;
+
+  if (unit == NULL || ir == NULL || ir->functions == NULL ||
+      ir->instructions == NULL || float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      next_float == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != 28u ||
+      ir->function_count != 28u) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
+      if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+          instruction->input_type == float_type &&
+          instruction->type == double_type) {
+        casts[0]++;
+      } else if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+                 instruction->input_type == double_type &&
+                 instruction->type == float_type) {
+        casts[1]++;
+      } else if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+                 instruction->input_type == float_type &&
+                 instruction->type == float_type) {
+        same_casts[0]++;
+      } else if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+                 instruction->input_type == double_type &&
+                 instruction->type == double_type) {
+        same_casts[1]++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_ASSIGNMENT &&
+                 instruction->input_type == float_type &&
+                 instruction->type == double_type) {
+        assignments[0]++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_ASSIGNMENT &&
+                 instruction->input_type == double_type &&
+                 instruction->type == float_type) {
+        assignments[1]++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+                 instruction->input_type == float_type &&
+                 instruction->type == double_type) {
+        usual_widenings++;
+      }
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+               instruction->type == instruction->input_type &&
+               (instruction->type == float_type ||
+                instruction->type == double_type)) {
+      if (instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+        binary_operations[0]++;
+      } else if (instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+        binary_operations[1]++;
+      } else if (instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
+        binary_operations[2]++;
+      } else if (instruction->operation ==
+                 CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+        binary_operations[3]++;
+      } else {
+        return 0;
+      }
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO &&
+               instruction->input_type != float_type &&
+               instruction->input_type != double_type) {
+      conditional_branches++;
+    }
+  }
+  if (casts[0] != 1u || casts[1] != 1u ||
+      same_casts[0] != 1u || same_casts[1] != 1u ||
+      assignments[0] != 4u || assignments[1] != 7u ||
+      usual_widenings != 12u ||
+      binary_operations[0] != 4u || binary_operations[1] != 3u ||
+      binary_operations[2] != 3u || binary_operations[3] != 3u ||
+      conditional_branches != 5u ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_float", CTOOL_C_TYPE_SIGNED_INT,
+          float_type, 0u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_double", CTOOL_C_TYPE_SIGNED_INT,
+          double_type, 0u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_pointer", CTOOL_C_TYPE_POINTER,
+          double_type, 1u)) {
+    (void)fprintf(
+        stderr,
+        "floating-conversions: IR inventory differs: casts=%u/%u/%u/%u "
+        "assignments=%u/%u usual=%u binary=%u/%u/%u/%u branches=%u\n",
+        (unsigned int)casts[0], (unsigned int)casts[1],
+        (unsigned int)same_casts[0], (unsigned int)same_casts[1],
+        (unsigned int)assignments[0], (unsigned int)assignments[1],
+        (unsigned int)usual_widenings,
+        (unsigned int)binary_operations[0],
+        (unsigned int)binary_operations[1],
+        (unsigned int)binary_operations[2],
+        (unsigned int)binary_operations[3],
+        (unsigned int)conditional_branches);
+    return 0;
+  }
+  for (index = 0u; index < compound_count; index++) {
+    ctool_u32 result_type =
+        result_is_double[index] != 0u ? double_type : float_type;
+    ctool_u32 computation_type =
+        computation_is_double[index] != 0u ? double_type : float_type;
+    ctool_u32 expected_conversion =
+        result_type == computation_type ? 0u : 1u;
+    if (!validate_floating_compound_ir(
+            unit, ir, compound_names[index], result_type,
+            computation_type, compound_operations[index],
+            expected_conversion, expected_conversion,
+            index + 1u == compound_count
+                ? next_float
+                : CTOOL_C_AST_NONE)) {
+      (void)fprintf(
+          stderr,
+          "floating-conversions: compound function %s differs\n",
+          compound_names[index]);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_floating_conversions(const char *host_root) {
+  static const char source[] =
+      "double take_double(double value);\n"
+      "float take_float(float value);\n"
+      "float *next_float(void);\n"
+      "float same_float_cast(float value) { return (float)value; }\n"
+      "double same_double_cast(double value) { return (double)value; }\n"
+      "double widen_cast(float value) { return (double)value; }\n"
+      "float narrow_cast(double value) { return (float)value; }\n"
+      "double widen_assign(float value) { double result = value; result = value; return result; }\n"
+      "float narrow_assign(double value) { float result = value; result = value; return result; }\n"
+      "double call_widen(float value) { return take_double(value); }\n"
+      "float call_narrow(double value) { return take_float(value); }\n"
+      "double return_widen(float value) { return value; }\n"
+      "float return_narrow(double value) { return value; }\n"
+      "double mixed_add(float left, double right) { return left + right; }\n"
+      "double mixed_subtract(double left, float right) { return left - right; }\n"
+      "double mixed_multiply(float left, double right) { return left * right; }\n"
+      "double mixed_divide(double left, float right) { return left / right; }\n"
+      "double choose_left(int condition, float left, double right) { return condition ? left : right; }\n"
+      "double choose_right(int condition, double left, float right) { return condition ? left : right; }\n"
+      "float choose_float(int condition, float left, float right) { return condition ? left : right; }\n"
+      "double choose_double(int condition, double left, double right) { return condition ? left : right; }\n"
+      "double choose_pointer(int *condition, float left, double right) { return condition ? left : right; }\n"
+      "float same_add(float *left, float right) { return *left += right; }\n"
+      "double same_subtract(double *left, double right) { return *left -= right; }\n"
+      "float same_multiply(float *left, float right) { return *left *= right; }\n"
+      "double same_divide(double *left, double right) { return *left /= right; }\n"
+      "float mixed_add_assign(float *left, double right) { return *left += right; }\n"
+      "double mixed_subtract_assign(double *left, float right) { return *left -= right; }\n"
+      "float mixed_multiply_assign(float *left, double right) { return *left *= right; }\n"
+      "double mixed_divide_assign(double *left, float right) { return *left /= right; }\n"
+      "float side_effect_add(double right) { return *next_float() += right; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_host_adapter_t limited_adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_job_t *limited_job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 reverse_assignment = CTOOL_C_AST_NONE;
+  ctool_u32 widening_assignment = CTOOL_C_AST_NONE;
+  ctool_u32 narrowing_cast = CTOOL_C_AST_NONE;
+  ctool_u32 float_type;
+  ctool_u32 double_type;
+  ctool_u32 int_type;
+  ctool_u32 diagnostic_count;
+  ctool_u32 index;
+  ctool_status_t status;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !floating_conversion_active_source_is_unchanged(job) ||
+      !parse_source_mode(job, "/floating-conversions.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  float_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_FLOAT);
+  double_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_DOUBLE);
+  int_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_SIGNED_INT);
+  if (float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE || int_type == CTOOL_C_TYPE_NONE) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "floating conversion lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_floating_conversion_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = wide_variadic_ir_fingerprint(&ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat floating conversion lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      wide_variadic_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_floating_conversion_ir(&unit, &repeat_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    ctool_u32 child =
+        expression->child_count == 1u
+            ? unit.expression_children[expression->first_child]
+            : CTOOL_C_AST_NONE;
+    ctool_u32 child_type =
+        child < unit.expression_count
+            ? unit.expressions[child].type
+            : CTOOL_C_TYPE_NONE;
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+        expression->type == float_type && child_type == double_type) {
+      reverse_assignment = index;
+    } else if (expression->kind ==
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+               expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+               expression->type == double_type && child_type == float_type) {
+      widening_assignment = index;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+               expression->type == float_type &&
+               child_type == double_type) {
+      narrowing_cast = index;
+    }
+  }
+  if (reverse_assignment == CTOOL_C_AST_NONE ||
+      widening_assignment == CTOOL_C_AST_NONE ||
+      narrowing_cast == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[reverse_assignment].conversion =
+      CTOOL_C_CONVERSION_FLOAT_PROMOTION;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "reverse floating promotion")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[reverse_assignment].conversion =
+      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "reverse usual floating conversion")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[widening_assignment].type = int_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "floating assignment to integer")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[narrowing_cast].type = int_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating and integer cast")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "floating conversion recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      wide_variadic_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !validate_floating_conversion_ir(&unit, &recovered_ir) ||
+      !open_limited_job(host_root, &limited_adapter, &limited_job) ||
+      !expect_ir_failure_preserves_unit(
+          limited_job, &unit, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+          "CupidC IR lowering exceeded a configured resource limit",
+          "floating conversion constrained allocation")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (limited_job != NULL) {
+    ctool_job_close(limited_job);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-conversions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_transport_ir(
     const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
   ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
@@ -25245,20 +25773,6 @@ static int floating_truth_mutations_are_rejected(
                (size_t)unit->expression_count * sizeof(*expressions));
   (void)memcpy(children, unit->expression_children,
                (size_t)unit->expression_child_count * sizeof(*children));
-  expressions[conditional].type = float_type;
-  children[expressions[conditional].first_child + 1u] = float_value;
-  children[expressions[conditional].first_child + 2u] = float_value;
-  if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
-          "floating conditional result")) {
-    goto cleanup;
-  }
-
-  (void)memcpy(expressions, unit->expressions,
-               (size_t)unit->expression_count * sizeof(*expressions));
-  (void)memcpy(children, unit->expression_children,
-               (size_t)unit->expression_child_count * sizeof(*children));
   (void)memcpy(statements, unit->statements,
                (size_t)unit->statement_count * sizeof(*statements));
   statements[selection].condition = float_value;
@@ -25424,7 +25938,7 @@ static int run_floating_transport(const char *host_root) {
                (size_t)unit.expression_count *
                    sizeof(*invalid_promotion_expressions));
   invalid_promotion_expressions[promotion_expression].conversion =
-      CTOOL_C_CONVERSION_ASSIGNMENT;
+      CTOOL_C_CONVERSION_QUALIFICATION;
   invalid_promotion_unit = unit;
   invalid_promotion_unit.expressions = invalid_promotion_expressions;
   if (!expect_ir_failure_preserves_unit(
@@ -26377,6 +26891,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-arithmetic") == 0) {
     return run_floating_arithmetic(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
+    return run_floating_conversions(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);
   }
@@ -26424,6 +26941,7 @@ int main(int argc, char **argv) {
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|wide-variadics|"
                 "floating-transport|floating-arithmetic|"
+                "floating-conversions|"
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"

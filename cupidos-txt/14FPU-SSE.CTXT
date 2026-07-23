@@ -41,6 +41,23 @@ language, assembler, libm, and printf.
   float4:  16 bytes, SSE packed (4 floats).
   double2: 16 bytes, SSE packed (2 doubles).
 
+>h3 Shared Self-Hosting Path
+The shared compiler used for self-hosting has a separate i386 x87 backend.
+It carries non-atomic float and double values through objects, calls, variadic
+reads, and returns. Explicit casts and assignment conversion work in either
+direction. Matching floating conditional arms keep their width. Mixed
+arithmetic and conditional arms use double.
+
+The +=, -=, *=, and /= operators compute at the common width, convert the
+stored result back to the left type, and evaluate the left designator once.
+Each changed x87 result is stored at its C width before the next Linear IR
+instruction.
+
+Integer and floating conversion, floating comparisons and truth, a floating
+controlling expression, increment and decrement, floating literals, long
+double, SIMD, and atomic floating access remain outside this shared path. The
+SSE details below describe the private in-OS compiler.
+
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
 scalar opcodes (ADDSS/ADDSD/etc.). Implicit promotion:
