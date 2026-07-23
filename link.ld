@@ -7,7 +7,7 @@ SECTIONS
      * Kernel is loaded at 1MB (0x100000) by the bootloader via unreal mode.
      * File-backed bytes must end by 0x8FF600 for the bootloader's reserved
      * disk area, and the complete memory image must end below the fixed
-     * kernel stack at 0xB00000 (both asserted below).
+     * kernel stack at 0xC00000 (both asserted below).
      */
     . = 0x100000;
     .text : {
@@ -54,6 +54,6 @@ SECTIONS
      */
     ASSERT(_loaded_end <= 0x8FF600,
            "Kernel binary (text+data) exceeds reserved HDD kernel area")
-    ASSERT(_kernel_end <= 0xB00000,
+    ASSERT(_kernel_end <= 0xC00000,
            "Kernel memory image overlaps the fixed kernel stack")
 }

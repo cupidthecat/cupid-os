@@ -28,7 +28,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Cohort | Files | Checked-source lines |
 | --- | ---: | ---: |
-| `boot_assembly` | 1 | 302 |
+| `boot_assembly` | 1 | 301 |
 | `cupid_asm_demo` | 22 | 1463 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
 | `cupid_c_program` | 105 | 18596 |
@@ -49,7 +49,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_gfx` | 28 | 12182 |
 | `kernel_gui` | 28 | 11971 |
 | `kernel_lang` | 20 | 10542 |
-| `kernel_mm` | 7 | 1291 |
+| `kernel_mm` | 7 | 1296 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1161 |
 | `kernel_tls` | 13 | 6409 |
@@ -76,11 +76,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
+| `cupid_c_compiler` | 16 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 297 |
-| `host_python` | 9 |
+| `host_c_compiler` | 281 |
+| `host_python` | 25 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -99,7 +100,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.register` | 27 | 775 |
 | `asm.relocation` | 1 | 13 |
 | `c.control` | 12 | 63952 |
-| `c.declaration` | 1 | 22 |
+| `c.declaration` | 1 | 26 |
 | `c.declarator` | 4 | 2834 |
 | `c.expression` | 2 | 4092 |
 | `c.extension` | 18 | 382 |
@@ -131,7 +132,7 @@ The JSON companion records stable feature IDs, occurrence counts, files, and rep
 | Required relocations | `R_386_32, R_386_PC32` |
 | Stack alignment | 16 bytes |
 
-`link.ld` has SHA-256 `29fe0e78e8e231752d5fb08f8e974095c1590546ccf370ddc07f7633ffbf80b5` and uses `ALIGN`, `ASSERT`, `COMMON`, `ENTRY`, `SECTIONS`, `input_section_wildcards`, `location_counter`, `symbol_definitions`.
+`link.ld` has SHA-256 `ec69f3e03b7b1b05ed75efee6f953d89b63c6e6ee46c314113f5d4630b88f80b` and uses `ALIGN`, `ASSERT`, `COMMON`, `ENTRY`, `SECTIONS`, `input_section_wildcards`, `location_counter`, `symbol_definitions`.
 It is also a declared Make prerequisite.
 
 ## Source-driven capability priority
@@ -212,7 +213,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `kernel/lang/cupidc_runtime.c` | `c` | `not_reached` | 284 | not reachable from the supported Make target or include closure |
 | `kernel/lang/cupidc_runtime.h` | `c_header` | `not_reached` | 66 | not reachable from the supported Make target or include closure |
 | `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |
-| `tests/kernel_exec_contract.c` | `c` | `not_reached` | 579 | not reachable from the supported Make target or include closure |
+| `tests/kernel_exec_contract.c` | `c` | `not_reached` | 601 | not reachable from the supported Make target or include closure |
 | `tests/kernel_process_contract.c` | `c` | `not_reached` | 929 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `not_reached` | 8 | not reachable from the supported Make target or include closure |
 

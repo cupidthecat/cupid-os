@@ -268,7 +268,21 @@ make HDD_MB=100
 
 ### Self-hosting compiler status
 
-The normal image build still uses Clang or GCC for its C objects. The hosted CupidC path carries one-byte, two-byte, and four-byte integers through target-sized locals, file objects, members, indexed access, conditions, conversions, assignment, mutation, and prototyped, variadic, or unprototyped direct and indirect calls. Narrow loads produce canonical 32-bit values, while stores use the declared byte or word width. Represented scalar cdecl arguments keep four-byte stack slots, and callers and callees normalize narrow results. An explicit cast to `void` evaluates its operand once and discards any represented result.
+The normal image build now uses the checked CupidC seed for 16 kernel crypto
+objects. Clang or GCC still builds the four blocked crypto sources and the
+rest of the normal C graph. The migrated objects are validated i386 ELF32
+relocatables before publication. A current QEMU boot passes all 40 TLS checks;
+those vectors execute 12 migrated sources, while bigint, RSA, SHA-512, and
+Ed25519 currently have compile and link coverage.
+
+The hosted CupidC path carries one-byte, two-byte, and four-byte integers
+through target-sized locals, file objects,
+members, indexed access, conditions, conversions, assignment, mutation, and
+prototyped, variadic, or unprototyped direct and indirect calls. Narrow loads
+produce canonical 32-bit values, while stores use the declared byte or word
+width. Represented scalar cdecl arguments keep four-byte stack slots, and
+callers and callees normalize narrow results. An explicit cast to `void`
+evaluates its operand once and discards any represented result.
 
 The hosted path also carries signed and unsigned eight-byte integers through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, and named direct or indirect call arguments. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be loaded, initialized, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte snapshot, so a load is a stable C value rather than a borrowed object address. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. On return, EAX carries the low word and EDX carries the high word. Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, explicit casts to or from represented byte, word, and doubleword integers, and the usual arithmetic conversion from `signed long long` to `unsigned long long`. A wide switch evaluates its condition once, duplicates the private snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and performs one semantic load and store. Wide multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. GNU wide enums promote to their compatible signed or unsigned wide type. The complete unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard those operations. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 
@@ -446,7 +460,7 @@ LBA 16384+  FAT16 partition (mounted as /disk)
 | `memory.c/.h` | Physical memory manager, bitmap allocator over 512MB, kernel heap |
 | `paging.c` | Page tables, identity-mapped address space |
 
-The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at 0x00B00000-0x00D00000.
+The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at 0x00C00000-0x00E00000.
 
 ### Processes
 
@@ -624,6 +638,10 @@ hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_featur
 
 The `user/` directory has example ELF32 programs (`hello.c`, `cat.c`, and `ls.c`). Its `cupid.h` header defines the syscall-table ABI for programs compiled to ELF and loaded by the kernel.
 
+External executables must be linked for the current
+`0x00E00000..0x01000000` arena. Binaries linked at the former `0x00D00000`
+base now overlap the kernel stack and must be rebuilt.
+
 ---
 
 ## Memory layout
@@ -634,8 +652,8 @@ The `user/` directory has example ELF32 programs (`hello.c`, `cat.c`, and `ls.c`
 0x100000            Kernel start (_start)
                     .text, .rodata, .data
                     .bss
-0x00B00000-0x00D00000 Kernel stack (2MB, grows down; 16-byte guard)
-0x00D00000-0x00F00000 External ELF arena (exclusive fixed-address lease)
+0x00C00000-0x00E00000 Kernel stack (2MB, grows down; 16-byte guard)
+0x00E00000-0x01000000 External ELF arena (exclusive fixed-address lease)
 0x01000000-0x01900000 CupidC JIT/AOT region (1MB code + 8MB data)
 0x01A00000-0x01C00000 CupidASM JIT/AOT region (1MB code + 1MB data)
 0xE0000000+         VBE linear framebuffer (address comes from BIOS)

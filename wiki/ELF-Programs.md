@@ -35,7 +35,7 @@ make -C user
 # Or compile manually:
 gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
     -Iuser -c user/examples/hello.c -o hello.o
-cupidld -m elf_i386 --text-address 0x00D00000 --entry _start \
+cupidld -m elf_i386 --text-address 0x00E00000 --entry _start \
     -o hello hello.o
 ```
 
@@ -74,7 +74,7 @@ Hello from an ELF program!
 ```
 ┌────────────────────┐
 │   ELF Binary       │  (in homefs at /home/hello)
-│   .text @ 0xD00000 │
+│   .text @ 0xE00000 │
 │   .data / .bss     │
 └────────┬───────────┘
          │  exec("/home/hello", "hello")
@@ -111,15 +111,23 @@ CupidOS uses a **flat 512 MB identity-mapped** address space. The loader places 
 
 ```
 Physical / Virtual Memory (512 MB identity-mapped):
-0x00100000 ... kernel image ... below 0x00B00000
-0x00B00000 - 0x00D00000  fixed kernel stack
-0x00D00000 - 0x00F00000  exclusive external-ELF arena
+0x00100000 ... kernel image ... below 0x00C00000
+0x00C00000 - 0x00E00000  fixed kernel stack
+0x00E00000 - 0x01000000  exclusive external-ELF arena
 0x01000000 - 0x01900000  CupidC JIT/AOT region
 0x01A00000 - 0x01C00000  CupidASM JIT/AOT region
 0x20000000                end of identity map
 ```
 
-Ordinary external programs are linked at `0x00D00000`. The whole two-MiB arena is permanently reserved from ordinary PMM allocation and leased to one fixed-address external process at a time; process cleanup releases the lease, not the permanent pages.
+Ordinary external programs are linked at `0x00E00000`. The whole two-MiB
+arena is permanently reserved from ordinary PMM allocation and leased to one
+fixed-address external process at a time. Process cleanup releases the lease,
+not the permanent pages. Programs linked at the former `0x00D00000` base must
+be rebuilt because that address is now inside the kernel stack.
+
+A runtime smoke runs the same external program twice at `0x00E00000`. The
+first process exits and releases its lease before the second process claims the
+arena and loads at the same address.
 
 ### Syscall Table
 
@@ -156,7 +164,7 @@ Calls through the table do not require a privilege-mode switch, and the table ex
 | Flag | Purpose |
 |------|---------|
 | `-m elf_i386` | Target i386 ELF format |
-| `--text-address 0x00D00000` | Set the external-ELF arena base |
+| `--text-address 0x00E00000` | Set the external-ELF arena base |
 | `--entry _start` | Select the program entry symbol |
 
 ### User Makefile
@@ -576,10 +584,10 @@ The loader checks all of the following before loading:
 
 | Constraint | Value | Reason |
 |------------|-------|--------|
-| External arena | `0x00D00000..0x00F00000` | Avoid kernel, stack, and Cupid JIT/AOT regions |
+| External arena | `0x00E00000..0x01000000` | Avoid kernel, stack, and Cupid JIT/AOT regions |
 | Max external image span | 2 MiB | The complete image must fit the external arena |
 | Entry/load range | Loads wholly inside one arena; entry in file-backed `PF_X` bytes | Prevent cross-region overwrite and non-code entry |
-| Link address | `0x00D00000` | Fixed base used by `user/Makefile` |
+| Link address | `0x00E00000` | Fixed base used by `user/Makefile` |
 
 The loader also preserves CupidC's `0x01000000..0x01900000` and CupidASM's
 `0x01A00000..0x01C00000` fixed AOT ranges. An image must fit wholly inside

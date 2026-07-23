@@ -31,7 +31,7 @@ The narrow allocator, whole-file, and text-output capabilities that connect the 
 _Avoid_: tool backend, giant platform vtable
 
 **External executable arena**:
-The permanently reserved identity-mapped range `[0x00D00000, 0x00F00000)` leased exclusively to one ordinary fixed-address ELF process at a time.
+The permanently reserved identity-mapped range `[0x00E00000, 0x01000000)` leased exclusively to one ordinary fixed-address ELF process at a time.
 _Avoid_: dynamically allocated user memory, CupidC region, CupidASM region
 
 **TempleOS reference tree**:

@@ -6,7 +6,7 @@
  * Compile:
  *   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
  *       -Iuser -c user/examples/ls.c -o ls.o
- *   cupidld -m elf_i386 --text-address 0x00D00000 --entry _start \
+ *   cupidld -m elf_i386 --text-address 0x00E00000 --entry _start \
  *       -o ls ls.o
 */
 

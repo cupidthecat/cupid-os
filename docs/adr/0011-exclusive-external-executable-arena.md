@@ -1,5 +1,7 @@
 # Lease one permanently reserved arena for fixed external executables
 
+_Address range superseded in part by ADR 0093._
+
 Ordinary hosted-C/CupidLD executables use the identity-mapped interval `[0x00D00000, 0x00F00000)`. The PMM reserves the complete two-MiB interval permanently. The process subsystem grants one generation-tagged exclusive lease for its contents. The loader accepts an external image only when every `PT_LOAD` byte fits inside this arena and its entry lies in file-backed bytes of an executable `PT_LOAD`. Successful process creation transfers the lease metadata into the PCB before publishing its PID. Failure, exit, kill, reaping, or stack-canary cleanup cancels or releases exactly that lease and never releases the permanent pages.
 
 The address is a compatibility bridge, not a general allocator. `0x00600000` was rejected after the measured kernel image showed that it overlaps initialized kernel state. The selected arena begins immediately after the fixed kernel stack and ends before CupidC's existing fixed region. `link.ld` separately asserts that the kernel memory image remains below the stack. The loader continues to accept CupidC `[0x01000000, 0x01900000)` and CupidASM `[0x01A00000, 0x01C00000)` AOT images as permanent legacy regions; they do not acquire the external lease and must never be returned to the PMM.
@@ -9,3 +11,7 @@ Lease release requires scheduler quiescence, not merely a terminated state. The 
 The per-CPU selector is CPU state, not migratable process state. Common exception and IRQ entry reserves the `%gs` field in its diagnostic frame but deliberately leaves the incoming selector active while calling C; only `%ds`, `%es`, and `%fs` use the flat kernel-data selector. Replacing `%gs` with the flat selector makes `this_cpu()` read linear address zero and can fault recursively. Generic entry also raises a CPU-local interrupt depth, so BKL release and direct `schedule()` calls leave rescheduling pending until the C handler has completed and the device interrupt has been acknowledged. Common exit then lowers the depth, consumes the request at an explicit suspension point, and discards rather than reloads the saved `%gs` slot: if the suspended frame later resumes on a different CPU, that CPU's selector must remain live.
 
 Reserving and releasing only each loaded page range was rejected because all external binaries share the same fixed addresses: PMM ownership alone cannot prevent two processes from overwriting one another, and releasing boot-reserved pages corrupts the allocator's ownership model. Arbitrary load addresses were rejected because they can overlap the growing kernel, stack, or fixed Cupid runtime regions. Position-independent or per-process-relocated executables are the eventual concurrency direction, but require corresponding compiler, linker, loader, and runtime semantics; they are not simulated by weakening validation in this transitional fixed-address path.
+
+ADR 0093 later moved the full-size stack and external arena upward by one MiB
+when the first CupidC-owned kernel cohort outgrew the old kernel ceiling. The
+lease and loader rules in this record did not change.

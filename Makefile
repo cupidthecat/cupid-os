@@ -20,6 +20,15 @@ CC_TARGET ?=
 QEMU_AUDIODEV ?= alsa,id=speaker
 CLANG_COMPAT_CFLAGS ?=
 endif
+CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root .
+CUPIDC_KERNEL_COMPILE_INPUTS := Makefile tools/cupidc_kernel_compile.py \
+	tools/kernel_crypto_frontier.py tools/bootstrap_toolchain.py \
+	bootstrap/seeds/i386-linux/manifest.json \
+	bootstrap/seeds/i386-linux/cupidasm.elf \
+	bootstrap/seeds/i386-linux/cupidc.elf \
+	bootstrap/seeds/i386-linux/cupiddis.elf \
+	bootstrap/seeds/i386-linux/cupidld.elf \
+	bootstrap/seeds/i386-linux/cupidobj.elf
 CUPIDDIS_BUILD := toolchain/build/cupiddis$(HOST_EXE)
 CUPIDDIS ?= $(CUPIDDIS_BUILD)
 CUPIDASM_BUILD := toolchain/build/cupidasm$(HOST_EXE)
@@ -258,7 +267,7 @@ $(BOOTLOADER): boot/boot.asm $(CUPIDASM)
 	$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
-kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/as.h kernel/lang/ctool_kernel.h
+kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/as.h kernel/lang/ctool_kernel.h kernel/mm/memory.h
 	$(CC) $(CFLAGS) kernel/core/kernel.c -o kernel/core/kernel.o
 
 # simd.c uses SSE2 inline asm helpers; keep freestanding include policy
@@ -414,56 +423,56 @@ drivers/e1000.o: drivers/e1000.c kernel/network/net_if.h drivers/pci.h kernel/mm
 # TLS subsystem: crypto primitives, X.509, handshake state machine.
 # Built phase by phase under kernel/tls/. See plan in
 # /home/frank/.claude/plans/implementy-tls-into-the-breezy-biscuit.md.
-kernel/crypto/chacha20.o: kernel/crypto/chacha20.c kernel/crypto/chacha20.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/chacha20.c -o kernel/crypto/chacha20.o
+kernel/crypto/chacha20.o: kernel/crypto/chacha20.c kernel/crypto/chacha20.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20.c --output kernel/crypto/chacha20.o
 
 kernel/crypto/csprng.o: kernel/crypto/csprng.c kernel/crypto/csprng.h kernel/crypto/chacha20.h kernel/core/types.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/crypto/csprng.c -o kernel/crypto/csprng.o
 
-kernel/crypto/sha256.o: kernel/crypto/sha256.c kernel/crypto/sha256.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/sha256.c -o kernel/crypto/sha256.o
+kernel/crypto/sha256.o: kernel/crypto/sha256.c kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha256.c --output kernel/crypto/sha256.o
 
-kernel/crypto/sha512.o: kernel/crypto/sha512.c kernel/crypto/sha512.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/sha512.c -o kernel/crypto/sha512.o
+kernel/crypto/sha512.o: kernel/crypto/sha512.c kernel/crypto/sha512.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha512.c --output kernel/crypto/sha512.o
 
-kernel/crypto/hmac.o: kernel/crypto/hmac.c kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/hmac.c -o kernel/crypto/hmac.o
+kernel/crypto/hmac.o: kernel/crypto/hmac.c kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hmac.c --output kernel/crypto/hmac.o
 
-kernel/crypto/hkdf.o: kernel/crypto/hkdf.c kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/hkdf.c -o kernel/crypto/hkdf.o
+kernel/crypto/hkdf.o: kernel/crypto/hkdf.c kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hkdf.c --output kernel/crypto/hkdf.o
 
-kernel/crypto/ct.o: kernel/crypto/ct.c kernel/crypto/ct.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/ct.c -o kernel/crypto/ct.o
+kernel/crypto/ct.o: kernel/crypto/ct.c kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ct.c --output kernel/crypto/ct.o
 
-kernel/crypto/poly1305.o: kernel/crypto/poly1305.c kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/poly1305.c -o kernel/crypto/poly1305.o
+kernel/crypto/poly1305.o: kernel/crypto/poly1305.c kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/poly1305.c --output kernel/crypto/poly1305.o
 
-kernel/crypto/chacha20poly1305.o: kernel/crypto/chacha20poly1305.c kernel/crypto/chacha20poly1305.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/chacha20poly1305.c -o kernel/crypto/chacha20poly1305.o
+kernel/crypto/chacha20poly1305.o: kernel/crypto/chacha20poly1305.c kernel/crypto/chacha20poly1305.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20poly1305.c --output kernel/crypto/chacha20poly1305.o
 
-kernel/crypto/aes.o: kernel/crypto/aes.c kernel/crypto/aes.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/aes.c -o kernel/crypto/aes.o
+kernel/crypto/aes.o: kernel/crypto/aes.c kernel/crypto/aes.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes.c --output kernel/crypto/aes.o
 
-kernel/crypto/aes_gcm.o: kernel/crypto/aes_gcm.c kernel/crypto/aes_gcm.h kernel/crypto/aes.h kernel/crypto/ct.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/aes_gcm.c -o kernel/crypto/aes_gcm.o
+kernel/crypto/aes_gcm.o: kernel/crypto/aes_gcm.c kernel/crypto/aes_gcm.h kernel/crypto/aes.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes_gcm.c --output kernel/crypto/aes_gcm.o
 
-kernel/crypto/bigint.o: kernel/crypto/bigint.c kernel/crypto/bigint.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/bigint.c -o kernel/crypto/bigint.o
+kernel/crypto/bigint.o: kernel/crypto/bigint.c kernel/crypto/bigint.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/bigint.c --output kernel/crypto/bigint.o
 
-kernel/crypto/rsa.o: kernel/crypto/rsa.c kernel/crypto/rsa.h kernel/crypto/bigint.h kernel/crypto/sha256.h kernel/crypto/ct.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/rsa.c -o kernel/crypto/rsa.o
+kernel/crypto/rsa.o: kernel/crypto/rsa.c kernel/crypto/rsa.h kernel/crypto/bigint.h kernel/crypto/sha256.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/rsa.c --output kernel/crypto/rsa.o
 
-kernel/crypto/x25519.o: kernel/crypto/x25519.c kernel/crypto/x25519.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/x25519.c -o kernel/crypto/x25519.o
+kernel/crypto/x25519.o: kernel/crypto/x25519.c kernel/crypto/x25519.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x25519.c --output kernel/crypto/x25519.o
 
-kernel/crypto/p256.o: kernel/crypto/p256.c kernel/crypto/p256.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/p256.c -o kernel/crypto/p256.o
+kernel/crypto/p256.o: kernel/crypto/p256.c kernel/crypto/p256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/p256.c --output kernel/crypto/p256.o
 
-kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/ecdsa.c -o kernel/crypto/ecdsa.o
+kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/string.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ecdsa.c --output kernel/crypto/ecdsa.o
 
-kernel/crypto/ed25519.o: kernel/crypto/ed25519.c kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/ed25519.c -o kernel/crypto/ed25519.o
+kernel/crypto/ed25519.o: kernel/crypto/ed25519.c kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ed25519.c --output kernel/crypto/ed25519.o
 
 kernel/crypto/asn1.o: kernel/crypto/asn1.c kernel/crypto/asn1.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/crypto/asn1.c -o kernel/crypto/asn1.o
@@ -706,7 +715,7 @@ kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c kernel/gui/ctxt_i
 	$(CC) $(CFLAGS) kernel/gui/ctxt_image_worker.c -o kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler (process.c)
-kernel/core/process.o: kernel/core/process.c kernel/core/process.h
+kernel/core/process.o: kernel/core/process.c kernel/core/process.h kernel/mm/memory.h
 	$(CC) $(CFLAGS) kernel/core/process.c -o kernel/core/process.o
 
 # Context switch (assembly)
@@ -792,7 +801,7 @@ kernel/mm/swap.o: kernel/mm/swap.c kernel/mm/swap.h kernel/mm/swap_disk.h kernel
 	$(CC) $(CFLAGS) $(OPT) kernel/mm/swap.c -o kernel/mm/swap.o
 
 # Program loader (ELF + CUPD)
-kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h
+kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h kernel/mm/memory.h
 	$(CC) $(CFLAGS) kernel/lang/exec.c -o kernel/lang/exec.o
 
 # Syscall table for ELF programs
@@ -946,6 +955,10 @@ test-cupidc-fixed-point: test-toolchain-fixed-point
 test-toolchain-fixed-point:
 	$(PYTHON) -m unittest -v \
 	  tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupid_built_toolchain_reaches_a_full_static_fixed_point
+
+test-kernel-crypto-frontier:
+	$(PYTHON) -m unittest -v \
+	  tests.test_kernel_crypto_frontier.RealKernelCryptoFrontierTests
 
 verify-bootstrap-seed:
 	$(PYTHON) tools/bootstrap_toolchain.py verify \
@@ -1208,4 +1221,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-crypto-frontier verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

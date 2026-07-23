@@ -163,7 +163,7 @@ class CupidLdHostedCliTests(unittest.TestCase):
             "  ret\n"
             '.section .bss,"aw",@nobits\n'
             "  .balign 4096\n"
-            "  .skip 0x00b00000\n",
+            "  .skip 0x00c00000\n",
             encoding="utf-8",
         )
         _compile_i386(cls.oversize_source, cls.oversize_object)

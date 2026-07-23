@@ -15,6 +15,11 @@
 #define TEST_PF_X 0x1u
 #define TEST_PF_W 0x2u
 #define TEST_PF_R 0x4u
+#define TEST_OLD_EXTERNAL_BASE 0x00D00000u
+
+_Static_assert(TEST_OLD_EXTERNAL_BASE >= STACK_BOTTOM &&
+                   TEST_OLD_EXTERNAL_BASE < STACK_TOP,
+               "former external base must stay inside the current stack");
 
 static uint8_t test_file[TEST_FILE_CAPACITY];
 static uint32_t test_reported_size;
@@ -36,6 +41,7 @@ static uint32_t test_yield_calls;
 static uint32_t test_fixed_copy_calls;
 static process_image_t test_created_image;
 static uint8_t test_external_arena[PAGE_SIZE];
+static uint8_t test_old_external_arena[PAGE_SIZE];
 static uint8_t test_cupidc_arena[PAGE_SIZE];
 static uint8_t test_cupidasm_arena[PAGE_SIZE];
 
@@ -52,6 +58,7 @@ static bool strings_equal(const char *left, const char *right) {
 
 static bool address_is_executable_arena(uint32_t address) {
     return address == EXTERNAL_EXEC_ARENA_START ||
+           address == TEST_OLD_EXTERNAL_BASE ||
            address == CUPIDC_EXEC_ARENA_START ||
            address == CUPIDASM_EXEC_ARENA_START;
 }
@@ -62,6 +69,9 @@ static uint8_t *arena_shadow(uint32_t address, size_t count) {
     if (address == EXTERNAL_EXEC_ARENA_START) {
         base = EXTERNAL_EXEC_ARENA_START;
         shadow = test_external_arena;
+    } else if (address == TEST_OLD_EXTERNAL_BASE) {
+        base = TEST_OLD_EXTERNAL_BASE;
+        shadow = test_old_external_arena;
     } else if (address == CUPIDC_EXEC_ARENA_START) {
         base = CUPIDC_EXEC_ARENA_START;
         shadow = test_cupidc_arena;
@@ -420,6 +430,15 @@ static int run_crossing_arena(void) {
     return expect_rejected(VFS_EINVAL);
 }
 
+static int run_former_external_base(void) {
+    initialize_valid_elf(TEST_OLD_EXTERNAL_BASE);
+    int status = prepare_arena(EXTERNAL_EXEC_ARENA_START);
+    if (status != 0) return status;
+    status = prepare_arena(TEST_OLD_EXTERNAL_BASE);
+    if (status != 0) return status;
+    return expect_rejected(VFS_EINVAL);
+}
+
 static int run_overlapping_segments(void) {
     initialize_valid_elf(EXTERNAL_EXEC_ARENA_START);
     int status = prepare_arena(EXTERNAL_EXEC_ARENA_START);
@@ -534,6 +553,9 @@ static int __attribute__((used)) contract_main(int argc, char **argv) {
     if (strings_equal(argv[1], "truncated-table")) return run_truncated_table();
     if (strings_equal(argv[1], "truncated-segment")) return run_truncated_segment();
     if (strings_equal(argv[1], "crossing-arena")) return run_crossing_arena();
+    if (strings_equal(argv[1], "former-external-base")) {
+        return run_former_external_base();
+    }
     if (strings_equal(argv[1], "overlapping-segments")) {
         return run_overlapping_segments();
     }

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-22
+Verified against source on: 2026-07-23
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -113,6 +113,26 @@ Current toolchain gaps:
 - Macro preprocessing and unsupported-form diagnostics remain incomplete.
 - The in-OS command compiles one translation unit per invocation; separate
   compilation and multi-file linking still need toolchain support.
+>endtree
+
+>h2 Normal Build Ownership
+>tree open Normal Build Ownership
+The checked CupidC seed compiles 16 kernel crypto sources in the normal image
+build:
+- AES and AES-GCM
+- ChaCha20 and ChaCha20-Poly1305
+- constant-time helpers, HMAC, and HKDF
+- Poly1305, SHA-256, and SHA-512
+- bigint, RSA, X25519, P-256, ECDSA, and Ed25519
+
+Each result is checked as an i386 ELF32 relocatable object before it replaces
+the build output. The complete frontier compiles every source twice and
+requires the object bytes to match.
+
+Four neighboring sources still use the host C compiler. csprng.c needs GNU
+inline assembly. asn1.c, x509.c, and x509_chain.c need an unsupported
+conversion. CupidC optimization and the remaining kernel C graph are still
+in progress.
 >endtree
 
 >h2 Self-Hosting Compiler Path

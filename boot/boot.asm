@@ -258,10 +258,9 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0xD00000           ; Boot stack top (2 MB stack from 0xB00000).
-                                ; Moved from 0xA00000 because kernel BSS now
-                                ; extends through 0x800000 (cc_pp_seen_files_storage
-                                ; sat at 0x7fc820..0x800820 spanning the guard).
+    mov esp, 0xE00000           ; Boot stack top (2 MB stack from 0xC00000).
+                                ; The stack and external ELF arena use the
+                                ; former 1 MB gap below CupidC's fixed arena.
     mov ebp, esp
 
     ; Quick sanity: write 'P' to VGA text buffer (visible briefly)

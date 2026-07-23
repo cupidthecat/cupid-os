@@ -51,7 +51,7 @@ kernel/lang/exec.c applies these loader checks:
 - executable type required
 - i386 only
 - at least one PT_LOAD segment (max ELF_MAX_PHDRS = 16)
-- ordinary external ELF images must fit the exclusive 0x00D00000-0x00F00000
+- ordinary external ELF images must fit the exclusive 0x00E00000-0x01000000
   arena, so their maximum span is 2 MB
 - CupidC AOT images remain accepted in 0x01000000-0x01900000
 - CupidASM AOT images remain accepted in 0x01A00000-0x01C00000
@@ -130,12 +130,20 @@ Example object build:
       -c user/examples/hello.c -o hello.o
 
 Example link:
-cupidld -m elf_i386 --text-address 0x00D00000 --entry _start \
+cupidld -m elf_i386 --text-address 0x00E00000 --entry _start \
         -o hello hello.o
 
-The 0x00D00000 base matters: the kernel and fixed stack occupy the lower
-range, while CupidC begins at 0x01000000. The loader leases this external
-arena exclusively because these fixed-address programs cannot overlap.
+The 0x00E00000 base matters: the kernel and fixed stack occupy the lower
+range, and the external arena ends where CupidC begins at 0x01000000. The
+loader leases this arena exclusively because fixed-address programs cannot
+overlap.
+
+Programs linked at the former 0x00D00000 base must be rebuilt. That address is
+inside the current fixed kernel stack.
+
+The runtime gate starts the same external program twice at 0x00E00000. The
+first process exits and releases the arena before the second process claims it
+and loads at the same address.
 >endtree
 
 >h2 When To Use ELF Instead Of CupidC

@@ -72,14 +72,11 @@ void pmm_init(uint32_t kernel_end) {
   pmm_mark_region(0, reserved_end, 1);
 
   pmm_mark_region(0xA0000, 0x100000, 1);  /* BIOS/VGA hole */
-  pmm_mark_region(0xB00000, 0xD00000, 1); /* kernel stack (2MB) - moved
-                                              from 0x800000 to dodge
-                                              kernel-BSS overlap that
-                                              clobbered the guard zone*/
+  pmm_mark_region(STACK_BOTTOM, STACK_TOP, 1); /* fixed kernel stack */
 
   /* Reserve every fixed execution region so the PMM never allocates into it.
    * Layout (well above kernel BSS + stack):
-   *   13 MB - 15 MB  external CupidLD executables
+   *   14 MB - 16 MB  external CupidLD executables
    *   16 MB - 25 MB  CupidC   (1 MB code + 8 MB data)
    *   26 MB - 28 MB  CupidASM (1 MB code + 1 MB data)
 */

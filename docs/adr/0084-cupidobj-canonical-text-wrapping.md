@@ -77,3 +77,8 @@ same fixed layout then placed `_loaded_end` at `0x006D32C3`, `_bss_start` at
 `0x006D4000`, and `_kernel_end` at `0x00AF4910`. The kernel still has 46,832
 bytes below the fixed stack. This is expected source growth, not a return of
 checkout-dependent line endings.
+
+ADR 0093 later moved the full-size stack and external ELF arena upward by one
+MiB for the first CupidC-owned kernel cohort. That change responds to
+deterministic compiler output growth. It does not replace the canonical text
+rule or excuse checkout-dependent bytes.

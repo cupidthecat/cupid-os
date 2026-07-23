@@ -24,12 +24,10 @@ typedef struct heap_block {
   65536 /* 256MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
-/* The kernel stack moved above the former 0x800000-0xA00000 range after BSS
- * growth overlapped its guard. link.ld now asserts that _kernel_end stays at
- * or below STACK_BOTTOM, so future image growth fails at link time instead
- * of silently corrupting this reservation. */
-#define STACK_BOTTOM 0xB00000u /* Bottom of kernel stack (11 MB) */
-#define STACK_TOP 0xD00000u    /* Top of kernel stack (2 MB tall) */
+/* link.ld keeps the kernel below this fixed stack. The stack and external ELF
+ * arena occupy the four megabytes below CupidC's fixed execution arena. */
+#define STACK_BOTTOM 0xC00000u /* Bottom of kernel stack (12 MB) */
+#define STACK_TOP 0xE00000u    /* Top of kernel stack (2 MB tall) */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes) */
@@ -37,12 +35,22 @@ typedef struct heap_block {
 /* Fixed executable arenas are identity-mapped and permanently reserved.
  * The external arena is the transitional CupidLD user-program layout.
  * CupidC and CupidASM retain their existing fixed JIT/AOT layouts. */
-#define EXTERNAL_EXEC_ARENA_START 0x00D00000u
-#define EXTERNAL_EXEC_ARENA_END   0x00F00000u
+#define EXTERNAL_EXEC_ARENA_START 0x00E00000u
+#define EXTERNAL_EXEC_ARENA_END   0x01000000u
 #define CUPIDC_EXEC_ARENA_START   0x01000000u
 #define CUPIDC_EXEC_ARENA_END     0x01900000u
 #define CUPIDASM_EXEC_ARENA_START 0x01A00000u
 #define CUPIDASM_EXEC_ARENA_END   0x01C00000u
+
+_Static_assert(STACK_SIZE == 2u * 1024u * 1024u,
+               "fixed kernel stack must remain 2 MiB");
+_Static_assert(STACK_TOP == EXTERNAL_EXEC_ARENA_START,
+               "kernel stack and external ELF arena must be adjacent");
+_Static_assert(EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START ==
+                   2u * 1024u * 1024u,
+               "external ELF arena must remain 2 MiB");
+_Static_assert(EXTERNAL_EXEC_ARENA_END == CUPIDC_EXEC_ARENA_START,
+               "external ELF arena must end at the CupidC arena");
 
 void pmm_init(uint32_t kernel_end);
 void *pmm_alloc_page(void);

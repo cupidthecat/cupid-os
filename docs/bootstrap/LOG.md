@@ -7250,3 +7250,101 @@ contract runners. [Issue #32](https://github.com/cupidthecat/cupid-os/issues/32)
 remains open for native Windows tools, production command handoff, staged
 normal-build integration, and the remaining host dependencies. ADR 0092
 records the seed and trust boundary.
+
+## 2026-07-23: CupidC takes over the first kernel crypto cohort
+
+### Finding the production boundary
+
+The checked CupidC seed can compile 16 of the 20 C files in `kernel/crypto`.
+The normal build now uses those objects directly:
+
+`aes.c`, `aes_gcm.c`, `bigint.c`, `chacha20.c`,
+`chacha20poly1305.c`, `ct.c`, `ecdsa.c`, `ed25519.c`, `hkdf.c`,
+`hmac.c`, `p256.c`, `poly1305.c`, `rsa.c`, `sha256.c`, `sha512.c`,
+and `x25519.c`.
+
+The other four files remain visible host-owned blockers. `csprng.c` needs GNU
+inline assembly, while `asn1.c`, `x509.c`, and `x509_chain.c` stop at
+`CTD000006` conversion diagnostics. The frontier rejects an unexpected crypto
+C file, so a new source cannot quietly fall outside either group.
+
+The first frontier runner was too trusting. It could execute a live seed after
+hashing it, publish a partly written result, and describe source bytes that
+changed during the run. The production version freezes and verifies the
+manifest and seed binaries, executes only the private copy, snapshots the
+crypto source and kernel-profile header closure, checks for drift after every
+compile, and publishes the finished directory with one rename. Each source is
+compiled twice and both objects must match byte for byte. The single-object
+Make wrapper applies the same seed boundary and publishes only a validated
+i386 `ET_REL` file.
+
+The 16 Make rules share the same cohort definition. They depend on the wrapper,
+frontier, bootstrap verifier, root Makefile, checked manifest, and all five seed
+binaries. Updating any production input forces a rebuild.
+
+Final review tightened the ownership boundary rather than trusting the name of
+a Make variable. The audit evaluates `PYTHON` and `CUPIDC_KERNEL_COMPILE`,
+requires a bare Python launcher and the exact checked wrapper command, and
+hashes the wrapper, frontier, seed verifier, and seed manifest alongside the
+Makefiles. Launcher flags such as `-c` and `-m` are rejected because they can
+bypass the wrapper. Changing the command or any of those control files now
+changes the evidence or stops the audit.
+
+The frontier also uses the production wrapper's ELF validator. Program headers,
+missing required sections, an empty symbol table, and unsupported relocation
+forms therefore fail the same way in both paths. On Windows, WSL cleanup accepts
+only the exact `/tmp/cupid-kernel-frontier.XXXXXX` directory returned by the
+staging command. Broad paths, unexpected prefixes, extra lines, and malformed
+suffixes are rejected before `rm -rf` can run. The `ecdsa.o` rule now names its
+complete direct header closure, including HMAC, SHA-256, and kernel string
+declarations.
+
+### Keeping the full memory regions
+
+The first complete link failed with `CT700000C`. CupidC does not yet provide an
+optimizer comparable to the host `-Os` path: the 16 migrated objects total
+165,112 bytes, compared with 47,820 host-built bytes. Their deterministic
+output moved `_kernel_end` to `0x00B12910`, which crossed the old
+`0x00B00000` stack boundary by 76,048 bytes.
+
+Shrinking the crypto source, shrinking the two-MiB stack, or dropping the
+linker assertion would have hidden the problem. The map instead uses the
+former one-MiB gap below CupidC. The kernel ceiling is `0x00C00000`, the stack
+is `[0x00C00000, 0x00E00000)`, and the external ELF arena is
+`[0x00E00000, 0x01000000)`. CupidC still begins at `0x01000000`. Static
+assertions keep both moved regions at two MiB and pin their adjacency.
+
+The final link leaves 972,528 bytes between `_kernel_end` and the stack.
+`_loaded_end` is `0x006F1B6D`, leaving 2,153,107 bytes below the bootloader's
+file-backed kernel limit. User examples now link at `0x00E00000`; executables
+persisted at the former `0x00D00000` base must be rebuilt because that address
+is inside the new stack.
+
+### Evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Exact frontier | PASS | All 16 approved sources compile twice to 165,112 byte-identical object bytes. The four named blockers produce their expected diagnostics, and an unclassified crypto source is rejected. |
+| Publication and drift failures | PASS | Seed or manifest failure, compiler failure, malformed ELF, changed source/header input, and invalid output paths fail without replacing a prior object or exposing a partial frontier. |
+| Host-compiler poisoning | PASS | `make -B -j2 CC=cupid-host-compiler-must-not-run` rebuilds all 16 production objects without invoking the poisoned command. |
+| Normal image build | PASS | The complete two-pass CupidLD link and `cupidos.img` build pass with the CupidC objects. The embedded kernel SHA-256 is `79df88b67e85182a3a778b5f5e47488aaccfdca7e240d6d44501c47d330bea79`, matching `kernel/kernel.bin`. The final image SHA-256 is `c317ed6e6e1944410f9c24d9ad465a394c38343cdbbf03bdac8b6e73946c9cec`. |
+| Layout and loader contracts | PASS | Fifty-eight memory-map, ELF loader/process, and CupidLD tests pass. They cover region sizes and adjacency, the three tracked user executables, stack overlap, and rejection of a former-base image before fixed-memory copy. |
+| Shared validation and cleanup | PASS | The frontier now calls the production ELF validator. Focused negatives reject program headers, missing required sections, and a missing symbol table. Cleanup tests reject `/`, `/tmp`, wrong prefixes, traversal, whitespace, and multiline output while accepting only the dedicated six-character `mktemp` path. |
+| Focused and toolchain contracts | PASS | Ninety-two wrapper, frontier, memory-map, loader/process, and CupidLD tests pass in 34.742 seconds. Five complete audit and provenance tests pass in 285.960 seconds. The real checked-seed frontier passes separately, `make -C toolchain test` passes, and all five checked seed tools verify. |
+| QEMU CupidC runtime | PASS | The rebuilt image reports 40 successful TLS checks, the all-vectors marker, the `0x00C00000..0x00E00000` stack guard, desktop and terminal startup, and two successful `/bin/ls.cc` JIT runs. No CupidC, panic, exception, corruption, overflow, guard, or arena failure appears. The log SHA-256 is `21efa76e7136cbb37a79b07a0d78ec3b65c61dfb7c3dbd416330168af37a8813`. |
+| QEMU external ELF runtime | PASS | An isolated image runs `/home/hello` twice at `0x00E00000`. Generation 1 exits and releases the exclusive arena before generation 2 claims it, loads at the same base, and exits. No busy-arena, panic, exception, corruption, ATA, HOMEFS, or cache failure appears. The log SHA-256 is `16d3181e2da1e9814c47f9416185bc73ac75e5bc5f3db82ab6f5781cf8c7c630`. |
+| Runtime scope | PARTIAL | Boot vectors execute 12 migrated sources. `bigint.c`, `rsa.c`, `sha512.c`, and `ed25519.c` are compiled and linked but do not yet have a direct vector in this gate. |
+| Active build audit | PASS | The supported root, user, and toolchain graphs still contain 698 active inputs, 252 feature requirements, and 501 transforms. Sixteen transforms now belong to `cupid_c_compiler`; the evaluated command and four added ownership controls are covered by provenance. The active-source digest is `a823ecbe00592fd1460be65f88f6c2a0106521856eaf4e93c83b98d537844e66`. |
+
+One repository-wide discovery run exceeded its 15-minute outer command limit
+while the checked-seed bootstrap child was still working. The orphan later
+exited after its output pipe had closed, so Windows could not recover a useful
+summary or exit code. It is not counted as evidence. The relevant suites above
+were rerun directly and returned their own `OK` summaries.
+
+This is the first normal-build C ownership transfer. Python and WSL still
+launch the checked compiler, four neighboring crypto files and most normal C
+objects still use Clang or GCC, and CupidC optimization remains open.
+[Issue #28](https://github.com/cupidthecat/cupid-os/issues/28) stays open for
+the remaining strict kernel and driver cohorts. ADR 0093 records the production
+and memory-map decisions.

@@ -141,6 +141,9 @@ class KernelElfLoaderContractTests(KernelContractCase):
     def test_segment_crossing_an_executable_arena_is_rejected(self):
         self.run_contract("crossing-arena")
 
+    def test_former_external_base_inside_the_stack_is_rejected(self):
+        self.run_contract("former-external-base")
+
     def test_overlapping_load_segments_are_rejected(self):
         self.run_contract("overlapping-segments")
 

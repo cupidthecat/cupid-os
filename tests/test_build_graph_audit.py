@@ -3601,6 +3601,39 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     binary_text_delivery
                 )
 
+    def test_cupidc_kernel_wrapper_has_a_closed_compile_recipe(self):
+        module = _load_audit_module()
+        transform = {
+            "output": "kernel/crypto/aes.o",
+            "inputs": [
+                "kernel/crypto/aes.c",
+                "kernel/crypto/aes.h",
+                "kernel/core/types.h",
+            ],
+            "tools": ["cupid_c_compiler", "host_python"],
+            "operation": "compile_c_to_elf32_object",
+            "recipe": [
+                "$(CUPIDC_KERNEL_COMPILE) "
+                "--source kernel/crypto/aes.c "
+                "--output kernel/crypto/aes.o"
+            ],
+        }
+        self.assertEqual(
+            module._c_preprocessor_profile_for_c_transform(".", transform),
+            "KERNEL_I386",
+        )
+
+        changed = dict(transform)
+        changed["recipe"] = [
+            "$(CUPIDC_KERNEL_COMPILE) "
+            "--source kernel/crypto/aes.c "
+            "--output build/aes.o"
+        ]
+        with self.assertRaisesRegex(
+            module.AuditError, r"wrapper arguments differ"
+        ):
+            module._c_preprocessor_profile_for_c_transform(".", changed)
+
     def test_checked_cupidc_active_manifest_classifies_non_roots_and_hosted(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
         include_only_pattern = re.compile(
@@ -3754,6 +3787,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(generated.returncode, 0, generated.stderr)
             self.assertTrue(summary.read_text(encoding="utf-8").endswith("\n\n"))
             audit_payload = json.loads(output.read_text(encoding="utf-8"))
+            control_paths = {
+                entry["path"]
+                for entry in audit_payload["provenance"]["control_files"]
+            }
+            self.assertTrue(
+                {
+                    "tools/cupidc_kernel_compile.py",
+                    "tools/kernel_crypto_frontier.py",
+                    "tools/bootstrap_toolchain.py",
+                    "bootstrap/seeds/i386-linux/manifest.json",
+                }.issubset(control_paths)
+            )
             contract = audit_payload["contracts"][
                 "c_preprocessor_translation_units"
             ]
@@ -3818,7 +3863,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 entry["id"]: entry for entry in audit_payload["features"]
             }
             expected_c_expression_inventory = {
-                "c.declaration.static_assert": (22, 4),
+                "c.declaration.static_assert": (26, 5),
                 "c.expression.sizeof": (4052, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
@@ -3864,6 +3909,53 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for transform in audit_payload["build"]["transforms"]
                 )
             )
+            cupidc_crypto_sources = (
+                "aes.c",
+                "aes_gcm.c",
+                "bigint.c",
+                "chacha20.c",
+                "chacha20poly1305.c",
+                "ct.c",
+                "ecdsa.c",
+                "ed25519.c",
+                "hkdf.c",
+                "hmac.c",
+                "p256.c",
+                "poly1305.c",
+                "rsa.c",
+                "sha256.c",
+                "sha512.c",
+                "x25519.c",
+            )
+            for filename in cupidc_crypto_sources:
+                source_path = f"kernel/crypto/{filename}"
+                output_path = source_path.removesuffix(".c") + ".o"
+                with self.subTest(cupidc_crypto_source=source_path):
+                    transform = root_transform_by_output[output_path]
+                    self.assertEqual(
+                        transform["tools"],
+                        ["cupid_c_compiler", "host_python"],
+                    )
+                    self.assertEqual(
+                        transform["operation"],
+                        "compile_c_to_elf32_object",
+                    )
+                    self.assertIn(source_path, transform["inputs"])
+
+            blocked_crypto_sources = (
+                "asn1.c",
+                "csprng.c",
+                "x509.c",
+                "x509_chain.c",
+            )
+            for filename in blocked_crypto_sources:
+                source_path = f"kernel/crypto/{filename}"
+                output_path = source_path.removesuffix(".c") + ".o"
+                with self.subTest(host_crypto_source=source_path):
+                    self.assertEqual(
+                        root_transform_by_output[output_path]["tools"],
+                        ["host_c_compiler"],
+                    )
             toolchain_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -3874,6 +3966,27 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             source_by_path = {
                 source["path"]: source for source in audit_payload["sources"]
             }
+            for filename in cupidc_crypto_sources:
+                source_path = f"kernel/crypto/{filename}"
+                with self.subTest(cupidc_owned_source=source_path):
+                    self.assertEqual(
+                        source_by_path[source_path]["runtime_owner"],
+                        "CupidC",
+                    )
+                    self.assertIn(
+                        "cupid_c_compiler",
+                        source_by_path[source_path]["build_owners"],
+                    )
+            self.assertEqual(
+                source_by_path["kernel/crypto/aes.h"]["runtime_owner"],
+                "CupidC",
+            )
+            for filename in blocked_crypto_sources:
+                source_path = f"kernel/crypto/{filename}"
+                with self.subTest(host_owned_source=source_path):
+                    self.assertIsNone(
+                        source_by_path[source_path]["runtime_owner"]
+                    )
             frontend_sources = {
                 "toolchain/cupidc_emit.c": "toolchain_core",
                 "toolchain/cupidc_emit.h": "toolchain_core",
@@ -4207,6 +4320,130 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
 
             self.assertEqual(values, {"CFLAGS": "-I/a", "ROOT": "-I/b"})
+
+    def test_cupidc_kernel_wrapper_make_binding_rejects_drift(self):
+        module = _load_audit_module()
+        transforms = [
+            {
+                "tools": ["cupid_c_compiler", "host_python"],
+            }
+        ]
+        cases = {
+            "non-Python launcher": (
+                "PYTHON := clang\n"
+                "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
+                "tools/cupidc_kernel_compile.py --root .\n",
+                "is not a Python launcher",
+            ),
+            "Python command string": (
+                "PYTHON := python3 -c pass\n"
+                "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
+                "tools/cupidc_kernel_compile.py --root .\n",
+                "must contain only the Python launcher",
+            ),
+            "Python module": (
+                "PYTHON := python3 -m unchecked\n"
+                "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
+                "tools/cupidc_kernel_compile.py --root .\n",
+                "must contain only the Python launcher",
+            ),
+            "different wrapper": (
+                "PYTHON := python3\n"
+                "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
+                "tools/other_wrapper.py --root .\n",
+                "differs from the checked command",
+            ),
+            "extra option": (
+                "PYTHON := python3\n"
+                "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
+                "tools/cupidc_kernel_compile.py --root . --unchecked\n",
+                "differs from the checked command",
+            ),
+        }
+        for name, (binding, message) in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(
+                    root / "Makefile",
+                    binding + ".PHONY: all\nall:\n",
+                )
+                with self.assertRaisesRegex(module.AuditError, message):
+                    module._validate_cupidc_kernel_compile_make_binding(
+                        root,
+                        "make",
+                        transforms,
+                    )
+
+    def test_cupidc_kernel_wrapper_make_binding_accepts_checked_command(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                PYTHON := python3
+                CUPIDC_KERNEL_COMPILE := $(PYTHON) \
+                    tools/cupidc_kernel_compile.py --root .
+                .PHONY: all
+                all:
+                """,
+            )
+
+            module._validate_cupidc_kernel_compile_make_binding(
+                root,
+                "make",
+                [{"tools": ["cupid_c_compiler", "host_python"]}],
+            )
+
+    def test_cupidc_ownership_provenance_tracks_wrapper_drift(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for relative in (
+                "Makefile",
+                *module.CUPIDC_KERNEL_CONTROL_FILES,
+            ):
+                _write(root / relative, f"{relative}\n")
+            model = module.BuildModel(
+                directory=".",
+                root_target="all",
+                rules={},
+                reachable=set(),
+                direct_sources=set(),
+                generated_sources=set(),
+                forced_sources=set(),
+                includes_by_source={},
+                include_search_paths=[],
+                transforms=[
+                    {
+                        "tools": ["cupid_c_compiler", "host_python"],
+                    }
+                ],
+            )
+
+            first = module._provenance(root, [model], [])
+            wrapper = root / "tools" / "cupidc_kernel_compile.py"
+            _write(wrapper, "changed wrapper\n")
+            second = module._provenance(root, [model], [])
+            first_controls = {
+                entry["path"]: entry["sha256"]
+                for entry in first["control_files"]
+            }
+            second_controls = {
+                entry["path"]: entry["sha256"]
+                for entry in second["control_files"]
+            }
+
+            self.assertNotEqual(
+                first_controls["tools/cupidc_kernel_compile.py"],
+                second_controls["tools/cupidc_kernel_compile.py"],
+            )
+            self.assertEqual(
+                first_controls["bootstrap/seeds/i386-linux/manifest.json"],
+                second_controls[
+                    "bootstrap/seeds/i386-linux/manifest.json"
+                ],
+            )
 
     def test_supported_audit_targets_check_and_consume_active_manifest(self):
         root_makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")

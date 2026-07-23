@@ -32,6 +32,8 @@ TOOL_MARKERS = (
     ("$(CUPIDASM)", "cupid_assembler"),
     ("$(CUPIDLD)", "cupid_linker"),
     ("$(CUPIDOBJ)", "cupid_object"),
+    ("$(CUPIDC_KERNEL_COMPILE)", "cupid_c_compiler"),
+    ("$(CUPIDC_KERNEL_COMPILE)", "host_python"),
     ("$(CC)", "host_c_compiler"),
     ("$(ASM)", "nasm"),
     ("$(LD)", "host_linker"),
@@ -39,6 +41,12 @@ TOOL_MARKERS = (
     ("$(NM)", "host_symbol_reader"),
     ("$(PYTHON)", "host_python"),
     ("$(MAKE)", "make"),
+)
+CUPIDC_KERNEL_CONTROL_FILES = (
+    "tools/cupidc_kernel_compile.py",
+    "tools/kernel_crypto_frontier.py",
+    "tools/bootstrap_toolchain.py",
+    "bootstrap/seeds/i386-linux/manifest.json",
 )
 EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 
@@ -813,6 +821,61 @@ def _read_evaluated_make_variables(
     return values
 
 
+def _validate_cupidc_kernel_compile_make_binding(
+    root: Path,
+    make: str,
+    transforms: list[dict[str, object]],
+) -> None:
+    if not any(
+        "cupid_c_compiler" in transform.get("tools", [])
+        for transform in transforms
+    ):
+        return
+
+    values = _read_evaluated_make_variables(
+        root,
+        make,
+        ("PYTHON", "CUPIDC_KERNEL_COMPILE"),
+    )
+    try:
+        python_tokens = shlex.split(values["PYTHON"])
+        wrapper_tokens = shlex.split(values["CUPIDC_KERNEL_COMPILE"])
+    except ValueError as error:
+        raise AuditError(
+            f"CupidC kernel wrapper Make binding cannot be tokenized: {error}"
+        ) from error
+    if not python_tokens:
+        raise AuditError("CupidC kernel wrapper has an empty PYTHON binding")
+
+    executable = Path(
+        python_tokens[0].replace("\\", "/")
+    ).name.lower()
+    if executable.endswith(".exe"):
+        executable = executable[:-4]
+    if re.fullmatch(r"(?:py|python(?:[0-9]+(?:\.[0-9]+)*)?)", executable) is None:
+        raise AuditError(
+            "CupidC kernel wrapper PYTHON binding is not a Python launcher: "
+            f"{python_tokens[0]!r}"
+        )
+    if len(python_tokens) != 1:
+        raise AuditError(
+            "CupidC kernel wrapper PYTHON binding must contain only the "
+            f"Python launcher: found {python_tokens!r}"
+        )
+
+    expected = [
+        python_tokens[0],
+        "tools/cupidc_kernel_compile.py",
+        "--root",
+        ".",
+    ]
+    if wrapper_tokens != expected:
+        raise AuditError(
+            "CupidC kernel wrapper Make binding differs from the checked "
+            f"command: expected {expected!r}, found {wrapper_tokens!r}"
+        )
+
+
 def _make_preprocessor_flags(
     expanded: str, variable: str
 ) -> tuple[list[str], list[str], dict[str, str], set[str]]:
@@ -1005,7 +1068,7 @@ def _operation_for_recipe(
     c_object_operation: str,
 ) -> str:
     joined = " ".join(recipe).lower()
-    if "host_c_compiler" in tools:
+    if "host_c_compiler" in tools or "cupid_c_compiler" in tools:
         if output.lower().endswith((".o", ".obj")) or re.search(
             r"(?:^|\s)-c(?:\s|$)", joined
         ):
@@ -1536,6 +1599,24 @@ def _provenance(
                 "sha256": _source_digest(path),
             }
         )
+    if any(
+        "cupid_c_compiler" in transform.get("tools", [])
+        for model in models
+        for transform in model.transforms
+    ):
+        for relative in CUPIDC_KERNEL_CONTROL_FILES:
+            path = root / relative
+            if not path.is_file():
+                raise AuditError(
+                    "CupidC ownership control file is missing: "
+                    f"{relative}"
+                )
+            control_files.append(
+                {
+                    "path": relative,
+                    "sha256": _source_digest(path),
+                }
+            )
     aggregate = hashlib.sha256()
     for source in sources:
         aggregate.update(
@@ -3261,6 +3342,11 @@ def build_audit(
         for directory, supplemental_target in (supplemental_builds or [])
     ]
     models = [root_model, *supplemental_models]
+    _validate_cupidc_kernel_compile_make_binding(
+        root,
+        make,
+        root_model.transforms,
+    )
 
     direct_sources = set().union(*(model.direct_sources for model in models))
     generated_sources = set().union(*(model.generated_sources for model in models))
@@ -3313,6 +3399,11 @@ def build_audit(
         owners = sorted(source_build_owners.get(relative, set()))
         runtime_owner = None
         if language == "cupid_c":
+            runtime_owner = "CupidC"
+        elif (
+            language in {"c", "c_header"}
+            and "cupid_c_compiler" in owners
+        ):
             runtime_owner = "CupidC"
         elif (
             language == "assembly"
@@ -3674,6 +3765,39 @@ def _c_preprocessor_profile_for_c_transform(
 ) -> str:
     output = str(transform.get("output", "<unknown>"))
     recipe_tokens = _c_preprocessor_compile_recipe_tokens(transform)
+    if transform.get("tools") == ["cupid_c_compiler", "host_python"]:
+        if directory != ".":
+            raise AuditError(
+                "CupidC kernel compile wrapper is outside the root build "
+                f"for {output}: {directory!r}"
+            )
+        markers = _c_preprocessor_recipe_markers(
+            transform, {"CUPIDC_KERNEL_COMPILE"}
+        )
+        expected_markers = collections.Counter(
+            {"CUPIDC_KERNEL_COMPILE": 1}
+        )
+        if markers != expected_markers:
+            raise AuditError(
+                "CupidC kernel compile wrapper markers differ for "
+                f"{output}: expected={dict(expected_markers)!r}, "
+                f"actual={dict(sorted(markers.items()))!r}"
+            )
+        root = _c_preprocessor_one_c_root(transform)
+        expected_tokens = [
+            "$(CUPIDC_KERNEL_COMPILE)",
+            "--source",
+            root,
+            "--output",
+            output,
+        ]
+        if recipe_tokens != expected_tokens:
+            raise AuditError(
+                "CupidC kernel compile wrapper arguments differ for "
+                f"{output}: expected={expected_tokens!r}, "
+                f"actual={recipe_tokens!r}"
+            )
+        return "KERNEL_I386"
     if directory == ".":
         markers = _c_preprocessor_recipe_markers(
             transform,
@@ -4693,10 +4817,27 @@ def _c_preprocessor_active_cases_manifest(
                 "compile_c_to_elf32_object",
                 "compile_c_to_host_object",
             }:
-                if tools != ["host_c_compiler"]:
+                allowed_compile_tools = (
+                    ["host_c_compiler"],
+                    ["cupid_c_compiler", "host_python"],
+                )
+                if tools not in allowed_compile_tools:
                     raise AuditError(
                         f"CupidC active preprocessing compile transform has "
                         f"unexpected tools for {transform.get('output')}: {tools!r}"
+                    )
+                if (
+                    tools == ["cupid_c_compiler", "host_python"]
+                    and (
+                        directory != "."
+                        or operation != "compile_c_to_elf32_object"
+                    )
+                ):
+                    raise AuditError(
+                        "CupidC kernel compile transform differs from its "
+                        f"freestanding root-build contract for "
+                        f"{transform.get('output')}: "
+                        f"directory={directory!r}, operation={operation!r}"
                     )
                 profile = _c_preprocessor_profile_for_c_transform(
                     directory, transform
