@@ -81,6 +81,14 @@ Mode offsets are relative to the start of the file. They must increase and
 remain inside the input. CupidDis validates those rules. The caller places
 each transition between instructions.
 
+The hosted bootstrap contract uses CupidASM to assemble a small i386 _start.
+CupidLD links it with the CupidC-emitted ctool_host.c adapter and test-only
+symbol providers. Startup calls ctool_host_adapter_init, checks the returned
+root pointer and one-byte size, then exits through Linux int 0x80. The
+deterministic 21,592-byte ELF32 file runs under WSL with status zero. This
+proves a narrow calling and relocation boundary. It does not make the hosted
+CupidASM command self-built or provide a C runtime.
+
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.
 Forgetting add esp, N*4 after a call with pushed arguments is the most common

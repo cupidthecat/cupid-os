@@ -71,3 +71,9 @@ is `0x00AF3910`. The kernel keeps 50,928 bytes below the fixed stack. CupidObj
 itself still passes the hosted self-build gate as a deterministic i386 ELF32
 object with 14 functions, 16,872 text bytes, 20,180 object bytes, and fingerprint
 `7238E153`.
+
+ADR 0085 later added bootstrap tracer text to two embedded CTXT manuals. The
+same fixed layout then placed `_loaded_end` at `0x006D32C3`, `_bss_start` at
+`0x006D4000`, and `_kernel_end` at `0x00AF4910`. The kernel still has 46,832
+bytes below the fixed stack. This is expected source growth, not a return of
+checkout-dependent line endings.

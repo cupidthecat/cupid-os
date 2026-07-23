@@ -156,6 +156,16 @@ Offsets are relative to the start of the file. They must increase and remain
 inside the input. CupidDis checks those rules, but the caller is responsible
 for placing each transition between instructions.
 
+### Bootstrap link tracer
+
+The hosted bootstrap contract uses CupidASM to assemble a small i386 `_start`.
+CupidLD links that startup with the CupidC-emitted `ctool_host.c` adapter and
+test-only symbol providers. Startup calls `ctool_host_adapter_init`, checks the
+returned root pointer and one-byte size, then exits through Linux `int 0x80`.
+The 21,592-byte static ELF32 file runs under WSL with status zero and repeats
+byte for byte. This proves a narrow calling and relocation boundary. It does
+not make the hosted CupidASM command self-built or supply a C runtime.
+
 ### Function Example
 
 ```asm

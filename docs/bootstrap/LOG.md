@@ -6457,3 +6457,95 @@ wrapping removes checkout-dependent bytes and keeps the current memory map
 green; it does not make CupidObj self-hosted or retire Make, Python, GCC, or
 Clang. `TempleOS/` remains untouched reference material. No issue is ready to
 close from this increment.
+
+## 2026-07-22: CupidLD runs one CupidC host adapter tracer
+
+### Decision and active requirement
+
+The issue #27 object gate proved that CupidC could emit every hosted adapter,
+but none of those objects had crossed a real link. This increment takes the
+unchanged `toolchain/ctool_host.c` object through CupidASM and CupidLD, then
+runs its initialization call as a static i386 Linux executable.
+
+The contract compiles four inputs in one bounded job. CupidC emits the host
+adapter, a provider object for its file and heap imports, and a separate
+`__errno_location` provider. CupidASM emits `_start`. Startup aligns ESP,
+passes `"."` and an eight-byte adapter record to `ctool_host_adapter_init`,
+checks the status and both result fields, then exits through Linux `int 0x80`.
+CupidLD places the objects at `0x08048000`.
+
+The providers define the adapter's exact ten former imports. Their file calls
+fail and their allocator returns null, so they are not a C runtime. Startup
+does not call those services. Keeping `__errno_location` in its own object
+makes the negative link precise: omitting that object must produce one
+undefined-symbol diagnostic, empty output, a zero result record, and a rewound
+scratch arena. The same job then links the complete input again and reproduces
+the first executable byte for byte.
+
+The first TDD run failed because the object contract did not recognize
+`self-host-link-ctool-host`. During startup work, an `align 4` line also failed
+with an unknown-mnemonic diagnostic. It was removed because the existing BSS
+`resd` directive already gives the adapter record the required alignment.
+The available WSL installation lacks the 32-bit CRT and libgcc files needed by
+`gcc -m32`, but its kernel can run a static i386 `int 0x80` executable. That
+made the runtime check useful without introducing a host linker into the
+traced path. ADR 0085 records the boundary and rejected alternatives.
+
+### Link and runtime evidence
+
+The executable is 21,592 bytes with SHA-256
+`80F037F75B085DFE9A047EB442F30FE8601321A2E055DF8F7FA02B7C48F49BDC`.
+Its entry and load address are `0x08048000`; its file-backed end is
+`0x0804B002`, and its memory end is `0x0804C010`. CupidLD reports four output
+sections, 24 resolved symbols, and 45 applied relocations.
+
+Cupid's ELF32 reader finds five program headers, eight sections, and 25 symbol
+table entries including the null entry. The allocated sizes are 5,897 bytes of
+`.text`, nine bytes of `.rodata`, two bytes of `.data`, and 16 bytes of `.bss`.
+The final executable has no undefined symbol and no remaining relocation.
+Independent LLVM inspection agrees that it is a static i386 `ET_EXEC`. WSL
+runs it with status zero.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| TDD red | PASS | The new Python contract first failed on the missing `self-host-link-ctool-host` mode. |
+| Deterministic link | PASS | Two independent command invocations and the same-job repeat produce identical ELF32 bytes. |
+| Link failure and recovery | PASS | Removing the errno provider produces `CTOOL_LD_DIAG_UNDEFINED_SYMBOL`, empty output, zero result fields, scratch rewind, and an exact recovery image. |
+| Static inspection | PASS | Cupid's reader and LLVM agree on the i386 executable shape, and the locked symbol, section, address, and relocation inventories match. |
+| i386 runtime | PASS | WSL executes the generated file and returns status zero. The public test skips only when Linux or WSL cannot execute static i386 code. |
+| Toolchain gate | PASS | `make -C toolchain test` passes every core, CupidC, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD selector, including the linked smoke artifact. |
+| Active-source audit | PASS | The generated audit reproduces 694 active sources, 498 transforms, 251 feature requirements, and 39 accounted unreachable sources. |
+| First full repository gate | FAIL, LOCKS CORRECTED | All semantic tests pass, but two audit tests still expected the pre-tracer conditional and include counts. The run covers 377 tests in 532.752 seconds with one expected optional skip. |
+| Second full repository gate | FAIL, LOCK CORRECTED | The two audit tests pass, but the preprocessor contract still expects the old aggregate conditional count. The run covers all 377 tests in 532.210 seconds with one expected optional skip. |
+| Final full repository gate | PASS | All 377 tests pass in 531.243 seconds with one expected optional skip. Make returns in 572 seconds. |
+| Production image | PASS | After the final embedded-manual edit, `make all` rebuilds and stages the image in 25.0 seconds. `_loaded_end` is `0x006D32C3`, `_bss_start` is `0x006D4000`, and `_kernel_end` is `0x00AF4910`, leaving 46,832 bytes below the fixed stack. |
+| Kernel artifacts | PASS | The final `kernel.elf` is 6,285,876 bytes with SHA-256 `9AC47B6619DB8868E04BB780BEBD3B4ADDEEC6BF4B0CCA8673E1CE3648E227BC`; `kernel.bin` is 6,107,843 bytes with SHA-256 `BE4A1DF9E8BC76BAC2AE2559F5E21F65F26E62FD6D979CC25FF735AD40396C4D`; and `cupidos.img` is 209,715,200 bytes with SHA-256 `F3B631591D5C47DA4CDDE009B6496D285E328E17817CF81CFAE812EE40A79CD8`. |
+| Emulator gate | PASS | The GUI-terminal harness boots that exact image and runs `/bin/ls.cc` in 18.7 seconds with the established 0.60-second key timing. |
+| Static analysis | PASS | Clang's analyzer reports no finding in the expanded CupidC object contract under the repository's strict warning set. |
+| Cross-host Toolchain builds | PASS | Fresh WSL GCC and Clang builds pass the complete Toolchain suite in separate temporary directories, including the Linux native-output branch and linked smoke artifact. |
+
+The `toolchain_contract` cohort now has 93,641 checked lines. The
+`toolchain_core` cohort remains at 55,917. The canonical active-source digest
+is `1a9af9b5d440899b91b5692268f4dbda4fbaedc987623c12c2e0bc6130eef11d`.
+The complete audit JSON has SHA-256
+`2C535F1351F1D81498E7F82B22FF3955BDB0838BEE427063E6FDB36D8FD4C7B2`.
+The generated inventory also refreshed six deliberate lexical locks:
+`sizeof` 3,956, `return` 17,647, `for` 3,391, `if` 29,165, `else` 3,913,
+and `goto` 1,561. File counts did not change. The complete repository run then
+exposed two related contract locks. The source graph now has 99 direct
+conditional directives and 103 `#if` or `#elif` expressions. Its 2,350 include
+operands split into 2,134 direct quoted forms and 216 direct angle forms.
+The conditional manifest's `defined(_WIN32)` bucket moves from 18 to 19; the
+new occurrence is the native-output branch in the link tracer.
+The second full run then found the preprocessor contract's aggregate 98-entry
+lock. Raising it to 99 keeps the checked manifest row and its consumer in
+sync; no preprocessing behavior changed.
+
+This is an adapter-initialization tracer, not a complete hosted tool. It does
+not provide libc, run `cupidasm_main` or `cupiddis_main`, build a CupidC driver,
+compare compiler generations, transfer a production object, or retire a host
+dependency. A real executable closure must compile every object with the
+four-byte target profile. The current eight-byte `HOSTED_TOOLCHAIN_64` objects
+cannot be mixed into it. [Issue #27](https://github.com/cupidthecat/cupid-os/issues/27)
+and [issue #13](https://github.com/cupidthecat/cupid-os/issues/13) remain open.
+No issue is ready to close from this increment.

@@ -1719,9 +1719,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 98)
+            self.assertEqual(contract["if_occurrences"], 99)
             self.assertEqual(contract["elif_occurrences"], 4)
-            self.assertEqual(contract["expression_occurrences"], 102)
+            self.assertEqual(contract["expression_occurrences"], 103)
             self.assertEqual(contract["unique_expressions"], 22)
             self.assertEqual(contract["directive_expression_pairs"], 23)
             self.assertTrue(
@@ -2276,8 +2276,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 664)
-            self.assertEqual(contract["include_occurrences"], 2348)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2132)
+            self.assertEqual(contract["include_occurrences"], 2350)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2134)
             self.assertEqual(contract["direct_angle_occurrences"], 216)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -3491,7 +3491,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (22, 4),
-                "c.expression.sizeof": (3936, 165),
+                "c.expression.sizeof": (3956, 165),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

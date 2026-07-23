@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -405,6 +406,89 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "self-host-hosted-adapters: ok\n")
+
+    def test_cupid_built_host_adapter_links_deterministically(self):
+        with tempfile.TemporaryDirectory(prefix="cupid-host-link-") as temp:
+            first = Path(temp) / "ctool-host-first.elf"
+            second = Path(temp) / "ctool-host-second.elf"
+            for output in (first, second):
+                result = subprocess.run(
+                    [
+                        str(self.contract_path),
+                        "self-host-link-ctool-host",
+                        str(REPO_ROOT),
+                        str(output),
+                    ],
+                    cwd=TOOLCHAIN_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    result.stdout, "self-host-link-ctool-host: ok\n"
+                )
+            first_bytes = first.read_bytes()
+            self.assertEqual(first_bytes, second.read_bytes())
+            self.assertEqual(first_bytes[:4], b"\x7fELF")
+            self.assertEqual(first_bytes[4:7], b"\x01\x01\x01")
+
+    def test_cupid_built_host_adapter_runs_on_i386_linux(self):
+        with tempfile.TemporaryDirectory(prefix="cupid-host-run-") as temp:
+            output = Path(temp) / "ctool-host-smoke.elf"
+            link = subprocess.run(
+                [
+                    str(self.contract_path),
+                    "self-host-link-ctool-host",
+                    str(REPO_ROOT),
+                    str(output),
+                ],
+                cwd=TOOLCHAIN_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(link.returncode, 0, link.stderr)
+
+            if os.name == "nt":
+                if shutil.which("wsl") is None:
+                    self.skipTest("WSL is unavailable for the i386 Linux smoke")
+                converted = subprocess.run(
+                    ["wsl", "-e", "wslpath", "-a", str(output)],
+                    text=True,
+                    capture_output=True,
+                )
+                if converted.returncode != 0:
+                    self.skipTest("WSL could not translate the smoke path")
+                linux_path = converted.stdout.strip()
+                script = (
+                    'probe="/tmp/cupid-ctool-host-$$"; '
+                    "trap 'rm -f \"$probe\"' EXIT HUP INT TERM; "
+                    'cp "$1" "$probe" || exit 125; '
+                    'chmod +x "$probe" || exit 125; "$probe"'
+                )
+                run = subprocess.run(
+                    ["wsl", "-e", "sh", "-c", script, "sh", linux_path],
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                if run.returncode in (126, 127):
+                    self.skipTest("WSL cannot execute static i386 ELF files")
+            else:
+                output.chmod(0o755)
+                try:
+                    run = subprocess.run(
+                        [str(output)],
+                        text=True,
+                        capture_output=True,
+                        timeout=10,
+                    )
+                except OSError as error:
+                    if error.errno == 8:
+                        self.skipTest(
+                            "this kernel cannot execute static i386 ELF files"
+                        )
+                    raise
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
     def test_i386_linux_host_profile_rejects_missing_or_wrong_abi(self):
         result = subprocess.run(

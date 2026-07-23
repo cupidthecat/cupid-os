@@ -244,8 +244,17 @@ and cupiddis_main.c use a checked i386 Linux profile with Cupid-owned
 declarations for the hosted runtime interfaces they need. That profile requires
 an explicit 32-bit pointer fact. Every object is emitted twice, checked for
 identical bytes, and read through Cupid's ELF32 reader. Adapter objects also
-retain exact named imports and checked relocation shapes. The gate does not
-link or run a tool or compare compiler generations.
+retain exact named imports and checked relocation shapes.
+
+A static i386 tracer links the CupidC-emitted ctool_host.c object with a
+CupidASM _start and CupidLD. Test-only providers satisfy the adapter's ten
+imports. Startup calls ctool_host_adapter_init, checks the returned root
+pointer and one-byte size, then exits through Linux int 0x80. The deterministic
+21,592-byte executable runs under WSL with status zero. A missing
+__errno_location definition proves transactional link failure and same-job
+recovery. The providers are not a usable C runtime. No complete Cupid tool
+runs, and the tracer does not compare
+compiler generations.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

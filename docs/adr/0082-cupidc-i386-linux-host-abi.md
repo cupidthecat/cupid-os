@@ -51,4 +51,4 @@ The three objects have exact undefined import sets of 10, 31, and 31 symbols. Th
 
 An independent `gcc -m32 -nostdinc` syntax pass accepts each unchanged source against the checked declarations. This confirms the declaration set under a second C frontend, but it does not prove a linked runtime.
 
-This step completes the source-to-object boundary only. The objects are not yet linked or run. It does not provide startup code, select a C runtime, build a host-runnable CupidC driver, compare tool behavior, create bootstrap generations, or transfer production ownership. GCC or Clang still builds every hosted executable and every normal C object.
+This decision completed the source-to-object boundary. ADR 0085 later links the `ctool_host.c` object with CupidASM startup and CupidLD and runs its initialization call. That tracer uses test-only symbol providers rather than a C runtime. It does not build a complete host-runnable tool, compare tool behavior, create bootstrap generations, or transfer production ownership. GCC or Clang still builds every hosted executable and every normal C object.

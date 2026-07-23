@@ -73,12 +73,14 @@ CUPIDC_IR_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                               $(BUILD_DIR)/cupidc_ir_contract.o
 CUPIDC_OBJECT_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                   $(BUILD_DIR)/ctool_host.o \
+                                  $(BUILD_DIR)/cupidasm.o \
                                   $(BUILD_DIR)/cupidc_pp.o \
                                   $(BUILD_DIR)/cupidc_type.o \
                                   $(BUILD_DIR)/cupidc_frontend.o \
                                   $(BUILD_DIR)/cupidc_ir.o \
                                   $(BUILD_DIR)/elf32.o \
                                   $(BUILD_DIR)/x86.o \
+                                  $(BUILD_DIR)/cupidld.o \
                                   $(BUILD_DIR)/cupidc_emit.o \
                                   $(BUILD_DIR)/cupidc_object_contract.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -227,7 +229,8 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.c \
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.c \
     cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
-    elf32.h x86.h ctool.h ctool_host.h $(CUPIDC_HOSTED_I386_HEADERS) | $(BUILD_DIR)
+    cupidasm.h cupidld.h elf32.h x86.h ctool.h ctool_host.h \
+    $(CUPIDC_HOSTED_I386_HEADERS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
@@ -480,6 +483,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) self-host-frontier ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-adapters ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-profile-errors ..
+	$(CUPIDC_OBJECT_CONTRACT) self-host-link-ctool-host .. \
+		$(BUILD_DIR)/cupidc-ctool-host-smoke.elf
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

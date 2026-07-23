@@ -1,9 +1,11 @@
 #include "ctool.h"
 #include "ctool_host.h"
+#include "cupidasm.h"
 #include "cupidc_emit.h"
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidld.h"
 #include "elf32.h"
 #include "x86.h"
 
@@ -23984,6 +23986,415 @@ cleanup:
   return failed;
 }
 
+static ctool_status_t emit_hosted_i386_source(
+    ctool_job_t *job, const ctool_source_t *source,
+    const hosted_i386_profile_t *profile, ctool_buffer_t *output) {
+  ctool_c_pp_result_t tape;
+  ctool_c_parse_request_t parse_request;
+  ctool_c_translation_unit_t unit;
+  ctool_status_t status;
+  (void)memset(&tape, 0, sizeof(tape));
+  status = ctool_c_preprocess(job, source, &profile->request, &tape);
+  (void)memset(&parse_request, 0, sizeof(parse_request));
+  parse_request.mode = CTOOL_C_PP_MODE_C11;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (status == CTOOL_OK) {
+    status = ctool_c_parse(job, &tape, &parse_request, &unit);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_c_emit_object(job, &unit, output);
+  }
+  return status;
+}
+
+static int write_native_bytes(const char *path, ctool_bytes_t bytes) {
+  FILE *file;
+  size_t written;
+#if defined(_WIN32)
+  file = NULL;
+  if (fopen_s(&file, path, "wb") != 0) {
+    return 0;
+  }
+#else
+  file = fopen(path, "wb");
+#endif
+  if (file == NULL) {
+    return 0;
+  }
+  written = fwrite(bytes.data, 1u, (size_t)bytes.size, file);
+  if (written != (size_t)bytes.size || fclose(file) != 0) {
+    if (written != (size_t)bytes.size) {
+      (void)fclose(file);
+    }
+    return 0;
+  }
+  return 1;
+}
+
+static int linked_image_has_no_undefined_symbols(
+    const ctool_elf32_object_t *image) {
+  ctool_u32 index;
+  for (index = 0u; index < image->symbol_count; index++) {
+    const ctool_elf32_symbol_t *symbol = &image->symbols[index];
+    if (symbol->name.size != 0u &&
+        symbol->placement == CTOOL_ELF32_SYMBOL_UNDEFINED) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int linked_image_defines_symbols(
+    const ctool_elf32_object_t *image, const char *const *names,
+    ctool_u32 name_count) {
+  ctool_u32 index;
+  for (index = 0u; index < name_count; index++) {
+    const ctool_elf32_symbol_t *symbol = find_symbol(image, names[index]);
+    if (symbol == NULL ||
+        symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        symbol->binding != CTOOL_ELF32_BIND_GLOBAL) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_self_host_link_ctool_host(const char *host_root,
+                                         const char *output_path) {
+  static const char *const provided_imports[] = {
+      "__errno_location", "stderr", "fopen", "fclose", "fseek",
+      "ftell", "fread", "fwrite", "malloc", "free"};
+  static const char runtime_source_text[] =
+      "typedef unsigned int size_t;\n"
+      "typedef struct cupid_link_file FILE;\n"
+      "FILE *stderr;\n"
+      "FILE *fopen(const char *path, const char *mode) {\n"
+      "  (void)path; (void)mode; return (FILE *)0;\n"
+      "}\n"
+      "int fclose(FILE *file) { (void)file; return 0; }\n"
+      "int fseek(FILE *file, long offset, int origin) {\n"
+      "  (void)file; (void)offset; (void)origin; return -1;\n"
+      "}\n"
+      "long ftell(FILE *file) { (void)file; return -1L; }\n"
+      "size_t fread(void *target, size_t width, size_t count, FILE *file) {\n"
+      "  (void)target; (void)width; (void)count; (void)file; return 0u;\n"
+      "}\n"
+      "size_t fwrite(const void *source, size_t width, size_t count,\n"
+      "              FILE *file) {\n"
+      "  (void)source; (void)width; (void)count; (void)file; return 0u;\n"
+      "}\n"
+      "void *malloc(size_t bytes) { (void)bytes; return (void *)0; }\n"
+      "void free(void *allocation) { (void)allocation; }\n";
+  static const char errno_source_text[] =
+      "static int cupid_link_errno;\n"
+      "int *__errno_location(void) { return &cupid_link_errno; }\n";
+  static const char startup_source_text[] =
+      "BITS 32\n"
+      "extern ctool_host_adapter_init\n"
+      "global _start\n"
+      "section .text\n"
+      "_start:\n"
+      " and esp, 0xfffffff0\n"
+      " sub esp, 8\n"
+      " push root\n"
+      " push adapter\n"
+      " call ctool_host_adapter_init\n"
+      " add esp, 16\n"
+      " cmp eax, 0\n"
+      " jne start_fail\n"
+      " mov ecx, [adapter]\n"
+      " push root\n"
+      " pop edx\n"
+      " cmp ecx, edx\n"
+      " jne start_fail\n"
+      " cmp dword [adapter + 4], 1\n"
+      " jne start_fail\n"
+      " xor ebx, ebx\n"
+      " jmp start_exit\n"
+      "start_fail:\n"
+      " mov ebx, 1\n"
+      "start_exit:\n"
+      " mov eax, 1\n"
+      " int 0x80\n"
+      "section .data\n"
+      "root: db 46, 0\n"
+      "section .bss\n"
+      "adapter: resd 2\n";
+  ctool_host_adapter_t adapter;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *host_object = NULL;
+  ctool_buffer_t *runtime_object = NULL;
+  ctool_buffer_t *errno_object = NULL;
+  ctool_buffer_t *startup_object = NULL;
+  ctool_buffer_t *first_image = NULL;
+  ctool_buffer_t *repeat_image = NULL;
+  ctool_buffer_t *failure_image = NULL;
+  ctool_path_t host_path;
+  ctool_source_t host_source;
+  ctool_source_t runtime_source;
+  ctool_source_t errno_source;
+  ctool_source_t startup_source;
+  ctool_source_t objects[4];
+  ctool_source_t executable_source;
+  hosted_i386_profile_t profile;
+  ctool_asm_request_t asm_request;
+  ctool_asm_result_t asm_result;
+  ctool_ld_request_t link_request;
+  ctool_ld_result_t first_result;
+  ctool_ld_result_t repeat_result;
+  ctool_ld_result_t failure_result;
+  ctool_ld_result_t recovery_result;
+  ctool_elf32_object_t executable;
+  ctool_arena_mark_t link_mark;
+  const ctool_diagnostic_t *diagnostic;
+  const ctool_elf32_section_t *linked_text;
+  const ctool_elf32_section_t *linked_rodata;
+  const ctool_elf32_section_t *linked_data;
+  const ctool_elf32_section_t *linked_bss;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t repeat_bytes;
+  ctool_status_t status;
+  int failed = 1;
+  limits.arena_bytes = 256u * 1024u * 1024u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    return 1;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 1024u, limits.output_bytes,
+                                 &host_object);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, limits.output_bytes,
+                                   &runtime_object);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, limits.output_bytes,
+                                   &errno_object);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, limits.output_bytes,
+                                   &startup_object);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 4096u, limits.output_bytes,
+                                   &first_image);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 4096u, limits.output_bytes,
+                                   &repeat_image);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 4096u, limits.output_bytes,
+                                   &failure_image);
+  }
+  if (status != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  host_path.text = ctool_string("/toolchain/ctool_host.c");
+  (void)memset(&host_source, 0, sizeof(host_source));
+  status = ctool_job_load_source(job, &host_path, &host_source);
+  init_hosted_i386_profile(&profile);
+  if (status == CTOOL_OK) {
+    status = emit_hosted_i386_source(job, &host_source, &profile,
+                                     host_object);
+  }
+  runtime_source.path.text = ctool_string("/hosted/link-runtime.c");
+  runtime_source.contents =
+      ctool_bytes(runtime_source_text,
+                  (ctool_u32)(sizeof(runtime_source_text) - 1u));
+  if (status == CTOOL_OK) {
+    status = emit_hosted_i386_source(job, &runtime_source, &profile,
+                                     runtime_object);
+  }
+  errno_source.path.text = ctool_string("/hosted/link-errno.c");
+  errno_source.contents =
+      ctool_bytes(errno_source_text,
+                  (ctool_u32)(sizeof(errno_source_text) - 1u));
+  if (status == CTOOL_OK) {
+    status = emit_hosted_i386_source(job, &errno_source, &profile,
+                                     errno_object);
+  }
+  startup_source.path.text = ctool_string("/hosted/link-start.asm");
+  startup_source.contents =
+      ctool_bytes(startup_source_text,
+                  (ctool_u32)(sizeof(startup_source_text) - 1u));
+  (void)memset(&asm_request, 0, sizeof(asm_request));
+  asm_request.artifact = CTOOL_ASM_ARTIFACT_ELF32_REL;
+  asm_request.initial_mode = CTOOL_X86_MODE_32;
+  (void)memset(&asm_result, 0, sizeof(asm_result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &startup_source, &asm_request,
+                                startup_object, &asm_result);
+  }
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "host adapter input objects failed: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+
+  (void)memset(objects, 0, sizeof(objects));
+  objects[0].path.text = ctool_string("/hosted/link-start.o");
+  objects[0].contents = ctool_buffer_view(startup_object);
+  objects[1].path.text = ctool_string("/toolchain/ctool_host.o");
+  objects[1].contents = ctool_buffer_view(host_object);
+  objects[2].path.text = ctool_string("/hosted/link-runtime.o");
+  objects[2].contents = ctool_buffer_view(runtime_object);
+  objects[3].path.text = ctool_string("/hosted/link-errno.o");
+  objects[3].contents = ctool_buffer_view(errno_object);
+  (void)memset(&link_request, 0, sizeof(link_request));
+  link_request.objects = objects;
+  link_request.object_count = 4u;
+  link_request.layout.kind = CTOOL_LD_LAYOUT_FIXED_TEXT;
+  link_request.layout.as.fixed_text.base_address = 0x08048000u;
+  link_request.layout.as.fixed_text.entry_symbol = ctool_string("_start");
+  link_request.maximum_image_span = 1024u * 1024u;
+  link_mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&first_result, 0xa5, sizeof(first_result));
+  status = ctool_ld_link(job, &link_request, first_image, &first_result);
+  (void)memset(&repeat_result, 0xa5, sizeof(repeat_result));
+  if (status == CTOOL_OK) {
+    status = ctool_ld_link(job, &link_request, repeat_image, &repeat_result);
+  }
+  first_bytes = ctool_buffer_view(first_image);
+  repeat_bytes = ctool_buffer_view(repeat_image);
+  if (status != CTOOL_OK ||
+      arena_marks_equal(link_mark,
+                        ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      first_bytes.size == 0u || first_bytes.size != repeat_bytes.size ||
+      memcmp(first_bytes.data, repeat_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      memcmp(&first_result, &repeat_result, sizeof(first_result)) != 0) {
+    (void)fprintf(stderr, "host adapter deterministic link failed: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+
+  link_request.object_count = 3u;
+  (void)memset(&failure_result, 0xa5, sizeof(failure_result));
+  status = ctool_ld_link(job, &link_request, failure_image,
+                         &failure_result);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_INPUT ||
+      ctool_buffer_view(failure_image).size != 0u ||
+      failure_result.bytes != 0u || failure_result.entry != 0u ||
+      failure_result.load_address != 0u ||
+      failure_result.loaded_end != 0u || failure_result.memory_end != 0u ||
+      failure_result.output_section_count != 0u ||
+      failure_result.resolved_symbol_count != 0u ||
+      failure_result.applied_relocation_count != 0u ||
+      ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
+      diagnostic->code != CTOOL_LD_DIAG_UNDEFINED_SYMBOL ||
+      string_equal(diagnostic->path, "/toolchain/ctool_host.o") == 0 ||
+      arena_marks_equal(link_mark,
+                        ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "host adapter unresolved import check differs\n");
+    goto cleanup;
+  }
+  link_request.object_count = 4u;
+  (void)memset(&recovery_result, 0xa5, sizeof(recovery_result));
+  status = ctool_ld_link(job, &link_request, failure_image,
+                         &recovery_result);
+  if (status != CTOOL_OK ||
+      ctool_buffer_view(failure_image).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure_image).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      memcmp(&recovery_result, &first_result, sizeof(first_result)) != 0 ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      arena_marks_equal(link_mark,
+                        ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "host adapter same-job link recovery differs\n");
+    goto cleanup;
+  }
+
+  executable_source.path.text = ctool_string("/hosted/ctool-host-smoke");
+  executable_source.contents = first_bytes;
+  (void)memset(&executable, 0, sizeof(executable));
+  status = ctool_elf32_read(job, &executable_source, &executable);
+  linked_text = status == CTOOL_OK ? find_section(&executable, ".text")
+                                   : NULL;
+  linked_rodata = status == CTOOL_OK ? find_section(&executable, ".rodata")
+                                     : NULL;
+  linked_data = status == CTOOL_OK ? find_section(&executable, ".data")
+                                   : NULL;
+  linked_bss = status == CTOOL_OK ? find_section(&executable, ".bss")
+                                  : NULL;
+  if (status != CTOOL_OK || executable.file_type != CTOOL_ELF32_ET_EXEC ||
+      executable.entry_point != first_result.entry ||
+      first_result.entry != 0x08048000u ||
+      first_result.load_address != 0x08048000u ||
+      first_result.loaded_end != 0x0804b002u ||
+      first_result.memory_end != 0x0804c010u ||
+      first_result.bytes != 21592u || first_bytes.size != 21592u ||
+      first_result.output_section_count != 4u ||
+      first_result.resolved_symbol_count != 24u ||
+      first_result.applied_relocation_count != 45u ||
+      executable.program_header_count != 5u ||
+      executable.section_count != 8u || executable.symbol_count != 25u ||
+      executable.relocation_count != 0u ||
+      linked_text == NULL || linked_text->contents.size != 5897u ||
+      linked_rodata == NULL || linked_rodata->contents.size != 9u ||
+      linked_data == NULL || linked_data->contents.size != 2u ||
+      linked_bss == NULL || linked_bss->size != 16u ||
+      linked_image_has_no_undefined_symbols(&executable) == 0 ||
+      linked_image_defines_symbols(
+          &executable, provided_imports,
+          (ctool_u32)(sizeof(provided_imports) /
+                      sizeof(provided_imports[0]))) == 0 ||
+      find_symbol(&executable, "_start") == NULL ||
+      find_symbol(&executable, "ctool_host_adapter_init") == NULL ||
+      find_symbol(&executable, "__errno_location") == NULL ||
+      write_native_bytes(output_path, first_bytes) == 0) {
+    (void)fprintf(stderr,
+                  "host adapter linked image differs: %s bytes=%u entry=%x "
+                  "sections=%u relocations=%u\n",
+                  ctool_status_name(status), first_result.bytes,
+                  first_result.entry, first_result.output_section_count,
+                  first_result.applied_relocation_count);
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (failed != 0 && job != NULL) {
+    (void)ctool_job_render_diagnostics(job);
+  }
+  if (failure_image != NULL) {
+    ctool_buffer_close(failure_image);
+  }
+  if (repeat_image != NULL) {
+    ctool_buffer_close(repeat_image);
+  }
+  if (first_image != NULL) {
+    ctool_buffer_close(first_image);
+  }
+  if (startup_object != NULL) {
+    ctool_buffer_close(startup_object);
+  }
+  if (errno_object != NULL) {
+    ctool_buffer_close(errno_object);
+  }
+  if (runtime_object != NULL) {
+    ctool_buffer_close(runtime_object);
+  }
+  if (host_object != NULL) {
+    ctool_buffer_close(host_object);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (failed == 0) {
+    (void)puts("self-host-link-ctool-host: ok");
+  }
+  return failed;
+}
+
 static int validate_self_host_frontier_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -24327,6 +24738,9 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "self-host-hosted-profile-errors") == 0) {
     return run_self_host_hosted_profile_errors(argv[2]);
   }
+  if (argc == 4 && strcmp(argv[1], "self-host-link-ctool-host") == 0) {
+    return run_self_host_link_ctool_host(argv[2], argv[3]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
@@ -24344,7 +24758,7 @@ int main(int argc, char **argv) {
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations|"
                 "self-host-frontier|self-host-hosted-adapters|"
-                "self-host-hosted-profile-errors "
-                "HOST_ROOT\n");
+                "self-host-hosted-profile-errors HOST_ROOT|"
+                "self-host-link-ctool-host HOST_ROOT OUTPUT\n");
   return 2;
 }
