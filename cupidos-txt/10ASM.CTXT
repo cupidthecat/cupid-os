@@ -123,7 +123,7 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The shared x86 catalogue has 547 rows, 226 canonical mnemonics, and 64
+The shared x86 catalogue has 579 rows, 242 canonical mnemonics, and 64
 register names. The active-source contracts cover every instruction in all 22
 demos and the four boot/kernel assembly sources. Common families include:
 - mov, lea, xchg
@@ -135,6 +135,8 @@ demos and the four boot/kernel assembly sources. Common families include:
 - shifts and rotates
 - nop, hlt, cli, sti, iret, leave
 - jcc aliases including parity aliases: jp/jpe and jnp/jpo
+- all sixteen i686 conditional moves with 16-bit or 32-bit register and memory
+  sources, plus conventional aliases
 - privileged/system opcodes: lgdt/lidt/sgdt/sidt, invlpg, ltr/str/sldt,
   smsw/lmsw, cpuid, rdtsc, rdmsr/wrmsr, wbinvd/invd, clts,
   sysenter/sysexit/syscall, iretd/retf

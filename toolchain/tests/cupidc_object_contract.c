@@ -23437,13 +23437,13 @@ static int validate_active_self_host_frontier_objects(
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 18160u, 49484u,
-      224176u, 370400u, 295036u, 695096u, 157796u, 79348u, 128364u,
+      224176u, 370400u, 295036u, 695096u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0xbcb58121u, 0x999f97b7u, 0x94f54f57u,
-      0x69c99aafu, 0x44636458u, 0x89042ed3u, 0xe06a4183u,
-      0x34558a49u, 0x8936537du, 0x8774de7du};
+      0x69c99aafu, 0xba37dfa8u, 0x89042ed3u, 0x3f69aac3u,
+      0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   for (index = 0u; index <
                        (ctool_u32)(sizeof(paths) / sizeof(paths[0]));

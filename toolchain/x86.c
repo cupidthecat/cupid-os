@@ -31,6 +31,7 @@
 typedef enum {
   X86_ISA_8086 = 0,
   X86_ISA_386,
+  X86_ISA_I686,
   X86_ISA_X87,
   X86_ISA_MMX,
   X86_ISA_SSE,
@@ -132,6 +133,22 @@ static const x86_mnemonic_name_t x86_mnemonic_names[] = {
   X86_MN_CANON("cli", CTOOL_X86_MN_CLI),
   X86_MN_CANON("clts", CTOOL_X86_MN_CLTS),
   X86_MN_CANON("cmc", CTOOL_X86_MN_CMC),
+  X86_MN_CANON("cmova", CTOOL_X86_MN_CMOVA),
+  X86_MN_CANON("cmovae", CTOOL_X86_MN_CMOVAE),
+  X86_MN_CANON("cmovb", CTOOL_X86_MN_CMOVB),
+  X86_MN_CANON("cmovbe", CTOOL_X86_MN_CMOVBE),
+  X86_MN_CANON("cmove", CTOOL_X86_MN_CMOVE),
+  X86_MN_CANON("cmovg", CTOOL_X86_MN_CMOVG),
+  X86_MN_CANON("cmovge", CTOOL_X86_MN_CMOVGE),
+  X86_MN_CANON("cmovl", CTOOL_X86_MN_CMOVL),
+  X86_MN_CANON("cmovle", CTOOL_X86_MN_CMOVLE),
+  X86_MN_CANON("cmovne", CTOOL_X86_MN_CMOVNE),
+  X86_MN_CANON("cmovno", CTOOL_X86_MN_CMOVNO),
+  X86_MN_CANON("cmovnp", CTOOL_X86_MN_CMOVNP),
+  X86_MN_CANON("cmovns", CTOOL_X86_MN_CMOVNS),
+  X86_MN_CANON("cmovo", CTOOL_X86_MN_CMOVO),
+  X86_MN_CANON("cmovp", CTOOL_X86_MN_CMOVP),
+  X86_MN_CANON("cmovs", CTOOL_X86_MN_CMOVS),
   X86_MN_CANON("cmp", CTOOL_X86_MN_CMP),
   X86_MN_CANON("cmpxchg", CTOOL_X86_MN_CMPXCHG),
   X86_MN_CANON("cmpps", CTOOL_X86_MN_CMPPS),
@@ -340,6 +357,20 @@ static const x86_mnemonic_name_t x86_mnemonic_names[] = {
   X86_MN_CANON("xor", CTOOL_X86_MN_XOR),
   X86_MN_CANON("xorpd", CTOOL_X86_MN_XORPD),
   X86_MN_CANON("xorps", CTOOL_X86_MN_XORPS),
+  X86_MN_ALIAS("cmovc", CTOOL_X86_MN_CMOVB),
+  X86_MN_ALIAS("cmovnae", CTOOL_X86_MN_CMOVB),
+  X86_MN_ALIAS("cmovnc", CTOOL_X86_MN_CMOVAE),
+  X86_MN_ALIAS("cmovnb", CTOOL_X86_MN_CMOVAE),
+  X86_MN_ALIAS("cmovz", CTOOL_X86_MN_CMOVE),
+  X86_MN_ALIAS("cmovnz", CTOOL_X86_MN_CMOVNE),
+  X86_MN_ALIAS("cmovna", CTOOL_X86_MN_CMOVBE),
+  X86_MN_ALIAS("cmovnbe", CTOOL_X86_MN_CMOVA),
+  X86_MN_ALIAS("cmovpe", CTOOL_X86_MN_CMOVP),
+  X86_MN_ALIAS("cmovpo", CTOOL_X86_MN_CMOVNP),
+  X86_MN_ALIAS("cmovnge", CTOOL_X86_MN_CMOVL),
+  X86_MN_ALIAS("cmovnl", CTOOL_X86_MN_CMOVGE),
+  X86_MN_ALIAS("cmovng", CTOOL_X86_MN_CMOVLE),
+  X86_MN_ALIAS("cmovnle", CTOOL_X86_MN_CMOVG),
   X86_MN_ALIAS("jc", CTOOL_X86_MN_JB),
   X86_MN_ALIAS("jnae", CTOOL_X86_MN_JB),
   X86_MN_ALIAS("jnc", CTOOL_X86_MN_JAE),
@@ -475,6 +506,16 @@ static const x86_register_name_t x86_register_names[] = {
   X86_REL((mn), 8u, (ctool_u8)(0x70u + (condition)), 0u, 1u),                \
   X86_REL((mn), 16u, 0x0fu, (ctool_u8)(0x80u + (condition)), 2u),            \
   X86_REL((mn), 32u, 0x0fu, (ctool_u8)(0x80u + (condition)), 2u)
+
+#define X86_CMOVCC(mn, condition)                                             \
+  X86_FORM((mn), X86_MODE_BOTH, X86_ISA_I686, 16u, 0u, 2u, 0x0fu,           \
+           (ctool_u8)(0x40u + (condition)), 0u, 0xffu, 2u, X86_OC_GPR16,    \
+           X86_OC_RM16, X86_OC_NONE, X86_NO_OPERAND, 0, 1, X86_NO_DIGIT,   \
+           X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE, 0u),              \
+  X86_FORM((mn), X86_MODE_BOTH, X86_ISA_I686, 32u, 0u, 2u, 0x0fu,           \
+           (ctool_u8)(0x40u + (condition)), 0u, 0xffu, 2u, X86_OC_GPR32,    \
+           X86_OC_RM32, X86_OC_NONE, X86_NO_OPERAND, 0, 1, X86_NO_DIGIT,   \
+           X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE, 0u)
 
 #define X86_RM_REG(mn, bits_value, opcode_value, lock_flags)                  \
   X86_FORM((mn), X86_MODE_BOTH, X86_ISA_386, (bits_value), 0u, 1u,           \
@@ -795,6 +836,22 @@ static const x86_form_row_t x86_forms[] = {
   X86_JCC(CTOOL_X86_MN_JGE, 13u),
   X86_JCC(CTOOL_X86_MN_JLE, 14u),
   X86_JCC(CTOOL_X86_MN_JG, 15u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVO, 0u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVNO, 1u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVB, 2u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVAE, 3u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVE, 4u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVNE, 5u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVBE, 6u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVA, 7u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVS, 8u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVNS, 9u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVP, 10u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVNP, 11u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVL, 12u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVGE, 13u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVLE, 14u),
+  X86_CMOVCC(CTOOL_X86_MN_CMOVG, 15u),
   X86_REL(CTOOL_X86_MN_CALL, 16u, 0xe8u, 0u, 1u),
   X86_REL(CTOOL_X86_MN_CALL, 32u, 0xe8u, 0u, 1u),
   X86_REL(CTOOL_X86_MN_JMP, 8u, 0xebu, 0u, 1u),
@@ -1518,6 +1575,7 @@ static const x86_form_row_t x86_forms[] = {
 #undef X86_RM_IMM
 #undef X86_REG_RM
 #undef X86_RM_REG
+#undef X86_CMOVCC
 #undef X86_JCC
 #undef X86_REL
 #undef X86_FIXED

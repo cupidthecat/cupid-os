@@ -302,6 +302,8 @@ Runtime narrow string expressions now receive deterministic local `.rodata` symb
 
 [ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the current hermetic Toolchain source and object frontier and the remaining host-runnable boundary.
 
+[ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary.
+
 ### Copying files into the disk image
 
 Cupid OS mounts FAT16 at `/disk` and persistent `homefs` at `/home`.
@@ -542,7 +544,7 @@ CupidScript (`cupidscript*.c`) is a shell scripting language for `.cup` files:
 - Arrays, string operations
 - Calls shell commands and kernel functions directly
 
-CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes.
+CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. CupidASM accepts the conventional aliases, while CupidDis renders one canonical name per condition.
 
 ### Program execution
 

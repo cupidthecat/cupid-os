@@ -240,9 +240,12 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. It contains 547 forms,
-226 canonical mnemonics, and 64 register names. The same catalogue drives
-instruction encoding and decoding.
+CupidASM uses the shared Cupid Toolchain x86 catalogue. It contains 579 forms,
+242 canonical mnemonics, and 64 register names. The same catalogue drives
+instruction encoding and decoding. All sixteen i686 conditional moves accept
+16-bit or 32-bit same-width register and memory sources in either mode. Common
+alias spellings assemble to the same bytes, while CupidDis prints canonical
+names.
 
 ### Data Movement
 
@@ -255,6 +258,7 @@ instruction encoding and decoding.
 | `xchg` | Exchange values | `xchg eax, ebx` |
 | `movzx` | Move with zero-extend | `movzx eax, al` |
 | `movsx` | Move with sign-extend | `movsx eax, al` |
+| `cmovcc` | Move when a condition is true | `cmovne eax, [value]` |
 
 ### Arithmetic
 

@@ -164,6 +164,10 @@ _Avoid_: objcopy
 The Cupid Toolchain disassembler and binary inspector.
 _Avoid_: Cupid disassembler when naming the tool
 
+**Conditional move family**:
+The sixteen i686 `CMOVcc` operations represented by one shared x86 encoding and decoding rule. A canonical mnemonic names each condition, while conventional alternative spellings remain aliases.
+_Avoid_: conditional jump, `SETcc`, separate assembler and disassembler definitions
+
 **Raw mode map**:
 An ordered set of borrowed byte ranges that assigns 16-bit or 32-bit x86 decoding to one flat image. The first range starts at offset zero. Later offsets increase within the source, and the caller places each transition at an instruction boundary.
 _Avoid_: automatic mode detection, one mode per retained instruction

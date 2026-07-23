@@ -189,10 +189,37 @@ static int run_raw_basic(void) {
       ".done:\n"
       "    mov [byte_slot], dl\n"
       "byte_slot: db 0\n"
-      "    dw 0xaa55\n";
+      "    dw 0xaa55\n"
+      "    cmovne ax, cx\n"
+      "    cmovnz eax, [bx + si + 0x7f]\n"
+      "BITS 32\n"
+      "    cmovg ax, [ebx + 0x7f]\n"
+      "    cmovnle eax, ecx\n"
+      "    cmovc eax, ecx\n"
+      "    cmovnae eax, ecx\n"
+      "    cmovnc eax, ecx\n"
+      "    cmovnb eax, ecx\n"
+      "    cmovz eax, ecx\n"
+      "    cmovna eax, ecx\n"
+      "    cmovnbe eax, ecx\n"
+      "    cmovpe eax, ecx\n"
+      "    cmovpo eax, ecx\n"
+      "    cmovnge eax, ecx\n"
+      "    cmovnl eax, ecx\n"
+      "    cmovng eax, ecx\n";
   static const ctool_u8 expected[] = {
       0xebu, 0x03u, 0xb8u, 0x34u, 0x12u, 0x88u,
-      0x16u, 0x09u, 0x7cu, 0x00u, 0x55u, 0xaau};
+      0x16u, 0x09u, 0x7cu, 0x00u, 0x55u, 0xaau,
+      0x0fu, 0x45u, 0xc1u,
+      0x66u, 0x0fu, 0x45u, 0x40u, 0x7fu,
+      0x66u, 0x0fu, 0x4fu, 0x43u, 0x7fu,
+      0x0fu, 0x4fu, 0xc1u,
+      0x0fu, 0x42u, 0xc1u, 0x0fu, 0x42u, 0xc1u,
+      0x0fu, 0x43u, 0xc1u, 0x0fu, 0x43u, 0xc1u,
+      0x0fu, 0x44u, 0xc1u, 0x0fu, 0x46u, 0xc1u,
+      0x0fu, 0x47u, 0xc1u, 0x0fu, 0x4au, 0xc1u,
+      0x0fu, 0x4bu, 0xc1u, 0x0fu, 0x4cu, 0xc1u,
+      0x0fu, 0x4du, 0xc1u, 0x0fu, 0x4eu, 0xc1u};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job;
@@ -1144,6 +1171,33 @@ static int run_error_contracts(void) {
           "return cleanup overflow", config, "/ret-overflow.asm",
           "BITS 32\nret 65536\n", &raw, CTOOL_ERR_INPUT,
           CTOOL_ASM_DIAG_ENCODING, "/ret-overflow.asm") ||
+      !expect_assembly_failure(
+          "conditional move byte operands", config, "/cmov-byte.asm",
+          "BITS 32\ncmovne al, cl\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/cmov-byte.asm") ||
+      !expect_assembly_failure(
+          "conditional move immediate source", config,
+          "/cmov-immediate.asm", "BITS 32\ncmovne eax, 1\n", &raw,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
+          "/cmov-immediate.asm") ||
+      !expect_assembly_failure(
+          "conditional move width mismatch", config,
+          "/cmov-width.asm", "BITS 32\ncmovne eax, cx\n", &raw,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
+          "/cmov-width.asm") ||
+      !expect_assembly_failure(
+          "conditional move lock prefix", config, "/cmov-lock.asm",
+          "BITS 32\nlock cmovne eax, ecx\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/cmov-lock.asm") ||
+      !expect_assembly_failure(
+          "conditional move repeat prefix", config, "/cmov-rep.asm",
+          "BITS 32\nrep cmovne eax, ecx\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/cmov-rep.asm") ||
+      !expect_assembly_failure(
+          "conditional move repeat-not-equal prefix", config,
+          "/cmov-repne.asm", "BITS 32\nrepne cmovne eax, ecx\n", &raw,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
+          "/cmov-repne.asm") ||
       !expect_assembly_failure(
           "instruction in bss", config, "/bss-instruction.asm",
           "BITS 32\nsection .bss\nmain: ret\n", &fixed,

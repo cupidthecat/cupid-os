@@ -269,6 +269,25 @@ static int run_raw(void) {
   static const ctool_u8 raw16[] = {0xb8u, 0x34u, 0x12u, 0xc3u};
   static const ctool_u8 raw32[] = {0xb8u, 0x78u, 0x56u, 0x34u,
                                     0x12u, 0xc3u};
+  static const ctool_u8 conditional32[] = {
+      0x0fu, 0x40u, 0xc1u, 0x0fu, 0x41u, 0xc1u,
+      0x0fu, 0x42u, 0xc1u, 0x0fu, 0x43u, 0xc1u,
+      0x0fu, 0x44u, 0xc1u, 0x0fu, 0x45u, 0xc1u,
+      0x0fu, 0x46u, 0xc1u, 0x0fu, 0x47u, 0xc1u,
+      0x0fu, 0x48u, 0xc1u, 0x0fu, 0x49u, 0xc1u,
+      0x0fu, 0x4au, 0xc1u, 0x0fu, 0x4bu, 0xc1u,
+      0x0fu, 0x4cu, 0xc1u, 0x0fu, 0x4du, 0xc1u,
+      0x0fu, 0x4eu, 0xc1u, 0x0fu, 0x4fu, 0xc1u,
+      0x0fu, 0x45u, 0x43u, 0x7fu};
+  static const char *const conditional32_text[] = {
+      "cmovo eax, ecx",  "cmovno eax, ecx", "cmovb eax, ecx",
+      "cmovae eax, ecx", "cmove eax, ecx",  "cmovne eax, ecx",
+      "cmovbe eax, ecx", "cmova eax, ecx",  "cmovs eax, ecx",
+      "cmovns eax, ecx", "cmovp eax, ecx",  "cmovnp eax, ecx",
+      "cmovl eax, ecx",  "cmovge eax, ecx", "cmovle eax, ecx",
+      "cmovg eax, ecx"};
+  static const ctool_u8 conditional16[] = {
+      0x0fu, 0x45u, 0xc1u, 0x66u, 0x0fu, 0x4fu, 0xc1u};
   static const ctool_u8 mixed_mode[] = {
       0xb8u, 0x34u, 0x12u,
       0xb8u, 0x78u, 0x56u, 0x34u, 0x12u,
@@ -280,7 +299,8 @@ static int run_raw(void) {
   static const ctool_u8 relative16_near[] = {0xe9u, 0u, 0u};
   static const ctool_u8 relative16_wide[] = {0x66u, 0xe9u, 0u,
                                              0u,    0u,    0u};
-  static const ctool_u8 recovery[] = {0x0fu, 0x0bu, 0x66u};
+  static const ctool_u8 recovery[] = {
+      0xf0u, 0x0fu, 0x45u, 0xc1u, 0x0fu, 0x4fu};
   ctool_host_adapter_t adapter;
   ctool_job_t *job;
   ctool_source_t source;
@@ -292,6 +312,7 @@ static int run_raw(void) {
   capture_t capture;
   capture_t repeat;
   ctool_status_t status;
+  ctool_u32 index;
   if (!open_job(&adapter, &job)) {
     return 1;
   }
@@ -330,6 +351,57 @@ static int run_raw(void) {
   if (!check_status(status, CTOOL_OK, "raw32 inspection") ||
       !contains(&capture, "00400000", "raw32 base") ||
       !contains(&capture, "mov eax, 0x12345678", "raw32 operands")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/conditional32.bin");
+  source.contents = ctool_bytes(
+      conditional32, (ctool_u32)sizeof(conditional32));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00401000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "conditional move raw32 inspection")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(conditional32_text) /
+                           sizeof(conditional32_text[0]));
+       index++) {
+    if (!contains(&capture, conditional32_text[index],
+                  conditional32_text[index])) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (!contains(&capture, "cmovne eax, dword [ebx+0x7F]",
+                "conditional move memory source")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/conditional16.bin");
+  source.contents = ctool_bytes(
+      conditional16, (ctool_u32)sizeof(conditional16));
+  request = raw_request(CTOOL_X86_MODE_16, 0x00007d00u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "conditional move raw16 inspection") ||
+      !contains(&capture, "cmovne ax, cx",
+                "16-bit conditional move") ||
+      !contains(&capture, "cmovg eax, ecx",
+                "16-bit wide conditional move")) {
     ctool_job_close(job);
     return 1;
   }
@@ -677,8 +749,10 @@ static int run_raw(void) {
                               capture_sink(&capture));
   }
   if (!check_status(status, CTOOL_OK, "raw recovery") ||
-      !contains(&capture, "db 0x0F", "unknown byte") ||
-      !contains(&capture, "0x0B, 0x66", "truncated tail")) {
+      !contains(&capture, "db 0xF0", "illegal prefix byte") ||
+      !contains(&capture, "cmovne eax, ecx",
+                "conditional move recovery") ||
+      !contains(&capture, "0x0F, 0x4F", "conditional move truncated tail")) {
     ctool_job_close(job);
     return 1;
   }

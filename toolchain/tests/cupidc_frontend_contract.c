@@ -6759,7 +6759,7 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.c", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1683u,
-       11376u, 173u, 15491u, 3u, 0u}};
+       11376u, 173u, 16441u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];

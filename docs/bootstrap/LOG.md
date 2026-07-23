@@ -6293,3 +6293,37 @@ The final graph contains 688 active sources, 498 reachable transforms, 251 featu
 This increment expands hosted compiler capability and exact active-source coverage without changing ownership. GCC or Clang still builds the shared compiler, its contracts, the hosted tools, and every normal C object. The root context and README, bootstrap records, generated audit, wiki, CTXT manual, and ADR describe the new boundary. `TempleOS/` remains untouched reference material.
 
 [Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for the rest of the C and ABI surface and production integration. [Issue #27](https://github.com/cupidthecat/cupid-os/issues/27) remains open for the three hosted adapters, host-runnable tools, linking, staged compiler-on-compiler checks, object and behavior comparison, and the fixed-point bootstrap. No issue is ready to close from this increment.
+
+## 2026-07-22: The shared x86 model gains conditional moves
+
+### Decision and active requirement
+
+The shared x86 catalogue now owns the complete i686 conditional-move family. Each of the sixteen conditions has 16-bit and 32-bit register destinations, register or memory sources of the same width, and encodings for both execution modes. Fourteen conventional aliases resolve to their canonical conditions. CupidASM accepts the aliases, while CupidDis renders stable canonical names.
+
+This belongs in the common instruction model because the assembler and disassembler need one source of truth. Adding isolated decoder cases or only the conditions seen in one artifact would leave the two tools with different instruction surfaces. ADR 0083 records the full boundary, including rejected byte and immediate operands, width mismatches, illegal prefixes, and truncated-input recovery.
+
+The catalogue now contains 579 forms, of which 577 are encodable and two are decode-only invalid recognizers. It has 242 canonical mnemonics, 64 registers, and fingerprint `063BAF16`. The x86 contract checks all 128 combinations of condition, mode, width, and register or memory source. It also checks every alias, exact bytes, decoded semantics, requested-form replay, failure rollback, and recovery. The CupidASM and CupidDis contracts cover their public text interfaces and unsupported neighbors.
+
+### Kernel artifact observation
+
+A same-file comparison shows the practical decoding change without turning one host-built kernel into a portable drift lock. The rebuilt `kernel/kernel.elf` is 6,281,780 bytes with SHA-256 `9EF3A26374D9969B1FE6529ABE4DEE41E3D4C178D3CE9FB25AF372B4485FAE90`. The preceding CupidDis produced 402,485 lines, no conditional-move mnemonics, and 24,917 `db` fallbacks. The new CupidDis produced 398,870 lines, 2,214 conditional-move mnemonics, and 21,738 `db` fallbacks from that exact artifact.
+
+Those counts describe this rebuilt host artifact only. Compiler versions and build environments can change the kernel instruction stream, so the repository contracts lock shared fixtures and catalogue fingerprints instead of this observation.
+
+### Audit and verification
+
+The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. It records 2,343 include operands across 658 active C-family inputs. The canonical active-source digest is `b30f61403f0ae552156a21c4808643f108c6fdeeb4ddc4d32637e29ca50bc61e`. The complete audit JSON has SHA-256 `0f91e9c54ef13b5ba31bdd48b3d4310a17c53a1ef57482bb24ae4d2b532c4982`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused contracts | PASS | Thirty public x86, CupidASM, CupidDis, CupidC frontend, and CupidC object tests pass in 68.216 seconds with one expected optional-tool skip. |
+| Active-source audit | PASS | `make check-bootstrap-audit` reproduces the generated graph and lexical drift locks. |
+| Full repository gate | PASS | `make test` passes all 371 tests in 532.487 seconds with one expected optional-tool skip. Make returns in 573.6 seconds. |
+| Production image | PASS | `make all` rebuilds and stages the complete image in 25.6 seconds. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 20.7 seconds. |
+| Artifact comparison | PASS | Old and new CupidDis builds read the same SHA-256-qualified kernel artifact. The new decoder recognizes 2,214 conditional moves and reduces `db` fallbacks by 3,179. |
+| Patch hygiene | PASS | `git diff --check` passes, publication prose received a humanizer review, and `TempleOS/` has no tracked diff. |
+
+This increment expands instruction coverage but does not transfer a production source owner or retire a host dependency. GCC or Clang still builds the hosted tools and the normal C objects. The root context and README, bootstrap records, generated audit, wiki, CTXT manual, and ADR describe the supported forms and remaining ownership boundary. `TempleOS/` remains untouched reference material.
+
+[Issue #13](https://github.com/cupidthecat/cupid-os/issues/13) remains open for production ownership transfer, staged self-hosting, and the fixed-point bootstrap. [Issue #27](https://github.com/cupidthecat/cupid-os/issues/27) remains open for host-runnable tools, linking, staged compiler comparisons, and the remaining self-hosting work. No issue is ready to close from this increment.

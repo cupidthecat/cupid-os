@@ -233,9 +233,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 547u && info.mnemonic_count == 226u &&
+  if (!check_true(info.form_count == 579u && info.mnemonic_count == 242u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x72594e70u,
+                      info.fingerprint == 0x063baf16u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -487,6 +487,365 @@ static int run_integer(void) {
   }
   ctool_job_close(job);
   (void)printf("integer: ok\n");
+  return 0;
+}
+
+typedef struct {
+  ctool_x86_mnemonic_t mnemonic;
+  const char *name;
+  ctool_u8 opcode;
+} conditional_move_case_t;
+
+typedef struct {
+  const char *name;
+  ctool_x86_mnemonic_t mnemonic;
+} conditional_move_alias_t;
+
+static int expect_conditional_move_encode_failure(
+    ctool_job_t *job, const ctool_x86_instruction_t *insn,
+    const char *operation) {
+  ctool_x86_encoding_t encoding;
+  ctool_status_t status;
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  return check_status(status, CTOOL_ERR_INPUT, operation) &&
+         check_true(encoding_is_zero(&encoding), operation);
+}
+
+static int run_conditional_moves(void) {
+  static const conditional_move_case_t cases[] = {
+      {CTOOL_X86_MN_CMOVO, "cmovo", 0x40u},
+      {CTOOL_X86_MN_CMOVNO, "cmovno", 0x41u},
+      {CTOOL_X86_MN_CMOVB, "cmovb", 0x42u},
+      {CTOOL_X86_MN_CMOVAE, "cmovae", 0x43u},
+      {CTOOL_X86_MN_CMOVE, "cmove", 0x44u},
+      {CTOOL_X86_MN_CMOVNE, "cmovne", 0x45u},
+      {CTOOL_X86_MN_CMOVBE, "cmovbe", 0x46u},
+      {CTOOL_X86_MN_CMOVA, "cmova", 0x47u},
+      {CTOOL_X86_MN_CMOVS, "cmovs", 0x48u},
+      {CTOOL_X86_MN_CMOVNS, "cmovns", 0x49u},
+      {CTOOL_X86_MN_CMOVP, "cmovp", 0x4au},
+      {CTOOL_X86_MN_CMOVNP, "cmovnp", 0x4bu},
+      {CTOOL_X86_MN_CMOVL, "cmovl", 0x4cu},
+      {CTOOL_X86_MN_CMOVGE, "cmovge", 0x4du},
+      {CTOOL_X86_MN_CMOVLE, "cmovle", 0x4eu},
+      {CTOOL_X86_MN_CMOVG, "cmovg", 0x4fu}};
+  static const conditional_move_alias_t aliases[] = {
+      {"cmovc", CTOOL_X86_MN_CMOVB},
+      {"cmovnae", CTOOL_X86_MN_CMOVB},
+      {"cmovnc", CTOOL_X86_MN_CMOVAE},
+      {"cmovnb", CTOOL_X86_MN_CMOVAE},
+      {"cmovz", CTOOL_X86_MN_CMOVE},
+      {"cmovnz", CTOOL_X86_MN_CMOVNE},
+      {"cmovna", CTOOL_X86_MN_CMOVBE},
+      {"cmovnbe", CTOOL_X86_MN_CMOVA},
+      {"cmovpe", CTOOL_X86_MN_CMOVP},
+      {"cmovpo", CTOOL_X86_MN_CMOVNP},
+      {"cmovnge", CTOOL_X86_MN_CMOVL},
+      {"cmovnl", CTOOL_X86_MN_CMOVGE},
+      {"cmovng", CTOOL_X86_MN_CMOVLE},
+      {"cmovnle", CTOOL_X86_MN_CMOVG}};
+  static const ctool_u8 illegal_prefix_bytes[] = {0xf0u, 0xf3u, 0xf2u};
+  static const ctool_u8 semantic_prefixes[] = {
+      CTOOL_X86_PREFIX_LOCK, CTOOL_X86_PREFIX_REP,
+      CTOOL_X86_PREFIX_REPNE};
+  static const ctool_u8 truncated_opcode[] = {0x0fu};
+  static const ctool_u8 truncated_modrm[] = {0x0fu, 0x45u};
+  static const ctool_u8 valid_bytes[] = {0x0fu, 0x45u, 0xc1u};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_x86_instruction_t insn;
+  ctool_x86_encoding_t encoding;
+  ctool_x86_encoding_t replay;
+  ctool_x86_decoded_t decoded;
+  ctool_x86_mnemonic_t found;
+  ctool_x86_form_t valid_form;
+  ctool_status_t status;
+  ctool_u32 case_index;
+  ctool_u32 alias_index;
+  ctool_u32 mode_index;
+  ctool_u32 width_index;
+  ctool_u32 source_index;
+  ctool_u32 prefix_index;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+
+  for (alias_index = 0u;
+       alias_index <
+       (ctool_u32)(sizeof(aliases) / sizeof(aliases[0]));
+       alias_index++) {
+    status = ctool_x86_mnemonic_from_name(
+        ctool_string(aliases[alias_index].name), &found);
+    if (!check_status(status, CTOOL_OK, aliases[alias_index].name) ||
+        !check_true(found == aliases[alias_index].mnemonic,
+                    "conditional move alias canonicalization")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  for (case_index = 0u;
+       case_index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       case_index++) {
+    ctool_string_t canonical;
+    status = ctool_x86_mnemonic_from_name(ctool_string(cases[case_index].name),
+                                           &found);
+    canonical = ctool_x86_mnemonic_name(cases[case_index].mnemonic);
+    if (!check_status(status, CTOOL_OK, cases[case_index].name) ||
+        !check_true(found == cases[case_index].mnemonic &&
+                        canonical.size == strlen(cases[case_index].name) &&
+                        memcmp(canonical.data, cases[case_index].name,
+                               canonical.size) == 0,
+                    "conditional move canonical name")) {
+      ctool_job_close(job);
+      return 1;
+    }
+    for (mode_index = 0u; mode_index < 2u; mode_index++) {
+      ctool_x86_mode_t mode = mode_index == 0u ? CTOOL_X86_MODE_16
+                                               : CTOOL_X86_MODE_32;
+      ctool_u16 address_bits = mode == CTOOL_X86_MODE_16 ? 16u : 32u;
+      for (width_index = 0u; width_index < 2u; width_index++) {
+        ctool_u16 width_bits = width_index == 0u ? 16u : 32u;
+        ctool_x86_reg_class_t register_class =
+            width_bits == 16u ? CTOOL_X86_REG_GPR16 : CTOOL_X86_REG_GPR32;
+        for (source_index = 0u; source_index < 2u; source_index++) {
+          ctool_u8 expected[6];
+          ctool_u8 expected_size = 0u;
+          ctool_bool memory_source =
+              source_index == 0u ? CTOOL_FALSE : CTOOL_TRUE;
+          ctool_x86_form_t form;
+          insn = instruction(cases[case_index].mnemonic, width_bits,
+                             address_bits, 0u);
+          insn.operand_count = 2u;
+          insn.operands[0] = register_operand(register_class, 0u);
+          if (memory_source == CTOOL_FALSE) {
+            insn.operands[1] = register_operand(register_class, 1u);
+          } else if (mode == CTOOL_X86_MODE_16) {
+            insn.operands[1] = memory_operand(
+                width_bits, 16u, reg(CTOOL_X86_REG_NONE, 0u),
+                reg(CTOOL_X86_REG_GPR16, 3u),
+                reg(CTOOL_X86_REG_GPR16, 6u), 1u, 0x7f, 8u);
+          } else {
+            insn.operands[1] = memory_operand(
+                width_bits, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+                reg(CTOOL_X86_REG_GPR32, 3u),
+                reg(CTOOL_X86_REG_NONE, 0u), 1u, 0x7f, 8u);
+          }
+          if ((mode == CTOOL_X86_MODE_16 && width_bits == 32u) ||
+              (mode == CTOOL_X86_MODE_32 && width_bits == 16u)) {
+            expected[expected_size++] = 0x66u;
+          }
+          expected[expected_size++] = 0x0fu;
+          expected[expected_size++] = cases[case_index].opcode;
+          if (memory_source == CTOOL_FALSE) {
+            expected[expected_size++] = 0xc1u;
+          } else {
+            expected[expected_size++] =
+                mode == CTOOL_X86_MODE_16 ? 0x40u : 0x43u;
+            expected[expected_size++] = 0x7fu;
+          }
+          if (!encode(job, mode, &insn, &encoding,
+                      "conditional move encode") ||
+              !bytes_equal(&encoding, expected, expected_size,
+                           "conditional move exact bytes")) {
+            (void)fprintf(stderr, "conditional move case failed: %s\n",
+                          cases[case_index].name);
+            ctool_job_close(job);
+            return 1;
+          }
+          status = ctool_x86_decode(
+              job, mode, ctool_bytes(expected, expected_size), 0u,
+              &decoded);
+          if (!check_status(status, CTOOL_OK,
+                            "conditional move decode") ||
+              !check_true(
+                  decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.consumed == expected_size &&
+                      decoded.instruction.mnemonic ==
+                          cases[case_index].mnemonic &&
+                      decoded.instruction.operand_bits == width_bits &&
+                      decoded.instruction.operand_count == 2u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[0].as.reg.class_id ==
+                          register_class &&
+                      decoded.instruction.operands[0].as.reg.index == 0u &&
+                      decoded.instruction.operands[1].kind ==
+                          (memory_source == CTOOL_FALSE
+                               ? CTOOL_X86_OPERAND_REGISTER
+                               : CTOOL_X86_OPERAND_MEMORY) &&
+                      decoded.encoding.form != CTOOL_X86_FORM_AUTO,
+                  "conditional move decode semantics")) {
+            ctool_job_close(job);
+            return 1;
+          }
+          if (memory_source == CTOOL_FALSE) {
+            if (!check_true(
+                    decoded.instruction.operands[1].as.reg.class_id ==
+                            register_class &&
+                        decoded.instruction.operands[1].as.reg.index == 1u,
+                    "conditional move register source")) {
+              ctool_job_close(job);
+              return 1;
+            }
+          } else if (!check_true(
+                         decoded.instruction.operands[1].width_bits ==
+                                 width_bits &&
+                             decoded.instruction.operands[1]
+                                     .as.memory.address_bits == address_bits,
+                         "conditional move memory source")) {
+            ctool_job_close(job);
+            return 1;
+          }
+          form = decoded.encoding.form;
+          status = ctool_x86_encode(job, mode, &decoded.instruction, form,
+                                    &replay);
+          if (!check_status(status, CTOOL_OK,
+                            "conditional move requested form") ||
+              !bytes_equal(&replay, expected, expected_size,
+                           "conditional move requested-form bytes")) {
+            ctool_job_close(job);
+            return 1;
+          }
+        }
+      }
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_CMOVNE, 8u, 32u, 0u);
+  insn.operand_count = 2u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR8, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR8, 1u);
+  if (!expect_conditional_move_encode_failure(
+          job, &insn, "conditional move byte operands")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_CMOVNE, 32u, 32u, 0u);
+  insn.operand_count = 2u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  insn.operands[1] = value_operand(CTOOL_X86_OPERAND_IMMEDIATE, 32u, 32u,
+                                   constant(1u));
+  if (!expect_conditional_move_encode_failure(
+          job, &insn, "conditional move immediate source")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR16, 1u);
+  if (!expect_conditional_move_encode_failure(
+          job, &insn, "conditional move width mismatch")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 1u);
+  for (prefix_index = 0u;
+       prefix_index <
+       (ctool_u32)(sizeof(semantic_prefixes) /
+                   sizeof(semantic_prefixes[0]));
+       prefix_index++) {
+    insn.prefixes = semantic_prefixes[prefix_index];
+    if (!expect_conditional_move_encode_failure(
+            job, &insn, "conditional move semantic prefix")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(truncated_opcode,
+                  (ctool_u32)sizeof(truncated_opcode)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "conditional move truncated opcode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                      decoded.consumed == 0u &&
+                      decoded.encoding.size == sizeof(truncated_opcode),
+                  "conditional move truncated opcode retention")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(truncated_modrm,
+                  (ctool_u32)sizeof(truncated_modrm)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "conditional move truncated ModRM") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                      decoded.consumed == 0u &&
+                      decoded.encoding.size == sizeof(truncated_modrm),
+                  "conditional move truncated ModRM retention")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  for (prefix_index = 0u;
+       prefix_index <
+       (ctool_u32)(sizeof(illegal_prefix_bytes) /
+                   sizeof(illegal_prefix_bytes[0]));
+       prefix_index++) {
+    ctool_u8 illegal[4];
+    illegal[0] = illegal_prefix_bytes[prefix_index];
+    illegal[1] = 0x0fu;
+    illegal[2] = 0x45u;
+    illegal[3] = 0xc1u;
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32,
+                              ctool_bytes(illegal, 4u), 0u, &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "conditional move illegal prefix decode") ||
+        !check_true(decoded.kind ==
+                            (prefix_index == 0u
+                                 ? CTOOL_X86_DECODE_INVALID
+                                 : CTOOL_X86_DECODE_UNKNOWN) &&
+                        decoded.consumed == 1u &&
+                        decoded.encoding.size == 1u &&
+                        decoded.encoding.bytes[0] == illegal[0],
+                    "conditional move illegal prefix classification")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(valid_bytes, (ctool_u32)sizeof(valid_bytes)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "conditional move same-job recovery") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_CMOVNE,
+                  "conditional move recovered decode")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  valid_form = decoded.encoding.form;
+  insn = decoded.instruction;
+  insn.mnemonic = CTOOL_X86_MN_CMOVE;
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn, valid_form,
+                            &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "conditional move mismatched requested form") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "conditional move mismatched form zeroed output")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                            &decoded.instruction, valid_form, &encoding);
+  if (!check_status(status, CTOOL_OK,
+                    "conditional move recovery requested form") ||
+      !bytes_equal(&encoding, valid_bytes,
+                   (ctool_u8)sizeof(valid_bytes),
+                   "conditional move recovered exact bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_job_close(job);
+  (void)printf("conditional-moves: ok\n");
   return 0;
 }
 
@@ -1637,7 +1996,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|integer|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|integer|conditional-moves|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -1648,6 +2007,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "integer") == 0) {
     return run_integer();
+  }
+  if (strcmp(argv[1], "conditional-moves") == 0) {
+    return run_conditional_moves();
   }
   if (strcmp(argv[1], "addressing") == 0) {
     return run_addressing();

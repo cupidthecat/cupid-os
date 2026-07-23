@@ -66,12 +66,15 @@ class ToolchainX86ContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "inventory: forms=547 mnemonics=226 registers=64 "
-            "fingerprint=72594E70\n",
+            "inventory: forms=579 mnemonics=242 registers=64 "
+            "fingerprint=063BAF16\n",
         )
 
     def test_integer_encoding_decoding_and_relocation_fields(self):
         self.run_contract("integer")
+
+    def test_conditional_moves_cover_modes_widths_sources_and_errors(self):
+        self.run_contract("conditional-moves")
 
     def test_mixed_16_32_bit_modrm_and_sib_addressing(self):
         self.run_contract("addressing")
