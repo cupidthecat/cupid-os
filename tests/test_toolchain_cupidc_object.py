@@ -24,10 +24,12 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         cls.hosted_cupiddis_path = build_path / ("cupiddis" + suffix)
         cls.hosted_cupidld_path = build_path / ("cupidld" + suffix)
         cls.hosted_cupidobj_path = build_path / ("cupidobj" + suffix)
+        cls.hosted_cupidc_path = build_path / ("cupidc" + suffix)
         cls.cupid_cupidasm_path = build_path / "cupid-built-cupidasm.elf"
         cls.cupid_cupiddis_path = build_path / "cupid-built-cupiddis.elf"
         cls.cupid_cupidld_path = build_path / "cupid-built-cupidld.elf"
         cls.cupid_cupidobj_path = build_path / "cupid-built-cupidobj.elf"
+        cls.cupid_cupidc_path = build_path / "cupid-built-cupidc.elf"
         cls.cupid_runtime_path = build_path / "cupid-built-runtime.elf"
         cls._cupid_tool_link = None
         target = f"{relative_build}/cupidc-object-contract{suffix}"
@@ -35,6 +37,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         cupiddis_target = f"{relative_build}/cupiddis{suffix}"
         cupidld_target = f"{relative_build}/cupidld{suffix}"
         cupidobj_target = f"{relative_build}/cupidobj{suffix}"
+        cupidc_target = f"{relative_build}/cupidc{suffix}"
         result = subprocess.run(
             [
                 "make",
@@ -46,6 +49,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 cupiddis_target,
                 cupidld_target,
                 cupidobj_target,
+                cupidc_target,
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -58,6 +62,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             or not cls.hosted_cupiddis_path.exists()
             or not cls.hosted_cupidld_path.exists()
             or not cls.hosted_cupidobj_path.exists()
+            or not cls.hosted_cupidc_path.exists()
         ):
             cls._build_directory.cleanup()
             raise AssertionError(
@@ -82,6 +87,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     str(cls.cupid_cupiddis_path),
                     str(cls.cupid_cupidld_path),
                     str(cls.cupid_cupidobj_path),
+                    str(cls.cupid_cupidc_path),
                     str(cls.cupid_runtime_path),
                 ],
                 cwd=TOOLCHAIN_ROOT,
@@ -613,6 +619,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.cupid_cupiddis_path,
             self.cupid_cupidld_path,
             self.cupid_cupidobj_path,
+            self.cupid_cupidc_path,
             self.cupid_runtime_path,
         ):
             image = executable.read_bytes()
@@ -666,7 +673,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
 
         manifest = build_path / "cupidc-hosted-i386-tools.json"
-        artifact = build_path / "cupidc-cupiddis.elf"
+        artifact = build_path / "cupidc-cupidc.elf"
         self.assertTrue(manifest.exists())
         self.assertTrue(artifact.exists())
         manifest_bytes = manifest.read_bytes()
@@ -899,6 +906,636 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 cupid_wrapped.read_bytes()[:7],
                 b"\x7fELF\x01\x01\x01",
             )
+
+    def test_cupid_built_cupidc_matches_hosted_object_emission_and_failures(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-cupidc-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            include_root = root / "include"
+            include_root.mkdir()
+            header = include_root / "value.h"
+            source = root / "source.c"
+            gnu = root / "gnu.c"
+            freestanding = root / "freestanding.c"
+            invalid = root / "invalid.c"
+            hosted_object = root / "hosted.o"
+            cupid_object = root / "cupid.o"
+            cupid_native_path_object = root / "cupid-native-path.o"
+            hosted_gnu_object = root / "hosted-gnu.o"
+            cupid_gnu_object = root / "cupid-gnu.o"
+            hosted_gnu_strict_output = root / "hosted-gnu-strict.o"
+            cupid_gnu_strict_output = root / "cupid-gnu-strict.o"
+            hosted_freestanding = root / "hosted-freestanding.o"
+            cupid_freestanding = root / "cupid-freestanding.o"
+            hosted_failure = root / "hosted-failure.o"
+            cupid_failure = root / "cupid-failure.o"
+            hosted_missing_output = root / "hosted-missing.o"
+            cupid_missing_output = root / "cupid-missing.o"
+            reserved_output = root / "reserved.o"
+            reserved_undef_output = root / "reserved-undef.o"
+            header.write_text("#define HEADER_VALUE 11\n", encoding="utf-8")
+            source.write_text(
+                "#include <value.h>\n"
+                "#if __STDC_HOSTED__ != 1\n"
+                "#error hosted profile missing\n"
+                "#endif\n"
+                "#ifdef REMOVED_VALUE\n"
+                "#error command-line undef failed\n"
+                "#endif\n"
+                "int compiled_value(int argument) {\n"
+                "  return argument + HEADER_VALUE + COMMAND_VALUE +\n"
+                "         __SIZEOF_POINTER__;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            gnu.write_text(
+                "#if 0b10 != 2\n"
+                "#error GNU binary constant was misread\n"
+                "#endif\n"
+                "int gnu_value(void) { return 0b10; }\n",
+                encoding="utf-8",
+            )
+            freestanding.write_text(
+                "#if __STDC_HOSTED__ != 0\n"
+                "#error freestanding profile missing\n"
+                "#endif\n"
+                "int freestanding_value(void) { return 4; }\n",
+                encoding="utf-8",
+            )
+            invalid.write_text(
+                "int broken_source( {\n",
+                encoding="utf-8",
+            )
+            arguments = [
+                "--root",
+                root,
+                "-c",
+                "/source.c",
+                "-I",
+                "/include",
+                "-D",
+                "COMMAND_VALUE=7",
+                "-D",
+                "REMOVED_VALUE=1",
+                "-U",
+                "REMOVED_VALUE",
+                "--gnu",
+            ]
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    *[str(argument) for argument in arguments],
+                    "-o",
+                    "/hosted.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [*arguments, "-o", "/cupid.o"],
+                timeout=60,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(cupid.returncode, hosted.returncode, cupid.stderr)
+            self.assertEqual(cupid.stdout, hosted.stdout)
+            self.assertEqual(cupid.stderr, hosted.stderr)
+            self.assertEqual(cupid_object.read_bytes(), hosted_object.read_bytes())
+            self.assertEqual(cupid_object.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+            cupid_native_path = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "-c",
+                    source,
+                    "-I",
+                    include_root,
+                    "-D",
+                    "COMMAND_VALUE=7",
+                    "-D",
+                    "REMOVED_VALUE=1",
+                    "-U",
+                    "REMOVED_VALUE",
+                    "--gnu",
+                    "-o",
+                    cupid_native_path_object,
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                cupid_native_path.returncode, 0, cupid_native_path.stderr
+            )
+            self.assertEqual(cupid_native_path.stdout, hosted.stdout)
+            self.assertEqual(cupid_native_path.stderr, hosted.stderr)
+            self.assertEqual(
+                cupid_native_path_object.read_bytes(),
+                hosted_object.read_bytes(),
+            )
+
+            hosted_gnu = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "--gnu",
+                    "-c",
+                    "/gnu.c",
+                    "-o",
+                    "/hosted-gnu.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_gnu = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "--gnu",
+                    "-c",
+                    "/gnu.c",
+                    "-o",
+                    "/cupid-gnu.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted_gnu.returncode, 0, hosted_gnu.stderr)
+            self.assertEqual(cupid_gnu.returncode, hosted_gnu.returncode)
+            self.assertEqual(cupid_gnu.stdout, hosted_gnu.stdout)
+            self.assertEqual(cupid_gnu.stderr, hosted_gnu.stderr)
+            self.assertEqual(
+                cupid_gnu_object.read_bytes(),
+                hosted_gnu_object.read_bytes(),
+            )
+
+            hosted_gnu_strict_output.write_bytes(b"hosted-gnu-sentinel")
+            cupid_gnu_strict_output.write_bytes(b"cupid-gnu-sentinel")
+            hosted_gnu_strict = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/gnu.c",
+                    "-o",
+                    "/hosted-gnu-strict.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_gnu_strict = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/gnu.c",
+                    "-o",
+                    "/cupid-gnu-strict.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                hosted_gnu_strict.returncode, 1, hosted_gnu_strict.stderr
+            )
+            self.assertEqual(
+                cupid_gnu_strict.returncode,
+                hosted_gnu_strict.returncode,
+                cupid_gnu_strict.stderr,
+            )
+            self.assertEqual(cupid_gnu_strict.stdout, hosted_gnu_strict.stdout)
+            self.assertEqual(cupid_gnu_strict.stderr, hosted_gnu_strict.stderr)
+            self.assertIn(
+                "CupidC binary conditional constants require GNU mode",
+                hosted_gnu_strict.stderr,
+            )
+            self.assertEqual(
+                hosted_gnu_strict_output.read_bytes(),
+                b"hosted-gnu-sentinel",
+            )
+            self.assertEqual(
+                cupid_gnu_strict_output.read_bytes(),
+                b"cupid-gnu-sentinel",
+            )
+
+            hosted_free = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "--freestanding",
+                    "-c",
+                    "/freestanding.c",
+                    "-o",
+                    "/hosted-freestanding.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_free = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "--freestanding",
+                    "-c",
+                    "/freestanding.c",
+                    "-o",
+                    "/cupid-freestanding.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted_free.returncode, 0, hosted_free.stderr)
+            self.assertEqual(
+                cupid_free.returncode, hosted_free.returncode, cupid_free.stderr
+            )
+            self.assertEqual(cupid_free.stdout, hosted_free.stdout)
+            self.assertEqual(cupid_free.stderr, hosted_free.stderr)
+            self.assertEqual(
+                cupid_freestanding.read_bytes(),
+                hosted_freestanding.read_bytes(),
+            )
+
+            hosted_failure.write_bytes(b"hosted-sentinel")
+            cupid_failure.write_bytes(b"cupid-sentinel")
+            hosted_bad = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/invalid.c",
+                    "-o",
+                    "/hosted-failure.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_bad = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/invalid.c",
+                    "-o",
+                    "/cupid-failure.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted_bad.returncode, 1, hosted_bad.stderr)
+            self.assertIn("/invalid.c:1:", hosted_bad.stderr)
+            self.assertIn(
+                "declaration specifiers do not name a type",
+                hosted_bad.stderr,
+            )
+            self.assertEqual(
+                cupid_bad.returncode, hosted_bad.returncode, cupid_bad.stderr
+            )
+            self.assertEqual(cupid_bad.stdout, hosted_bad.stdout)
+            self.assertEqual(cupid_bad.stderr, hosted_bad.stderr)
+            self.assertEqual(hosted_failure.read_bytes(), b"hosted-sentinel")
+            self.assertEqual(cupid_failure.read_bytes(), b"cupid-sentinel")
+
+            hosted_missing_output.write_bytes(b"hosted-missing-sentinel")
+            cupid_missing_output.write_bytes(b"cupid-missing-sentinel")
+            hosted_missing = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/missing.c",
+                    "-o",
+                    "/hosted-missing.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_missing = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/missing.c",
+                    "-o",
+                    "/cupid-missing.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted_missing.returncode, 1)
+            self.assertEqual(
+                cupid_missing.returncode,
+                hosted_missing.returncode,
+                cupid_missing.stderr,
+            )
+            self.assertIn(
+                "cupidc: cannot load /missing.c (not_found)",
+                hosted_missing.stderr,
+            )
+            self.assertEqual(cupid_missing.stdout, hosted_missing.stdout)
+            self.assertEqual(cupid_missing.stderr, hosted_missing.stderr)
+            self.assertEqual(
+                hosted_missing_output.read_bytes(),
+                b"hosted-missing-sentinel",
+            )
+            self.assertEqual(
+                cupid_missing_output.read_bytes(),
+                b"cupid-missing-sentinel",
+            )
+
+            hosted_reserved = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/source.c",
+                    "-D__SIZEOF_POINTER__=8",
+                    "-o",
+                    "/reserved.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_reserved = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/source.c",
+                    "-D__SIZEOF_POINTER__=8",
+                    "-o",
+                    "/reserved.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted_reserved.returncode, 2, hosted_reserved.stderr)
+            self.assertEqual(
+                cupid_reserved.returncode,
+                hosted_reserved.returncode,
+                cupid_reserved.stderr,
+            )
+            self.assertEqual(cupid_reserved.stdout, hosted_reserved.stdout)
+            self.assertEqual(cupid_reserved.stderr, hosted_reserved.stderr)
+            self.assertFalse(reserved_output.exists())
+
+            hosted_reserved_undef = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/source.c",
+                    "-U__SIZEOF_POINTER__",
+                    "-o",
+                    "/reserved-undef.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_reserved_undef = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/source.c",
+                    "-U__SIZEOF_POINTER__",
+                    "-o",
+                    "/reserved-undef.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                hosted_reserved_undef.returncode,
+                2,
+                hosted_reserved_undef.stderr,
+            )
+            self.assertEqual(
+                cupid_reserved_undef.returncode,
+                hosted_reserved_undef.returncode,
+                cupid_reserved_undef.stderr,
+            )
+            self.assertEqual(
+                cupid_reserved_undef.stdout,
+                hosted_reserved_undef.stdout,
+            )
+            self.assertEqual(
+                cupid_reserved_undef.stderr,
+                hosted_reserved_undef.stderr,
+            )
+            self.assertFalse(reserved_undef_output.exists())
+
+    def test_cupid_built_cupidc_matches_help_and_usage_failures(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        usage = (
+            "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
+            "[-D NAME[=VALUE]] [-U NAME] [--gnu] [--freestanding] "
+            "[--root NATIVE_ROOT]\n"
+        )
+        hosted_help = subprocess.run(
+            [str(self.hosted_cupidc_path), "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+        cupid_help = self.run_cupid_linux_tool(
+            self.cupid_cupidc_path, ["--help"], timeout=20
+        )
+        self.assertEqual(hosted_help.returncode, 0, hosted_help.stderr)
+        self.assertEqual(cupid_help.returncode, hosted_help.returncode)
+        self.assertEqual(hosted_help.stdout, usage)
+        self.assertEqual(cupid_help.stdout, usage)
+        self.assertEqual(hosted_help.stderr, "")
+        self.assertEqual(cupid_help.stderr, "")
+
+        hosted_invalid = subprocess.run(
+            [str(self.hosted_cupidc_path), "-c", "missing.c"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+        cupid_invalid = self.run_cupid_linux_tool(
+            self.cupid_cupidc_path,
+            ["-c", "missing.c"],
+            timeout=20,
+        )
+        self.assertEqual(hosted_invalid.returncode, 2)
+        self.assertEqual(cupid_invalid.returncode, hosted_invalid.returncode)
+        self.assertEqual(hosted_invalid.stdout, "")
+        self.assertEqual(cupid_invalid.stdout, "")
+        self.assertEqual(hosted_invalid.stderr, usage)
+        self.assertEqual(cupid_invalid.stderr, usage)
+
+    def test_hosted_cupidc_resolves_native_absolute_and_relative_paths(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".hosted-cupidc-paths-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            source = root / "source.c"
+            absolute_object = root / "absolute.o"
+            relative_object = root / "relative.o"
+            source.write_text(
+                "int native_path_value(void) { return 32; }\n",
+                encoding="utf-8",
+            )
+            absolute = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "-c",
+                    str(source.resolve()),
+                    "-o",
+                    str(absolute_object.resolve()),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            relative = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "-c",
+                    source.name,
+                    "-o",
+                    relative_object.name,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(absolute.returncode, 0, absolute.stderr)
+            self.assertEqual(relative.returncode, 0, relative.stderr)
+            self.assertEqual(absolute.stdout, "")
+            self.assertEqual(relative.stdout, "")
+            self.assertEqual(absolute.stderr, "")
+            self.assertEqual(relative.stderr, "")
+            self.assertEqual(
+                relative_object.read_bytes(), absolute_object.read_bytes()
+            )
+            self.assertEqual(
+                absolute_object.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
+            )
+            if os.name == "nt":
+                root_relative_object = root / "root-relative.o"
+                source_absolute = source.resolve()
+                object_absolute = root_relative_object.resolve()
+                root_relative_source = (
+                    "\\"
+                    + str(source_absolute.relative_to(source_absolute.anchor))
+                )
+                root_relative_output = (
+                    "\\"
+                    + str(object_absolute.relative_to(object_absolute.anchor))
+                )
+                root_relative = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        "-c",
+                        root_relative_source,
+                        "-o",
+                        root_relative_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                self.assertEqual(
+                    root_relative.returncode, 0, root_relative.stderr
+                )
+                self.assertEqual(root_relative.stdout, "")
+                self.assertEqual(root_relative.stderr, "")
+                self.assertEqual(
+                    root_relative_object.read_bytes(),
+                    absolute_object.read_bytes(),
+                )
+
+    def test_cupid_built_cupidc_reproduces_a_compiler_implementation_object(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-cupidc-generation-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            relative = root.relative_to(REPO_ROOT).as_posix()
+            hosted_object = root / "generation-zero.o"
+            first_object = root / "generation-one-first.o"
+            second_object = root / "generation-one-second.o"
+            common = [
+                "--root",
+                REPO_ROOT,
+                "-c",
+                "/toolchain/cupidc_ir.c",
+                "-I",
+                "/toolchain",
+            ]
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    *[str(argument) for argument in common],
+                    "-o",
+                    f"/{relative}/generation-zero.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            first = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    *common,
+                    "-o",
+                    f"/{relative}/generation-one-first.o",
+                ],
+                timeout=90,
+            )
+            second = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    *common,
+                    "-o",
+                    f"/{relative}/generation-one-second.o",
+                ],
+                timeout=90,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(first.stdout, hosted.stdout)
+            self.assertEqual(first.stderr, hosted.stderr)
+            self.assertEqual(second.stdout, hosted.stdout)
+            self.assertEqual(second.stderr, hosted.stderr)
+            self.assertEqual(first_object.read_bytes(), hosted_object.read_bytes())
+            self.assertEqual(second_object.read_bytes(), hosted_object.read_bytes())
+            self.assertGreater(len(hosted_object.read_bytes()), 100000)
+            self.assertEqual(hosted_object.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
     def test_cupid_built_runtime_handles_includes_mode_maps_and_missing_files(
         self,

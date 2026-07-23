@@ -6667,3 +6667,137 @@ OS C object. The runtime is Linux-only, single threaded, unbuffered, and
 limited to the checked headers. A CupidC command, compiler-generation
 comparison, checked seed, and production handoff remain open under issue #27
 and the later fixed-point work.
+
+## 2026-07-23: A Cupid-built CupidC compiles CupidC source
+
+### Driver and first generation
+
+The next issue #27 checkpoint adds `toolchain/cupidc_main.c` as a real
+compile-only command. It accepts one C11 input and ELF32 output, ordered
+logical include roots, definitions and undefinitions, GNU mode, freestanding
+mode, and an optional native root for logical-path translation. The fixed
+target fact remains `__SIZEOF_POINTER__=4`; command-line attempts to redefine
+or remove it fail before compilation.
+
+The driver runs preprocessing, parsing, and object emission inside
+`ctool_invoke`. It keeps input loading, ordered diagnostics, and the pre-write
+compile commit gate together. Malformed C leaves an existing output unchanged,
+while an adapter write failure can still leave a partial file. Compiler jobs
+allow 64 MiB source and output buffers and a 512 MiB arena without changing the
+shared defaults.
+
+The static compiler uses twelve objects: startup, runtime, the driver,
+`ctool`, `ctool_host`, preprocessing, types, frontend, IR, emission, ELF32,
+and x86. The existing link helper's eight-object ceiling moved to sixteen so
+the whole compiler fits without a special linker path. The checked runtime
+also adds bytewise `memcmp`, including equal, zero-length, negative, and
+positive contract cases.
+
+The first TDD run failed because the native Make graph had no `cupidc`
+executable. Once the driver linked, the active preprocessing corpus caught a
+second problem: `cupidc_main.c` had been placed in `HOSTED_TOOLCHAIN_64`, so
+its standard includes could not resolve from the one hermetic root. Treating
+that as an ordinary 64-bit source would also have recorded the wrong pointer
+fact for the static executable.
+
+The final audit keeps the native driver transform among the explicit
+external-header deferrals. It derives the target source set from the reachable
+`cupidc-hosted-i386-tools.json` closure instead. `HOSTED_I386_LINUX` runs 19
+strict C11 sources with `/toolchain`, the checked angle-header root, and a
+four-byte pointer fact. `HOSTED_I386_LINUX_GNU` applies the same boundary only
+to `runtime.c`. The classifier pins the native object-contract input and the
+`self-host-link-tools` recipe as well as the complete C source set. Negative
+tests reject missing closure inputs, a missing object contract, a changed
+subcommand, and a changed orchestrator.
+
+Review exposed one profile seam in the contract. The selected GNU flag reached
+the parser, but preprocessing still used the strict request stored in the base
+profile. The emitter now copies that request and applies the selected flag
+before both preprocessing and parsing. A command fixture uses `0b10` in a
+conditional and in the returned expression, so GNU mode has to reach both
+operations. The strict command rejects the same source with its named
+diagnostic and preserves the sentinel output.
+
+The audit also checks the C contract that performs the static build. It parses
+the exact source-profile rows, requires `runtime.c` to be the only GNU unit,
+and verifies that both emissions consume each row's flag. Three mutations pin
+the runtime row, preprocessor forwarding, and compile-loop forwarding. The
+first validator placement ran before synthetic Make-profile tests had created
+a C contract, masking 19 intended failures with a missing-file error. Moving
+the check to the complete three-root graph boundary kept those isolated tests
+useful while retaining the real audit gate.
+
+Generation zero is the native CupidC driver. The static Cupid-built driver
+runs twice under WSL on unchanged `toolchain/cupidc_ir.c`. All three outputs
+are the same 371,240-byte i386 relocatable ELF file with SHA-256
+`3E8C4F8EA98C303C4AE3272F493B3B09E20B9DB362688B99058D32FB1E7B776C`.
+This is compiler-on-compiler evidence from a substantial implementation file,
+not a fixture or wrapper.
+
+ADR 0088 records the driver, target profiles, generation comparison, and
+claim boundary. No design question required an external decision.
+
+Two PowerShell-to-WSL checks sent a carriage return with the final shell line.
+The compiler built and printed help, but Bash rejected the wrapped numeric
+exit. The accepted check uses an explicit temporary path and a direct WSL
+command, then returns the compiler's real zero status. Neither wrapper changed
+a tracked file. The first full GCC launcher also split its quoted cleanup trap
+and stopped before Make. The replacement invokes WSL directly, captures Make's
+status, and removes the exact temporary build directory.
+
+The first complete repository run exercised all 388 tests in 711.059 seconds
+and found only five stale frontend inventory sentinels. The new driver had
+raised the generated `return`, `for`, `while`, `if`/`else`, and `goto` totals,
+while those exact tests still named the previous graph. Updating them to the
+generated values made all 53 frontend tests pass before the complete rerun.
+
+### Artifact and focused evidence
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00F684CA5CA1E2BA36763E6810C65FEA8B3786D40F6008D635751A1F2C2B6DB0` |
+| CupidDis | 366,968 | `67FCDBCF8A7924E37F00EC571BB5A4DBFBF4897C9743E9F3A3BBCAF0EA20CA60` |
+| CupidLD | 262,388 | `373ED96803DCFB0005B8B3B1D49CA1313396EE11E17521AAD6402F487CDD97E5` |
+| CupidObj | 182,704 | `1F48C3D7B5F80D3E33EB9268C087111E8FA54EB390C24368A09F7EC2981C0030` |
+| CupidC | 1,812,712 | `476522EEAC38F26E6BE201F9C435F3617BD7F7ECEF472B98D053E1DE575BCD84` |
+| Runtime contract | 42,720 | `76700D2A5066FBA1942F5C86177BFAA11BF1ED85246DB5C42EE97E0FACD225DC` |
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Native driver | PASS | Windows Clang builds the command under the strict warning profile. Absolute, relative, and Windows drive-root-relative paths produce the same object. The static Linux driver also accepts native absolute input, include, and output paths. A fresh WSL GCC build links the native command and returns zero after printing the help contract. Clang's analyzer reports no finding. |
+| Static compiler | PASS | The generated file is static i386 `ET_EXEC`, enters at `0x08048000`, has no undefined symbols, and defines `_start`, `main`, `ctool_c_emit_object`, and `memcmp`. |
+| Compiler behavior | PASS | Native and Cupid-built commands agree on help, invalid usage, include roots, definitions, undefinitions, GNU and freestanding modes, valid object bytes, malformed and missing-source diagnostics, output preservation, and pointer-width rejection. |
+| Compiler generation | PASS | Two generation-one runs over unchanged `cupidc_ir.c` match generation zero byte for byte. |
+| Object suite | PASS | All 49 public CupidC object tests pass in 172.332 seconds. |
+| Build-graph suite | PASS | All 50 tests pass inside the settled repository gate. The added test pins the C source-profile seam with three mutations; its focused run also passes beside the synthetic Make-profile check. |
+| Hosted Toolchain | PASS | `make -C toolchain test` passes the complete selector set and all six linked i386 artifacts. |
+| Cross-host Toolchain | PASS AFTER WRAPPER CORRECTION | A fresh WSL GCC build passes the complete Toolchain suite in an isolated directory, including the native driver, static compiler, and runtime execution. |
+| Target preprocessing | PASS | All 379 tracked profile executions pass. The static closure contributes 19 strict target runs and one GNU runtime run. |
+| Active-source audit | PASS | Regeneration and the checked reproduction record 698 active sources, 501 transforms, 252 feature requirements, and 39 accounted unreachable files. The canonical source digest is `C8D5E70B880F6E3A11789A4C82500CC2AA9FC4D4F91D10A8185B36A49CFAE5C7`. |
+| Settled repository gate | PASS | All 389 tests pass in 708.289 seconds with one expected optional skip. Make returns zero after 749.278 seconds, including the checked audit reproduction. |
+| Production image | PASS | `make all` rebuilds and stages the image in 21.7 seconds. `_loaded_end` is `0x006D3847`, `_bss_start` is `0x006D4000`, and `_kernel_end` is `0x00AF4910`, leaving 46,832 bytes below the fixed stack. |
+| Emulator gate | PASS | The GUI terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds with the established 0.60-second key timing. |
+
+The generated `toolchain_core` cohort contains 31 files and 57,373 checked
+lines. `toolchain_contract` contains 15 files and 94,555 checked lines. The
+preprocessing inventory now records 2,369 include operands across 667 source
+files, split into 2,137 quoted and 232 angle forms. The checked target manifest
+contains 379 tracked profile executions and four generated kernel runs. The
+complete audit JSON has SHA-256
+`60E08F504141F415D3B2DB734056D80518D716C2B92E2E06CB26B50C16E0FF37`.
+
+The rebuilt `kernel.elf` is 6,285,876 bytes with SHA-256
+`DFA6CAB9538596A4DE4405E8DA7D74CCE81DADA74A23C45A035B5CD816D08305`.
+The 6,109,255-byte `kernel.bin` has SHA-256
+`1FE7A205C9CCA893035D82ED8DAE20E2B76E03DAB0CF3635BA122B86DEC75ED7`,
+and the 209,715,200-byte `cupidos.img` has SHA-256
+`9C452BACCAB17C74B377DADCACD13E5AA5A724BC940FA88C0898FB0BD1620843`.
+No kernel ABI or boot-path code changed in this increment. The embedded CTXT
+manual did change, so the production rebuild and boot smoke still cover the
+resulting image rather than attributing runtime behavior to an older artifact.
+
+This checkpoint does not establish a full compiler generation or fixed point.
+The static compiler must still rebuild all eleven C objects in its own closure,
+link the next compiler, repeat that build for a third stage, and compare the
+complete generations. Checked seeds and normal-build C ownership also remain
+open. Issue #27 stays open.

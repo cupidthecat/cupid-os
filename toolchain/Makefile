@@ -25,6 +25,7 @@ CUPIDC_TYPE_CONTRACT := $(BUILD_DIR)/cupidc-type-contract$(EXE)
 CUPIDC_FRONTEND_CONTRACT := $(BUILD_DIR)/cupidc-frontend-contract$(EXE)
 CUPIDC_IR_CONTRACT := $(BUILD_DIR)/cupidc-ir-contract$(EXE)
 CUPIDC_OBJECT_CONTRACT := $(BUILD_DIR)/cupidc-object-contract$(EXE)
+CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
                               ../kernel/util/bin_programs_gen.c \
@@ -41,6 +42,11 @@ CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.c \
                               tests/hosted_i386_runtime_contract.c
 CUPIDC_HOSTED_I386_CLOSURE := ctool.c ctool.h ctool_host.c ctool_host.h \
                               elf32.c elf32.h x86.c x86.h \
+                              cupidc_pp.c cupidc_pp.h \
+                              cupidc_type.c cupidc_type.h \
+                              cupidc_frontend.c cupidc_frontend.h \
+                              cupidc_ir.c cupidc_ir.h \
+                              cupidc_emit.c cupidc_emit.h cupidc_main.c \
                               cupidasm.c cupidasm.h cupidasm_main.c \
                               cupiddis.c cupiddis.h cupiddis_main.c \
                               cupidld.c cupidld.h cupidld_main.c \
@@ -51,6 +57,7 @@ CUPIDC_HOSTED_I386_ARTIFACTS := $(BUILD_DIR)/cupidc-cupidasm.elf \
                                 $(BUILD_DIR)/cupidc-cupiddis.elf \
                                 $(BUILD_DIR)/cupidc-cupidld.elf \
                                 $(BUILD_DIR)/cupidc-cupidobj.elf \
+                                $(BUILD_DIR)/cupidc-cupidc.elf \
                                 $(BUILD_DIR)/cupidc-runtime-contract.elf
 CUPIDC_HOSTED_I386_MANIFEST := $(BUILD_DIR)/cupidc-hosted-i386-tools.json
 ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
@@ -100,6 +107,11 @@ CUPIDC_OBJECT_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                   $(BUILD_DIR)/cupidld.o \
                                   $(BUILD_DIR)/cupidc_emit.o \
                                   $(BUILD_DIR)/cupidc_object_contract.o
+CUPIDC_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                  $(BUILD_DIR)/cupidc_pp.o $(BUILD_DIR)/cupidc_type.o \
+                  $(BUILD_DIR)/cupidc_frontend.o $(BUILD_DIR)/cupidc_ir.o \
+                  $(BUILD_DIR)/cupidc_emit.o $(BUILD_DIR)/elf32.o \
+                  $(BUILD_DIR)/x86.o $(BUILD_DIR)/cupidc_main.o
 ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                  $(BUILD_DIR)/elf32.o $(BUILD_DIR)/elf32_contract.o
 X86_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -144,6 +156,7 @@ HOST_BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
                             $(CUPIDC_TYPE_CONTRACT) \
                             $(CUPIDC_FRONTEND_CONTRACT) \
                             $(CUPIDC_IR_CONTRACT) $(CUPIDC_OBJECT_CONTRACT) \
+                            $(CUPIDC) \
                             $(ELF32_CONTRACT) $(X86_CONTRACT) \
                             $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
                             $(CUPIDASM_CONTRACT) \
@@ -189,6 +202,11 @@ $(BUILD_DIR)/cupidc_ir.o: cupidc_ir.c cupidc_ir.h cupidc_frontend.h \
 $(BUILD_DIR)/cupidc_emit.o: cupidc_emit.c cupidc_emit.h cupidc_frontend.h \
                             cupidc_ir.h cupidc_type.h cupidc_pp.h elf32.h \
                             x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cupidc_main.o: cupidc_main.c cupidc_emit.h cupidc_ir.h \
+                            cupidc_frontend.h cupidc_type.h cupidc_pp.h \
+                            ctool_host.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32.o: elf32.c elf32.h ctool.h | $(BUILD_DIR)
@@ -296,6 +314,9 @@ $(CUPIDC_IR_CONTRACT): $(CUPIDC_IR_CONTRACT_OBJECTS)
 $(CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECT_CONTRACT_OBJECTS) -o $@
 
+$(CUPIDC): $(CUPIDC_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECTS) -o $@
+
 $(CUPIDC_HOSTED_I386_MANIFEST): FORCE $(CUPIDC_OBJECT_CONTRACT) \
                                 $(CUPIDC_HOSTED_I386_CLOSURE) Makefile | \
                                 $(BUILD_DIR)
@@ -342,7 +363,7 @@ $(CUPIDLD): $(CUPIDLD_OBJECTS)
 
 test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
       $(CUPIDC_FRONTEND_CONTRACT) $(CUPIDC_IR_CONTRACT) \
-      $(CUPIDC_OBJECT_CONTRACT) \
+      $(CUPIDC_OBJECT_CONTRACT) $(CUPIDC) \
       $(ELF32_CONTRACT) $(X86_CONTRACT) \
       $(CUPIDDIS_CONTRACT) \
       $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
@@ -519,6 +540,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 		$(BUILD_DIR)/cupidc-cupiddis.elf \
 		$(BUILD_DIR)/cupidc-cupidld.elf \
 		$(BUILD_DIR)/cupidc-cupidobj.elf \
+		$(BUILD_DIR)/cupidc-cupidc.elf \
 		$(BUILD_DIR)/cupidc-runtime-contract.elf
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model

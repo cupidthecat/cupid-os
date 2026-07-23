@@ -117,7 +117,7 @@ A complete Cupid C `struct` carried by value through Linear IR. One abstract sta
 _Avoid_: aggregate scalar, borrowed object address
 
 **Hosted source frontier**:
-The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units, the three issue #27 hosted adapters under the checked i386 Linux ABI profile, and `kernel/lang/as_elf.c`. The fourteen-file issue cohort is ten of the hermetic units, the kernel bridge, and the three adapters; the gate also covers the adjacent CupidLD and CupidObj cores. Adapter objects retain exact named imports and checked relocation shapes. Complete CupidC-emitted closures for CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. A CupidC driver, compiler generation, checked seed, and production ownership remain outside the frontier.
+The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units and `kernel/lang/as_elf.c`. The complete static i386 profile adds the hosted adapters, driver, runtime, and runtime contract, for 19 strict C11 units plus the GNU-enabled runtime. Complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. A checked seed and production ownership remain outside the frontier.
 _Avoid_: self-hosted toolchain, completed source cohort
 
 **Hosted i386 ABI profile**:
@@ -125,8 +125,12 @@ The deterministic hosted C request used to compile an i386 Linux tool closure. I
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
 
 **Hosted i386 Linux runtime**:
-The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, strings, `errno`, `getcwd`, and formatted diagnostics through the checked hosted declarations. A CupidC-built runtime contract checks the heap, files, errors, arguments, and string surface under Linux or WSL.
+The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, memory and string functions, `errno`, `getcwd`, and formatted diagnostics through the checked hosted declarations. A CupidC-built runtime contract checks the heap, files, errors, arguments, memory, and string surface under Linux or WSL.
 _Avoid_: general libc, Windows runtime, test-only import providers
+
+**CupidC compiler generation**:
+A compiler process compiling unchanged source from its own implementation. Generation zero is the native host-built CupidC driver. The first generation check runs the static Cupid-built driver twice on `toolchain/cupidc_ir.c` and requires both target objects to match generation zero byte for byte. A full generation must rebuild and relink the whole compiler closure.
+_Avoid_: fixed point, checked seed, complete self-hosting
 
 **Host adapter link tracer**:
 A static i386 executable used to check the boundary between CupidC objects, CupidASM startup code, and CupidLD. Its `_start` calls `ctool_host_adapter_init`, checks the resulting `{data, size}` fields, and exits through Linux `int 0x80`. Link-only providers resolve the adapter's file and allocation imports but do not implement a usable runtime.

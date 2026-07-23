@@ -140,11 +140,21 @@ static int string_contract(void) {
   source[11] = 0u;
   (void)memset(destination, 0, sizeof(destination));
   (void)memcpy(destination, source, sizeof(source));
+  if (memcmp(destination, source, sizeof(source)) != 0 ||
+      memcmp(destination, source, 0u) != 0) {
+    return 201;
+  }
   for (index = 0u; index < sizeof(source); index++) {
     if (destination[index] != source[index]) {
-      return 201;
+      return 202;
     }
   }
+  source[4] = (unsigned char)'Y';
+  if (memcmp(source, destination, sizeof(source)) >= 0 ||
+      memcmp(destination, source, sizeof(source)) <= 0) {
+    return 203;
+  }
+  source[4] = (unsigned char)'Z';
   if (strlen((const char *)destination) != 11u ||
       strcmp((const char *)destination, "ZZZZZZZZZZZ") != 0 ||
       strncmp((const char *)destination, "ZZZZ-other", 4u) != 0 ||
@@ -153,7 +163,7 @@ static int string_contract(void) {
       strchr((const char *)destination, 'x') != (char *)0 ||
       strchr((const char *)destination, '\0') !=
           (char *)(destination + 11u)) {
-    return 202;
+    return 204;
   }
   return 0;
 }

@@ -23990,12 +23990,15 @@ static ctool_status_t emit_hosted_i386_source_with_extensions(
     ctool_job_t *job, const ctool_source_t *source,
     const hosted_i386_profile_t *profile, ctool_bool gnu_extensions,
     ctool_buffer_t *output) {
+  ctool_c_pp_request_t pp_request;
   ctool_c_pp_result_t tape;
   ctool_c_parse_request_t parse_request;
   ctool_c_translation_unit_t unit;
   ctool_status_t status;
+  pp_request = profile->request;
+  pp_request.gnu_extensions = gnu_extensions;
   (void)memset(&tape, 0, sizeof(tape));
-  status = ctool_c_preprocess(job, source, &profile->request, &tape);
+  status = ctool_c_preprocess(job, source, &pp_request, &tape);
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
   parse_request.gnu_extensions = gnu_extensions;
@@ -24098,7 +24101,7 @@ static int linked_host_tool_is_complete(
   static const char *const common_symbols[] = {
       "_start", "main", "cupid_linux_syscall1", "cupid_linux_syscall2",
       "cupid_linux_syscall3", "__errno_location", "fopen", "fwrite",
-      "malloc", "free"};
+      "malloc", "free", "memcmp"};
   ctool_source_t source;
   ctool_elf32_object_t image;
   const ctool_elf32_symbol_t *entry;
@@ -24148,7 +24151,7 @@ static int link_host_tool(
     const ctool_u32 *object_indices, ctool_u32 object_count,
     const char *image_name, const char *tool_symbol,
     const char *output_path) {
-  ctool_source_t objects[8];
+  ctool_source_t objects[16];
   ctool_buffer_t *first_image = NULL;
   ctool_buffer_t *repeat_image = NULL;
   ctool_buffer_t *recovery_image = NULL;
@@ -24166,7 +24169,7 @@ static int link_host_tool(
   ctool_status_t status;
   int passed = 0;
   if (job == NULL || source_cases == NULL || compiled_objects == NULL ||
-      object_indices == NULL || object_count < 2u || object_count > 8u ||
+      object_indices == NULL || object_count < 2u || object_count > 16u ||
       image_name == NULL || tool_symbol == NULL || output_path == NULL) {
     return 0;
   }
@@ -24283,6 +24286,7 @@ static int run_self_host_link_tools(const char *host_root,
                                     const char *cupiddis_output,
                                     const char *cupidld_output,
                                     const char *cupidobj_output,
+                                    const char *cupidc_output,
                                     const char *runtime_output) {
   static const host_tool_source_case_t source_cases[] = {
       {"/toolchain/hosted/i386-linux/start.asm",
@@ -24317,6 +24321,18 @@ static int run_self_host_link_tools(const char *host_root,
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/tests/hosted_i386_runtime_contract.c",
        "/toolchain/tests/hosted_i386_runtime_contract.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidc_pp.c", "/toolchain/cupidc_pp.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidc_type.c", "/toolchain/cupidc_type.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidc_frontend.c", "/toolchain/cupidc_frontend.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidc_ir.c", "/toolchain/cupidc_ir.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidc_emit.c", "/toolchain/cupidc_emit.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidc_main.c", "/toolchain/cupidc_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -24326,6 +24342,8 @@ static int run_self_host_link_tools(const char *host_root,
       0u, 13u, 12u, 3u, 2u, 4u, 1u};
   static const ctool_u32 cupidobj_objects[] = {
       0u, 11u, 10u, 3u, 2u, 4u, 1u};
+  static const ctool_u32 cupidc_objects[] = {
+      0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();
@@ -24338,6 +24356,7 @@ static int run_self_host_link_tools(const char *host_root,
   hosted_i386_profile_t profile;
   ctool_asm_request_t asm_request;
   ctool_asm_result_t asm_result;
+  ctool_arena_mark_t source_mark;
   ctool_u32 index;
   ctool_status_t status;
   int failed = 1;
@@ -24372,6 +24391,7 @@ static int run_self_host_link_tools(const char *host_root,
     ctool_bytes_t compiled_bytes;
     ctool_bytes_t repeat_bytes;
     path.text = ctool_string(source_cases[index].source_path);
+    source_mark = ctool_arena_mark(ctool_job_arena(job));
     (void)memset(&source, 0, sizeof(source));
     status = ctool_job_load_source(job, &path, &source);
     if (status == CTOOL_OK) {
@@ -24437,6 +24457,13 @@ static int run_self_host_link_tools(const char *host_root,
                     ctool_status_name(status));
       goto cleanup;
     }
+    status = ctool_arena_rewind(ctool_job_arena(job), source_mark);
+    if (status != CTOOL_OK) {
+      (void)fprintf(stderr, "%s could not release compiler scratch: %s\n",
+                    source_cases[index].source_path,
+                    ctool_status_name(status));
+      goto cleanup;
+    }
   }
   if (link_host_tool(
           job, limits.output_bytes, source_cases, compiled_objects,
@@ -24466,6 +24493,13 @@ static int run_self_host_link_tools(const char *host_root,
                       sizeof(cupidobj_objects[0])),
           "/hosted/cupid-built-cupidobj", "ctool_obj_transform",
           cupidobj_output) == 0 ||
+      link_host_tool(
+          job, limits.output_bytes, source_cases, compiled_objects,
+          cupidc_objects,
+          (ctool_u32)(sizeof(cupidc_objects) /
+                      sizeof(cupidc_objects[0])),
+          "/hosted/cupid-built-cupidc", "ctool_c_emit_object",
+          cupidc_output) == 0 ||
       link_host_tool(
           job, limits.output_bytes, source_cases, compiled_objects,
           runtime_objects,
@@ -25181,9 +25215,9 @@ int main(int argc, char **argv) {
   if (argc == 4 && strcmp(argv[1], "self-host-link-ctool-host") == 0) {
     return run_self_host_link_ctool_host(argv[2], argv[3]);
   }
-  if (argc == 8 && strcmp(argv[1], "self-host-link-tools") == 0) {
+  if (argc == 9 && strcmp(argv[1], "self-host-link-tools") == 0) {
     return run_self_host_link_tools(argv[2], argv[3], argv[4], argv[5],
-                                    argv[6], argv[7]);
+                                    argv[6], argv[7], argv[8]);
   }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
@@ -25206,6 +25240,6 @@ int main(int argc, char **argv) {
                 "self-host-link-ctool-host HOST_ROOT OUTPUT|"
                 "self-host-link-tools HOST_ROOT CUPIDASM_OUTPUT "
                 "CUPIDDIS_OUTPUT CUPIDLD_OUTPUT CUPIDOBJ_OUTPUT "
-                "RUNTIME_OUTPUT\n");
+                "CUPIDC_OUTPUT RUNTIME_OUTPUT\n");
   return 2;
 }

@@ -173,6 +173,18 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
     ),
+    CPreprocessorProfile(
+        name="HOSTED_I386_LINUX",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_FALSE",
+        hosted_environment="CTOOL_TRUE",
+    ),
+    CPreprocessorProfile(
+        name="HOSTED_I386_LINUX_GNU",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_TRUE",
+        hosted_environment="CTOOL_TRUE",
+    ),
 )
 _C_PP_HOSTED_PROFILES = frozenset(
     profile.name
@@ -219,7 +231,33 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 105,
     "HOSTED_TOOLCHAIN_64": 12,
     "HOSTED_KERNEL_BRIDGE_64": 1,
+    "HOSTED_I386_LINUX": 19,
+    "HOSTED_I386_LINUX_GNU": 1,
 }
+_C_PP_HOSTED_I386_STRICT_CASES = (
+    "/toolchain/ctool.c",
+    "/toolchain/ctool_host.c",
+    "/toolchain/cupidasm.c",
+    "/toolchain/cupidasm_main.c",
+    "/toolchain/cupidc_emit.c",
+    "/toolchain/cupidc_frontend.c",
+    "/toolchain/cupidc_ir.c",
+    "/toolchain/cupidc_main.c",
+    "/toolchain/cupidc_pp.c",
+    "/toolchain/cupidc_type.c",
+    "/toolchain/cupiddis.c",
+    "/toolchain/cupiddis_main.c",
+    "/toolchain/cupidld.c",
+    "/toolchain/cupidld_main.c",
+    "/toolchain/cupidobj.c",
+    "/toolchain/cupidobj_main.c",
+    "/toolchain/elf32.c",
+    "/toolchain/tests/hosted_i386_runtime_contract.c",
+    "/toolchain/x86.c",
+)
+_C_PP_HOSTED_I386_GNU_CASES = (
+    "/toolchain/hosted/i386-linux/runtime.c",
+)
 _C_PP_GENERATED_KERNEL_CASES = (
     "/kernel/cpu/ksyms_data.c",
     "/kernel/util/bin_programs_gen.c",
@@ -234,6 +272,7 @@ _C_PP_DEFERRED_HOSTED_CASES = (
     "/toolchain/ctool_host.c",
     "/toolchain/cupidasm_main.c",
     "/toolchain/cupiddis_main.c",
+    "/toolchain/cupidc_main.c",
     "/toolchain/cupidld_main.c",
     "/toolchain/cupidobj_main.c",
     "/toolchain/tests/core_contract.c",
@@ -3400,6 +3439,7 @@ def build_audit(
     }
     if {model.directory for model in models} == {".", "user", "toolchain"}:
         _validate_c_preprocessor_make_profiles(root, make)
+        _validate_hosted_i386_contract_profiles(root)
         active_manifest = _c_preprocessor_active_cases_manifest(audit)
         contracts["c_preprocessor_translation_units"] = (
             _c_preprocessor_translation_unit_contract(active_manifest)
@@ -3775,6 +3815,26 @@ def _c_preprocessor_profile_configuration() -> tuple[
                 "/kernel/lang",
                 _C_PP_INCLUDE_BOTH,
             ),
+            (
+                "HOSTED_I386_LINUX",
+                "/toolchain",
+                _C_PP_INCLUDE_BOTH,
+            ),
+            (
+                "HOSTED_I386_LINUX",
+                "/toolchain/hosted/i386-linux/include",
+                "CTOOL_C_PP_INCLUDE_ANGLE",
+            ),
+            (
+                "HOSTED_I386_LINUX_GNU",
+                "/toolchain",
+                _C_PP_INCLUDE_BOTH,
+            ),
+            (
+                "HOSTED_I386_LINUX_GNU",
+                "/toolchain/hosted/i386-linux/include",
+                "CTOOL_C_PP_INCLUDE_ANGLE",
+            ),
         )
     )
 
@@ -3808,6 +3868,8 @@ def _c_preprocessor_profile_configuration() -> tuple[
         (
             ("HOSTED_TOOLCHAIN_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_KERNEL_BRIDGE_64", "__SIZEOF_POINTER__", "8"),
+            ("HOSTED_I386_LINUX", "__SIZEOF_POINTER__", "4"),
+            ("HOSTED_I386_LINUX_GNU", "__SIZEOF_POINTER__", "4"),
         )
     )
     forced_includes = (
@@ -3882,6 +3944,113 @@ def _c_preprocessor_unmodeled_flags(
         and not (flag.startswith("-I") and len(flag) > 2)
         and not (flag.startswith("-D") and len(flag) > 2)
     )
+
+
+def _validate_hosted_i386_contract_profiles(root: Path) -> None:
+    contract_path = root / "toolchain" / "tests" / "cupidc_object_contract.c"
+    try:
+        source = contract_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise AuditError(
+            "CupidC hosted i386 source-profile contract is unavailable: "
+            f"{contract_path}"
+        ) from exc
+
+    array_start = (
+        "static const host_tool_source_case_t source_cases[] = {"
+    )
+    array_end = "  static const ctool_u32 cupidasm_objects[] = {"
+    start = source.find(array_start)
+    end = source.find(array_end, start + len(array_start))
+    if start < 0 or end < 0:
+        raise AuditError(
+            "CupidC hosted i386 source-profile table shape changed"
+        )
+    table = source[start:end]
+    row_pattern = re.compile(
+        r'\{\s*"(?P<source>/[^"]+)"\s*,\s*"(?P<object>/[^"]+)"\s*,\s*'
+        r"(?P<kind>HOST_TOOL_SOURCE_C|HOST_TOOL_SOURCE_ASSEMBLY)\s*,\s*"
+        r"(?P<gnu>CTOOL_TRUE|CTOOL_FALSE)\s*\}",
+        re.DOTALL,
+    )
+    rows = [
+        (
+            match.group("source"),
+            match.group("kind"),
+            match.group("gnu"),
+        )
+        for match in row_pattern.finditer(table)
+    ]
+    actual: dict[str, tuple[str, str]] = {}
+    for path, kind, gnu_extensions in rows:
+        if path in actual:
+            raise AuditError(
+                "CupidC hosted i386 source-profile table duplicates "
+                f"{path}"
+            )
+        actual[path] = (kind, gnu_extensions)
+    expected = {
+        path: ("HOST_TOOL_SOURCE_C", "CTOOL_FALSE")
+        for path in _C_PP_HOSTED_I386_STRICT_CASES
+    }
+    expected.update(
+        {
+            path: ("HOST_TOOL_SOURCE_C", "CTOOL_TRUE")
+            for path in _C_PP_HOSTED_I386_GNU_CASES
+        }
+    )
+    expected["/toolchain/hosted/i386-linux/start.asm"] = (
+        "HOST_TOOL_SOURCE_ASSEMBLY",
+        "CTOOL_FALSE",
+    )
+    if actual != expected:
+        missing = sorted(set(expected) - set(actual))
+        unexpected = sorted(set(actual) - set(expected))
+        changed = sorted(
+            path
+            for path in set(actual) & set(expected)
+            if actual[path] != expected[path]
+        )
+        raise AuditError(
+            "CupidC hosted i386 source-profile rows differ from the checked "
+            f"contract: missing={missing!r}, unexpected={unexpected!r}, "
+            f"changed={changed!r}"
+        )
+
+    emitter_start = source.find(
+        "static ctool_status_t emit_hosted_i386_source_with_extensions("
+    )
+    emitter_end = source.find(
+        "\nstatic ctool_status_t emit_hosted_i386_source(",
+        emitter_start + 1,
+    )
+    if emitter_start < 0 or emitter_end < 0:
+        raise AuditError(
+            "CupidC hosted i386 profile emitter shape changed"
+        )
+    emitter = source[emitter_start:emitter_end]
+    required_emitter_fragments = (
+        "pp_request = profile->request;",
+        "pp_request.gnu_extensions = gnu_extensions;",
+        "ctool_c_preprocess(job, source, &pp_request, &tape)",
+        "parse_request.gnu_extensions = gnu_extensions;",
+    )
+    missing_fragments = [
+        fragment
+        for fragment in required_emitter_fragments
+        if emitter.count(fragment) != 1
+    ]
+    if missing_fragments:
+        raise AuditError(
+            "CupidC hosted i386 profile emitter does not forward the checked "
+            f"GNU mode: {missing_fragments!r}"
+        )
+    compile_loop = source[end:]
+    if compile_loop.count("source_cases[index].gnu_extensions") != 2:
+        raise AuditError(
+            "CupidC hosted i386 compile loop does not consume each checked "
+            "source profile for both emissions"
+        )
 
 
 def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
@@ -4037,6 +4206,7 @@ def _c_preprocessor_deferred_reason(path: str) -> str:
         "/toolchain/ctool_host.c",
         "/toolchain/cupidasm_main.c",
         "/toolchain/cupiddis_main.c",
+        "/toolchain/cupidc_main.c",
         "/toolchain/cupidld_main.c",
         "/toolchain/cupidobj_main.c",
     }
@@ -4127,6 +4297,80 @@ def _c_preprocessor_active_cases_manifest(
             transform = transform_value
             operation = str(transform.get("operation", ""))
             tools = transform.get("tools")
+            output = str(transform.get("output", ""))
+            if (
+                directory == "toolchain"
+                and output
+                == "toolchain/build/cupidc-hosted-i386-tools.json"
+            ):
+                inputs = transform.get("inputs")
+                if (
+                    operation != "host_orchestration"
+                    or tools != ["host_python"]
+                    or not isinstance(inputs, list)
+                    or not all(isinstance(path, str) for path in inputs)
+                ):
+                    raise AuditError(
+                        "CupidC hosted i386 closure transform differs from "
+                        "the checked orchestration contract"
+                    )
+                closure_roots = [
+                    _c_preprocessor_logical_path(path)
+                    for path in inputs
+                    if _language(path) == "c"
+                ]
+                expected_closure = (
+                    _C_PP_HOSTED_I386_STRICT_CASES
+                    + _C_PP_HOSTED_I386_GNU_CASES
+                )
+                _c_preprocessor_require_exact_paths(
+                    "hosted i386 closure", closure_roots, expected_closure
+                )
+                object_contract_inputs = [
+                    path
+                    for path in inputs
+                    if re.fullmatch(
+                        r"toolchain/build/cupidc-object-contract(?:\.exe)?",
+                        path,
+                    )
+                    is not None
+                ]
+                if len(object_contract_inputs) != 1:
+                    raise AuditError(
+                        "CupidC hosted i386 closure must depend on exactly one "
+                        "native object contract"
+                    )
+                recipe = transform.get("recipe")
+                if (
+                    not isinstance(recipe, list)
+                    or not all(isinstance(line, str) for line in recipe)
+                    or len(recipe) < 2
+                    or recipe[0].strip()
+                    != (
+                        "$(CUPIDC_OBJECT_CONTRACT) self-host-link-tools .. "
+                        "\\"
+                    )
+                    or recipe[1].strip()
+                    != "$(CUPIDC_HOSTED_I386_ARTIFACTS)"
+                ):
+                    raise AuditError(
+                        "CupidC hosted i386 closure recipe no longer invokes "
+                        "the checked self-host link operation"
+                    )
+                for logical in expected_closure:
+                    entry = source_entries.get(logical[1:])
+                    if entry is None or entry.get("origin") != "tracked":
+                        raise AuditError(
+                            "CupidC hosted i386 closure source is not tracked: "
+                            f"{logical}"
+                        )
+                active_by_profile["HOSTED_I386_LINUX"].extend(
+                    _C_PP_HOSTED_I386_STRICT_CASES
+                )
+                active_by_profile["HOSTED_I386_LINUX_GNU"].extend(
+                    _C_PP_HOSTED_I386_GNU_CASES
+                )
+                continue
             if operation in {
                 "compile_c_to_elf32_object",
                 "compile_c_to_host_object",

@@ -158,27 +158,27 @@ for placing each transition between instructions.
 
 ### Hosted i386 commands
 
-CupidC emits the unchanged C source closures for CupidASM, CupidDis, CupidLD,
-and CupidObj under the checked four-byte i386 Linux ABI. CupidASM assembles the
-repository `_start` and `int 0x80` system-call boundary. CupidLD then links four
-deterministic static i386 commands without unresolved symbols.
+CupidC emits the unchanged C source closures for CupidC, CupidASM, CupidDis,
+CupidLD, and CupidObj under the checked four-byte i386 Linux ABI. CupidASM
+assembles the repository `_start` and `int 0x80` system-call boundary. CupidLD
+then links five deterministic static i386 commands without unresolved symbols.
 
-The repository runtime supplies the checked file, heap, string, `errno`,
-`getcwd`, and formatted-output calls required by those commands. The
-implementation is deliberately narrow. It has unbuffered streams and
-single-threaded process state. Each closure object is emitted twice before the
-repeated links. A fifth generated executable checks allocation, tail release,
-files, seeks, errors, arguments, and strings. WSL checks the Cupid-built
-commands against the native tools for raw and ELF32 assembly, include
-resolution, raw disassembly with mode changes, fixed-address linking, object
-wrapping, and missing files. Successful output matches byte for byte or as
-text. Invalid assembly and malformed linker input follow the same failure
-behavior and diagnostics.
+The repository runtime supplies the checked file, heap, memory, string,
+`errno`, `getcwd`, and formatted-output calls required by those commands. It
+has unbuffered streams and single-threaded process state. Each closure object
+is emitted twice before the repeated links. A sixth generated executable
+checks allocation, tail release, files, seeks, errors, arguments, memory
+comparison, and strings. WSL checks the sibling commands against the native
+tools for raw and ELF32 assembly, include resolution, raw disassembly with mode
+changes, fixed-address linking, object wrapping, and missing files. Successful
+output matches byte for byte or as text. Invalid assembly and malformed linker
+input follow the same failure behavior and diagnostics.
 
 This execution proof is specific to Linux and WSL. A host C compiler still
 builds the native oracle and contract runners and the normal Cupid OS C
-objects. The bootstrap does not yet have a host-runnable CupidC driver, compiler
-fixed point, checked seed, or production handoff.
+objects. A static CupidC driver now reproduces one unchanged compiler
+implementation object from generation zero. A complete compiler generation, fixed
+point, checked seed, and production handoff remain open.
 
 ### Function Example
 

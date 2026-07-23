@@ -241,30 +241,29 @@ It rejects char ** to const char ** because that would add a qualifier at an
 unsafe nested level. It also rejects removing the nested const.
 
 The exact hosted gate covers the hermetic Toolchain sources,
-kernel/lang/as_elf.c, and the complete command closures for CupidASM, CupidDis,
-CupidLD, and CupidObj. CupidC emits every unchanged C source in those closures
-under the checked i386 Linux profile with a four-byte pointer fact. Repeated
-emission produces identical ELF32 objects, and Cupid's ELF32 reader checks each
-object before linking.
+kernel/lang/as_elf.c, and the complete command closures for CupidC, CupidASM,
+CupidDis, CupidLD, and CupidObj. The target audit preprocesses all 20 C sources
+under the checked i386 Linux profile with a four-byte pointer fact. Nineteen
+use strict C11, while the runtime enables the represented GNU variadic
+built-ins. Repeated emission produces identical ELF32 objects, and Cupid's
+ELF32 reader checks each object before linking.
 
-The repository runtime supplies the checked file, heap, string, errno, getcwd,
-and formatted-output interfaces used by the four commands. CupidC emits the
-runtime, CupidASM assembles the repository _start and int 0x80 system-call
-boundary, and CupidLD links four deterministic static Linux i386 executables
-without unresolved symbols. The implementation is deliberately narrow. It has
-unbuffered streams and single-threaded heap, stream, and errno state.
+The repository runtime supplies the checked file, heap, memory, string, errno,
+getcwd, and formatted-output interfaces used by the five commands. CupidC
+emits the runtime, CupidASM assembles _start and the int 0x80 system-call
+boundary, and CupidLD links five deterministic static Linux i386 executables
+without unresolved symbols. A sixth executable checks allocation, tail
+release, files, seeks, errors, arguments, memory comparison, and strings.
 
-Each closure object is emitted twice before the repeated links. A fifth
-generated executable checks allocation, tail release, files, seeks, errors,
-arguments, and strings. WSL checks the Cupid-built commands against the native
-hosted tools for raw and ELF32 assembly, include resolution, raw disassembly
-with mode changes, fixed-address linking, object wrapping, and missing files.
-Successful commands produce the same bytes or report text. Invalid assembly
-and malformed linker input also match the hosted status and diagnostics. This
-proof is specific to Linux and WSL. A host C compiler still builds the native
-oracle and contract runners and the normal Cupid OS C objects. There is no
-host-runnable CupidC driver, compiler fixed point, checked seed, or production
-handoff.
+The cupidc driver accepts one C11 input, logical include roots, definitions,
+undefinitions, GNU or freestanding mode, and an ELF32 object output. Failed
+compilation preserves an existing output. Under WSL, the Cupid-built driver
+compiles unchanged toolchain/cupidc_ir.c twice. Both generation-one objects
+match the native generation-zero object byte for byte. The sibling command
+checks still cover assembly, disassembly, linking, wrapping, outputs, and
+failure behavior. The native generation, contract runners, and normal Cupid OS
+C objects still use a host C compiler. A complete compiler generation, fixed
+point, checked seed, and production handoff remain open.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before
