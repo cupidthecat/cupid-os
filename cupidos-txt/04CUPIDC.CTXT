@@ -255,15 +255,20 @@ boundary, and CupidLD links five deterministic static Linux i386 executables
 without unresolved symbols. A sixth executable checks allocation, tail
 release, files, seeks, errors, arguments, memory comparison, and strings.
 
-The cupidc driver accepts one C11 input, logical include roots, definitions,
-undefinitions, GNU or freestanding mode, and an ELF32 object output. Failed
-compilation preserves an existing output. Under WSL, the Cupid-built driver
-compiles unchanged toolchain/cupidc_ir.c twice. Both generation-one objects
-match the native generation-zero object byte for byte. The sibling command
-checks still cover assembly, disassembly, linking, wrapping, outputs, and
-failure behavior. The native generation, contract runners, and normal Cupid OS
-C objects still use a host C compiler. A complete compiler generation, fixed
-point, checked seed, and production handoff remain open.
+The cupidc driver accepts one C11 input, definitions, undefinitions, GNU or
+freestanding mode, ordered include roots, and an ELF32 object output. -I enables
+quoted and angle lookup. --include-angle enables angle lookup only. Both forms
+accept native paths or absolute logical paths under --root. Failed compilation
+preserves an existing output.
+
+The static i386 Linux compiler reaches a complete fixed point under Linux or
+WSL. Generation one compiles all eleven C objects in its closure and links
+stage two. Stage two repeats the build for stage three. Every C object matches
+across those stages, both startup objects match, and all three linked compiler
+images are byte-identical. Stages two and three also agree on valid output and
+malformed-source behavior. The native generation, contract runners, and normal
+Cupid OS C objects still use a host C compiler. Checked seeds, a native Windows
+fixed point, sibling-tool fixed points, and production handoff remain open.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

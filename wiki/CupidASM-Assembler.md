@@ -174,11 +174,13 @@ changes, fixed-address linking, object wrapping, and missing files. Successful
 output matches byte for byte or as text. Invalid assembly and malformed linker
 input follow the same failure behavior and diagnostics.
 
-This execution proof is specific to Linux and WSL. A host C compiler still
-builds the native oracle and contract runners and the normal Cupid OS C
-objects. A static CupidC driver now reproduces one unchanged compiler
-implementation object from generation zero. A complete compiler generation, fixed
-point, checked seed, and production handoff remain open.
+This execution proof is specific to Linux and WSL. The static CupidC
+fixed-point gate uses the same Cupid-built assembler to produce independent
+stage-two and stage-three startup objects. Those objects match byte for byte
+before CupidLD links the two compiler stages. A host C compiler still builds
+the native oracle and contract runners and the normal Cupid OS C objects.
+Checked seeds, a native Windows fixed point, sibling-tool fixed points, and
+production handoff remain open.
 
 ### Function Example
 

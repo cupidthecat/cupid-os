@@ -121,7 +121,7 @@ The unchanged implementation files that hosted CupidC can preprocess, parse, low
 _Avoid_: self-hosted toolchain, completed source cohort
 
 **Hosted i386 ABI profile**:
-The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for project headers and the checked i386 Linux declaration set for angle includes, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. Tool sources use strict C11. The hosted runtime alone enables CupidC's GNU variadic built-ins for formatted diagnostics.
+The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. The CupidC command represents those roots with `-I` and `--include-angle` in caller order. Tool sources use strict C11. The hosted runtime alone enables CupidC's GNU variadic built-ins for formatted diagnostics.
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
 
 **Hosted i386 Linux runtime**:
@@ -129,8 +129,8 @@ The repository-owned startup and narrow C service layer for static Cupid-built i
 _Avoid_: general libc, Windows runtime, test-only import providers
 
 **CupidC compiler generation**:
-A compiler process compiling unchanged source from its own implementation. Generation zero is the native host-built CupidC driver. The first generation check runs the static Cupid-built driver twice on `toolchain/cupidc_ir.c` and requires both target objects to match generation zero byte for byte. A full generation must rebuild and relink the whole compiler closure.
-_Avoid_: fixed point, checked seed, complete self-hosting
+A compiler process compiling unchanged source from its complete implementation. Generation zero is the native host-built CupidC driver, and generation one is the first static Cupid-built driver. Generation one builds all eleven C objects and links stage two. Stage two repeats the same work for stage three. The static i386 Linux fixed-point gate requires every stage-two and stage-three C object, both startup objects, and all three linked compiler images to match byte for byte.
+_Avoid_: checked seed, complete self-hosting, whole-toolchain fixed point
 
 **Host adapter link tracer**:
 A static i386 executable used to check the boundary between CupidC objects, CupidASM startup code, and CupidLD. Its `_start` calls `ctool_host_adapter_init`, checks the resulting `{data, size}` fields, and exits through Linux `int 0x80`. Link-only providers resolve the adapter's file and allocation imports but do not implement a usable runtime.

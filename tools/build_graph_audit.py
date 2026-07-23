@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import bisect
 import collections
 import hashlib
@@ -3440,6 +3441,9 @@ def build_audit(
     if {model.directory for model in models} == {".", "user", "toolchain"}:
         _validate_c_preprocessor_make_profiles(root, make)
         _validate_hosted_i386_contract_profiles(root)
+        contracts["cupidc_compiler_fixed_point"] = (
+            _cupidc_compiler_fixed_point_contract(root)
+        )
         active_manifest = _c_preprocessor_active_cases_manifest(audit)
         contracts["c_preprocessor_translation_units"] = (
             _c_preprocessor_translation_unit_contract(active_manifest)
@@ -4051,6 +4055,182 @@ def _validate_hosted_i386_contract_profiles(root: Path) -> None:
             "CupidC hosted i386 compile loop does not consume each checked "
             "source profile for both emissions"
         )
+
+
+def _cupidc_compiler_fixed_point_contract(
+    root: Path,
+) -> dict[str, object]:
+    test_path = root / "tests" / "test_toolchain_cupidc_object.py"
+    driver_path = root / "toolchain" / "cupidc_main.c"
+    try:
+        test_source = test_path.read_text(encoding="utf-8")
+        driver_source = driver_path.read_text(encoding="utf-8")
+        test_tree = ast.parse(test_source, filename=str(test_path))
+    except (OSError, SyntaxError) as exc:
+        raise AuditError(
+            "CupidC compiler fixed-point contract is unavailable"
+        ) from exc
+
+    assignments: dict[str, object] = {}
+    for node in test_tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            continue
+        if target.id not in {
+            "CUPIDC_FIXED_POINT_SOURCES",
+            "CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS",
+            "CUPIDC_FIXED_POINT_LINK_ORDER",
+        }:
+            continue
+        try:
+            assignments[target.id] = ast.literal_eval(node.value)
+        except (TypeError, ValueError) as exc:
+            raise AuditError(
+                "CupidC compiler fixed-point manifest is not literal: "
+                f"{target.id}"
+            ) from exc
+
+    expected_sources = (
+        ("ctool", "/toolchain/ctool.c", False),
+        ("ctool_host", "/toolchain/ctool_host.c", False),
+        ("cupidc_pp", "/toolchain/cupidc_pp.c", False),
+        ("cupidc_type", "/toolchain/cupidc_type.c", False),
+        ("cupidc_frontend", "/toolchain/cupidc_frontend.c", False),
+        ("cupidc_ir", "/toolchain/cupidc_ir.c", False),
+        ("cupidc_emit", "/toolchain/cupidc_emit.c", False),
+        ("elf32", "/toolchain/elf32.c", False),
+        ("x86", "/toolchain/x86.c", False),
+        ("cupidc_main", "/toolchain/cupidc_main.c", False),
+        (
+            "runtime",
+            "/toolchain/hosted/i386-linux/runtime.c",
+            True,
+        ),
+    )
+    expected_include_arguments = (
+        "-I",
+        "/toolchain",
+        "--include-angle",
+        "/toolchain/hosted/i386-linux/include",
+    )
+    expected_link_order = (
+        "start",
+        "cupidc_main",
+        "cupidc_emit",
+        "cupidc_ir",
+        "cupidc_frontend",
+        "cupidc_type",
+        "cupidc_pp",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime",
+    )
+    expected_assignments = {
+        "CUPIDC_FIXED_POINT_SOURCES": expected_sources,
+        "CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS":
+            expected_include_arguments,
+        "CUPIDC_FIXED_POINT_LINK_ORDER": expected_link_order,
+    }
+    for name, expected in expected_assignments.items():
+        if assignments.get(name) != expected:
+            raise AuditError(
+                "CupidC compiler fixed-point manifest differs: "
+                f"{name}"
+            )
+
+    required_driver_fragments = (
+        "[--include-angle PATH]",
+        'if (strcmp(argument, "--include-angle") == 0)',
+        "cli->include_forms[cli->include_count] = "
+        "CTOOL_C_PP_INCLUDE_ANGLE;",
+        "context->include_roots[index].forms = "
+        "context->include_forms[index];",
+        "cupidc: --root requires logical include paths",
+    )
+    missing_driver_fragments = [
+        fragment
+        for fragment in required_driver_fragments
+        if driver_source.count(fragment) != 1
+    ]
+    if missing_driver_fragments:
+        raise AuditError(
+            "CupidC compiler fixed-point driver does not retain exact "
+            f"include forms: {missing_driver_fragments!r}"
+        )
+    if (
+        driver_source.count(
+            "CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE"
+        )
+        != 1
+    ):
+        raise AuditError(
+            "CupidC compiler fixed-point driver does not retain one "
+            "quoted-and-angle -I form"
+        )
+
+    required_test_fragments = (
+        "with ThreadPoolExecutor(max_workers=2) as executor:",
+        "stage_two_objects, stage_two_compiler = build_stage(\n"
+        '                self.cupid_cupidc_path, "stage-two"\n'
+        "            )",
+        "stage_three_objects, stage_three_compiler = build_stage(\n"
+        '                stage_two_compiler, "stage-three"\n'
+        "            )",
+        "for name in CUPIDC_FIXED_POINT_LINK_ORDER:",
+        "stage_three_objects[name].read_bytes(),\n"
+        "                    stage_two_objects[name].read_bytes(),",
+        "stage_two_compiler.read_bytes(),\n"
+        "                self.cupid_cupidc_path.read_bytes(),",
+        "stage_three_compiler.read_bytes(),\n"
+        "                stage_two_compiler.read_bytes(),",
+        "stage_three_valid.read_bytes(),\n"
+        "                stage_two_valid.read_bytes(),",
+        "stage_three_invalid_run.stderr,\n"
+        "                stage_two_invalid_run.stderr,",
+        "stage_three_failure.read_bytes(), failure_sentinel",
+    )
+    missing_test_fragments = [
+        fragment
+        for fragment in required_test_fragments
+        if test_source.count(fragment) != 1
+    ]
+    if missing_test_fragments:
+        raise AuditError(
+            "CupidC compiler fixed-point staged comparison differs: "
+            f"{missing_test_fragments!r}"
+        )
+
+    return {
+        "status": "pass",
+        "platform": "i386-linux",
+        "compiler_c_sources": len(expected_sources),
+        "strict_c_sources": sum(
+            1 for _name, _path, gnu in expected_sources if not gnu
+        ),
+        "gnu_c_sources": sum(
+            1 for _name, _path, gnu in expected_sources if gnu
+        ),
+        "include_roots": [
+            {
+                "path": "/toolchain",
+                "forms": ["quoted", "angle"],
+            },
+            {
+                "path": "/toolchain/hosted/i386-linux/include",
+                "forms": ["angle"],
+            },
+        ],
+        "link_objects": len(expected_link_order),
+        "compared_c_objects": len(expected_sources),
+        "compared_startup_objects": 1,
+        "compared_compiler_images": 3,
+        "behavior_cases": 2,
+        "stages": ["generation-one", "stage-two", "stage-three"],
+    }
 
 
 def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
@@ -4971,7 +5151,20 @@ def _render_markdown(audit: dict[str, object]) -> str:
     )
     if audit["contracts"]:
         for name, contract in sorted(audit["contracts"].items()):
-            if "tracked_translation_units" in contract:
+            if "compiler_c_sources" in contract:
+                detail = (
+                    f"{contract['compiler_c_sources']} compiler C sources "
+                    f"({contract['strict_c_sources']} strict, "
+                    f"{contract['gnu_c_sources']} GNU); "
+                    f"{contract['link_objects']} linked objects; "
+                    f"{contract['compared_c_objects']} C objects and "
+                    f"{contract['compared_startup_objects']} startup object "
+                    f"compared across stages; "
+                    f"{contract['compared_compiler_images']} compiler images; "
+                    f"{contract['behavior_cases']} behavior cases; "
+                    f"{contract['platform']}"
+                )
+            elif "tracked_translation_units" in contract:
                 profile_counts = ", ".join(
                     f"{profile['name']}={profile['tracked_translation_units']}"
                     for profile in contract["profiles"]

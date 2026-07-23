@@ -3082,6 +3082,93 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 with self.assertRaisesRegex(module.AuditError, message):
                     module._validate_hosted_i386_contract_profiles(root)
 
+    def test_cupidc_compiler_fixed_point_contract_fails_closed(self):
+        module = _load_audit_module()
+        module._cupidc_compiler_fixed_point_contract(REPO_ROOT)
+        driver = (REPO_ROOT / "toolchain" / "cupidc_main.c").read_text(
+            encoding="utf-8"
+        )
+        test = (
+            REPO_ROOT / "tests" / "test_toolchain_cupidc_object.py"
+        ).read_text(encoding="utf-8")
+        mutations = {
+            "angle root widened": (
+                "driver",
+                "cli->include_forms[cli->include_count] = "
+                "CTOOL_C_PP_INCLUDE_ANGLE;",
+                "cli->include_forms[cli->include_count] = "
+                "CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;",
+                r"does not retain exact include forms",
+            ),
+            "runtime loses GNU mode": (
+                "test",
+                '("runtime", '
+                '"/toolchain/hosted/i386-linux/runtime.c", True)',
+                '("runtime", '
+                '"/toolchain/hosted/i386-linux/runtime.c", False)',
+                r"fixed-point manifest differs: "
+                r"CUPIDC_FIXED_POINT_SOURCES",
+            ),
+            "ABI root loses angle-only option": (
+                "test",
+                '"--include-angle",\n'
+                '    "/toolchain/hosted/i386-linux/include",',
+                '"-I",\n'
+                '    "/toolchain/hosted/i386-linux/include",',
+                r"fixed-point manifest differs: "
+                r"CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS",
+            ),
+            "runtime drops from link order": (
+                "test",
+                '    "x86",\n'
+                '    "runtime",\n'
+                ")\n\n\nclass ToolchainCupidCObjectContractTests",
+                '    "x86",\n'
+                ")\n\n\nclass ToolchainCupidCObjectContractTests",
+                r"fixed-point manifest differs: "
+                r"CUPIDC_FIXED_POINT_LINK_ORDER",
+            ),
+            "stage one builds stage three": (
+                "test",
+                "stage_three_objects, stage_three_compiler = build_stage(\n"
+                '                stage_two_compiler, "stage-three"\n'
+                "            )",
+                "stage_three_objects, stage_three_compiler = build_stage(\n"
+                '                self.cupid_cupidc_path, "stage-three"\n'
+                "            )",
+                r"fixed-point staged comparison differs",
+            ),
+            "compiler image comparison disappears": (
+                "test",
+                "stage_three_compiler.read_bytes(),\n"
+                "                stage_two_compiler.read_bytes(),",
+                "stage_three_compiler.read_bytes(),\n"
+                "                self.cupid_cupidc_path.read_bytes(),",
+                r"fixed-point staged comparison differs",
+            ),
+        }
+        for name, (target_name, old, new, message) in mutations.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                driver_target = root / "toolchain" / "cupidc_main.c"
+                test_target = (
+                    root / "tests" / "test_toolchain_cupidc_object.py"
+                )
+                driver_target.parent.mkdir(parents=True)
+                test_target.parent.mkdir(parents=True)
+                driver_payload = driver
+                test_payload = test
+                if target_name == "driver":
+                    driver_payload = driver_payload.replace(old, new, 1)
+                    self.assertNotEqual(driver_payload, driver)
+                else:
+                    test_payload = test_payload.replace(old, new, 1)
+                    self.assertNotEqual(test_payload, test)
+                driver_target.write_text(driver_payload, encoding="utf-8")
+                test_target.write_text(test_payload, encoding="utf-8")
+                with self.assertRaisesRegex(module.AuditError, message):
+                    module._cupidc_compiler_fixed_point_contract(root)
+
     def test_cupidc_active_manifest_fails_closed_on_compile_recipe_shape(self):
         module = _load_audit_module()
 
@@ -3680,7 +3767,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (22, 4),
-                "c.expression.sizeof": (4023, 168),
+                "c.expression.sizeof": (4024, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

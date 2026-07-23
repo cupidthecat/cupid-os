@@ -6801,3 +6801,146 @@ The static compiler must still rebuild all eleven C objects in its own closure,
 link the next compiler, repeat that build for a third stage, and compare the
 complete generations. Checked seeds and normal-build C ownership also remain
 open. Issue #27 stays open.
+
+## 2026-07-23: CupidC reaches a static i386 Linux compiler fixed point
+
+### Include forms and artifact production
+
+The fixed-point command needs the same two include roots as the audited i386
+Linux profile. `/toolchain` accepts quoted and angle includes. The checked
+declaration directory accepts angle includes only. Passing both directories
+through `-I` would let a quoted include resolve from the declaration root, so
+the earlier command could not express the exact profile.
+
+CupidC now accepts `--include-angle PATH` beside `-I PATH`. Both options append
+to one ordered root list. `-I` sets both include-form bits, while
+`--include-angle` sets only the angle bit. Native path conversion and `--root`
+logical-path validation apply to both forms. Focused sources place the same
+header name in separate quote and angle directories. They prove that widening
+the angle-only root changes the object and fails the contract. Missing, empty,
+and non-logical values have matching native and Cupid-built failures.
+
+A direct `make -C toolchain build/cupidc-cupidc.elf` request exposed a separate
+graph defect. The manifest recipe produced all six static files, but the files
+did not depend on that manifest. Make could therefore accept an old direct
+artifact without running the checked link. Each static output now depends on
+the forced manifest producer. The regression removes the compiler file, asks
+for that file by name, and requires the complete link recipe to restore the
+same executable and manifest.
+
+### Fixed-point protocol
+
+The stage contract declares eleven C inputs and one exact link order. Ten C
+files use strict C11. `hosted/i386-linux/runtime.c` alone enables GNU mode.
+Every compile passes `/toolchain` through `-I` and the i386 Linux declaration
+root through `--include-angle`; the driver supplies the four-byte pointer fact.
+Two workers compile independent objects.
+
+Generation one is the static compiler produced by the native object contract.
+It builds the eleven stage-two C objects. The existing Cupid-built CupidASM
+assembles a new startup object, and the existing Cupid-built CupidLD links the
+compiler at `0x08048000`. Stage two repeats the same source, assembly, and link
+steps for stage three. The test records the compiler used for each directory so
+generation one cannot silently build stage three.
+
+All eleven C object pairs and the two startup objects match byte for byte.
+Stage two matches the generation-one compiler image, and stage three matches
+stage two. The final image is a static i386 ELF32 executable with no unresolved
+symbols. Stage three also prints the expected help text. Stages two and three
+compile a valid function to the same object, reject one malformed source with
+the same diagnostic, and leave both sentinel outputs unchanged.
+
+The first complete run passed in 359.4 seconds. It was expanded with the
+explicit manifests, compiler-lineage assertions, startup comparison, valid and
+malformed behavior cases, and hash collection. The expanded run passed in
+362.017 seconds.
+
+The generated audit now carries a `cupidc_compiler_fixed_point` contract. It
+parses the source, include, and link manifests and checks the driver mapping,
+two-worker stage loop, generation-one to stage-two link, stage-two to
+stage-three link, object comparisons, image comparisons, and behavior checks.
+Six mutations remove the runtime GNU flag, widen the angle root, drop the
+runtime object, reuse generation one for stage three, remove an image
+comparison, or widen the driver form. Each mutation fails at the named seam.
+
+ADR 0089 records the include option, stage protocol, rejected shortcuts, and
+claim boundary. No design question required an external decision.
+
+An attempt to launch the Windows and WSL Toolchain gates together put a
+recursive PowerShell cleanup expression in the cross-host wrapper. Command
+policy rejected the wrapper before it produced usable evidence. The accepted
+checks ran separately. The WSL command first proved that its literal `/tmp`
+directory did not exist, created it, ran the complete GCC build, and removed
+that exact directory through a Bash exit trap.
+
+### Object and image evidence
+
+| Stage-two and stage-three object | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `ctool.o` | 45,384 | `E61E3831F4AD982BE902D02EC5D44B3674331D3F566C3CFFC37F49C6C750B9C5` |
+| `ctool_host.o` | 6,944 | `BA9935FEC41FB071D69F2DFF33476AEF6641BA8E70B7AF3E4DC1FADAFF6497EE` |
+| `cupidc_pp.o` | 224,176 | `9A4D499E69DDC4B36F0AA5B81BB7009EBEED9AF1B07538CA68575AB4D067FC62` |
+| `cupidc_type.o` | 49,484 | `24E35A80742AC9DB8559D6B3052CEBCDE808D9E198909E8B2EC5B7F519470F0D` |
+| `cupidc_frontend.o` | 695,468 | `FECAA01A683CF890AD52E639FB59F172D88BD395D64C76D6230457DBA0C2F559` |
+| `cupidc_ir.o` | 371,240 | `3E8C4F8EA98C303C4AE3272F493B3B09E20B9DB362688B99058D32FB1E7B776C` |
+| `cupidc_emit.o` | 295,036 | `AD88093270E9BDE16AABE23BF4206C0274FFF52082C56A8A24293AFF191797B6` |
+| `elf32.o` | 79,348 | `2A761270989300D3A161E07D30767AAFAC8727BFFD6EBEBE7CAF727869B14A3F` |
+| `x86.o` | 131,640 | `6DA94DCC09F0BD5737F35B81E3050631E97739438789022D725635089DEE7AC5` |
+| `cupidc_main.o` | 19,112 | `69DF29B79A702ECB3099F97512153278FD0D7BF54198D5452405C69F5739FA77` |
+| `runtime.o` | 20,204 | `930804FE0DDFC22D3C4593334A2985D651FA7859FFAF51C0A14E0CEF8023450E` |
+| `start.o` | 608 | `F31B273E2B3DB200B78B612121C38EC5618D1CFC661B147A53B6F3F417FC93AC` |
+| `cupidc.elf` | 1,812,712 | `29CD222C6E33590932457D36F3728705134C8C6750947E7CFBC4ABA3B7C5500B` |
+
+The same Cupid-built CupidASM, 433,060 bytes with SHA-256
+`00F684CA5CA1E2BA36763E6810C65FEA8B3786D40F6008D635751A1F2C2B6DB0`,
+produces both startup objects. The same Cupid-built CupidLD, 262,388 bytes with
+SHA-256
+`373ED96803DCFB0005B8B3B1D49CA1313396EE11E17521AAD6402F487CDD97E5`,
+links both compiler stages.
+
+### Focused evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Include forms, help, and direct artifact rebuild | PASS | Four focused tests pass in 40.762 seconds. Native and Cupid-built commands agree on quote and angle lookup, malformed option values, logical paths, help text, and output bytes. A direct missing compiler target reruns the complete static link. |
+| Compiler fixed point | PASS | The expanded test passes in 362.017 seconds. It compares eleven C object pairs, two startup objects, generation one, stage two, stage three, one valid output, and one preserved failure. |
+| Audit mutation contract | PASS | The six static contract mutations pass in 0.228 seconds. |
+| Complete object suite | PASS | All 52 CupidC object tests pass in 509.326 seconds. |
+| Complete build-graph suite | PASS | All 51 build-graph tests pass in 363.113 seconds. |
+| Hosted Toolchain | PASS | `make -C toolchain test` passes every contract selector and all six static i386 executables under Windows Clang. |
+| Cross-host Toolchain | PASS | A fresh isolated WSL GCC build passes the same complete Toolchain gate in 93.7 seconds. Its temporary build directory is gone after the run. |
+| Static analysis and diff hygiene | PASS | Clang's analyzer reports no finding in the changed driver. `py_compile` accepts the changed Python contracts, and `git diff --check` reports no whitespace error. |
+| Active-source audit | PASS | Regeneration records 698 active sources, 501 transforms, 252 feature requirements, and 39 accounted unreachable files. The fixed-point contract records eleven compiler C sources, twelve link objects, three compiler images, and two behavior cases. |
+| Settled repository gate | PASS | All 393 tests pass in 1,079.566 seconds with one expected optional skip. Make returns zero in 1,120.5 seconds after reproducing the checked audit. |
+| Production image | PASS | `make all` rebuilds and stages the image in 24.2 seconds. `_loaded_end` is `0x006D3A0B`, `_bss_start` is `0x006D4000`, and `_kernel_end` is `0x00AF4910`, leaving 46,832 bytes below the fixed stack. |
+| Emulator gate | PASS | The GUI terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds with the established 0.60-second key timing. |
+
+The generated `toolchain_core` cohort contains 31 files and 57,396 checked
+lines. `toolchain_contract` contains 15 files and 94,555 checked lines. The
+canonical active-source digest is
+`917CBF13BA3ED08A9F4DF0121100BF5B649505897D30292B8B097865D1BCB18D`.
+The complete audit JSON has SHA-256
+`424278E134918289B48F6F158E602A2964D87707F324A7571A2E5A5AF17FC781`.
+
+The refreshed lexical locks are 637 direct designators, 51 variadic
+declarations, 1,588 `goto`, 63 `do`, 218 `switch`, 1,607 `case`, 149
+`default`, 2,569 `while`, 1,772 `break`, 1,051 `continue`, 29,414 `if`, 3,941
+`else`, 17,836 `return`, 3,410 `for`, and 4,024 `sizeof`. The driver accounts
+for each change from the previous checkpoint.
+
+The rebuilt `kernel.elf` is 6,285,876 bytes with SHA-256
+`FFE6C10E7B48039DE8C1853640545DBFA90FCD3D501B6DB3564DB692ED9122E7`.
+The 6,109,707-byte `kernel.bin` has SHA-256
+`40214F9DC9D2F8A7E5EE5009C3639F0859B279B6F49A27398B9640E788845BB8`,
+and the 209,715,200-byte `cupidos.img` has SHA-256
+`8C56492CAEFF34A888DA1923C33B90C34E9C37AFDB4044C0C18170856686D812`.
+No kernel ABI or boot-path source changed. The embedded CTXT manual did change,
+so the build and emulator gate cover the resulting image instead of reusing
+the previous checkpoint's runtime evidence.
+
+This is a CupidC compiler fixed point for static i386 Linux execution. It is not
+a native Windows fixed point or a whole-toolchain fixed point. Generation zero,
+native contract runners, hosted production commands, and normal Cupid OS C
+objects still need GCC or Clang. No checked seed or fresh-checkout independent
+bootstrap exists. The sibling Cupid-built tools run and supply this proof, but
+their own stage-two to stage-three rebuilds remain open.

@@ -3,11 +3,45 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+CUPIDC_FIXED_POINT_SOURCES = (
+    ("ctool", "/toolchain/ctool.c", False),
+    ("ctool_host", "/toolchain/ctool_host.c", False),
+    ("cupidc_pp", "/toolchain/cupidc_pp.c", False),
+    ("cupidc_type", "/toolchain/cupidc_type.c", False),
+    ("cupidc_frontend", "/toolchain/cupidc_frontend.c", False),
+    ("cupidc_ir", "/toolchain/cupidc_ir.c", False),
+    ("cupidc_emit", "/toolchain/cupidc_emit.c", False),
+    ("elf32", "/toolchain/elf32.c", False),
+    ("x86", "/toolchain/x86.c", False),
+    ("cupidc_main", "/toolchain/cupidc_main.c", False),
+    ("runtime", "/toolchain/hosted/i386-linux/runtime.c", True),
+)
+CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS = (
+    "-I",
+    "/toolchain",
+    "--include-angle",
+    "/toolchain/hosted/i386-linux/include",
+)
+CUPIDC_FIXED_POINT_LINK_ORDER = (
+    "start",
+    "cupidc_main",
+    "cupidc_emit",
+    "cupidc_ir",
+    "cupidc_frontend",
+    "cupidc_type",
+    "cupidc_pp",
+    "ctool_host",
+    "ctool",
+    "elf32",
+    "x86",
+    "runtime",
+)
 
 
 class ToolchainCupidCObjectContractTests(unittest.TestCase):
@@ -693,6 +727,25 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(artifact.read_bytes(), artifact_bytes)
         self.assertEqual(manifest.read_bytes(), manifest_bytes)
 
+        artifact.unlink()
+        direct = subprocess.run(
+            [
+                "make",
+                "-C",
+                str(TOOLCHAIN_ROOT),
+                f"BUILD_DIR={relative_build}",
+                f"{relative_build}/cupidc-cupidc.elf",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=180,
+        )
+        self.assertEqual(direct.returncode, 0, direct.stdout + direct.stderr)
+        self.assertIn("self-host-link-tools: ok", direct.stdout)
+        self.assertEqual(artifact.read_bytes(), artifact_bytes)
+        self.assertEqual(manifest.read_bytes(), manifest_bytes)
+
     def test_cupid_built_tools_match_hosted_runtime_behavior(self):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
@@ -1347,13 +1400,274 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
             self.assertFalse(reserved_undef_output.exists())
 
+    def test_cupidc_angle_only_roots_do_not_change_quoted_lookup(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-include-forms-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            quoted_root = root / "quoted"
+            angle_root = root / "angle"
+            quoted_root.mkdir()
+            angle_root.mkdir()
+            (quoted_root / "select.h").write_text(
+                "#define SELECTED_VALUE 11\n", encoding="utf-8"
+            )
+            (angle_root / "select.h").write_text(
+                "#define SELECTED_VALUE 22\n", encoding="utf-8"
+            )
+            (root / "quoted.c").write_text(
+                '#include "select.h"\n'
+                "int quote_selection(void) { return SELECTED_VALUE; }\n",
+                encoding="utf-8",
+            )
+            (root / "angle.c").write_text(
+                "#include <select.h>\n"
+                "int angle_selection(void) { return SELECTED_VALUE; }\n",
+                encoding="utf-8",
+            )
+
+            compile_cases = (
+                (
+                    "/quoted.c",
+                    "/quoted",
+                    "/expected-quoted.o",
+                    "/hosted-quoted.o",
+                    "/cupid-quoted.o",
+                ),
+                (
+                    "/angle.c",
+                    "/angle",
+                    "/expected-angle.o",
+                    "/hosted-angle.o",
+                    "/cupid-angle.o",
+                ),
+            )
+            for (
+                source,
+                expected_include,
+                expected_output,
+                hosted_output,
+                cupid_output,
+            ) in compile_cases:
+                expected = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        "--root",
+                        str(root),
+                        "-c",
+                        source,
+                        "-I",
+                        expected_include,
+                        "-o",
+                        expected_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                hosted = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        "--root",
+                        str(root),
+                        "-c",
+                        source,
+                        "--include-angle",
+                        "/angle",
+                        "-I",
+                        "/quoted",
+                        "-o",
+                        hosted_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                cupid = self.run_cupid_linux_tool(
+                    self.cupid_cupidc_path,
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        source,
+                        "--include-angle",
+                        "/angle",
+                        "-I",
+                        "/quoted",
+                        "-o",
+                        cupid_output,
+                    ],
+                    timeout=60,
+                )
+                self.assertEqual(expected.returncode, 0, expected.stderr)
+                self.assertEqual(hosted.returncode, 0, hosted.stderr)
+                self.assertEqual(cupid.returncode, 0, cupid.stderr)
+                self.assertEqual(expected.stdout, "")
+                self.assertEqual(hosted.stdout, "")
+                self.assertEqual(cupid.stdout, "")
+                self.assertEqual(expected.stderr, "")
+                self.assertEqual(hosted.stderr, "")
+                self.assertEqual(cupid.stderr, "")
+                expected_object = root / expected_output[1:]
+                hosted_object = root / hosted_output[1:]
+                cupid_object = root / cupid_output[1:]
+                self.assertEqual(
+                    hosted_object.read_bytes(), expected_object.read_bytes()
+                )
+                self.assertEqual(
+                    cupid_object.read_bytes(), expected_object.read_bytes()
+                )
+                self.assertEqual(
+                    expected_object.read_bytes()[:7],
+                    b"\x7fELF\x01\x01\x01",
+                )
+
+    def test_cupidc_angle_only_root_rejects_bad_values_and_root_paths(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        usage = (
+            "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
+            "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
+            "[--freestanding] [--root NATIVE_ROOT]\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-include-errors-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            (root / "source.c").write_text(
+                "int include_error_source(void) { return 0; }\n",
+                encoding="utf-8",
+            )
+            cases = (
+                (
+                    "missing",
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-o",
+                        "/hosted-missing.o",
+                        "--include-angle",
+                    ],
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-o",
+                        "/cupid-missing.o",
+                        "--include-angle",
+                    ],
+                    2,
+                    usage,
+                    root / "hosted-missing.o",
+                    root / "cupid-missing.o",
+                ),
+                (
+                    "empty",
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "--include-angle",
+                        "",
+                        "-o",
+                        "/hosted-empty.o",
+                    ],
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "--include-angle",
+                        "",
+                        "-o",
+                        "/cupid-empty.o",
+                    ],
+                    2,
+                    usage,
+                    root / "hosted-empty.o",
+                    root / "cupid-empty.o",
+                ),
+                (
+                    "relative",
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "--include-angle",
+                        "angle",
+                        "-o",
+                        "/hosted-relative.o",
+                    ],
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "--include-angle",
+                        "angle",
+                        "-o",
+                        "/cupid-relative.o",
+                    ],
+                    1,
+                    "cupidc: --root requires logical include paths\n",
+                    root / "hosted-relative.o",
+                    root / "cupid-relative.o",
+                ),
+            )
+            for (
+                name,
+                hosted_arguments,
+                cupid_arguments,
+                returncode,
+                stderr,
+                hosted_output,
+                cupid_output,
+            ) in cases:
+                with self.subTest(name=name):
+                    hosted = subprocess.run(
+                        [
+                            str(self.hosted_cupidc_path),
+                            *[str(argument) for argument in hosted_arguments],
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                        timeout=60,
+                    )
+                    cupid = self.run_cupid_linux_tool(
+                        self.cupid_cupidc_path,
+                        cupid_arguments,
+                        timeout=60,
+                    )
+                    self.assertEqual(
+                        hosted.returncode, returncode, hosted.stderr
+                    )
+                    self.assertEqual(
+                        cupid.returncode, returncode, cupid.stderr
+                    )
+                    self.assertEqual(hosted.stdout, "")
+                    self.assertEqual(cupid.stdout, "")
+                    self.assertEqual(hosted.stderr, stderr)
+                    self.assertEqual(cupid.stderr, stderr)
+                    self.assertFalse(hosted_output.exists())
+                    self.assertFalse(cupid_output.exists())
+
     def test_cupid_built_cupidc_matches_help_and_usage_failures(self):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
-            "[-D NAME[=VALUE]] [-U NAME] [--gnu] [--freestanding] "
-            "[--root NATIVE_ROOT]\n"
+            "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
+            "[--freestanding] [--root NATIVE_ROOT]\n"
         )
         hosted_help = subprocess.run(
             [str(self.hosted_cupidc_path), "--help"],
@@ -1536,6 +1850,293 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(second_object.read_bytes(), hosted_object.read_bytes())
             self.assertGreater(len(hosted_object.read_bytes()), 100000)
             self.assertEqual(hosted_object.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_cupid_built_cupidc_reaches_a_full_compiler_fixed_point(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        self.assertEqual(len(CUPIDC_FIXED_POINT_SOURCES), 11)
+        self.assertEqual(
+            [
+                name
+                for name, _source, gnu_extensions
+                in CUPIDC_FIXED_POINT_SOURCES
+                if gnu_extensions
+            ],
+            ["runtime"],
+        )
+        self.assertEqual(len(CUPIDC_FIXED_POINT_LINK_ORDER), 12)
+        usage = (
+            "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
+            "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
+            "[--freestanding] [--root NATIVE_ROOT]\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-fixed-point-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            stage_compilers = {}
+
+            def build_stage(compiler, stage_name):
+                stage_compilers[stage_name] = compiler
+                stage = root / stage_name
+                stage.mkdir()
+                logical_stage = "/" + stage.relative_to(REPO_ROOT).as_posix()
+
+                def compile_source(case):
+                    name, source, gnu_extensions = case
+                    arguments = [
+                        "--root",
+                        REPO_ROOT,
+                        "-c",
+                        source,
+                        *CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS,
+                    ]
+                    if gnu_extensions:
+                        arguments.append("--gnu")
+                    arguments.extend(
+                        ["-o", f"{logical_stage}/{name}.o"]
+                    )
+                    return (
+                        case,
+                        self.run_cupid_linux_tool(
+                            compiler, arguments, timeout=300
+                        ),
+                    )
+
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    compiled = list(
+                        executor.map(
+                            compile_source, CUPIDC_FIXED_POINT_SOURCES
+                        )
+                    )
+                objects = {}
+                for (name, source, _gnu_extensions), result in compiled:
+                    self.assertEqual(
+                        result.returncode,
+                        0,
+                        source + "\n" + result.stderr,
+                    )
+                    self.assertEqual(result.stdout, "", source)
+                    self.assertEqual(result.stderr, "", source)
+                    object_path = stage / f"{name}.o"
+                    object_bytes = object_path.read_bytes()
+                    self.assertEqual(
+                        object_bytes[:7],
+                        b"\x7fELF\x01\x01\x01",
+                        source,
+                    )
+                    self.assertEqual(
+                        int.from_bytes(object_bytes[16:18], "little"),
+                        1,
+                        source,
+                    )
+                    self.assertEqual(
+                        int.from_bytes(object_bytes[18:20], "little"),
+                        3,
+                        source,
+                    )
+                    objects[name] = object_path
+
+                start_object = stage / "start.o"
+                assembled = self.run_cupid_linux_tool(
+                    self.cupid_cupidasm_path,
+                    [
+                        "-f",
+                        "elf32",
+                        TOOLCHAIN_ROOT / "hosted" / "i386-linux" / "start.asm",
+                        "-o",
+                        start_object,
+                    ],
+                    timeout=120,
+                )
+                self.assertEqual(
+                    assembled.returncode, 0, assembled.stderr
+                )
+                self.assertEqual(assembled.stdout, "")
+                self.assertEqual(assembled.stderr, "")
+                start_bytes = start_object.read_bytes()
+                self.assertEqual(
+                    start_bytes[:7], b"\x7fELF\x01\x01\x01"
+                )
+                self.assertEqual(
+                    int.from_bytes(start_bytes[16:18], "little"), 1
+                )
+                self.assertEqual(
+                    int.from_bytes(start_bytes[18:20], "little"), 3
+                )
+                objects["start"] = start_object
+
+                executable = stage / "cupidc.elf"
+                linked_stage = self.run_cupid_linux_tool(
+                    self.cupid_cupidld_path,
+                    [
+                        "-m",
+                        "elf_i386",
+                        "--text-address",
+                        "0x08048000",
+                        "--entry",
+                        "_start",
+                        "-o",
+                        executable,
+                        *[
+                            objects[name]
+                            for name in CUPIDC_FIXED_POINT_LINK_ORDER
+                        ],
+                    ],
+                    timeout=120,
+                )
+                self.assertEqual(
+                    linked_stage.returncode, 0, linked_stage.stderr
+                )
+                self.assertEqual(linked_stage.stdout, "")
+                self.assertEqual(linked_stage.stderr, "")
+                image = executable.read_bytes()
+                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+                self.assertEqual(
+                    int.from_bytes(image[16:18], "little"), 2
+                )
+                self.assertEqual(
+                    int.from_bytes(image[18:20], "little"), 3
+                )
+                self.assertEqual(
+                    int.from_bytes(image[24:28], "little"),
+                    0x08048000,
+                )
+                return objects, executable
+
+            stage_two_objects, stage_two_compiler = build_stage(
+                self.cupid_cupidc_path, "stage-two"
+            )
+            stage_three_objects, stage_three_compiler = build_stage(
+                stage_two_compiler, "stage-three"
+            )
+            self.assertEqual(
+                stage_compilers["stage-two"], self.cupid_cupidc_path
+            )
+            self.assertEqual(
+                stage_compilers["stage-three"], stage_two_compiler
+            )
+            self.assertNotEqual(
+                stage_compilers["stage-three"], self.cupid_cupidc_path
+            )
+            for name in CUPIDC_FIXED_POINT_LINK_ORDER:
+                self.assertEqual(
+                    stage_three_objects[name].read_bytes(),
+                    stage_two_objects[name].read_bytes(),
+                    name,
+                )
+            self.assertEqual(
+                stage_two_compiler.read_bytes(),
+                self.cupid_cupidc_path.read_bytes(),
+            )
+            self.assertEqual(
+                stage_three_compiler.read_bytes(),
+                stage_two_compiler.read_bytes(),
+            )
+            stage_three_help = self.run_cupid_linux_tool(
+                stage_three_compiler, ["--help"], timeout=60
+            )
+            self.assertEqual(
+                stage_three_help.returncode, 0, stage_three_help.stderr
+            )
+            self.assertEqual(stage_three_help.stdout, usage)
+            self.assertEqual(stage_three_help.stderr, "")
+
+            valid_source = root / "fixed-point-valid.c"
+            invalid_source = root / "fixed-point-invalid.c"
+            valid_source.write_text(
+                "int fixed_point_value(int value) { return value + 17; }\n",
+                encoding="utf-8",
+            )
+            invalid_source.write_text(
+                "int fixed_point_broken( {\n",
+                encoding="utf-8",
+            )
+            stage_two_valid = root / "stage-two-valid.o"
+            stage_three_valid = root / "stage-three-valid.o"
+            valid_arguments = [
+                "--root",
+                root,
+                "-c",
+                "/fixed-point-valid.c",
+            ]
+            stage_two_valid_run = self.run_cupid_linux_tool(
+                stage_two_compiler,
+                [*valid_arguments, "-o", "/stage-two-valid.o"],
+                timeout=60,
+            )
+            stage_three_valid_run = self.run_cupid_linux_tool(
+                stage_three_compiler,
+                [*valid_arguments, "-o", "/stage-three-valid.o"],
+                timeout=60,
+            )
+            self.assertEqual(stage_two_valid_run.returncode, 0)
+            self.assertEqual(stage_two_valid_run.stdout, "")
+            self.assertEqual(stage_two_valid_run.stderr, "")
+            self.assertEqual(
+                stage_three_valid_run.returncode,
+                stage_two_valid_run.returncode,
+                stage_three_valid_run.stderr,
+            )
+            self.assertEqual(
+                stage_three_valid_run.stdout, stage_two_valid_run.stdout
+            )
+            self.assertEqual(
+                stage_three_valid_run.stderr, stage_two_valid_run.stderr
+            )
+            self.assertEqual(
+                stage_three_valid.read_bytes(),
+                stage_two_valid.read_bytes(),
+            )
+            self.assertEqual(
+                stage_two_valid.read_bytes()[:7],
+                b"\x7fELF\x01\x01\x01",
+            )
+
+            failure_sentinel = b"fixed-point-failure-sentinel"
+            stage_two_failure = root / "stage-two-failure.o"
+            stage_three_failure = root / "stage-three-failure.o"
+            stage_two_failure.write_bytes(failure_sentinel)
+            stage_three_failure.write_bytes(failure_sentinel)
+            invalid_arguments = [
+                "--root",
+                root,
+                "-c",
+                "/fixed-point-invalid.c",
+            ]
+            stage_two_invalid_run = self.run_cupid_linux_tool(
+                stage_two_compiler,
+                [*invalid_arguments, "-o", "/stage-two-failure.o"],
+                timeout=60,
+            )
+            stage_three_invalid_run = self.run_cupid_linux_tool(
+                stage_three_compiler,
+                [*invalid_arguments, "-o", "/stage-three-failure.o"],
+                timeout=60,
+            )
+            self.assertEqual(stage_two_invalid_run.returncode, 1)
+            self.assertEqual(stage_two_invalid_run.stdout, "")
+            self.assertEqual(
+                stage_three_invalid_run.returncode,
+                stage_two_invalid_run.returncode,
+                stage_three_invalid_run.stderr,
+            )
+            self.assertEqual(
+                stage_three_invalid_run.stdout,
+                stage_two_invalid_run.stdout,
+            )
+            self.assertEqual(
+                stage_three_invalid_run.stderr,
+                stage_two_invalid_run.stderr,
+            )
+            self.assertIn(
+                "/fixed-point-invalid.c:1:",
+                stage_two_invalid_run.stderr,
+            )
+            self.assertEqual(stage_two_failure.read_bytes(), failure_sentinel)
+            self.assertEqual(
+                stage_three_failure.read_bytes(), failure_sentinel
+            )
 
     def test_cupid_built_runtime_handles_includes_mode_maps_and_missing_files(
         self,

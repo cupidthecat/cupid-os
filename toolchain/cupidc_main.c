@@ -22,6 +22,7 @@ typedef struct {
   const char *output;
   const char *native_root;
   const char **include_arguments;
+  ctool_u32 *include_forms;
   ctool_u32 include_count;
   ctool_c_pp_macro_action_t *macro_actions;
   ctool_u32 macro_action_count;
@@ -31,6 +32,7 @@ typedef struct {
 
 typedef struct {
   const ctool_string_t *include_paths;
+  const ctool_u32 *include_forms;
   ctool_c_pp_include_root_t *include_roots;
   ctool_u32 include_count;
   const ctool_c_pp_macro_action_t *macro_actions;
@@ -42,8 +44,9 @@ typedef struct {
 static void cupidc_usage(FILE *stream) {
   (void)fprintf(
       stream,
-      "usage: cupidc -c INPUT -o OUTPUT [-I PATH] [-D NAME[=VALUE]] "
-      "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n");
+      "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
+      "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
+      "[--freestanding] [--root NATIVE_ROOT]\n");
 }
 
 static ctool_bool cupidc_string_equal_literal(ctool_string_t value,
@@ -122,9 +125,12 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
   slot_count = (size_t)argc + 1u;
   cli->include_arguments =
       (const char **)calloc(slot_count, sizeof(*cli->include_arguments));
+  cli->include_forms =
+      (ctool_u32 *)calloc(slot_count, sizeof(*cli->include_forms));
   cli->macro_actions = (ctool_c_pp_macro_action_t *)calloc(
       slot_count, sizeof(*cli->macro_actions));
   if (cli->include_arguments == (const char **)0 ||
+      cli->include_forms == (ctool_u32 *)0 ||
       cli->macro_actions == (ctool_c_pp_macro_action_t *)0) {
     return 0;
   }
@@ -179,6 +185,22 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
         return 0;
       }
       cli->include_arguments[cli->include_count] = value;
+      cli->include_forms[cli->include_count] =
+          CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+      cli->include_count++;
+      continue;
+    }
+    if (strcmp(argument, "--include-angle") == 0) {
+      if (index + 1 >= argc) {
+        return 0;
+      }
+      index++;
+      value = argv[index];
+      if (value[0] == '\0') {
+        return 0;
+      }
+      cli->include_arguments[cli->include_count] = value;
+      cli->include_forms[cli->include_count] = CTOOL_C_PP_INCLUDE_ANGLE;
       cli->include_count++;
       continue;
     }
@@ -381,8 +403,7 @@ static ctool_status_t cupidc_compile_body(ctool_invocation_t *invocation,
         ctool_job_arena(invocation->job), &root,
         context->include_paths[index], limits->path_bytes,
         &context->include_roots[index].directory);
-    context->include_roots[index].forms =
-        CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+    context->include_roots[index].forms = context->include_forms[index];
   }
   (void)memset(&pp_request, 0, sizeof(pp_request));
   pp_request.mode = CTOOL_C_PP_MODE_C11;
@@ -512,6 +533,7 @@ int main(int argc, char **argv) {
   config = ctool_host_job_config(&adapter, limits);
   (void)memset(&context, 0, sizeof(context));
   context.include_paths = include_paths;
+  context.include_forms = cli.include_forms;
   context.include_roots = include_roots;
   context.include_count = cli.include_count;
   context.macro_actions = cli.macro_actions;
@@ -553,6 +575,7 @@ done:
   free(include_roots);
   free(include_paths);
   free(cli.macro_actions);
+  free(cli.include_forms);
   free(cli.include_arguments);
   return exit_code;
 }

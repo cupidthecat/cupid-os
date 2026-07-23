@@ -51,3 +51,7 @@ Generation zero and both generation-one runs produce the same 371,240-byte objec
 The command contract also compares hosted and Cupid-built output for include roots, definitions, undefinitions, GNU mode, and freestanding mode. A binary conditional constant proves that GNU mode reaches preprocessing as well as parsing, while the strict C11 command rejects the same source. Malformed input and a missing source file produce matching diagnostics while preserving a sentinel output. Pointer-width definition and undefinition attempts fail before creating output. The static artifact group recovers when the compiler executable is removed.
 
 This is a real compiler-on-compiler generation step, but it covers one compiler source. The host compiler still builds generation zero, the contract runners, and normal Cupid OS C objects. A complete stage-two compiler, a stage-two to stage-three fixed-point comparison, checked seeds, and production build ownership remain open under issue #27.
+
+ADR 0089 follows this first-generation checkpoint with the complete static
+i386 Linux compiler fixed point. It leaves this ADR's original evidence and
+claim boundary intact.

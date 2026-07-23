@@ -8467,31 +8467,31 @@
             },
             {
               "directive": "if",
-              "line": 243,
+              "line": 265,
               "path": "toolchain/cupidc_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 277,
+              "line": 299,
               "path": "toolchain/cupidc_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 300,
+              "line": 322,
               "path": "toolchain/cupidc_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 334,
+              "line": 356,
               "path": "toolchain/cupidc_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 488,
+              "line": 509,
               "path": "toolchain/cupidc_main.c",
               "text": "#if defined(_WIN32)"
             },
@@ -9360,6 +9360,38 @@
       "status": "pass",
       "total_translation_units": 383,
       "tracked_translation_units": 379
+    },
+    "cupidc_compiler_fixed_point": {
+      "behavior_cases": 2,
+      "compared_c_objects": 11,
+      "compared_compiler_images": 3,
+      "compared_startup_objects": 1,
+      "compiler_c_sources": 11,
+      "gnu_c_sources": 1,
+      "include_roots": [
+        {
+          "forms": [
+            "quoted",
+            "angle"
+          ],
+          "path": "/toolchain"
+        },
+        {
+          "forms": [
+            "angle"
+          ],
+          "path": "/toolchain/hosted/i386-linux/include"
+        }
+      ],
+      "link_objects": 12,
+      "platform": "i386-linux",
+      "stages": [
+        "generation-one",
+        "stage-two",
+        "stage-three"
+      ],
+      "status": "pass",
+      "strict_c_sources": 10
     }
   },
   "features": [
@@ -13452,7 +13484,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 1050
+      "occurrences": 1051
     },
     {
       "category": "control",
@@ -14602,7 +14634,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 29411
+      "occurrences": 29414
     },
     {
       "category": "control",
@@ -14960,7 +14992,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 17834
+      "occurrences": 17836
     },
     {
       "category": "control",
@@ -15858,7 +15890,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 4023
+      "occurrences": 4024
     },
     {
       "category": "extension",
@@ -19095,7 +19127,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 11111
+      "occurrences": 11112
     },
     {
       "category": "qualifier",
@@ -22783,11 +22815,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "c8d5e70b880f6e3a11789a4c82500cc2aa9fc4d4f91d10a8185b36a49cfae5c7",
+    "active_source_digest": "917cbf13ba3ed08a9f4df0121100bf5b649505897d30292b8b097865d1bcb18d",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "1000c2919062a6757f24f6e008f96270222a34e4ebe75154f2138c0143efee73"
+        "sha256": "61832e7649f1068cfb767d8a08ccdbc5973a3482c1cbdf312f4b8e8909f06c91"
       },
       {
         "path": "user/Makefile",
@@ -22795,12 +22827,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "f4714cc65db108520a6f5348e40fdb026b8c93ffa9228a11e966b854586729a5"
+        "sha256": "3905d1fbc20d9393c7226ea0b11b3135778593aa6ae8b76ea632bf9672c4e65b"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "9e823d0dba109bebdf43af46c9a1a4e78238da393094bb3f35dc382165186528"
+      "sha256": "bad229e3809521609af3485778868c9944ff2c0cd3b5fd2e45d6c6cee69f0e09"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -46022,12 +46054,12 @@
         "toolchain/cupidc_emit.h"
       ],
       "language": "c",
-      "lines": 558,
+      "lines": 581,
       "origin": "tracked",
       "path": "toolchain/cupidc_main.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "bcf099ce5a42b9e46e565c78c404ad86152da310a6cd919668745bc84ee6a495"
+      "sha256": "90c3e6e1a1897ef34d6d7888e92cce6e5fb18a666e5a64d8a651ac3cfeb4b92e"
     },
     {
       "build_owners": [

@@ -325,6 +325,8 @@ $(CUPIDC_HOSTED_I386_MANIFEST): FORCE $(CUPIDC_OBJECT_CONTRACT) \
 	$(PYTHON) -c "import hashlib,json,sys; from pathlib import Path; paths=[Path(value) for value in sys.argv[2:]]; payload={'artifacts':[{'path':path.as_posix(),'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'size':path.stat().st_size} for path in paths]}; Path(sys.argv[1]).write_bytes((json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n').encode('ascii'))" \
 		$(CUPIDC_HOSTED_I386_MANIFEST) $(CUPIDC_HOSTED_I386_ARTIFACTS)
 
+$(CUPIDC_HOSTED_I386_ARTIFACTS): $(CUPIDC_HOSTED_I386_MANIFEST)
+
 $(ELF32_CONTRACT): $(ELF32_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(ELF32_OBJECTS) -o $@
 
