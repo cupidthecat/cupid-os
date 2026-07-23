@@ -2530,6 +2530,33 @@ static ctool_status_t cir_lower_cast(
         &expression->location, &expression->physical_location,
         (ctool_u32 *)0);
   }
+  if (cir_type_is_i32_integer(context, source_type) == CTOOL_TRUE &&
+      cir_type_is_i32_function_pointer(context, expression->type) ==
+          CTOOL_TRUE &&
+      context->unit->expressions[child].kind ==
+          CTOOL_C_EXPRESSION_INTEGER_CONSTANT &&
+      context->unit->expressions[child].integer_bits == 0u) {
+    status = cir_lower_expression(context, child, depth + 1u);
+    if (status == CTOOL_OK) {
+      status = cir_pop(context, &source);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (source.kind != CIR_STACK_VALUE || source.type != source_type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_CONVERT, expression->type,
+        source.type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NULL_POINTER, CTOOL_C_AST_NONE, 0u,
+        &expression->location, &expression->physical_location,
+        (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
   if (cir_type_is_i32_function_pointer(
           context, source_type) == CTOOL_TRUE ||
       cir_type_is_i32_function_pointer(context, expression->type) ==
@@ -2545,6 +2572,12 @@ static ctool_status_t cir_lower_cast(
              CTOOL_TRUE) ||
         (cir_type_is_value_integer(context, source_type) == CTOOL_TRUE &&
          cir_type_is_value_integer(context, expression->type) ==
+             CTOOL_TRUE) ||
+        (cir_type_is_i32_pointer(context, source_type) == CTOOL_TRUE &&
+         cir_type_is_wide_integer(context, expression->type) ==
+             CTOOL_TRUE) ||
+        (cir_type_is_wide_integer(context, source_type) == CTOOL_TRUE &&
+         cir_type_is_i32_pointer(context, expression->type) ==
              CTOOL_TRUE))) {
     return cir_unsupported_type(context, &expression->location);
   }
@@ -4358,6 +4391,7 @@ static ctool_status_t cir_lower_update(
 static ctool_status_t cir_lower_member(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
+  cir_stack_entry_t record;
   cir_member_info_t info;
   ctool_status_t status;
   status = cir_validate_member(context, expression_index, expression,
@@ -4376,10 +4410,22 @@ static ctool_status_t cir_lower_member(
           info.record_layout->size - info.member_layout->byte_offset) {
     return cir_invalid_unit(context, &expression->location);
   }
-  status = cir_lower_member_record_address(
-      context, &info, &expression->location, depth);
+  status = cir_lower_expression(context, info.record_child, depth + 1u);
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &record);
+  }
   if (status != CTOOL_OK) {
     return status;
+  }
+  if (record.type != info.record_expression->type ||
+      (record.kind != CIR_STACK_ADDRESS &&
+       (record.kind != CIR_STACK_VALUE ||
+        cir_type_is_structure_value(context, record.type) == CTOOL_FALSE))) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (record.kind == CIR_STACK_VALUE &&
+      cir_type_is_value_scalar(context, expression->type) == CTOOL_FALSE) {
+    return cir_unsupported_type(context, &expression->location);
   }
   status = cir_append_instruction(
       context, CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS, expression->type,
@@ -4390,7 +4436,26 @@ static ctool_status_t cir_lower_member(
   if (status != CTOOL_OK) {
     return status;
   }
-  return cir_push(context, CIR_STACK_ADDRESS, expression->type);
+  status = cir_push(context, CIR_STACK_ADDRESS, expression->type);
+  if (status != CTOOL_OK || record.kind == CIR_STACK_ADDRESS) {
+    return status;
+  }
+  status = cir_pop(context, &record);
+  if (status != CTOOL_OK || record.kind != CIR_STACK_ADDRESS ||
+      record.type != expression->type) {
+    return status == CTOOL_OK
+               ? cir_invalid_unit(context, &expression->location)
+               : status;
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_LOAD, expression->type,
+      expression->type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u,
+      &expression->location, &expression->physical_location,
+      (ctool_u32 *)0);
+  return status == CTOOL_OK
+             ? cir_push(context, CIR_STACK_VALUE, expression->type)
+             : status;
 }
 
 static ctool_status_t cir_lower_conditional(
@@ -5639,9 +5704,6 @@ static ctool_status_t cir_require_initializable_aggregate(
           node->record_kind > CTOOL_C_RECORD_CLASS) {
         invalid = CTOOL_TRUE;
         continue;
-      }
-      if (node->record_kind != CTOOL_C_RECORD_STRUCT) {
-        unsupported = CTOOL_TRUE;
       }
       if (node->record_complete == CTOOL_FALSE ||
           node->first_member > context->unit->graph.member_count ||

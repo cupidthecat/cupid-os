@@ -15807,6 +15807,7 @@ static int run_pointer_comparisons(const char *host_root) {
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_expression_t *invalid_void_expressions = NULL;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t wide_cast_ir;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   ctool_u32 comparison_expression = CTOOL_C_AST_NONE;
@@ -15907,12 +15908,15 @@ static int run_pointer_comparisons(const char *host_root) {
           "CupidC IR lowering received an invalid translation unit",
           "malformed void pointer order") ||
       !parse_source(job, "/wide-pointer-cast.c", wide_pointer_cast_source,
-                    &wide_cast_unit) ||
-      !expect_ir_failure_preserves_unit(
-          job, &wide_cast_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "wide integer pointer cast")) {
+                    &wide_cast_unit)) {
+    goto cleanup;
+  }
+  (void)memset(&wide_cast_ir, 0xa5, sizeof(wide_cast_ir));
+  status = ctool_c_lower_ir(job, &wide_cast_unit, &wide_cast_ir);
+  if (!check_status(status, CTOOL_OK, "wide integer pointer cast") ||
+      wide_cast_ir.function_count != 1u ||
+      wide_cast_ir.instruction_count == 0u) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   passed = 1;
@@ -25990,6 +25994,219 @@ cleanup:
   return 1;
 }
 
+static const ctool_c_type_node_t *frontier_unwrapped_type(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type) {
+  ctool_u32 traversed = 0u;
+  while (unit != NULL && type < unit->graph.type_count) {
+    const ctool_c_type_node_t *node = &unit->graph.types[type];
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      return node;
+    }
+    if (traversed++ >= unit->graph.type_count) {
+      return NULL;
+    }
+    type = node->referenced_type;
+  }
+  return NULL;
+}
+
+static int validate_self_host_frontier_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 null_function_conversions = 0u;
+  ctool_u32 pointer_widenings = 0u;
+  ctool_u32 pointer_narrowings = 0u;
+  ctool_u32 snapshot_member_loads = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->functions == NULL ||
+      ir->instructions == NULL || ir->function_count != 8u) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    const ctool_c_type_node_t *input =
+        frontier_unwrapped_type(unit, instruction->input_type);
+    const ctool_c_type_node_t *output =
+        frontier_unwrapped_type(unit, instruction->type);
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        instruction->conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
+        input != NULL && input->kind == CTOOL_C_TYPE_SIGNED_INT &&
+        output != NULL && output->kind == CTOOL_C_TYPE_POINTER) {
+      const ctool_c_type_node_t *referent =
+          frontier_unwrapped_type(unit, output->referenced_type);
+      if (referent != NULL && referent->kind == CTOOL_C_TYPE_FUNCTION) {
+        null_function_conversions++;
+      }
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+        input != NULL && output != NULL) {
+      if (input->kind == CTOOL_C_TYPE_POINTER &&
+          (output->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+           output->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG)) {
+        pointer_widenings++;
+      }
+      if ((input->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG ||
+           input->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG) &&
+          output->kind == CTOOL_C_TYPE_POINTER) {
+        pointer_narrowings++;
+      }
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS &&
+        index + 1u < ir->instruction_count &&
+        ir->instructions[index + 1u].kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+        instruction->location.line == 13u &&
+        ir->instructions[index + 1u].location.line == 13u) {
+      snapshot_member_loads++;
+    }
+  }
+  return null_function_conversions == 1u && pointer_widenings == 2u &&
+                 pointer_narrowings == 2u && snapshot_member_loads == 1u
+             ? 1
+             : 0;
+}
+
+static int run_self_host_frontier(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned long long uptr_t;\n"
+      "typedef signed long long sptr_t;\n"
+      "typedef int (*callback_t)(int);\n"
+      "struct nested { union { uptr_t wide; int lane[2]; } detail; int tail; };\n"
+      "struct pair { int first; uptr_t second; };\n"
+      "struct nested copy_nested(struct nested value) {\n"
+      "  struct nested copy = value; copy = value; return copy;\n"
+      "}\n"
+      "struct pair return_pair(struct pair value) { return value; }\n"
+      "int callback_present(callback_t callback) {\n"
+      "  return callback != (int (*)(int))0;\n"
+      "}\n"
+      "int returned_member(struct pair value) { return return_pair(value).first; }\n"
+      "uptr_t pointer_bits(void *pointer) { return (uptr_t)pointer; }\n"
+      "void *bits_pointer(uptr_t bits) { return (void *)bits; }\n"
+      "sptr_t signed_pointer_bits(void *pointer) { return (sptr_t)pointer; }\n"
+      "void *signed_bits_pointer(sptr_t bits) { return (void *)bits; }\n";
+  static const char nonzero_callback[] =
+      "typedef int (*callback_t)(int);\n"
+      "callback_t bad(void) { return (callback_t)1; }\n";
+  static const char computed_zero_callback[] =
+      "typedef int (*callback_t)(int);\n"
+      "callback_t bad(void) { return (callback_t)(0 + 0); }\n";
+  static const char function_pointer_wide[] =
+      "typedef unsigned long long uptr_t;\n"
+      "typedef int (*callback_t)(int);\n"
+      "uptr_t bad(callback_t callback) { return (uptr_t)callback; }\n";
+  static const char wide_function_pointer[] =
+      "typedef unsigned long long uptr_t;\n"
+      "typedef int (*callback_t)(int);\n"
+      "callback_t bad(uptr_t bits) { return (callback_t)bits; }\n";
+  static const char top_union[] =
+      "union value { int integer; unsigned long long wide; };\n"
+      "union value bad(union value input) { return input; }\n";
+  static const char aggregate_rvalue_member[] =
+      "struct leaf { int value; };\n"
+      "struct branch { struct leaf child; };\n"
+      "struct branch return_branch(struct branch value) { return value; }\n"
+      "struct leaf bad(struct branch value) {\n"
+      "  return return_branch(value).child;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t negative;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/self-host-frontier.c", source, &unit)) {
+    goto cleanup;
+  }
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "self-host frontier lowering") ||
+      !validate_self_host_frontier_ir(&unit, &first_ir)) {
+    (void)fprintf(stderr, "self-host frontier IR differs\n");
+    goto cleanup;
+  }
+  fingerprint = ir_instruction_fingerprint(&first_ir);
+  if (first_ir.instruction_count != 43u ||
+      fingerprint != UINT64_C(0x8daa29582b417001)) {
+    (void)fprintf(stderr,
+                  "self-host frontier IR inventory differs: "
+                  "instructions=%u fingerprint=%016llx\n",
+                  first_ir.instruction_count,
+                  (unsigned long long)fingerprint);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/nonzero-callback.c", nonzero_callback,
+                    &negative) ||
+      !expect_ir_failure_preserves_unit(
+          job, &negative, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "nonzero function pointer cast") ||
+      !parse_source(job, "/computed-zero-callback.c",
+                    computed_zero_callback, &negative) ||
+      !expect_ir_failure_preserves_unit(
+          job, &negative, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "computed zero function pointer cast") ||
+      !parse_source(job, "/function-pointer-wide.c",
+                    function_pointer_wide, &negative) ||
+      !expect_ir_failure_preserves_unit(
+          job, &negative, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "function pointer wide cast") ||
+      !parse_source(job, "/wide-function-pointer.c",
+                    wide_function_pointer, &negative) ||
+      !expect_ir_failure_preserves_unit(
+          job, &negative, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "wide function pointer cast") ||
+      !parse_source(job, "/top-union.c", top_union, &negative) ||
+      !expect_ir_failure_preserves_unit(
+          job, &negative, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports cdecl functions with represented "
+          "scalar or structure parameters and void, scalar, or structure "
+          "results",
+          "top-level union value") ||
+      !parse_source(job, "/aggregate-rvalue-member.c",
+                    aggregate_rvalue_member, &negative) ||
+      !expect_ir_failure_preserves_unit(
+          job, &negative, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "aggregate member from structure rvalue")) {
+    goto cleanup;
+  }
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "self-host frontier recovery") ||
+      ir_instruction_fingerprint(&recovered_ir) != fingerprint ||
+      !validate_self_host_frontier_ir(&unit, &recovered_ir)) {
+    (void)fprintf(stderr, "self-host frontier recovery differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("self-host-frontier: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -26113,6 +26330,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-mutations") == 0) {
     return run_wide_mutations(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "self-host-frontier") == 0) {
+    return run_self_host_frontier(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -26130,7 +26350,7 @@ int main(int argc, char **argv) {
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"
-                "wide-objects|wide-mutations "
+                "wide-objects|wide-mutations|self-host-frontier "
                 "HOST_ROOT\n");
   return 2;
 }

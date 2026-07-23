@@ -18200,13 +18200,23 @@ static int wide_oracle_execute_arguments(
       continue;
     }
     if (instruction->mnemonic == CTOOL_X86_MN_RET &&
-        instruction->operand_count == 0u) {
+        (instruction->operand_count == 0u ||
+         (instruction->operand_count == 1u &&
+          instruction->operands[0].kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+          instruction->operands[0].as.value.kind ==
+              CTOOL_X86_VALUE_CONSTANT &&
+          instruction->operands[0].as.value.bits <= 0xffffu))) {
+      ctool_u32 cleanup =
+          instruction->operand_count == 0u
+              ? 0u
+              : (ctool_u32)instruction->operands[0].as.value.bits;
       stack_pointer = machine.registers[NARROW_ORACLE_ESP];
       if (!narrow_oracle_read_memory(&machine, stack_pointer, 32u,
-                                     &target)) {
+                                     &target) ||
+          cleanup > NARROW_ORACLE_MEMORY_SIZE - stack_pointer - 4u) {
         return 0;
       }
-      machine.registers[NARROW_ORACLE_ESP] = stack_pointer + 4u;
+      machine.registers[NARROW_ORACLE_ESP] = stack_pointer + 4u + cleanup;
       if (call_depth == 0u) {
         if (target != WIDE_ORACLE_RETURN_SENTINEL) {
           return 0;
@@ -21700,8 +21710,8 @@ static int validate_floating_transport_object(
             ? 0u
             : (unsigned int)structure_text_fingerprint(text->contents),
         bss == NULL ? 0u : (unsigned int)bss->size,
-        (unsigned int)object->symbol_count,
-        (unsigned int)object->relocation_count);
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
     return 0;
   }
   if (!validate_float_promotion_function(
@@ -22231,8 +22241,8 @@ static int validate_floating_arithmetic_object(
             ? 0u
             : (unsigned int)structure_text_fingerprint(text->contents),
         bss == NULL ? 0u : (unsigned int)bss->size,
-        (unsigned int)object->symbol_count,
-        (unsigned int)object->relocation_count);
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
     return 0;
   }
   for (index = 0u;
@@ -23408,6 +23418,386 @@ cleanup:
   return 1;
 }
 
+static int validate_active_self_host_frontier_objects(
+    const char *host_root) {
+  static const char *const paths[] = {
+      "/toolchain/ctool.c",          "/toolchain/cupiddis.c",
+      "/toolchain/cupidld.c",        "/toolchain/cupidobj.c",
+      "/toolchain/cupidc_type.c",    "/toolchain/cupidc_pp.c",
+      "/toolchain/cupidc_ir.c",      "/toolchain/cupidc_emit.c",
+      "/toolchain/cupidc_frontend.c", "/toolchain/cupidasm.c",
+      "/toolchain/elf32.c",           "/toolchain/x86.c",
+      "/kernel/lang/as_elf.c"};
+  static const ctool_u32 expected_functions[] = {
+      65u, 68u, 66u, 14u, 31u, 143u, 184u, 161u, 306u, 81u, 37u, 59u,
+      5u};
+  static const ctool_u32 expected_text_sizes[] = {
+      42118u, 76860u, 85252u, 15032u, 42212u,
+      188654u, 346399u, 276097u, 587590u, 139612u, 70368u, 77981u,
+      7982u};
+  static const ctool_u32 expected_object_sizes[] = {
+      46720u, 89320u, 99772u, 18160u, 49484u,
+      224176u, 370400u, 295036u, 695096u, 157796u, 79348u, 128364u,
+      9164u};
+  static const ctool_u32 expected_text_fingerprints[] = {
+      0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
+      0xbcb58121u, 0x999f97b7u, 0x94f54f57u,
+      0x69c99aafu, 0x44636458u, 0x89042ed3u, 0xe06a4183u,
+      0x34558a49u, 0x8936537du, 0x8774de7du};
+  ctool_u32 index;
+  for (index = 0u; index <
+                       (ctool_u32)(sizeof(paths) / sizeof(paths[0]));
+       index++) {
+    ctool_host_adapter_t adapter;
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_job_config_t config;
+    ctool_job_t *job = NULL;
+    ctool_buffer_t *first = NULL;
+    ctool_buffer_t *second = NULL;
+    ctool_path_t path;
+    ctool_source_t source;
+    ctool_c_pp_macro_action_t pointer_width;
+    ctool_c_pp_include_root_t include_roots[2];
+    ctool_c_pp_request_t pp_request;
+    ctool_c_pp_result_t tape;
+    ctool_c_parse_request_t parse_request;
+    ctool_c_translation_unit_t unit;
+    ctool_source_t object_source;
+    ctool_elf32_object_t object;
+    const ctool_elf32_section_t *text = NULL;
+    ctool_bytes_t first_bytes;
+    ctool_bytes_t second_bytes;
+    ctool_status_t status;
+    int failed = 1;
+    limits.arena_bytes = 256u * 1024u * 1024u;
+    status = ctool_host_adapter_init(&adapter, host_root);
+    if (status != CTOOL_OK) {
+      (void)fprintf(stderr, "%s: frontier host adapter failed: %s\n",
+                    paths[index], ctool_status_name(status));
+      return 0;
+    }
+    config = ctool_host_job_config(&adapter, limits);
+    status = ctool_job_open(&config, &job);
+    if (status != CTOOL_OK) {
+      (void)fprintf(stderr, "%s: frontier job open failed: %s\n",
+                    paths[index], ctool_status_name(status));
+      return 0;
+    }
+    path.text = ctool_string(paths[index]);
+    (void)memset(&source, 0xa5, sizeof(source));
+    status = ctool_job_load_source(job, &path, &source);
+    (void)memset(&pointer_width, 0, sizeof(pointer_width));
+    pointer_width.kind = CTOOL_C_PP_MACRO_DEFINE;
+    pointer_width.name = ctool_string("__SIZEOF_POINTER__");
+    pointer_width.replacement = ctool_string("8");
+    (void)memset(include_roots, 0, sizeof(include_roots));
+    include_roots[0].directory.text = ctool_string("/toolchain");
+    include_roots[0].forms =
+        CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+    include_roots[1].directory.text = ctool_string("/kernel/lang");
+    include_roots[1].forms =
+        CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+    (void)memset(&pp_request, 0, sizeof(pp_request));
+    pp_request.mode = CTOOL_C_PP_MODE_C11;
+    pp_request.hosted_environment = CTOOL_TRUE;
+    pp_request.include_roots = include_roots;
+    pp_request.include_root_count =
+        index + 1u == (ctool_u32)(sizeof(paths) / sizeof(paths[0])) ? 2u
+                                                                    : 1u;
+    pp_request.macro_actions = &pointer_width;
+    pp_request.macro_action_count = 1u;
+    (void)memset(&tape, 0xa5, sizeof(tape));
+    if (status == CTOOL_OK) {
+      status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+    }
+    (void)memset(&parse_request, 0, sizeof(parse_request));
+    parse_request.mode = CTOOL_C_PP_MODE_C11;
+    (void)memset(&unit, 0xa5, sizeof(unit));
+    if (status == CTOOL_OK) {
+      status = ctool_c_parse(job, &tape, &parse_request, &unit);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                     &first);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                     &second);
+    }
+    if (status == CTOOL_OK &&
+        expect_object_success_preserves_unit(
+            job, &unit, first, "active self-host frontier object") &&
+        expect_object_success_preserves_unit(
+            job, &unit, second, "repeat active self-host frontier object")) {
+      first_bytes = ctool_buffer_view(first);
+      second_bytes = ctool_buffer_view(second);
+      object_source.path.text = ctool_string("/active-frontier.o");
+      object_source.contents = first_bytes;
+      (void)memset(&object, 0xa5, sizeof(object));
+      status = ctool_elf32_read(job, &object_source, &object);
+      text = status == CTOOL_OK ? find_section(&object, ".text") : NULL;
+      if (status == CTOOL_OK && text != NULL &&
+          unit.function_definition_count == expected_functions[index] &&
+          text->contents.size == expected_text_sizes[index] &&
+          first_bytes.size == expected_object_sizes[index] &&
+          structure_text_fingerprint(text->contents) ==
+              expected_text_fingerprints[index] &&
+          first_bytes.size == second_bytes.size &&
+          memcmp(first_bytes.data, second_bytes.data,
+                 (size_t)first_bytes.size) == 0) {
+        failed = 0;
+      }
+    }
+    if (failed != 0) {
+      (void)fprintf(stderr,
+                    "%s: active self-host frontier object differs: %s "
+                    "functions=%u text=%u object=%u fingerprint=%08x\n",
+                    paths[index], ctool_status_name(status),
+                    unit.function_definition_count,
+                    text == NULL ? 0u : text->contents.size,
+                    first == NULL ? 0u : ctool_buffer_view(first).size,
+                    text == NULL
+                        ? 0u
+                        : structure_text_fingerprint(text->contents));
+      (void)ctool_job_render_diagnostics(job);
+    }
+    if (second != NULL) {
+      ctool_buffer_close(second);
+    }
+    if (first != NULL) {
+      ctool_buffer_close(first);
+    }
+    ctool_job_close(job);
+    if (failed != 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_self_host_frontier_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_u32 callback_null[] = {0u};
+  const ctool_u32 callback_present[] = {1u};
+  const ctool_u32 pointer_bits[] = {0x89abcdefu};
+  const ctool_u32 wide_bits[] = {0x89abcdefu, 0x81234567u};
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 871u ||
+      structure_text_fingerprint(text->contents) != 0x2cca0718u ||
+      object->symbol_count != 11u || object->relocation_count != 2u) {
+    (void)fprintf(
+        stderr,
+        "self-host frontier object inventory differs: text=%u "
+        "fingerprint=%08x symbols=%u relocations=%u\n",
+        text == NULL ? 0u : text->contents.size,
+        text == NULL ? 0u : structure_text_fingerprint(text->contents),
+        object == NULL ? 0u : object->symbol_count,
+        object == NULL ? 0u : object->relocation_count);
+    return 0;
+  }
+  return expect_wide_oracle_low_result(
+             job, object, text, "nested_lane", NULL, 0u, 0x55667788u,
+             "nested union structure copy") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "snapshot_member", NULL, 0u, 0x12345678u,
+             "structure snapshot member read") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "callback_present", callback_null, 1u, 0u,
+             "null function pointer comparison") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "callback_present", callback_present, 1u, 1u,
+             "non-null function pointer comparison") &&
+         expect_wide_oracle_result(
+             job, object, text, "pointer_bits", pointer_bits, 1u,
+             0x89abcdefu, 0u, "object pointer widening") &&
+         expect_wide_oracle_result(
+             job, object, text, "signed_pointer_bits", pointer_bits, 1u,
+             0x89abcdefu, 0u, "signed object pointer widening") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "bits_pointer", wide_bits, 2u,
+             0x89abcdefu, "wide integer pointer narrowing") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "signed_bits_pointer", wide_bits, 2u,
+             0x89abcdefu, "signed wide integer pointer narrowing")
+             ? 1
+             : 0;
+}
+
+static int run_self_host_frontier_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned long long uptr_t;\n"
+      "typedef signed long long sptr_t;\n"
+      "typedef int (*callback_t)(int);\n"
+      "struct nested { union { uptr_t wide; int lane[2]; } detail; int tail; };\n"
+      "struct pair { int first; uptr_t second; };\n"
+      "struct nested copy_nested(struct nested value) {\n"
+      "  struct nested copy = value; copy = value; return copy;\n"
+      "}\n"
+      "struct pair return_pair(struct pair value) { return value; }\n"
+      "int callback_present(callback_t callback) {\n"
+      "  return callback != (int (*)(int))0;\n"
+      "}\n"
+      "int returned_member(struct pair value) { return return_pair(value).first; }\n"
+      "uptr_t pointer_bits(void *pointer) { return (uptr_t)pointer; }\n"
+      "void *bits_pointer(uptr_t bits) { return (void *)bits; }\n"
+      "sptr_t signed_pointer_bits(void *pointer) { return (sptr_t)pointer; }\n"
+      "void *signed_bits_pointer(sptr_t bits) { return (void *)bits; }\n"
+      "int nested_lane(void) {\n"
+      "  struct nested value; struct nested copy;\n"
+      "  value.detail.wide = 0x1122334455667788ULL; value.tail = 7;\n"
+      "  copy = value; return copy.detail.lane[0];\n"
+      "}\n"
+      "int snapshot_member(void) {\n"
+      "  struct pair value; value.first = 0x12345678; value.second = 9;\n"
+      "  return returned_member(value);\n"
+      "}\n";
+  static const char nonzero_callback[] =
+      "typedef int (*callback_t)(int);\n"
+      "callback_t bad(void) { return (callback_t)1; }\n";
+  static const char computed_zero_callback[] =
+      "typedef int (*callback_t)(int);\n"
+      "callback_t bad(void) { return (callback_t)(0 + 0); }\n";
+  static const char function_pointer_wide[] =
+      "typedef unsigned long long uptr_t;\n"
+      "typedef int (*callback_t)(int);\n"
+      "uptr_t bad(callback_t callback) { return (uptr_t)callback; }\n";
+  static const char wide_function_pointer[] =
+      "typedef unsigned long long uptr_t;\n"
+      "typedef int (*callback_t)(int);\n"
+      "callback_t bad(uptr_t bits) { return (callback_t)bits; }\n";
+  static const char top_union[] =
+      "union value { int integer; unsigned long long wide; };\n"
+      "union value bad(union value input) { return input; }\n";
+  static const char aggregate_rvalue_member[] =
+      "struct leaf { int value; };\n"
+      "struct branch { struct leaf child; };\n"
+      "struct branch return_branch(struct branch value) { return value; }\n"
+      "struct leaf bad(struct branch value) {\n"
+      "  return return_branch(value).child;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t negative;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&negative, 0, sizeof(negative));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/self-host-frontier-object.c", source, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "self-host frontier object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "self-host frontier object")) {
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  object_source.path.text = ctool_string("/self-host-frontier-object.o");
+  object_source.contents = first_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read self-host frontier object") ||
+      !validate_self_host_frontier_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/nonzero-callback-object.c", nonzero_callback,
+                    &negative) ||
+      !expect_object_failure_preserves_unit(
+          job, &negative, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "nonzero function pointer object cast") ||
+      !parse_source(job, "/computed-zero-callback-object.c",
+                    computed_zero_callback, &negative) ||
+      !expect_object_failure_preserves_unit(
+          job, &negative, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "computed zero function pointer object cast") ||
+      !parse_source(job, "/function-pointer-wide-object.c",
+                    function_pointer_wide, &negative) ||
+      !expect_object_failure_preserves_unit(
+          job, &negative, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "function pointer wide object cast") ||
+      !parse_source(job, "/wide-function-pointer-object.c",
+                    wide_function_pointer, &negative) ||
+      !expect_object_failure_preserves_unit(
+          job, &negative, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "wide function pointer object cast") ||
+      !parse_source(job, "/top-union-object.c", top_union, &negative) ||
+      !expect_object_failure_preserves_unit(
+          job, &negative, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI,
+          "CupidC IR lowering supports cdecl functions with represented "
+          "scalar or structure parameters and void, scalar, or structure "
+          "results",
+          "top-level union object value") ||
+      !parse_source(job, "/aggregate-rvalue-member-object.c",
+                    aggregate_rvalue_member, &negative) ||
+      !expect_object_failure_preserves_unit(
+          job, &negative, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "aggregate member from structure rvalue object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered self-host frontier object")) {
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      !validate_active_self_host_frontier_objects(host_root)) {
+    (void)fprintf(stderr, "self-host frontier object is not deterministic\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("self-host-frontier: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -23517,6 +23907,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "wide-mutations") == 0) {
     return run_wide_mutation_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "self-host-frontier") == 0) {
+    return run_self_host_frontier_object(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
@@ -23532,7 +23925,8 @@ int main(int argc, char **argv) {
                 "variadic-callees|wide-variadics|floating-transport|"
                 "floating-arithmetic|"
                 "wide-returns|"
-                "wide-conditions|wide-objects|wide-mutations "
+                "wide-conditions|wide-objects|wide-mutations|"
+                "self-host-frontier "
                 "HOST_ROOT\n");
   return 2;
 }

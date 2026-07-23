@@ -31,8 +31,14 @@ ctool_status_t ctool_c_emit_object(
  * Eight-byte integer constants, loads, conversions, and operation results use
  * private frame snapshots. The emitter widens represented signed or unsigned
  * integers, narrows wide values to represented integer lanes, and normalizes
- * wide Boolean conversions from both words. Same-width signed-to-unsigned
- * conversion and GNU wide-enum promotion preserve the snapshot bits. It also
+ * wide Boolean conversions from both words. An object pointer widens with a
+ * zero high word, and a wide integer converted to an object pointer keeps its
+ * low word. Function pointers do not use that path. A direct four-byte
+ * integer literal zero may form a null function pointer. Same-width
+ * signed-to-unsigned conversion and GNU wide-enum promotion preserve the
+ * snapshot bits. Scalar
+ * members of structure-result snapshots use the ordinary member address and
+ * typed load path. Structure copies retain nested union bytes. It also
  * emits two-word addition, subtraction, multiplication, division, remainder,
  * unary negate, complement, left and signed or unsigned right shifts, AND, OR,
  * XOR, comparisons, logical operations, conditional selection, structured

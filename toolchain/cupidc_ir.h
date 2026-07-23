@@ -63,7 +63,9 @@ typedef struct {
    * UNARY retains its operand type. BINARY retains its left operand type;
    * supported wide shifts validate their represented count before the
    * instruction is published. POINTER_BINARY retains its left operand type.
-   * ARRAY_TO_POINTER retains its array operand type.
+   * ARRAY_TO_POINTER retains its array operand type. MEMBER_ADDRESS may
+   * consume a record-object address or an owned structure-value snapshot.
+   * A scalar member of a snapshot is read by the following typed LOAD.
    * DUPLICATE_VALUE retains the duplicated value type. DUPLICATE_ADDRESS
    * retains the duplicated object's type. DEREFERENCE retains its pointer
    * operand type. ADDRESS_OF retains its object or function operand type.
@@ -78,8 +80,9 @@ typedef struct {
    * consumed condition type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
-  /* CONVERT uses NONE for an explicit cast and the exact conversion kind for
-   * an implicit conversion. */
+  /* CONVERT uses NONE for an explicit cast, except that a direct four-byte
+   * integer literal zero cast to a represented function pointer records
+   * NULL_POINTER. Implicit conversions retain their exact conversion kind. */
   ctool_c_conversion_kind_t conversion;
   /* CALL_DIRECT and CALL_INDIRECT retain the actual argument count after
    * named argument conversions and default argument promotions. Other

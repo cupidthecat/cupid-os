@@ -382,6 +382,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "wide-mutations: ok\n")
 
+    def test_self_host_frontier_values_emit_execute_and_recover_together(self):
+        result = subprocess.run(
+            [str(self.contract_path), "self-host-frontier", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "self-host-frontier: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

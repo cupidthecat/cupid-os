@@ -588,10 +588,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * a block type name or record member, and a new enum definition is represented
  * in either context. Block declaration attributes, union or Cupid class
  * initializer lists, and static assertions remain explicit boundaries.
- * Chained, promoted, or overriding designators, union lists, arithmetic and
- * casts on static addresses, floating constants, static-data allocation, and
- * relocation lowering remain pending. Comma
- * expressions, floating arithmetic and non-void floating conversions,
+ * Direct or parenthesized ordinary string literals can initialize compatible
+ * static character or void pointers through their implicit array decay and
+ * pointer qualification. Chained, promoted, or overriding designators, union
+ * lists, arithmetic and casts on static addresses, floating constants,
+ * static-data allocation, and relocation lowering remain pending. Comma
+ * expressions, mixed-kind floating arithmetic and general non-void floating
+ * conversions,
  * universal-character/non-ordinary literals, `long double` call values,
  * non-scalar arguments without declared parameter types, code generation,
  * object emission, and Cupid #exe execution remain later frontend work and are

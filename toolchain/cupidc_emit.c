@@ -5739,6 +5739,14 @@ static ctool_status_t cemit_emit_ir_instruction(
                  (cemit_ir_type_is_represented_integer(
                       context, ir_instruction->input_type) == CTOOL_TRUE &&
                   cemit_ir_type_is_represented_integer(
+                      context, ir_instruction->type) == CTOOL_TRUE) ||
+                 (cemit_ir_type_is_i32_pointer(
+                      context, ir_instruction->input_type) == CTOOL_TRUE &&
+                  cemit_ir_type_is_wide_integer(
+                      context, ir_instruction->type) == CTOOL_TRUE) ||
+                 (cemit_ir_type_is_wide_integer(
+                      context, ir_instruction->input_type) == CTOOL_TRUE &&
+                  cemit_ir_type_is_i32_pointer(
                       context, ir_instruction->type) == CTOOL_TRUE)) &&
                 cemit_ir_type_is_i32_function_pointer(
                     context, ir_instruction->input_type) == CTOOL_FALSE &&
@@ -5794,15 +5802,35 @@ static ctool_status_t cemit_emit_ir_instruction(
       const ctool_c_type_layout_t *source_layout =
           &context->unit->layout.types[ir_instruction->input_type];
       return cemit_x86_push_widened_integer_snapshot(
-          context, value_temporary_offset, source_layout->is_signed);
+          context, value_temporary_offset,
+          cemit_ir_type_is_i32_pointer(
+              context, ir_instruction->input_type) == CTOOL_TRUE
+              ? CTOOL_FALSE
+              : source_layout->is_signed);
     }
     if (source_wide == CTOOL_TRUE && target_wide == CTOOL_FALSE) {
       const ctool_c_type_node_t *target =
           cemit_unwrapped_type(context, ir_instruction->type);
       if (target == (const ctool_c_type_node_t *)0 ||
-          cemit_ir_type_is_represented_integer(
-              context, ir_instruction->type) == CTOOL_FALSE) {
+          (cemit_ir_type_is_represented_integer(
+               context, ir_instruction->type) == CTOOL_FALSE &&
+           cemit_ir_type_is_i32_pointer(
+               context, ir_instruction->type) == CTOOL_FALSE)) {
         return CTOOL_ERR_INTERNAL;
+      }
+      if (cemit_ir_type_is_i32_pointer(
+              context, ir_instruction->type) == CTOOL_TRUE) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+        if (status == CTOOL_OK) {
+          status = cemit_x86_load_register_at_register(
+              context, 0u, 1u, 0u);
+        }
+        if (status == CTOOL_OK) {
+          status = cemit_x86_one_register(
+              context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+        }
+        return status;
       }
       return cemit_x86_push_narrowed_wide_integer(
           context, ir_instruction->type,

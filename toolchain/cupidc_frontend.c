@@ -8895,6 +8895,76 @@ static ctool_status_t cfront_extract_static_binding_address(
   }
 }
 
+static ctool_status_t cfront_extract_static_string_address(
+    cfront_context_t *context, const cfront_expression_value_t *value,
+    ctool_bytes_t *bytes_out, ctool_bool *matched_out) {
+  ctool_bool has_array_decay = CTOOL_FALSE;
+  ctool_u32 expression_index = value->expression;
+  ctool_u32 traversed = 0u;
+  *bytes_out = ctool_bytes((const void *)0, 0u);
+  *matched_out = CTOOL_FALSE;
+  for (;;) {
+    ctool_c_expression_t expression;
+    ctool_u32 child;
+    ctool_status_t status = cfront_vector_get(
+        &context->expressions, expression_index, &expression);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "static string address expression metadata is unavailable");
+    }
+    traversed++;
+    if (traversed > context->expressions.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "static string address expression graph is cyclic");
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+      if (expression.conversion == CTOOL_C_CONVERSION_ARRAY_TO_POINTER) {
+        has_array_decay = CTOOL_TRUE;
+      } else if (expression.conversion !=
+                     CTOOL_C_CONVERSION_QUALIFICATION &&
+                 expression.conversion != CTOOL_C_CONVERSION_POINTER) {
+        return CTOOL_OK;
+      }
+      if (expression.child_count != 1u ||
+          expression.first_child >= context->expression_children.count) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static string address conversion child is unavailable");
+      }
+      status = cfront_vector_get(&context->expression_children,
+                                 expression.first_child, &child);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static string address conversion child is unavailable");
+      }
+      expression_index = child;
+      continue;
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_STRING &&
+        has_array_decay == CTOOL_TRUE) {
+      if (expression.string_bytes.data == (const ctool_u8 *)0 ||
+          expression.string_bytes.size == 0u ||
+          expression.string_bytes.data[expression.string_bytes.size - 1u] !=
+              0u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static string address payload is unavailable");
+      }
+      *bytes_out = expression.string_bytes;
+      *matched_out = CTOOL_TRUE;
+    }
+    return CTOOL_OK;
+  }
+}
+
 static ctool_bool cfront_static_address_add_elements(
     ctool_i32 base_addend, cfront_integer_t elements, ctool_u32 element_size,
     ctool_bool subtract, ctool_i32 *addend_out) {
@@ -12443,7 +12513,10 @@ static ctool_status_t cfront_parse_static_initializer(
       ctool_u32 child_mark = context->expression_children.count;
       ctool_u32 address_reference = CTOOL_C_AST_NONE;
       ctool_i32 address_addend = 0;
+      ctool_bytes_t address_string =
+          ctool_bytes((const void *)0, 0u);
       ctool_bool has_binding_address = CTOOL_FALSE;
+      ctool_bool has_string_address = CTOOL_FALSE;
       ctool_bool source_is_integer = CTOOL_FALSE;
       cfront_integer_type_t source_integer;
       cfront_zero(&pointer_value, (ctool_u32)sizeof(pointer_value));
@@ -12474,11 +12547,28 @@ static ctool_status_t cfront_parse_static_initializer(
               &pointer_value);
         }
         if (status == CTOOL_OK) {
+          status = cfront_extract_static_string_address(
+              context, &pointer_value, &address_string,
+              &has_string_address);
+        }
+        if (status == CTOOL_OK && has_string_address == CTOOL_TRUE) {
+          ctool_c_initializer_t initializer;
+          cfront_initializer_init(&initializer,
+                                  CTOOL_C_INITIALIZER_ADDRESS,
+                                  *object_type_io, value_token);
+          initializer.string_bytes = address_string;
+          initializer.address_kind =
+              CTOOL_C_INITIALIZER_ADDRESS_STRING;
+          initializer.address_addend = 0;
+          status = cfront_append_initializer(context, &initializer,
+                                             initializer_out);
+        } else if (status == CTOOL_OK) {
           status = cfront_extract_static_binding_address(
               context, &pointer_value, &address_reference, &address_addend,
               &has_binding_address);
         }
-        if (status == CTOOL_OK && has_binding_address == CTOOL_TRUE) {
+        if (status == CTOOL_OK && has_string_address == CTOOL_FALSE &&
+            has_binding_address == CTOOL_TRUE) {
           ctool_c_initializer_t initializer;
           cfront_initializer_init(&initializer, CTOOL_C_INITIALIZER_ADDRESS,
                                   *object_type_io, value_token);
@@ -12487,7 +12577,8 @@ static ctool_status_t cfront_parse_static_initializer(
           initializer.address_addend = address_addend;
           status = cfront_append_initializer(context, &initializer,
                                              initializer_out);
-        } else if (status == CTOOL_OK) {
+        } else if (status == CTOOL_OK &&
+                   has_string_address == CTOOL_FALSE) {
           status = cfront_emit_failure(
               context, CTOOL_ERR_UNSUPPORTED,
               CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,

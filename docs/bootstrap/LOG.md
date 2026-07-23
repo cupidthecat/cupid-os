@@ -6223,3 +6223,73 @@ The graph for this checkpoint contains 688 active sources, 498 reachable transfo
 CupidDis now represents the active raw mode transitions in one request, but the normal build has not adopted that raw path. GCC or Clang still builds the shared disassembler and the normal C objects. No production object, transform, boot path, source owner, or host dependency moved. The root context and README, capability and migration records, host-dependency record, generated audit, wiki, CTXT manual, and related ADRs describe the new boundary. `TempleOS/` remains untouched reference material.
 
 [Issue #13](https://github.com/cupidthecat/cupid-os/issues/13) remains open because the boot path, complete toolchain ownership transfer, staged self-hosting, and fixed-point bootstrap are unfinished. No issue is ready to close from this increment.
+
+## 2026-07-22: CupidC emits the hermetic Toolchain source frontier
+
+### Decision and active requirement
+
+Five ordinary C forms blocked unchanged Toolchain implementations after preprocessing. Hosted CupidC now copies nested union storage inside a supported structure value, loads a scalar member from an owned structure-result snapshot, accepts a direct four-byte integer literal zero as a represented function-pointer null, converts object pointers to and from signed or unsigned eight-byte integers, and retains a compatible static string address through parentheses and macro expansion.
+
+Nested unions use the existing bytewise structure snapshot. A union used directly as a function parameter or result remains outside the cdecl value ABI. A scalar member from a structure rvalue uses `MEMBER_ADDRESS` followed by the ordinary typed `LOAD`; aggregate member selection from a structure rvalue remains open. The function-pointer rule is limited to a direct four-byte literal zero. Computed zero, nonzero integers, wide integer literals, and conversions between function pointers and wide integers keep their useful unsupported-conversion diagnostic.
+
+An object pointer widened to either wide integer kind writes its i386 word into the low half and zeroes the high half. Conversion back keeps the low word. Function pointers cannot enter this path. The static initializer parser follows only array-to-pointer decay, qualification, and compatible implicit pointer conversion to reach an ordinary string literal. Address arithmetic and explicit casts remain outside the accepted static form.
+
+These capabilities let the exact frontend gate parse every hermetic `HOSTED_TOOLCHAIN_64` implementation file: `ctool.c`, `cupidasm.c`, `cupidc_emit.c`, `cupidc_frontend.c`, `cupidc_ir.c`, `cupidc_pp.c`, `cupidc_type.c`, `cupiddis.c`, `cupidld.c`, `cupidobj.c`, `elf32.c`, and `x86.c`. No active implementation was rewritten around a compiler gap.
+
+The object gate compiles those twelve files plus `kernel/lang/as_elf.c` twice. Every result is read through Cupid's ELF32 reader and compared byte for byte with its repeat emission. The twelve Toolchain files use the exact one-root `HOSTED_TOOLCHAIN_64` profile. The kernel bridge alone adds `/kernel/lang` as its second root. Both profiles define `__SIZEOF_POINTER__` as eight, but the current emitter still produces i386 ELF32. These are deterministic target objects, not host-runnable tools.
+
+Eleven of issue #27's fourteen CupidC, CupidASM, and CupidDis files reach this object gate. `ctool_host.c`, `cupidasm_main.c`, and `cupiddis_main.c` still require external host headers, runtime support, and a host-runnable ABI. The gate does not link a tool, execute one on the host, compare compiler generations, or transfer a production build object. No design question was needed because the unchanged C expressions, existing snapshot model, and i386 ABI fixed the supported boundary. ADR 0081 records the decision and rejected alternatives.
+
+### Contract evidence
+
+The focused IR fixture contains eight functions and 43 instructions with fingerprint `8DAA29582B417001`. It checks nested-union copies, structure-rvalue member access, the literal-zero function-pointer conversion, both object-pointer widening kinds, and both wide-to-pointer narrowing kinds. Malformed and unsupported neighbors fail transactionally, and the same job lowers the positive unit again.
+
+The focused ELF32 object has 871 text bytes with fingerprint `2CCA0718`, eleven symbols including the null symbol, and two relocations. Its decoder-driven oracle checks the copied union lane, a member loaded from a returned structure, null and non-null callback comparisons, zero high words for signed and unsigned pointer widening, low-word recovery for both narrowing directions, argument preservation, and restored stack state.
+
+The active object inventory is fixed below. Each row records functions, text bytes, complete object bytes, and the FNV-1a text fingerprint.
+
+| Source | Functions | Text | Object | Fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/ctool.c` | 65 | 42,118 | 46,720 | `6BFF5A25` |
+| `toolchain/cupiddis.c` | 68 | 76,860 | 89,320 | `5FBBFAF2` |
+| `toolchain/cupidld.c` | 66 | 85,252 | 99,772 | `4CA44A27` |
+| `toolchain/cupidobj.c` | 14 | 15,032 | 18,160 | `BCB58121` |
+| `toolchain/cupidc_type.c` | 31 | 42,212 | 49,484 | `999F97B7` |
+| `toolchain/cupidc_pp.c` | 143 | 188,654 | 224,176 | `94F54F57` |
+| `toolchain/cupidc_ir.c` | 184 | 346,399 | 370,400 | `69C99AAF` |
+| `toolchain/cupidc_emit.c` | 161 | 276,097 | 295,036 | `44636458` |
+| `toolchain/cupidc_frontend.c` | 306 | 587,590 | 695,096 | `89042ED3` |
+| `toolchain/cupidasm.c` | 81 | 139,612 | 157,796 | `E06A4183` |
+| `toolchain/elf32.c` | 37 | 70,368 | 79,348 | `34558A49` |
+| `toolchain/x86.c` | 59 | 77,981 | 128,364 | `8936537D` |
+| `kernel/lang/as_elf.c` | 5 | 7,982 | 9,164 | `8774DE7D` |
+
+Negative contracts reject a nonzero function-pointer cast, a computed-zero cast, each function-pointer and wide-integer direction, a top-level union function value, and an aggregate member selected from a returned structure. Frontend negatives reject an incompatible parenthesized string target and string-address arithmetic. Repeat lowering and emission remain byte-identical after each failure, including the new aggregate-member rejection.
+
+### Cross-host corrections and failed checks
+
+- The first Linux GCC suite stopped before tests because the mixed-mode CupidDis CLI compared a 32-bit capacity with a 64-bit `SIZE_MAX` quotient. GCC proved the comparison could never be true and rejected it under `-Werror`. The corrected allocation computes the byte count and verifies that dividing it by the element size recovers the original capacity. Strict Windows Clang, Linux GCC, and Linux Clang builds all pass afterward.
+- Clang analysis found a dead `root_size` assignment in the relative-path branch of `cupiddis_split_path`. Removing it leaves the allocated `"."` root and returned name unchanged.
+- Clang analysis found an old null dereference in two object-fixture failure messages. Both validators already rejected a null object, but their diagnostic branches read its symbol and relocation counts. The messages now print zero for a missing object.
+- GCC analysis could not derive the non-null option value across `cupiddis_take_value` and flagged `cupiddis_parse_mode`. The helper now validates both arguments directly, matching the neighboring parsing helpers.
+- The first PowerShell-to-WSL analyzer loop lost its Bash source variable and invoked GCC with no input file. It changed nothing and is excluded. Explicit per-file commands supplied the accepted GCC and Clang results.
+
+### Audit and verification
+
+The final graph contains 688 active sources, 498 reachable transforms, 251 feature requirements, and 39 accounted unreachable sources. The `toolchain_contract` cohort has 92,160 checked lines, and `toolchain_core` has 55,714. The canonical active-source digest is `12dd522f0b4377f48dfcd5695b1f0b8c0da852ffece3d2f25488fc17504bfa0b`. The complete audit JSON has SHA-256 `1c71688dd3dc5b1927393fc39b6a885fa655d3cf3d1ab5eb2ad5ca90c6bbf14f`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused and public modules | PASS | The final CupidDis, frontend, IR, and object run passes 141 tests in 71.568 seconds with one expected optional-tool skip. The compiler-only subset passes 127 tests in 35.054 seconds. |
+| Strict hosted builds | PASS AFTER PORTABILITY FIX | Native Windows Clang, Linux GCC, and Linux Clang build and pass every Toolchain selector in separate directories. The Linux GCC run exposed and then accepted the corrected allocation check. |
+| Sanitizers | PASS | Fresh GCC and Clang AddressSanitizer and UndefinedBehaviorSanitizer builds pass the complete hosted suite with leak detection and halt-on-error enabled. Final incremental full-suite reruns after analyzer corrections finish in 306.0 and 215.2 seconds. |
+| Static analysis | PASS AFTER HARDENING | Clang and real GCC `-fanalyzer` compile passes cover the three compiler implementations, CupidDis CLI, and all three expanded C contracts. The findings and wrapper correction are recorded above. Final analysis reports no finding. |
+| Active-source audit | PASS | The generated JSON, Markdown summary, and lexical drift locks reproduce. The graph remains at 688 sources and 498 transforms. |
+| Full repository gate | PASS | The final reviewed candidate passes all 370 tests in 539.352 seconds with one expected skip. Make and the checked audit return in 581 seconds. |
+| Production image | PASS | `make all` rebuilds and stages the complete image in 25.504 seconds. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.795 seconds with the established 0.60-second key timing. |
+| Two-axis review | PASS AFTER FIXES | Specification review added a transactional negative for an aggregate member selected from a returned structure. Standards review made the object gate use each exact preprocessing profile and corrected stale nine-file and floating-boundary text in the canonical matrices. ADR 0081 is included with the implementation. |
+
+This increment expands hosted compiler capability and exact active-source coverage without changing ownership. GCC or Clang still builds the shared compiler, its contracts, the hosted tools, and every normal C object. The root context and README, bootstrap records, generated audit, wiki, CTXT manual, and ADR describe the new boundary. `TempleOS/` remains untouched reference material.
+
+[Issue #25](https://github.com/cupidthecat/cupid-os/issues/25) remains open for the rest of the C and ABI surface and production integration. [Issue #27](https://github.com/cupidthecat/cupid-os/issues/27) remains open for the three hosted adapters, host-runnable tools, linking, staged compiler-on-compiler checks, object and behavior comparison, and the fixed-point bootstrap. No issue is ready to close from this increment.

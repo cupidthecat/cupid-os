@@ -79,6 +79,9 @@ static int cupiddis_parse_u32(const char *text, ctool_u32 *value_out) {
 }
 
 static int cupiddis_parse_mode(const char *text, ctool_x86_mode_t *mode_out) {
+  if (text == (const char *)0 || mode_out == (ctool_x86_mode_t *)0) {
+    return 0;
+  }
   if (strcmp(text, "16") == 0) {
     *mode_out = CTOOL_X86_MODE_16;
     return 1;
@@ -121,6 +124,7 @@ static int cupiddis_append_mode_change(cupiddis_cli_t *cli,
                              ? 4u
                              : cli->mode_range_capacity;
     ctool_dis_raw_range_t *resized;
+    size_t allocation_size;
     while (capacity < required) {
       if (capacity > 2147483647u) {
         capacity = required;
@@ -128,11 +132,13 @@ static int cupiddis_append_mode_change(cupiddis_cli_t *cli,
       }
       capacity *= 2u;
     }
-    if ((size_t)capacity > (size_t)-1 / sizeof(*resized)) {
+    allocation_size = (size_t)capacity * sizeof(*resized);
+    if (capacity != 0u &&
+        allocation_size / sizeof(*resized) != (size_t)capacity) {
       return 0;
     }
     resized = (ctool_dis_raw_range_t *)realloc(
-        cli->mode_ranges, (size_t)capacity * sizeof(*resized));
+        cli->mode_ranges, allocation_size);
     if (resized == (ctool_dis_raw_range_t *)0) {
       return 0;
     }
@@ -329,7 +335,6 @@ static int cupiddis_split_path(const char *path, char **root_out,
     return 0;
   }
   if (separator == 0u && path[0] != '/' && path[0] != '\\') {
-    root_size = 1u;
     root = (char *)malloc(2u);
     if (root == (char *)0) {
       return 0;

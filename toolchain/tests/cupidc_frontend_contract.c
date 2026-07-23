@@ -6748,12 +6748,18 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 184u, 5547u,
-       49059u, 679u, 230u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 161u, 4371u,
-       37584u, 532u, 271u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 305u,
-       12041u, 78092u, 1788u, 1209u, 0u, 0u}};
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 184u, 5580u,
+       49500u, 680u, 230u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 161u, 4381u,
+       37738u, 532u, 271u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 306u,
+       12097u, 78457u, 1797u, 1215u, 0u, 0u},
+      {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
+       19251u, 326u, 186u, 0u, 0u},
+      {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
+       9457u, 143u, 70u, 0u, 1u},
+      {"/toolchain/x86.c", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1683u,
+       11376u, 173u, 15491u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -7390,6 +7396,7 @@ static int run_static_initializers(const char *host_root) {
       "  return folded;\n"
       "}\n";
   static const char pointer_source[] =
+      "#define TABLE_NAME(text) (text)\n"
       "typedef int callback_t(void);\n"
       "typedef struct { int *pointer; callback_t *callback; } holder_t;\n"
       "void static_nulls(void) {\n"
@@ -7404,6 +7411,8 @@ static int run_static_initializers(const char *host_root) {
       "  static int *braced = {{0},};\n"
       "  static int *array[2] = {0, (void *)0};\n"
       "  static holder_t holder = {0, (void *)0};\n"
+      "  static const char *parenthesized = TABLE_NAME(\"name\");\n"
+      "  static const void *parenthesized_void = TABLE_NAME(\"v\");\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"pending static object shadows enumerator",
@@ -7501,6 +7510,19 @@ static int run_static_initializers(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 25u,
        "string initializer is not convertible to pointer target"},
+      {{"parenthesized incompatible string pointer target",
+        "void bad(void) {\n"
+        "  static int *pointer = (\"x\");\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 25u, "static pointer initializer has incompatible type"},
+      {{"parenthesized string address arithmetic boundary",
+        "void bad(void) {\n"
+        "  static const char *pointer = (\"xy\" + 1);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 32u,
+       "static pointer initialization requires a supported address constant"},
       {{"bare pointer array requires a list",
         "void bad(void) {\n"
         "  static const char *names[2] = \"a\";\n"
@@ -12019,7 +12041,7 @@ static int validate_static_pointer_initializer_unit(
   const ctool_c_initializer_t *child;
   const ctool_c_type_node_t *type;
   ctool_u32 index;
-  if (unit->block_binding_count != 11u || unit->initializer_count != 15u ||
+  if (unit->block_binding_count != 13u || unit->initializer_count != 17u ||
       unit->initializer_element_count != 4u ||
       unit->function_definition_count != 1u || unit->expression_count != 0u ||
       unit->expression_child_count != 0u) {
@@ -12079,6 +12101,28 @@ static int validate_static_pointer_initializer_unit(
                     "static-initializers: pointer record leaf differs\n");
       return 1;
     }
+  }
+  binding = find_block_binding(unit, "parenthesized");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      root->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
+      root->address_reference != CTOOL_C_AST_NONE ||
+      root->address_addend != 0 || root->string_bytes.size != 5u ||
+      memcmp(root->string_bytes.data, "name\0", 5u) != 0) {
+    (void)fprintf(stderr,
+                  "static-initializers: parenthesized string differs\n");
+    return 1;
+  }
+  binding = find_block_binding(unit, "parenthesized_void");
+  root = binding == NULL ? NULL : initializer_node(unit, binding->initializer);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      root->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
+      root->address_reference != CTOOL_C_AST_NONE ||
+      root->address_addend != 0 || root->string_bytes.size != 2u ||
+      memcmp(root->string_bytes.data, "v\0", 2u) != 0) {
+    (void)fprintf(stderr,
+                  "static-initializers: parenthesized void string differs\n");
+    return 1;
   }
   return 0;
 }
