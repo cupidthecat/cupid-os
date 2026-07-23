@@ -117,16 +117,24 @@ A complete Cupid C `struct` carried by value through Linear IR. One abstract sta
 _Avoid_: aggregate scalar, borrowed object address
 
 **Hosted source frontier**:
-The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units, the three issue #27 hosted adapters under the checked i386 Linux ABI profile, and `kernel/lang/as_elf.c`. The fourteen-file issue cohort is ten of the hermetic units, the kernel bridge, and the three adapters; the gate also covers the adjacent CupidLD and CupidObj cores. Adapter objects retain exact named imports and checked relocation shapes. One static tracer links `ctool_host.c` with CupidASM startup code and controlled import providers, then runs `ctool_host_adapter_init` on i386 Linux. The frontier still has no runnable tool, bootstrap stage, or production ownership.
+The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units, the three issue #27 hosted adapters under the checked i386 Linux ABI profile, and `kernel/lang/as_elf.c`. The fourteen-file issue cohort is ten of the hermetic units, the kernel bridge, and the three adapters; the gate also covers the adjacent CupidLD and CupidObj cores. Adapter objects retain exact named imports and checked relocation shapes. Complete CupidC-emitted closures for CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. A CupidC driver, compiler generation, checked seed, and production ownership remain outside the frontier.
 _Avoid_: self-hosted toolchain, completed source cohort
 
 **Hosted i386 ABI profile**:
-The deterministic hosted C11 request used to compile an i386 Linux tool adapter. It searches `/toolchain` for project headers and the checked i386 Linux declaration set for angle includes, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. The declarations describe the required C runtime ABI but do not implement or select that runtime.
+The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for project headers and the checked i386 Linux declaration set for angle includes, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. Tool sources use strict C11. The hosted runtime alone enables CupidC's GNU variadic built-ins for formatted diagnostics.
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
+
+**Hosted i386 Linux runtime**:
+The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, strings, `errno`, `getcwd`, and formatted diagnostics through the checked hosted declarations. A CupidC-built runtime contract checks the heap, files, errors, arguments, and string surface under Linux or WSL.
+_Avoid_: general libc, Windows runtime, test-only import providers
 
 **Host adapter link tracer**:
 A static i386 executable used to check the boundary between CupidC objects, CupidASM startup code, and CupidLD. Its `_start` calls `ctool_host_adapter_init`, checks the resulting `{data, size}` fields, and exits through Linux `int 0x80`. Link-only providers resolve the adapter's file and allocation imports but do not implement a usable runtime.
 _Avoid_: hosted Cupid tool, C runtime, bootstrap stage
+
+**Immediate pointer qualification conversion**:
+A representation-preserving C conversion that adds qualifiers to the object directly referenced by a pointer. CupidC accepts `char **` as `char *const *` because the intermediate pointer becomes read-only through the destination. It still rejects qualifier removal and unsafe deeper changes such as `char **` to `const char **`.
+_Avoid_: pointer cast, ignoring nested qualifiers
 
 **Aligned call site**:
 An i386 call instruction emitted with ESP on a sixteen-byte boundary before the CPU pushes the return address. Hosted CupidC derives the required padding from the fixed frame, live Linear IR stack depth, and outgoing ABI storage.

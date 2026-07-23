@@ -5963,7 +5963,7 @@ The generated audit records 637 direct designated initializers across 18 files, 
 | Active-source audit | PASS | `make bootstrap-audit` regenerates the final records, and `make check-bootstrap-audit` reproduces them. The final pair completes in 78.1 seconds. |
 | Full repository gate | PASS | `make test` passes all 358 tests in 499.585 seconds with one expected platform skip; Make returns in 538.7 seconds. |
 | Production image build | PASS | `make all` rebuilds and stages the normal image in 21.1 seconds. |
-| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds with the established 0.60-second key timing. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.351 seconds with the established 0.60-second key timing. |
 | Two-axis review | PASS AFTER FIXES | Standards and Spec reviews found the overbroad destination gate, the wide bit-field shift diagnostic, duplicated classification, stale evidence, and one source-guard overclaim. The final reviewers report no remaining actionable finding. |
 
 This increment transfers no production C object and retires no host dependency. GCC or Clang still builds the shared compiler, its contracts, and every normal C object. CupidASM, CupidLD, CupidObj, and CupidDis keep their production roles. The private in-kernel CupidC remains the embedded JIT and AOT path.
@@ -6549,3 +6549,121 @@ four-byte target profile. The current eight-byte `HOSTED_TOOLCHAIN_64` objects
 cannot be mixed into it. [Issue #27](https://github.com/cupidthecat/cupid-os/issues/27)
 and [issue #13](https://github.com/cupidthecat/cupid-os/issues/13) remain open.
 No issue is ready to close from this increment.
+
+## 2026-07-23: Four Cupid-built tools run on the repository i386 runtime
+
+### Runtime and executable closures
+
+The adapter tracer proved that CupidC objects, CupidASM startup, and CupidLD
+agreed on one call boundary. Its providers could not read a file or allocate
+memory, so the next contract started at the public command seam: run an
+unchanged tool with ordinary arguments and require the same bytes and
+diagnostics as the native hosted command.
+
+`toolchain/hosted/i386-linux/runtime.c` now implements the checked hosted
+declarations. It provides a reusable `brk` heap, zeroing `calloc`, `realloc`,
+unbuffered file streams, standard output and error, `errno`, `getcwd`, memory
+and string functions, and the formatted output used by the command adapters.
+`start.asm` reads `argc` and `argv`, aligns the stack, calls `main`, and exits
+through Linux `int 0x80`. It also owns the system-call wrappers that CupidC
+cannot yet express.
+
+The runtime's `fprintf` uses CupidC's supported variadic built-ins. Only this
+file enables the GNU extension profile. The unchanged CupidASM, CupidDis,
+CupidLD, and CupidObj sources stay in strict C11 mode.
+
+The object contract compiles the exact closure for each command with the
+four-byte ABI, assembles startup with CupidASM, and links with CupidLD at
+`0x08048000`. It emits each of the fifteen source objects twice and requires
+identical bytes. The four command links and a runtime-contract link also repeat
+in one job. Removing the runtime object must produce an undefined-symbol
+diagnostic, empty output, a zero result, and scratch rewind before the
+successful bytes can be reproduced.
+
+The first four-tool run found two real requirements in the unchanged CupidLD
+driver. Its three `calloc` calls needed a declaration and overflow-safe runtime
+implementation. Its `char **` path vector is passed to a `char *const *`
+parameter, which is a valid immediate qualification conversion. CupidC now
+accepts that conversion and carries it through Linear IR without changing the
+four-byte value. It still rejects `char **` to `const char **` and qualifier
+removal. No cast or signature change was added to the linker source.
+
+The TDD sequence exposed each layer cleanly. The first public test failed
+because `self-host-link-tools` did not exist. The four-output test then failed
+on undeclared `calloc`. After that declaration was supplied, the frontend
+rejected the valid linker call. Once parsing accepted it, Linear IR returned
+`CTD000006` for the same no-op conversion. Each failure received a focused
+contract before the implementation moved forward.
+
+Review turned the temporary runtime probe into
+`toolchain/tests/hosted_i386_runtime_contract.c`. The first checked build found
+that the narrow string header intentionally has no `memcmp`; the contract now
+compares the file bytes directly. An initial include test reused
+`demos/include_feature.asm`, but that program expects kernel `print` symbols
+and cannot stand alone as an ELF32 object. The durable test uses a small
+self-contained include pair and still exercises the command's real working
+directory and file paths.
+
+System i386 libc was not used. That path would depend on host headers, startup
+objects, and multilib packages. The tracer's failing providers were not reused
+because they cannot run a command. A large static BSS heap was also rejected;
+the runtime grows its heap on demand and can release a free tail.
+
+ADRs 0086 and 0087 record the runtime and pointer-qualification decisions. No
+design question required a user decision in this increment.
+
+### Behavior and ownership evidence
+
+The generated tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,036 | `2742A053D6D72B058A4A911BF9D70A57A03E11B634E67F05E941555C91245AF9` |
+| CupidDis | 366,944 | `41494249AAAD604B0147E393600F9BDB6A2FD20F0F9B97F7B97E54933B126783` |
+| CupidLD | 258,268 | `4E7BCE5C46547253E90BB1CEAC434A1663063F89DF0F7D6B0C7436BBA00EDBE5` |
+| CupidObj | 182,684 | `D23072BC96E5736AA5F09E30151B2C6844DC3831D37B4674C669E134269D9965` |
+| Runtime contract | 42,696 | `01EF2F94AD6330B59E3AC7C751776F88BBE67FBEA1CF82BBD2510928516A8BCE` |
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Runtime syntax and analysis | PASS | Clang accepts the runtime as freestanding i386 C with the checked headers and reports no static-analysis finding. |
+| Runtime contract | PASS | One checked CupidC-built static i386 executable covers process arguments, allocation and reallocation, zeroing, overflow, heap reuse, tail release, file I/O, seek and tell, formatting, `getcwd`, missing files, small working-directory buffers, invalid formats, memory, and strings. It exits with status zero under WSL. |
+| Pointer qualification | PASS | All 45 frontend contract modes and all 40 Linear IR contract modes pass. The focused positives and unsafe negatives retain their exact conversion results. |
+| CupidC object contracts | PASS | All 45 public tests pass in 36.013 seconds. Every closure object repeats byte for byte. The four tool links and runtime-contract link repeat, reject a missing runtime, recover in the same job, and contain no unresolved symbols. The default hosted-tool build also reconstructs a deliberately removed executable and reproduces its bytes and manifest. |
+| Tool behavior | PASS | WSL output matches the native hosted commands for raw and ELF32 assembly, include resolution, raw disassembly with mixed mode maps, fixed-text linking, object wrapping, missing files, invalid assembly, and malformed linker input. Failed linking preserves sentinel output. |
+| Cross-host contract | PASS | Windows Clang and WSL GCC builds of the native contract produce byte-identical copies of all four static i386 commands. |
+| Toolchain suite | PASS | `make -C toolchain test` passes every core, CupidC, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD selector, including the four tools and runtime-contract link. |
+| Active-source audit | PASS | Regeneration records 697 active sources, 499 transforms, 252 feature requirements, and 39 accounted unreachable files. The supported `toolchain:all` stamp compiles, assembles, links, and hashes the five static executables, so the runtime, startup, and runtime contract are real inputs to a reachable transform. |
+| Initial full repository gate | FAIL, LOCKS CORRECTED | All semantic contracts pass, but three inventory checks still expect 664 C-family inputs, 26 assembly inputs, and the startup-free x86 source manifest. The run covers 383 tests in 550.758 seconds with one expected skip. |
+| Second full repository gate | FAIL, LOCK CORRECTED | Source discovery, x86 execution, and every other test pass. The preprocessor contract alone still expects 185 active x86 cases instead of 187. The run covers all 383 tests in 549.587 seconds with one expected skip. |
+| Pre-review full repository gate | PASS | After correcting that last duplicated inventory lock, all 383 tests pass in 545.785 seconds with one expected optional skip. Make returns in 587.626 seconds, including the checked audit rerun. |
+| Final full repository gate | PASS | After the review fixes and missing-artifact regression, all 384 tests pass in 589.206 seconds with one expected optional skip. Make returns in 630.797 seconds, including the checked audit rerun. |
+| Production image | PASS | `make all` rebuilds and stages the image in 21.735 seconds. `_loaded_end` is `0x006D382F`, `_bss_start` is `0x006D4000`, and `_kernel_end` is `0x00AF4910`, leaving 46,832 bytes below the fixed stack. |
+| Kernel artifacts | PASS | `kernel.elf` is 6,285,876 bytes with SHA-256 `A0A4392984226DF74304B2F75976C9363472E114C54BF29B709EFC8DBA2AA209`; `kernel.bin` is 6,109,231 bytes with SHA-256 `3F4F93F50BDA534B0E8FECAF61BD1BEF5B68F0600971B1B3214984718083DC9B`; and `cupidos.img` is 209,715,200 bytes with SHA-256 `9E081E501E728566270F713FE4E68B79324F3F449D4A756E6D98BC3B50767242`. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds with the established 0.60-second key timing. |
+| Static analysis | PASS | Clang reports no finding in the changed frontend, Linear IR, object contract, freestanding i386 runtime, or runtime contract under the repository warning profiles. |
+| Diff hygiene | PASS | `git diff --check` reports no whitespace error after the code and contract changes. |
+
+The complete hosted gates report `cupidc_frontend.c` at
+306/12,105/78,513/1,797/1,215 and `cupidc_ir.c` at
+185/5,594/49,605/681/231 for definitions, statements, expressions, block
+bindings, and initializers. The generated `toolchain_core` cohort now has
+56,802 checked lines, and `toolchain_contract` has 94,504. Its canonical
+active-source digest is
+`8d99be500d047ad9a5944e3baf7f5d8f4ad7e5b19a855335f1a0753e57421146`.
+The complete audit JSON has SHA-256
+`82DF676B0059FF54F3475B031CCC6467C39AADB5DE219558B3547A70B2B1307E`.
+The refreshed lexical locks are `sizeof` 4,006, `return` 17,791, `for` 3,403,
+`while` 2,568, `do` 63, `if` 29,336, `else` 3,928, and `goto` 1,578. The
+source changes account for each increase. The x86 source contract now covers
+27 assembly inputs, 1,244 instruction statements, 164 distinct signatures,
+and 187 mode-specific representatives. Its two new rows cover the startup
+`lea` address form and Linux `int 0x80`.
+
+This moves four hosted command closures across CupidC, CupidASM, and CupidLD,
+but it does not change the normal build owner. GCC or Clang still builds the
+native oracle, contracts, hosted production commands, and every normal Cupid
+OS C object. The runtime is Linux-only, single threaded, unbuffered, and
+limited to the checked headers. A CupidC command, compiler-generation
+comparison, checked seed, and production handoff remain open under issue #27
+and the later fixed-point work.

@@ -1859,6 +1859,10 @@ typedef struct {
   ctool_bool right_object;
 } cfront_pointer_pair_t;
 
+static ctool_status_t cfront_unqualified_type_preserving_alignments(
+    cfront_context_t *context, ctool_u32 source_type,
+    ctool_u32 *type_out);
+
 static ctool_status_t cfront_classify_pointer_pair(
     cfront_context_t *context, ctool_u32 left_referent_type,
     ctool_u32 right_referent_type, cfront_pointer_pair_t *pair_out) {
@@ -1873,6 +1877,16 @@ static ctool_status_t cfront_classify_pointer_pair(
     status = cfront_underlying_type(
         context, right_referent_type, &right_base,
         &pair_out->right_qualifiers, &pair_out->right);
+  }
+  if (status == CTOOL_OK) {
+    pair_out->left_qualifiers |= pair_out->left.qualifiers;
+    pair_out->right_qualifiers |= pair_out->right.qualifiers;
+    status = cfront_unqualified_type_preserving_alignments(
+        context, left_referent_type, &left_base);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_unqualified_type_preserving_alignments(
+        context, right_referent_type, &right_base);
   }
   if (status == CTOOL_OK) {
     status = cfront_types_compatible(context, left_base, right_base,

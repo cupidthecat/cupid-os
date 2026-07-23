@@ -156,15 +156,29 @@ Offsets are relative to the start of the file. They must increase and remain
 inside the input. CupidDis checks those rules, but the caller is responsible
 for placing each transition between instructions.
 
-### Bootstrap link tracer
+### Hosted i386 commands
 
-The hosted bootstrap contract uses CupidASM to assemble a small i386 `_start`.
-CupidLD links that startup with the CupidC-emitted `ctool_host.c` adapter and
-test-only symbol providers. Startup calls `ctool_host_adapter_init`, checks the
-returned root pointer and one-byte size, then exits through Linux `int 0x80`.
-The 21,592-byte static ELF32 file runs under WSL with status zero and repeats
-byte for byte. This proves a narrow calling and relocation boundary. It does
-not make the hosted CupidASM command self-built or supply a C runtime.
+CupidC emits the unchanged C source closures for CupidASM, CupidDis, CupidLD,
+and CupidObj under the checked four-byte i386 Linux ABI. CupidASM assembles the
+repository `_start` and `int 0x80` system-call boundary. CupidLD then links four
+deterministic static i386 commands without unresolved symbols.
+
+The repository runtime supplies the checked file, heap, string, `errno`,
+`getcwd`, and formatted-output calls required by those commands. The
+implementation is deliberately narrow. It has unbuffered streams and
+single-threaded process state. Each closure object is emitted twice before the
+repeated links. A fifth generated executable checks allocation, tail release,
+files, seeks, errors, arguments, and strings. WSL checks the Cupid-built
+commands against the native tools for raw and ELF32 assembly, include
+resolution, raw disassembly with mode changes, fixed-address linking, object
+wrapping, and missing files. Successful output matches byte for byte or as
+text. Invalid assembly and malformed linker input follow the same failure
+behavior and diagnostics.
+
+This execution proof is specific to Linux and WSL. A host C compiler still
+builds the native oracle and contract runners and the normal Cupid OS C
+objects. The bootstrap does not yet have a host-runnable CupidC driver, compiler
+fixed point, checked seed, or production handoff.
 
 ### Function Example
 

@@ -4160,9 +4160,9 @@ static int run_macro_active_cases(const char *host_root) {
       }
     }
   }
-  if (active_count != 185u || inline_count != 129u) {
+  if (active_count != 187u || inline_count != 129u) {
     (void)fprintf(stderr,
-                  "macro-active-cases: expected 185+129 calls, got %u+%u\n",
+                  "macro-active-cases: expected 187+129 calls, got %u+%u\n",
                   active_count, inline_count);
     ctool_job_close(job);
     return 1;

@@ -694,7 +694,9 @@ static const char pointer_value_source[] =
     "void set_global_pointer(value_t *pointer) { global_pointer = pointer; }\n"
     "void clear_global_pointer(void) { global_pointer = 0; }\n"
     "int read_global_member(void) { return global_pointer->member; }\n"
-    "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n";
+    "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n"
+    "char *const *qualify_nested_pointer(char **pointer) { return pointer; }\n"
+    "typedef const char **unsafe_nested_pointer_t;\n";
 
 static const char pointer_comparison_source[] =
     "typedef struct ctool_arena ctool_arena_t;\n"
@@ -1727,6 +1729,20 @@ static int pointer_value_query_matches(
   ctool_status_t status = ctool_c_ir_pointer_value_types_compatible(
       job, unit, left, right, &compatible);
   return status == CTOOL_OK && compatible == expected &&
+                 arena_marks_equal(
+                     mark, ctool_arena_mark(ctool_job_arena(job))) != 0
+             ? 1
+             : 0;
+}
+
+static int pointer_conversion_query_matches(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_u32 source, ctool_u32 target, ctool_bool expected) {
+  ctool_bool valid = expected == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+  ctool_arena_mark_t mark = ctool_arena_mark(ctool_job_arena(job));
+  ctool_status_t status = ctool_c_ir_pointer_conversion_is_valid(
+      job, unit, source, target, CTOOL_C_CONVERSION_QUALIFICATION, &valid);
+  return status == CTOOL_OK && valid == expected &&
                  arena_marks_equal(
                      mark, ctool_arena_mark(ctool_job_arena(job))) != 0
              ? 1
@@ -14496,17 +14512,18 @@ static int validate_pointer_value_ir(
        CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
        CTOOL_C_AST_NONE, 0u, 21u, 56u}};
   static const ctool_u32 function_counts[] = {
-      5u, 4u, 8u, 3u, 4u, 4u, 4u, 7u, 6u, 6u, 6u, 4u};
+      5u, 4u, 8u, 3u, 4u, 4u, 4u, 7u, 6u, 6u, 6u, 4u, 4u};
   static const ctool_u32 stack_depths[] = {
-      1u, 1u, 2u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 1u, 1u};
+      1u, 1u, 2u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 1u, 1u, 1u};
+  ctool_u32 expected_count =
+      (ctool_u32)(sizeof(expected) / sizeof(expected[0]));
   ctool_c_translation_unit_t malformed_unit;
   ctool_u32 index;
   ctool_u32 first = 0u;
   malformed_unit = *unit;
   malformed_unit.layout.types = NULL;
-  if (unit->function_definition_count != 12u || ir->function_count != 12u ||
-      ir->instruction_count !=
-          (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+  if (unit->function_definition_count != 13u || ir->function_count != 13u ||
+      ir->instruction_count != expected_count + 4u ||
       ir->functions == NULL || ir->instructions == NULL ||
       unit->graph.type_count <= 43u ||
       unit->graph.types[15].kind != CTOOL_C_TYPE_POINTER ||
@@ -14568,12 +14585,72 @@ static int validate_pointer_value_ir(
     }
     first += function_counts[index];
   }
-  for (index = 0u; index < ir->instruction_count; index++) {
+  for (index = 0u; index < expected_count; index++) {
     if (!pointer_ir_instruction_matches(
             &ir->instructions[index], &expected[index],
             "/pointer-values.c")) {
       (void)fprintf(stderr, "pointer instruction %u differs\n",
                     (unsigned)index);
+      return 0;
+    }
+  }
+  {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[12];
+    const ctool_c_type_node_t *function =
+        definition->declared_type < unit->graph.type_count
+            ? &unit->graph.types[definition->declared_type]
+            : NULL;
+    ctool_u32 parameter =
+        function == NULL ? CTOOL_C_AST_NONE : function->first_parameter;
+    ctool_u32 parameter_type =
+        parameter < unit->parameter_count ? unit->parameters[parameter].type
+                                          : CTOOL_C_TYPE_NONE;
+    ctool_u32 source_type =
+        parameter < unit->graph.parameter_type_count
+            ? unit->graph.parameter_types[parameter]
+            : CTOOL_C_TYPE_NONE;
+    ctool_u32 result_type =
+        function == NULL ? CTOOL_C_TYPE_NONE : function->referenced_type;
+    ctool_u32 unsafe_binding =
+        find_binding(unit, "unsafe_nested_pointer_t");
+    ctool_u32 unsafe_type =
+        unsafe_binding < unit->binding_count
+            ? unit->bindings[unsafe_binding].type
+            : CTOOL_C_TYPE_NONE;
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[expected_count];
+    if (definition->binding !=
+            find_binding(unit, "qualify_nested_pointer") ||
+        function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+        function->parameter_count != 1u ||
+        instructions[0].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        instructions[0].type != parameter_type ||
+        instructions[0].reference != parameter ||
+        instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        instructions[1].type != source_type ||
+        instructions[1].input_type != parameter_type ||
+        instructions[1].conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        instructions[2].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+        instructions[2].type != result_type ||
+        instructions[2].input_type != source_type ||
+        instructions[2].conversion != CTOOL_C_CONVERSION_QUALIFICATION ||
+        instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        instructions[3].type != result_type ||
+        instructions[3].input_type != result_type ||
+        !pointer_conversion_query_matches(
+            job, unit, source_type, result_type, CTOOL_TRUE) ||
+        !pointer_conversion_query_matches(
+            job, unit, result_type, source_type, CTOOL_FALSE) ||
+        !pointer_conversion_query_matches(
+            job, unit, source_type, unsafe_type, CTOOL_FALSE) ||
+        !string_equal(instructions[0].location.path, "/pointer-values.c") ||
+        !string_equal(instructions[3].physical_location.path,
+                      "/pointer-values.c")) {
+      (void)fprintf(stderr,
+                    "nested pointer qualification IR differs\n");
       return 0;
     }
   }

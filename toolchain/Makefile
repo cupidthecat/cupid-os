@@ -36,6 +36,23 @@ CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/stdlib.h \
                               hosted/i386-linux/include/string.h \
                               hosted/i386-linux/include/unistd.h
+CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.c \
+                              hosted/i386-linux/start.asm \
+                              tests/hosted_i386_runtime_contract.c
+CUPIDC_HOSTED_I386_CLOSURE := ctool.c ctool.h ctool_host.c ctool_host.h \
+                              elf32.c elf32.h x86.c x86.h \
+                              cupidasm.c cupidasm.h cupidasm_main.c \
+                              cupiddis.c cupiddis.h cupiddis_main.c \
+                              cupidld.c cupidld.h cupidld_main.c \
+                              cupidobj.c cupidobj.h cupidobj_main.c \
+                              $(CUPIDC_HOSTED_I386_HEADERS) \
+                              $(CUPIDC_HOSTED_I386_RUNTIME)
+CUPIDC_HOSTED_I386_ARTIFACTS := $(BUILD_DIR)/cupidc-cupidasm.elf \
+                                $(BUILD_DIR)/cupidc-cupiddis.elf \
+                                $(BUILD_DIR)/cupidc-cupidld.elf \
+                                $(BUILD_DIR)/cupidc-cupidobj.elf \
+                                $(BUILD_DIR)/cupidc-runtime-contract.elf
+CUPIDC_HOSTED_I386_MANIFEST := $(BUILD_DIR)/cupidc-hosted-i386-tools.json
 ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
 CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
@@ -123,15 +140,19 @@ CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                    $(BUILD_DIR)/cupidld_main.o
-BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
-                       $(CUPIDC_TYPE_CONTRACT) $(CUPIDC_FRONTEND_CONTRACT) \
-                       $(CUPIDC_IR_CONTRACT) $(CUPIDC_OBJECT_CONTRACT) \
-                       $(ELF32_CONTRACT) $(X86_CONTRACT) \
-                       $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
-                       $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-                       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
-                       $(CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
-                       $(CUPIDLD_CONTRACT) $(CUPIDLD)
+HOST_BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
+                            $(CUPIDC_TYPE_CONTRACT) \
+                            $(CUPIDC_FRONTEND_CONTRACT) \
+                            $(CUPIDC_IR_CONTRACT) $(CUPIDC_OBJECT_CONTRACT) \
+                            $(ELF32_CONTRACT) $(X86_CONTRACT) \
+                            $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
+                            $(CUPIDASM_CONTRACT) \
+                            $(CUPIDASM_DEMOS_CONTRACT) \
+                            $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
+                            $(CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
+                            $(CUPIDLD_CONTRACT) $(CUPIDLD)
+BOOTSTRAP_ARTIFACTS := $(HOST_BOOTSTRAP_ARTIFACTS) \
+                       $(CUPIDC_HOSTED_I386_ARTIFACTS)
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
@@ -140,7 +161,7 @@ LDFLAGS ?=
 
 .DEFAULT_GOAL := all
 
-all: $(BOOTSTRAP_ARTIFACTS)
+all: $(HOST_BOOTSTRAP_ARTIFACTS) $(CUPIDC_HOSTED_I386_MANIFEST)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -275,6 +296,14 @@ $(CUPIDC_IR_CONTRACT): $(CUPIDC_IR_CONTRACT_OBJECTS)
 $(CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECT_CONTRACT_OBJECTS) -o $@
 
+$(CUPIDC_HOSTED_I386_MANIFEST): FORCE $(CUPIDC_OBJECT_CONTRACT) \
+                                $(CUPIDC_HOSTED_I386_CLOSURE) Makefile | \
+                                $(BUILD_DIR)
+	$(CUPIDC_OBJECT_CONTRACT) self-host-link-tools .. \
+		$(CUPIDC_HOSTED_I386_ARTIFACTS)
+	$(PYTHON) -c "import hashlib,json,sys; from pathlib import Path; paths=[Path(value) for value in sys.argv[2:]]; payload={'artifacts':[{'path':path.as_posix(),'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'size':path.stat().st_size} for path in paths]}; Path(sys.argv[1]).write_bytes((json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n').encode('ascii'))" \
+		$(CUPIDC_HOSTED_I386_MANIFEST) $(CUPIDC_HOSTED_I386_ARTIFACTS)
+
 $(ELF32_CONTRACT): $(ELF32_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(ELF32_OBJECTS) -o $@
 
@@ -320,7 +349,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
       $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
       $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD) \
       tests/x86_active_cases.inc tests/x86_inline_cases.inc \
-      $(CUPIDC_PP_ACTIVE_CASES)
+      $(CUPIDC_PP_ACTIVE_CASES) $(CUPIDC_HOSTED_I386_RUNTIME)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -485,6 +514,12 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-profile-errors ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-link-ctool-host .. \
 		$(BUILD_DIR)/cupidc-ctool-host-smoke.elf
+	$(CUPIDC_OBJECT_CONTRACT) self-host-link-tools .. \
+		$(BUILD_DIR)/cupidc-cupidasm.elf \
+		$(BUILD_DIR)/cupidc-cupiddis.elf \
+		$(BUILD_DIR)/cupidc-cupidld.elf \
+		$(BUILD_DIR)/cupidc-cupidobj.elf \
+		$(BUILD_DIR)/cupidc-runtime-contract.elf
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors
@@ -544,8 +579,10 @@ test-cupidc-pp-active-generated: $(CUPIDC_PP_CONTRACT) \
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"
 
+FORCE:
+
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
 .PHONY: all test test-cupidc-pp-active-generated clean \
-        print-bootstrap-artifacts
+        FORCE print-bootstrap-artifacts

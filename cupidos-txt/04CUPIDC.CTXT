@@ -236,25 +236,35 @@ integers remain unsupported. Static compatible character and void pointers
 accept an ordinary string literal through parentheses or a macro. Arithmetic
 and explicit casts on that static address remain unfinished.
 
-The exact object gate covers sixteen unchanged sources. The fourteen-file
-CupidC, CupidASM, and CupidDis self-host cohort is ten hermetic Toolchain files,
-kernel/lang/as_elf.c, and the three hosted adapters. The hermetic gate also
-includes the adjacent CupidLD and CupidObj cores. ctool_host.c, cupidasm_main.c,
-and cupiddis_main.c use a checked i386 Linux profile with Cupid-owned
-declarations for the hosted runtime interfaces they need. That profile requires
-an explicit 32-bit pointer fact. Every object is emitted twice, checked for
-identical bytes, and read through Cupid's ELF32 reader. Adapter objects also
-retain exact named imports and checked relocation shapes.
+Pointer qualification accepts the safe char ** to char *const * conversion.
+It rejects char ** to const char ** because that would add a qualifier at an
+unsafe nested level. It also rejects removing the nested const.
 
-A static i386 tracer links the CupidC-emitted ctool_host.c object with a
-CupidASM _start and CupidLD. Test-only providers satisfy the adapter's ten
-imports. Startup calls ctool_host_adapter_init, checks the returned root
-pointer and one-byte size, then exits through Linux int 0x80. The deterministic
-21,592-byte executable runs under WSL with status zero. A missing
-__errno_location definition proves transactional link failure and same-job
-recovery. The providers are not a usable C runtime. No complete Cupid tool
-runs, and the tracer does not compare
-compiler generations.
+The exact hosted gate covers the hermetic Toolchain sources,
+kernel/lang/as_elf.c, and the complete command closures for CupidASM, CupidDis,
+CupidLD, and CupidObj. CupidC emits every unchanged C source in those closures
+under the checked i386 Linux profile with a four-byte pointer fact. Repeated
+emission produces identical ELF32 objects, and Cupid's ELF32 reader checks each
+object before linking.
+
+The repository runtime supplies the checked file, heap, string, errno, getcwd,
+and formatted-output interfaces used by the four commands. CupidC emits the
+runtime, CupidASM assembles the repository _start and int 0x80 system-call
+boundary, and CupidLD links four deterministic static Linux i386 executables
+without unresolved symbols. The implementation is deliberately narrow. It has
+unbuffered streams and single-threaded heap, stream, and errno state.
+
+Each closure object is emitted twice before the repeated links. A fifth
+generated executable checks allocation, tail release, files, seeks, errors,
+arguments, and strings. WSL checks the Cupid-built commands against the native
+hosted tools for raw and ELF32 assembly, include resolution, raw disassembly
+with mode changes, fixed-address linking, object wrapping, and missing files.
+Successful commands produce the same bytes or report text. Invalid assembly
+and malformed linker input also match the hosted status and diagnostics. This
+proof is specific to Linux and WSL. A host C compiler still builds the native
+oracle and contract runners and the normal Cupid OS C objects. There is no
+host-runnable CupidC driver, compiler fixed point, checked seed, or production
+handoff.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

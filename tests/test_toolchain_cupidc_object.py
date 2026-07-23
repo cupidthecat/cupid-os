@@ -20,7 +20,21 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT).as_posix()
         suffix = ".exe" if os.name == "nt" else ""
         cls.contract_path = build_path / ("cupidc-object-contract" + suffix)
+        cls.hosted_cupidasm_path = build_path / ("cupidasm" + suffix)
+        cls.hosted_cupiddis_path = build_path / ("cupiddis" + suffix)
+        cls.hosted_cupidld_path = build_path / ("cupidld" + suffix)
+        cls.hosted_cupidobj_path = build_path / ("cupidobj" + suffix)
+        cls.cupid_cupidasm_path = build_path / "cupid-built-cupidasm.elf"
+        cls.cupid_cupiddis_path = build_path / "cupid-built-cupiddis.elf"
+        cls.cupid_cupidld_path = build_path / "cupid-built-cupidld.elf"
+        cls.cupid_cupidobj_path = build_path / "cupid-built-cupidobj.elf"
+        cls.cupid_runtime_path = build_path / "cupid-built-runtime.elf"
+        cls._cupid_tool_link = None
         target = f"{relative_build}/cupidc-object-contract{suffix}"
+        cupidasm_target = f"{relative_build}/cupidasm{suffix}"
+        cupiddis_target = f"{relative_build}/cupiddis{suffix}"
+        cupidld_target = f"{relative_build}/cupidld{suffix}"
+        cupidobj_target = f"{relative_build}/cupidobj{suffix}"
         result = subprocess.run(
             [
                 "make",
@@ -28,12 +42,23 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 str(TOOLCHAIN_ROOT),
                 f"BUILD_DIR={relative_build}",
                 target,
+                cupidasm_target,
+                cupiddis_target,
+                cupidld_target,
+                cupidobj_target,
             ],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
         )
-        if result.returncode != 0 or not cls.contract_path.exists():
+        if (
+            result.returncode != 0
+            or not cls.contract_path.exists()
+            or not cls.hosted_cupidasm_path.exists()
+            or not cls.hosted_cupiddis_path.exists()
+            or not cls.hosted_cupidld_path.exists()
+            or not cls.hosted_cupidobj_path.exists()
+        ):
             cls._build_directory.cleanup()
             raise AssertionError(
                 "CupidC object contract build failed\n"
@@ -44,6 +69,95 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls._build_directory.cleanup()
+
+    @classmethod
+    def build_cupid_tools(cls):
+        if cls._cupid_tool_link is None:
+            cls._cupid_tool_link = subprocess.run(
+                [
+                    str(cls.contract_path),
+                    "self-host-link-tools",
+                    str(REPO_ROOT),
+                    str(cls.cupid_cupidasm_path),
+                    str(cls.cupid_cupiddis_path),
+                    str(cls.cupid_cupidld_path),
+                    str(cls.cupid_cupidobj_path),
+                    str(cls.cupid_runtime_path),
+                ],
+                cwd=TOOLCHAIN_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=180,
+            )
+        return cls._cupid_tool_link
+
+    def wsl_path(self, path):
+        converted = subprocess.run(
+            ["wsl", "-e", "wslpath", "-a", str(path)],
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(
+            converted.returncode,
+            0,
+            "WSL could not translate " + str(path) + "\n" + converted.stderr,
+        )
+        return converted.stdout.strip()
+
+    def run_cupid_linux_tool(self, executable, arguments, timeout=20):
+        if os.name != "nt":
+            executable.chmod(0o755)
+            try:
+                return subprocess.run(
+                    [
+                        str(executable),
+                        *[str(argument) for argument in arguments],
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=timeout,
+                )
+            except OSError as error:
+                if error.errno == 8:
+                    self.skipTest(
+                        "this kernel cannot execute static i386 ELF files"
+                    )
+                raise
+        if shutil.which("wsl") is None:
+            self.skipTest("WSL is unavailable for the i386 Linux tool check")
+        linux_executable = self.wsl_path(executable)
+        linux_arguments = [
+            self.wsl_path(argument)
+            if isinstance(argument, Path)
+            else str(argument)
+            for argument in arguments
+        ]
+        script = (
+            'probe="/tmp/cupid-built-tool-$$"; '
+            "trap 'rm -f \"$probe\"' EXIT HUP INT TERM; "
+            'cp "$1" "$probe" || exit 125; '
+            'chmod +x "$probe" || exit 125; '
+            'shift; "$probe" "$@"'
+        )
+        result = subprocess.run(
+            [
+                "wsl",
+                "-e",
+                "sh",
+                "-c",
+                script,
+                "sh",
+                linux_executable,
+                *linux_arguments,
+            ],
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+        if result.returncode in (126, 127):
+            self.skipTest("WSL cannot execute static i386 ELF files")
+        return result
 
     def test_static_definitions_emit_deterministic_elf32_objects(self):
         result = subprocess.run(
@@ -489,6 +603,552 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         )
                     raise
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
+    def test_cupid_built_tools_are_static_i386_executables(self):
+        result = self.build_cupid_tools()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "self-host-link-tools: ok\n")
+        for executable in (
+            self.cupid_cupidasm_path,
+            self.cupid_cupiddis_path,
+            self.cupid_cupidld_path,
+            self.cupid_cupidobj_path,
+            self.cupid_runtime_path,
+        ):
+            image = executable.read_bytes()
+            self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+            self.assertEqual(
+                int.from_bytes(image[16:18], "little"), 2
+            )
+            self.assertEqual(
+                int.from_bytes(image[18:20], "little"), 3
+            )
+
+    def test_cupid_built_runtime_contract_covers_success_and_failure_paths(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-runtime-contract-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            output = root / "runtime-output.txt"
+            missing = root / "missing-input.txt"
+            self.assertFalse(missing.exists())
+            run = self.run_cupid_linux_tool(
+                self.cupid_runtime_path,
+                [output, missing],
+            )
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertEqual(run.stdout, "runtime-ok\n")
+            self.assertEqual(run.stderr, "")
+            self.assertEqual(
+                output.read_text(encoding="utf-8"),
+                "ok -12 0000002A\n",
+            )
+
+    def test_toolchain_all_rebuilds_a_missing_cupid_artifact(self):
+        build_path = Path(self._build_directory.name)
+        relative_build = build_path.relative_to(TOOLCHAIN_ROOT).as_posix()
+        command = [
+            "make",
+            "-C",
+            str(TOOLCHAIN_ROOT),
+            f"BUILD_DIR={relative_build}",
+            "all",
+        ]
+        initial = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=180,
+        )
+        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+
+        manifest = build_path / "cupidc-hosted-i386-tools.json"
+        artifact = build_path / "cupidc-cupiddis.elf"
+        self.assertTrue(manifest.exists())
+        self.assertTrue(artifact.exists())
+        manifest_bytes = manifest.read_bytes()
+        artifact_bytes = artifact.read_bytes()
+
+        artifact.unlink()
+        self.assertTrue(manifest.exists())
+        rebuilt = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=180,
+        )
+        self.assertEqual(rebuilt.returncode, 0, rebuilt.stdout + rebuilt.stderr)
+        self.assertIn("self-host-link-tools: ok", rebuilt.stdout)
+        self.assertEqual(artifact.read_bytes(), artifact_bytes)
+        self.assertEqual(manifest.read_bytes(), manifest_bytes)
+
+    def test_cupid_built_tools_match_hosted_runtime_behavior(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-tools-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            source = root / "simple.asm"
+            hosted_binary = root / "hosted.bin"
+            cupid_binary = root / "cupid.bin"
+            source.write_text(
+                "BITS 16\n"
+                "ORG 0x7c00\n"
+                "start:\n"
+                "    mov ax, 0x1234\n"
+                "    ret\n",
+                encoding="utf-8",
+            )
+            hosted_assembly = subprocess.run(
+                [
+                    str(self.hosted_cupidasm_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(hosted_binary),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_assembly = self.run_cupid_linux_tool(
+                self.cupid_cupidasm_path,
+                ["-f", "bin", source, "-o", cupid_binary],
+            )
+            self.assertEqual(
+                cupid_assembly.returncode,
+                hosted_assembly.returncode,
+                cupid_assembly.stderr,
+            )
+            self.assertEqual(cupid_assembly.stdout, hosted_assembly.stdout)
+            self.assertEqual(cupid_assembly.stderr, hosted_assembly.stderr)
+            self.assertEqual(cupid_binary.read_bytes(), hosted_binary.read_bytes())
+            self.assertEqual(cupid_binary.read_bytes(), b"\xb8\x34\x12\xc3")
+
+            hosted_report = subprocess.run(
+                [
+                    str(self.hosted_cupiddis_path),
+                    "--raw",
+                    "--mode",
+                    "16",
+                    "--base",
+                    "0x7c00",
+                    str(hosted_binary),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_report = self.run_cupid_linux_tool(
+                self.cupid_cupiddis_path,
+                [
+                    "--raw",
+                    "--mode",
+                    "16",
+                    "--base",
+                    "0x7c00",
+                    cupid_binary,
+                ],
+            )
+            self.assertEqual(
+                cupid_report.returncode,
+                hosted_report.returncode,
+                cupid_report.stderr,
+            )
+            self.assertEqual(cupid_report.stdout, hosted_report.stdout)
+            self.assertEqual(cupid_report.stderr, hosted_report.stderr)
+            self.assertIn("mov ax, 0x1234", cupid_report.stdout)
+
+            link_source = root / "start.asm"
+            hosted_object = root / "hosted-start.o"
+            cupid_object = root / "cupid-start.o"
+            hosted_executable = root / "hosted-linked.elf"
+            cupid_executable = root / "cupid-linked.elf"
+            link_source.write_text(
+                "BITS 32\n"
+                "global _start\n"
+                "section .text\n"
+                "_start:\n"
+                "    mov eax, 1\n"
+                "    xor ebx, ebx\n"
+                "    int 0x80\n",
+                encoding="utf-8",
+            )
+            hosted_object_build = subprocess.run(
+                [
+                    str(self.hosted_cupidasm_path),
+                    "-f",
+                    "elf32",
+                    str(link_source),
+                    "-o",
+                    str(hosted_object),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_object_build = self.run_cupid_linux_tool(
+                self.cupid_cupidasm_path,
+                ["-f", "elf32", link_source, "-o", cupid_object],
+            )
+            self.assertEqual(
+                cupid_object_build.returncode,
+                hosted_object_build.returncode,
+                cupid_object_build.stderr,
+            )
+            self.assertEqual(cupid_object.read_bytes(), hosted_object.read_bytes())
+            hosted_link = subprocess.run(
+                [
+                    str(self.hosted_cupidld_path),
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    str(hosted_executable),
+                    str(cupid_object),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_link = self.run_cupid_linux_tool(
+                self.cupid_cupidld_path,
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    cupid_executable,
+                    cupid_object,
+                ],
+            )
+            self.assertEqual(
+                cupid_link.returncode,
+                hosted_link.returncode,
+                cupid_link.stderr,
+            )
+            self.assertEqual(cupid_link.stdout, hosted_link.stdout)
+            self.assertEqual(cupid_link.stderr, hosted_link.stderr)
+            self.assertEqual(
+                cupid_executable.read_bytes(),
+                hosted_executable.read_bytes(),
+            )
+            linked_image = cupid_executable.read_bytes()
+            self.assertEqual(linked_image[:7], b"\x7fELF\x01\x01\x01")
+            self.assertEqual(
+                int.from_bytes(linked_image[24:28], "little"),
+                0x00600000,
+            )
+
+            asset = root / "asset.bin"
+            hosted_wrapped = root / "hosted-wrapped.o"
+            cupid_wrapped = root / "cupid-wrapped.o"
+            asset.write_bytes(b"Cupid\x00bytes")
+            hosted_wrap = subprocess.run(
+                [
+                    str(self.hosted_cupidobj_path),
+                    "wrap",
+                    str(asset),
+                    "--stem",
+                    "payload",
+                    "--section",
+                    ".rodata",
+                    "--readonly",
+                    "-o",
+                    str(hosted_wrapped),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_wrap = self.run_cupid_linux_tool(
+                self.cupid_cupidobj_path,
+                [
+                    "wrap",
+                    asset,
+                    "--stem",
+                    "payload",
+                    "--section",
+                    ".rodata",
+                    "--readonly",
+                    "-o",
+                    cupid_wrapped,
+                ],
+            )
+            self.assertEqual(
+                cupid_wrap.returncode,
+                hosted_wrap.returncode,
+                cupid_wrap.stderr,
+            )
+            self.assertEqual(cupid_wrap.stdout, hosted_wrap.stdout)
+            self.assertEqual(cupid_wrap.stderr, hosted_wrap.stderr)
+            self.assertEqual(cupid_wrapped.read_bytes(), hosted_wrapped.read_bytes())
+            self.assertEqual(
+                cupid_wrapped.read_bytes()[:7],
+                b"\x7fELF\x01\x01\x01",
+            )
+
+    def test_cupid_built_runtime_handles_includes_mode_maps_and_missing_files(
+        self,
+    ):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-runtime-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            include_source = root / "include-main.asm"
+            include_part = root / "include-part.asm"
+            hosted_include = root / "hosted-include.o"
+            cupid_include = root / "cupid-include.o"
+            include_source.write_text(
+                "BITS 32\n"
+                '%include "include-part.asm"\n'
+                "global included_value\n"
+                "section .text\n"
+                "included_value:\n"
+                "    mov eax, INCLUDED_VALUE\n"
+                "    ret\n",
+                encoding="utf-8",
+            )
+            include_part.write_text(
+                "%define INCLUDED_VALUE 0x12345678\n",
+                encoding="utf-8",
+            )
+            hosted_assembly = subprocess.run(
+                [
+                    str(self.hosted_cupidasm_path),
+                    "-f",
+                    "elf32",
+                    str(include_source),
+                    "-o",
+                    str(hosted_include),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_assembly = self.run_cupid_linux_tool(
+                self.cupid_cupidasm_path,
+                ["-f", "elf32", include_source, "-o", cupid_include],
+            )
+            self.assertEqual(hosted_assembly.returncode, 0, hosted_assembly.stderr)
+            self.assertEqual(
+                cupid_assembly.returncode,
+                hosted_assembly.returncode,
+                cupid_assembly.stderr,
+            )
+            self.assertEqual(cupid_assembly.stdout, hosted_assembly.stdout)
+            self.assertEqual(cupid_assembly.stderr, hosted_assembly.stderr)
+            self.assertEqual(
+                cupid_include.read_bytes(),
+                hosted_include.read_bytes(),
+            )
+
+            mixed = root / "mixed-mode.bin"
+            mixed.write_bytes(
+                bytes(
+                    [
+                        0xB8,
+                        0x34,
+                        0x12,
+                        0xB8,
+                        0x78,
+                        0x56,
+                        0x34,
+                        0x12,
+                        0xB8,
+                        0xCD,
+                        0xAB,
+                        0xC3,
+                    ]
+                )
+            )
+            arguments = [
+                "--raw",
+                "--mode=16",
+                "--mode-at=3:32",
+                "--mode-at=8:16",
+                "--base=0x7c00",
+                mixed,
+            ]
+            hosted_report = subprocess.run(
+                [str(self.hosted_cupiddis_path), *[str(arg) for arg in arguments]],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_report = self.run_cupid_linux_tool(
+                self.cupid_cupiddis_path,
+                arguments,
+            )
+            self.assertEqual(hosted_report.returncode, 0, hosted_report.stderr)
+            self.assertEqual(
+                cupid_report.returncode,
+                hosted_report.returncode,
+                cupid_report.stderr,
+            )
+            self.assertEqual(cupid_report.stdout, hosted_report.stdout)
+            self.assertEqual(cupid_report.stderr, hosted_report.stderr)
+            self.assertIn("mov ax, 0x1234", cupid_report.stdout)
+            self.assertIn("mov eax, 0x12345678", cupid_report.stdout)
+            self.assertIn("mov ax, 0xABCD", cupid_report.stdout)
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-missing-", dir=REPO_ROOT
+        ) as temp:
+            relative_root = Path(temp).relative_to(REPO_ROOT)
+            missing = (
+                relative_root / "source-that-does-not-exist.asm"
+            ).as_posix()
+            hosted_output = (relative_root / "hosted.bin").as_posix()
+            cupid_output = (relative_root / "cupid.bin").as_posix()
+            self.assertFalse((REPO_ROOT / missing).exists())
+            hosted_missing = subprocess.run(
+                [
+                    str(self.hosted_cupidasm_path),
+                    "-f",
+                    "bin",
+                    missing,
+                    "-o",
+                    hosted_output,
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid_missing = self.run_cupid_linux_tool(
+                self.cupid_cupidasm_path,
+                [
+                    "-f",
+                    "bin",
+                    missing,
+                    "-o",
+                    cupid_output,
+                ],
+            )
+            self.assertEqual(hosted_missing.returncode, 1, hosted_missing.stderr)
+            self.assertEqual(
+                cupid_missing.returncode,
+                hosted_missing.returncode,
+                cupid_missing.stderr,
+            )
+            self.assertEqual(cupid_missing.stdout, hosted_missing.stdout)
+            self.assertEqual(cupid_missing.stderr, hosted_missing.stderr)
+            self.assertFalse((REPO_ROOT / hosted_output).exists())
+            self.assertFalse((REPO_ROOT / cupid_output).exists())
+
+    def test_cupid_built_cupidasm_matches_hosted_bad_source_diagnostic(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-bad-source-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            source = root / "invalid.asm"
+            hosted_output = root / "hosted.bin"
+            cupid_output = root / "cupid.bin"
+            source.write_text(
+                "BITS 16\nthis_is_not_an_instruction ax\n",
+                encoding="utf-8",
+            )
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidasm_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(hosted_output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidasm_path,
+                ["-f", "bin", source, "-o", cupid_output],
+            )
+            self.assertEqual(hosted.returncode, 1, hosted.stderr)
+            self.assertEqual(cupid.returncode, hosted.returncode, cupid.stderr)
+            self.assertEqual(cupid.stdout, hosted.stdout)
+            self.assertEqual(cupid.stderr, hosted.stderr)
+            self.assertFalse(cupid_output.exists())
+
+    def test_cupid_built_cupidld_matches_hosted_malformed_object_failure(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-built-bad-object-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            malformed = root / "malformed.o"
+            hosted_output = root / "hosted.elf"
+            cupid_output = root / "cupid.elf"
+            malformed.write_bytes(b"\x7fELF")
+            hosted_output.write_bytes(b"sentinel")
+            cupid_output.write_bytes(b"sentinel")
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidld_path),
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    str(hosted_output),
+                    str(malformed),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidld_path,
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    cupid_output,
+                    malformed,
+                ],
+            )
+            self.assertEqual(hosted.returncode, 1, hosted.stderr)
+            self.assertEqual(cupid.returncode, hosted.returncode, cupid.stderr)
+            self.assertEqual(cupid.stdout, hosted.stdout)
+            self.assertIn("ELF32 header is truncated", hosted.stderr)
+            self.assertIn("ELF32 header is truncated", cupid.stderr)
+            self.assertEqual(
+                [
+                    line.split(": error ", 1)[1]
+                    for line in cupid.stderr.splitlines()
+                    if ": error " in line
+                ],
+                [
+                    line.split(": error ", 1)[1]
+                    for line in hosted.stderr.splitlines()
+                    if ": error " in line
+                ],
+            )
+            self.assertEqual(cupid_output.read_bytes(), b"sentinel")
 
     def test_i386_linux_host_profile_rejects_missing_or_wrong_abi(self):
         result = subprocess.run(

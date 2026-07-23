@@ -1,9 +1,9 @@
 /*
  * Active-source x86 oracle manifest.
  *
- * The first 182 rows are one representative for every mode-specific
- * signature found in the 26 active assembly inputs (1,196 statements,
- * 162 mode-independent signatures). Signatures retain semantic prefixes,
+ * The 187 rows are one representative for every mode-specific signature
+ * found in the 27 active assembly inputs (1,244 statements and 164
+ * mode-independent signatures). Signatures retain semantic prefixes,
  * operand classes, explicit memory/far widths, address shape, and explicit a32.
  * NASM 2.16.01 assembled each representative in isolation; symbolic values
  * are replaced only for byte selection. Active C/Cupid C inline assembly is
@@ -104,6 +104,7 @@ X86_ACTIVE_CASE("asm:demos/fpu_kernel.asm:67:bits32:fxsave(m:abs)", CTOOL_X86_MO
 X86_ACTIVE_CASE("asm:kernel/core/context_switch.asm:60:bits32:fxsave(m:base-disp)", CTOOL_X86_MODE_32, CTOOL_X86_MN_FXSAVE, 7u, {0x0fu, 0xaeu, 0x80u, 0x34u, 0x12u, 0x00u, 0x00u})
 X86_ACTIVE_CASE("asm:kernel/core/context_switch.asm:97:bits32:hlt()", CTOOL_X86_MODE_32, CTOOL_X86_MN_HLT, 1u, {0xf4u})
 X86_ACTIVE_CASE("asm:demos/bubblesort.asm:94:bits32:inc(r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_INC, 1u, {0x46u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-linux/start.asm:23:bits32:int(imm)", CTOOL_X86_MODE_32, CTOOL_X86_MN_INT, 2u, {0xcdu, 0x80u})
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:42:bits32:invd()", CTOOL_X86_MODE_32, CTOOL_X86_MN_INVD, 2u, {0x0fu, 0x08u})
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:29:bits32:invlpg(m:abs)", CTOOL_X86_MODE_32, CTOOL_X86_MN_INVLPG, 7u, {0x0fu, 0x01u, 0x3du, 0x34u, 0x12u, 0x00u, 0x00u})
 X86_ACTIVE_CASE("asm:kernel/cpu/isr.asm:89:bits32:iret()", CTOOL_X86_MODE_32, CTOOL_X86_MN_IRET, 1u, {0xcfu})
@@ -126,6 +127,7 @@ X86_ACTIVE_CASE("asm:demos/jcc_aliases.asm:32:bits32:jpe(ref)", CTOOL_X86_MODE_3
 X86_ACTIVE_CASE("asm:demos/jcc_aliases.asm:53:bits32:jpo(ref)", CTOOL_X86_MODE_32, CTOOL_X86_MN_JNP, 2u, {0x7bu, 0xfeu})
 X86_ACTIVE_CASE("asm:kernel/core/context_switch.asm:78:bits32:jz(ref)", CTOOL_X86_MODE_32, CTOOL_X86_MN_JE, 2u, {0x74u, 0xfeu})
 X86_ACTIVE_CASE("asm:demos/fpu_kernel.asm:70:bits32:ldmxcsr(m:abs)", CTOOL_X86_MODE_32, CTOOL_X86_MN_LDMXCSR, 7u, {0x0fu, 0xaeu, 0x15u, 0x34u, 0x12u, 0x00u, 0x00u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-linux/start.asm:15:bits32:lea(r32,m:base-disp)", CTOOL_X86_MODE_32, CTOOL_X86_MN_LEA, 3u, {0x8du, 0x56u, 0x04u})
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:25:bits32:lgdt(m:abs)", CTOOL_X86_MODE_32, CTOOL_X86_MN_LGDT, 7u, {0x0fu, 0x01u, 0x15u, 0x34u, 0x12u, 0x00u, 0x00u})
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:26:bits32:lidt(m:abs)", CTOOL_X86_MODE_32, CTOOL_X86_MN_LIDT, 7u, {0x0fu, 0x01u, 0x1du, 0x34u, 0x12u, 0x00u, 0x00u})
 X86_ACTIVE_CASE("asm:kernel/cpu/isr.asm:330:bits32:lidt(m:base)", CTOOL_X86_MODE_32, CTOOL_X86_MN_LIDT, 3u, {0x0fu, 0x01u, 0x18u})

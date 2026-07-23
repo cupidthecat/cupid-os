@@ -4,6 +4,7 @@
 #include <cupid_host_abi.h>
 
 void *malloc(size_t bytes);
+void *calloc(size_t count, size_t bytes);
 void *realloc(void *allocation, size_t bytes);
 void free(void *allocation);
 

@@ -44,6 +44,7 @@ typedef struct {
   ctool_u32 left_carried_qualifiers;
   ctool_u32 right_carried_qualifiers;
   ctool_bool parameter_context;
+  ctool_bool ignore_qualifiers;
 } cir_type_pair_t;
 
 typedef struct {
@@ -631,7 +632,8 @@ static ctool_bool cir_type_pair_equal(const cir_type_pair_t *left,
                      right->left_carried_qualifiers &&
                  left->right_carried_qualifiers ==
                      right->right_carried_qualifiers &&
-                 left->parameter_context == right->parameter_context
+                 left->parameter_context == right->parameter_context &&
+                 left->ignore_qualifiers == right->ignore_qualifiers
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -682,7 +684,7 @@ static ctool_status_t cir_type_pair_append(
 
 static ctool_status_t cir_compare_types(
     cir_context_t *context, ctool_u32 left, ctool_u32 right,
-    ctool_bool *compatible_out) {
+    ctool_bool ignore_initial_qualifiers, ctool_bool *compatible_out) {
   cir_type_pair_vector_t work;
   cir_type_pair_vector_t seen;
   cir_type_pair_t initial;
@@ -697,6 +699,7 @@ static ctool_status_t cir_compare_types(
   initial.left_carried_qualifiers = 0u;
   initial.right_carried_qualifiers = 0u;
   initial.parameter_context = CTOOL_FALSE;
+  initial.ignore_qualifiers = ignore_initial_qualifiers;
   status = cir_type_pair_append(context, &work, &initial);
   while (status == CTOOL_OK && compatible == CTOOL_TRUE &&
          work.count != 0u) {
@@ -728,7 +731,11 @@ static ctool_status_t cir_compare_types(
           pair.right_carried_qualifiers | right_node->qualifiers;
       pair.left_carried_qualifiers = 0u;
       pair.right_carried_qualifiers = 0u;
-      if (pair.parameter_context == CTOOL_TRUE) {
+      if (pair.ignore_qualifiers == CTOOL_TRUE) {
+        left_qualifiers = 0u;
+        right_qualifiers = 0u;
+        pair.ignore_qualifiers = CTOOL_FALSE;
+      } else if (pair.parameter_context == CTOOL_TRUE) {
         left_qualifiers &= CTOOL_C_QUAL_ATOMIC;
         right_qualifiers &= CTOOL_C_QUAL_ATOMIC;
         pair.parameter_context = CTOOL_FALSE;
@@ -857,6 +864,7 @@ static ctool_status_t cir_compare_types(
             child.left_carried_qualifiers = 0u;
             child.right_carried_qualifiers = 0u;
             child.parameter_context = CTOOL_TRUE;
+            child.ignore_qualifiers = CTOOL_FALSE;
             status = cir_type_pair_append(context, &work, &child);
             if (status != CTOOL_OK) {
               break;
@@ -870,6 +878,7 @@ static ctool_status_t cir_compare_types(
           result.left_carried_qualifiers = 0u;
           result.right_carried_qualifiers = 0u;
           result.parameter_context = CTOOL_FALSE;
+          result.ignore_qualifiers = CTOOL_FALSE;
           status = cir_type_pair_append(context, &work, &result);
         }
         break;
@@ -890,7 +899,17 @@ static ctool_bool cir_types_compatible(cir_context_t *context,
   ctool_bool compatible = CTOOL_FALSE;
   if (context->relation_status == CTOOL_OK) {
     context->relation_status =
-        cir_compare_types(context, left, right, &compatible);
+        cir_compare_types(context, left, right, CTOOL_FALSE, &compatible);
+  }
+  return context->relation_status == CTOOL_OK ? compatible : CTOOL_FALSE;
+}
+
+static ctool_bool cir_types_compatible_ignoring_initial_qualifiers(
+    cir_context_t *context, ctool_u32 left, ctool_u32 right) {
+  ctool_bool compatible = CTOOL_FALSE;
+  if (context->relation_status == CTOOL_OK) {
+    context->relation_status =
+        cir_compare_types(context, left, right, CTOOL_TRUE, &compatible);
   }
   return context->relation_status == CTOOL_OK ? compatible : CTOOL_FALSE;
 }
@@ -1184,12 +1203,16 @@ static ctool_bool cir_pointer_conversion_is_valid(
       cir_underlying_type(context, target_pointer->referenced_type,
                           &target_base, &target_qualifiers,
                           &target_referent) == CTOOL_FALSE ||
-      (source_qualifiers & ~target_qualifiers) != 0u ||
-      ((source_qualifiers ^ target_qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u) {
+      ((source_qualifiers | source_referent->qualifiers) &
+       ~(target_qualifiers | target_referent->qualifiers)) != 0u ||
+      (((source_qualifiers | source_referent->qualifiers) ^
+        (target_qualifiers | target_referent->qualifiers)) &
+       CTOOL_C_QUAL_ATOMIC) != 0u) {
     return CTOOL_FALSE;
   }
   if (conversion == CTOOL_C_CONVERSION_QUALIFICATION) {
-    return cir_types_compatible(context, source_base, target_base);
+    return cir_types_compatible_ignoring_initial_qualifiers(
+        context, source_base, target_base);
   }
   if (conversion != CTOOL_C_CONVERSION_POINTER) {
     return CTOOL_FALSE;

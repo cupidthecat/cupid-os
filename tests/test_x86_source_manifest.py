@@ -181,11 +181,11 @@ class X86SourceManifestTests(unittest.TestCase):
         for record in records:
             selected.setdefault((record[2], signature(record)), record)
 
-        self.assertEqual(len(paths), 26)
-        self.assertEqual(len(records), 1212)
-        self.assertEqual(len({record[4] for record in records}), 90)
-        self.assertEqual(len({key[1] for key in selected}), 163)
-        self.assertEqual(len(selected), 185)
+        self.assertEqual(len(paths), 27)
+        self.assertEqual(len(records), 1244)
+        self.assertEqual(len({record[4] for record in records}), 91)
+        self.assertEqual(len({key[1] for key in selected}), 164)
+        self.assertEqual(len(selected), 187)
 
         expected = {
             f"asm:{record[0]}:{record[1]}:bits{mode}:{case_signature}"

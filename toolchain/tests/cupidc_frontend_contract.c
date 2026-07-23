@@ -6748,12 +6748,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 184u, 5580u,
-       49500u, 680u, 230u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 185u, 5594u,
+       49605u, 681u, 231u, 0u, 0u},
       {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 161u, 4381u,
        37738u, 532u, 271u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 306u,
-       12097u, 78457u, 1797u, 1215u, 0u, 0u},
+       12105u, 78513u, 1797u, 1215u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -15793,7 +15793,7 @@ static int validate_pointer_comparison_unit(
   if (unit->function_definition_count !=
       ARRAY_COUNT(comparison_cases) +
           ARRAY_COUNT(return_conversion_functions) +
-          ARRAY_COUNT(null_return_conversion_functions) + 6u) {
+          ARRAY_COUNT(null_return_conversion_functions) + 7u) {
     (void)fprintf(stderr,
                   "pointer-comparisons: function inventory differs\n");
     return 1;
@@ -16126,6 +16126,38 @@ static int validate_pointer_comparison_unit(
     }
   }
   {
+    const ctool_c_statement_t *statement =
+        pointer_expression_statement(unit, "pass_nested_qualification");
+    const ctool_c_expression_t *call =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    ctool_u32 argument =
+        call == NULL ? CTOOL_C_AST_NONE : expression_child(unit, call, 1u);
+    const ctool_c_binding_t *consume =
+        find_binding(unit, "consume_nested_qualification");
+    const ctool_c_type_node_t *function =
+        consume == NULL ? NULL : type_node(unit, consume->type);
+    ctool_u32 expected_type =
+        function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+                function->parameter_count != 1u ||
+                function->first_parameter >= unit->graph.parameter_type_count
+            ? CTOOL_C_TYPE_NONE
+            : unit->graph.parameter_types[function->first_parameter];
+    if (call == NULL || call->kind != CTOOL_C_EXPRESSION_CALL ||
+        argument >= unit->expression_count ||
+        unit->expressions[argument].kind !=
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+        unit->expressions[argument].conversion !=
+            CTOOL_C_CONVERSION_QUALIFICATION ||
+        unit->expressions[argument].type != expected_type) {
+      (void)fprintf(
+          stderr,
+          "pointer-comparisons: nested qualification conversion differs\n");
+      return 1;
+    }
+  }
+  {
     const ctool_c_block_binding_t *binding =
         find_block_binding(unit, "converted_null");
     ctool_u32 initializer = block_initializer_expression(unit, binding);
@@ -16249,7 +16281,9 @@ static int run_pointer_comparisons(const char *host_root) {
       "_Atomic int *return_atomic_null(void) { return (void *)0; }\n"
       "void consume_void(void *value);\n"
       "void consume_pointer(int *value);\n"
+      "void consume_nested_qualification(char *const *paths);\n"
       "void pass_object(int *value) { consume_void(value); }\n"
+      "void pass_nested_qualification(char **const paths) { consume_nested_qualification(paths); }\n"
       "void pass_null(void) { consume_pointer(0); }\n"
       "void initialize_object(int *value) { void *converted_object = value; }\n"
       "void initialize_null(void) { int *converted_null = 0; }\n"
@@ -16385,6 +16419,16 @@ static int run_pointer_comparisons(const char *host_root) {
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "initializer expression is not convertible to block object type"},
+      {{"unsafe nested qualification addition",
+        "void consume(const char **value); void bad(char **value) { consume(value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "function call argument is not convertible to parameter type"},
+      {{"nested qualifier removal",
+        "void consume(char **value); void bad(char *const *value) { consume(value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "function call argument is not convertible to parameter type"},
       {{"function to void conversion",
         "typedef int callback_t(void); void *bad(callback_t *value) { return value; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
