@@ -9361,13 +9361,21 @@
       "total_translation_units": 383,
       "tracked_translation_units": 379
     },
-    "cupidc_compiler_fixed_point": {
-      "behavior_cases": 2,
-      "compared_c_objects": 11,
-      "compared_compiler_images": 3,
+    "cupid_toolchain_fixed_point": {
+      "compared_c_objects": 19,
       "compared_startup_objects": 1,
+      "compared_tool_images": 5,
       "compiler_c_sources": 11,
+      "executed_tools": [
+        "cupidasm",
+        "cupiddis",
+        "cupidld",
+        "cupidobj",
+        "cupidc"
+      ],
+      "failure_behavior_cases": 6,
       "gnu_c_sources": 1,
+      "help_cases": 5,
       "include_roots": [
         {
           "forms": [
@@ -9383,15 +9391,44 @@
           "path": "/toolchain/hosted/i386-linux/include"
         }
       ],
-      "link_objects": 12,
+      "link_objects": [
+        {
+          "objects": 8,
+          "tool": "cupidasm"
+        },
+        {
+          "objects": 8,
+          "tool": "cupiddis"
+        },
+        {
+          "objects": 7,
+          "tool": "cupidld"
+        },
+        {
+          "objects": 7,
+          "tool": "cupidobj"
+        },
+        {
+          "objects": 12,
+          "tool": "cupidc"
+        }
+      ],
       "platform": "i386-linux",
+      "producer_tools": [
+        "cupidc",
+        "cupidasm",
+        "cupidld"
+      ],
       "stages": [
         "generation-one",
         "stage-two",
         "stage-three"
       ],
       "status": "pass",
-      "strict_c_sources": 10
+      "strict_c_sources": 18,
+      "success_behavior_cases": 10,
+      "tool_c_sources": 19,
+      "tool_images": 5
     }
   },
   "features": [
@@ -22819,7 +22856,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "61832e7649f1068cfb767d8a08ccdbc5973a3482c1cbdf312f4b8e8909f06c91"
+        "sha256": "ff8f527c22e44d501b3c1b0e89b30bea006559c28e479019519109bf10b259ab"
       },
       {
         "path": "user/Makefile",
@@ -22832,7 +22869,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "bad229e3809521609af3485778868c9944ff2c0cd3b5fd2e45d6c6cee69f0e09"
+      "sha256": "1d962fc24f0efba078eb63dfccdb589bc41ff0fe4f16a91a7d49f0bb4e63cc6f"
     },
     "text_hash_policy": "canonical_lf"
   },

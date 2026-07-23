@@ -3082,9 +3082,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 with self.assertRaisesRegex(module.AuditError, message):
                     module._validate_hosted_i386_contract_profiles(root)
 
-    def test_cupidc_compiler_fixed_point_contract_fails_closed(self):
+    def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
-        module._cupidc_compiler_fixed_point_contract(REPO_ROOT)
+        module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         driver = (REPO_ROOT / "toolchain" / "cupidc_main.c").read_text(
             encoding="utf-8"
         )
@@ -3102,12 +3102,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "runtime loses GNU mode": (
                 "test",
-                '("runtime", '
-                '"/toolchain/hosted/i386-linux/runtime.c", True)',
-                '("runtime", '
-                '"/toolchain/hosted/i386-linux/runtime.c", False)',
+                "CUPID_TOOLCHAIN_FIXED_POINT_SOURCES = (\n"
+                '    ("runtime", '
+                '"/toolchain/hosted/i386-linux/runtime.c", True),',
+                "CUPID_TOOLCHAIN_FIXED_POINT_SOURCES = (\n"
+                '    ("runtime", '
+                '"/toolchain/hosted/i386-linux/runtime.c", False),',
                 r"fixed-point manifest differs: "
-                r"CUPIDC_FIXED_POINT_SOURCES",
+                r"CUPID_TOOLCHAIN_FIXED_POINT_SOURCES",
             ),
             "ABI root loses angle-only option": (
                 "test",
@@ -3120,30 +3122,80 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "runtime drops from link order": (
                 "test",
-                '    "x86",\n'
-                '    "runtime",\n'
-                ")\n\n\nclass ToolchainCupidCObjectContractTests",
-                '    "x86",\n'
-                ")\n\n\nclass ToolchainCupidCObjectContractTests",
+                '            "x86",\n'
+                '            "runtime",\n'
+                "        ),\n"
+                "    ),\n"
+                "    (\n"
+                '        "cupiddis",',
+                '            "x86",\n'
+                "        ),\n"
+                "    ),\n"
+                "    (\n"
+                '        "cupiddis",',
                 r"fixed-point manifest differs: "
-                r"CUPIDC_FIXED_POINT_LINK_ORDER",
+                r"CUPID_TOOLCHAIN_FIXED_POINT_LINKS",
             ),
             "stage one builds stage three": (
                 "test",
-                "stage_three_objects, stage_three_compiler = build_stage(\n"
-                '                stage_two_compiler, "stage-three"\n'
+                "stage_three_objects, stage_three_tools = build_stage(\n"
+                '                stage_two_producers, "stage-three"\n'
                 "            )",
-                "stage_three_objects, stage_three_compiler = build_stage(\n"
-                '                self.cupid_cupidc_path, "stage-three"\n'
+                "stage_three_objects, stage_three_tools = build_stage(\n"
+                '                generation_one_producers, "stage-three"\n'
                 "            )",
                 r"fixed-point staged comparison differs",
             ),
-            "compiler image comparison disappears": (
+            "stage assembler reuses generation one": (
                 "test",
-                "stage_three_compiler.read_bytes(),\n"
-                "                stage_two_compiler.read_bytes(),",
-                "stage_three_compiler.read_bytes(),\n"
-                "                self.cupid_cupidc_path.read_bytes(),",
+                '                    producers["cupidasm"],',
+                '                    generation_one_producers["cupidasm"],',
+                r"fixed-point staged comparison differs",
+            ),
+            "stage linker reuses generation one": (
+                "test",
+                '                        producers["cupidld"],',
+                '                        generation_one_producers["cupidld"],',
+                r"fixed-point staged comparison differs",
+            ),
+            "tool image comparison disappears": (
+                "test",
+                "stage_three_tools[tool_name].read_bytes(),\n"
+                "                    stage_two_tools[tool_name].read_bytes(),",
+                "stage_three_tools[tool_name].read_bytes(),\n"
+                "                    generation_one_tool.read_bytes(),",
+                r"fixed-point staged comparison differs",
+            ),
+            "source object comparison disappears": (
+                "test",
+                "stage_three_objects[name].read_bytes(),\n"
+                "                    stage_two_objects[name].read_bytes(),",
+                "stage_two_objects[name].read_bytes(),\n"
+                "                    stage_two_objects[name].read_bytes(),",
+                r"fixed-point staged comparison differs",
+            ),
+            "symbol behavior check disappears": (
+                "test",
+                "stage_two_nm, _stage_three_nm = run_stage_pair(",
+                "stage_two_nm, _stage_three_nm = missing_stage_pair(",
+                r"fixed-point staged comparison differs",
+            ),
+            "stage pair runs stage two twice": (
+                "test",
+                "stage_three_run = self.run_cupid_linux_tool(\n"
+                "                    stage_three_tools[tool_name],",
+                "stage_three_run = self.run_cupid_linux_tool(\n"
+                "                    stage_two_tools[tool_name],",
+                r"fixed-point staged comparison differs",
+            ),
+            "help behavior check disappears": (
+                "test",
+                "for tool_name in generation_one_tools:\n"
+                "                stage_two_help, _stage_three_help = "
+                "run_stage_pair(",
+                "for tool_name in ():\n"
+                "                stage_two_help, _stage_three_help = "
+                "run_stage_pair(",
                 r"fixed-point staged comparison differs",
             ),
         }
@@ -3167,7 +3219,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 driver_target.write_text(driver_payload, encoding="utf-8")
                 test_target.write_text(test_payload, encoding="utf-8")
                 with self.assertRaisesRegex(module.AuditError, message):
-                    module._cupidc_compiler_fixed_point_contract(root)
+                    module._cupid_toolchain_fixed_point_contract(root)
 
     def test_cupidc_active_manifest_fails_closed_on_compile_recipe_shape(self):
         module = _load_audit_module()

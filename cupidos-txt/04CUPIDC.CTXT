@@ -261,14 +261,18 @@ quoted and angle lookup. --include-angle enables angle lookup only. Both forms
 accept native paths or absolute logical paths under --root. Failed compilation
 preserves an existing output.
 
-The static i386 Linux compiler reaches a complete fixed point under Linux or
-WSL. Generation one compiles all eleven C objects in its closure and links
-stage two. Stage two repeats the build for stage three. Every C object matches
-across those stages, both startup objects match, and all three linked compiler
-images are byte-identical. Stages two and three also agree on valid output and
-malformed-source behavior. The native generation, contract runners, and normal
-Cupid OS C objects still use a host C compiler. Checked seeds, a native Windows
-fixed point, sibling-tool fixed points, and production handoff remain open.
+The five static i386 Linux tools reach a stage-two to stage-three fixed point
+under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
+a fresh startup object, and the five stage-two images. The stage-two producer
+trio repeats that work for stage three. Every object and linked CupidC,
+CupidASM, CupidDis, CupidLD, and CupidObj image matches byte for byte. Both
+stages also agree on all five help paths, ten successful operations, and six
+failure cases.
+
+The native generation, contract runners, hosted production commands, and
+normal Cupid OS C objects still use a host C compiler. Checked seeds, direct
+native Linux and native Windows evidence, fresh-checkout bootstrap
+independence, and production handoff remain open.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

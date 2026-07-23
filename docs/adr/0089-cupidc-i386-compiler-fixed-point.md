@@ -111,3 +111,7 @@ startup and link operations to both compared stages, but the test does not
 rebuild those tools with the stage-two compiler. Checked seeds, fresh-checkout
 bootstrap independence, whole-toolchain fixed points, and production ownership
 remain open.
+
+ADR 0090 follows this compiler-only checkpoint with the complete five-tool
+static i386 fixed point. It leaves this ADR's original evidence and claim
+boundary intact.

@@ -42,6 +42,96 @@ CUPIDC_FIXED_POINT_LINK_ORDER = (
     "x86",
     "runtime",
 )
+CUPID_TOOLCHAIN_FIXED_POINT_SOURCES = (
+    ("runtime", "/toolchain/hosted/i386-linux/runtime.c", True),
+    ("ctool", "/toolchain/ctool.c", False),
+    ("ctool_host", "/toolchain/ctool_host.c", False),
+    ("elf32", "/toolchain/elf32.c", False),
+    ("x86", "/toolchain/x86.c", False),
+    ("cupidasm", "/toolchain/cupidasm.c", False),
+    ("cupidasm_main", "/toolchain/cupidasm_main.c", False),
+    ("cupiddis", "/toolchain/cupiddis.c", False),
+    ("cupiddis_main", "/toolchain/cupiddis_main.c", False),
+    ("cupidobj", "/toolchain/cupidobj.c", False),
+    ("cupidobj_main", "/toolchain/cupidobj_main.c", False),
+    ("cupidld", "/toolchain/cupidld.c", False),
+    ("cupidld_main", "/toolchain/cupidld_main.c", False),
+    ("cupidc_pp", "/toolchain/cupidc_pp.c", False),
+    ("cupidc_type", "/toolchain/cupidc_type.c", False),
+    ("cupidc_frontend", "/toolchain/cupidc_frontend.c", False),
+    ("cupidc_ir", "/toolchain/cupidc_ir.c", False),
+    ("cupidc_emit", "/toolchain/cupidc_emit.c", False),
+    ("cupidc_main", "/toolchain/cupidc_main.c", False),
+)
+CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
+    (
+        "cupidasm",
+        (
+            "start",
+            "cupidasm_main",
+            "cupidasm",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "x86",
+            "runtime",
+        ),
+    ),
+    (
+        "cupiddis",
+        (
+            "start",
+            "cupiddis_main",
+            "cupiddis",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "x86",
+            "runtime",
+        ),
+    ),
+    (
+        "cupidld",
+        (
+            "start",
+            "cupidld_main",
+            "cupidld",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "runtime",
+        ),
+    ),
+    (
+        "cupidobj",
+        (
+            "start",
+            "cupidobj_main",
+            "cupidobj",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "runtime",
+        ),
+    ),
+    (
+        "cupidc",
+        (
+            "start",
+            "cupidc_main",
+            "cupidc_emit",
+            "cupidc_ir",
+            "cupidc_frontend",
+            "cupidc_type",
+            "cupidc_pp",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "x86",
+            "runtime",
+        ),
+    ),
+)
 
 
 class ToolchainCupidCObjectContractTests(unittest.TestCase):
@@ -1851,33 +1941,53 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertGreater(len(hosted_object.read_bytes()), 100000)
             self.assertEqual(hosted_object.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
-    def test_cupid_built_cupidc_reaches_a_full_compiler_fixed_point(self):
+    def test_cupid_built_toolchain_reaches_a_full_static_fixed_point(self):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
         self.assertEqual(len(CUPIDC_FIXED_POINT_SOURCES), 11)
+        self.assertEqual(len(CUPID_TOOLCHAIN_FIXED_POINT_SOURCES), 19)
         self.assertEqual(
             [
                 name
                 for name, _source, gnu_extensions
-                in CUPIDC_FIXED_POINT_SOURCES
+                in CUPID_TOOLCHAIN_FIXED_POINT_SOURCES
                 if gnu_extensions
             ],
             ["runtime"],
         )
         self.assertEqual(len(CUPIDC_FIXED_POINT_LINK_ORDER), 12)
+        self.assertEqual(
+            [name for name, _objects in CUPID_TOOLCHAIN_FIXED_POINT_LINKS],
+            ["cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc"],
+        )
+        self.assertEqual(
+            dict(CUPID_TOOLCHAIN_FIXED_POINT_LINKS)["cupidc"],
+            CUPIDC_FIXED_POINT_LINK_ORDER,
+        )
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
             "[--freestanding] [--root NATIVE_ROOT]\n"
         )
+        generation_one_tools = {
+            "cupidasm": self.cupid_cupidasm_path,
+            "cupiddis": self.cupid_cupiddis_path,
+            "cupidld": self.cupid_cupidld_path,
+            "cupidobj": self.cupid_cupidobj_path,
+            "cupidc": self.cupid_cupidc_path,
+        }
+        generation_one_producers = {
+            name: generation_one_tools[name]
+            for name in ("cupidc", "cupidasm", "cupidld")
+        }
         with tempfile.TemporaryDirectory(
-            prefix=".cupidc-fixed-point-", dir=REPO_ROOT
+            prefix=".cupid-toolchain-fixed-point-", dir=REPO_ROOT
         ) as temp:
             root = Path(temp)
-            stage_compilers = {}
+            stage_producers = {}
 
-            def build_stage(compiler, stage_name):
-                stage_compilers[stage_name] = compiler
+            def build_stage(producers, stage_name):
+                stage_producers[stage_name] = dict(producers)
                 stage = root / stage_name
                 stage.mkdir()
                 logical_stage = "/" + stage.relative_to(REPO_ROOT).as_posix()
@@ -1899,14 +2009,15 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     return (
                         case,
                         self.run_cupid_linux_tool(
-                            compiler, arguments, timeout=300
+                            producers["cupidc"], arguments, timeout=300
                         ),
                     )
 
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     compiled = list(
                         executor.map(
-                            compile_source, CUPIDC_FIXED_POINT_SOURCES
+                            compile_source,
+                            CUPID_TOOLCHAIN_FIXED_POINT_SOURCES,
                         )
                     )
                 objects = {}
@@ -1939,7 +2050,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
 
                 start_object = stage / "start.o"
                 assembled = self.run_cupid_linux_tool(
-                    self.cupid_cupidasm_path,
+                    producers["cupidasm"],
                     [
                         "-f",
                         "elf32",
@@ -1966,81 +2077,148 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 )
                 objects["start"] = start_object
 
-                executable = stage / "cupidc.elf"
-                linked_stage = self.run_cupid_linux_tool(
-                    self.cupid_cupidld_path,
-                    [
-                        "-m",
-                        "elf_i386",
-                        "--text-address",
-                        "0x08048000",
-                        "--entry",
-                        "_start",
-                        "-o",
-                        executable,
-                        *[
-                            objects[name]
-                            for name in CUPIDC_FIXED_POINT_LINK_ORDER
+                executables = {}
+                for tool_name, link_order in (
+                    CUPID_TOOLCHAIN_FIXED_POINT_LINKS
+                ):
+                    executable = stage / f"{tool_name}.elf"
+                    linked_stage = self.run_cupid_linux_tool(
+                        producers["cupidld"],
+                        [
+                            "-m",
+                            "elf_i386",
+                            "--text-address",
+                            "0x08048000",
+                            "--entry",
+                            "_start",
+                            "-o",
+                            executable,
+                            *[objects[name] for name in link_order],
                         ],
-                    ],
-                    timeout=120,
-                )
-                self.assertEqual(
-                    linked_stage.returncode, 0, linked_stage.stderr
-                )
-                self.assertEqual(linked_stage.stdout, "")
-                self.assertEqual(linked_stage.stderr, "")
-                image = executable.read_bytes()
-                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
-                self.assertEqual(
-                    int.from_bytes(image[16:18], "little"), 2
-                )
-                self.assertEqual(
-                    int.from_bytes(image[18:20], "little"), 3
-                )
-                self.assertEqual(
-                    int.from_bytes(image[24:28], "little"),
-                    0x08048000,
-                )
-                return objects, executable
+                        timeout=120,
+                    )
+                    self.assertEqual(
+                        linked_stage.returncode,
+                        0,
+                        tool_name + "\n" + linked_stage.stderr,
+                    )
+                    self.assertEqual(linked_stage.stdout, "", tool_name)
+                    self.assertEqual(linked_stage.stderr, "", tool_name)
+                    image = executable.read_bytes()
+                    self.assertEqual(
+                        image[:7], b"\x7fELF\x01\x01\x01", tool_name
+                    )
+                    self.assertEqual(
+                        int.from_bytes(image[16:18], "little"), 2, tool_name
+                    )
+                    self.assertEqual(
+                        int.from_bytes(image[18:20], "little"), 3, tool_name
+                    )
+                    self.assertEqual(
+                        int.from_bytes(image[24:28], "little"),
+                        0x08048000,
+                        tool_name,
+                    )
+                    executables[tool_name] = executable
+                return objects, executables
 
-            stage_two_objects, stage_two_compiler = build_stage(
-                self.cupid_cupidc_path, "stage-two"
+            stage_two_objects, stage_two_tools = build_stage(
+                generation_one_producers, "stage-two"
             )
-            stage_three_objects, stage_three_compiler = build_stage(
-                stage_two_compiler, "stage-three"
+            stage_two_producers = {
+                name: stage_two_tools[name]
+                for name in ("cupidc", "cupidasm", "cupidld")
+            }
+            stage_three_objects, stage_three_tools = build_stage(
+                stage_two_producers, "stage-three"
             )
             self.assertEqual(
-                stage_compilers["stage-two"], self.cupid_cupidc_path
+                stage_producers["stage-two"], generation_one_producers
             )
             self.assertEqual(
-                stage_compilers["stage-three"], stage_two_compiler
+                stage_producers["stage-three"], stage_two_producers
             )
-            self.assertNotEqual(
-                stage_compilers["stage-three"], self.cupid_cupidc_path
-            )
-            for name in CUPIDC_FIXED_POINT_LINK_ORDER:
+            for producer_name in ("cupidc", "cupidasm", "cupidld"):
+                self.assertNotEqual(
+                    stage_producers["stage-three"][producer_name],
+                    generation_one_producers[producer_name],
+                )
+            for name, _source, _gnu_extensions in (
+                CUPID_TOOLCHAIN_FIXED_POINT_SOURCES
+            ):
                 self.assertEqual(
                     stage_three_objects[name].read_bytes(),
                     stage_two_objects[name].read_bytes(),
                     name,
                 )
             self.assertEqual(
-                stage_two_compiler.read_bytes(),
-                self.cupid_cupidc_path.read_bytes(),
+                stage_three_objects["start"].read_bytes(),
+                stage_two_objects["start"].read_bytes(),
             )
+            for tool_name, generation_one_tool in (
+                generation_one_tools.items()
+            ):
+                self.assertEqual(
+                    stage_two_tools[tool_name].read_bytes(),
+                    generation_one_tool.read_bytes(),
+                    tool_name,
+                )
+                self.assertEqual(
+                    stage_three_tools[tool_name].read_bytes(),
+                    stage_two_tools[tool_name].read_bytes(),
+                    tool_name,
+                )
+
+            def run_stage_pair(
+                tool_name,
+                stage_two_arguments,
+                stage_three_arguments=None,
+                timeout=60,
+            ):
+                if stage_three_arguments is None:
+                    stage_three_arguments = stage_two_arguments
+                stage_two_run = self.run_cupid_linux_tool(
+                    stage_two_tools[tool_name],
+                    stage_two_arguments,
+                    timeout=timeout,
+                )
+                stage_three_run = self.run_cupid_linux_tool(
+                    stage_three_tools[tool_name],
+                    stage_three_arguments,
+                    timeout=timeout,
+                )
+                self.assertEqual(
+                    stage_three_run.returncode,
+                    stage_two_run.returncode,
+                    tool_name + "\n" + stage_three_run.stderr,
+                )
+                self.assertEqual(
+                    stage_three_run.stdout,
+                    stage_two_run.stdout,
+                    tool_name,
+                )
+                self.assertEqual(
+                    stage_three_run.stderr,
+                    stage_two_run.stderr,
+                    tool_name,
+                )
+                return stage_two_run, stage_three_run
+
+            for tool_name in generation_one_tools:
+                stage_two_help, _stage_three_help = run_stage_pair(
+                    tool_name, ["--help"]
+                )
+                self.assertEqual(
+                    stage_two_help.returncode,
+                    0,
+                    tool_name + "\n" + stage_two_help.stderr,
+                )
+                self.assertNotEqual(stage_two_help.stdout, "", tool_name)
+                self.assertEqual(stage_two_help.stderr, "", tool_name)
             self.assertEqual(
-                stage_three_compiler.read_bytes(),
-                stage_two_compiler.read_bytes(),
+                run_stage_pair("cupidc", ["--help"])[0].stdout,
+                usage,
             )
-            stage_three_help = self.run_cupid_linux_tool(
-                stage_three_compiler, ["--help"], timeout=60
-            )
-            self.assertEqual(
-                stage_three_help.returncode, 0, stage_three_help.stderr
-            )
-            self.assertEqual(stage_three_help.stdout, usage)
-            self.assertEqual(stage_three_help.stderr, "")
 
             valid_source = root / "fixed-point-valid.c"
             invalid_source = root / "fixed-point-invalid.c"
@@ -2061,12 +2239,12 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "/fixed-point-valid.c",
             ]
             stage_two_valid_run = self.run_cupid_linux_tool(
-                stage_two_compiler,
+                stage_two_tools["cupidc"],
                 [*valid_arguments, "-o", "/stage-two-valid.o"],
                 timeout=60,
             )
             stage_three_valid_run = self.run_cupid_linux_tool(
-                stage_three_compiler,
+                stage_three_tools["cupidc"],
                 [*valid_arguments, "-o", "/stage-three-valid.o"],
                 timeout=60,
             )
@@ -2105,12 +2283,12 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "/fixed-point-invalid.c",
             ]
             stage_two_invalid_run = self.run_cupid_linux_tool(
-                stage_two_compiler,
+                stage_two_tools["cupidc"],
                 [*invalid_arguments, "-o", "/stage-two-failure.o"],
                 timeout=60,
             )
             stage_three_invalid_run = self.run_cupid_linux_tool(
-                stage_three_compiler,
+                stage_three_tools["cupidc"],
                 [*invalid_arguments, "-o", "/stage-three-failure.o"],
                 timeout=60,
             )
@@ -2136,6 +2314,459 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(stage_two_failure.read_bytes(), failure_sentinel)
             self.assertEqual(
                 stage_three_failure.read_bytes(), failure_sentinel
+            )
+
+            assembly_source = root / "fixed-point.asm"
+            stage_two_binary = root / "stage-two.bin"
+            stage_three_binary = root / "stage-three.bin"
+            assembly_source.write_text(
+                "BITS 16\n"
+                "ORG 0x7c00\n"
+                "start:\n"
+                "    mov ax, 0x1234\n"
+                "    ret\n",
+                encoding="utf-8",
+            )
+            stage_two_assembly, _stage_three_assembly = run_stage_pair(
+                "cupidasm",
+                [
+                    "-f",
+                    "bin",
+                    assembly_source,
+                    "-o",
+                    stage_two_binary,
+                ],
+                [
+                    "-f",
+                    "bin",
+                    assembly_source,
+                    "-o",
+                    stage_three_binary,
+                ],
+            )
+            self.assertEqual(
+                stage_two_assembly.returncode,
+                0,
+                stage_two_assembly.stderr,
+            )
+            self.assertEqual(
+                stage_three_binary.read_bytes(),
+                stage_two_binary.read_bytes(),
+            )
+            self.assertEqual(stage_two_binary.read_bytes(), b"\xb8\x34\x12\xc3")
+
+            stage_two_report, _stage_three_report = run_stage_pair(
+                "cupiddis",
+                [
+                    "--raw",
+                    "--mode",
+                    "16",
+                    "--base",
+                    "0x7c00",
+                    stage_two_binary,
+                ],
+                [
+                    "--raw",
+                    "--mode",
+                    "16",
+                    "--base",
+                    "0x7c00",
+                    stage_three_binary,
+                ],
+            )
+            self.assertEqual(
+                stage_two_report.returncode,
+                0,
+                stage_two_report.stderr,
+            )
+            self.assertIn("mov ax, 0x1234", stage_two_report.stdout)
+
+            asset = root / "fixed-point-asset.bin"
+            stage_two_wrapped = root / "stage-two-wrapped.o"
+            stage_three_wrapped = root / "stage-three-wrapped.o"
+            asset.write_bytes(b"Cupid fixed point\x00")
+            stage_two_wrap, _stage_three_wrap = run_stage_pair(
+                "cupidobj",
+                [
+                    "wrap",
+                    asset,
+                    "--stem",
+                    "fixed_point_asset",
+                    "--section",
+                    ".rodata",
+                    "--readonly",
+                    "-o",
+                    stage_two_wrapped,
+                ],
+                [
+                    "wrap",
+                    asset,
+                    "--stem",
+                    "fixed_point_asset",
+                    "--section",
+                    ".rodata",
+                    "--readonly",
+                    "-o",
+                    stage_three_wrapped,
+                ],
+            )
+            self.assertEqual(
+                stage_two_wrap.returncode, 0, stage_two_wrap.stderr
+            )
+            self.assertEqual(
+                stage_three_wrapped.read_bytes(),
+                stage_two_wrapped.read_bytes(),
+            )
+            self.assertEqual(
+                stage_two_wrapped.read_bytes()[:7],
+                b"\x7fELF\x01\x01\x01",
+            )
+
+            link_source = root / "fixed-point-start.asm"
+            stage_two_link_object = root / "stage-two-start.o"
+            stage_three_link_object = root / "stage-three-start.o"
+            stage_two_linked = root / "stage-two-linked.elf"
+            stage_three_linked = root / "stage-three-linked.elf"
+            link_source.write_text(
+                "BITS 32\n"
+                "global _start\n"
+                "section .text\n"
+                "_start:\n"
+                "    mov eax, 1\n"
+                "    xor ebx, ebx\n"
+                "    int 0x80\n",
+                encoding="utf-8",
+            )
+            stage_two_link_assembly, _stage_three_link_assembly = (
+                run_stage_pair(
+                    "cupidasm",
+                    [
+                        "-f",
+                        "elf32",
+                        link_source,
+                        "-o",
+                        stage_two_link_object,
+                    ],
+                    [
+                        "-f",
+                        "elf32",
+                        link_source,
+                        "-o",
+                        stage_three_link_object,
+                    ],
+                )
+            )
+            self.assertEqual(
+                stage_two_link_assembly.returncode,
+                0,
+                stage_two_link_assembly.stderr,
+            )
+            self.assertEqual(
+                stage_three_link_object.read_bytes(),
+                stage_two_link_object.read_bytes(),
+            )
+            stage_two_link, _stage_three_link = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_two_linked,
+                    stage_two_link_object,
+                ],
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_three_linked,
+                    stage_three_link_object,
+                ],
+            )
+            self.assertEqual(
+                stage_two_link.returncode, 0, stage_two_link.stderr
+            )
+            self.assertEqual(
+                stage_three_linked.read_bytes(),
+                stage_two_linked.read_bytes(),
+            )
+            self.assertEqual(
+                int.from_bytes(
+                    stage_two_linked.read_bytes()[24:28], "little"
+                ),
+                0x00600000,
+            )
+
+            stage_two_nm, _stage_three_nm = run_stage_pair(
+                "cupiddis",
+                ["--nm", stage_two_linked],
+                ["--nm", stage_three_linked],
+            )
+            self.assertEqual(
+                stage_two_nm.returncode, 0, stage_two_nm.stderr
+            )
+            self.assertIn(" T _start\n", stage_two_nm.stdout)
+
+            stage_two_script_linked = root / "stage-two-script.elf"
+            stage_three_script_linked = root / "stage-three-script.elf"
+            stage_two_script_link, _stage_three_script_link = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "elf_i386",
+                    "-T",
+                    REPO_ROOT / "link.ld",
+                    "-o",
+                    stage_two_script_linked,
+                    stage_two_link_object,
+                ],
+                [
+                    "-m",
+                    "elf_i386",
+                    "-T",
+                    REPO_ROOT / "link.ld",
+                    "-o",
+                    stage_three_script_linked,
+                    stage_three_link_object,
+                ],
+            )
+            self.assertEqual(
+                stage_two_script_link.returncode,
+                0,
+                stage_two_script_link.stderr,
+            )
+            self.assertEqual(
+                stage_three_script_linked.read_bytes(),
+                stage_two_script_linked.read_bytes(),
+            )
+            self.assertEqual(
+                int.from_bytes(
+                    stage_two_script_linked.read_bytes()[24:28],
+                    "little",
+                ),
+                0x00100000,
+            )
+
+            text_asset = root / "fixed-point-text.txt"
+            stage_two_text = root / "stage-two-text.o"
+            stage_three_text = root / "stage-three-text.o"
+            text_asset.write_bytes(b"first\r\nsecond\r\n")
+            stage_two_text_wrap, _stage_three_text_wrap = run_stage_pair(
+                "cupidobj",
+                [
+                    "wrap-text",
+                    text_asset,
+                    "--identity",
+                    "fixed-point.txt",
+                    "-o",
+                    stage_two_text,
+                ],
+                [
+                    "wrap-text",
+                    text_asset,
+                    "--identity",
+                    "fixed-point.txt",
+                    "-o",
+                    stage_three_text,
+                ],
+            )
+            self.assertEqual(
+                stage_two_text_wrap.returncode,
+                0,
+                stage_two_text_wrap.stderr,
+            )
+            self.assertEqual(
+                stage_three_text.read_bytes(),
+                stage_two_text.read_bytes(),
+            )
+
+            stage_two_flat = root / "stage-two-flat.bin"
+            stage_three_flat = root / "stage-three-flat.bin"
+            stage_two_flat_run, _stage_three_flat_run = run_stage_pair(
+                "cupidobj",
+                [
+                    "flat",
+                    stage_two_linked,
+                    "-o",
+                    stage_two_flat,
+                ],
+                [
+                    "flat",
+                    stage_three_linked,
+                    "-o",
+                    stage_three_flat,
+                ],
+            )
+            self.assertEqual(
+                stage_two_flat_run.returncode,
+                0,
+                stage_two_flat_run.stderr,
+            )
+            self.assertEqual(
+                stage_three_flat.read_bytes(),
+                stage_two_flat.read_bytes(),
+            )
+            self.assertNotEqual(stage_two_flat.read_bytes(), b"")
+
+            invalid_assembly = root / "fixed-point-invalid.asm"
+            stage_two_invalid_assembly = root / "stage-two-invalid.bin"
+            stage_three_invalid_assembly = root / "stage-three-invalid.bin"
+            invalid_assembly.write_text(
+                "BITS 16\nthis_is_not_an_instruction ax\n",
+                encoding="utf-8",
+            )
+            stage_two_invalid_assembly.write_bytes(failure_sentinel)
+            stage_three_invalid_assembly.write_bytes(failure_sentinel)
+            invalid_asm_run, _invalid_asm_stage_three = run_stage_pair(
+                "cupidasm",
+                [
+                    "-f",
+                    "bin",
+                    invalid_assembly,
+                    "-o",
+                    stage_two_invalid_assembly,
+                ],
+                [
+                    "-f",
+                    "bin",
+                    invalid_assembly,
+                    "-o",
+                    stage_three_invalid_assembly,
+                ],
+            )
+            self.assertEqual(
+                invalid_asm_run.returncode, 1, invalid_asm_run.stderr
+            )
+            self.assertEqual(invalid_asm_run.stdout, "")
+            self.assertIn(
+                "unknown Cupid ASM instruction mnemonic",
+                invalid_asm_run.stderr,
+            )
+            self.assertEqual(
+                stage_two_invalid_assembly.read_bytes(), failure_sentinel
+            )
+            self.assertEqual(
+                stage_three_invalid_assembly.read_bytes(), failure_sentinel
+            )
+
+            missing_input = root / "fixed-point-missing.bin"
+            missing_dis_run, _missing_dis_stage_three = run_stage_pair(
+                "cupiddis",
+                [
+                    "--raw",
+                    "--mode",
+                    "16",
+                    "--base",
+                    "0",
+                    missing_input,
+                ],
+            )
+            self.assertEqual(
+                missing_dis_run.returncode, 1, missing_dis_run.stderr
+            )
+            self.assertEqual(missing_dis_run.stdout, "")
+            self.assertIn("cupiddis: cannot load ", missing_dis_run.stderr)
+            self.assertIn("(not_found)", missing_dis_run.stderr)
+
+            malformed_object = root / "fixed-point-malformed.o"
+            stage_two_link_failure = root / "stage-two-link-failure.elf"
+            stage_three_link_failure = root / "stage-three-link-failure.elf"
+            malformed_object.write_bytes(b"\x7fELF")
+            malformed_dis_run, _malformed_dis_stage_three = run_stage_pair(
+                "cupiddis",
+                ["--all", malformed_object],
+            )
+            self.assertEqual(
+                malformed_dis_run.returncode,
+                1,
+                malformed_dis_run.stderr,
+            )
+            self.assertIn(
+                "ELF32 header is truncated", malformed_dis_run.stderr
+            )
+            stage_two_link_failure.write_bytes(failure_sentinel)
+            stage_three_link_failure.write_bytes(failure_sentinel)
+            malformed_link_run, _malformed_link_stage_three = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_two_link_failure,
+                    malformed_object,
+                ],
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00600000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_three_link_failure,
+                    malformed_object,
+                ],
+            )
+            self.assertEqual(
+                malformed_link_run.returncode,
+                1,
+                malformed_link_run.stderr,
+            )
+            self.assertIn(
+                "ELF32 header is truncated", malformed_link_run.stderr
+            )
+            self.assertEqual(
+                stage_two_link_failure.read_bytes(), failure_sentinel
+            )
+            self.assertEqual(
+                stage_three_link_failure.read_bytes(), failure_sentinel
+            )
+
+            stage_two_obj_failure = root / "stage-two-obj-failure.o"
+            stage_three_obj_failure = root / "stage-three-obj-failure.o"
+            stage_two_obj_failure.write_bytes(failure_sentinel)
+            stage_three_obj_failure.write_bytes(failure_sentinel)
+            missing_obj_run, _missing_obj_stage_three = run_stage_pair(
+                "cupidobj",
+                [
+                    "wrap",
+                    missing_input,
+                    "--stem",
+                    "missing",
+                    "-o",
+                    stage_two_obj_failure,
+                ],
+                [
+                    "wrap",
+                    missing_input,
+                    "--stem",
+                    "missing",
+                    "-o",
+                    stage_three_obj_failure,
+                ],
+            )
+            self.assertEqual(
+                missing_obj_run.returncode, 1, missing_obj_run.stderr
+            )
+            self.assertEqual(missing_obj_run.stdout, "")
+            self.assertIn("cupidobj: cannot load ", missing_obj_run.stderr)
+            self.assertIn("(not_found)", missing_obj_run.stderr)
+            self.assertEqual(
+                stage_two_obj_failure.read_bytes(), failure_sentinel
+            )
+            self.assertEqual(
+                stage_three_obj_failure.read_bytes(), failure_sentinel
             )
 
     def test_cupid_built_runtime_handles_includes_mode_maps_and_missing_files(

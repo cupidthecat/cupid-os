@@ -939,9 +939,11 @@ test:
 	  --summary docs/bootstrap/ACTIVE-SOURCE-AUDIT.md \
 	  --c-preprocessor-active-cases $(BOOTSTRAP_CUPIDC_ACTIVE_CASES) --check
 
-test-cupidc-fixed-point:
+test-cupidc-fixed-point: test-toolchain-fixed-point
+
+test-toolchain-fixed-point:
 	$(PYTHON) -m unittest -v \
-	  tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupid_built_cupidc_reaches_a_full_compiler_fixed_point
+	  tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupid_built_toolchain_reaches_a_full_static_fixed_point
 
 # NASM is not part of the normal build.  When it is installed, this optional
 # source-parity suite assembles all four active inputs with both assemblers.
@@ -1195,4 +1197,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

@@ -130,7 +130,11 @@ _Avoid_: general libc, Windows runtime, test-only import providers
 
 **CupidC compiler generation**:
 A compiler process compiling unchanged source from its complete implementation. Generation zero is the native host-built CupidC driver, and generation one is the first static Cupid-built driver. Generation one builds all eleven C objects and links stage two. Stage two repeats the same work for stage three. The static i386 Linux fixed-point gate requires every stage-two and stage-three C object, both startup objects, and all three linked compiler images to match byte for byte.
-_Avoid_: checked seed, complete self-hosting, whole-toolchain fixed point
+_Avoid_: checked seed, complete self-hosting
+
+**Static i386 Toolchain fixed point**:
+A stage boundary where generation-one CupidC, CupidASM, and CupidLD build complete stage-two images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj, then the stage-two producer trio repeats that build for stage three. The gate compares all 19 C objects, the independently assembled startup objects, and all five linked images across the two stages. Each stage also executes the five tools through real success and failure cases. The recorded proof covers the static i386 Linux ABI through WSL. It is not direct native Linux evidence, a checked-seed bootstrap, native Windows proof, or normal-build ownership transfer.
+_Avoid_: fresh-checkout bootstrap, native Windows fixed point, production cutover
 
 **Host adapter link tracer**:
 A static i386 executable used to check the boundary between CupidC objects, CupidASM startup code, and CupidLD. Its `_start` calls `ctool_host_adapter_init`, checks the resulting `{data, size}` fields, and exits through Linux `int 0x80`. Link-only providers resolve the adapter's file and allocation imports but do not implement a usable runtime.
