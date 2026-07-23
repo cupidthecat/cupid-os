@@ -117,8 +117,12 @@ A complete Cupid C `struct` carried by value through Linear IR. One abstract sta
 _Avoid_: aggregate scalar, borrowed object address
 
 **Hosted source frontier**:
-The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current frontier contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units plus `kernel/lang/as_elf.c`. Eleven files belong to issue #27's fourteen-file CupidC, CupidASM, and CupidDis cohort. The result is source and object coverage, not a host-runnable toolchain, a bootstrap stage, or production ownership.
+The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units, the three issue #27 hosted adapters under the checked i386 Linux ABI profile, and `kernel/lang/as_elf.c`. The fourteen-file issue cohort is ten of the hermetic units, the kernel bridge, and the three adapters; the gate also covers the adjacent CupidLD and CupidObj cores. Adapter objects retain exact named imports and checked relocation shapes. The result is source and object coverage, not a host-runnable toolchain, a bootstrap stage, or production ownership.
 _Avoid_: self-hosted toolchain, completed source cohort
+
+**Hosted i386 ABI profile**:
+The deterministic hosted C11 request used to compile an i386 Linux tool adapter. It searches `/toolchain` for project headers and the checked i386 Linux declaration set for angle includes, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. The declarations describe the required C runtime ABI but do not implement or select that runtime.
+_Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
 
 **Aligned call site**:
 An i386 call instruction emitted with ESP on a sixteen-byte boundary before the CPU pushes the return address. Hosted CupidC derives the required padding from the fixed frame, live Linear IR stack depth, and outgoing ABI storage.

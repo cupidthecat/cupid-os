@@ -6328,64 +6328,132 @@ This increment expands instruction coverage but does not transfer a production s
 
 [Issue #13](https://github.com/cupidthecat/cupid-os/issues/13) remains open for production ownership transfer, staged self-hosting, and the fixed-point bootstrap. [Issue #27](https://github.com/cupidthecat/cupid-os/issues/27) remains open for host-runnable tools, linking, staged compiler comparisons, and the remaining self-hosting work. No issue is ready to close from this increment.
 
+## 2026-07-22: CupidC emits every hosted adapter object
+
+### Decision and source boundary
+
+The issue #27 source cohort now reaches deterministic CupidC object emission
+for all fourteen files. The last three sources are the unchanged hosted
+adapters: `ctool_host.c`, `cupidasm_main.c`, and `cupiddis_main.c`.
+
+Those files need ordinary hosted declarations for file I/O, allocation,
+strings, `errno`, and the working directory. Reading the build host's system
+headers would make the compiler input depend on whichever libc and extensions
+happen to be installed. The repository now owns six narrow declaration headers
+under `toolchain/hosted/i386-linux/include`. They describe the calls the
+adapters make without pretending to provide a C runtime.
+
+The adapters use a separate hosted i386 profile. It selects C11, searches the
+Toolchain root before the checked ABI root, and defines
+`__SIZEOF_POINTER__` as four. The existing 64-bit hosted profile remains the
+right description of the process that builds today's contracts, but it is not
+the ABI of a future CupidC-built ELF32 tool. ADR 0082 records this split.
+
+The object gate emits each adapter twice, reads both objects with Cupid's ELF32
+reader, and compares them byte for byte. It checks every named undefined
+import, relocation type, addend, symbol reference, and relocation field. The
+locked rows are:
+
+| Source | Functions | Text bytes | Object bytes | Fingerprint | Symbols | Relocations |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/ctool_host.c` | 11 | 5,522 | 6,944 | `28739C3F` | 25 | 38 |
+| `toolchain/cupidasm_main.c` | 13 | 9,455 | 12,384 | `561BBC22` | 56 | 88 |
+| `toolchain/cupiddis_main.c` | 13 | 13,816 | 17,420 | `E33C130C` | 67 | 106 |
+
+The relocation splits are 28 `R_386_PC32/-4` plus 10 `R_386_32/0`, 72 plus
+16, and 74 plus 32. Exact undefined-import counts are 10, 31, and 31. Negative
+contracts reject a missing ABI include root, a missing pointer-width fact, and
+an eight-byte pointer profile. The same job then succeeds with the four-byte
+profile. An independent `gcc -m32 -nostdinc` syntax pass accepts all three
+sources against the checked declarations.
+
+This is a link-facing inventory, not a link. There is no startup object or
+selected i386 C runtime yet, and none of the objects has run on the host. No
+compiler generation, tool-behavior comparison, seed, or production owner moved.
+[Issue #27](https://github.com/cupidthecat/cupid-os/issues/27) therefore remains
+open.
+
+### Verification
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| CupidC object contracts | PASS | All 36 object tests pass, including repeat emission, exact adapter inventories, malformed relocation checks, profile failures, and recovery. |
+| CupidC frontend contracts | PASS | All 53 frontend tests pass with the adapter source profiles and exact source counters. |
+| Preprocessor contracts | PASS | All 39 preprocessing tests pass with the checked headers and pointer-width failures. |
+| Independent C frontend | PASS | Linux GCC accepts the three unchanged adapters with `-m32 -nostdinc` and the repository ABI root. |
+| Documentation review | PASS AFTER CORRECTION | Review corrected the earlier eleven-file wording, relocation counts, and missing-macro negative case before publication. |
+| Full repository gate | PASS | The final two-commit tree passes all 375 tests in 531.455 seconds with one expected optional skip. Make returns in 572.2 seconds. |
+| Production image | PASS | `make all` rebuilds and stages the final image in 22.8 seconds. The completed embedded manual leaves `_kernel_end` at `0x00AF3910`, 50,928 bytes below the fixed stack. |
+| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 18.6 seconds. |
+| Two-axis review | PASS AFTER FIXES | Standards and specification review split canonical wrapping from the adapter frontier, added allocation-limit and binary-delivery negatives, refreshed lexical locks, completed both log entries, and replaced parallel adapter arrays with one case table. |
+
 ## 2026-07-22: CupidObj makes embedded text reproducible
 
 ### Diagnosis and decision
 
-A production link in a long-lived Windows checkout placed `_kernel_end` at
-`0x00B00910`, 2,320 bytes above the fixed stack boundary at `0x00B00000`. The
-same source set in a fresh LF checkout ended at `0x00AF3910`, leaving 50,928
-bytes below the stack. The stale checkout held CRLF copies of 172 embedded text
-files despite the repository's LF policy. Byte-exact wrapping had carried
-49,907 extra carriage returns into `.data`.
+The first production build after the adapter work failed in CupidLD because
+the projected kernel image crossed the fixed stack boundary. Direct link
+diagnostics placed `_kernel_end` at `0x00B00910`, 2,320 bytes above
+`0x00B00000`.
 
-Moving the stack and external-program arena was tested as a layout hypothesis,
-then reverted. It would have changed a runtime address contract without fixing
-checkout-dependent objects. Shortening manuals would have treated OS
-documentation as disposable padding, while normalizing one worktree would not
-protect the next checkout.
+The failure was not caused by one manual or by conditional-move support. The
+long-lived Windows checkout contained CRLF copies of 172 embedded text files
+despite the repository's LF policy. CupidObj's binary wrapper preserved those
+bytes, adding 49,907 carriage returns to `.data`. A fresh LF copy of the same
+tree ended at `0x00AF3910`, with 50,928 bytes of stack headroom. The unchanged
+conditional-move tree had already crossed into the next page in the stale
+checkout; the adapter manuals merely made the latent artifact drift visible.
+
+Moving the stack and external-program arena was tried as a layout hypothesis,
+then fully reverted. It would have changed an established runtime address
+contract and still left object bytes dependent on the checkout. Shortening or
+dropping manuals would have treated OS documentation as disposable padding.
+Normalizing the worktree alone would have fixed one machine without defining a
+reproducible build.
 
 CupidObj now exposes `wrap-text` beside its byte-exact `wrap` operation. The
-text path converts CRLF pairs to LF and keeps lone carriage returns. It uses
-the job scratch arena, rewinds on success and failure, and preserves the
-transactional output contract. The root Makefile selects it for 105 Cupid
-programs, two delivered headers, 22 browser fragments, 19 CTXT manuals, 22
-demo assembly files, and two God-mode text files. Images, fonts, and the SMP
-binary remain byte-exact. The affected rules depend on the Makefile so a
-policy change rebuilds existing objects.
+text path converts CRLF pairs to LF and preserves lone CR bytes. It uses the
+job scratch arena, rewinds that arena on success and failure, and retains the
+transactional output contract. The root Makefile routes 105 Cupid programs,
+two delivered headers, 22 browser fragments, 19 CTXT manuals, 22 demo assembly
+files, and two God-mode text files through that path. Images, fonts, and the SMP
+binary stay on binary wrapping. Each affected rule depends on the Makefile so
+a policy change rebuilds an existing object.
 
-The graph audit records text and binary wrapping separately. Synthetic `.cc`
-and `bin/*.h` cases prove that active text delivered through binary `wrap`
-fails closed. The normal graph now contains 172 text wraps, eight binary wraps,
-one Python-assisted JPEG wrapper, and the flat kernel transform. CupidObj still
-owns 182 outputs. ADR 0084 records the boundary and rejected alternatives.
+The graph audit names text and binary wrapping separately. It rejects an active
+Cupid source or delivered header that uses the binary path, and its synthetic
+negative proves that failure. The normal graph now contains 172 text wraps,
+eight binary wraps, one Python-assisted JPEG wrapper, and the flat kernel
+transform. CupidObj still owns 182 outputs. ADR 0084 records the boundary and
+rejected alternatives.
 
-The production-link regression builds an oversized BSS object and confirms
+The production-link regression creates an oversized BSS object and confirms
 that the real linker script rejects a stack overlap without replacing sentinel
-output. It keeps the memory-map safety check even though canonical text keeps
-the normal image below the limit.
+output. It keeps the memory-map safety check even though canonical text now
+keeps the normal kernel below the limit.
 
 ### Audit and verification
 
-The graph contains 688 active sources, 498 reachable transforms, 251 feature
-requirements, and 39 accounted unreachable sources. `toolchain_core` has
-55,838 checked lines, and `toolchain_contract` has 92,809. Its canonical
-active-source digest is
-`b9904fa28de966ee1707189065d66a24f3d4bde997c3908f2772e740d5494ad6`.
+The final graph contains 694 active sources, 498 reachable transforms, 251
+feature requirements, and 39 accounted unreachable sources. The
+`toolchain_core` cohort has 55,917 checked lines, and `toolchain_contract` has
+93,227. Its canonical active-source digest is
+`1e81821956255e592ff93aafd7aa0d1b9becc1810cd13479fc29884d6053fdc4`.
 The complete audit JSON has SHA-256
-`6d61a37df68cd5fcf9ec803b8444040f5a57b10e7a6f054c9d67e553feeb9b8e`.
+`2c7b2575c578e51e3facecca835c65cf4b123848c25da5408d3a6135573e2028`.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| CupidObj contracts | PASS | Canonical contents, lone CR, byte-exact binary wrapping, exact symbols, determinism, scratch rewind, output and normalization-allocation limits, rollback, and same-job recovery pass. |
-| Graph fail-closed check | PASS | Focused fixtures reject binary wrapping for both an active Cupid source and a delivered header. |
-| Active-source audit | PASS | `make bootstrap-audit` regenerates this isolated text-only graph in 45.0 seconds. |
-| Full repository gate | PASS | All 373 tests pass in 532.114 seconds with one expected optional skip. Make returns in 573.2 seconds. |
-| Production image | PASS | `make all` completes in 24.8 seconds. The normal link keeps `_loaded_end` at `0x006D2D8F`, `_bss_start` at `0x006D3000`, and `_kernel_end` at `0x00AF3910` without moving an address boundary. |
-| Kernel artifact | PASS | `kernel.elf` is 6,281,780 bytes with SHA-256 `496E36DAAC10FA3364BDD88928570EBD062FDD9920870F3D8C78643BA21DDF74`; `kernel.bin` is 6,106,511 bytes with SHA-256 `F536590F934CE000801C311216D5488A4BD70BCE34A2BF98314DE87374BC370A`. |
-| Emulator gate | PASS | The GUI-terminal harness boots the rebuilt image and runs `/bin/ls.cc` in 19.3 seconds. |
+| CupidObj contracts | PASS | Six public tests cover canonical contents, lone CR, byte-exact binary wrapping, symbols, determinism, arena rewind, output and normalization-allocation limits, rollback, and same-job recovery. |
+| Graph fail-closed check | PASS | Focused synthetic cases reject binary `wrap` for both an active Cupid source and a delivered header. |
+| Active-source audit | PASS | The final `make bootstrap-audit` regenerates the graph and checked manifests in 40.9 seconds. |
+| Production image | PASS | `make all` links without an address change in 22.8 seconds. `_loaded_end` is `0x006D2ECB`, `_bss_start` is `0x006D3000`, and `_kernel_end` is `0x00AF3910`. |
+| Kernel artifact | PASS | `kernel.elf` is 6,281,780 bytes with SHA-256 `20E8D736AFC6B3A2B5E3BB4E7A80A497DB23B88F9B536B00035C10242425C0A9`; `kernel.bin` is 6,106,827 bytes with SHA-256 `AF6D79A14EB8CE93ADEC00C22524849ED0E98E9780427E22AFDAE54AA9EB43C8`. |
+| First full repository gate | FAIL, LOCKS CORRECTED | All semantic contracts completed, but three lexical drift tests still expected the pre-adapter `return`, `for`, and `if` counts. The run covered 375 tests in 560.989 seconds with one expected skip. The refreshed values come from the generated audit, and all three focused checks pass. |
+| Final full repository gate | PASS | After the lock corrections and review fixes, all 375 tests pass in 531.455 seconds with one expected optional skip. Make returns in 572.2 seconds. |
 
 The normal image still uses the host C compiler for C objects. Canonical text
-wrapping removes checkout-dependent bytes; it does not make CupidObj self-hosted
-or retire Make, Python, GCC, or Clang. `TempleOS/` remains untouched reference
-material. No issue is ready to close from this increment.
+wrapping removes checkout-dependent bytes and keeps the current memory map
+green; it does not make CupidObj self-hosted or retire Make, Python, GCC, or
+Clang. `TempleOS/` remains untouched reference material. No issue is ready to
+close from this increment.

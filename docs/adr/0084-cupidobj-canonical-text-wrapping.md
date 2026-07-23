@@ -66,7 +66,7 @@ wraps. CupidObj also owns the Python-assisted JPEG transform and the flat kernel
 image transform, for 182 normal-build outputs in total.
 
 The production link now succeeds without moving any address boundary.
-`_loaded_end` is `0x006D2D8F`, `_bss_start` is `0x006D3000`, and `_kernel_end`
+`_loaded_end` is `0x006D2ECB`, `_bss_start` is `0x006D3000`, and `_kernel_end`
 is `0x00AF3910`. The kernel keeps 50,928 bytes below the fixed stack. CupidObj
 itself still passes the hosted self-build gate as a deterministic i386 ELF32
 object with 14 functions, 16,872 text bytes, 20,180 object bytes, and fingerprint

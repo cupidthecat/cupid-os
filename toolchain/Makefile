@@ -30,6 +30,12 @@ CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
                               ../kernel/util/bin_programs_gen.c \
                               ../kernel/util/demos_programs_gen.c \
                               ../kernel/util/docs_programs_gen.c
+CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
+                              hosted/i386-linux/include/errno.h \
+                              hosted/i386-linux/include/stdio.h \
+                              hosted/i386-linux/include/stdlib.h \
+                              hosted/i386-linux/include/string.h \
+                              hosted/i386-linux/include/unistd.h
 ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
 CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
@@ -221,7 +227,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.c \
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.c \
     cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
-    elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+    elf32.h x86.h ctool.h ctool_host.h $(CUPIDC_HOSTED_I386_HEADERS) | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
@@ -472,6 +478,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) wide-objects ..
 	$(CUPIDC_OBJECT_CONTRACT) wide-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-frontier ..
+	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-adapters ..
+	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-profile-errors ..
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model
 	$(ELF32_CONTRACT) writer-errors

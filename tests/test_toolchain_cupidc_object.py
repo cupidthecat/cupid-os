@@ -392,6 +392,36 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "self-host-frontier: ok\n")
 
+    def test_i386_linux_host_adapters_emit_deterministic_objects(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "self-host-hosted-adapters",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "self-host-hosted-adapters: ok\n")
+
+    def test_i386_linux_host_profile_rejects_missing_or_wrong_abi(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "self-host-hosted-profile-errors",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "self-host-hosted-profile-errors: ok\n"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

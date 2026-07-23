@@ -9,6 +9,7 @@
  * macros undefined.
  */
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && ! defined ( __DJGPP__ )", 1u, 0u, 1)
+CUPIDC_PP_CONDITIONAL_CASE("! defined ( __SIZEOF_POINTER__ ) || __SIZEOF_POINTER__ != 4", 1u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( __STDC_VERSION__ ) || ( __STDC_VERSION__ < 202311L )", 1u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( __cplusplus )", 1u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )", 1u, 1u, 0)

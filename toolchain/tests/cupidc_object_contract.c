@@ -1254,6 +1254,20 @@ static const ctool_elf32_symbol_t *find_symbol(
   return (const ctool_elf32_symbol_t *)0;
 }
 
+static const ctool_elf32_symbol_t *find_symbol_file_index(
+    const ctool_elf32_object_t *object, ctool_u32 file_index) {
+  ctool_u32 index;
+  if (object == NULL || object->symbols == NULL) {
+    return (const ctool_elf32_symbol_t *)0;
+  }
+  for (index = 0u; index < object->symbol_count; index++) {
+    if (object->symbols[index].file_index == file_index) {
+      return &object->symbols[index];
+    }
+  }
+  return (const ctool_elf32_symbol_t *)0;
+}
+
 static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
                     ctool_job_config_t *config, ctool_job_t **job_out) {
   ctool_status_t status = ctool_host_adapter_init(adapter, host_root);
@@ -17541,20 +17555,6 @@ static int validate_wide_snapshot_function(
 #define WIDE_ORACLE_STEP_LIMIT 8192u
 #define WIDE_ORACLE_CALL_LIMIT 32u
 
-static const ctool_elf32_symbol_t *wide_oracle_symbol_by_file_index(
-    const ctool_elf32_object_t *object, ctool_u32 file_index) {
-  ctool_u32 index;
-  if (object == NULL || object->symbols == NULL) {
-    return (const ctool_elf32_symbol_t *)0;
-  }
-  for (index = 0u; index < object->symbol_count; index++) {
-    if (object->symbols[index].file_index == file_index) {
-      return &object->symbols[index];
-    }
-  }
-  return (const ctool_elf32_symbol_t *)0;
-}
-
 static int wide_oracle_relocate_text_with_data(
     const ctool_elf32_object_t *object,
     const ctool_elf32_section_t *text,
@@ -17577,8 +17577,7 @@ static int wide_oracle_relocate_text_with_data(
     if (relocation->target_section_file_index != text->file_index) {
       continue;
     }
-    target = wide_oracle_symbol_by_file_index(
-        object, relocation->symbol_file_index);
+    target = find_symbol_file_index(object, relocation->symbol_file_index);
     if (target == NULL ||
         target->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
         relocation->addend_known != CTOOL_TRUE ||
@@ -18697,8 +18696,8 @@ static int validate_wide_value_object(
   for (index = 0u; index < object->relocation_count; index++) {
     const ctool_elf32_relocation_t *relocation =
         &object->relocations[index];
-    const ctool_elf32_symbol_t *target = wide_oracle_symbol_by_file_index(
-        object, relocation->symbol_file_index);
+    const ctool_elf32_symbol_t *target =
+        find_symbol_file_index(object, relocation->symbol_file_index);
     if (relocation->relocation_section_file_index != rel_text->file_index ||
         relocation->target_section_file_index != text->file_index ||
         relocation->type != CTOOL_ELF32_R_386_32 ||
@@ -19031,8 +19030,8 @@ static int validate_wide_parameter_object(
         functions[relocation_callers[index]];
     const ctool_elf32_symbol_t *expected_target =
         functions[relocation_targets[index]];
-    const ctool_elf32_symbol_t *target = wide_oracle_symbol_by_file_index(
-        object, relocation->symbol_file_index);
+    const ctool_elf32_symbol_t *target =
+        find_symbol_file_index(object, relocation->symbol_file_index);
     if (relocation->relocation_section_file_index != rel_text->file_index ||
         relocation->entry_index != index ||
         relocation->target_section_file_index != text->file_index ||
@@ -20225,8 +20224,8 @@ static int validate_active_wide_helper_object(
   }
   for (index = 0u; index < object->relocation_count; index++) {
     const ctool_elf32_relocation_t *relocation = &object->relocations[index];
-    const ctool_elf32_symbol_t *target = wide_oracle_symbol_by_file_index(
-        object, relocation->symbol_file_index);
+    const ctool_elf32_symbol_t *target =
+        find_symbol_file_index(object, relocation->symbol_file_index);
     const ctool_elf32_symbol_t *caller;
     if (relocation->offset >= put->value &&
         relocation->offset - put->value < put->size) {
@@ -23575,6 +23574,416 @@ static int validate_active_self_host_frontier_objects(
   return 1;
 }
 
+typedef struct {
+  ctool_c_pp_macro_action_t pointer_width;
+  ctool_c_pp_include_root_t include_roots[2];
+  ctool_c_pp_request_t request;
+} hosted_i386_profile_t;
+
+static void init_hosted_i386_profile(hosted_i386_profile_t *profile) {
+  (void)memset(profile, 0, sizeof(*profile));
+  profile->pointer_width.kind = CTOOL_C_PP_MACRO_DEFINE;
+  profile->pointer_width.name = ctool_string("__SIZEOF_POINTER__");
+  profile->pointer_width.replacement = ctool_string("4");
+  profile->include_roots[0].directory.text = ctool_string("/toolchain");
+  profile->include_roots[0].forms =
+      CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+  profile->include_roots[1].directory.text =
+      ctool_string("/toolchain/hosted/i386-linux/include");
+  profile->include_roots[1].forms = CTOOL_C_PP_INCLUDE_ANGLE;
+  profile->request.mode = CTOOL_C_PP_MODE_C11;
+  profile->request.hosted_environment = CTOOL_TRUE;
+  profile->request.include_roots = profile->include_roots;
+  profile->request.include_root_count = 2u;
+  profile->request.macro_actions = &profile->pointer_width;
+  profile->request.macro_action_count = 1u;
+}
+
+static int validate_hosted_adapter_link_inventory(
+    const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text,
+    const char *const *expected_undefined,
+    ctool_u32 expected_undefined_count, ctool_u32 expected_symbol_count,
+    ctool_u32 expected_relocation_count, ctool_u32 expected_pc32_count,
+    ctool_u32 expected_absolute_count) {
+  const ctool_elf32_section_t *rel_text;
+  ctool_u32 undefined_count = 0u;
+  ctool_u32 pc32_count = 0u;
+  ctool_u32 absolute_count = 0u;
+  ctool_u32 index;
+  if (object == NULL || text == NULL || expected_undefined == NULL ||
+      object->symbols == NULL || object->relocations == NULL ||
+      object->symbol_count != expected_symbol_count ||
+      object->relocation_count != expected_relocation_count ||
+      text->relocation_count != expected_relocation_count) {
+    return 0;
+  }
+  rel_text = find_section(object, ".rel.text");
+  if (rel_text == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < object->symbol_count; index++) {
+    const ctool_elf32_symbol_t *symbol = &object->symbols[index];
+    if (symbol->placement == CTOOL_ELF32_SYMBOL_UNDEFINED &&
+        symbol->name.size != 0u) {
+      if (symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+          symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+          (symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION &&
+           symbol->type != CTOOL_ELF32_SYMBOL_OBJECT)) {
+        return 0;
+      }
+      undefined_count++;
+    }
+  }
+  if (undefined_count != expected_undefined_count) {
+    return 0;
+  }
+  for (index = 0u; index < expected_undefined_count; index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, expected_undefined[index]);
+    if (symbol == NULL ||
+        symbol->placement != CTOOL_ELF32_SYMBOL_UNDEFINED) {
+      return 0;
+    }
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    const ctool_elf32_symbol_t *target =
+        find_symbol_file_index(object, relocation->symbol_file_index);
+    if (target == NULL ||
+        relocation->relocation_section_file_index != rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->offset > text->contents.size ||
+        4u > text->contents.size - relocation->offset) {
+      return 0;
+    }
+    if (relocation->type == CTOOL_ELF32_R_386_PC32 &&
+        relocation->addend == -4) {
+      pc32_count++;
+    } else if (relocation->type == CTOOL_ELF32_R_386_32 &&
+               relocation->addend == 0) {
+      absolute_count++;
+    } else {
+      return 0;
+    }
+  }
+  return pc32_count == expected_pc32_count &&
+                 absolute_count == expected_absolute_count
+             ? 1
+             : 0;
+}
+
+typedef struct {
+  const char *path;
+  ctool_u32 function_count;
+  ctool_u32 text_size;
+  ctool_u32 object_size;
+  ctool_u32 text_fingerprint;
+  const char *const *undefined_names;
+  ctool_u32 undefined_count;
+  ctool_u32 symbol_count;
+  ctool_u32 relocation_count;
+  ctool_u32 pc32_count;
+  ctool_u32 absolute_count;
+} hosted_adapter_case_t;
+
+static int run_self_host_hosted_adapters(const char *host_root) {
+  static const char *const ctool_host_undefined[] = {
+      "__errno_location", "stderr", "fopen", "fclose", "fseek",
+      "ftell", "fread", "fwrite", "malloc", "free"};
+  static const char *const cupidasm_undefined[] = {
+      "ctool_string",
+      "ctool_default_limits",
+      "ctool_status_name",
+      "ctool_buffer_close",
+      "ctool_path_root",
+      "ctool_path_resolve",
+      "ctool_job_open",
+      "ctool_job_close",
+      "ctool_job_arena",
+      "ctool_job_open_buffer",
+      "ctool_job_load_source",
+      "ctool_job_diagnostic_count",
+      "ctool_job_render_diagnostics",
+      "ctool_host_adapter_init",
+      "ctool_host_job_config",
+      "ctool_asm_assemble",
+      "stdout",
+      "stderr",
+      "fopen",
+      "fclose",
+      "fprintf",
+      "fwrite",
+      "malloc",
+      "free",
+      "memcpy",
+      "memset",
+      "strcmp",
+      "strncmp",
+      "strlen",
+      "__errno_location",
+      "getcwd"};
+  static const char *const cupiddis_undefined[] = {
+      "ctool_string",
+      "ctool_default_limits",
+      "ctool_status_name",
+      "ctool_path_root",
+      "ctool_path_resolve",
+      "ctool_job_open",
+      "ctool_job_close",
+      "ctool_job_arena",
+      "ctool_job_load_source",
+      "ctool_job_emit",
+      "ctool_job_diagnostic_count",
+      "ctool_job_render_diagnostics",
+      "ctool_host_adapter_init",
+      "ctool_host_job_config",
+      "ctool_dis_inspect",
+      "ctool_dis_render",
+      "stdout",
+      "stderr",
+      "fflush",
+      "ferror",
+      "fprintf",
+      "fwrite",
+      "malloc",
+      "realloc",
+      "free",
+      "memcpy",
+      "memset",
+      "strchr",
+      "strcmp",
+      "strncmp",
+      "strlen"};
+  static const hosted_adapter_case_t cases[] = {
+      {"/toolchain/ctool_host.c", 11u, 5522u, 6944u, 0x28739c3fu,
+       ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
+      {"/toolchain/cupidasm_main.c", 13u, 9455u, 12384u, 0x561bbc22u,
+       cupidasm_undefined, 31u, 56u, 88u, 72u, 16u},
+      {"/toolchain/cupiddis_main.c", 13u, 13816u, 17420u, 0xe33c130cu,
+       cupiddis_undefined, 31u, 67u, 106u, 74u, 32u}};
+  ctool_u32 index;
+  for (index = 0u; index <
+                       (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       index++) {
+    const hosted_adapter_case_t *adapter_case = &cases[index];
+    ctool_host_adapter_t adapter;
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_job_config_t config;
+    ctool_job_t *job = NULL;
+    ctool_buffer_t *first = NULL;
+    ctool_buffer_t *second = NULL;
+    ctool_path_t path;
+    ctool_source_t source;
+    hosted_i386_profile_t profile;
+    ctool_c_pp_result_t tape;
+    ctool_c_parse_request_t parse_request;
+    ctool_c_translation_unit_t unit;
+    ctool_source_t object_source;
+    ctool_elf32_object_t object;
+    const ctool_elf32_section_t *text = NULL;
+    ctool_bytes_t first_bytes;
+    ctool_bytes_t second_bytes;
+    ctool_status_t status;
+    int failed = 1;
+    limits.arena_bytes = 256u * 1024u * 1024u;
+    status = ctool_host_adapter_init(&adapter, host_root);
+    if (status != CTOOL_OK) {
+      (void)fprintf(stderr, "%s: hosted adapter host setup failed: %s\n",
+                    adapter_case->path, ctool_status_name(status));
+      return 1;
+    }
+    config = ctool_host_job_config(&adapter, limits);
+    status = ctool_job_open(&config, &job);
+    if (status != CTOOL_OK) {
+      (void)fprintf(stderr, "%s: hosted adapter job open failed: %s\n",
+                    adapter_case->path, ctool_status_name(status));
+      return 1;
+    }
+    path.text = ctool_string(adapter_case->path);
+    (void)memset(&source, 0xa5, sizeof(source));
+    status = ctool_job_load_source(job, &path, &source);
+    init_hosted_i386_profile(&profile);
+    (void)memset(&tape, 0xa5, sizeof(tape));
+    if (status == CTOOL_OK) {
+      status = ctool_c_preprocess(job, &source, &profile.request, &tape);
+    }
+    (void)memset(&parse_request, 0, sizeof(parse_request));
+    parse_request.mode = CTOOL_C_PP_MODE_C11;
+    (void)memset(&unit, 0xa5, sizeof(unit));
+    if (status == CTOOL_OK) {
+      status = ctool_c_parse(job, &tape, &parse_request, &unit);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                     &first);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                     &second);
+    }
+    if (status == CTOOL_OK &&
+        expect_object_success_preserves_unit(
+            job, &unit, first, "hosted adapter object") &&
+        expect_object_success_preserves_unit(
+            job, &unit, second, "repeat hosted adapter object")) {
+      first_bytes = ctool_buffer_view(first);
+      second_bytes = ctool_buffer_view(second);
+      object_source.path.text = ctool_string("/hosted-adapter.o");
+      object_source.contents = first_bytes;
+      (void)memset(&object, 0xa5, sizeof(object));
+      status = ctool_elf32_read(job, &object_source, &object);
+      text = status == CTOOL_OK ? find_section(&object, ".text") : NULL;
+      if (status == CTOOL_OK && text != NULL &&
+          unit.function_definition_count == adapter_case->function_count &&
+          text->contents.size == adapter_case->text_size &&
+          first_bytes.size == adapter_case->object_size &&
+          structure_text_fingerprint(text->contents) ==
+              adapter_case->text_fingerprint &&
+          validate_hosted_adapter_link_inventory(
+              &object, text, adapter_case->undefined_names,
+              adapter_case->undefined_count, adapter_case->symbol_count,
+              adapter_case->relocation_count, adapter_case->pc32_count,
+              adapter_case->absolute_count) &&
+          first_bytes.size == second_bytes.size &&
+          memcmp(first_bytes.data, second_bytes.data,
+                 (size_t)first_bytes.size) == 0) {
+        failed = 0;
+      }
+    }
+    if (failed != 0) {
+      (void)fprintf(stderr,
+                    "%s: hosted adapter object differs: %s functions=%u "
+                    "text=%u object=%u fingerprint=%08x symbols=%u "
+                    "relocations=%u\n",
+                    adapter_case->path, ctool_status_name(status),
+                    unit.function_definition_count,
+                    text == NULL ? 0u : text->contents.size,
+                    first == NULL ? 0u : ctool_buffer_view(first).size,
+                    text == NULL
+                        ? 0u
+                        : structure_text_fingerprint(text->contents),
+                    status == CTOOL_OK ? object.symbol_count : 0u,
+                    status == CTOOL_OK ? object.relocation_count : 0u);
+      (void)ctool_job_render_diagnostics(job);
+    }
+    if (second != NULL) {
+      ctool_buffer_close(second);
+    }
+    if (first != NULL) {
+      ctool_buffer_close(first);
+    }
+    ctool_job_close(job);
+    if (failed != 0) {
+      return 1;
+    }
+  }
+  (void)puts("self-host-hosted-adapters: ok");
+  return 0;
+}
+
+static int run_self_host_hosted_profile_errors(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_path_t path;
+  ctool_source_t source;
+  hosted_i386_profile_t profile;
+  ctool_c_pp_result_t tape;
+  ctool_arena_mark_t mark;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_status_t status;
+  int failed = 1;
+  limits.arena_bytes = 256u * 1024u * 1024u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (status != CTOOL_OK) {
+    return 1;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (status != CTOOL_OK) {
+    return 1;
+  }
+  path.text = ctool_string("/toolchain/ctool_host.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  init_hosted_i386_profile(&profile);
+  profile.request.include_root_count = 1u;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  if (status == CTOOL_OK) {
+    status = ctool_c_preprocess(job, &source, &profile.request, &tape);
+  }
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (status != CTOOL_ERR_NOT_FOUND || tape.tokens != NULL ||
+      tape.token_count != 0u || ctool_job_diagnostic_count(job) != 1u ||
+      diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_INCLUDE_NOT_FOUND ||
+      string_equal(diagnostic->path, "/toolchain/ctool_host.c") == 0 ||
+      diagnostic->line != 3u || diagnostic->column != 1u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "hosted profile missing-root failure differs\n");
+    goto cleanup;
+  }
+  profile.request.include_root_count = 2u;
+  profile.request.macro_action_count = 0u;
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, &profile.request, &tape);
+  diagnostic = ctool_job_diagnostic(job, 1u);
+  if (status != CTOOL_ERR_INPUT || tape.tokens != NULL ||
+      tape.token_count != 0u || ctool_job_diagnostic_count(job) != 2u ||
+      diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_ERROR_DIRECTIVE ||
+      string_equal(
+          diagnostic->path,
+          "/toolchain/hosted/i386-linux/include/cupid_host_abi.h") == 0 ||
+      diagnostic->line != 5u || diagnostic->column != 1u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "hosted profile missing-pointer failure differs\n");
+    goto cleanup;
+  }
+  profile.request.macro_action_count = 1u;
+  profile.pointer_width.replacement = ctool_string("8");
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, &profile.request, &tape);
+  diagnostic = ctool_job_diagnostic(job, 2u);
+  if (status != CTOOL_ERR_INPUT || tape.tokens != NULL ||
+      tape.token_count != 0u || ctool_job_diagnostic_count(job) != 3u ||
+      diagnostic == NULL ||
+      diagnostic->code != CTOOL_C_PP_DIAG_ERROR_DIRECTIVE ||
+      string_equal(
+          diagnostic->path,
+          "/toolchain/hosted/i386-linux/include/cupid_host_abi.h") == 0 ||
+      diagnostic->line != 5u || diagnostic->column != 1u ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
+    (void)fprintf(stderr, "hosted profile pointer failure differs\n");
+    goto cleanup;
+  }
+  profile.pointer_width.replacement = ctool_string("4");
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, &profile.request, &tape);
+  if (status != CTOOL_OK || tape.tokens == NULL || tape.token_count == 0u ||
+      ctool_job_diagnostic_count(job) != 3u) {
+    (void)fprintf(stderr, "hosted profile same-job recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (failed != 0) {
+    (void)ctool_job_render_diagnostics(job);
+  }
+  ctool_job_close(job);
+  if (failed == 0) {
+    (void)puts("self-host-hosted-profile-errors: ok");
+  }
+  return failed;
+}
+
 static int validate_self_host_frontier_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -23910,6 +24319,14 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "self-host-frontier") == 0) {
     return run_self_host_frontier_object(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "self-host-hosted-adapters") == 0) {
+    return run_self_host_hosted_adapters(argv[2]);
+  }
+  if (argc == 3 &&
+      strcmp(argv[1], "self-host-hosted-profile-errors") == 0) {
+    return run_self_host_hosted_profile_errors(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|direct-goto|switch-object|integer-mutation|"
@@ -23926,7 +24343,8 @@ int main(int argc, char **argv) {
                 "floating-arithmetic|"
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations|"
-                "self-host-frontier "
+                "self-host-frontier|self-host-hosted-adapters|"
+                "self-host-hosted-profile-errors "
                 "HOST_ROOT\n");
   return 2;
 }

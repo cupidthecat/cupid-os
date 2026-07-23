@@ -236,12 +236,16 @@ integers remain unsupported. Static compatible character and void pointers
 accept an ordinary string literal through parentheses or a macro. Arithmetic
 and explicit casts on that static address remain unfinished.
 
-The hosted source gate parses all twelve hermetic Toolchain implementation
-files. The object gate emits those files plus kernel/lang/as_elf.c twice and
-requires byte-identical i386 ELF32 output. Eleven files belong to the
-fourteen-file CupidC, CupidASM, and CupidDis self-host cohort. The remaining
-hosted adapters still need external headers, runtime support, and a
-host-runnable ABI. This gate does not link or run a tool.
+The exact object gate covers sixteen unchanged sources. The fourteen-file
+CupidC, CupidASM, and CupidDis self-host cohort is ten hermetic Toolchain files,
+kernel/lang/as_elf.c, and the three hosted adapters. The hermetic gate also
+includes the adjacent CupidLD and CupidObj cores. ctool_host.c, cupidasm_main.c,
+and cupiddis_main.c use a checked i386 Linux profile with Cupid-owned
+declarations for the hosted runtime interfaces they need. That profile requires
+an explicit 32-bit pointer fact. Every object is emitted twice, checked for
+identical bytes, and read through Cupid's ELF32 reader. Adapter objects also
+retain exact named imports and checked relocation shapes. The gate does not
+link or run a tool or compare compiler generations.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before
