@@ -240,6 +240,76 @@ class CupidObjHostedCliTests(unittest.TestCase):
             self.assertIn("payload_end", stem_symbols)
             self.assertIn("payload_size", stem_symbols)
 
+    def test_wrap_text_canonicalizes_crlf_without_changing_binary_wrap(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            lf_source = root / "lf.txt"
+            crlf_source = root / "crlf.txt"
+            lf_source.write_bytes(b"first\nsecond\nthird\rfourth\n")
+            crlf_source.write_bytes(b"first\r\nsecond\r\nthird\rfourth\r\n")
+            lf_object = root / "lf.o"
+            crlf_object = root / "crlf.o"
+            binary_object = root / "binary.o"
+
+            for source, output in (
+                (lf_source, lf_object),
+                (crlf_source, crlf_object),
+            ):
+                result = subprocess.run(
+                    [
+                        str(self.cli),
+                        "wrap-text",
+                        str(source),
+                        "--identity=manual.txt",
+                        "-o",
+                        str(output),
+                    ],
+                    cwd=root,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+            self.assertEqual(crlf_object.read_bytes(), lf_object.read_bytes())
+            image, sections, symbols = _elf32_sections_and_symbols(crlf_object)
+            data = sections[".data"]
+            expected = lf_source.read_bytes()
+            self.assertEqual(
+                image[data["offset"] : data["offset"] + data["size"]], expected
+            )
+            self.assertEqual(
+                symbols["_binary_manual_txt_end"]["value"], len(expected)
+            )
+            self.assertEqual(
+                symbols["_binary_manual_txt_size"]["value"], len(expected)
+            )
+
+            binary = subprocess.run(
+                [
+                    str(self.cli),
+                    "wrap",
+                    str(crlf_source),
+                    "--identity=manual.txt",
+                    "-o",
+                    str(binary_object),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(binary.returncode, 0, binary.stderr)
+            binary_image, binary_sections, _ = _elf32_sections_and_symbols(
+                binary_object
+            )
+            binary_data = binary_sections[".data"]
+            self.assertEqual(
+                binary_image[
+                    binary_data["offset"] : binary_data["offset"]
+                    + binary_data["size"]
+                ],
+                crlf_source.read_bytes(),
+            )
+
     def test_flat_extracts_initialized_load_bytes_and_zero_fills_gap(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -269,7 +339,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
             output = root / "preserve.o"
             output.write_bytes(b"sentinel")
             missing = subprocess.run(
-                [str(self.cli), "wrap", "missing.bin", "-o", str(output)],
+                [str(self.cli), "wrap-text", "missing.txt", "-o", str(output)],
                 cwd=root,
                 text=True,
                 capture_output=True,

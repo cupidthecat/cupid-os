@@ -52,6 +52,11 @@ The Makefile auto-discovers and embeds these source sets:
   demos/*.asm  -> kernel/util/demos_programs_gen.c -> /demos/*.asm in ramfs
   god/*.DD     -> wrapped by CupidObj         -> /god/*.DD in image
 
+CupidObj uses its text wrapper for every source set above. CRLF pairs become
+LF in the wrapped object, while lone carriage returns stay intact. This keeps
+the installed files and kernel layout stable across Windows and Linux
+checkouts. Images, fonts, and other binary inputs still use byte-exact wrap.
+
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
   BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)

@@ -6,6 +6,7 @@
 
 typedef enum {
   CTOOL_OBJ_WRAP_BINARY = 1,
+  CTOOL_OBJ_WRAP_TEXT,
   CTOOL_OBJ_EXTRACT_FLAT
 } ctool_obj_operation_t;
 
@@ -52,10 +53,12 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
                                     ctool_obj_result_t *result_out);
 
 /* Request/source views are borrowed for the call.  WRAP_BINARY emits one
- * canonical ELF32 ET_REL PROGBITS section with the exact requested global
- * start, end, and absolute size symbols.  EXTRACT_FLAT lays out initialized
- * PT_LOAD bytes by physical address, with a checked allocated-section
- * fallback for executables without load segments; BSS is excluded.
+ * canonical ELF32 ET_REL PROGBITS section with the exact requested bytes and
+ * global start, end, and absolute size symbols.  WRAP_TEXT has the same
+ * object model but canonicalizes CRLF pairs to LF; lone carriage returns are
+ * retained.  EXTRACT_FLAT lays out initialized PT_LOAD bytes by physical
+ * address, with a checked allocated-section fallback for executables without
+ * load segments; BSS is excluded.
  *
  * Output must be empty.  Every failure preserves its pre-call bytes and fully
  * zeros result_out.  On success result bytes borrow output; extraction addresses

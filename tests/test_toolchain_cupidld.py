@@ -129,6 +129,8 @@ class CupidLdHostedCliTests(unittest.TestCase):
         cls.object = cls.fixture_root / "entry.o"
         cls.helper_source = cls.fixture_root / "helper.s"
         cls.helper_object = cls.fixture_root / "helper.o"
+        cls.oversize_source = cls.fixture_root / "oversize.s"
+        cls.oversize_object = cls.fixture_root / "oversize.o"
         cls.source.write_text(
             '.section .text.start,"ax",@progbits\n'
             ".globl _start\n"
@@ -154,6 +156,17 @@ class CupidLdHostedCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         _compile_i386(cls.helper_source, cls.helper_object)
+        cls.oversize_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            "_start:\n"
+            "  ret\n"
+            '.section .bss,"aw",@nobits\n'
+            "  .balign 4096\n"
+            "  .skip 0x00b00000\n",
+            encoding="utf-8",
+        )
+        _compile_i386(cls.oversize_source, cls.oversize_object)
         cls.script = cls.fixture_root / "small.ld"
         cls.script.write_bytes((REPO_ROOT / "link.ld").read_bytes())
         cls.work = cls.fixture_root / "work"
@@ -214,6 +227,30 @@ class CupidLdHostedCliTests(unittest.TestCase):
         self.assertEqual((file_type, machine, entry), (2, 3, 0x00D00000))
         self.assertEqual(sections[".text"]["address"], 0x00D00000)
         self.assertGreater(sections[".rodata"]["address"], 0x00D00000)
+
+    def test_production_script_rejects_an_image_that_reaches_the_kernel_stack(self):
+        output = self.fixture_root / "stack-overlap.elf"
+        output.write_bytes(b"sentinel")
+        result = subprocess.run(
+            [
+                str(self.cli),
+                "-m",
+                "elf_i386",
+                "-T",
+                str(self.script),
+                "-o",
+                str(output),
+                str(self.oversize_object),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "Kernel memory image overlaps the fixed kernel stack", result.stderr
+        )
+        self.assertEqual(output.read_bytes(), b"sentinel")
 
     def test_usage_and_link_failures_have_distinct_status_and_preserve_output(self):
         invalid = subprocess.run(

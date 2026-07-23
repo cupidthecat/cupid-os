@@ -32,7 +32,16 @@ static void cupidobj_usage(FILE *stream) {
       stream,
       "usage: cupidobj wrap INPUT -o OUTPUT [--identity NAME | --stem NAME] "
       "[--section NAME] [--readonly]\n"
+      "       cupidobj wrap-text INPUT -o OUTPUT "
+      "[--identity NAME | --stem NAME] [--section NAME] [--readonly]\n"
       "       cupidobj flat INPUT -o OUTPUT\n");
+}
+
+static ctool_bool cupidobj_is_wrap(ctool_obj_operation_t operation) {
+  return operation == CTOOL_OBJ_WRAP_BINARY ||
+                 operation == CTOOL_OBJ_WRAP_TEXT
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
 }
 
 static int cupidobj_take_value(int argc, char **argv, int *index,
@@ -68,6 +77,8 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
   }
   if (strcmp(argv[1], "wrap") == 0) {
     cli->operation = CTOOL_OBJ_WRAP_BINARY;
+  } else if (strcmp(argv[1], "wrap-text") == 0) {
+    cli->operation = CTOOL_OBJ_WRAP_TEXT;
   } else if (strcmp(argv[1], "flat") == 0) {
     cli->operation = CTOOL_OBJ_EXTRACT_FLAT;
   } else {
@@ -370,7 +381,7 @@ int main(int argc, char **argv) {
     cupidobj_usage(stderr);
     return 2;
   }
-  if (cli.operation == CTOOL_OBJ_WRAP_BINARY) {
+  if (cupidobj_is_wrap(cli.operation) == CTOOL_TRUE) {
     stem = cupidobj_stem(&cli);
     if (stem != (char *)0) {
       start_symbol = cupidobj_symbol(stem, "_start");
@@ -405,7 +416,7 @@ int main(int argc, char **argv) {
   }
   (void)memset(&context, 0, sizeof(context));
   context.request.operation = cli.operation;
-  if (cli.operation == CTOOL_OBJ_WRAP_BINARY) {
+  if (cupidobj_is_wrap(cli.operation) == CTOOL_TRUE) {
     context.request.as.wrap_binary.section_name = ctool_string(cli.section);
     context.request.as.wrap_binary.section_flags = CTOOL_ELF32_SHF_ALLOC;
     if (cli.readonly == CTOOL_FALSE) {

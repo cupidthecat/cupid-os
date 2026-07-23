@@ -259,7 +259,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(CUPIDOBJ) flat $< -o $@
 
                 app.o: app.cc
-                \t$(CUPIDOBJ) wrap $< -o $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
 
                 main.o: main.c
                 \t$(CC) -c $< -o $@
@@ -305,7 +305,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(transforms["app.o"]["tools"], ["cupid_object"])
             self.assertEqual(
                 transforms["app.o"]["operation"],
-                "wrap_binary_as_elf32_relocatable",
+                "wrap_text_as_elf32_relocatable",
             )
             self.assertEqual(
                 audit["contracts"]["bootstrap_artifact_coverage"]["linked_objects"],
@@ -3234,8 +3234,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         "output": "bin/malformed.o",
                         "inputs": None,
                         "tools": ["cupid_object"],
-                        "operation": "wrap_binary_as_elf32_relocatable",
-                        "recipe": ["$(CUPIDOBJ) wrap $< -o $@"],
+                        "operation": "wrap_text_as_elf32_relocatable",
+                        "recipe": ["$(CUPIDOBJ) wrap-text $< -o $@"],
                     }
                 ],
             },
@@ -3246,6 +3246,33 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             module.AuditError, r"delivery transform inputs are absent"
         ):
             module._c_preprocessor_active_cases_manifest(malformed_wrap)
+
+        for delivered_path in ("bin/unit.cc", "bin/unit.h"):
+            binary_text_delivery = {
+                "build": {
+                    "directory": ".",
+                    "transforms": [
+                        {
+                            "output": f"{delivered_path}.o",
+                            "inputs": [delivered_path],
+                            "tools": ["cupid_object"],
+                            "operation": "wrap_binary_as_elf32_relocatable",
+                            "recipe": ["$(CUPIDOBJ) wrap $< -o $@"],
+                        }
+                    ],
+                },
+                "supplemental_builds": [],
+                "sources": [],
+            }
+            with self.subTest(delivered_path=delivered_path), \
+                    self.assertRaisesRegex(
+                        module.AuditError,
+                        r"unclassified Cupid delivery transform: bin/unit\.(?:cc|h)\.o "
+                        r"\(wrap_binary_as_elf32_relocatable\)",
+                    ):
+                module._c_preprocessor_active_cases_manifest(
+                    binary_text_delivery
+                )
 
     def test_checked_cupidc_active_manifest_classifies_non_roots_and_hosted(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
@@ -3462,7 +3489,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (22, 4),
-                "c.expression.sizeof": (3916, 165),
+                "c.expression.sizeof": (3923, 165),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -3588,8 +3615,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "output": "bin/new.h.o",
                     "inputs": ["bin/new.h"],
                     "tools": ["cupid_object"],
-                    "operation": "wrap_binary_as_elf32_relocatable",
-                    "recipe": ["$(CUPIDOBJ) wrap $< -o $@"],
+                    "operation": "wrap_text_as_elf32_relocatable",
+                    "recipe": ["$(CUPIDOBJ) wrap-text $< -o $@"],
                 }
             )
             module = _load_audit_module()

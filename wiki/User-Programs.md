@@ -38,7 +38,7 @@ void main() {
 
 #### Build-time installation in ramfs
 
-Place the file in the source tree's `bin/` directory. The Makefile discovers `bin/*.cc`, embeds each file in the kernel image through CupidObj, and generates the installation code. After boot, the example appears at `/bin/hello.cc` and runs under the command `hello`.
+Place the file in the source tree's `bin/` directory. The Makefile discovers `bin/*.cc`, embeds each file in the kernel image through CupidObj, and generates the installation code. CupidObj converts CRLF pairs to LF during this text wrap, so the installed source is the same on Windows and Linux. After boot, the example appears at `/bin/hello.cc` and runs under the command `hello`.
 
 To add a new build-time program:
 

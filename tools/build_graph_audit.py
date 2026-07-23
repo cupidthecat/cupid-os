@@ -980,6 +980,8 @@ def _operation_for_recipe(
     if "host_linker" in tools or "cupid_linker" in tools:
         return "link_elf32_executable"
     if "host_object_copy" in tools or "cupid_object" in tools:
+        if re.search(r"(?:^|\s)wrap-text(?:\s|$)", joined):
+            return "wrap_text_as_elf32_relocatable"
         if (
             ("-i binary" in joined and "-o elf32-i386" in joined)
             or re.search(r"(?:^|\s)wrap(?:\s|$)", joined)
@@ -3182,11 +3184,20 @@ def _scan_build_features(
                 feature_id = "asm.output.flat_binary"
             elif language == "assembly" and operation == "assemble_elf32_relocatable":
                 feature_id = "asm.output.elf32_relocatable"
-            elif language == "assembly" and operation == "wrap_binary_as_elf32_relocatable":
+            elif language == "assembly" and operation in {
+                "wrap_binary_as_elf32_relocatable",
+                "wrap_text_as_elf32_relocatable",
+            }:
                 feature_id = "asm.delivery.embedded_source"
-            elif language == "cupid_c" and operation == "wrap_binary_as_elf32_relocatable":
+            elif language == "cupid_c" and operation in {
+                "wrap_binary_as_elf32_relocatable",
+                "wrap_text_as_elf32_relocatable",
+            }:
                 feature_id = "cupid_c.delivery.embedded_source"
-            elif language == "c_header" and operation == "wrap_binary_as_elf32_relocatable":
+            elif language == "c_header" and operation in {
+                "wrap_binary_as_elf32_relocatable",
+                "wrap_text_as_elf32_relocatable",
+            }:
                 feature_id = "cupid_c.delivery.embedded_header"
             if feature_id is not None:
                 collector.add(
@@ -4173,7 +4184,10 @@ def _c_preprocessor_active_cases_manifest(
 
             inputs = transform.get("inputs")
             if not isinstance(inputs, list):
-                if operation == "wrap_binary_as_elf32_relocatable":
+                if operation in {
+                    "wrap_binary_as_elf32_relocatable",
+                    "wrap_text_as_elf32_relocatable",
+                }:
                     raise AuditError(
                         f"CupidC delivery transform inputs are absent for "
                         f"{transform.get('output')}"
@@ -4202,12 +4216,12 @@ def _c_preprocessor_active_cases_manifest(
                 # preprocessing ownership is established by the separate
                 # CupidObj wrap transform for each source below.
                 continue
-            if delivered_inputs and operation != "wrap_binary_as_elf32_relocatable":
+            if delivered_inputs and operation != "wrap_text_as_elf32_relocatable":
                 raise AuditError(
                     f"CupidC active preprocessing found an unclassified Cupid "
                     f"delivery transform: {transform.get('output')} ({operation})"
                 )
-            if operation != "wrap_binary_as_elf32_relocatable":
+            if operation != "wrap_text_as_elf32_relocatable":
                 continue
             cupid_inputs = [
                 path

@@ -69,12 +69,13 @@
       {
         "inputs": [
           "bin/audiotest.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/audiotest.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -83,12 +84,13 @@
       {
         "inputs": [
           "bin/auto.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/auto.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -97,12 +99,13 @@
       {
         "inputs": [
           "bin/bgstudio.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/bgstudio.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -111,12 +114,13 @@
       {
         "inputs": [
           "bin/bible.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/bible.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -125,12 +129,13 @@
       {
         "inputs": [
           "bin/bmptest.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/bmptest.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -139,12 +144,13 @@
       {
         "inputs": [
           "bin/browser.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -153,12 +159,13 @@
       {
         "inputs": [
           "bin/browser/css.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/css.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -167,12 +174,13 @@
       {
         "inputs": [
           "bin/browser/dom.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/dom.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -181,12 +189,13 @@
       {
         "inputs": [
           "bin/browser/font_face.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/font_face.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -195,12 +204,13 @@
       {
         "inputs": [
           "bin/browser/image.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/image.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -209,12 +219,13 @@
       {
         "inputs": [
           "bin/browser/input.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/input.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -223,12 +234,13 @@
       {
         "inputs": [
           "bin/browser/js_dom.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/js_dom.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -237,12 +249,13 @@
       {
         "inputs": [
           "bin/browser/js_interp.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/js_interp.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -251,12 +264,13 @@
       {
         "inputs": [
           "bin/browser/js_lex.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/js_lex.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -265,12 +279,13 @@
       {
         "inputs": [
           "bin/browser/js_parse.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/js_parse.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -279,12 +294,13 @@
       {
         "inputs": [
           "bin/browser/layout.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/layout.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -293,12 +309,13 @@
       {
         "inputs": [
           "bin/browser/main.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/main.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -307,12 +324,13 @@
       {
         "inputs": [
           "bin/browser/nav.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/nav.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -321,12 +339,13 @@
       {
         "inputs": [
           "bin/browser/net.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/net.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -335,12 +354,13 @@
       {
         "inputs": [
           "bin/browser/paint.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/paint.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -349,12 +369,13 @@
       {
         "inputs": [
           "bin/browser/parser.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/parser.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -363,12 +384,13 @@
       {
         "inputs": [
           "bin/browser/render_tree.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/render_tree.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -377,12 +399,13 @@
       {
         "inputs": [
           "bin/browser/style.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/style.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -391,12 +414,13 @@
       {
         "inputs": [
           "bin/browser/url.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/url.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -405,12 +429,13 @@
       {
         "inputs": [
           "bin/browser/url_hash.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/url_hash.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -419,12 +444,13 @@
       {
         "inputs": [
           "bin/browser/util.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/util.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -433,12 +459,13 @@
       {
         "inputs": [
           "bin/browser/woff.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/woff.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -447,12 +474,13 @@
       {
         "inputs": [
           "bin/browser/woff2.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/browser/woff2.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -461,12 +489,13 @@
       {
         "inputs": [
           "bin/cachestats.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cachestats.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -475,12 +504,13 @@
       {
         "inputs": [
           "bin/cat.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cat.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -489,12 +519,13 @@
       {
         "inputs": [
           "bin/cd.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cd.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -503,12 +534,13 @@
       {
         "inputs": [
           "bin/clear.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/clear.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -517,12 +549,13 @@
       {
         "inputs": [
           "bin/cp.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cp.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -531,12 +564,13 @@
       {
         "inputs": [
           "bin/crashtest.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/crashtest.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -545,12 +579,13 @@
       {
         "inputs": [
           "bin/ctxt.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/ctxt.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -559,12 +594,13 @@
       {
         "inputs": [
           "bin/cupidc_test1.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cupidc_test1.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -573,12 +609,13 @@
       {
         "inputs": [
           "bin/cupidc_test2.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cupidc_test2.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -587,12 +624,13 @@
       {
         "inputs": [
           "bin/cupidc_test3.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cupidc_test3.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -601,12 +639,13 @@
       {
         "inputs": [
           "bin/cupidc_test4.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cupidc_test4.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -615,12 +654,13 @@
       {
         "inputs": [
           "bin/cupidc_test5.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cupidc_test5.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -629,12 +669,13 @@
       {
         "inputs": [
           "bin/cupidfetch.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/cupidfetch.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -643,12 +684,13 @@
       {
         "inputs": [
           "bin/curl.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/curl.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -657,12 +699,13 @@
       {
         "inputs": [
           "bin/date.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/date.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -671,12 +714,13 @@
       {
         "inputs": [
           "bin/dglibc_test.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/dglibc_test.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -685,12 +729,13 @@
       {
         "inputs": [
           "bin/doom.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/doom.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -699,12 +744,13 @@
       {
         "inputs": [
           "bin/echo.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/echo.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -713,12 +759,13 @@
       {
         "inputs": [
           "bin/ed.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/ed.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -727,12 +774,13 @@
       {
         "inputs": [
           "bin/fat16.h",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/fat16.h.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -741,12 +789,13 @@
       {
         "inputs": [
           "bin/feature10_repl.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature10_repl.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -755,12 +804,13 @@
       {
         "inputs": [
           "bin/feature11_ternary.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature11_ternary.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -769,12 +819,13 @@
       {
         "inputs": [
           "bin/feature12_float.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature12_float.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -783,12 +834,13 @@
       {
         "inputs": [
           "bin/feature13_double.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature13_double.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -797,12 +849,13 @@
       {
         "inputs": [
           "bin/feature14_simd.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature14_simd.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -811,12 +864,13 @@
       {
         "inputs": [
           "bin/feature15_libm.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature15_libm.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -825,12 +879,13 @@
       {
         "inputs": [
           "bin/feature16_asm_fpu.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature16_asm_fpu.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -839,12 +894,13 @@
       {
         "inputs": [
           "bin/feature17_iso.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature17_iso.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -853,12 +909,13 @@
       {
         "inputs": [
           "bin/feature18_swap.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature18_swap.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -867,12 +924,13 @@
       {
         "inputs": [
           "bin/feature19_usb.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature19_usb.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -881,12 +939,13 @@
       {
         "inputs": [
           "bin/feature1_types.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature1_types.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -895,12 +954,13 @@
       {
         "inputs": [
           "bin/feature20_smp.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature20_smp.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -909,12 +969,13 @@
       {
         "inputs": [
           "bin/feature21_net.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature21_net.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -923,12 +984,13 @@
       {
         "inputs": [
           "bin/feature22_net_server.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature22_net_server.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -937,12 +999,13 @@
       {
         "inputs": [
           "bin/feature23_full_access.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature23_full_access.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -951,12 +1014,13 @@
       {
         "inputs": [
           "bin/feature24_widetypes.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature24_widetypes.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -965,12 +1029,13 @@
       {
         "inputs": [
           "bin/feature25.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature25.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -979,12 +1044,13 @@
       {
         "inputs": [
           "bin/feature2_top_level.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature2_top_level.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -993,12 +1059,13 @@
       {
         "inputs": [
           "bin/feature3_class.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature3_class.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1007,12 +1074,13 @@
       {
         "inputs": [
           "bin/feature4_forward_calls.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature4_forward_calls.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1021,12 +1089,13 @@
       {
         "inputs": [
           "bin/feature5_print_builtin.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature5_print_builtin.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1035,12 +1104,13 @@
       {
         "inputs": [
           "bin/feature6_exe.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature6_exe.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1049,12 +1119,13 @@
       {
         "inputs": [
           "bin/feature7_new_del.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature7_new_del.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1063,12 +1134,13 @@
       {
         "inputs": [
           "bin/feature8_reg_noreg.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature8_reg_noreg.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1077,12 +1149,13 @@
       {
         "inputs": [
           "bin/feature9_abs_addr.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/feature9_abs_addr.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1091,12 +1164,13 @@
       {
         "inputs": [
           "bin/find.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/find.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1105,12 +1179,13 @@
       {
         "inputs": [
           "bin/fm.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/fm.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1119,12 +1194,13 @@
       {
         "inputs": [
           "bin/fontswitch.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/fontswitch.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1133,12 +1209,13 @@
       {
         "inputs": [
           "bin/fp_drill.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/fp_drill.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1147,12 +1224,13 @@
       {
         "inputs": [
           "bin/gfxdemo.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/gfxdemo.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1161,12 +1239,13 @@
       {
         "inputs": [
           "bin/gfxgui_test.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/gfxgui_test.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1175,12 +1254,13 @@
       {
         "inputs": [
           "bin/gfxtest.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/gfxtest.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1189,12 +1269,13 @@
       {
         "inputs": [
           "bin/godsong.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/godsong.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1203,12 +1284,13 @@
       {
         "inputs": [
           "bin/godspeak.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/godspeak.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1217,12 +1299,13 @@
       {
         "inputs": [
           "bin/grep.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/grep.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1231,12 +1314,13 @@
       {
         "inputs": [
           "bin/head.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/head.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1245,12 +1329,13 @@
       {
         "inputs": [
           "bin/help.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/help.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1259,12 +1344,13 @@
       {
         "inputs": [
           "bin/history.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/history.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1273,12 +1359,13 @@
       {
         "inputs": [
           "bin/kbdsub_test.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/kbdsub_test.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1287,12 +1374,13 @@
       {
         "inputs": [
           "bin/kill.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/kill.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1301,12 +1389,13 @@
       {
         "inputs": [
           "bin/logdump.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/logdump.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1315,12 +1404,13 @@
       {
         "inputs": [
           "bin/loglevel.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/loglevel.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1329,12 +1419,13 @@
       {
         "inputs": [
           "bin/ls.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/ls.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1343,12 +1434,13 @@
       {
         "inputs": [
           "bin/memcheck.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/memcheck.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1357,12 +1449,13 @@
       {
         "inputs": [
           "bin/memdump.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/memdump.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1371,12 +1464,13 @@
       {
         "inputs": [
           "bin/memleak.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/memleak.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1385,12 +1479,13 @@
       {
         "inputs": [
           "bin/memstats.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/memstats.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1399,12 +1494,13 @@
       {
         "inputs": [
           "bin/mkdir.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/mkdir.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1413,12 +1509,13 @@
       {
         "inputs": [
           "bin/mount.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/mount.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1427,12 +1524,13 @@
       {
         "inputs": [
           "bin/mv.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/mv.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1441,12 +1539,13 @@
       {
         "inputs": [
           "bin/notepad.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/notepad.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1455,12 +1554,13 @@
       {
         "inputs": [
           "bin/oracle.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/oracle.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1469,12 +1569,13 @@
       {
         "inputs": [
           "bin/paint.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/paint.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1483,12 +1584,13 @@
       {
         "inputs": [
           "bin/printc.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/printc.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1497,12 +1599,13 @@
       {
         "inputs": [
           "bin/ps.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/ps.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1511,12 +1614,13 @@
       {
         "inputs": [
           "bin/pwd.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/pwd.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1525,12 +1629,13 @@
       {
         "inputs": [
           "bin/reboot.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/reboot.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1539,12 +1644,13 @@
       {
         "inputs": [
           "bin/registers.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/registers.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1553,12 +1659,13 @@
       {
         "inputs": [
           "bin/resetcolor.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/resetcolor.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1567,12 +1674,13 @@
       {
         "inputs": [
           "bin/rm.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/rm.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1581,12 +1689,13 @@
       {
         "inputs": [
           "bin/rmdir.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/rmdir.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1595,12 +1704,13 @@
       {
         "inputs": [
           "bin/setcolor.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/setcolor.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1609,12 +1719,13 @@
       {
         "inputs": [
           "bin/shell.h",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/shell.h.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1623,12 +1734,13 @@
       {
         "inputs": [
           "bin/sort.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/sort.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1637,12 +1749,13 @@
       {
         "inputs": [
           "bin/spawn.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/spawn.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1651,12 +1764,13 @@
       {
         "inputs": [
           "bin/ssh.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/ssh.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1665,12 +1779,13 @@
       {
         "inputs": [
           "bin/stacktrace.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/stacktrace.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1679,12 +1794,13 @@
       {
         "inputs": [
           "bin/sync.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/sync.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1693,12 +1809,13 @@
       {
         "inputs": [
           "bin/sysinfo.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/sysinfo.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1707,12 +1824,13 @@
       {
         "inputs": [
           "bin/tail.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/tail.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1721,12 +1839,13 @@
       {
         "inputs": [
           "bin/telnet.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/telnet.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1735,12 +1854,13 @@
       {
         "inputs": [
           "bin/terminal.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/terminal.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1749,12 +1869,13 @@
       {
         "inputs": [
           "bin/test.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/test.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1763,12 +1884,13 @@
       {
         "inputs": [
           "bin/test_fpaug.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/test_fpaug.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1777,12 +1899,13 @@
       {
         "inputs": [
           "bin/test_print.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/test_print.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1791,12 +1914,13 @@
       {
         "inputs": [
           "bin/time.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/time.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1805,12 +1929,13 @@
       {
         "inputs": [
           "bin/touch.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/touch.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1819,12 +1944,13 @@
       {
         "inputs": [
           "bin/volume.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/volume.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1833,12 +1959,13 @@
       {
         "inputs": [
           "bin/wc.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/wc.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1847,12 +1974,13 @@
       {
         "inputs": [
           "bin/wget.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/wget.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1861,12 +1989,13 @@
       {
         "inputs": [
           "bin/yield.cc",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "bin/yield.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1889,12 +2018,13 @@
       {
         "inputs": [
           "cupidos-txt/00INDEX.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/00INDEX.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1903,12 +2033,13 @@
       {
         "inputs": [
           "cupidos-txt/01SHELL.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/01SHELL.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1917,12 +2048,13 @@
       {
         "inputs": [
           "cupidos-txt/02FILESYS.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/02FILESYS.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1931,12 +2063,13 @@
       {
         "inputs": [
           "cupidos-txt/03CUPIDSC.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/03CUPIDSC.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1945,12 +2078,13 @@
       {
         "inputs": [
           "cupidos-txt/04CUPIDC.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/04CUPIDC.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1959,12 +2093,13 @@
       {
         "inputs": [
           "cupidos-txt/05ELFPROG.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/05ELFPROG.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1973,12 +2108,13 @@
       {
         "inputs": [
           "cupidos-txt/06GUITERM.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/06GUITERM.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -1987,12 +2123,13 @@
       {
         "inputs": [
           "cupidos-txt/07LABS.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/07LABS.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2001,12 +2138,13 @@
       {
         "inputs": [
           "cupidos-txt/08CMDS.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/08CMDS.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2015,12 +2153,13 @@
       {
         "inputs": [
           "cupidos-txt/09EMBED.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/09EMBED.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2029,12 +2168,13 @@
       {
         "inputs": [
           "cupidos-txt/10ASM.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/10ASM.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2043,12 +2183,13 @@
       {
         "inputs": [
           "cupidos-txt/11CTXT.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/11CTXT.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2057,12 +2198,13 @@
       {
         "inputs": [
           "cupidos-txt/12HOLYC-CUPIDC.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/12HOLYC-CUPIDC.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2071,12 +2213,13 @@
       {
         "inputs": [
           "cupidos-txt/13USB.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/13USB.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2085,12 +2228,13 @@
       {
         "inputs": [
           "cupidos-txt/14FPU-SSE.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/14FPU-SSE.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2099,12 +2243,13 @@
       {
         "inputs": [
           "cupidos-txt/15ISO9660.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/15ISO9660.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2113,12 +2258,13 @@
       {
         "inputs": [
           "cupidos-txt/16SWAP.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/16SWAP.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2127,12 +2273,13 @@
       {
         "inputs": [
           "cupidos-txt/17SMP.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/17SMP.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2141,12 +2288,13 @@
       {
         "inputs": [
           "cupidos-txt/18NET.CTXT",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "cupidos-txt/18NET.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2169,12 +2317,13 @@
       {
         "inputs": [
           "demos/asm_compat_reserve.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/asm_compat_reserve.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2183,12 +2332,13 @@
       {
         "inputs": [
           "demos/bubblesort.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/bubblesort.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2197,12 +2347,13 @@
       {
         "inputs": [
           "demos/data.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/data.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2211,12 +2362,13 @@
       {
         "inputs": [
           "demos/factorial.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/factorial.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2225,12 +2377,13 @@
       {
         "inputs": [
           "demos/fibonacci.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/fibonacci.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2239,12 +2392,13 @@
       {
         "inputs": [
           "demos/fpu_kernel.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/fpu_kernel.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2253,12 +2407,13 @@
       {
         "inputs": [
           "demos/fs_syscalls.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/fs_syscalls.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2267,12 +2422,13 @@
       {
         "inputs": [
           "demos/hello.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/hello.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2281,12 +2437,13 @@
       {
         "inputs": [
           "demos/include_feature.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/include_feature.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2295,12 +2452,13 @@
       {
         "inputs": [
           "demos/include_helper.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/include_helper.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2309,12 +2467,13 @@
       {
         "inputs": [
           "demos/jcc_aliases.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/jcc_aliases.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2323,12 +2482,13 @@
       {
         "inputs": [
           "demos/loop.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/loop.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2337,12 +2497,13 @@
       {
         "inputs": [
           "demos/math.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/math.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2351,12 +2512,13 @@
       {
         "inputs": [
           "demos/parity_core.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/parity_core.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2365,12 +2527,13 @@
       {
         "inputs": [
           "demos/parity_diag.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/parity_diag.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2379,12 +2542,13 @@
       {
         "inputs": [
           "demos/parity_gfx2d.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/parity_gfx2d.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2393,12 +2557,13 @@
       {
         "inputs": [
           "demos/parity_priv.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/parity_priv.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2407,12 +2572,13 @@
       {
         "inputs": [
           "demos/reserve_directives.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/reserve_directives.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2421,12 +2587,13 @@
       {
         "inputs": [
           "demos/simd_blur.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/simd_blur.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2435,12 +2602,13 @@
       {
         "inputs": [
           "demos/stack.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/stack.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2449,12 +2617,13 @@
       {
         "inputs": [
           "demos/syscall_table_demo.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/syscall_table_demo.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2463,12 +2632,13 @@
       {
         "inputs": [
           "demos/syscall_vfs_extended_demo.asm",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "demos/syscall_vfs_extended_demo.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2669,12 +2839,13 @@
       {
         "inputs": [
           "god/Psalms.DD",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "god/Psalms.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -2683,12 +2854,13 @@
       {
         "inputs": [
           "god/Vocab.DD",
-          "toolchain/build/cupidobj.exe"
+          "toolchain/build/cupidobj.exe",
+          "Makefile"
         ],
-        "operation": "wrap_binary_as_elf32_relocatable",
+        "operation": "wrap_text_as_elf32_relocatable",
         "output": "god/Vocab.o",
         "recipe": [
-          "$(CUPIDOBJ) wrap $< -o $@"
+          "$(CUPIDOBJ) wrap-text $< -o $@"
         ],
         "tools": [
           "cupid_object"
@@ -8314,31 +8486,31 @@
             },
             {
               "directive": "if",
-              "line": 160,
+              "line": 171,
               "path": "toolchain/cupidobj_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 193,
+              "line": 204,
               "path": "toolchain/cupidobj_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 215,
+              "line": 226,
               "path": "toolchain/cupidobj_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 245,
+              "line": 256,
               "path": "toolchain/cupidobj_main.c",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 395,
+              "line": 406,
               "path": "toolchain/cupidobj_main.c",
               "text": "#if defined(_WIN32)"
             }
@@ -9242,17 +9414,17 @@
         {
           "line": 1,
           "path": "demos/asm_compat_reserve.asm",
-          "text": "wrap_binary_as_elf32_relocatable -> demos/asm_compat_reserve.o"
+          "text": "wrap_text_as_elf32_relocatable -> demos/asm_compat_reserve.o"
         },
         {
           "line": 1,
           "path": "demos/bubblesort.asm",
-          "text": "wrap_binary_as_elf32_relocatable -> demos/bubblesort.o"
+          "text": "wrap_text_as_elf32_relocatable -> demos/bubblesort.o"
         },
         {
           "line": 1,
           "path": "demos/data.asm",
-          "text": "wrap_binary_as_elf32_relocatable -> demos/data.o"
+          "text": "wrap_text_as_elf32_relocatable -> demos/data.o"
         }
       ],
       "files": [
@@ -13130,7 +13302,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.continue",
-      "occurrences": 1038
+      "occurrences": 1039
     },
     {
       "category": "control",
@@ -13569,7 +13741,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.else",
-      "occurrences": 3907
+      "occurrences": 3910
     },
     {
       "category": "control",
@@ -13835,7 +14007,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 3381
+      "occurrences": 3385
     },
     {
       "category": "control",
@@ -14268,7 +14440,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 29069
+      "occurrences": 29093
     },
     {
       "category": "control",
@@ -14623,7 +14795,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 17608
+      "occurrences": 17617
     },
     {
       "category": "control",
@@ -15252,7 +15424,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 1804
+      "occurrences": 1807
     },
     {
       "category": "declarator",
@@ -15513,7 +15685,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 3916
+      "occurrences": 3923
     },
     {
       "category": "extension",
@@ -18699,7 +18871,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 10927
+      "occurrences": 10939
     },
     {
       "category": "qualifier",
@@ -19207,7 +19379,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 6666
+      "occurrences": 6672
     },
     {
       "category": "type",
@@ -20311,7 +20483,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 19626
+      "occurrences": 19629
     },
     {
       "category": "type",
@@ -21739,7 +21911,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 11741
+      "occurrences": 11753
     },
     {
       "category": "declaration",
@@ -21768,12 +21940,12 @@
         {
           "line": 1,
           "path": "bin/fat16.h",
-          "text": "wrap_binary_as_elf32_relocatable -> bin/fat16.h.o"
+          "text": "wrap_text_as_elf32_relocatable -> bin/fat16.h.o"
         },
         {
           "line": 1,
           "path": "bin/shell.h",
-          "text": "wrap_binary_as_elf32_relocatable -> bin/shell.h.o"
+          "text": "wrap_text_as_elf32_relocatable -> bin/shell.h.o"
         }
       ],
       "files": [
@@ -21789,17 +21961,17 @@
         {
           "line": 1,
           "path": "bin/audiotest.cc",
-          "text": "wrap_binary_as_elf32_relocatable -> bin/audiotest.o"
+          "text": "wrap_text_as_elf32_relocatable -> bin/audiotest.o"
         },
         {
           "line": 1,
           "path": "bin/auto.cc",
-          "text": "wrap_binary_as_elf32_relocatable -> bin/auto.o"
+          "text": "wrap_text_as_elf32_relocatable -> bin/auto.o"
         },
         {
           "line": 1,
           "path": "bin/bgstudio.cc",
-          "text": "wrap_binary_as_elf32_relocatable -> bin/bgstudio.o"
+          "text": "wrap_text_as_elf32_relocatable -> bin/bgstudio.o"
         }
       ],
       "files": [
@@ -22350,11 +22522,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "b30f61403f0ae552156a21c4808643f108c6fdeeb4ddc4d32637e29ca50bc61e",
+    "active_source_digest": "b9904fa28de966ee1707189065d66a24f3d4bde997c3908f2772e740d5494ad6",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "a04138789b132c88d61c44bb185a40a88d7e2b9e7c4fb6055d14dc77e4cdffeb"
+        "sha256": "1000c2919062a6757f24f6e008f96270222a34e4ebe75154f2138c0143efee73"
       },
       {
         "path": "user/Makefile",
@@ -22362,12 +22534,12 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "5c5bc79ec24ee87d0bde4e6158106259a00c22a2f1f711945dd5370bc463ae44"
+        "sha256": "8a92b1772afe039f465a11165bff8b7f0f7fdb930ff391baf96d25a543e8a982"
       }
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "49996097cae38c9416068d83f244fab134aed1be296455d8c90b9982927e0f90"
+      "sha256": "3290c169fe1a45e7cbb2fb963de50c1d8a0e76d9f0ee3c59109201b4acd3ece7"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -45963,12 +46135,12 @@
         "toolchain/cupidobj.h"
       ],
       "language": "c",
-      "lines": 423,
+      "lines": 469,
       "origin": "tracked",
       "path": "toolchain/cupidobj.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "307b75387e0960fbce6bfcc6dfa16b44fc1e0355f9827612e56f842a8ab22679"
+      "sha256": "3aa0d89600bc23541d35ff964be1f5f54850474ce27dd930e44dc84bbf6e8f04"
     },
     {
       "build_owners": [
@@ -45996,12 +46168,12 @@
         "toolchain/elf32.h"
       ],
       "language": "c_header",
-      "lines": 65,
+      "lines": 68,
       "origin": "tracked",
       "path": "toolchain/cupidobj.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "a7d24446c8dc679f239a45e789b69ea03a9f756fa7a44efbce95e7f945799372"
+      "sha256": "69dfda19159ae579ca335d243ed9046bf1e115f750c996d2306f93ed40e0fd58"
     },
     {
       "build_owners": [
@@ -46048,12 +46220,12 @@
         "toolchain/cupidobj.h"
       ],
       "language": "c",
-      "lines": 450,
+      "lines": 461,
       "origin": "tracked",
       "path": "toolchain/cupidobj_main.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "72f216d3728e361dcc808db4f9eff1aaae7b1ee4829373c016828bd9b8849bf8"
+      "sha256": "dfa9a33efda58d2aab1469ab09d8a2d6a0a8f9a273e014a49dca6511ea238f72"
     },
     {
       "build_owners": [
@@ -46328,7 +46500,7 @@
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "928371933855eaf64f17753d4925f4dc1c760795071221bf1c59db5a69e83ec4"
+      "sha256": "00e1c6cfbd30cbf16a29b8f2ba914a44c8e77004450bbd2a594d90517bf3c4cc"
     },
     {
       "build_owners": [
@@ -46438,7 +46610,7 @@
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "2dfe16f3a42ab96960f0935211d1a3a96b89424fdb144b3e3e145ab5e214cfc4"
+      "sha256": "7f6124f39aea1102d0d0f970b36ca83e8bd806c7ac001d27bf35c3189a8fc20c"
     },
     {
       "build_owners": [
@@ -46637,12 +46809,12 @@
         "toolchain/elf32.h"
       ],
       "language": "c",
-      "lines": 655,
+      "lines": 814,
       "origin": "tracked",
       "path": "toolchain/tests/cupidobj_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "dc69fafe5de8aed36b32fe87bb586634157eb995dff38f2774729531f2c0ad7e"
+      "sha256": "6bf8145690eab2ed1d6ca227fe8f21d9f7c359d1450273ab7bbfd35a008bf497"
     },
     {
       "build_owners": [

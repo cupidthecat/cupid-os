@@ -155,14 +155,20 @@ static ctool_status_t obj_extract_failure(
   return obj_emit_failure(job, source, status, code, column, message);
 }
 
-static ctool_status_t obj_wrap_binary(
+static ctool_status_t obj_wrap(
     ctool_job_t *job, const ctool_obj_request_t *request,
     ctool_buffer_t *output, ctool_obj_result_t *result_out) {
   const ctool_obj_wrap_binary_request_t *wrap = &request->as.wrap_binary;
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_arena_mark_t arena_mark = ctool_arena_mark(arena);
+  ctool_bytes_t contents = request->input->contents;
   ctool_elf32_section_spec_t section;
   ctool_elf32_symbol_spec_t symbols[3];
   ctool_elf32_object_spec_t object;
   ctool_status_t status;
+  ctool_status_t rewind_status;
+  ctool_u32 index;
+  ctool_u32 removed = 0u;
 
   if (request->input->contents.data == (const ctool_u8 *)0 &&
       request->input->contents.size != 0u) {
@@ -199,6 +205,41 @@ static ctool_status_t obj_wrap_binary(
                             "CupidObj wrapped symbol names collide");
   }
 
+  if (request->operation == CTOOL_OBJ_WRAP_TEXT) {
+    ctool_u8 *normalized;
+    ctool_u32 write_index = 0u;
+    for (index = 0u; index + 1u < contents.size; index++) {
+      if (contents.data[index] == (ctool_u8)'\r' &&
+          contents.data[index + 1u] == (ctool_u8)'\n') {
+        removed++;
+        index++;
+      }
+    }
+    if (removed != 0u) {
+      status = ctool_arena_alloc(arena, contents.size - removed, 1u,
+                                 (void **)&normalized);
+      if (status != CTOOL_OK) {
+        rewind_status = ctool_arena_rewind(arena, arena_mark);
+        if (rewind_status != CTOOL_OK) {
+          return rewind_status;
+        }
+        return obj_emit_failure(job, request->input, status,
+                                CTOOL_OBJ_DIAG_LIMIT, 0u,
+                                "CupidObj could not normalize text input");
+      }
+      for (index = 0u; index < contents.size; index++) {
+        if (contents.data[index] == (ctool_u8)'\r' &&
+            index + 1u < contents.size &&
+            contents.data[index + 1u] == (ctool_u8)'\n') {
+          continue;
+        }
+        normalized[write_index] = contents.data[index];
+        write_index++;
+      }
+      contents = ctool_bytes(normalized, write_index);
+    }
+  }
+
   obj_zero(&section, (ctool_u32)sizeof(section));
   obj_zero(symbols, (ctool_u32)sizeof(symbols));
   obj_zero(&object, (ctool_u32)sizeof(object));
@@ -206,8 +247,8 @@ static ctool_status_t obj_wrap_binary(
   section.type = CTOOL_ELF32_SHT_PROGBITS;
   section.flags = wrap->section_flags;
   section.alignment = wrap->section_alignment;
-  section.size = request->input->contents.size;
-  section.contents = request->input->contents;
+  section.size = contents.size;
+  section.contents = contents;
 
   symbols[0].name = wrap->start_symbol;
   symbols[0].binding = CTOOL_ELF32_BIND_GLOBAL;
@@ -218,19 +259,23 @@ static ctool_status_t obj_wrap_binary(
 
   symbols[1] = symbols[0];
   symbols[1].name = wrap->end_symbol;
-  symbols[1].value = request->input->contents.size;
+  symbols[1].value = contents.size;
 
   symbols[2] = symbols[0];
   symbols[2].name = wrap->size_symbol;
   symbols[2].placement = CTOOL_ELF32_SYMBOL_ABSOLUTE;
   symbols[2].section = CTOOL_ELF32_NO_SECTION;
-  symbols[2].value = request->input->contents.size;
+  symbols[2].value = contents.size;
 
   object.sections = &section;
   object.section_count = 1u;
   object.symbols = symbols;
   object.symbol_count = 3u;
   status = ctool_elf32_write(job, &object, output);
+  rewind_status = ctool_arena_rewind(arena, arena_mark);
+  if (rewind_status != CTOOL_OK) {
+    return rewind_status;
+  }
   if (status != CTOOL_OK) {
     ctool_u32 code = status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
                              status == CTOOL_ERR_NO_MEMORY
@@ -405,8 +450,9 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
                             "CupidObj request and empty output are required");
   }
   output_mark = ctool_buffer_mark(output);
-  if (request->operation == CTOOL_OBJ_WRAP_BINARY) {
-    status = obj_wrap_binary(job, request, output, result_out);
+  if (request->operation == CTOOL_OBJ_WRAP_BINARY ||
+      request->operation == CTOOL_OBJ_WRAP_TEXT) {
+    status = obj_wrap(job, request, output, result_out);
   } else if (request->operation == CTOOL_OBJ_EXTRACT_FLAT) {
     status = obj_extract_flat(job, request, output, result_out);
   } else {

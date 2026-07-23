@@ -157,8 +157,16 @@ The Cupid Toolchain linker.
 _Avoid_: host linker
 
 **CupidObj**:
-The Cupid Toolchain object and binary transformation utility.
+The Cupid Toolchain object and binary transformation utility. `wrap` keeps
+binary input unchanged, while `wrap-text` converts CRLF pairs to LF before it
+builds an ELF32 object. A lone carriage return remains part of the input.
 _Avoid_: objcopy
+
+**Canonical text wrap**:
+The CupidObj transform used for source, manuals, demos, and vocabulary data.
+It makes the embedded bytes independent of a host checkout's line endings
+without changing binary assets.
+_Avoid_: source formatting, binary wrapping
 
 **CupidDis**:
 The Cupid Toolchain disassembler and binary inspector.

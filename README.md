@@ -195,8 +195,10 @@ support, its native linker backend, Python 3, and GNU Make. QEMU is required
 only to run the image or execute emulator tests. GNU or LLVM `nm` is optional
 comparison tooling because CupidDis supplies production kernel symbols.
 CupidASM assembles every active OS assembly input, while CupidLD and CupidObj
-perform every OS/user ELF link and object/binary transform. The GCC driver still
-links the temporary hosted Cupid tools:
+perform every OS/user ELF link and object/binary transform. CupidObj uses a
+canonical text wrapper for embedded source and manuals, so CRLF and LF
+checkouts produce the same objects. Its binary wrapper remains byte-exact. The
+GCC driver still links the temporary hosted Cupid tools:
 
 ```bash
 sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
@@ -302,7 +304,7 @@ Runtime narrow string expressions now receive deterministic local `.rodata` symb
 
 [ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the current hermetic Toolchain source and object frontier and the remaining host-runnable boundary.
 
-[ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary.
+[ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 
 ### Copying files into the disk image
 
@@ -672,7 +674,7 @@ Changes made in the 2026-02-16 optimization pass:
 2. Add the .c file to the object list in the Makefile
 3. Run `make`
 
-New CupidC programs go in bin/ and are automatically embedded in RamFS at build time. New assembly demos go in demos/. CupidScript files use the .cup extension and can be placed anywhere on the VFS.
+New CupidC programs go in bin/ and are automatically embedded in RamFS at build time. New assembly demos go in demos/. CupidObj stores these text files with LF line endings even when a checkout uses CRLF. CupidScript files use the .cup extension and can be placed anywhere on the VFS.
 
 ---
 

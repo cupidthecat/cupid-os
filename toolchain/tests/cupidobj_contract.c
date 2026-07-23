@@ -166,7 +166,8 @@ static int open_job(ctool_host_adapter_t *adapter,
 }
 
 static int run_wrap_basic(void) {
-  static const ctool_u8 payload[] = {0x00u, 0x7fu, 0x80u, 0xffu};
+  static const ctool_u8 payload[] = {0x00u, 0x0du, 0x0au,
+                                     0x7fu, 0x80u, 0xffu};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -272,6 +273,117 @@ static int run_wrap_basic(void) {
   }
 
   ctool_buffer_close(output);
+  ctool_job_close(job);
+  return ok != 0 ? 0 : 1;
+}
+
+static int arena_marks_equal(ctool_arena_mark_t left,
+                             ctool_arena_mark_t right) {
+  return left.owner == right.owner && left.block == right.block &&
+                 left.used == right.used &&
+                 left.generation == right.generation
+             ? 1
+             : 0;
+}
+
+static int run_wrap_text(void) {
+  static const ctool_u8 payload[] = {'a',  '\r', '\n', 'b', '\n',
+                                     'c',  '\r', 'd',  '\r', '\n'};
+  static const ctool_u8 expected[] = {'a', '\n', 'b', '\n',
+                                      'c', '\r', 'd', '\n'};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  ctool_source_t object_source;
+  ctool_obj_request_t request;
+  ctool_obj_result_t first_result;
+  ctool_obj_result_t second_result;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *section = (const ctool_elf32_section_t *)0;
+  const ctool_elf32_symbol_t *end = (const ctool_elf32_symbol_t *)0;
+  const ctool_elf32_symbol_t *size = (const ctool_elf32_symbol_t *)0;
+  ctool_arena_mark_t mark;
+  ctool_status_t status;
+  ctool_u32 index;
+  int ok = 1;
+
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status =
+        ctool_job_open_buffer(job, 64u, config.limits.output_bytes, &second);
+  }
+  if (status != CTOOL_OK) {
+    if (first != (ctool_buffer_t *)0) {
+      ctool_buffer_close(first);
+    }
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/manual.txt");
+  source.contents = ctool_bytes(payload, (ctool_u32)sizeof(payload));
+  (void)memset(&request, 0, sizeof(request));
+  request.operation = CTOOL_OBJ_WRAP_TEXT;
+  request.input = &source;
+  request.as.wrap_binary.section_name = ctool_string(".data");
+  request.as.wrap_binary.section_flags =
+      CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+  request.as.wrap_binary.section_alignment = 1u;
+  request.as.wrap_binary.start_symbol = ctool_string("manual_start");
+  request.as.wrap_binary.end_symbol = ctool_string("manual_end");
+  request.as.wrap_binary.size_symbol = ctool_string("manual_size");
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  if (ctool_obj_transform(job, &request, first, &first_result) != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      ctool_obj_transform(job, &request, second, &second_result) != CTOOL_OK ||
+      first_result.bytes.size != second_result.bytes.size ||
+      memcmp(first_result.bytes.data, second_result.bytes.data,
+             (size_t)first_result.bytes.size) != 0) {
+    (void)fprintf(stderr, "wrap-text: deterministic transform mismatch\n");
+    ok = 0;
+  }
+
+  object_source.path.text = ctool_string("/manual.o");
+  object_source.contents = first_result.bytes;
+  if (ok != 0 &&
+      ctool_elf32_read(job, &object_source, &object) != CTOOL_OK) {
+    ok = 0;
+  }
+  if (ok != 0) {
+    for (index = 0u; index < object.section_count; index++) {
+      if (string_equal(object.sections[index].name, ".data")) {
+        section = &object.sections[index];
+      }
+    }
+    for (index = 0u; index < object.symbol_count; index++) {
+      if (string_equal(object.symbols[index].name, "manual_end")) {
+        end = &object.symbols[index];
+      } else if (string_equal(object.symbols[index].name, "manual_size")) {
+        size = &object.symbols[index];
+      }
+    }
+  }
+  if (ok != 0 &&
+      (section == (const ctool_elf32_section_t *)0 ||
+       section->size != (ctool_u32)sizeof(expected) ||
+       memcmp(section->contents.data, expected, sizeof(expected)) != 0 ||
+       end == (const ctool_elf32_symbol_t *)0 ||
+       end->value != (ctool_u32)sizeof(expected) ||
+       size == (const ctool_elf32_symbol_t *)0 ||
+       size->value != (ctool_u32)sizeof(expected))) {
+    (void)fprintf(stderr, "wrap-text: canonical contents mismatch\n");
+    ok = 0;
+  }
+
+  ctool_buffer_close(second);
+  ctool_buffer_close(first);
   ctool_job_close(job);
   return ok != 0 ? 0 : 1;
 }
@@ -490,6 +602,7 @@ static int expect_failure(ctool_job_t *job, ctool_buffer_t *output,
 
 static int run_errors(void) {
   static const ctool_u8 payload[] = {1u, 2u, 3u};
+  static const ctool_u8 text_payload[] = {'x', '\r', '\n', 'y'};
   static const ctool_u8 malformed[] = {0x7fu};
   ctool_u8 image[200];
   ctool_host_adapter_t adapter;
@@ -499,7 +612,11 @@ static int run_errors(void) {
   ctool_buffer_t *limited = (ctool_buffer_t *)0;
   ctool_source_t source;
   ctool_obj_request_t request;
+  ctool_obj_result_t recovery_result;
+  ctool_arena_mark_t before_fill;
+  ctool_arena_mark_t full_mark;
   ctool_status_t status;
+  void *arena_fill = (void *)0;
   int ok = 1;
 
   if (!open_job(&adapter, &config, &job)) {
@@ -586,6 +703,45 @@ static int run_errors(void) {
   ok &= expect_failure(job, limited, &request, CTOOL_ERR_LIMIT,
                        CTOOL_OBJ_DIAG_LIMIT, 0u, "wrap output limit");
 
+  request.operation = CTOOL_OBJ_WRAP_TEXT;
+  source.path.text = ctool_string("/limited.txt");
+  source.contents =
+      ctool_bytes(text_payload, (ctool_u32)sizeof(text_payload));
+  ok &= expect_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u, "text output limit");
+  if (ctool_obj_transform(job, &request, output, &recovery_result) != CTOOL_OK) {
+    (void)fprintf(stderr, "text output limit: same-job recovery failed\n");
+    ok = 0;
+  }
+  ctool_buffer_clear(output);
+
+  before_fill = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_arena_alloc(ctool_job_arena(job), config.limits.arena_bytes,
+                             1u, &arena_fill);
+  full_mark = ctool_arena_mark(ctool_job_arena(job));
+  if (status != CTOOL_OK || arena_fill == (void *)0) {
+    (void)fprintf(stderr, "text arena limit: setup failed\n");
+    ok = 0;
+  } else {
+    ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
+                         CTOOL_OBJ_DIAG_LIMIT, 0u,
+                         "text normalization arena limit");
+    if (!arena_marks_equal(full_mark,
+                           ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "text arena limit: failure did not rewind\n");
+      ok = 0;
+    }
+    if (ctool_arena_rewind(ctool_job_arena(job), before_fill) != CTOOL_OK ||
+        ctool_obj_transform(job, &request, output, &recovery_result) !=
+            CTOOL_OK ||
+        !arena_marks_equal(before_fill,
+                           ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "text arena limit: same-job recovery failed\n");
+      ok = 0;
+    }
+    ctool_buffer_clear(output);
+  }
+
   source.path.text = ctool_string("/malformed.elf");
   source.contents = ctool_bytes(malformed, (ctool_u32)sizeof(malformed));
   request.operation = CTOOL_OBJ_EXTRACT_FLAT;
@@ -642,6 +798,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "wrap-model") == 0) {
     return run_wrap_model();
   }
+  if (argc == 2 && strcmp(argv[1], "wrap-text") == 0) {
+    return run_wrap_text();
+  }
   if (argc == 2 && strcmp(argv[1], "extract-fallback") == 0) {
     return run_extract_fallback();
   }
@@ -650,6 +809,6 @@ int main(int argc, char **argv) {
   }
   (void)fprintf(stderr,
                 "usage: cupidobj-contract wrap-basic|wrap-model|"
-                "extract-basic|extract-fallback|errors\n");
+                "wrap-text|extract-basic|extract-fallback|errors\n");
   return 2;
 }

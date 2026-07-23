@@ -1014,22 +1014,22 @@ kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.c
 	$(CC) $(CFLAGS) kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o
 
 # Pattern rule: embed any bin/*.cc file with CupidObj.
-bin/%.o: bin/%.cc $(CUPIDOBJ)
-	$(CUPIDOBJ) wrap $< -o $@
+bin/%.o: bin/%.cc $(CUPIDOBJ) Makefile
+	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any bin/browser/*.cc library file with CupidObj.
 # These live in ramfs at /bin/browser/<n>.cc and are #include'd by
 # bin/browser.cc at JIT time. They are NOT in BIN_CC_NAMES.
-bin/browser/%.o: bin/browser/%.cc $(CUPIDOBJ)
-	$(CUPIDOBJ) wrap $< -o $@
+bin/browser/%.o: bin/browser/%.cc $(CUPIDOBJ) Makefile
+	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any bin/*.h file with CupidObj (output keeps .h in name).
-bin/%.h.o: bin/%.h $(CUPIDOBJ)
-	$(CUPIDOBJ) wrap $< -o $@
+bin/%.h.o: bin/%.h $(CUPIDOBJ) Makefile
+	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any cupidos-txt/*.CTXT file with CupidObj.
-cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ)
-	$(CUPIDOBJ) wrap $< -o $@
+cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ) Makefile
+	$(CUPIDOBJ) wrap-text $< -o $@
 
 %.bmp.o: %.bmp $(CUPIDOBJ)
 	$(CUPIDOBJ) wrap $< -o $@
@@ -1050,12 +1050,12 @@ system/fonts/%.ttf.o: system/fonts/%.ttf $(CUPIDOBJ)
 	$(CUPIDOBJ) wrap $< -o $@
 
 # Pattern rule: embed any demos/*.asm file with CupidObj.
-demos/%.o: demos/%.asm $(CUPIDOBJ)
-	$(CUPIDOBJ) wrap $< -o $@
+demos/%.o: demos/%.asm $(CUPIDOBJ) Makefile
+	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any god/*.DD file with CupidObj.
-god/%.o: god/%.DD $(CUPIDOBJ)
-	$(CUPIDOBJ) wrap $< -o $@
+god/%.o: god/%.DD $(CUPIDOBJ) Makefile
+	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Link kernel objects.
 #
