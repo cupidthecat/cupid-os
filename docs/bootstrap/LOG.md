@@ -7511,3 +7511,92 @@ This increment strengthens the evidence for the existing ownership boundary.
 It does not promote `asn1.c`, `x509.c`, `x509_chain.c`, or `csprng.c`, and it
 does not retire Python, WSL, or a host compiler dependency. Issue #28 remains
 open for later production cohorts. ADR 0095 records the runtime decision.
+
+## 2026-07-23: CupidC compiles the active CSPRNG assembly
+
+`kernel/crypto/csprng.c` was the last crypto source that compiler head could
+not emit. Its unchanged code uses three GNU extended assembly statements:
+RDTSC returns EDX:EAX, CPUID has four fixed outputs and a matching EAX input,
+and RDRAND returns a value plus the carry flag. This is a real C and ABI
+boundary, so the implementation follows the source instead of replacing the
+helpers with private builtins or sending template text to a host assembler.
+
+The frontend now publishes immutable assembly records and packed operand
+tables. GNU mode accepts the `asm` and double-underscore spellings, the
+volatile spellings used in active code, one to four outputs using `=a`, `=b`,
+`=c`, `=d`, `=r`, or `=qm`, and one-digit matching inputs. An output can be
+tied at most once. Outputs must be modifiable, non-atomic integer lvalues with
+a supported one-byte or four-byte width. Strict C still treats plain `asm` as
+an ordinary identifier, while the reserved double-underscore spellings report
+that GNU mode is required.
+
+Linear IR evaluates all output addresses before input values and emits one
+`ASSEMBLY` instruction for the complete operand slice. Validation checks
+record ownership, packed order, constraints, types, value categories, and
+numeric ties in reachable and unreachable statements. The emitter reserves
+fixed registers before assigning general outputs, saves EBX in its private
+frame, loads matching inputs, and emits RDTSC, CPUID, RDRAND, SETC, and NOP
+through Cupid's shared x86 model. It snapshots every result before restoring
+EBX and storing the outputs through their original lvalue addresses.
+
+The implementation deliberately stops at the proved active subset. Basic
+assembly, clobbers, named operands, read/write and early-clobber modifiers,
+memory-only inputs, multi-digit ties, `asm goto`, and arbitrary templates
+receive useful diagnostics. Accepting those spellings without their register
+and memory semantics would risk a silent miscompile.
+
+### Contract and source evidence
+
+The frontend contract covers the three unchanged CSPRNG forms and every
+accepted keyword spelling. Negative cases cover missing, embedded-null, and
+blank templates, a fifth output, invalid lvalues and widths, atomic and
+bit-field outputs, unsupported constraints and modifiers, duplicate fixed
+registers, clobbers, named operands, unavailable outputs, and malformed,
+multi-digit, or duplicate ties. Each failure preserves the previous
+translation unit and allows another parse in the same job.
+
+The IR contract fixes output-address and input-value order, stack depths of 2,
+5, and 2, and one assembly instruction for each source statement. It rejects
+bad partitions, owners, duplicate fixed registers, types, categories, ties,
+and orphan records transactionally. Forged `const` and `_Atomic` output types
+fail in both reachable and unreachable statements. A valid unreachable NOP is
+validated but emits no instruction. The object contract emits twice, decodes
+one RDTSC, one CPUID, `RDRAND EAX`, and `SETB CL`, and binds every EBX save and
+restore to the same private frame slot. It also requires the CPUID `=b` output
+snapshot. The execution oracle tries matching EAX inputs of zero,
+`0x12345678`, and `0xffffffff`, checking the result, stack, and callee-saved
+registers. Replacing a template with `hlt` or whitespace fails without
+publishing partial output, after which the same job emits the original object
+again.
+
+Compiler head compiles unchanged `kernel/crypto/csprng.c` twice under the
+complete `KERNEL_I386` profile. Both validated i386 `ET_REL` files are 6,888
+bytes and have SHA-256
+`ab25ef013e9b91a9fab08c6ba610c6476897bc45296b4111f1df035c0e45e317`.
+CupidDis confirms RDTSC, CPUID, `RDRAND EAX`, `SETB CL`, and EBX preservation
+in the emitted object.
+
+For runtime proof, a disposable checkout first completed a clean normal
+build. Compiler head then replaced only `kernel/crypto/csprng.o`, and the
+repository's exact two-pass CupidLD and CupidObj image path ran again. QEMU's
+`max` CPU exposes RDRAND. The boot log records RDRAND seeding, all 48 crypto
+and TLS checks, desktop and terminal startup, and a completed CupidC JIT run
+of `/bin/ls.cc`. It contains no failure, panic, exception, corruption, or
+illegal-instruction marker.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused contracts | PASS | The frontend, IR, and object `inline-assembly` selectors pass. All 42 earlier IR selectors also remain green. |
+| Complete hosted Toolchain | PASS | `make -C toolchain BUILD_DIR=build-root-inline-asm test` passes every selector and all hosted command contracts. |
+| Compiler fixed point | PASS | The 462.224-second final run matches all 19 C objects, both startup objects, and all five tool images between stages two and three. Five help checks, ten successful operations, and six failure cases agree. |
+| Compiler candidate | PASS | The static CupidC image is 1,883,836 bytes with SHA-256 `f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df`. |
+| Hybrid kernel image | PASS | `kernel.elf` is 6,418,468 bytes with SHA-256 `05e6bcb7784d1f9247221b328874d94f5d26ad98670f874269d6c94e640096ce`; `kernel.bin` is 6,238,629 bytes with SHA-256 `f7f50f8b3f4aa291104cbbea099ac5a1f613c859fc79678028966e4c76e2c252`; and `cupidos.img` is 209,715,200 bytes with SHA-256 `f3ce84e1c929cfa6ddddda86640e38e96903fc9d9affa56947bedf9b4a60cdcc`. |
+| QEMU runtime | PASS | The log contains RDRAND seeding, exactly 48 successful TLS checks, the all-vectors marker, desktop and terminal startup, and JIT completion. Its SHA-256 is `9c6f7cb5d0fc855986b277afadfbef20c27452f9d464a590a736d62705d33787`. |
+| Active build audit | PASS | The regenerated graph still contains 698 active inputs, 252 feature requirements, 501 transforms, and 39 accounted unreachable files. The active-source digest is `6329bb747a955541dcff628d3ad6190f5026339856667a3758f63a0e952eeb05`; the audit JSON SHA-256 is `ac75d651d434b0379182b5323472fb33d357f89d0d0f37bf8595a5112920a39a`. `make check-bootstrap-audit` reproduces it. |
+
+This increment clears the language blocker at compiler head without changing
+the normal build owner. The checked seed still contains the earlier compiler,
+so all four neighboring crypto files remain host-built until a refreshed seed
+passes its staged bootstrap and the production frontier moves. Broader GNU
+assembly remains open under issue #26. ADR 0096 records the language, IR, and
+ABI decisions.

@@ -121,7 +121,7 @@ The unchanged implementation files that hosted CupidC can preprocess, parse, low
 _Avoid_: self-hosted toolchain, completed source cohort
 
 **Production crypto cohort**:
-The sixteen `kernel/crypto` translation units built by checked-seed CupidC in the normal image build. Each deterministic i386 ELF32 object passes the shared validator before publication, and all sixteen execute through the 48-check TLS boot self-test. Compiler head can emit neighboring sources without changing this ownership boundary until the seed and frontier are refreshed.
+The sixteen `kernel/crypto` translation units built by checked-seed CupidC in the normal image build. Each deterministic i386 ELF32 object passes the shared validator before publication, and all sixteen execute through the 48-check TLS boot self-test. Compiler head can now emit all four neighboring crypto sources, including the CSPRNG assembly forms, without changing this ownership boundary until the seed and frontier are refreshed.
 _Avoid_: compiler-head frontier, all kernel crypto
 
 **Hosted i386 ABI profile**:
@@ -155,6 +155,10 @@ _Avoid_: general void pointer conversion, pointer reinterpretation
 **Addressable unspecified-bound array**:
 An incomplete external array whose element type is complete and has a nonzero target size. CupidC may take the linked object's address and apply ordinary array-to-pointer decay, but it does not treat the array itself as a complete value or storage object.
 _Avoid_: fixed array, flexible array member, variable-length array
+
+**Represented GNU assembly statement**:
+A GNU-mode CupidC statement whose immutable frontend record owns a decoded template and a packed output-then-input operand slice. The current i386 boundary accepts one to four typed register outputs, one-digit matching inputs, and the RDTSC, CPUID, RDRAND, and SETC instructions used by the active CSPRNG source. NOP supports the tied-operand contract. Linear IR evaluates output addresses before input values, and the emitter preserves EBX while it assigns and snapshots registers. A compiler-head CSPRNG object has completed the two-pass kernel link and booted through RDRAND seeding, the 48-check crypto self-test, desktop startup, and an embedded CupidC JIT command.
+_Avoid_: general GNU assembly support, host-assembler escape
 
 **Aligned call site**:
 An i386 call instruction emitted with ESP on a sixteen-byte boundary before the CPU pushes the return address. Hosted CupidC derives the required padding from the fixed frame, live Linear IR stack depth, and outgoing ABI storage.

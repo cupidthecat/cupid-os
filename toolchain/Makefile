@@ -433,6 +433,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) floating-transport ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
+	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-typedefs ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-externs ..
@@ -496,6 +497,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) floating-transport ..
 	$(CUPIDC_IR_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
+	$(CUPIDC_IR_CONTRACT) inline-assembly ..
 	$(CUPIDC_IR_CONTRACT) narrow-values ..
 	$(CUPIDC_IR_CONTRACT) void-casts ..
 	$(CUPIDC_IR_CONTRACT) wide-returns ..
@@ -528,6 +530,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) floating-transport ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
+	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..
 	$(CUPIDC_OBJECT_CONTRACT) void-casts ..

@@ -98,6 +98,7 @@ typedef struct {
   ctool_u32 function_label_count;
   ctool_u32 label_cursor;
   ctool_u32 statement_cursor;
+  ctool_u32 assembly_cursor;
   ctool_u32 *label_targets;
   ctool_bool *label_reachable;
   ctool_bool function_reachable_fallthrough;
@@ -255,6 +256,128 @@ static ctool_status_t cir_invalid_unit(
       "CupidC IR lowering received an invalid translation unit");
 }
 
+static ctool_bool cir_output_assembly_constraint_is_valid(
+    ctool_string_t constraint) {
+  if (constraint.data == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  if (constraint.size == 2u && constraint.data[0] == '=' &&
+      (constraint.data[1] == 'a' || constraint.data[1] == 'b' ||
+       constraint.data[1] == 'c' || constraint.data[1] == 'd' ||
+       constraint.data[1] == 'r')) {
+    return CTOOL_TRUE;
+  }
+  return constraint.size == 3u && constraint.data[0] == '=' &&
+                 constraint.data[1] == 'q' &&
+                 constraint.data[2] == 'm'
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_u32 cir_fixed_output_assembly_register(
+    ctool_string_t constraint) {
+  if (constraint.size != 2u ||
+      constraint.data == (const char *)0 ||
+      constraint.data[0] != '=') {
+    return 0u;
+  }
+  if (constraint.data[1] == 'a') {
+    return 1u;
+  }
+  if (constraint.data[1] == 'b') {
+    return 2u;
+  }
+  if (constraint.data[1] == 'c') {
+    return 4u;
+  }
+  return constraint.data[1] == 'd' ? 8u : 0u;
+}
+
+static ctool_bool cir_matching_assembly_constraint(
+    ctool_string_t constraint, ctool_u32 *matching_output_out) {
+  *matching_output_out = CTOOL_C_AST_NONE;
+  if (constraint.size != 1u ||
+      constraint.data == (const char *)0 ||
+      constraint.data[0] < '0' || constraint.data[0] > '9') {
+    return CTOOL_FALSE;
+  }
+  *matching_output_out =
+      (ctool_u32)(constraint.data[0] - '0');
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cir_validate_assembly_slices(
+    cir_context_t *context) {
+  ctool_u32 operand_cursor = 0u;
+  ctool_u32 assembly_index;
+  for (assembly_index = 0u;
+       assembly_index < context->unit->assembly_count;
+       assembly_index++) {
+    const ctool_c_assembly_t *assembly =
+        &context->unit->assemblies[assembly_index];
+    ctool_u32 fixed_output_registers = 0u;
+    ctool_u32 matched_outputs = 0u;
+    ctool_u32 operand_count;
+    ctool_u32 operand_offset;
+    if (assembly->template_text.size == 0u ||
+        assembly->template_text.data == (const char *)0 ||
+        (assembly->flags & ~CTOOL_C_ASSEMBLY_VOLATILE) != 0u ||
+        assembly->output_count == 0u ||
+        assembly->output_count > 4u ||
+        assembly->first_operand != operand_cursor ||
+        cir_add_overflows(assembly->output_count,
+                          assembly->input_count) == CTOOL_TRUE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    operand_count = assembly->output_count + assembly->input_count;
+    if (operand_cursor > context->unit->assembly_operand_count ||
+        operand_count >
+            context->unit->assembly_operand_count - operand_cursor) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    for (operand_offset = 0u;
+         operand_offset < assembly->output_count;
+         operand_offset++) {
+      const ctool_c_assembly_operand_t *operand =
+          &context->unit
+               ->assembly_operands[operand_cursor + operand_offset];
+      ctool_u32 fixed_output_register =
+          cir_fixed_output_assembly_register(operand->constraint);
+      if (operand->expression >= context->unit->expression_count ||
+          operand->type >= context->unit->graph.type_count ||
+          operand->matching_output != CTOOL_C_AST_NONE ||
+          cir_output_assembly_constraint_is_valid(
+              operand->constraint) == CTOOL_FALSE ||
+          (fixed_output_registers & fixed_output_register) != 0u) {
+        return cir_invalid_unit(context, &operand->location);
+      }
+      fixed_output_registers |= fixed_output_register;
+    }
+    for (operand_offset = assembly->output_count;
+         operand_offset < operand_count; operand_offset++) {
+      const ctool_c_assembly_operand_t *operand =
+          &context->unit
+               ->assembly_operands[operand_cursor + operand_offset];
+      ctool_u32 matching_output;
+      if (operand->expression >= context->unit->expression_count ||
+          operand->type >= context->unit->graph.type_count ||
+          cir_matching_assembly_constraint(
+              operand->constraint, &matching_output) == CTOOL_FALSE ||
+          operand->matching_output != matching_output ||
+          matching_output >= assembly->output_count ||
+          (matched_outputs & (1u << matching_output)) != 0u) {
+        return cir_invalid_unit(context, &operand->location);
+      }
+      matched_outputs |= 1u << matching_output;
+    }
+    operand_cursor += operand_count;
+  }
+  return operand_cursor == context->unit->assembly_operand_count
+             ? CTOOL_OK
+             : cir_invalid_unit(context,
+                                (const ctool_c_pp_location_t *)0);
+}
+
 static ctool_status_t cir_unsupported_statement(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
   if (context->relation_status != CTOOL_OK) {
@@ -327,6 +450,7 @@ static ctool_bool cir_expression_semantic_flags_are_valid(
 static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
   const ctool_c_translation_unit_t *unit = context->unit;
   ctool_u32 expression;
+  ctool_u32 statement;
   if ((unit->graph.type_count != 0u &&
        unit->graph.types == (const ctool_c_type_node_t *)0) ||
       (unit->graph.member_count != 0u &&
@@ -363,6 +487,11 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
        unit->statements == (const ctool_c_statement_t *)0) ||
       (unit->statement_child_count != 0u &&
        unit->statement_children == (const ctool_u32 *)0) ||
+      (unit->assembly_count == 0u) !=
+          (unit->assemblies == (const ctool_c_assembly_t *)0) ||
+      (unit->assembly_operand_count == 0u) !=
+          (unit->assembly_operands ==
+           (const ctool_c_assembly_operand_t *)0) ||
       (unit->expression_count != 0u &&
        unit->expressions == (const ctool_c_expression_t *)0) ||
       (unit->expression_child_count != 0u &&
@@ -376,7 +505,16 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
                               &unit->expressions[expression].location);
     }
   }
-  return CTOOL_OK;
+  for (statement = 0u; statement < unit->statement_count; statement++) {
+    const ctool_c_statement_t *candidate = &unit->statements[statement];
+    if ((candidate->kind == CTOOL_C_STATEMENT_ASSEMBLY &&
+         candidate->assembly == CTOOL_C_AST_NONE) ||
+        (candidate->kind != CTOOL_C_STATEMENT_ASSEMBLY &&
+         candidate->assembly != CTOOL_C_AST_NONE)) {
+      return cir_invalid_unit(context, &candidate->location);
+    }
+  }
+  return cir_validate_assembly_slices(context);
 }
 
 static const ctool_c_type_node_t *cir_type_node(const cir_context_t *context,
@@ -7100,8 +7238,134 @@ static ctool_status_t cir_finish_count_only_validation(
   if (status == CTOOL_OK && rewind_status == CTOOL_OK) {
     context->block_binding_cursor = validation->block_binding_cursor;
     context->visible_block_binding_end = validation->visible_block_binding_end;
+    context->assembly_cursor = validation->assembly_cursor;
   }
   return rewind_status == CTOOL_OK ? status : rewind_status;
+}
+
+static ctool_bool cir_assembly_output_type_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  const ctool_c_type_node_t *node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 required_size =
+      cir_string_equal(operand->constraint, ctool_string("=qm")) ==
+              CTOOL_TRUE
+          ? 1u
+          : 4u;
+  if (cir_underlying_type(context, operand->type, &base, &qualifiers,
+                          &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)base;
+  qualifiers |= node->qualifiers;
+  return (qualifiers & (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) == 0u &&
+                 cir_type_is_represented_integer(context, operand->type) ==
+                     CTOOL_TRUE &&
+                 operand->type < context->unit->layout.type_count &&
+                 context->unit->layout.types[operand->type].size ==
+                     required_size
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cir_lower_assembly_statement(
+    cir_context_t *context, const ctool_c_statement_t *statement) {
+  const ctool_c_assembly_t *assembly;
+  ctool_u32 operand_count;
+  ctool_u32 operand_offset;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_status_t status;
+  if (statement->first_child != CTOOL_C_AST_NONE ||
+      statement->child_count != 0u ||
+      statement->expression != CTOOL_C_AST_NONE ||
+      statement->first_block_binding != CTOOL_C_AST_NONE ||
+      statement->block_binding_count != 0u ||
+      statement->label != CTOOL_C_AST_NONE ||
+      statement->initializer_statement != CTOOL_C_AST_NONE ||
+      statement->condition != CTOOL_C_AST_NONE ||
+      statement->iteration != CTOOL_C_AST_NONE ||
+      statement->body != CTOOL_C_AST_NONE ||
+      statement->else_body != CTOOL_C_AST_NONE ||
+      statement->assembly != context->assembly_cursor ||
+      statement->assembly >= context->unit->assembly_count) {
+    return cir_invalid_unit(context, &statement->location);
+  }
+  assembly = &context->unit->assemblies[statement->assembly];
+  operand_count = assembly->output_count + assembly->input_count;
+  for (operand_offset = 0u; operand_offset < operand_count;
+       operand_offset++) {
+    const ctool_c_assembly_operand_t *operand =
+        &context->unit->assembly_operands[assembly->first_operand +
+                                           operand_offset];
+    const ctool_c_expression_t *expression =
+        &context->unit->expressions[operand->expression];
+    const cir_stack_entry_t *entry;
+    status = cir_lower_expression(context, operand->expression, 0u);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (context->stack_depth != base_depth + operand_offset + 1u) {
+      return cir_invalid_unit(context, &operand->location);
+    }
+    entry = &context->stack[base_depth + operand_offset];
+    if (expression->type != operand->type ||
+        entry->type != operand->type) {
+      return cir_invalid_unit(context, &operand->location);
+    }
+    if (operand_offset < assembly->output_count) {
+      if (entry->kind != CIR_STACK_ADDRESS ||
+          cir_assembly_output_type_is_valid(context, operand) ==
+              CTOOL_FALSE) {
+        return cir_invalid_unit(context, &operand->location);
+      }
+    } else {
+      const ctool_c_assembly_operand_t *output;
+      if (entry->kind != CIR_STACK_VALUE ||
+          cir_type_is_represented_integer(context, operand->type) ==
+              CTOOL_FALSE ||
+          operand->matching_output >= assembly->output_count) {
+        return cir_invalid_unit(context, &operand->location);
+      }
+      output = &context->unit->assembly_operands
+          [assembly->first_operand + operand->matching_output];
+      if (output->type >= context->unit->layout.type_count ||
+          context->unit->layout.types[operand->type].size !=
+              context->unit->layout.types[output->type].size) {
+        return cir_invalid_unit(context, &operand->location);
+      }
+    }
+  }
+  for (operand_offset = operand_count; operand_offset != 0u;) {
+    const ctool_c_assembly_operand_t *operand;
+    cir_stack_entry_t entry;
+    cir_stack_kind_t expected_kind;
+    operand_offset--;
+    operand = &context->unit->assembly_operands
+        [assembly->first_operand + operand_offset];
+    expected_kind = operand_offset < assembly->output_count
+                        ? CIR_STACK_ADDRESS
+                        : CIR_STACK_VALUE;
+    status = cir_pop(context, &entry);
+    if (status != CTOOL_OK || entry.kind != expected_kind ||
+        entry.type != operand->type) {
+      return cir_invalid_unit(context, &operand->location);
+    }
+  }
+  if (context->stack_depth != base_depth) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cir_append_instruction(
+      context, CTOOL_C_IR_INSTRUCTION_ASSEMBLY, CTOOL_C_TYPE_NONE,
+      CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+      CTOOL_C_CONVERSION_NONE, statement->assembly, 0u,
+      &statement->location, &statement->physical_location,
+      (ctool_u32 *)0);
+  if (status == CTOOL_OK) {
+    context->assembly_cursor++;
+  }
+  return status;
 }
 
 static ctool_status_t cir_lower_statement(cir_context_t *context,
@@ -8428,6 +8692,9 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
   if (statement->kind == CTOOL_C_STATEMENT_DECLARATION) {
     return cir_lower_declaration(context, statement);
   }
+  if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+    return cir_lower_assembly_statement(context, statement);
+  }
   if (statement->kind == CTOOL_C_STATEMENT_GOTO) {
     status = cir_lower_goto(context, statement);
     if (status == CTOOL_OK) {
@@ -9562,6 +9829,7 @@ static ctool_status_t cir_lower_functions(cir_context_t *context) {
   context->block_binding_cursor = 0u;
   context->label_cursor = 0u;
   context->statement_cursor = 0u;
+  context->assembly_cursor = 0u;
   for (function = 0u; function < context->unit->label_count; function++) {
     context->label_targets[function] = CTOOL_C_AST_NONE;
   }
@@ -9577,7 +9845,8 @@ static ctool_status_t cir_lower_functions(cir_context_t *context) {
   }
   if (status == CTOOL_OK &&
       (context->label_cursor != context->unit->label_count ||
-       context->statement_cursor != context->unit->statement_count)) {
+       context->statement_cursor != context->unit->statement_count ||
+       context->assembly_cursor != context->unit->assembly_count)) {
     status = cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
   }
   return status;

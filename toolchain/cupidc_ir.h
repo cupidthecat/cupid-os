@@ -42,7 +42,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT,
   CTOOL_C_IR_INSTRUCTION_VARIADIC_END,
   CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE,
-  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE
+  CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE,
+  CTOOL_C_IR_INSTRUCTION_ASSEMBLY
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -53,7 +54,8 @@ typedef struct {
    * STRING_LITERAL_ADDRESS retains its character-array type.
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
-   * result type. */
+   * result type. ASSEMBLY consumes its frontend operand slice and uses
+   * CTOOL_C_TYPE_NONE. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
@@ -77,7 +79,7 @@ typedef struct {
    * cursor-object type. VARIADIC_ARGUMENT uses type for the loaded result.
    * CALL_DIRECT retains the function type, while
    * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
-   * consumed condition type. */
+   * consumed condition type. ASSEMBLY uses CTOOL_C_TYPE_NONE. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   /* CONVERT uses NONE for an explicit cast, except that a direct four-byte
@@ -111,8 +113,9 @@ typedef struct {
    * ELEMENT_ADDRESS uses a direct fixed-array element index.
    * POINTER_BINARY uses an absolute graph-type index for its right operand.
    * VARIADIC_START uses the absolute final named parameter index.
-   * Branches use a function-relative instruction index. Other instructions
-   * use CTOOL_C_AST_NONE. */
+   * ASSEMBLY uses an absolute frontend assembly index. Branches use a
+   * function-relative instruction index. Other instructions use
+   * CTOOL_C_AST_NONE. */
   ctool_u32 reference;
   ctool_u64 integer_bits;
   ctool_c_pp_location_t location;

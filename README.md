@@ -271,15 +271,19 @@ make HDD_MB=100
 The normal image build uses the checked CupidC seed for 16 kernel crypto
 objects. The current compiler source also compiles the unchanged `asn1.c`,
 `x509.c`, and `x509_chain.c` after adding typed `((void *)0)` null conversion
-and address decay for external arrays with unspecified bounds. The checked
-seed predates those changes, so the three sources remain host-built until the
-seed is refreshed. `csprng.c`, which uses GNU extended inline assembly, is the
-remaining crypto language blocker. Clang or GCC still builds the rest of the
-normal C graph. Migrated objects are validated i386 ELF32 relocatables before
-publication. A current QEMU boot passes all 48 TLS checks and executes code
-from all 16 migrated sources. The added SHA-512, SHA-384, bigint, RSA, and
-Ed25519 checks cover expected results and require corrupted RSA and Ed25519
-signatures to be rejected.
+and address decay for external arrays with unspecified bounds. It now compiles
+`csprng.c` as well. The new GNU assembly slice represents typed outputs and a
+matching input, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model,
+and preserves EBX across the statement. The checked seed predates all four
+changes, so those sources remain host-built until the seed and production
+frontier are refreshed. A disposable two-pass kernel build has already booted
+with compiler head's `csprng.o`: RDRAND seeded the generator, all 48 TLS
+checks passed, the desktop opened a terminal, and the embedded CupidC ran
+`ls.cc`. Clang or GCC still builds the rest of the normal C graph. Migrated
+objects are validated i386 ELF32 relocatables before publication. The regular
+QEMU image also executes code from all 16 migrated sources. Its added
+SHA-512, SHA-384, bigint, RSA, and Ed25519 checks cover expected results and
+require corrupted RSA and Ed25519 signatures to be rejected.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,

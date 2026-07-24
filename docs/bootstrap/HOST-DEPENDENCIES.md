@@ -14,12 +14,12 @@ exercise their production code in the linked kernel, including valid and
 corrupted signature paths for RSA and Ed25519. This closes the cohort's
 runtime-evidence gap without retiring Python, WSL, or another host dependency.
 
-Compiler head can now emit `asn1.c`, `x509.c`, and `x509_chain.c` as
-deterministic validated objects. Their host dependency remains until the
-checked seed is rebuilt and passes the staged fixed point. `csprng.c` remains
-the only crypto source blocked by a missing language feature, GNU extended
-inline assembly. This capability change does not alter the current transform
-counts.
+Compiler head now emits all four host-owned crypto neighbors as deterministic,
+validated objects. The GNU assembly slice used by `csprng.c` has typed register
+outputs, a matching input, exact CPU-instruction templates, and EBX
+preservation. These objects remain host dependencies until a refreshed checked
+seed passes the staged fixed point and the production frontier moves. This
+capability change does not alter the current transform counts.
 
 Later sections preserve the ownership wording that accompanied earlier
 capability slices. When an older entry says every normal C object was
@@ -127,7 +127,7 @@ Eight-byte integer and exact floating object access use those existing storage i
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. Static initializer addresses based on another block static remain a frontend boundary.
 
-The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 149/154 at GNU inline assembly. All nine Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.c` publishes 143/3,904/25,107/475/282. `cupidc_ir.c` publishes 183/5,517/48,478/672/227. `cupidc_emit.c` publishes 159/4,313/36,977/524/265, while `cupidc_frontend.c` publishes 303/11,943/77,373/1,772/1,205. The generated audit records the current active-source totals and source graph.
+The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 149/154 at broader GNU inline assembly in shared headers. All nine Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.c` publishes 143/3,904/25,107/475/282. `cupidc_ir.c` publishes 195/5,855/52,525/722/244. `cupidc_emit.c` publishes 173/4,719/40,814/575/294, while `cupidc_frontend.c` publishes 314/12,528/81,908/1,851/1,241. The generated audit records the current active-source totals and source graph.
 
 These hosted semantics do not retire a host dependency. GCC or Clang still builds the shared frontend, emitter, and contracts, the host linker still links the hosted tools, and the host C compiler still produces the normal OS C objects, while the private kernel compiler owns embedded runtime JIT and AOT compilation. The open host-bound work includes full constant-expression coverage, chained and overriding designators, promoted anonymous-member designators, positional union or Cupid class lists, static member-address constants, explicit address casts, broader runtime values and addresses, deferred automatic initializer forms, aggregate categories outside the supported structure slice, Boolean mutation, character-sized bit-field storage, non-four-byte storage units, and partial volatile bit-field mutation, atomic pointer access, computed `goto`, GNU label addresses, the remaining GNU surface, floating literals, mixed-kind and integer conversions, comparisons, truth testing, conditional expressions and conditions, compound updates, comma expressions, and other general value-producing conversions, broader local and function code generation, whole-unit emission, and production integration. The private compiler's tagged loop and switch frames change production JIT output and pass the expanded in-OS `feature25` smoke. It transfers no build ownership.
 

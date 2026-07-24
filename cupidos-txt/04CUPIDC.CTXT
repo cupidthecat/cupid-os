@@ -135,9 +135,14 @@ valid plus corrupted RSA and Ed25519 signatures.
 
 Four neighboring sources still use the host C compiler because the checked
 seed predates the current compiler work. Compiler head now compiles asn1.c,
-x509.c, and x509_chain.c to deterministic i386 objects. csprng.c remains
-blocked on GNU extended inline assembly. A refreshed checked seed, CupidC
-optimization, and the remaining kernel C graph are still in progress.
+x509.c, x509_chain.c, and csprng.c to deterministic i386 objects without
+source changes. The CSPRNG path represents typed GNU assembly outputs and a
+matching input, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86
+model, and preserves EBX. A disposable two-pass kernel image has booted with
+that object, seeded the generator through RDRAND, passed all 48 crypto checks,
+and completed an embedded CupidC command. A refreshed checked seed,
+production-frontier update, CupidC optimization, and the remaining kernel C
+graph are still in progress.
 >endtree
 
 >h2 Self-Hosting Compiler Path

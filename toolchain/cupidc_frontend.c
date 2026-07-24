@@ -237,6 +237,8 @@ typedef struct {
   cfront_vector_t block_scope_marks;
   cfront_vector_t statements;
   cfront_vector_t statement_children;
+  cfront_vector_t assemblies;
+  cfront_vector_t assembly_operands;
   cfront_vector_t switch_contexts;
   cfront_vector_t switch_case_values;
   cfront_vector_t expressions;
@@ -544,6 +546,8 @@ static void cfront_close_scratch(cfront_context_t *context) {
   cfront_vector_close(&context->switch_contexts);
   cfront_vector_close(&context->statement_children);
   cfront_vector_close(&context->statements);
+  cfront_vector_close(&context->assembly_operands);
+  cfront_vector_close(&context->assemblies);
   cfront_vector_close(&context->block_scope_marks);
   cfront_vector_close(&context->active_block_binding_indices);
   cfront_vector_close(&context->pending_initializer_elements);
@@ -609,6 +613,8 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(block_scope_marks, cfront_block_scope_mark_t)
   CFRONT_OPEN_VECTOR(statements, ctool_c_statement_t)
   CFRONT_OPEN_VECTOR(statement_children, ctool_u32)
+  CFRONT_OPEN_VECTOR(assemblies, ctool_c_assembly_t)
+  CFRONT_OPEN_VECTOR(assembly_operands, ctool_c_assembly_operand_t)
   CFRONT_OPEN_VECTOR(switch_contexts, cfront_switch_context_t)
   CFRONT_OPEN_VECTOR(switch_case_values, ctool_u64)
   CFRONT_OPEN_VECTOR(expressions, ctool_c_expression_t)
@@ -5985,6 +5991,7 @@ static void cfront_statement_init(
   statement->iteration = CTOOL_C_AST_NONE;
   statement->body = CTOOL_C_AST_NONE;
   statement->else_body = CTOOL_C_AST_NONE;
+  statement->assembly = CTOOL_C_AST_NONE;
   if (token != (const ctool_c_pp_token_t *)0) {
     statement->location = token->location;
     statement->physical_location = token->physical_location;
@@ -11368,12 +11375,453 @@ static ctool_bool cfront_body_statement_keyword(
 
 static ctool_bool cfront_body_starts_gnu_assembly(
     const cfront_context_t *context) {
-  return context->request->gnu_extensions == CTOOL_TRUE &&
-                 (cfront_peek_is(context, "asm") == CTOOL_TRUE ||
-                  cfront_peek_is(context, "__asm") == CTOOL_TRUE ||
-                  cfront_peek_is(context, "__asm__") == CTOOL_TRUE)
+  return (context->request->gnu_extensions == CTOOL_TRUE &&
+          cfront_peek_is(context, "asm") == CTOOL_TRUE) ||
+                 cfront_peek_is(context, "__asm") == CTOOL_TRUE ||
+                 cfront_peek_is(context, "__asm__") == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_body_assembly_volatile(
+    const cfront_context_t *context) {
+  return cfront_peek_is(context, "volatile") == CTOOL_TRUE ||
+                 cfront_peek_is(context, "__volatile") == CTOOL_TRUE ||
+                 cfront_peek_is(context, "__volatile__") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_decode_assembly_string(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    const char *missing_message, ctool_string_t *text_out) {
+  ctool_bytes_t decoded = {0};
+  ctool_u32 index;
+  ctool_status_t status;
+  if (cfront_ordinary_narrow_string_token(cfront_peek(context)) ==
+      CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), missing_message);
+  }
+  status = cfront_decode_body_string(context, &decoded);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (decoded.size == 0u || decoded.data == (const ctool_u8 *)0) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "decoded assembly string is unavailable");
+  }
+  for (index = 0u; index + 1u < decoded.size; index++) {
+    if (decoded.data[index] == 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, token,
+          "GNU inline assembly strings cannot contain a null byte");
+    }
+  }
+  text_out->data = (const char *)decoded.data;
+  text_out->size = decoded.size - 1u;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_validate_assembly_output(
+    cfront_context_t *context, const ctool_c_pp_token_t *constraint_token,
+    ctool_string_t constraint, cfront_expression_value_t *value,
+    ctool_u32 *fixed_registers_io) {
+  cfront_integer_type_t integer;
+  ctool_c_type_node_t node;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool modifiable = CTOOL_FALSE;
+  ctool_u32 expected_width = 32u;
+  ctool_u32 fixed_register = 0u;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_status_t status;
+  if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
+    fixed_register = 1u;
+  } else if (cfront_string_literal(constraint, "=b") == CTOOL_TRUE) {
+    fixed_register = 2u;
+  } else if (cfront_string_literal(constraint, "=c") == CTOOL_TRUE) {
+    fixed_register = 4u;
+  } else if (cfront_string_literal(constraint, "=d") == CTOOL_TRUE) {
+    fixed_register = 8u;
+  } else if (cfront_string_literal(constraint, "=r") == CTOOL_TRUE) {
+    fixed_register = 0u;
+  } else if (cfront_string_literal(constraint, "=qm") == CTOOL_TRUE) {
+    expected_width = 8u;
+  } else {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly output constraint is outside this slice");
+  }
+  if (fixed_register != 0u &&
+      (*fixed_registers_io & fixed_register) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly cannot use one fixed output register twice");
+  }
+  if (value->is_lvalue == CTOOL_FALSE || value->is_bit_field == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly output requires a modifiable integer lvalue");
+  }
+  status = cfront_underlying_type(context, value->type, &base, &qualifiers,
+                                  &node);
+  if (status == CTOOL_OK) {
+    status =
+        cfront_integer_type(context, value->type, &integer, &is_integer);
+  }
+  if (status == CTOOL_OK) {
+    status =
+        cfront_type_is_modifiable_object(context, value->type, &modifiable);
+  }
+  (void)base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  qualifiers |= node.qualifiers;
+  if ((qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "atomic GNU inline assembly outputs are outside this slice");
+  }
+  if (is_integer == CTOOL_FALSE || modifiable == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly output requires a modifiable integer lvalue");
+  }
+  if (integer.width != expected_width) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        expected_width == 8u
+            ? "GNU inline assembly =qm output requires an 8-bit integer"
+            : "GNU inline assembly output requires a 32-bit integer");
+  }
+  *fixed_registers_io |= fixed_register;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_assembly_operand_expression(
+    cfront_context_t *context, cfront_expression_value_t *value_out) {
+  ctool_status_t status = cfront_expected(context, "(");
+  cfront_zero(value_out, (ctool_u32)sizeof(*value_out));
+  value_out->expression = CTOOL_C_AST_NONE;
+  if (status == CTOOL_OK) {
+    status = cfront_parse_body_expression(context, value_out);
+  }
+  if (status == CTOOL_OK &&
+      cfront_peek_is(context, ")") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN,
+        cfront_peek(context),
+        "GNU inline assembly operand requires a closing parenthesis");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ")");
+  }
+  return status;
+}
+
+static ctool_status_t cfront_parse_assembly_output(
+    cfront_context_t *context, ctool_u32 *fixed_registers_io) {
+  const ctool_c_pp_token_t *constraint_token = cfront_peek(context);
+  ctool_c_assembly_operand_t operand;
+  cfront_expression_value_t value;
+  ctool_status_t status;
+  cfront_zero(&operand, (ctool_u32)sizeof(operand));
+  operand.matching_output = CTOOL_C_AST_NONE;
+  if (cfront_peek_is(context, "[") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "GNU inline assembly named operands are outside this slice");
+  }
+  if (constraint_token == (const ctool_c_pp_token_t *)0) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token, "GNU inline assembly output is missing");
+  }
+  operand.location = constraint_token->location;
+  operand.physical_location = constraint_token->physical_location;
+  status = cfront_decode_assembly_string(
+      context, constraint_token,
+      "GNU inline assembly output requires a string constraint",
+      &operand.constraint);
+  if (status == CTOOL_OK) {
+    status = cfront_parse_assembly_operand_expression(context, &value);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_assembly_output(
+        context, constraint_token, operand.constraint, &value,
+        fixed_registers_io);
+  }
+  if (status == CTOOL_OK) {
+    operand.expression = value.expression;
+    operand.type = value.type;
+    status =
+        cfront_vector_append(&context->assembly_operands, &operand,
+                             (ctool_u32 *)0);
+  }
+  return status == CTOOL_OK ? CTOOL_OK
+                            : ctool_job_diagnostic_count(context->job) == 0u
+                                  ? cfront_storage_failure(context, status)
+                                  : status;
+}
+
+static ctool_status_t cfront_matching_assembly_output(
+    cfront_context_t *context, const ctool_c_pp_token_t *constraint_token,
+    ctool_string_t constraint, ctool_u32 output_count,
+    ctool_u32 *matching_out) {
+  ctool_u32 value;
+  if (constraint.size != 1u ||
+      constraint.data == (const char *)0) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly input requires one matching output digit");
+  }
+  if (constraint.data[0] < '0' || constraint.data[0] > '9') {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly input requires a matching output number");
+  }
+  value = (ctool_u32)(constraint.data[0] - '0');
+  if (value >= output_count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly input names an unavailable output");
+  }
+  *matching_out = value;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_assembly_input(
+    cfront_context_t *context, ctool_u32 first_operand,
+    ctool_u32 output_count, ctool_u32 *matched_outputs_io) {
+  const ctool_c_pp_token_t *constraint_token = cfront_peek(context);
+  ctool_c_assembly_operand_t operand;
+  ctool_c_assembly_operand_t output;
+  cfront_expression_value_t value;
+  cfront_integer_type_t input_integer;
+  cfront_integer_type_t output_integer;
+  ctool_bool input_is_integer = CTOOL_FALSE;
+  ctool_bool output_is_integer = CTOOL_FALSE;
+  ctool_status_t status;
+  cfront_zero(&operand, (ctool_u32)sizeof(operand));
+  if (constraint_token == (const ctool_c_pp_token_t *)0) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token, "GNU inline assembly input is missing");
+  }
+  operand.location = constraint_token->location;
+  operand.physical_location = constraint_token->physical_location;
+  status = cfront_decode_assembly_string(
+      context, constraint_token,
+      "GNU inline assembly input requires a string constraint",
+      &operand.constraint);
+  if (status == CTOOL_OK) {
+    status = cfront_matching_assembly_output(
+        context, constraint_token, operand.constraint, output_count,
+        &operand.matching_output);
+  }
+  if (status == CTOOL_OK &&
+      (*matched_outputs_io & (1u << operand.matching_output)) != 0u) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly cannot tie two inputs to one output");
+  }
+  if (status == CTOOL_OK) {
+    *matched_outputs_io |= 1u << operand.matching_output;
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_parse_assembly_operand_expression(context, &value);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_apply_default_conversion(context, &value);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_get(
+        &context->assembly_operands,
+        first_operand + operand.matching_output, &output);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, value.type, &input_integer,
+                                 &input_is_integer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(context, output.type, &output_integer,
+                                 &output_is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return ctool_job_diagnostic_count(context->job) == 0u
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  if (input_is_integer == CTOOL_FALSE ||
+      output_is_integer == CTOOL_FALSE ||
+      input_integer.width != output_integer.width) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly matching input has the wrong integer width");
+  }
+  operand.expression = value.expression;
+  operand.type = value.type;
+  status = cfront_vector_append(&context->assembly_operands, &operand,
+                                (ctool_u32 *)0);
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
+static ctool_status_t cfront_parse_gnu_assembly_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  const ctool_c_pp_token_t *keyword = cfront_advance(context);
+  ctool_c_assembly_t assembly;
+  ctool_c_statement_t statement;
+  ctool_u32 fixed_registers = 0u;
+  ctool_u32 matched_outputs = 0u;
+  ctool_u32 assembly_index = CTOOL_C_AST_NONE;
+  ctool_u32 template_index;
+  ctool_bool template_has_instruction = CTOOL_FALSE;
+  ctool_status_t status = CTOOL_OK;
+  cfront_zero(&assembly, (ctool_u32)sizeof(assembly));
+  assembly.first_operand = context->assembly_operands.count;
+  assembly.location = keyword->location;
+  assembly.physical_location = keyword->physical_location;
+  if (context->request->gnu_extensions == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword, "GNU inline assembly requires GNU extensions");
+  }
+  if (cfront_body_assembly_volatile(context) == CTOOL_TRUE) {
+    assembly.flags |= CTOOL_C_ASSEMBLY_VOLATILE;
+    (void)cfront_advance(context);
+  }
+  if (cfront_peek_is(context, "goto") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), "GNU asm goto is outside this slice");
+  }
+  if (cfront_peek_is(context, "inline") == CTOOL_TRUE ||
+      cfront_body_assembly_volatile(context) == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "GNU inline assembly modifier is outside this slice");
+  }
+  status = cfront_expected(context, "(");
+  if (status == CTOOL_OK) {
+    status = cfront_decode_assembly_string(
+        context, keyword,
+        "GNU inline assembly requires a narrow string template",
+        &assembly.template_text);
+  }
+  if (status == CTOOL_OK) {
+    for (template_index = 0u;
+         template_index < assembly.template_text.size; template_index++) {
+      char character = assembly.template_text.data[template_index];
+      if (character != ' ' && character != '\t' &&
+          character != '\r' && character != '\n') {
+        template_has_instruction = CTOOL_TRUE;
+        break;
+      }
+    }
+    if (template_has_instruction == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+          keyword,
+          "GNU inline assembly template requires an instruction");
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ")") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "basic GNU inline assembly is outside this operand slice");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ":");
+  }
+  while (status == CTOOL_OK &&
+         cfront_peek_is(context, ":") == CTOOL_FALSE &&
+         cfront_peek_is(context, ")") == CTOOL_FALSE) {
+    status = cfront_parse_assembly_output(context, &fixed_registers);
+    if (status == CTOOL_OK) {
+      if (assembly.output_count == 4u) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+            cfront_peek(context),
+            "GNU inline assembly supports at most four output registers");
+      } else {
+        assembly.output_count++;
+      }
+    }
+    if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
+      (void)cfront_advance(context);
+    } else {
+      break;
+    }
+  }
+  if (status == CTOOL_OK && assembly.output_count == 0u) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "GNU inline assembly requires an output operand in this slice");
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ":") == CTOOL_TRUE) {
+    (void)cfront_advance(context);
+    while (status == CTOOL_OK &&
+           cfront_peek_is(context, ":") == CTOOL_FALSE &&
+           cfront_peek_is(context, ")") == CTOOL_FALSE) {
+      status = cfront_parse_assembly_input(
+          context, assembly.first_operand, assembly.output_count,
+          &matched_outputs);
+      if (status == CTOOL_OK) {
+        assembly.input_count++;
+      }
+      if (status == CTOOL_OK &&
+          cfront_peek_is(context, ",") == CTOOL_TRUE) {
+        (void)cfront_advance(context);
+      } else {
+        break;
+      }
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ":") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "GNU inline assembly clobbers are outside this slice");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ")");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(&context->assemblies, &assembly,
+                                  &assembly_index);
+  }
+  if (status == CTOOL_OK) {
+    cfront_statement_init(&statement, CTOOL_C_STATEMENT_ASSEMBLY, keyword);
+    statement.assembly = assembly_index;
+    status = cfront_append_statement(context, &statement, statement_out);
+  }
+  return status == CTOOL_OK ? CTOOL_OK
+                            : ctool_job_diagnostic_count(context->job) == 0u
+                                  ? cfront_storage_failure(context, status)
+                                  : status;
 }
 
 static ctool_bool cfront_character_type_kind(ctool_c_type_kind_t kind);
@@ -14530,9 +14978,7 @@ static ctool_status_t cfront_parse_statement(
         "else requires a matching if statement");
   }
   if (cfront_body_starts_gnu_assembly(context) == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT, first,
-        "GNU inline assembly is outside this function-body slice");
+    return cfront_parse_gnu_assembly_statement(context, statement_out);
   }
   if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE ||
       cfront_starts_declaration_specifier(context, first) == CTOOL_TRUE) {
@@ -15615,10 +16061,14 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       (ctool_c_function_definition_t *)0;
   ctool_c_statement_t *statements = (ctool_c_statement_t *)0;
   ctool_u32 *statement_children = (ctool_u32 *)0;
+  ctool_c_assembly_t *assemblies = (ctool_c_assembly_t *)0;
+  ctool_c_assembly_operand_t *assembly_operands =
+      (ctool_c_assembly_operand_t *)0;
   ctool_c_expression_t *expressions = (ctool_c_expression_t *)0;
   ctool_u32 *expression_children = (ctool_u32 *)0;
   ctool_u32 index;
   ctool_u32 initializer_element_cursor = 0u;
+  ctool_u32 statement_assembly_cursor = 0u;
   if (context->active_block_binding_indices.count != 0u ||
       context->block_scope_marks.count != 0u ||
       context->has_pending_block_binding == CTOOL_TRUE ||
@@ -15704,6 +16154,16 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     status = cfront_alloc_array(context, context->statement_children.count,
                                 (ctool_u32)sizeof(*statement_children),
                                 (void **)&statement_children);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->assemblies.count,
+                                (ctool_u32)sizeof(*assemblies),
+                                (void **)&assemblies);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(context, context->assembly_operands.count,
+                                (ctool_u32)sizeof(*assembly_operands),
+                                (void **)&assembly_operands);
   }
   if (status == CTOOL_OK) {
     status = cfront_alloc_array(context, context->expressions.count,
@@ -15970,6 +16430,50 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       return cfront_storage_failure(context, status);
     }
   }
+  for (index = 0u; index < context->assemblies.count; index++) {
+    status =
+        cfront_vector_get(&context->assemblies, index, &assemblies[index]);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_string_owned(
+          context, assemblies[index].template_text,
+          &assemblies[index].template_text);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &assemblies[index].location,
+          &assemblies[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &assemblies[index].physical_location,
+          &assemblies[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
+  for (index = 0u; index < context->assembly_operands.count; index++) {
+    status = cfront_vector_get(&context->assembly_operands, index,
+                               &assembly_operands[index]);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_string_owned(
+          context, assembly_operands[index].constraint,
+          &assembly_operands[index].constraint);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &assembly_operands[index].location,
+          &assembly_operands[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &assembly_operands[index].physical_location,
+          &assembly_operands[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
   for (index = 0u; index < context->expressions.count; index++) {
     status = cfront_vector_get(&context->expressions, index,
                                &expressions[index]);
@@ -15991,6 +16495,58 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
                                &expression_children[index]);
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
+    }
+  }
+  {
+    ctool_u32 operand_cursor = 0u;
+    for (index = 0u; index < context->assemblies.count; index++) {
+      const ctool_c_assembly_t *assembly = &assemblies[index];
+      ctool_u32 operand_offset;
+      if ((assembly->flags & ~CTOOL_C_ASSEMBLY_VOLATILE) != 0u ||
+          (assembly->template_text.data == (const char *)0 &&
+           assembly->template_text.size != 0u) ||
+          assembly->first_operand != operand_cursor ||
+          assembly->output_count == 0u ||
+          assembly->first_operand > context->assembly_operands.count ||
+          assembly->output_count >
+              context->assembly_operands.count - assembly->first_operand ||
+          assembly->input_count >
+              context->assembly_operands.count - assembly->first_operand -
+                  assembly->output_count) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen inline assembly record is invalid");
+      }
+      for (operand_offset = 0u;
+           operand_offset < assembly->output_count + assembly->input_count;
+           operand_offset++) {
+        const ctool_c_assembly_operand_t *operand =
+            &assembly_operands[assembly->first_operand + operand_offset];
+        ctool_bool output =
+            operand_offset < assembly->output_count ? CTOOL_TRUE
+                                                     : CTOOL_FALSE;
+        if (operand->constraint.data == (const char *)0 ||
+            operand->constraint.size == 0u ||
+            operand->expression >= context->expressions.count ||
+            operand->type >= context->types.count ||
+            expressions[operand->expression].type != operand->type ||
+            (output == CTOOL_TRUE &&
+             operand->matching_output != CTOOL_C_AST_NONE) ||
+            (output == CTOOL_FALSE &&
+             operand->matching_output >= assembly->output_count)) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+              cfront_peek(context),
+              "frozen inline assembly operand is invalid");
+        }
+      }
+      operand_cursor += assembly->output_count + assembly->input_count;
+    }
+    if (operand_cursor != context->assembly_operands.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "frozen inline assembly operands are not owned");
     }
   }
   {
@@ -16745,6 +17301,15 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "frozen statement label reference is invalid");
     }
+    if ((statement->kind == CTOOL_C_STATEMENT_ASSEMBLY &&
+         statement->assembly >= context->assemblies.count) ||
+        (statement->kind != CTOOL_C_STATEMENT_ASSEMBLY &&
+         statement->assembly != CTOOL_C_AST_NONE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "frozen statement assembly reference is invalid");
+    }
     if (statement->kind == CTOOL_C_STATEMENT_COMPOUND) {
       ctool_u32 child_index;
       if (statement->expression != CTOOL_C_AST_NONE ||
@@ -16995,11 +17560,31 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen goto statement is invalid");
       }
+    } else if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->first_child != CTOOL_C_AST_NONE ||
+          statement->child_count != 0u ||
+          statement->expression != CTOOL_C_AST_NONE ||
+          statement->first_block_binding != CTOOL_C_AST_NONE ||
+          statement->block_binding_count != 0u ||
+          control_fields_none == CTOOL_FALSE ||
+          statement->assembly != statement_assembly_cursor) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen inline assembly statement is invalid");
+      }
+      statement_assembly_cursor++;
     } else {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "frozen statement kind is invalid");
     }
+  }
+  if (statement_assembly_cursor != context->assemblies.count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        cfront_peek(context),
+        "frozen inline assembly statements are not in source order");
   }
   for (index = 0u; index < context->expressions.count; index++) {
     const ctool_c_expression_t *expression = &expressions[index];
@@ -17382,6 +17967,10 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   unit->statement_count = context->statements.count;
   unit->statement_children = statement_children;
   unit->statement_child_count = context->statement_children.count;
+  unit->assemblies = assemblies;
+  unit->assembly_count = context->assemblies.count;
+  unit->assembly_operands = assembly_operands;
+  unit->assembly_operand_count = context->assembly_operands.count;
   unit->expressions = expressions;
   unit->expression_count = context->expressions.count;
   unit->expression_children = expression_children;

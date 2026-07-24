@@ -206,8 +206,33 @@ typedef enum {
   CTOOL_C_STATEMENT_DEFAULT,
   CTOOL_C_STATEMENT_DO,
   CTOOL_C_STATEMENT_LABEL,
-  CTOOL_C_STATEMENT_GOTO
+  CTOOL_C_STATEMENT_GOTO,
+  CTOOL_C_STATEMENT_ASSEMBLY
 } ctool_c_statement_kind_t;
+
+#define CTOOL_C_ASSEMBLY_VOLATILE 0x00000001u
+
+typedef struct {
+  ctool_string_t constraint;
+  ctool_u32 expression;
+  ctool_u32 type;
+  /* Input operands name their output operand by zero-based position.
+   * Output operands use CTOOL_C_AST_NONE. */
+  ctool_u32 matching_output;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_assembly_operand_t;
+
+typedef struct {
+  ctool_string_t template_text;
+  ctool_u32 flags;
+  /* Outputs precede inputs in this packed operand slice. */
+  ctool_u32 first_operand;
+  ctool_u32 output_count;
+  ctool_u32 input_count;
+  ctool_c_pp_location_t location;
+  ctool_c_pp_location_t physical_location;
+} ctool_c_assembly_t;
 
 typedef struct {
   ctool_c_statement_kind_t kind;
@@ -246,6 +271,8 @@ typedef struct {
   ctool_u32 iteration;
   ctool_u32 body;
   ctool_u32 else_body;
+  /* ASSEMBLY: index into translation_unit.assemblies. */
+  ctool_u32 assembly;
 } ctool_c_statement_t;
 
 typedef enum {
@@ -467,6 +494,12 @@ typedef struct {
   ctool_u32 statement_count;
   const ctool_u32 *statement_children;
   ctool_u32 statement_child_count;
+  /* GNU extended assembly records are ordered by their statement sites.
+   * Each record owns a packed output-then-input operand slice. */
+  const ctool_c_assembly_t *assemblies;
+  ctool_u32 assembly_count;
+  const ctool_c_assembly_operand_t *assembly_operands;
+  ctool_u32 assembly_operand_count;
   const ctool_c_expression_t *expressions;
   ctool_u32 expression_count;
   const ctool_u32 *expression_children;

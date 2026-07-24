@@ -269,6 +269,9 @@ static int unit_is_zero(const ctool_c_translation_unit_t *unit) {
                  unit->statements == NULL && unit->statement_count == 0u &&
                  unit->statement_children == NULL &&
                  unit->statement_child_count == 0u &&
+                 unit->assemblies == NULL && unit->assembly_count == 0u &&
+                 unit->assembly_operands == NULL &&
+                 unit->assembly_operand_count == 0u &&
                  unit->expressions == NULL && unit->expression_count == 0u &&
                  unit->expression_children == NULL &&
                  unit->expression_child_count == 0u
@@ -4335,7 +4338,8 @@ static int run_block_bindings(const char *host_root) {
       {{"GNU assembly boundary",
         "void bad(void) { __asm__(\"nop\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 18u, "GNU inline assembly is outside this function-body slice"},
+       1u, 31u,
+       "basic GNU inline assembly is outside this operand slice"},
       {{"expired local use",
         "void sink(int value);\n"
         "void bad(void) { { int local; sink(local); } sink(local); }\n",
@@ -6748,12 +6752,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 190u, 5726u,
-       51119u, 698u, 234u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 164u, 4433u,
-       38132u, 541u, 271u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 306u,
-       12164u, 79140u, 1809u, 1218u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 196u, 5880u,
+       52654u, 727u, 246u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 173u, 4726u,
+       40839u, 576u, 295u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 314u,
+       12543u, 81982u, 1854u, 1243u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23555,6 +23559,278 @@ cleanup:
   return failed;
 }
 
+static int validate_inline_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "rdtsc", "cpuid", "rdrand %0; setc %1"};
+  static const ctool_u32 first_operands[] = {0u, 2u, 7u};
+  static const ctool_u32 output_counts[] = {2u, 4u, 2u};
+  static const ctool_u32 input_counts[] = {0u, 1u, 0u};
+  static const ctool_u32 lines[] = {5u, 12u, 17u};
+  static const char *const constraints[] = {
+      "=a", "=d", "=a", "=b", "=c", "=d", "0", "=r", "=qm"};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != first_operands[index] ||
+        assembly->output_count != output_counts[index] ||
+        assembly->input_count != input_counts[index] ||
+        dual_location_matches(&assembly->location,
+                              &assembly->physical_location,
+                              "/inline-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->assembly_operand_count; index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->expression >= unit->expression_count ||
+        operand->type >= unit->graph.type_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        dual_location_matches(&operand->location,
+                              &operand->physical_location,
+                              "/inline-assembly.c",
+                              index < 2u ? 5u
+                              : index < 7u ? 12u
+                                           : 17u) == 0 ||
+        (index == 6u ? operand->matching_output != 0u
+                     : operand->matching_output != CTOOL_C_AST_NONE)) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == unit->assembly_count ? 0 : 1;
+}
+
+static int run_inline_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "void read_clock(void) {\n"
+      "  u32 lo;\n"
+      "  u32 hi;\n"
+      "  __asm__ volatile (\"rdtsc\" : \"=a\"(lo), \"=d\"(hi));\n"
+      "}\n"
+      "void read_leaf(void) {\n"
+      "  u32 eax;\n"
+      "  u32 ebx;\n"
+      "  u32 ecx;\n"
+      "  u32 edx;\n"
+      "  asm __volatile (\"cpuid\" : \"=a\"(eax), \"=b\"(ebx), "
+      "\"=c\"(ecx), \"=d\"(edx) : \"0\"(eax));\n"
+      "}\n"
+      "void read_random(void) {\n"
+      "  u32 value;\n"
+      "  unsigned char ok;\n"
+      "  __asm __volatile__(\"rdrand %0; \" \"setc %1\" : "
+      "\"=r\"(value), \"=qm\"(ok));\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"basic assembly",
+        "void bad(void) { __asm__(\"nop\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "basic GNU inline assembly is outside this operand slice"},
+      {{"asm goto",
+        "void bad(void) { unsigned x; asm goto (\"nop\" : \"=a\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU asm goto is outside this slice"},
+      {{"unsupported modifier",
+        "void bad(void) { unsigned x; asm inline (\"nop\" : \"=a\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly modifier is outside this slice"},
+      {{"missing template",
+        "void bad(void) { unsigned x; asm volatile (x : \"=a\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly requires a narrow string template"},
+      {{"template with embedded null",
+        "void bad(void) { unsigned x; asm volatile (\"no\\0p\" : "
+        "\"=a\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly strings cannot contain a null byte"},
+      {{"blank template",
+        "void bad(void) { unsigned x; asm (\" \\t\" : \"=a\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly template requires an instruction"},
+      {{"unsupported output constraint",
+        "void bad(void) { unsigned x; asm (\"nop\" : \"+r\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output constraint is outside this slice"},
+      {{"named output operand",
+        "void bad(void) { unsigned x; asm (\"nop\" : [value] \"=r\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly named operands are outside this slice"},
+      {{"duplicate fixed output",
+        "void bad(void) { unsigned x; unsigned y; "
+        "asm (\"nop\" : \"=a\"(x), \"=a\"(y)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot use one fixed output register twice"},
+      {{"too many register outputs",
+        "void bad(void) { unsigned a, b, c, d, e; "
+        "asm (\"nop\" : \"=r\"(a), \"=r\"(b), \"=r\"(c), "
+        "\"=r\"(d), \"=r\"(e)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly supports at most four output registers"},
+      {{"non-lvalue output",
+        "void bad(void) { asm (\"nop\" : \"=a\"(1)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output requires a modifiable integer lvalue"},
+      {{"const output",
+        "void bad(void) { const unsigned x = 0; "
+        "asm (\"nop\" : \"=a\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output requires a modifiable integer lvalue"},
+      {{"atomic output",
+        "void bad(void) { _Atomic unsigned x; "
+        "asm (\"nop\" : \"=a\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
+      {{"bit-field output",
+        "struct Bits { unsigned value : 8; }; "
+        "void bad(void) { struct Bits bits; "
+        "asm (\"nop\" : \"=qm\"(bits.value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output requires a modifiable integer lvalue"},
+      {{"wide byte-register output",
+        "void bad(void) { unsigned x; asm (\"nop\" : \"=qm\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =qm output requires an 8-bit integer"},
+      {{"narrow general-register output",
+        "void bad(void) { unsigned char x; asm (\"nop\" : \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"unsupported input constraint",
+        "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : "
+        "\"a\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly input requires a matching output number"},
+      {{"multi-digit matching input",
+        "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : "
+        "\"00\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly input requires one matching output digit"},
+      {{"duplicate matching input",
+        "void bad(void) { unsigned x; "
+        "asm (\"nop\" : \"=a\"(x) : \"0\"(x), \"0\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot tie two inputs to one output"},
+      {{"missing matching output",
+        "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : "
+        "\"1\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly input names an unavailable output"},
+      {{"wrong matching input width",
+        "void bad(void) { unsigned x; unsigned char y; "
+        "asm (\"nop\" : \"=a\"(x) : \"0\"(y)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly matching input has the wrong integer width"},
+      {{"clobber list",
+        "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly clobbers are outside this slice"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"inline assembly without GNU extensions",
+       "void bad(void) { unsigned x; __asm__(\"nop\" : \"=a\"(x)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      0u, 0u, "GNU inline assembly requires GNU extensions"};
+  static const char strict_identifier_source[] =
+      "void asm(void);\n"
+      "void call_asm(void) { asm(); }\n";
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t strict_unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "inline-assembly", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/inline-assembly.c", source, &unit) !=
+          0 ||
+      validate_inline_assembly_unit(&unit) != 0) {
+    (void)fprintf(stderr, "inline-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/inline-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_inline_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/inline-assembly-disabled.c", disabled_gnu_case.line,
+          disabled_gnu_case.column, disabled_gnu_case.message) != 0 ||
+      validate_inline_assembly_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(
+          &fixture, "/inline-assembly-strict-identifier.c",
+          strict_identifier_source, &strict_unit) != 0 ||
+      strict_unit.assembly_count != 0u ||
+      strict_unit.function_definition_count != 1u ||
+      validate_inline_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr,
+        "inline-assembly: strict asm identifier boundary differs\n");
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("inline-assembly: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -23567,6 +23843,7 @@ int main(int argc, char **argv) {
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-conversions|"
                    "variadic-callees|"
+                   "inline-assembly|"
                    "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
@@ -23622,6 +23899,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);
+  }
+  if (strcmp(argv[1], "inline-assembly") == 0) {
+    return run_inline_assembly(argv[2]);
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);

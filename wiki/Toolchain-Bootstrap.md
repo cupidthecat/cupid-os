@@ -52,3 +52,13 @@ This seed makes the hosted static toolchain reproducible from a clean checkout.
 It does not complete the normal OS build migration. Native contract runners,
 hosted development commands, and the remaining normal C objects still use a
 host C compiler.
+
+Compiler head now includes the active CSPRNG GNU assembly subset and still
+reaches the five-tool fixed point. Its current static CupidC candidate is
+1,883,836 bytes with SHA-256
+`f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df`.
+That compiler has also produced the unchanged CSPRNG object for a disposable
+two-pass kernel image. QEMU seeded the generator through RDRAND, passed all 48
+crypto and TLS checks, reached the desktop, and completed an embedded CupidC
+JIT command. The checked seed still contains the earlier compiler, so this
+runtime evidence does not yet change normal-build ownership.
