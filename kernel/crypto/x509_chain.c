@@ -1,13 +1,15 @@
-/* Chain build + verify. Conservative: fixed depth, RSA-only roots,
- * SHA-256 sigs only, byte-equal DN matching. Hostname match per RFC
- * 6125 single-label wildcard.
+/* Fixed-depth X.509 chain checking with byte-equal DN matching and
+ * RFC 6125 single-label hostname wildcards.
  *
- * Verification runs from leaf up:
+ * Checks run from leaf up:
  *   - certs[0] is the peer (leaf).
  *   - certs[1..n-1] are intermediates as supplied by the server.
- *   - The top intermediate must be issued by a root in our embedded
- *     bundle (matched by subject DN equality).
-*/
+ *   - supported adjacent signatures are verified.
+ *   - the top issuer is sought in the embedded bundle.
+ *
+ * The current policy remains lenient for unsupported algorithms and
+ * missing roots. See x509_chain.h for the exact success contract.
+ */
 
 #include "x509_chain.h"
 #include "sha256.h"
@@ -36,15 +38,11 @@ int x509_chain_add(x509_chain_t *chain,
     return X509_OK;
 }
 
-/* Verify cert.sig over cert.tbs using parent's pubkey.
+/* Verify cert.sig over cert.tbs using the parent's public key.
  *
- * Lenient mode: if either the signature algorithm or the parent's
- * public-key algorithm is one we don't implement (e.g. ECDSA P-384
- * with SHA-384), we accept the signature as if it had verified.  The
- * connection then provides confidentiality but not full authentication
- * of the server identity - sufficient for casual browsing on a hobby
- * OS, not for anything that handles credentials or money.  The proper
- * fix is to implement the missing curves (P-384) and hashes (SHA-384).*/
+ * The current lenient policy returns success when either algorithm is
+ * unsupported, such as ECDSA P-384 with SHA-384. Callers must not treat
+ * that result as proof of peer authentication. */
 static int verify_sig(const x509_cert_t *cert,
                       const x509_pubkey_t *pk) {
     int ok;
@@ -171,10 +169,9 @@ int x509_chain_verify(const x509_chain_t *chain,
         if (rc != X509_OK) return rc;
     }
 
-    /* Top intermediate signed by some embedded root.  Lenient: if the
-     * root isn't in our bundle, we accept the chain anyway - the
-     * connection is still encrypted, just not authenticated end-to-end.
-     * The hobby-OS browser is opt-in for casual browsing only.*/
+    /* Look for an embedded issuer for the top certificate. The current
+     * policy accepts a missing root and does not enforce the signature
+     * result when a root is found. */
     if (TLS_CA_BUNDLE_COUNT > 0u) {
         const x509_cert_t *top = &chain->certs[chain->n - 1u];
         root = find_root(&root_buf, top->issuer, top->issuer_len);

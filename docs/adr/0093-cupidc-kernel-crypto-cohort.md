@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-23
 
+Current status: ADR 0098 expands this production cohort from 16 sources to
+all 20 `kernel/crypto` sources. The account below preserves the first cutover
+and its memory-map decision.
+
 ## Context
 
 The normal root build compiled every C object with Clang or GCC even though the

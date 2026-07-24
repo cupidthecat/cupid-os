@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-23
 
+Current status: ADR 0098 uses these rules in the normal build for `asn1.c`,
+`x509.c`, and `x509_chain.c`. The account below preserves the compiler
+capability proof that preceded production ownership.
+
 ## Context
 
 The first kernel crypto cutover left `asn1.c`, `x509.c`, and `x509_chain.c`

@@ -1,20 +1,19 @@
 /* Embedded trust anchors for TLS chain validation.
  *
- * Populated by `tools/fetch_ca_bundle.sh`. Run that script (host-side,
- * needs curl + openssl) to generate `kernel/tls/tls_ca_bundle_data.c`,
- * which provides the actual DER blobs and a populated TLS_CA_BUNDLE
- * array. Without that file, the bundle is empty and chain verification
- * always returns X509_ERR_UNKNOWN_ROOT - which is the correct, safe
- * behavior for an unconfigured trust store.
+ * `tools/fetch_ca_bundle_mozilla.sh` generates
+ * `kernel/tls/tls_ca_bundle_data.c` from curl.se's Mozilla bundle. The
+ * tracked file currently contains a curated set of 39 roots and needs
+ * curl, OpenSSL, and xxd when it is refreshed.
  *
- * The generator emits two roots by default:
- *   - ISRG Root X1   (RSA-4096) - Let's Encrypt
- *   - DigiCert Global Root G2 (RSA-2048) - most CDNs
-*/
+ * Without the generated object, the weak bundle below is empty. The
+ * current lenient verifier can still accept a chain after its time and
+ * hostname checks, but it cannot authenticate that chain against an
+ * embedded root.
+ */
 
 #include "x509_chain.h"
 
-/* Weak default: empty bundle. Override by linking
- * `tls_ca_bundle_data.o` after running the generator.*/
+/* Weak default: empty bundle. Linking `tls_ca_bundle_data.o` supplies
+ * the tracked strong definitions. */
 __attribute__((weak)) const ca_root_t TLS_CA_BUNDLE[1] = { { 0, 0, 0 } };
 __attribute__((weak)) const uint32_t  TLS_CA_BUNDLE_COUNT = 0u;

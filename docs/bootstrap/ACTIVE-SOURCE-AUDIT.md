@@ -44,7 +44,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_audio` | 14 | 4532 |
 | `kernel_core` | 16 | 3985 |
 | `kernel_cpu` | 18 | 3274 |
-| `kernel_crypto` | 40 | 5144 |
+| `kernel_crypto` | 40 | 5149 |
 | `kernel_fs` | 26 | 6114 |
 | `kernel_gfx` | 28 | 12182 |
 | `kernel_gui` | 28 | 11971 |
@@ -52,7 +52,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_mm` | 7 | 1296 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1161 |
-| `kernel_tls` | 13 | 6572 |
+| `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
 | `toolchain_contract` | 15 | 97909 |
@@ -76,12 +76,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 16 |
+| `cupid_c_compiler` | 20 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 281 |
-| `host_python` | 25 |
+| `host_c_compiler` | 277 |
+| `host_python` | 29 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -101,15 +101,15 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.relocation` | 1 | 13 |
 | `c.control` | 12 | 64586 |
 | `c.declaration` | 1 | 26 |
-| `c.declarator` | 4 | 2853 |
-| `c.expression` | 2 | 4175 |
+| `c.declarator` | 4 | 2859 |
+| `c.expression` | 2 | 4184 |
 | `c.extension` | 18 | 382 |
 | `c.initializer` | 1 | 638 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 18 | 6603 |
-| `c.qualifier` | 2 | 11581 |
-| `c.storage` | 4 | 7657 |
-| `c.type` | 14 | 43940 |
+| `c.preprocessor` | 18 | 6605 |
+| `c.qualifier` | 2 | 11587 |
+| `c.storage` | 4 | 7665 |
+| `c.type` | 14 | 43945 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
@@ -224,7 +224,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 425 linked objects; 432 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 109 conditional expressions (105 #if, 4 #elif); 22 normalized expressions; 23 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2373 C include operands (2141 quoted, 232 angle, 0 pp-token); 667 source files; max conditional depth 2 |
+| `c_preprocessor_include_operands` | `pass` | 2375 C include operands (2143 quoted, 232 angle, 0 pp-token); 667 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 667 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 379 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=12, HOSTED_KERNEL_BRIDGE_64=1, HOSTED_I386_LINUX=19, HOSTED_I386_LINUX_GNU=1); 22 include-only, 2 non-root headers; 20 hosted deferred (20 external, 0 hermetic) |

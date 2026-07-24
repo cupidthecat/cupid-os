@@ -30,14 +30,18 @@ void x509_chain_init(x509_chain_t *chain);
 int x509_chain_add(x509_chain_t *chain,
                    const uint8_t *der, uint32_t der_len);
 
-/* Validate the chain against the embedded CA bundle:
- *   - parsed leaf at certs[0]; intermediates at certs[1..n-1].
- *   - find a root in TLS_CA_BUNDLE whose subject equals certs[n-1].issuer.
- *   - for each adjacent pair, verify chain sig.
- *   - validity window includes now_epoch (or skip if now_epoch == 0).
- *   - leaf hostname matches `host`.
+/* Check the chain using the current lenient policy:
+ *   - certs[0] is the parsed leaf; certs[1..n-1] are intermediates.
+ *   - validity windows include now_epoch; zero returns X509_ERR_NO_TIME.
+ *   - the leaf hostname matches `host`.
+ *   - supported signatures between adjacent certificates are verified.
+ *   - the top issuer is looked up in TLS_CA_BUNDLE.
  *
- * Returns X509_OK on success.*/
+ * Unsupported algorithms are treated as unverifiable and accepted.
+ * A missing root, or a failed signature check on a root that was found,
+ * does not currently fail the call. X509_OK therefore means the checks
+ * above completed under this lenient policy; it is not proof that the
+ * peer was authenticated. */
 int x509_chain_verify(const x509_chain_t *chain,
                       const char *host,
                       uint64_t now_epoch);

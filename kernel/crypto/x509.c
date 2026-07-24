@@ -1,5 +1,8 @@
-/* X.509 v3 certificate parser. Conservative: rejects unknown critical
- * extensions, SHA-1/MD5 sig OIDs, non-RSA pubkeys, oversize fields.
+/* X.509 v3 certificate parser. It rejects malformed DER, unknown
+ * critical extensions, and oversize fields. Unsupported public-key
+ * and signature algorithms remain visible as X509_PK_NONE or
+ * X509_SIG_NONE so the current lenient chain checker can inspect the
+ * rest of the certificate.
  *
  * RFC 5280 layout:
  *   Certificate            ::= SEQUENCE { tbs, sigAlg, sigBitString }

@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-23
 
+Current status: ADR 0097 moved this compiler into the checked seed, and ADR
+0098 moved `csprng.c` into the normal CupidC-owned build. The compiler-head
+evidence below remains the capability proof.
+
 ## Context
 
 After CupidC learned the null and external-array rules used by the X.509

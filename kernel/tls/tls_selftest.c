@@ -17,6 +17,8 @@
 #include "ecdsa.h"
 #include "ed25519.h"
 #include "asn1.h"
+#include "x509.h"
+#include "x509_chain.h"
 #include "panic.h"
 #include "serial.h"
 
@@ -422,6 +424,90 @@ static void test_asn1(void) {
     }
 }
 
+/* X.509 parsing, name matching, and chain state */
+
+static void test_x509(void) {
+    static const uint8_t exact_name[] = "api.example.test";
+    static const uint8_t wildcard_name[] = "*.example.test";
+    static const uint8_t subject_a[] = { 0x30, 0x01, 0x00 };
+    static const uint8_t subject_b[] = { 0x30, 0x01, 0x01 };
+    x509_cert_t root;
+    x509_cert_t names;
+    int rc;
+
+    must(TLS_CA_BUNDLE_COUNT > 0u, "x509 embedded trust store is populated");
+    rc = x509_parse(
+        TLS_CA_BUNDLE[0].der,
+        TLS_CA_BUNDLE[0].der_len,
+        &root
+    );
+    must(rc == 0, "x509 parses the first embedded trust anchor");
+    must(root.raw == TLS_CA_BUNDLE[0].der &&
+         root.raw_len == TLS_CA_BUNDLE[0].der_len &&
+         root.version >= 1u && root.version <= 3u,
+         "x509 preserves trust-anchor spans and version");
+
+    names.san_count = 2u;
+    names.san[0].name = exact_name;
+    names.san[0].len = sizeof(exact_name) - 1u;
+    names.san[1].name = wildcard_name;
+    names.san[1].len = sizeof(wildcard_name) - 1u;
+    must(x509_match_hostname(&names, "API.EXAMPLE.TEST") == 1,
+         "x509 matches a SAN without ASCII case sensitivity");
+    must(x509_match_hostname(&names, "www.example.test") == 1,
+         "x509 matches one wildcard label");
+    must(x509_match_hostname(&names, "a.b.example.test") == 0,
+         "x509 rejects a wildcard across two labels");
+
+    names.san_count = 0u;
+    names.cn = exact_name;
+    names.cn_len = sizeof(exact_name) - 1u;
+    must(x509_match_hostname(&names, "api.example.test") == 1,
+         "x509 falls back to the subject common name");
+    must(x509_dn_equal(subject_a, sizeof(subject_a),
+                       subject_a, sizeof(subject_a)) == 1 &&
+         x509_dn_equal(subject_a, sizeof(subject_a),
+                       subject_b, sizeof(subject_b)) == 0,
+         "x509 distinguishes encoded names");
+}
+
+static void test_x509_chain(void) {
+    static const uint8_t malformed_der[] = {
+        0x30, 0x03, 0x30, 0x01, 0x00
+    };
+    static const uint8_t controlled_host[] = "bootstrap.example";
+    x509_chain_t chain;
+
+    x509_chain_init(&chain);
+    must(chain.n == 0u, "x509 chain starts empty");
+    must(x509_chain_verify(&chain, "api.example.test", 1767225600ull) ==
+             X509_ERR_PARSE,
+         "x509 chain rejects an empty chain");
+    must(x509_chain_add(&chain, malformed_der, sizeof(malformed_der)) ==
+             X509_ERR_PARSE &&
+         chain.n == 0u,
+         "x509 chain rejects malformed DER without advancing");
+    must(x509_chain_add(
+             &chain,
+             TLS_CA_BUNDLE[0].der,
+             TLS_CA_BUNDLE[0].der_len
+         ) == X509_OK &&
+         chain.n == 1u,
+         "x509 chain accepts an embedded trust anchor");
+    must(x509_chain_verify(&chain, "unused.example", 0u) ==
+             X509_ERR_NO_TIME,
+         "x509 chain requires a validation time");
+    chain.certs[0].san_count = 0u;
+    chain.certs[0].cn = controlled_host;
+    chain.certs[0].cn_len = sizeof(controlled_host) - 1u;
+    must(x509_chain_verify(
+             &chain,
+             "bootstrap.example",
+             chain.certs[0].not_before
+         ) == X509_OK,
+         "x509 chain walks the embedded-root lookup path");
+}
+
 /* AES-128 + AES-128-GCM vectors */
 
 static void test_aes128(void) {
@@ -671,5 +757,9 @@ void tls_selftest_run(void) {
     test_p256();
     test_ecdsa_p256();
     test_asn1();
-    serial_printf("[tls-selftest] all primitives + ASN.1 vectors passed\n");
+    test_x509();
+    test_x509_chain();
+    serial_printf(
+        "[tls-selftest] all 62 crypto, ASN.1, and X.509 checks passed\n"
+    );
 }

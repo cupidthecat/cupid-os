@@ -30,9 +30,11 @@ except ModuleNotFoundError:
 APPROVED_CRYPTO_SOURCES = (
     "kernel/crypto/aes.c",
     "kernel/crypto/aes_gcm.c",
+    "kernel/crypto/asn1.c",
     "kernel/crypto/bigint.c",
     "kernel/crypto/chacha20.c",
     "kernel/crypto/chacha20poly1305.c",
+    "kernel/crypto/csprng.c",
     "kernel/crypto/ct.c",
     "kernel/crypto/ecdsa.c",
     "kernel/crypto/ed25519.c",
@@ -44,13 +46,10 @@ APPROVED_CRYPTO_SOURCES = (
     "kernel/crypto/sha256.c",
     "kernel/crypto/sha512.c",
     "kernel/crypto/x25519.c",
-)
-BLOCKED_CRYPTO_SOURCES = (
-    "kernel/crypto/asn1.c",
-    "kernel/crypto/csprng.c",
     "kernel/crypto/x509.c",
     "kernel/crypto/x509_chain.c",
 )
+BLOCKED_CRYPTO_SOURCES = ()
 KERNEL_CRYPTO_C_SOURCES = tuple(
     sorted(APPROVED_CRYPTO_SOURCES + BLOCKED_CRYPTO_SOURCES)
 )

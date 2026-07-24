@@ -38,32 +38,7 @@ except ModuleNotFoundError:
 
 CRYPTO_SOURCES = APPROVED_CRYPTO_SOURCES
 
-BOUNDARIES = (
-    (
-        "kernel/crypto/csprng.c",
-        29,
-        "CTB00000F",
-        "GNU inline assembly is outside this function-body slice",
-    ),
-    (
-        "kernel/crypto/asn1.c",
-        102,
-        "CTD000006",
-        "CupidC IR lowering does not yet support this conversion",
-    ),
-    (
-        "kernel/crypto/x509.c",
-        120,
-        "CTD000006",
-        "CupidC IR lowering does not yet support this conversion",
-    ),
-    (
-        "kernel/crypto/x509_chain.c",
-        96,
-        "CTD000006",
-        "CupidC IR lowering does not yet support this conversion",
-    ),
-)
+BOUNDARIES = ()
 
 class FrontierError(Exception):
     pass

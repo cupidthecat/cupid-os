@@ -426,8 +426,8 @@ drivers/e1000.o: drivers/e1000.c kernel/network/net_if.h drivers/pci.h kernel/mm
 kernel/crypto/chacha20.o: kernel/crypto/chacha20.c kernel/crypto/chacha20.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20.c --output kernel/crypto/chacha20.o
 
-kernel/crypto/csprng.o: kernel/crypto/csprng.c kernel/crypto/csprng.h kernel/crypto/chacha20.h kernel/core/types.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/crypto/csprng.c -o kernel/crypto/csprng.o
+kernel/crypto/csprng.o: kernel/crypto/csprng.c kernel/crypto/csprng.h kernel/crypto/chacha20.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/csprng.c --output kernel/crypto/csprng.o
 
 kernel/crypto/sha256.o: kernel/crypto/sha256.c kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha256.c --output kernel/crypto/sha256.o
@@ -474,14 +474,14 @@ kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c kernel/crypto/ecdsa.h kernel/crypto
 kernel/crypto/ed25519.o: kernel/crypto/ed25519.c kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ed25519.c --output kernel/crypto/ed25519.o
 
-kernel/crypto/asn1.o: kernel/crypto/asn1.c kernel/crypto/asn1.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/asn1.c -o kernel/crypto/asn1.o
+kernel/crypto/asn1.o: kernel/crypto/asn1.c kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/asn1.c --output kernel/crypto/asn1.o
 
-kernel/crypto/x509.o: kernel/crypto/x509.c kernel/crypto/x509.h kernel/crypto/asn1.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/x509.c -o kernel/crypto/x509.o
+kernel/crypto/x509.o: kernel/crypto/x509.c kernel/crypto/x509.h kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509.c --output kernel/crypto/x509.o
 
-kernel/crypto/x509_chain.o: kernel/crypto/x509_chain.c kernel/crypto/x509_chain.h kernel/crypto/x509.h kernel/crypto/sha256.h kernel/crypto/rsa.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/asn1.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/crypto/x509_chain.c -o kernel/crypto/x509_chain.o
+kernel/crypto/x509_chain.o: kernel/crypto/x509_chain.c kernel/crypto/x509_chain.h kernel/crypto/x509.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/rsa.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509_chain.c --output kernel/crypto/x509_chain.o
 
 kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.c kernel/crypto/x509_chain.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle.c -o kernel/tls/tls_ca_bundle.o
@@ -509,7 +509,7 @@ kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.c kernel/crypto/x
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle_data.c -o kernel/tls/tls_ca_bundle_data.o
 endif
 
-kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/hmac.h kernel/crypto/hkdf.h kernel/crypto/chacha20poly1305.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/bigint.h kernel/crypto/rsa.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/asn1.h kernel/core/panic.h drivers/serial.h
+kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/hmac.h kernel/crypto/hkdf.h kernel/crypto/chacha20poly1305.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/bigint.h kernel/crypto/rsa.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/asn1.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/core/panic.h drivers/serial.h
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o
 
 # USB core scaffold

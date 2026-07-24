@@ -7656,3 +7656,109 @@ source owner. The refreshed seed can compile all four neighboring crypto
 sources, but the normal build remains at 16 CupidC-owned crypto objects until
 the frontier and four Make rules move with a fresh linked-kernel boot proof.
 ADR 0097 records the trust transition.
+
+## 2026-07-24: every kernel crypto source moves into the normal CupidC build
+
+The refreshed seed could compile the four remaining crypto files, but the
+production allowlist, frontier, audit contract, and Make recipes still
+described the old 16-source boundary. This increment moves unchanged
+`asn1.c`, `csprng.c`, `x509.c`, and `x509_chain.c` into the checked-seed
+CupidC path. All 20 C files under `kernel/crypto` now have the same normal
+build owner.
+
+The wrapper's approved list is the complete sorted source set and its blocked
+list is empty. The frontier has no declared compiler failure, but it keeps the
+same fail-closed behavior: every source compiles twice in a frozen input
+snapshot, both objects must pass the i386 ELF32 validator, and the result
+directory appears only after the complete cohort succeeds. An unclassified
+future crypto source is still rejected.
+
+The four Make recipes now call the checked wrapper and depend on the complete
+seed, manifest, verifier, frontier, and wrapper input set. The
+`x509_chain.o` rule also names its directly included `sha512.h`; the generated
+graph therefore records that edge instead of relying on the wrapper's broader
+snapshot alone. A forced build with `CC` set to
+`__cupid_host_cc_must_not_run__` rebuilt all 20 crypto objects without
+invoking a host C compiler.
+
+### Runtime coverage
+
+The boot self-test grew from 48 to 62 checks. The new work parses a real
+tracked trust anchor, checks its raw span and version, exercises exact and
+wildcard hostnames plus CN fallback, compares encoded names, builds chain
+state, rejects empty and malformed inputs, adds a certificate, rejects a
+missing clock, and follows the embedded-root lookup path. That last path
+executes `TLS_CA_BUNDLE[i]` from the CupidC-built `x509_chain.o`, covering the
+unspecified-bound external array that originally blocked the source.
+
+This is deliberately a toolchain ownership smoke, not a claim of complete
+certificate authentication. The current chain checker still accepts
+unsupported algorithms, accepts a missing trusted root, and discards the
+top-root signature result. Its comments and the public README now say so
+plainly. The tracked 39-root bundle remains required for this normal boot
+test because parsed certificate spans borrow the static DER storage.
+
+The GUI smoke runner now accepts `--cpu`. The production proof uses
+`--cpu max`, which exposes RDRAND and requires the active GNU assembly path in
+`csprng.o` to seed successfully before the TLS tests run.
+
+### Failures that tightened the gate
+
+The first ownership run failed against the old production boundary: four
+sources were absent from the allowlist and four Make recipes still used the
+host compiler. The initial GUI unit cases also failed because the smoke
+runner did not yet accept a CPU model. Those failures were the expected red
+phase for the cutover.
+
+The first combined audit run then found two stale inventory pins. The expanded
+self-test raised direct include operands from 2,373 to 2,375 and `sizeof`
+occurrences from 4,135 to 4,144. Once those counts were corrected, the next
+run exposed four old assertions that still expected host-owned transforms and
+no CupidC runtime owner. Replacing those assertions with an explicit
+20-source ownership contract made the audit test describe the production
+graph again.
+
+A final read-only review found the missing `sha512.h` Make edge, stale audit
+prose, an obsolete two-root bundle comment, and X.509 comments that promised
+stricter rejection and trust behavior than the implementation provides. The
+graph and prose were corrected before the final build.
+
+The repository-wide `make test` discovery run did not finish within its
+20-minute cap. Process inspection showed it was still compiling the static
+Toolchain fixed point rather than reporting a test failure. Its surviving
+Make, Python, and WSL children were stopped, and the run is recorded as a
+timeout, not a pass. The complete 99-test cutover and audit set below finished
+independently against the final graph.
+
+### Object and build evidence
+
+The checked-seed frontier produces 204,132 deterministic bytes across 20
+objects. The four newly owned files are:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/crypto/asn1.c` | 9,032 | `51c5300859a80579bf27ef2f978bccfb53fdf02947c219caf01ad9bf826d872b` |
+| `kernel/crypto/csprng.c` | 6,888 | `ab25ef013e9b91a9fab08c6ba610c6476897bc45296b4111f1df035c0e45e317` |
+| `kernel/crypto/x509.c` | 16,072 | `82536ae0f6c1a026757f45236fe6ce2454b147764e12105e8dc0fe199bb09801` |
+| `kernel/crypto/x509_chain.c` | 7,028 | `bbcad318a413be4cfce52541a0b803368ec1515e9ff4faa119552715bf0aec98` |
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Wrapper and frontier contracts | PASS | All 35 focused cases pass, including real checked-seed repetition, an unapproved source, input drift, malformed or missing output, compiler failure after a staged partial file, and commit-gated publication. |
+| GUI smoke contracts | PASS | All nine cases pass, including CLI parsing and exact QEMU argument placement for the optional CPU model. |
+| Combined cutover and audit suite | PASS | All 99 wrapper, frontier, GUI, and active-build tests pass in 437.588 seconds. |
+| Repository-wide Python discovery | TIMEOUT | `make test` exceeded 1,204 seconds while the static Toolchain fixed-point work was still running. No pass is claimed; its child processes were stopped. |
+| Strict self-test compile | PASS | `make -B kernel/tls/tls_selftest.o` accepts the expanded caller under the normal freestanding warning policy. |
+| Poisoned host compiler | PASS | A forced parallel Make run rebuilds all 20 production crypto objects while `CC` names a nonexistent command. |
+| Active build audit | PASS | Regeneration and `make check-bootstrap-audit` agree on 698 active inputs, 252 feature requirements, 501 transforms, and 39 accounted unreachable files. The audit records 20 CupidC-owned and 277 host-C-owned production transforms, plus 29 host-Python transforms. Its active-source digest is `8550700d750fb2f2c5afb424a70e1646c1e161616f7b2c229fed1cad2fc89233`; the JSON SHA-256 is `f332b5801def9e94501ee16dead0ded3bdb4f0644b9b407a532f72ebdf5e2de4`. |
+| Normal image build | PASS | The two-pass CupidLD and CupidObj path completes. `kernel.elf` is 6,439,120 bytes with SHA-256 `151d79718dcbc26f7aa21beb4769c40fa3f040ff55aacd038dc75beb389ade8f`; `kernel.bin` is 6,261,073 bytes with SHA-256 `9a9a17d7a18a8d589b1170e9b8db9a90ec1d737b80b53bac6bf4901b7f408d81`; `cupidos.img` is 209,715,200 bytes with SHA-256 `98d3b81a14de710c3edc7af49660ec093cc1b9acae73de30b2bd0c3c422697ef`. |
+| Kernel memory margin | PASS | `_loaded_end` is `0x006F8951`; `_kernel_end` is `0x00B19910`, leaving 943,856 bytes below the fixed stack base at `0x00C00000`. |
+| QEMU runtime | PASS | With the `max` CPU, the serial log records RDRAND seeding, exactly 62 successful checks, the final ASN.1/X.509 marker, desktop and terminal startup, and CupidC JIT completion for `/bin/ls.cc`. It contains no failed self-test, panic, corruption, exception, or illegal-instruction marker. Its SHA-256 is `0b1ce6b9b2fa7cc59b8c4c15397bb3ad1853a405446fa7687b1b6762119ae5b9`. |
+
+This removes GCC and Clang from production compilation of kernel crypto, not
+from the rest of the OS. Python still verifies and launches the checked seed,
+WSL remains the Windows execution bridge, and 277 production C transforms
+still belong to the host compiler. The CupidC objects are also not yet
+optimized like the host `-Os` objects. Larger kernel, driver, generated,
+toolchain, user, Doom, and vendored cohorts remain ahead. ADR 0098 records the
+ownership decision and the narrow X.509 claim.

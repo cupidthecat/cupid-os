@@ -60,12 +60,33 @@ class GuiTerminalInputTests(unittest.TestCase):
             log="serial.log",
             nic="e1000",
             smp=4,
+            cpu=None,
         )
 
         command = gui_terminal_smoke.qemu_args(args, 12345)
 
         smp_index = command.index("-smp")
         self.assertEqual(command[smp_index + 1], "cpus=4")
+
+    def test_qemu_args_request_the_configured_cpu_model(self):
+        args = mock.Mock(
+            qemu="qemu-system-i386",
+            image="fresh.img",
+            log="serial.log",
+            nic="e1000",
+            smp=1,
+            cpu="max",
+        )
+
+        command = gui_terminal_smoke.qemu_args(args, 12345)
+
+        cpu_index = command.index("-cpu")
+        self.assertEqual(command[cpu_index + 1], "max")
+
+    def test_cli_accepts_a_cpu_model(self):
+        args = gui_terminal_smoke.parse_args(["--cpu", "max"])
+
+        self.assertEqual(args.cpu, "max")
 
     def test_cli_accepts_a_slower_inter_key_pause(self):
         args = gui_terminal_smoke.parse_args(["--key-pause", "0.60"])

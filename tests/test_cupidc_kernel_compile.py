@@ -26,9 +26,11 @@ SEED_MANIFEST = (
 CRYPTO_SOURCES = (
     "kernel/crypto/aes.c",
     "kernel/crypto/aes_gcm.c",
+    "kernel/crypto/asn1.c",
     "kernel/crypto/bigint.c",
     "kernel/crypto/chacha20.c",
     "kernel/crypto/chacha20poly1305.c",
+    "kernel/crypto/csprng.c",
     "kernel/crypto/ct.c",
     "kernel/crypto/ecdsa.c",
     "kernel/crypto/ed25519.c",
@@ -40,6 +42,8 @@ CRYPTO_SOURCES = (
     "kernel/crypto/sha256.c",
     "kernel/crypto/sha512.c",
     "kernel/crypto/x25519.c",
+    "kernel/crypto/x509.c",
+    "kernel/crypto/x509_chain.c",
 )
 
 KERNEL_I386_ARGUMENTS = (
@@ -348,19 +352,14 @@ class KernelCompileMakefileTests(unittest.TestCase):
             makefile,
         )
 
-        for source in (
-            "kernel/crypto/csprng.c",
-            "kernel/crypto/asn1.c",
-            "kernel/crypto/x509.c",
-            "kernel/crypto/x509_chain.c",
-        ):
+        for source in CRYPTO_SOURCES:
             output = str(Path(source).with_suffix(".o")).replace("\\", "/")
             host_rule = re.compile(
                 rf"^{re.escape(output)}: [^\n]*"
                 rf"\n\t\$\(CC\) ",
                 re.MULTILINE,
             )
-            self.assertRegex(makefile, host_rule)
+            self.assertNotRegex(makefile, host_rule)
 
 
 class KernelCompileOperationTests(unittest.TestCase):
@@ -423,8 +422,8 @@ class KernelCompileOperationTests(unittest.TestCase):
     def test_unapproved_source_is_rejected_without_execution(self):
         temporary, root, _source, seed, manifest, output = self._root_fixture()
         self.addCleanup(temporary.cleanup)
-        source = root / "kernel" / "crypto" / "csprng.c"
-        source.write_text("int blocked;\n", encoding="utf-8")
+        source = root / "kernel" / "crypto" / "new_cipher.c"
+        source.write_text("int unapproved;\n", encoding="utf-8")
         executor = FakeExecutor(root)
 
         with self.assertRaisesRegex(

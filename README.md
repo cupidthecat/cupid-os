@@ -40,7 +40,7 @@ Cupid OS is a 32-bit x86 hobby OS written in C and Cupid ASM. It has a graphical
 - USB 1.1 and 2.0 through UHCI and EHCI host controllers, with HID keyboard and mouse support, hubs up to depth 5, and BBB/SCSI mass storage
 - SMP for up to 32 CPUs, with ACPI/MP discovery, per-CPU LAPIC timers, a big kernel lock, reschedule IPIs, and cross-CPU calls
 - RTL8139 and E1000 networking with ARP, IPv4 fragmentation and reassembly, ICMP, UDP, client and server TCP, DHCP with static fallback, DNS, BSD-style sockets, and the two-NIC `make test-net` harness
-- TLS 1.2 and 1.3 client handshakes with public servers using ChaCha20-Poly1305 or AES-128-GCM, RSA-PKCS1v15 and RSA-PSS verification, ECDSA-P256, X25519 or P-256 ECDHE, hostname checks, and X.509 validation against an embedded Mozilla CA bundle
+- TLS 1.2 and 1.3 client handshakes with public servers using ChaCha20-Poly1305 or AES-128-GCM, RSA-PKCS1v15 and RSA-PSS verification, ECDSA-P256, X25519 or P-256 ECDHE, X.509 parsing, hostname and time checks, and best-effort chain checks against an embedded Mozilla CA bundle. The current chain policy remains lenient when a root or signature algorithm is unavailable.
 - HTTP and HTTPS through `curl` and `wget`; `curl` supports GET, POST, common request flags, and bounded HTTP-to-HTTP redirects, while `wget` supports `-O` and `-q`, derives output names, and reports status
 - In-OS `ssh` and `telnet` clients plus an `sshd` server. SSH supports password and keyboard-interactive authentication, PTY shells, remote execution, host-key verification, Curve25519/ChaCha20-Poly1305, and terminal resizing
 - A graphical shell browser with HTML5 tokenization and tree building, CSS cascade and specificity, variables and `calc`, web fonts, block and inline layout, HTTP and HTTPS, navigation history, and GET forms
@@ -61,7 +61,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - UHCI and EHCI share an IRQ dispatcher and provide enumeration, HID keyboard and mouse support, hubs up to depth 5, and BBB/SCSI mass storage beneath FAT16.
 - SMP supports up to 32 CPUs through ACPI/MP discovery and INIT-SIPI-SIPI startup. It uses per-CPU LAPIC timers, IOAPIC routing with the 8259 fully masked, a ticket-based big kernel lock, a shared run queue, and IPIs for rescheduling, cross-CPU calls, and panic broadcasts.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
-- The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 chain validation against an embedded Mozilla CA bundle. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
+- The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
 - `bin/ssh.cc` is an SSH-2 client with Curve25519 key exchange, ChaCha20-Poly1305 transport, Ed25519, RSA-SHA2, and ECDSA-P256 host-key verification, password and keyboard-interactive authentication, PTY shells, and remote execution. `bin/telnet.cc` handles IAC negotiation, TTYPE, NAWS, Ctrl-] commands, and CRLF-safe interactive sessions. `kernel/lang/ssh_io.c` connects both clients to the GUI terminal and handles hidden passwords, VT/xterm keys, resize events, and ANSI output.
 - `bin/browser.cc` drives a browser assembled from `bin/browser/{css,dom,font_face,image,input,js_dom,js_interp,js_lex,js_parse,layout,main,nav,net,paint,parser,render_tree,style,url,url_hash,util,woff,woff2}.cc`. It has an HTML5 tokenizer and tree builder, a CSS lexer with user-agent and author cascades, specificity, variables, `calc`, external stylesheets, `@font-face`, WOFF1 support, WOFF2 fallback handling, a render-tree builder, block and inline formatting, clipping, rounded corners, box shadows, and a painter that walks the render tree. The UI supports HTTP and HTTPS, Ctrl-L for the address bar, Backspace history, link navigation, GET forms, checkboxes, text inputs, and `about:dump`.
@@ -268,21 +268,20 @@ make HDD_MB=100
 
 ### Self-hosting compiler status
 
-The normal image build uses the checked CupidC seed for 16 kernel crypto
-objects. The refreshed seed can also compile the unchanged `asn1.c`, `x509.c`,
-`x509_chain.c`, and `csprng.c`. Typed `((void *)0)` conversion, address decay
-for external arrays with unspecified bounds, and typed GNU assembly operands
-cover those sources without weakening them. The assembly path emits RDTSC,
-CPUID, RDRAND, and SETC through Cupid's x86 model and preserves EBX. The four
-sources remain host-built only because their production Make rules and
-frontier have not moved yet. A disposable two-pass kernel build already
-booted with the CupidC-produced `csprng.o`: RDRAND seeded the generator, all
-48 TLS checks passed, the desktop opened a terminal, and the embedded CupidC
-ran `ls.cc`. Clang or GCC still builds the rest of the normal C graph.
-Migrated objects are validated i386 ELF32 relocatables before publication.
-The regular QEMU image also executes code from all 16 migrated sources. Its
-SHA-512, SHA-384, bigint, RSA, and Ed25519 checks cover expected results and
-require corrupted RSA and Ed25519 signatures to be rejected.
+The normal image build uses the checked CupidC seed for all 20 kernel crypto
+objects. Typed `((void *)0)` conversion, address decay for external arrays
+with unspecified bounds, and typed GNU assembly operands cover the unchanged
+ASN.1, X.509, chain, and CSPRNG sources. The assembly path emits RDTSC, CPUID,
+RDRAND, and SETC through Cupid's x86 model while preserving EBX. Every object
+is validated as an i386 ELF32 relocatable before publication, and the frontier
+compiles the complete cohort twice to 204,132 byte-identical bytes.
+
+A poisoned-host build proves that none of the 20 recipes invokes Clang or GCC.
+Under QEMU's `max` CPU, RDRAND seeds the generator, all 62 crypto, ASN.1, and
+X.509 checks pass, the desktop opens a terminal, and embedded CupidC runs
+`/bin/ls.cc`. The X.509 checks cover parsing, name matching, chain state, and
+embedded-root lookup; they do not claim full certificate trust validation.
+Clang or GCC still builds most of the remaining normal C graph.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,

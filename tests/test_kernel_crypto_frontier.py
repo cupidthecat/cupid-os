@@ -27,9 +27,11 @@ SEED_MANIFEST = (
 CRYPTO_SOURCES = [
     "kernel/crypto/aes.c",
     "kernel/crypto/aes_gcm.c",
+    "kernel/crypto/asn1.c",
     "kernel/crypto/bigint.c",
     "kernel/crypto/chacha20.c",
     "kernel/crypto/chacha20poly1305.c",
+    "kernel/crypto/csprng.c",
     "kernel/crypto/ct.c",
     "kernel/crypto/ecdsa.c",
     "kernel/crypto/ed25519.c",
@@ -41,30 +43,11 @@ CRYPTO_SOURCES = [
     "kernel/crypto/sha256.c",
     "kernel/crypto/sha512.c",
     "kernel/crypto/x25519.c",
+    "kernel/crypto/x509.c",
+    "kernel/crypto/x509_chain.c",
 ]
 
-BOUNDARY_DIAGNOSTICS = {
-    "kernel/crypto/csprng.c": (
-        29,
-        "CTB00000F",
-        "GNU inline assembly is outside this function-body slice",
-    ),
-    "kernel/crypto/asn1.c": (
-        102,
-        "CTD000006",
-        "CupidC IR lowering does not yet support this conversion",
-    ),
-    "kernel/crypto/x509.c": (
-        120,
-        "CTD000006",
-        "CupidC IR lowering does not yet support this conversion",
-    ),
-    "kernel/crypto/x509_chain.c": (
-        96,
-        "CTD000006",
-        "CupidC IR lowering does not yet support this conversion",
-    ),
-}
+BOUNDARY_DIAGNOSTICS = {}
 
 KERNEL_I386_PROFILE = [
     "--gnu",
@@ -220,28 +203,7 @@ def _write_fake_compiler(path):
             import sys
             from pathlib import Path
 
-            BOUNDARIES = {
-                "/kernel/crypto/csprng.c": (
-                    29,
-                    "CTB00000F",
-                    "GNU inline assembly is outside this function-body slice",
-                ),
-                "/kernel/crypto/asn1.c": (
-                    102,
-                    "CTD000006",
-                    "CupidC IR lowering does not yet support this conversion",
-                ),
-                "/kernel/crypto/x509.c": (
-                    120,
-                    "CTD000006",
-                    "CupidC IR lowering does not yet support this conversion",
-                ),
-                "/kernel/crypto/x509_chain.c": (
-                    96,
-                    "CTD000006",
-                    "CupidC IR lowering does not yet support this conversion",
-                ),
-            }
+            BOUNDARIES = {}
 
             arguments = sys.argv[1:]
             source = arguments[arguments.index("-c") + 1]
@@ -291,25 +253,6 @@ def _write_portable_fake_seed(path):
                         ;;
                 esac
             done
-
-            case "$source" in
-                /kernel/crypto/csprng.c)
-                    printf '%s\\n' "$source:29:1: error CTB00000F: GNU inline assembly is outside this function-body slice" >&2
-                    exit 1
-                    ;;
-                /kernel/crypto/asn1.c)
-                    printf '%s\\n' "$source:102:1: error CTD000006: CupidC IR lowering does not yet support this conversion" >&2
-                    exit 1
-                    ;;
-                /kernel/crypto/x509.c)
-                    printf '%s\\n' "$source:120:1: error CTD000006: CupidC IR lowering does not yet support this conversion" >&2
-                    exit 1
-                    ;;
-                /kernel/crypto/x509_chain.c)
-                    printf '%s\\n' "$source:96:1: error CTD000006: CupidC IR lowering does not yet support this conversion" >&2
-                    exit 1
-                    ;;
-            esac
 
             destination="$root/${output#/}"
             mkdir -p "$(dirname "$destination")"
@@ -421,7 +364,7 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel crypto frontier: ok (16 sources, 4 boundaries)\n",
+                "kernel crypto frontier: ok (20 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -699,7 +642,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel crypto frontier: ok (16 sources, 4 boundaries)\n",
+                "kernel crypto frontier: ok (20 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -1079,7 +1022,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                 result.stderr,
             )
 
-    def test_failed_boundary_compile_cannot_publish_an_object(self):
+    def test_failed_approved_compile_cannot_publish_the_frontier(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
@@ -1093,11 +1036,15 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     "if source in BOUNDARIES:\n",
                     (
-                        "if source in BOUNDARIES:\n"
+                        'if source == "/kernel/crypto/csprng.c":\n'
                         '    destination = root / output.lstrip("/")\n'
                         "    destination.parent.mkdir("
                         "parents=True, exist_ok=True)\n"
                         '    destination.write_bytes(b"partial")\n'
+                        '    sys.stderr.write("forced compile failure\\n")\n'
+                        "    raise SystemExit(1)\n"
+                        "\n"
+                        "if source in BOUNDARIES:\n"
                     ),
                     1,
                 ),
@@ -1124,7 +1071,8 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/csprng.c published an object after failure",
+                "kernel/crypto/csprng.c did not compile: "
+                "forced compile failure",
                 result.stderr,
             )
             self.assertFalse((root / "frontier").exists())
@@ -1258,7 +1206,7 @@ class RealKernelCryptoFrontierTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel crypto frontier: ok (16 sources, 4 boundaries)\n",
+                "kernel crypto frontier: ok (20 sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
@@ -1267,10 +1215,10 @@ class RealKernelCryptoFrontierTests(unittest.TestCase):
                 [entry["source"] for entry in manifest["sources"]],
                 CRYPTO_SOURCES,
             )
-            self.assertEqual(len(manifest["boundaries"]), 4)
+            self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                165112,
+                204132,
             )
             self.assertGreater(manifest["input_snapshot"]["count"], 20)
             self.assertEqual(

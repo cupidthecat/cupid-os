@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0098 consumes this refreshed seed for all 20 production
+kernel crypto sources. The staged refresh evidence below remains unchanged.
+
 ## Context
 
 The first checked seed in ADR 0092 could rebuild the complete five-tool

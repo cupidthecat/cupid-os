@@ -62,8 +62,12 @@ the five refreshed seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
 tool behavior cases.
 
-The same compiler produced the unchanged CSPRNG object for a disposable
-two-pass kernel image. QEMU seeded the generator through RDRAND, passed all 48
-crypto and TLS checks, reached the desktop, and completed an embedded CupidC
-JIT command. Normal-build ownership remains at 16 crypto sources until the
-frontier and four Make rules move.
+The normal image now builds all 20 kernel crypto sources with that checked
+CupidC seed. The strict frontier compiles each source twice and accepts
+204,132 byte-identical i386 object bytes with no blocked source. A Make run
+with the host compiler command poisoned rebuilds the same complete cohort.
+
+QEMU's `max` CPU seeds the CSPRNG through RDRAND, passes all 62 crypto, ASN.1,
+and X.509 checks, reaches the desktop, and completes an embedded CupidC JIT
+command. The X.509 checks exercise parser, hostname, chain-state, and
+embedded-root lookup paths; they are not a full trust-validation claim.

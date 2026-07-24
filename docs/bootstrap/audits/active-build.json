@@ -3333,15 +3333,26 @@
         "inputs": [
           "kernel/crypto/asn1.c",
           "kernel/crypto/asn1.h",
-          "kernel/core/types.h"
+          "kernel/core/types.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_crypto_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/crypto/asn1.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/crypto/asn1.c -o kernel/crypto/asn1.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/asn1.c --output kernel/crypto/asn1.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3431,15 +3442,26 @@
           "kernel/crypto/csprng.h",
           "kernel/crypto/chacha20.h",
           "kernel/core/types.h",
-          "drivers/serial.h"
+          "drivers/serial.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_crypto_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/crypto/csprng.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/crypto/csprng.c -o kernel/crypto/csprng.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/csprng.c --output kernel/crypto/csprng.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3745,15 +3767,26 @@
           "kernel/crypto/x509.c",
           "kernel/crypto/x509.h",
           "kernel/crypto/asn1.h",
-          "kernel/core/types.h"
+          "kernel/core/types.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_crypto_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/crypto/x509.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/crypto/x509.c -o kernel/crypto/x509.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509.c --output kernel/crypto/x509.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3762,19 +3795,31 @@
           "kernel/crypto/x509_chain.h",
           "kernel/crypto/x509.h",
           "kernel/crypto/sha256.h",
+          "kernel/crypto/sha512.h",
           "kernel/crypto/rsa.h",
           "kernel/crypto/p256.h",
           "kernel/crypto/ecdsa.h",
           "kernel/crypto/asn1.h",
-          "kernel/core/types.h"
+          "kernel/core/types.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_crypto_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/crypto/x509_chain.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/crypto/x509_chain.c -o kernel/crypto/x509_chain.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509_chain.c --output kernel/crypto/x509_chain.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7311,6 +7356,8 @@
           "kernel/crypto/ecdsa.h",
           "kernel/crypto/ed25519.h",
           "kernel/crypto/asn1.h",
+          "kernel/crypto/x509.h",
+          "kernel/crypto/x509_chain.h",
           "kernel/core/panic.h",
           "drivers/serial.h"
         ],
@@ -8922,10 +8969,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 232,
-      "direct_quoted_occurrences": 2141,
-      "include_occurrences": 2373,
+      "direct_quoted_occurrences": 2143,
+      "include_occurrences": 2375,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2373,
+      "ordinary_marker_occurrences": 2375,
       "pp_token_operand_occurrences": 0,
       "source_files": 667,
       "status": "pass"
@@ -15848,7 +15895,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 1854
+      "occurrences": 1860
     },
     {
       "category": "declarator",
@@ -16114,7 +16161,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 4135
+      "occurrences": 4144
     },
     {
       "category": "extension",
@@ -18808,7 +18855,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2373
+      "occurrences": 2375
     },
     {
       "category": "preprocessor",
@@ -19351,7 +19398,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 11352
+      "occurrences": 11358
     },
     {
       "category": "qualifier",
@@ -19863,7 +19910,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 6847
+      "occurrences": 6855
     },
     {
       "category": "type",
@@ -20980,7 +21027,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 19898
+      "occurrences": 19899
     },
     {
       "category": "type",
@@ -22428,7 +22475,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 12097
+      "occurrences": 12101
     },
     {
       "category": "declaration",
@@ -23039,11 +23086,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "6329bb747a955541dcff628d3ad6190f5026339856667a3758f63a0e952eeb05",
+    "active_source_digest": "8550700d750fb2f2c5afb424a70e1646c1e161616f7b2c229fed1cad2fc89233",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "d51abfea63a5af615d5dad74ad613147c40161d2b7c480f8eab8e5d1f9a2785a"
+        "sha256": "6df6806dcf051c99d035b1bf8a6741a9d1246fb2239bf4938577ad5c4ea57560"
       },
       {
         "path": "user/Makefile",
@@ -23055,11 +23102,11 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "476873626775573e9ea66e8f5d231a03dd33010a6bcd38afbec3aa31b1d9d60e"
+        "sha256": "8dd8047c3bcf7af0c089d7910fd132ff12cb2237dd58d86cbc285f578f49294f"
       },
       {
         "path": "tools/kernel_crypto_frontier.py",
-        "sha256": "2b8df168982226d9f2452d1b75c5ef54f5363a81c518865038e78a586041f33b"
+        "sha256": "fa84400b393d5fb596cf869540739b37837604fcb2d3e342f277856342946c4f"
       },
       {
         "path": "tools/bootstrap_toolchain.py",
@@ -28903,7 +28950,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -28934,7 +28983,7 @@
       "origin": "tracked",
       "path": "drivers/serial.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2bd67aa531bdffb302628970e59a5bdafaf7241383f5873e2f38b11763c00a62"
     },
     {
@@ -31191,7 +31240,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31217,12 +31267,14 @@
       "origin": "tracked",
       "path": "kernel/crypto/asn1.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "9c5c82ea97fa60270609063b0e7fcee44a8dd5916a335a715f26a48adb0a6823"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31247,7 +31299,7 @@
       "origin": "tracked",
       "path": "kernel/crypto/asn1.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "84687f839741624ef6f583628c12e6073020e413eb31675f4c4c8741f2ae8f3d"
     },
     {
@@ -31448,7 +31500,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31483,12 +31536,14 @@
       "origin": "tracked",
       "path": "kernel/crypto/csprng.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8f70c808bc8eb8bf41e82e87c01d49b416d0dd5677b3ce422cb162a71c97e129"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31510,7 +31565,7 @@
       "origin": "tracked",
       "path": "kernel/crypto/csprng.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "23618647998401ce07792d503366a57e577d43781fac36719fb71af8b1dd1389"
     },
     {
@@ -32220,7 +32275,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32247,16 +32303,18 @@
         "kernel/crypto/x509.h"
       ],
       "language": "c",
-      "lines": 499,
+      "lines": 502,
       "origin": "tracked",
       "path": "kernel/crypto/x509.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "4b14e32272fb81e6e46c0d801635dd994ae249d39e1619bd39cb2baf6f9eda3e"
+      "runtime_owner": "CupidC",
+      "sha256": "2429d7079b6026d8a8dab5cfc6a8bf02375408ade3a15b2f7557977aa48bbbbe"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32277,16 +32335,17 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 112,
+      "lines": 113,
       "origin": "tracked",
       "path": "kernel/crypto/x509.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "397b422e233bf27d900b0939d4c09344ff7deec57e7959897a9beb73945aea36"
+      "runtime_owner": "CupidC",
+      "sha256": "e16d7fee1af078003f77053fe53796ea53275bd509a5ec5a9d3f6f2955b3fc32"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32317,16 +32376,18 @@
         "kernel/crypto/x509_chain.h"
       ],
       "language": "c",
-      "lines": 187,
+      "lines": 184,
       "origin": "tracked",
       "path": "kernel/crypto/x509_chain.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "35b4d3e8863fa7bee8ea25df3f178046148b706160e6d78e4b353882017d5254"
+      "runtime_owner": "CupidC",
+      "sha256": "d3ab4d45354ac51493be516e76afde3e62dd4fa8aa4bd6c2be27d6f763b5b463"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32351,12 +32412,12 @@
         "kernel/crypto/x509.h"
       ],
       "language": "c_header",
-      "lines": 56,
+      "lines": 60,
       "origin": "tracked",
       "path": "kernel/crypto/x509_chain.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "e3c7ad28c34c923aa394c71c7f25a7cb01a05a49fa8d73335d1440686a0d81a0"
+      "runtime_owner": "CupidC",
+      "sha256": "64fd5055f9c7feaabba822de43058ac4245d8c9bbf10f4d4c641e9cce97cf425"
     },
     {
       "build_owners": [
@@ -44963,12 +45024,12 @@
         "kernel/crypto/x509_chain.h"
       ],
       "language": "c",
-      "lines": 20,
+      "lines": 19,
       "origin": "tracked",
       "path": "kernel/tls/tls_ca_bundle.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "b285962042079462bd3f72af50e51b70d3a0203007d737220aaba14f704e9ccd"
+      "sha256": "904b83bf020b5e68a69a064e0092d65201228b2283060d438130f4c9f93d9722"
     },
     {
       "build_owners": [
@@ -45292,15 +45353,17 @@
         "kernel/crypto/sha256.h",
         "kernel/crypto/sha512.h",
         "kernel/crypto/x25519.h",
+        "kernel/crypto/x509.h",
+        "kernel/crypto/x509_chain.h",
         "kernel/tls/tls_selftest.h"
       ],
       "language": "c",
-      "lines": 675,
+      "lines": 765,
       "origin": "tracked",
       "path": "kernel/tls/tls_selftest.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "3051de79e808486a8a8f374813181ce4f3d7fc9356e50318d4d8847cc9d3a655"
+      "sha256": "ee4480a28e5d95142deef7b59ca77c682ef62e0e4db07ccbeb89e97b26b75331"
     },
     {
       "build_owners": [

@@ -117,31 +117,32 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 16 kernel crypto sources in the normal image
+The checked CupidC seed compiles all 20 kernel crypto sources in the normal image
 build:
 - AES and AES-GCM
 - ChaCha20 and ChaCha20-Poly1305
 - constant-time helpers, HMAC, and HKDF
 - Poly1305, SHA-256, and SHA-512
 - bigint, RSA, X25519, P-256, ECDSA, and Ed25519
+- ASN.1, X.509 parsing, and X.509 chain handling
+- the CSPRNG and its CPU entropy probes
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. The complete frontier compiles every source twice and
-requires the object bytes to match.
+requires the 204,132 object bytes to match.
 
-The boot self-test runs production code from all 16 migrated sources. Its 48
-checks include SHA-512, SHA-384, bigint import and modular exponentiation, and
-valid plus corrupted RSA and Ed25519 signatures.
+The boot self-test runs production code from the complete cohort. Its 62 checks
+cover cryptographic primitives, positive and negative ASN.1 inputs, X.509
+parsing and names, chain state, and embedded-root lookup. That last path uses
+the external CA array whose missing bound once blocked CupidC. It is a runtime
+ownership check, not a claim that certificate trust validation is complete.
 
-Four neighboring sources still use the host C compiler because their
-production rules have not moved. The refreshed checked seed now compiles
-asn1.c, x509.c, x509_chain.c, and csprng.c to deterministic i386 objects
-without source changes. The CSPRNG path represents typed GNU assembly outputs
-and a matching input, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86
-model, and preserves EBX. A disposable two-pass kernel image has booted with
-that object, seeded the generator through RDRAND, passed all 48 crypto checks,
-and completed an embedded CupidC command. The production-frontier update,
-CupidC optimization, and the remaining kernel C graph are still in progress.
+The CSPRNG path represents typed GNU assembly outputs and a matching input,
+emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model, and preserves
+EBX. Under QEMU's max CPU, RDRAND seeds the generator before all 62 checks pass
+and embedded CupidC completes /bin/ls.cc. CupidC optimization, removal of the
+Python and WSL launch bridge, and the remaining kernel C graph are still in
+progress.
 >endtree
 
 >h2 Self-Hosting Compiler Path

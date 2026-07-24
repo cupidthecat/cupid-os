@@ -181,8 +181,10 @@ def key_name(ch: str) -> str:
 
 def qemu_args(args: argparse.Namespace, monitor_port: int) -> list[str]:
     netdev = "user,id=n0"
-    return [
-        args.qemu,
+    command = [args.qemu]
+    if args.cpu is not None:
+        command.extend(("-cpu", args.cpu))
+    command.extend([
         "-m",
         "512M",
         "-smp",
@@ -219,7 +221,8 @@ def qemu_args(args: argparse.Namespace, monitor_port: int) -> list[str]:
         f"tcp:127.0.0.1:{monitor_port},server,nowait",
         "-no-reboot",
         "-no-shutdown",
-    ]
+    ])
+    return command
 
 
 def run(args: argparse.Namespace) -> int:
@@ -309,6 +312,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         type=positive_count,
         default=1,
         help="number of virtual CPUs",
+    )
+    parser.add_argument(
+        "--cpu",
+        help="QEMU CPU model, such as max for optional instruction coverage",
     )
     parser.add_argument("--command", default="ls")
     parser.add_argument(

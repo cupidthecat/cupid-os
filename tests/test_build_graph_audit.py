@@ -2276,8 +2276,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 667)
-            self.assertEqual(contract["include_occurrences"], 2373)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2141)
+            self.assertEqual(contract["include_occurrences"], 2375)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2143)
             self.assertEqual(contract["direct_angle_occurrences"], 232)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -3864,7 +3864,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (26, 5),
-                "c.expression.sizeof": (4135, 168),
+                "c.expression.sizeof": (4144, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -3912,9 +3912,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             cupidc_crypto_sources = (
                 "aes.c",
                 "aes_gcm.c",
+                "asn1.c",
                 "bigint.c",
                 "chacha20.c",
                 "chacha20poly1305.c",
+                "csprng.c",
                 "ct.c",
                 "ecdsa.c",
                 "ed25519.c",
@@ -3926,6 +3928,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "sha256.c",
                 "sha512.c",
                 "x25519.c",
+                "x509.c",
+                "x509_chain.c",
             )
             for filename in cupidc_crypto_sources:
                 source_path = f"kernel/crypto/{filename}"
@@ -3942,20 +3946,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                     self.assertIn(source_path, transform["inputs"])
 
-            blocked_crypto_sources = (
-                "asn1.c",
-                "csprng.c",
-                "x509.c",
-                "x509_chain.c",
-            )
-            for filename in blocked_crypto_sources:
-                source_path = f"kernel/crypto/{filename}"
-                output_path = source_path.removesuffix(".c") + ".o"
-                with self.subTest(host_crypto_source=source_path):
-                    self.assertEqual(
-                        root_transform_by_output[output_path]["tools"],
-                        ["host_c_compiler"],
-                    )
             toolchain_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -3981,12 +3971,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 source_by_path["kernel/crypto/aes.h"]["runtime_owner"],
                 "CupidC",
             )
-            for filename in blocked_crypto_sources:
-                source_path = f"kernel/crypto/{filename}"
-                with self.subTest(host_owned_source=source_path):
-                    self.assertIsNone(
-                        source_by_path[source_path]["runtime_owner"]
-                    )
             frontend_sources = {
                 "toolchain/cupidc_emit.c": "toolchain_core",
                 "toolchain/cupidc_emit.h": "toolchain_core",

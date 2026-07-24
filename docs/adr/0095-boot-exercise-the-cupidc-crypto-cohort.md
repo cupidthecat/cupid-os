@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-23
 
+Current status: ADR 0098 expands the boot gate to 62 checks and covers the
+complete 20-source crypto cohort. The original 48-check evidence remains
+historical proof for the first 16 sources.
+
 ## Context
 
 Checked-seed CupidC owns sixteen `kernel/crypto` objects in the normal image
