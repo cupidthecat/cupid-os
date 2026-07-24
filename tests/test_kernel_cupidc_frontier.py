@@ -11,11 +11,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tools import kernel_crypto_frontier as frontier
+from tools import kernel_cupidc_frontier as frontier
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-FRONTIER_TOOL = REPO_ROOT / "tools" / "kernel_crypto_frontier.py"
+FRONTIER_TOOL = REPO_ROOT / "tools" / "kernel_cupidc_frontier.py"
 SEED_MANIFEST = (
     REPO_ROOT
     / "bootstrap"
@@ -46,6 +46,11 @@ CRYPTO_SOURCES = [
     "kernel/crypto/x509.c",
     "kernel/crypto/x509_chain.c",
 ]
+SMP_SOURCES = [
+    "kernel/smp/acpi.c",
+    "kernel/smp/mp_tables.c",
+]
+KERNEL_SOURCES = CRYPTO_SOURCES + SMP_SOURCES
 
 BOUNDARY_DIAGNOSTICS = {}
 
@@ -331,10 +336,46 @@ class FrontierElfValidationTests(unittest.TestCase):
 
 
 class DefaultSeedExecutionTests(unittest.TestCase):
+    def test_compiler_host_path_alone_selects_explicit_execution(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            compiler = root / "explicit-cupidc"
+            compiler.write_bytes(b"explicit compiler fixture")
+            arguments = frontier._parse_arguments(
+                [
+                    "--root",
+                    str(root),
+                    "--compiler-host-path",
+                    str(compiler),
+                    "--output-dir",
+                    str(root / "frontier"),
+                ]
+            )
+
+            with (
+                mock.patch.object(
+                    frontier,
+                    "_default_seed_execution",
+                    side_effect=AssertionError("default seed selected"),
+                ),
+                mock.patch.object(frontier, "_execute_frontier") as execute,
+            ):
+                frontier._run_frontier(arguments)
+
+            execute.assert_called_once()
+            self.assertEqual(
+                execute.call_args.args[4]["compiler"]["mode"],
+                "explicit",
+            )
+
     def test_cli_freezes_an_explicit_portable_compiler(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td).resolve()
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -364,7 +405,7 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel crypto frontier: ok (20 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (22 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -528,11 +569,11 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             )
 
 
-class KernelCryptoFrontierCliTests(unittest.TestCase):
+class KernelCupidCFrontierCliTests(unittest.TestCase):
     def test_output_path_must_be_a_directory(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -569,7 +610,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_unexpected_crypto_source_is_rejected_before_publication(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -608,10 +649,10 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
-    def test_exact_crypto_cohort_compiles_twice_with_matching_objects(self):
+    def test_exact_approved_cohort_compiles_twice_with_matching_objects(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -642,7 +683,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel crypto frontier: ok (20 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (22 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -650,8 +691,12 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                 (output / "manifest.json").read_text(encoding="utf-8")
             )
             self.assertEqual(
+                manifest["schema"],
+                "cupid.kernel-cupidc-frontier.v1",
+            )
+            self.assertEqual(
                 [entry["source"] for entry in manifest["sources"]],
-                CRYPTO_SOURCES,
+                KERNEL_SOURCES,
             )
             self.assertEqual(
                 manifest["boundaries"],
@@ -669,10 +714,10 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(list((output / "negative").iterdir()), [])
-            self.assertEqual(manifest["input_snapshot"]["count"], 20)
+            self.assertEqual(manifest["input_snapshot"]["count"], 22)
             self.assertEqual(
                 len(manifest["input_snapshot"]["files"]),
-                20,
+                22,
             )
             self.assertEqual(
                 len(manifest["input_snapshot"]["sha256"]),
@@ -699,7 +744,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                 },
             )
             expected_hash = hashlib.sha256(fixture).hexdigest()
-            for source in CRYPTO_SOURCES:
+            for source in KERNEL_SOURCES:
                 name = Path(source).stem + ".o"
                 first = output / "first" / name
                 second = output / "second" / name
@@ -715,10 +760,48 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                     hashlib.sha256((root / source).read_bytes()).hexdigest(),
                 )
 
+    def test_missing_approved_smp_source_is_rejected_before_publication(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            (root / "kernel" / "smp" / "acpi.c").unlink()
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+            output = root / "frontier"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "approved kernel source is not a file: "
+                "kernel/smp/acpi.c",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
     def test_truncated_elf32_section_table_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -755,7 +838,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_section_payload_outside_object_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -800,7 +883,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_symbol_name_outside_string_table_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -844,7 +927,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_relocation_symbol_outside_symbol_table_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -893,7 +976,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_relocation_type_outside_cupidc_contract_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -942,7 +1025,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_explicit_addend_relocation_section_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -981,7 +1064,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_relocation_addend_outside_cupidc_contract_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -1025,7 +1108,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_failed_approved_compile_cannot_publish_the_frontier(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -1036,7 +1119,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     "if source in BOUNDARIES:\n",
                     (
-                        'if source == "/kernel/crypto/csprng.c":\n'
+                        'if source == "/kernel/smp/acpi.c":\n'
                         '    destination = root / output.lstrip("/")\n'
                         "    destination.parent.mkdir("
                         "parents=True, exist_ok=True)\n"
@@ -1071,16 +1154,79 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/csprng.c did not compile: "
+                "kernel/smp/acpi.c did not compile: "
                 "forced compile failure",
                 result.stderr,
             )
             self.assertFalse((root / "frontier").exists())
 
+    def test_nondeterministic_smp_object_cannot_publish_the_frontier(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            first = _valid_elf32_object()
+            second = bytearray(first)
+            symbol_name = second.find(b"entry")
+            self.assertGreaterEqual(symbol_name, 0)
+            second[symbol_name] = ord("E")
+            (root / "fixture.o").write_bytes(first)
+            (root / "fixture-second.o").write_bytes(second)
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+            compiler.write_text(
+                compiler.read_text(encoding="utf-8").replace(
+                    'shutil.copyfile(root / "fixture.o", destination)\n',
+                    (
+                        'if source == "/kernel/smp/acpi.c":\n'
+                        '    marker = root / "acpi-first.done"\n'
+                        "    fixture = (\n"
+                        '        root / "fixture-second.o"\n'
+                        "        if marker.exists()\n"
+                        '        else root / "fixture.o"\n'
+                        "    )\n"
+                        '    marker.write_text("seen\\n", encoding="utf-8")\n'
+                        "else:\n"
+                        '    fixture = root / "fixture.o"\n'
+                        "shutil.copyfile(fixture, destination)\n"
+                    ),
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            output = root / "frontier"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "kernel/smp/acpi.c object output is not deterministic",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
     def test_success_without_an_object_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -1125,7 +1271,7 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
     def test_source_drift_stops_without_publishing_a_partial_frontier(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            for source in CRYPTO_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
@@ -1166,14 +1312,14 @@ class KernelCryptoFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel crypto inputs changed during frontier run: "
+                "kernel CupidC inputs changed during frontier run: "
                 "kernel/crypto/aes.c",
                 result.stderr,
             )
             self.assertFalse(output.exists())
 
 
-class RealKernelCryptoFrontierTests(unittest.TestCase):
+class RealKernelCupidCFrontierTests(unittest.TestCase):
     def test_checked_seed_compiles_the_complete_approved_cohort(self):
         if not SEED_MANIFEST.is_file():
             self.skipTest("checked seed manifest is not present")
@@ -1184,7 +1330,7 @@ class RealKernelCryptoFrontierTests(unittest.TestCase):
             self.skipTest("checked seed is not executable")
 
         with tempfile.TemporaryDirectory(
-            prefix=".kernel-crypto-frontier-test-",
+            prefix=".kernel-cupidc-frontier-test-",
             dir=REPO_ROOT,
         ) as temporary:
             output = Path(temporary) / "result"
@@ -1206,19 +1352,37 @@ class RealKernelCryptoFrontierTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel crypto frontier: ok (20 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (22 sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
             )
             self.assertEqual(
                 [entry["source"] for entry in manifest["sources"]],
-                CRYPTO_SOURCES,
+                KERNEL_SOURCES,
             )
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                204132,
+                213996,
+            )
+            object_records = {
+                entry["source"]: (entry["size"], entry["object_sha256"])
+                for entry in manifest["sources"]
+            }
+            self.assertEqual(
+                object_records["kernel/smp/acpi.c"],
+                (
+                    5708,
+                    "0e32026db8af4d22ad9007c1900df16bee2bca342187a797dc12f154f340b1d5",
+                ),
+            )
+            self.assertEqual(
+                object_records["kernel/smp/mp_tables.c"],
+                (
+                    4156,
+                    "37791cc5ab28b93e92553735a2c8380d539f9473529e3f8d5731859c37358960",
+                ),
             )
             self.assertGreater(manifest["input_snapshot"]["count"], 20)
             self.assertEqual(

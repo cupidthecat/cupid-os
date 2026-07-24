@@ -246,7 +246,7 @@ Block-scope compound literals use one persistent unnamed automatic object per so
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, floating literals, integer and floating conversions, floating comparisons and truth, floating update, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-The checked CupidC seed owns all 20 normal-build kernel crypto objects. The strict frontier compiles every source twice to 204,132 byte-identical i386 ELF32 bytes, and a poisoned-host Make run rebuilds the cohort without Clang or GCC. Its GNU assembly subset represents the outputs and matching input in `csprng.c`, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model, and preserves EBX. Under QEMU's `max` CPU, the production image seeds through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, and completes an embedded CupidC JIT command. The X.509 checks cover parser, hostname, chain-state, and embedded-root lookup paths rather than full trust validation. Most normal C objects and the native contracts continue to use a host compiler, while the private in-kernel CupidC compiler handles embedded runtime compilation.
+The checked CupidC seed owns 22 normal-build kernel objects: all 20 crypto units plus ACPI and MP-table discovery. The strict frontier compiles every approved source twice to 213,996 byte-identical i386 ELF32 bytes. Forced poisoned-host builds prove the production wrapper recipes without Clang or GCC. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX; the SMP sources use the represented per-CPU GS load and integer atomics. With four vCPUs and QEMU's `max` CPU, the production image brings every CPU online, seeds through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, initializes e1000, and completes an embedded CupidC JIT command. The X.509 checks cover parser, hostname, chain-state, and embedded-root lookup paths rather than full trust validation. Most normal C objects and the native contracts continue to use a host compiler, while the private in-kernel CupidC compiler handles embedded runtime compilation.
 
 Compiler head also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. A disposable hybrid image has booted with head-built e1000, desktop, socket, and TCP objects. The refreshed checked seed contains this addition, but those objects have not changed normal-build owner.
 
@@ -268,11 +268,11 @@ eight-byte atomics remain outside this slice.
 
 The active non-Doom header gate is 153/154. Every root that includes
 `percpu.h` now parses completely, while `ports.h` still stops at width-aware
-port assembly. Compiler head emits unchanged `kernel/smp/acpi.c` and
-`kernel/smp/mp_tables.c` as deterministic i386 ELF32 objects. A disposable
-image links both objects with CupidLD and boots all four discovered CPUs
-before reaching the desktop and completing `/bin/ls.cc`. The checked seed
-contains this work, but no additional production object has changed owner.
+port assembly. The normal build emits unchanged `kernel/smp/acpi.c` and
+`kernel/smp/mp_tables.c` with the checked seed. Their exact 5,708-byte and
+4,156-byte objects pass the shared validator before publication. A
+four-vCPU image links both with CupidLD, boots every discovered CPU, reaches
+e1000 and the desktop, and completes `/bin/ls.cc`.
 
 A block type name or record member can reuse a visible enum tag or define a new one.
 

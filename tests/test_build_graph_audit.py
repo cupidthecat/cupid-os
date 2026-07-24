@@ -3794,7 +3794,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertTrue(
                 {
                     "tools/cupidc_kernel_compile.py",
-                    "tools/kernel_crypto_frontier.py",
+                    "tools/kernel_cupidc_frontier.py",
                     "tools/bootstrap_toolchain.py",
                     "bootstrap/seeds/i386-linux/manifest.json",
                 }.issubset(control_paths)
@@ -3909,32 +3909,33 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for transform in audit_payload["build"]["transforms"]
                 )
             )
-            cupidc_crypto_sources = (
-                "aes.c",
-                "aes_gcm.c",
-                "asn1.c",
-                "bigint.c",
-                "chacha20.c",
-                "chacha20poly1305.c",
-                "csprng.c",
-                "ct.c",
-                "ecdsa.c",
-                "ed25519.c",
-                "hkdf.c",
-                "hmac.c",
-                "p256.c",
-                "poly1305.c",
-                "rsa.c",
-                "sha256.c",
-                "sha512.c",
-                "x25519.c",
-                "x509.c",
-                "x509_chain.c",
+            cupidc_kernel_sources = (
+                "kernel/crypto/aes.c",
+                "kernel/crypto/aes_gcm.c",
+                "kernel/crypto/asn1.c",
+                "kernel/crypto/bigint.c",
+                "kernel/crypto/chacha20.c",
+                "kernel/crypto/chacha20poly1305.c",
+                "kernel/crypto/csprng.c",
+                "kernel/crypto/ct.c",
+                "kernel/crypto/ecdsa.c",
+                "kernel/crypto/ed25519.c",
+                "kernel/crypto/hkdf.c",
+                "kernel/crypto/hmac.c",
+                "kernel/crypto/p256.c",
+                "kernel/crypto/poly1305.c",
+                "kernel/crypto/rsa.c",
+                "kernel/crypto/sha256.c",
+                "kernel/crypto/sha512.c",
+                "kernel/crypto/x25519.c",
+                "kernel/crypto/x509.c",
+                "kernel/crypto/x509_chain.c",
+                "kernel/smp/acpi.c",
+                "kernel/smp/mp_tables.c",
             )
-            for filename in cupidc_crypto_sources:
-                source_path = f"kernel/crypto/{filename}"
+            for source_path in cupidc_kernel_sources:
                 output_path = source_path.removesuffix(".c") + ".o"
-                with self.subTest(cupidc_crypto_source=source_path):
+                with self.subTest(cupidc_kernel_source=source_path):
                     transform = root_transform_by_output[output_path]
                     self.assertEqual(
                         transform["tools"],
@@ -3946,6 +3947,33 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                     self.assertIn(source_path, transform["inputs"])
 
+            all_transforms = [
+                *audit_payload["build"]["transforms"],
+                *[
+                    transform
+                    for build in audit_payload["supplemental_builds"]
+                    for transform in build["transforms"]
+                ],
+            ]
+            self.assertEqual(
+                {
+                    tool: sum(
+                        tool in transform["tools"]
+                        for transform in all_transforms
+                    )
+                    for tool in (
+                        "cupid_c_compiler",
+                        "host_c_compiler",
+                        "host_python",
+                    )
+                },
+                {
+                    "cupid_c_compiler": 22,
+                    "host_c_compiler": 275,
+                    "host_python": 31,
+                },
+            )
+
             toolchain_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -3956,8 +3984,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             source_by_path = {
                 source["path"]: source for source in audit_payload["sources"]
             }
-            for filename in cupidc_crypto_sources:
-                source_path = f"kernel/crypto/{filename}"
+            for source_path in cupidc_kernel_sources:
                 with self.subTest(cupidc_owned_source=source_path):
                     self.assertEqual(
                         source_by_path[source_path]["runtime_owner"],
@@ -3965,6 +3992,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                     self.assertIn(
                         "cupid_c_compiler",
+                        source_by_path[source_path]["build_owners"],
+                    )
+                    self.assertNotIn(
+                        "host_c_compiler",
                         source_by_path[source_path]["build_owners"],
                     )
             self.assertEqual(

@@ -45,6 +45,11 @@ CRYPTO_SOURCES = (
     "kernel/crypto/x509.c",
     "kernel/crypto/x509_chain.c",
 )
+SMP_SOURCES = (
+    "kernel/smp/acpi.c",
+    "kernel/smp/mp_tables.c",
+)
+KERNEL_SOURCES = tuple(sorted(CRYPTO_SOURCES + SMP_SOURCES))
 
 KERNEL_I386_ARGUMENTS = (
     "--gnu",
@@ -211,6 +216,11 @@ class FakeExecutor:
 class KernelCompileCommandTests(unittest.TestCase):
     def test_approved_sources_and_profile_are_exact(self):
         self.assertEqual(kernel_compile.APPROVED_CRYPTO_SOURCES, CRYPTO_SOURCES)
+        self.assertEqual(kernel_compile.APPROVED_SMP_SOURCES, SMP_SOURCES)
+        self.assertEqual(
+            kernel_compile.APPROVED_KERNEL_SOURCES,
+            KERNEL_SOURCES,
+        )
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -298,7 +308,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
         expected_compile_inputs = {
             "Makefile",
             "tools/cupidc_kernel_compile.py",
-            "tools/kernel_crypto_frontier.py",
+            "tools/kernel_cupidc_frontier.py",
             "tools/bootstrap_toolchain.py",
             "bootstrap/seeds/i386-linux/manifest.json",
             "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -328,7 +338,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
         }
         expected = {
             (source, str(Path(source).with_suffix(".o")).replace("\\", "/"))
-            for source in CRYPTO_SOURCES
+            for source in KERNEL_SOURCES
         }
         self.assertEqual(actual, expected)
 
@@ -351,8 +361,31 @@ class KernelCompileMakefileTests(unittest.TestCase):
             "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
             makefile,
         )
+        self.assertIn(
+            "kernel/smp/mp_tables.o: kernel/smp/mp_tables.c "
+            "kernel/smp/mp_tables.h kernel/smp/ioapic.h "
+            "kernel/smp/percpu.h kernel/core/process.h "
+            "kernel/core/types.h drivers/serial.h "
+            "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+            makefile,
+        )
+        self.assertIn(
+            "kernel/smp/acpi.o: kernel/smp/acpi.c kernel/smp/acpi.h "
+            "kernel/smp/mp_tables.h kernel/smp/ioapic.h "
+            "kernel/smp/percpu.h kernel/core/process.h "
+            "kernel/core/types.h drivers/serial.h "
+            "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+            makefile,
+        )
+        self.assertRegex(
+            makefile,
+            r"kernel/smp/bkl\.o \\\n"
+            r"\s+kernel/smp/mp_tables\.o \\\n"
+            r"\s+kernel/smp/acpi\.o \\\n"
+            r"\s+kernel/smp/smp\.o",
+        )
 
-        for source in CRYPTO_SOURCES:
+        for source in KERNEL_SOURCES:
             output = str(Path(source).with_suffix(".o")).replace("\\", "/")
             host_rule = re.compile(
                 rf"^{re.escape(output)}: [^\n]*"
@@ -360,6 +393,35 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 re.MULTILINE,
             )
             self.assertNotRegex(makefile, host_rule)
+
+    def test_smp_targets_do_not_expand_to_the_host_compiler(self):
+        result = subprocess.run(
+            [
+                "make",
+                "-B",
+                "-n",
+                "CC=__host_c_compiler_must_not_run__",
+                "kernel/smp/acpi.o",
+                "kernel/smp/mp_tables.o",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [
+            line
+            for line in result.stdout.splitlines()
+            if "tools/cupidc_kernel_compile.py" in line
+        ]
+        self.assertEqual(len(commands), 2)
+        self.assertIn("--source kernel/smp/acpi.c", commands[0])
+        self.assertIn("--source kernel/smp/mp_tables.c", commands[1])
+        self.assertNotIn(
+            "__host_c_compiler_must_not_run__",
+            result.stdout + result.stderr,
+        )
 
 
 class KernelCompileOperationTests(unittest.TestCase):
@@ -400,7 +462,7 @@ class KernelCompileOperationTests(unittest.TestCase):
             "freeze_seed_inputs",
             side_effect=freeze,
         ):
-            kernel_compile.compile_kernel_crypto(
+            kernel_compile.compile_kernel_source(
                 root,
                 source,
                 output,
@@ -422,21 +484,26 @@ class KernelCompileOperationTests(unittest.TestCase):
     def test_unapproved_source_is_rejected_without_execution(self):
         temporary, root, _source, seed, manifest, output = self._root_fixture()
         self.addCleanup(temporary.cleanup)
-        source = root / "kernel" / "crypto" / "new_cipher.c"
-        source.write_text("int unapproved;\n", encoding="utf-8")
         executor = FakeExecutor(root)
 
-        with self.assertRaisesRegex(
-            kernel_compile.KernelCompileError,
-            "source is outside the approved kernel crypto cohort",
+        for relative in (
+            "kernel/crypto/new_cipher.c",
+            "kernel/smp/percpu.c",
         ):
-            kernel_compile.compile_kernel_crypto(
-                root,
-                source,
-                output,
-                manifest=manifest,
-                executor=executor,
-            )
+            source = root / relative
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text("int unapproved;\n", encoding="utf-8")
+            with self.subTest(source=relative), self.assertRaisesRegex(
+                kernel_compile.KernelCompileError,
+                "source is outside the approved CupidC kernel cohort",
+            ):
+                kernel_compile.compile_kernel_source(
+                    root,
+                    source,
+                    output,
+                    manifest=manifest,
+                    executor=executor,
+                )
         self.assertEqual(executor.calls, [])
 
     def test_output_outside_root_is_rejected(self):
@@ -448,7 +515,7 @@ class KernelCompileOperationTests(unittest.TestCase):
             kernel_compile.KernelCompileError,
             "output must stay inside repository root",
         ):
-            kernel_compile.compile_kernel_crypto(
+            kernel_compile.compile_kernel_source(
                 root,
                 source,
                 outside,
@@ -481,7 +548,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                 kernel_compile.KernelCompileError,
                 "CupidC failed for kernel/crypto/ct.c with status 1.*CTD000006",
             ):
-                kernel_compile.compile_kernel_crypto(
+                kernel_compile.compile_kernel_source(
                     root,
                     source,
                     output,
@@ -507,7 +574,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                 kernel_compile.KernelCompileError,
                 "checked seed verification failed.*SHA-256 differs",
             ):
-                kernel_compile.compile_kernel_crypto(
+                kernel_compile.compile_kernel_source(
                     root,
                     source,
                     output,
@@ -534,7 +601,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                 kernel_compile.KernelCompileError,
                 "emitted object is invalid",
             ):
-                kernel_compile.compile_kernel_crypto(
+                kernel_compile.compile_kernel_source(
                     root,
                     source,
                     output,
@@ -562,7 +629,7 @@ class KernelCompileCliTests(unittest.TestCase):
         error = io.StringIO()
         with mock.patch.object(
             kernel_compile,
-            "compile_kernel_crypto",
+            "compile_kernel_source",
             side_effect=kernel_compile.KernelCompileError("fixture failure"),
         ):
             with contextlib.redirect_stderr(error):
@@ -611,6 +678,36 @@ class KernelCompileCliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertIn("CupidC kernel object:", stdout.getvalue())
             kernel_compile.validate_i386_relocatable(output)
+
+    def test_real_checked_seed_compiles_the_approved_smp_sources_when_available(
+        self,
+    ):
+        if not SEED_MANIFEST.is_file():
+            self.skipTest("checked seed manifest is not present")
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        seed = SEED_MANIFEST.parent / "cupidc.elf"
+        if os.name != "nt" and not os.access(seed, os.X_OK):
+            self.skipTest("checked seed is not executable")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-kernel-smp-compile-test-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            for source in SMP_SOURCES:
+                output = Path(temporary) / (Path(source).stem + ".o")
+                status = kernel_compile.main(
+                    [
+                        "--root",
+                        str(REPO_ROOT),
+                        "--source",
+                        source,
+                        "--output",
+                        str(output),
+                    ]
+                )
+                self.assertEqual(status, 0)
+                kernel_compile.validate_i386_relocatable(output)
 
 
 if __name__ == "__main__":

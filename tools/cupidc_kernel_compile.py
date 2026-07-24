@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile the approved kernel crypto cohort with the checked CupidC seed."""
+"""Compile an approved kernel source with the checked CupidC seed."""
 
 from __future__ import annotations
 
@@ -52,6 +52,13 @@ APPROVED_CRYPTO_SOURCES = (
 BLOCKED_CRYPTO_SOURCES = ()
 KERNEL_CRYPTO_C_SOURCES = tuple(
     sorted(APPROVED_CRYPTO_SOURCES + BLOCKED_CRYPTO_SOURCES)
+)
+APPROVED_SMP_SOURCES = (
+    "kernel/smp/acpi.c",
+    "kernel/smp/mp_tables.c",
+)
+APPROVED_KERNEL_SOURCES = tuple(
+    sorted(APPROVED_CRYPTO_SOURCES + APPROVED_SMP_SOURCES)
 )
 
 KERNEL_I386_ARGUMENTS = (
@@ -518,9 +525,9 @@ def _source_path(root: Path, source: Path) -> tuple[Path, str]:
             f"source must resolve inside repository root: {source}"
         ) from error
     relative_name = relative.as_posix()
-    if relative_name not in APPROVED_CRYPTO_SOURCES:
+    if relative_name not in APPROVED_KERNEL_SOURCES:
         raise KernelCompileError(
-            "source is outside the approved kernel crypto cohort: "
+            "source is outside the approved CupidC kernel cohort: "
             f"{relative_name}"
         )
     if not resolved.is_file():
@@ -551,7 +558,7 @@ def _output_path(root: Path, output: Path) -> tuple[Path, str]:
     return resolved, "/" + relative.as_posix()
 
 
-def compile_kernel_crypto(
+def compile_kernel_source(
     root: Path,
     source: Path,
     output: Path,
@@ -656,8 +663,7 @@ def compile_kernel_crypto(
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Compile one approved kernel crypto source with the checked "
-            "CupidC seed."
+            "Compile one approved kernel source with the checked CupidC seed."
         )
     )
     parser.add_argument("--root", required=True, type=Path)
@@ -675,7 +681,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
     try:
-        compile_kernel_crypto(
+        compile_kernel_source(
             arguments.root,
             arguments.source,
             arguments.output,

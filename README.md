@@ -268,21 +268,22 @@ make HDD_MB=100
 
 ### Self-hosting compiler status
 
-The normal image build uses the checked CupidC seed for all 20 kernel crypto
-objects. Typed `((void *)0)` conversion, address decay for external arrays
-with unspecified bounds, and typed GNU assembly operands cover the unchanged
-ASN.1, X.509, chain, and CSPRNG sources. The assembly path emits RDTSC, CPUID,
-RDRAND, and SETC through Cupid's x86 model while preserving EBX. Every object
-is validated as an i386 ELF32 relocatable before publication, and the frontier
-compiles the complete cohort twice to 204,132 byte-identical bytes.
+The normal image build uses the checked CupidC seed for 22 kernel objects:
+all 20 crypto sources plus ACPI and MP-table discovery. Typed `((void *)0)`
+conversion, address decay for external arrays with unspecified bounds, GNU
+assembly operands, the per-CPU GS load, and integer atomics cover those
+unchanged sources. The CSPRNG path emits RDTSC, CPUID, RDRAND, and SETC
+through Cupid's x86 model while preserving EBX. Every object is validated as
+an i386 ELF32 relocatable before publication. The strict kernel frontier
+compiles all 22 sources twice to 213,996 byte-identical bytes.
 
 At compiler head, function-body GNU assembly may also have no operands. Basic
 statements and extended statements with an empty output list are implicitly
 volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and
 FNINIT emit through the shared x86 model without a temporary frame slot or
 EBX save. A disposable hybrid image has booted with head-built `e1000`,
-desktop, socket, and TCP objects. This is not yet part of the checked seed or
-the normal build.
+desktop, socket, and TCP objects. The refreshed seed carries the capability,
+but those four objects have not moved into the normal build.
 
 Compiler head also accepts a modifiable four-byte object or `void` pointer as
 the single `=r` output of the exact `mov %%gs:0, %0` per-CPU load. The
@@ -306,16 +307,16 @@ The active non-Doom header gate is now 153/154. All three roots that include
 `percpu.h` parse completely; only `ports.h` remains at its width-aware port
 assembly. Under the full kernel profile, unchanged `kernel/smp/acpi.c` and
 `kernel/smp/mp_tables.c` emit byte-identical 5,708-byte and 4,156-byte i386
-ELF32 objects. Both objects also pass a disposable two-pass CupidLD link and
-four-CPU QEMU boot. ACPI discovers all four CPUs, every CPU comes online,
-e1000 initializes, and the desktop completes an embedded CupidC command. The
-refreshed checked seed contains these compiler additions, but the normal build
-still leaves those two objects with the host compiler.
+ELF32 objects. They now use the checked wrapper in the normal Make graph.
 
-A poisoned-host build proves that none of the 20 recipes invokes Clang or GCC.
-Under QEMU's `max` CPU, RDRAND seeds the generator, all 62 crypto, ASN.1, and
-X.509 checks pass, the desktop opens a terminal, and embedded CupidC runs
-`/bin/ls.cc`. The X.509 checks cover parsing, name matching, chain state, and
+Separate poisoned-host checks cover all 22 recipes: the established crypto
+gate rebuilds 20 objects, and this cutover rebuilds the two SMP objects. QEMU
+with four vCPUs, the `max` CPU, and e1000
+discovers and starts every CPU, seeds through RDRAND, passes exactly 62
+crypto, ASN.1, and X.509 checks, reaches the desktop and terminal, and
+completes `/bin/ls.cc`. The optional strong runtime gate also rejects SMP,
+storage, crypto, CPU-exception, panic, corruption, and illegal-instruction
+failures. The X.509 checks cover parsing, name matching, chain state, and
 embedded-root lookup; they do not claim full certificate trust validation.
 Clang or GCC still builds most of the remaining normal C graph.
 

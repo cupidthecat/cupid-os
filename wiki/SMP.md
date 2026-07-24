@@ -489,6 +489,21 @@ me: 0
 
 ## Testing
 
+### Checked-seed ownership and smoke
+
+The normal build compiles `kernel/smp/acpi.c` and
+`kernel/smp/mp_tables.c` with checked-seed CupidC. The wrapper freezes and
+verifies the seed, uses the fixed kernel profile, validates each i386 ELF32
+object, and only then replaces the production output. A forced build with an
+invalid host compiler proves that neither recipe falls back to Clang or GCC.
+
+The strong QEMU gate uses four vCPUs, the `max` CPU, and e1000. It requires
+MP fallback discovery, a four-CPU ACPI MADT, CPUs 1 through 3 online, and the
+final four-of-four SMP summary. The same log must show RDRAND seeding,
+exactly 62 successful crypto checks, e1000, the scheduler, desktop and
+terminal startup, and CupidC JIT completion. It rejects known SMP, storage,
+crypto, exception, panic, corruption, and illegal-instruction failures.
+
 ### `make run-smp`
 
 Boots with 4 CPUs in QEMU:

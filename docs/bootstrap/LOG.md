@@ -8084,3 +8084,97 @@ ADR 0102 records the trust transition. The refreshed seed changes no
 normal-build owner by itself. The next coherent change can transfer
 `acpi.c` and `mp_tables.c` with their frontier, rollback, image, and runtime
 gates.
+
+## 2026-07-24: Build SMP discovery with checked-seed CupidC
+
+The root build now compiles unchanged `kernel/smp/acpi.c` and
+`kernel/smp/mp_tables.c` with the checked CupidC seed. This moves the normal
+kernel cohort from 20 to 22 CupidC-owned objects. The remaining SMP sources
+stay host-built until CupidC supports their real assembly and attribute
+requirements.
+
+The production wrapper now has one exact kernel allowlist containing the 20
+crypto units and the two discovery sources. The frontier moved from
+`kernel_crypto_frontier.py` to `kernel_cupidc_frontier.py`; the old Make test
+name remains as a compatibility alias. The generalized frontier still checks
+the complete crypto directory inventory, but it does not pretend that every
+file under `kernel/smp` is ready. It freezes the seed, watches the kernel
+source and header inputs, emits all 22 objects twice, validates i386
+relocatable ELF, and publishes only a complete deterministic directory.
+
+Both Make rules retain the active transitive headers and the wrapper control
+inputs. Their link order remains `bkl.o`, `mp_tables.o`, `acpi.o`, then
+`smp.o`. A forced target build with
+`CC=__cupid_host_cc_must_not_run__` runs exactly two CupidC wrapper commands
+in 1.833 seconds. It produces:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/smp/acpi.c` | 5,708 | `0e32026db8af4d22ad9007c1900df16bee2bca342187a797dc12f154f340b1d5` |
+| `kernel/smp/mp_tables.c` | 4,156 | `37791cc5ab28b93e92553735a2c8380d539f9473529e3f8d5731859c37358960` |
+
+The complete frontier contains 213,996 byte-identical object bytes. Its
+negative cases cover an unapproved SMP source, a missing approved source,
+late partial failure, malformed ELF, source drift, and a valid but
+nondeterministic ACPI object. Existing outputs and incomplete frontier
+directories survive those failures.
+
+The initial generalized-wrapper tests failed because the wrapper still
+accepted only the crypto tuple. The renamed frontier test then failed because
+the broader module did not exist. Those failures established the new
+allowlist and publication boundary before implementation. A later review
+found that `--compiler-host-path` alone still selected the default seed path.
+Its focused regression failed at that selection and passed after explicit
+compiler mode began considering the host-path option.
+
+The GUI terminal smoke now has an optional `--verify-smp-runtime` contract.
+It requires the MP fallback record, the four-CPU ACPI MADT record, all three
+application processors online, the four-of-four summary, RDRAND, exactly 62
+crypto successes, e1000, the scheduler, desktop, terminal, and CupidC JIT
+completion. It also rejects the known panic, CPU exception, corruption, TLS,
+illegal-instruction, SMP startup, ATA, block-cache, home-filesystem, and
+FAT16 failure markers. A wiring test proves that the CLI flag invokes the
+contract after command completion.
+
+The active graph still has 698 inputs, 252 feature requirements, 501
+transforms, and 39 accounted unreachable files. It now records 22 CupidC,
+275 host-C, and 31 host-Python transforms. The active-source digest remains
+`1e4f5fecd656ca495ce453df98064ee63645bd0997fe316ea2fbaf01fe87fb3a`.
+The complete audit JSON has SHA-256
+`4df71f07e2c251cffd9cd60c3e165fd7700d338a1eae561ceabadb96cb913ac2`.
+
+The final normal build completes in 26.977 seconds. CupidDis finds 3,869
+text symbols in each link pass with no address change.
+`mp_tables_discover` is at `0x00155EBE`, `acpi_discover` is at
+`0x001574AF`, `_loaded_end` is `0x006FAA9B`, and `_kernel_end` is
+`0x00B1B910`. The reserved area retains 2,116,453 bytes of margin, and the
+fixed stack retains 935,664 bytes.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel.elf.pass1` | 6,357,572 | `50bdf148f4c225d0a17b767b0bd3abed1735eaed130ba9993f0d2861a8fea5a4` |
+| `kernel.elf` | 6,447,684 | `e444b2979d538dcfa75f17885c5b4efe1c5adee965432a472024d1f1e25dec55` |
+| `kernel.bin` | 6,269,595 | `22d51edf92519f928e51c5eed2048c6ea865caf1440c65febeb8e38bd37d9488` |
+| Preboot disk image | 209,715,200 | `5d8d1d1da94db449f0a997772b6f82832647cab90bd760b8a3d28861ea661094` |
+
+The raw kernel matches the image at LBA 5. A copy of that exact preboot image
+passes the strong QEMU gate with four CPUs, the `max` CPU model, and e1000.
+The run completes `/bin/ls.cc` in 61.868 seconds. Its 62,808-byte serial log
+has SHA-256
+`b15665f889f14baab26eabbd0d918362ac67153477fed0484ef14e4eebd20fc7`
+and contains none of the rejected markers.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused wrapper, frontier, and runtime contracts | PASS | All 55 tests pass in 104.058 seconds. They include real checked-seed compiles of both SMP sources, all 22 frontier sources twice, rollback and determinism failures, the explicit compiler host-path regression, and GUI runtime wiring. |
+| Checked seed verification | PASS | `make verify-bootstrap-seed` accepts all five seed tools, their hashes, source revision, lineage, and fixed build plan. |
+| Active build audit | PASS | `make check-bootstrap-audit` reproduces the checked JSON and summary in 50.7 seconds with the ownership counts and hashes above. |
+| Poisoned-host SMP targets | PASS | The two forced Make targets invoke only the checked CupidC wrapper and reproduce the exact objects above. A full poisoned image build is deliberately not claimed because 275 transforms remain host-C-owned. |
+| Normal image and CupidDis parity | PASS | Both CupidLD passes, symbol extraction, CupidObj conversion, image staging, text-symbol comparison, memory-margin checks, and the LBA 5 byte comparison pass. |
+| Four-vCPU runtime | PASS | The strong serial contract covers MP and ACPI discovery, every CPU online, RDRAND, 62 crypto checks, e1000, scheduler, desktop, terminal, and JIT completion. |
+| Full repository gate | PASS | `make test` passes all 475 tests in 1,949.836 seconds with one expected skip. Make returns successfully in 1,995.697 seconds. |
+
+ADR 0103 records the ownership decision. Python orchestration, WSL on
+Windows, hosted development builds, the private in-kernel compiler, and most
+normal C objects remain host dependencies. No source was reduced or rewritten
+for this cutover.

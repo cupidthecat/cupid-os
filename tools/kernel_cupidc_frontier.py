@@ -14,7 +14,7 @@ from pathlib import Path
 
 try:
     from tools.cupidc_kernel_compile import (
-        APPROVED_CRYPTO_SOURCES,
+        APPROVED_KERNEL_SOURCES,
         BLOCKED_CRYPTO_SOURCES,
         KernelCompileError,
         KERNEL_CRYPTO_C_SOURCES,
@@ -23,7 +23,7 @@ try:
     )
 except ModuleNotFoundError:
     from cupidc_kernel_compile import (
-        APPROVED_CRYPTO_SOURCES,
+        APPROVED_KERNEL_SOURCES,
         BLOCKED_CRYPTO_SOURCES,
         KernelCompileError,
         KERNEL_CRYPTO_C_SOURCES,
@@ -36,7 +36,7 @@ try:
 except ModuleNotFoundError:
     from bootstrap_toolchain import BootstrapError, freeze_seed_inputs
 
-CRYPTO_SOURCES = APPROVED_CRYPTO_SOURCES
+KERNEL_SOURCES = APPROVED_KERNEL_SOURCES
 
 BOUNDARIES = ()
 
@@ -91,7 +91,7 @@ def _default_seed_execution(root):
     seed_directory = root / "bootstrap" / "seeds" / "i386-linux"
     manifest_path = seed_directory / "manifest.json"
     with tempfile.TemporaryDirectory(
-        prefix="cupid-kernel-crypto-seed-"
+        prefix="cupid-kernel-seed-"
     ) as temporary:
         try:
             seed_inputs = freeze_seed_inputs(
@@ -189,7 +189,7 @@ def _explicit_compiler_execution(arguments, root):
         )
 
     with tempfile.TemporaryDirectory(
-        prefix="cupid-kernel-crypto-compiler-"
+        prefix="cupid-kernel-compiler-"
     ) as temporary:
         frozen_compiler = Path(temporary) / compiler_host_path.name
         try:
@@ -220,7 +220,7 @@ def _explicit_compiler_execution(arguments, root):
 
 def _parse_arguments(argv):
     parser = argparse.ArgumentParser(
-        description="Check the strict CupidC kernel crypto source frontier."
+        description="Check the strict production CupidC kernel source frontier."
     )
     parser.add_argument(
         "--root",
@@ -289,7 +289,7 @@ def _sha256(path):
 
 
 def _input_paths(root):
-    paths = {root / source for source in KERNEL_CRYPTO_C_SOURCES}
+    paths = {root / source for source in KERNEL_SOURCES}
     arguments = KERNEL_I386_ARGUMENTS
     for index, argument in enumerate(arguments):
         if argument != "-I":
@@ -340,7 +340,7 @@ def _require_input_snapshot(root, expected):
     if len(changed) > 5:
         rendered += f", and {len(changed) - 5} more"
     raise FrontierError(
-        f"kernel crypto inputs changed during frontier run: {rendered}"
+        f"kernel CupidC inputs changed during frontier run: {rendered}"
     )
 
 
@@ -496,7 +496,7 @@ def _execute_frontier(
     common = _compiler_arguments(compiler_root)
     source_records = []
 
-    for source in CRYPTO_SOURCES:
+    for source in KERNEL_SOURCES:
         name = Path(source).stem + ".o"
         first_path = output / "first" / name
         second_path = output / "second" / name
@@ -560,7 +560,7 @@ def _execute_frontier(
         )
 
     manifest = {
-        "schema": "cupid.kernel-crypto-frontier.v1",
+        "schema": "cupid.kernel-cupidc-frontier.v1",
         "target": {
             "architecture": "i386",
             "byte_order": "little",
@@ -589,6 +589,16 @@ def _run_frontier(arguments):
     root = arguments.root.resolve()
     if not root.is_dir():
         raise FrontierError(f"repository root does not exist: {root}")
+    for source in KERNEL_SOURCES:
+        path = root / source
+        if path.is_symlink():
+            raise FrontierError(
+                f"approved kernel source may not be a symlink: {source}"
+            )
+        if not path.is_file():
+            raise FrontierError(
+                f"approved kernel source is not a file: {source}"
+            )
     boundary_sources = tuple(sorted(item[0] for item in BOUNDARIES))
     if boundary_sources != BLOCKED_CRYPTO_SOURCES:
         raise FrontierError("declared crypto boundary cohort differs")
@@ -610,7 +620,11 @@ def _run_frontier(arguments):
     input_snapshot = _capture_input_snapshot(root)
     execution_context = (
         _default_seed_execution(root)
-        if arguments.compiler is None and arguments.runner is None
+        if (
+            arguments.compiler is None
+            and arguments.compiler_host_path is None
+            and arguments.runner is None
+        )
         else _explicit_compiler_execution(arguments, root)
     )
     with _staged_output(output) as staging:
@@ -632,11 +646,11 @@ def main(argv=None):
     try:
         _run_frontier(arguments)
     except FrontierError as error:
-        print(f"kernel crypto frontier: error: {error}", file=sys.stderr)
+        print(f"kernel CupidC frontier: error: {error}", file=sys.stderr)
         return 1
     print(
-        "kernel crypto frontier: "
-        f"ok ({len(CRYPTO_SOURCES)} sources, {len(BOUNDARIES)} boundaries)"
+        "kernel CupidC frontier: "
+        f"ok ({len(KERNEL_SOURCES)} sources, {len(BOUNDARIES)} boundaries)"
     )
     return 0
 

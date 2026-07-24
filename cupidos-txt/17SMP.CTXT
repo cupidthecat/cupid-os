@@ -507,12 +507,15 @@ These constraints define the Tier 2 scope.
 The BKL mainly affects workloads that enter the kernel often. Tier 3 would
 need fine-grained locks to allow parallel kernel execution.
 
-Compiler-head CupidC emits the integer atomic load, store, exchange, and
-fetch-add operations used by ACPI and MP discovery. A disposable two-pass
-kernel built acpi.c and mp_tables.c with that path, discovered four virtual
-CPUs through ACPI, brought all four online, and reached the desktop without a
-panic. The refreshed checked seed contains this compiler addition, but the
-normal build has not transferred the two sources yet.
+Checked-seed CupidC emits the integer atomic load, store, exchange, and
+fetch-add operations used by ACPI and MP discovery. The normal two-pass
+kernel now builds acpi.c and mp_tables.c through that path. A forced build
+with an invalid host compiler proves that neither recipe falls back to Clang
+or GCC. The four-vCPU gate discovers every virtual CPU through ACPI, brings
+all four online, initializes e1000, passes all 62 crypto checks, and reaches
+the desktop, terminal, and CupidC command without a panic. It also rejects
+known SMP, storage, crypto, exception, corruption, and illegal-instruction
+failures.
 >endtree
 
 >h2 Source File Index

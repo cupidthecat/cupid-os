@@ -44,7 +44,7 @@ TOOL_MARKERS = (
 )
 CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/cupidc_kernel_compile.py",
-    "tools/kernel_crypto_frontier.py",
+    "tools/kernel_cupidc_frontier.py",
     "tools/bootstrap_toolchain.py",
     "bootstrap/seeds/i386-linux/manifest.json",
 )

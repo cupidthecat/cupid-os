@@ -23,6 +23,68 @@ PANIC_RE = re.compile(r"KERNEL PANIC|Heap corruption|CORRUPTION detected")
 DEFAULT_SUCCESS_PATTERN = r"JIT execution complete"
 KEY_HOLD_MILLISECONDS = 300
 KEY_PAUSE_SECONDS = 0.35
+SMP_RUNTIME_TLS_SUCCESS_COUNT = 62
+SMP_RUNTIME_REQUIRED_MARKERS = (
+    "[csprng] seeded from RDRAND",
+    "mp: discovered 1 CPUs, 1 IOAPIC(s)",
+    "acpi: MADT: 4 CPUs, 1 IOAPIC(s)",
+    "cpu1: online",
+    "cpu2: online",
+    "cpu3: online",
+    "smp: 4 CPUs online (of 4 discovered)",
+    "e1000: init OK",
+    "Scheduler started",
+    "Entering desktop environment",
+    "Terminal launched",
+    "[cupidc] JIT execution complete",
+    "[tls-selftest] all 62 crypto, ASN.1, and X.509 checks passed",
+)
+SMP_RUNTIME_REJECTED_MARKERS = (
+    "KERNEL PANIC",
+    "[PANIC] CPU Exception",
+    "Heap corruption",
+    "CORRUPTION detected",
+    "[tls-selftest] FAIL",
+    "self-test failed",
+    "illegal instruction",
+    "failed to come online",
+    "smp: stack oom",
+    "ATA: Timeout/error",
+    "ATA: Write error",
+    "Block cache initialization failed",
+    "Block cache: writeback failed",
+    "Block cache: disk read failed",
+    "Block cache: flush failed",
+    "[homefs] flush failed",
+    "FAT16: write incomplete",
+)
+
+
+class SmpRuntimeContractError(RuntimeError):
+    """A serial log did not prove the checked four-vCPU runtime contract."""
+
+
+def validate_smp_runtime_log(data: str) -> None:
+    """Require the SMP, crypto, network, desktop, and command boot evidence."""
+    for marker in SMP_RUNTIME_REQUIRED_MARKERS:
+        if marker not in data:
+            raise SmpRuntimeContractError(
+                f"missing required marker: {marker}"
+            )
+
+    success_count = data.count("[tls-selftest] ok:")
+    if success_count != SMP_RUNTIME_TLS_SUCCESS_COUNT:
+        raise SmpRuntimeContractError(
+            f"found {success_count} TLS self-test successes; "
+            f"expected {SMP_RUNTIME_TLS_SUCCESS_COUNT}"
+        )
+
+    folded = data.casefold()
+    for marker in SMP_RUNTIME_REJECTED_MARKERS:
+        if marker.casefold() in folded:
+            raise SmpRuntimeContractError(
+                f"found failure marker: {marker}"
+            )
 
 
 def completion_pattern(success_pattern: str) -> re.Pattern[str]:
@@ -294,6 +356,16 @@ def run(args: argparse.Namespace) -> int:
             print("GUI terminal smoke failed: panic detected", file=sys.stderr)
             print(data_after[-5000:], file=sys.stderr)
             return 1
+        if args.verify_smp_runtime:
+            try:
+                validate_smp_runtime_log(data_after)
+            except SmpRuntimeContractError as error:
+                print(
+                    f"GUI terminal smoke failed: {error}",
+                    file=sys.stderr,
+                )
+                print(data_after[-5000:], file=sys.stderr)
+                return 1
 
         print("GUI terminal smoke passed")
         return 0
@@ -334,6 +406,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--success-pattern",
         default=DEFAULT_SUCCESS_PATTERN,
         help="regular expression required in serial output after the command",
+    )
+    parser.add_argument(
+        "--verify-smp-runtime",
+        action="store_true",
+        help=(
+            "require the four-vCPU SMP, RDRAND, TLS, e1000, desktop, "
+            "and command runtime contract"
+        ),
     )
     parser.add_argument("--timeout", type=float, default=45.0)
     return parser.parse_args(argv)

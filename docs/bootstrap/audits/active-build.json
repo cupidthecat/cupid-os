@@ -3282,7 +3282,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3310,7 +3310,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3336,7 +3336,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3362,7 +3362,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3388,7 +3388,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3417,7 +3417,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3445,7 +3445,7 @@
           "drivers/serial.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3471,7 +3471,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3501,7 +3501,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3528,7 +3528,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3556,7 +3556,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3583,7 +3583,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3609,7 +3609,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3636,7 +3636,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3665,7 +3665,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3691,7 +3691,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3717,7 +3717,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3743,7 +3743,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3770,7 +3770,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -3803,7 +3803,7 @@
           "kernel/core/types.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
-          "tools/kernel_crypto_frontier.py",
+          "tools/kernel_cupidc_frontier.py",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-linux/cupidasm.elf",
@@ -7058,15 +7058,30 @@
           "kernel/smp/acpi.c",
           "kernel/smp/acpi.h",
           "kernel/smp/mp_tables.h",
-          "kernel/smp/ioapic.h"
+          "kernel/smp/ioapic.h",
+          "kernel/smp/percpu.h",
+          "kernel/core/process.h",
+          "kernel/core/types.h",
+          "drivers/serial.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/smp/acpi.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/smp/acpi.c -o kernel/smp/acpi.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/acpi.c --output kernel/smp/acpi.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7120,15 +7135,29 @@
           "kernel/smp/mp_tables.c",
           "kernel/smp/mp_tables.h",
           "kernel/smp/ioapic.h",
-          "kernel/smp/percpu.h"
+          "kernel/smp/percpu.h",
+          "kernel/core/process.h",
+          "kernel/core/types.h",
+          "drivers/serial.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/smp/mp_tables.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/smp/mp_tables.c -o kernel/smp/mp_tables.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/mp_tables.c --output kernel/smp/mp_tables.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -23090,7 +23119,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "6df6806dcf051c99d035b1bf8a6741a9d1246fb2239bf4938577ad5c4ea57560"
+        "sha256": "01f152d14e0d4c505e135828c564715798dc32bb53b19666a8a373a1aacdc16a"
       },
       {
         "path": "user/Makefile",
@@ -23102,11 +23131,11 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "8dd8047c3bcf7af0c089d7910fd132ff12cb2237dd58d86cbc285f578f49294f"
+        "sha256": "9fcab2842817f02a4e43e7a083b635d41eda423242238fb45e7a3397953e2f18"
       },
       {
-        "path": "tools/kernel_crypto_frontier.py",
-        "sha256": "fa84400b393d5fb596cf869540739b37837604fcb2d3e342f277856342946c4f"
+        "path": "tools/kernel_cupidc_frontier.py",
+        "sha256": "2f5dce7432fe25aa60451dcad7bf57f357b8d5f039ccd370a006253c0d104cdb"
       },
       {
         "path": "tools/bootstrap_toolchain.py",
@@ -23119,7 +23148,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "db2a5e14af0911a0f164ca1fb347956a99f6188cd96196990fa36f3babf77b97"
+      "sha256": "7dd962af41a8431c0f7e2bfca85184f05e8947341e3bb2da59bec63f9a90fe3c"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -30209,7 +30238,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30238,7 +30269,7 @@
       "origin": "tracked",
       "path": "kernel/core/process.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b269becdbca20c488440d1ba5908ab7b8c8c27a9f9b43a9b780140d0d0ffbc2f"
     },
     {
@@ -44392,7 +44423,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44429,12 +44461,14 @@
       "origin": "tracked",
       "path": "kernel/smp/acpi.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "0008c4376bb8436d68133ccd80e5af717f7c7a2522c4a9aa51218c71c8368ced"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44455,7 +44489,7 @@
       "origin": "tracked",
       "path": "kernel/smp/acpi.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "03e3a3cadca87cf27cc7e0810129cec9807701e6cbe52481edf8d7e015a8c2d7"
     },
     {
@@ -44553,7 +44587,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44578,7 +44614,7 @@
       "origin": "tracked",
       "path": "kernel/smp/ioapic.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "eaa9cca04c93be4ec69a106c029e0c912060c05e782c69311a01f9294fa41c38"
     },
     {
@@ -44642,7 +44678,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44676,12 +44713,14 @@
       "origin": "tracked",
       "path": "kernel/smp/mp_tables.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "dd98d65f779133a0725c60800e03e193da6b5bd5358d4365ce249fe61789ab54"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44708,7 +44747,7 @@
       "origin": "tracked",
       "path": "kernel/smp/mp_tables.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "e3599904ea50079fa99a8a870b56c0a5f0051f832035129c9986df8484264cfd"
     },
     {
@@ -44751,7 +44790,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44787,7 +44828,7 @@
       "origin": "tracked",
       "path": "kernel/smp/percpu.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "dbbeb942b825c9c14ab8cc517b904ec6377bcefea2964524dc2ac32a7c715628"
     },
     {

@@ -117,8 +117,8 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles all 20 kernel crypto sources in the normal image
-build:
+The checked CupidC seed compiles 22 kernel sources in the normal image build.
+The first 20 make up the complete crypto cohort:
 - AES and AES-GCM
 - ChaCha20 and ChaCha20-Poly1305
 - constant-time helpers, HMAC, and HKDF
@@ -127,9 +127,12 @@ build:
 - ASN.1, X.509 parsing, and X.509 chain handling
 - the CSPRNG and its CPU entropy probes
 
+ACPI and MP-table discovery are the other two sources.
+
 Each result is checked as an i386 ELF32 relocatable object before it replaces
-the build output. The complete frontier compiles every source twice and
-requires the 204,132 object bytes to match.
+the build output. The strict frontier compiles all 22 approved sources twice
+and requires the 213,996 object bytes to match. The crypto-only subtotal
+remains 204,132 bytes.
 
 The boot self-test runs production code from the complete cohort. Its 62 checks
 cover cryptographic primitives, positive and negative ASN.1 inputs, X.509
@@ -167,12 +170,14 @@ state, and one-time operand evaluation. Runtime orders, pointer atomics, HLE
 flags, and eight-byte atomics remain open.
 
 The non-Doom header gate is 153/154. The percpu.h roots now parse completely,
-and only the width-aware port assembly in ports.h remains. Unchanged
-kernel/smp/acpi.c and kernel/smp/mp_tables.c emit deterministic i386 ELF32
-objects at compiler head. A disposable two-pass image boots both objects with
-four CPUs, initializes e1000, reaches the desktop, and completes /bin/ls.cc.
-The refreshed checked seed contains this work, but the normal build has not
-moved those objects yet.
+and only the width-aware port assembly in ports.h remains. The normal build
+emits unchanged kernel/smp/acpi.c and kernel/smp/mp_tables.c with the checked
+seed. Their 5,708-byte and 4,156-byte objects are deterministic and validated.
+A four-CPU image discovers and starts every CPU, initializes e1000, reaches
+the desktop and terminal, and completes /bin/ls.cc. The strong runtime gate
+also requires RDRAND and all 62 crypto checks while rejecting the known SMP,
+storage, crypto, exception, panic, corruption, and illegal-instruction
+failures.
 >endtree
 
 >h2 Self-Hosting Compiler Path

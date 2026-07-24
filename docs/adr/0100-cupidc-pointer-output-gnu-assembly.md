@@ -4,7 +4,7 @@
 - Date: 2026-07-24
 
 Current status: ADR 0102 carries this capability in the checked i386 Linux
-seed. The normal build has not transferred the surrounding SMP sources yet.
+seed. ADR 0103 moves `acpi.c` and `mp_tables.c` into the normal CupidC build.
 
 ## Context
 

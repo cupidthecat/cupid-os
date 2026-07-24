@@ -4,7 +4,7 @@
 - Date: 2026-07-24
 
 Current status: ADR 0102 carries these builtins in the checked i386 Linux
-seed. Production ownership of `acpi.c` and `mp_tables.c` remains separate.
+seed. ADR 0103 moves `acpi.c` and `mp_tables.c` into the normal CupidC build.
 
 ## Context
 

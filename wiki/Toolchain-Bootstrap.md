@@ -79,22 +79,26 @@ Compiler head also handles the exact per-CPU pointer output
 and IR preserve its pointer type and evaluate the destination once. The x86
 model emits `65 A1 00 00 00 00`.
 
-The compiler-head atomic slice now handles the active integer load, store,
+The checked compiler's atomic slice handles the active integer load, store,
 exchange, and fetch-add builtins with constant orders. Its i386 path selects
 ordinary loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
 the non-Doom header gate to 153/154 and lets unchanged `acpi.c` and
-`mp_tables.c` emit deterministic i386 ELF32 objects. A disposable two-pass
-image boots both objects with four CPUs and completes the normal desktop and
-CupidC runtime smoke. The checked seed now carries both the pointer-output and
-atomic additions, but these results retire no normal-build host dependency
-until the source cutover.
+`mp_tables.c` emit deterministic i386 ELF32 objects. The normal Make graph now
+owns both through the checked seed. A four-vCPU image boots every discovered
+CPU and completes the normal e1000, desktop, terminal, and CupidC runtime
+smoke.
 
-The normal image now builds all 20 kernel crypto sources with that checked
-CupidC seed. The strict frontier compiles each source twice and accepts
-204,132 byte-identical i386 object bytes with no blocked source. A Make run
-with the host compiler command poisoned rebuilds the same complete cohort.
+The normal image now builds 22 kernel sources with that checked CupidC seed:
+all 20 crypto units plus ACPI and MP-table discovery. The strict frontier
+compiles each approved source twice and accepts 213,996 byte-identical i386
+object bytes. Forced Make runs with the host compiler command poisoned prove
+the production wrapper recipes.
 
 QEMU's `max` CPU seeds the CSPRNG through RDRAND, passes all 62 crypto, ASN.1,
 and X.509 checks, reaches the desktop, and completes an embedded CupidC JIT
-command. The X.509 checks exercise parser, hostname, chain-state, and
-embedded-root lookup paths; they are not a full trust-validation claim.
+command. The four-vCPU contract also requires MP and ACPI discovery, every
+secondary CPU online, e1000, the scheduler, and the terminal, and rejects the
+known SMP, storage, crypto, exception, panic, corruption, and
+illegal-instruction failures. The X.509 checks exercise parser, hostname,
+chain-state, and embedded-root lookup paths; they are not a full
+trust-validation claim.

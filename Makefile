@@ -22,7 +22,7 @@ CLANG_COMPAT_CFLAGS ?=
 endif
 CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root .
 CUPIDC_KERNEL_COMPILE_INPUTS := Makefile tools/cupidc_kernel_compile.py \
-	tools/kernel_crypto_frontier.py tools/bootstrap_toolchain.py \
+	tools/kernel_cupidc_frontier.py tools/bootstrap_toolchain.py \
 	bootstrap/seeds/i386-linux/manifest.json \
 	bootstrap/seeds/i386-linux/cupidasm.elf \
 	bootstrap/seeds/i386-linux/cupidc.elf \
@@ -361,12 +361,12 @@ kernel/smp/bkl.o: kernel/smp/bkl.c kernel/smp/bkl.h kernel/smp/percpu.h
 	$(CC) $(CFLAGS) kernel/smp/bkl.c -o kernel/smp/bkl.o
 
 # MP tables discovery (P5 SMP)
-kernel/smp/mp_tables.o: kernel/smp/mp_tables.c kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h
-	$(CC) $(CFLAGS) kernel/smp/mp_tables.c -o kernel/smp/mp_tables.o
+kernel/smp/mp_tables.o: kernel/smp/mp_tables.c kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/mp_tables.c --output kernel/smp/mp_tables.o
 
 # ACPI MADT fallback discovery (P5 SMP)
-kernel/smp/acpi.o: kernel/smp/acpi.c kernel/smp/acpi.h kernel/smp/mp_tables.h kernel/smp/ioapic.h
-	$(CC) $(CFLAGS) kernel/smp/acpi.c -o kernel/smp/acpi.o
+kernel/smp/acpi.o: kernel/smp/acpi.c kernel/smp/acpi.h kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/acpi.c --output kernel/smp/acpi.o
 
 # SMP discovery orchestration + AP bringup (P5 T9)
 kernel/smp/smp.o: kernel/smp/smp.c kernel/smp/smp.h kernel/smp/mp_tables.h kernel/smp/acpi.h \
@@ -956,9 +956,11 @@ test-toolchain-fixed-point:
 	$(PYTHON) -m unittest -v \
 	  tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupid_built_toolchain_reaches_a_full_static_fixed_point
 
-test-kernel-crypto-frontier:
+test-kernel-cupidc-frontier:
 	$(PYTHON) -m unittest -v \
-	  tests.test_kernel_crypto_frontier.RealKernelCryptoFrontierTests
+	  tests.test_kernel_cupidc_frontier.RealKernelCupidCFrontierTests
+
+test-kernel-crypto-frontier: test-kernel-cupidc-frontier
 
 verify-bootstrap-seed:
 	$(PYTHON) tools/bootstrap_toolchain.py verify \
@@ -1221,4 +1223,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-crypto-frontier verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean

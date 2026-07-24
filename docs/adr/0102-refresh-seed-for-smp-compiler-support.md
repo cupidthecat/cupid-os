@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0103 uses this seed for the normal-build ACPI and MP-table
+discovery cutover. The account below preserves the seed transition itself.
+
 ## Context
 
 The checked i386 Linux seed at revision
