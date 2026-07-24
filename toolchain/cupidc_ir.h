@@ -43,7 +43,11 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_VARIADIC_END,
   CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_VALUE,
   CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE,
-  CTOOL_C_IR_INSTRUCTION_ASSEMBLY
+  CTOOL_C_IR_INSTRUCTION_ASSEMBLY,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE,
+  CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -55,7 +59,9 @@ typedef struct {
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
    * result type. ASSEMBLY consumes its possibly empty frontend operand
-   * slice and uses CTOOL_C_TYPE_NONE. */
+   * slice and uses CTOOL_C_TYPE_NONE. ATOMIC_* retain the unqualified
+   * integer object type; ATOMIC_STORE uses it for width even though it
+   * produces no value. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
@@ -79,7 +85,8 @@ typedef struct {
    * cursor-object type. VARIADIC_ARGUMENT uses type for the loaded result.
    * CALL_DIRECT retains the function type, while
    * CALL_INDIRECT retains the function pointer type. BRANCH_ZERO retains its
-   * consumed condition type. ASSEMBLY uses CTOOL_C_TYPE_NONE. */
+   * consumed condition type. ASSEMBLY uses CTOOL_C_TYPE_NONE. ATOMIC_*
+   * retain their evaluated object-pointer type. */
   ctool_u32 input_type;
   ctool_c_expression_operator_t operation;
   /* CONVERT uses NONE for an explicit cast, except that a direct four-byte
@@ -117,6 +124,8 @@ typedef struct {
    * function-relative instruction index. Other instructions use
    * CTOOL_C_AST_NONE. */
   ctool_u32 reference;
+  /* ATOMIC_* retain the validated GNU memory order from zero through five.
+   * Other instruction-specific uses are described above. */
   ctool_u64 integer_bits;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;

@@ -3170,6 +3170,12 @@ static ctool_status_t cfront_parse_body_assignment(
     cfront_context_t *context, cfront_expression_value_t *value_out);
 static ctool_status_t cfront_parse_variadic_builtin(
     cfront_context_t *context, cfront_expression_value_t *value_out);
+static ctool_status_t cfront_parse_atomic_builtin(
+    cfront_context_t *context, cfront_expression_value_t *value_out);
+static ctool_status_t cfront_apply_assignment_conversion(
+    cfront_context_t *context, ctool_u32 target_type,
+    const ctool_c_pp_token_t *source_token,
+    const char *failure_message, cfront_expression_value_t *value);
 static ctool_status_t cfront_require_controlling_value(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     cfront_expression_value_t *value);
@@ -7499,6 +7505,12 @@ static ctool_status_t cfront_parse_body_primary(
       cfront_token_is(token, "__builtin_va_end") == CTOOL_TRUE) {
     return cfront_parse_variadic_builtin(context, value_out);
   }
+  if (cfront_token_is(token, "__atomic_load_n") == CTOOL_TRUE ||
+      cfront_token_is(token, "__atomic_store_n") == CTOOL_TRUE ||
+      cfront_token_is(token, "__atomic_exchange_n") == CTOOL_TRUE ||
+      cfront_token_is(token, "__atomic_fetch_add") == CTOOL_TRUE) {
+    return cfront_parse_atomic_builtin(context, value_out);
+  }
   if (cfront_token_is(token, "(") == CTOOL_TRUE) {
     ctool_status_t parenthesized = cfront_enter_syntax(context, token);
     if (parenthesized != CTOOL_OK) {
@@ -8196,6 +8208,233 @@ static ctool_status_t cfront_parse_variadic_builtin(
     status = cfront_attach_expression_block_bindings(
         context, value_out->expression, first_binding, binding_count, 1u,
         builtin_token);
+  }
+  if (status == CTOOL_OK) {
+    value_out->type = result_type;
+    value_out->is_lvalue = CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
+    cfront_constant_value_clear(value_out);
+  }
+  cfront_leave_syntax(context);
+  if (status != CTOOL_OK &&
+      (status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+       status == CTOOL_ERR_NO_MEMORY)) {
+    return ctool_job_diagnostic_count(context->job) == diagnostic_count
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  return status;
+}
+
+static ctool_bool cfront_atomic_order_valid(
+    ctool_c_expression_kind_t kind, ctool_u32 order) {
+  if (order > 5u) {
+    return CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    return order == 0u || order == 1u || order == 2u || order == 5u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_EXPRESSION_ATOMIC_STORE) {
+    return order == 0u || order == 3u || order == 5u ? CTOOL_TRUE
+                                                     : CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cfront_atomic_object_type(
+    cfront_context_t *context, const ctool_c_pp_token_t *builtin_token,
+    ctool_c_expression_kind_t kind, cfront_expression_value_t *pointer,
+    ctool_u32 *object_type_out) {
+  ctool_c_type_node_t pointer_node;
+  ctool_c_type_node_t object_node;
+  ctool_c_type_layout_t layout;
+  cfront_integer_type_t integer;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 object_base;
+  ctool_u32 object_qualifiers;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_status_t status = cfront_apply_default_conversion(context, pointer);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, pointer->type, &pointer_base, &pointer_qualifiers,
+        &pointer_node);
+  }
+  (void)pointer_base;
+  (void)pointer_qualifiers;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (pointer_node.kind != CTOOL_C_TYPE_POINTER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "GNU atomic builtin requires a pointer to an integer object");
+  }
+  status = cfront_underlying_type(
+      context, pointer_node.referenced_type, &object_base,
+      &object_qualifiers, &object_node);
+  if (status == CTOOL_OK) {
+    object_qualifiers |= object_node.qualifiers;
+    status = cfront_integer_type(
+        context, object_base, &integer, &is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (is_integer == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "GNU atomic builtin object type is outside the represented integer "
+        "slice");
+  }
+  if (kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD &&
+      (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "GNU atomic write requires a non-const object");
+  }
+  if (kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD &&
+      object_node.kind == CTOOL_C_TYPE_BOOL) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "__atomic_fetch_add does not accept a Boolean object");
+  }
+  status = cfront_layout_query_now(
+      context, object_base, (const cfront_vector_t *)0, builtin_token,
+      CTOOL_C_PARSE_DIAG_EXPRESSION,
+      "GNU atomic builtin requires a complete object", &layout,
+      (ctool_u32 *)0, (ctool_u32 *)0);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (layout.is_integer == CTOOL_FALSE ||
+      (layout.size != 1u && layout.size != 2u && layout.size != 4u)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "GNU atomic builtin requires a represented 1-, 2-, or 4-byte "
+        "integer object");
+  }
+  *object_type_out = object_base;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_atomic_builtin(
+    cfront_context_t *context, cfront_expression_value_t *value_out) {
+  const ctool_c_pp_token_t *builtin_token = cfront_peek(context);
+  ctool_c_expression_kind_t kind;
+  cfront_expression_value_t pointer;
+  cfront_expression_value_t value;
+  cfront_integer_t order = {0ull, CFRONT_INTEGER_SIGNED_32};
+  ctool_c_expression_t expression;
+  ctool_u32 object_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 result_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 first_child = CTOOL_C_AST_NONE;
+  ctool_u32 child_count;
+  ctool_u32 order_value = 0u;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(context->job);
+  ctool_status_t status;
+
+  if (context->request->gnu_extensions == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token, "atomic builtins require GNU extensions");
+  }
+  if (cfront_token_is(builtin_token, "__atomic_load_n") == CTOOL_TRUE) {
+    kind = CTOOL_C_EXPRESSION_ATOMIC_LOAD;
+  } else if (cfront_token_is(builtin_token, "__atomic_store_n") ==
+             CTOOL_TRUE) {
+    kind = CTOOL_C_EXPRESSION_ATOMIC_STORE;
+  } else if (cfront_token_is(builtin_token, "__atomic_exchange_n") ==
+             CTOOL_TRUE) {
+    kind = CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE;
+  } else {
+    kind = CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD;
+  }
+  child_count = kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ? 1u : 2u;
+  cfront_zero(&pointer, (ctool_u32)sizeof(pointer));
+  cfront_zero(&value, (ctool_u32)sizeof(value));
+  status = cfront_enter_syntax(context, builtin_token);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  (void)cfront_advance(context);
+  status = cfront_expected(context, "(");
+  if (status == CTOOL_OK) {
+    status = cfront_parse_body_assignment(context, &pointer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ",");
+  }
+  if (status == CTOOL_OK &&
+      kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    status = cfront_parse_body_assignment(context, &value);
+  }
+  if (status == CTOOL_OK &&
+      kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    status = cfront_expected(context, ",");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_parse_constant_conditional(context, &order);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ")");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_atomic_object_type(
+        context, builtin_token, kind, &pointer, &object_type);
+  }
+  if (status == CTOOL_OK &&
+      kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    status = cfront_apply_assignment_conversion(
+        context, object_type, builtin_token,
+        "GNU atomic value is not assignment-compatible with its object",
+        &value);
+  }
+  if (status == CTOOL_OK) {
+    order_value = (ctool_u32)order.bits;
+    if (order.bits > 5ull ||
+        cfront_atomic_order_valid(kind, order_value) == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          builtin_token,
+          "GNU atomic memory order is invalid for this operation");
+    }
+  }
+  if (status == CTOOL_OK &&
+      kind == CTOOL_C_EXPRESSION_ATOMIC_STORE) {
+    status = cfront_scalar_type(
+        context, CTOOL_C_TYPE_VOID, builtin_token, &result_type);
+  } else if (status == CTOOL_OK) {
+    result_type = object_type;
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_append(
+        &context->expression_children, &pointer.expression, &first_child);
+  }
+  if (status == CTOOL_OK &&
+      kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    status = cfront_vector_append(
+        &context->expression_children, &value.expression, (ctool_u32 *)0);
+  }
+  if (status == CTOOL_OK) {
+    cfront_expression_init(
+        &expression, kind, &builtin_token->location,
+        &builtin_token->physical_location);
+    expression.type = result_type;
+    expression.first_child = first_child;
+    expression.child_count = child_count;
+    expression.integer_bits = order_value;
+    status = cfront_append_expression(
+        context, &expression, &value_out->expression);
   }
   if (status == CTOOL_OK) {
     value_out->type = result_type;
@@ -17847,6 +18086,109 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context),
             "frozen variadic builtin expression is invalid");
+      }
+      break;
+    }
+    case CTOOL_C_EXPRESSION_ATOMIC_LOAD:
+    case CTOOL_C_EXPRESSION_ATOMIC_STORE:
+    case CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE:
+    case CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD: {
+      const ctool_u32 expected_children =
+          expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ? 1u : 2u;
+      const ctool_u32 pointer_child =
+          expression->child_count == expected_children
+              ? expression_children[expression->first_child]
+              : CTOOL_C_AST_NONE;
+      const ctool_u32 value_child =
+          expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
+                  expression->child_count != expected_children
+              ? CTOOL_C_AST_NONE
+              : expression_children[expression->first_child + 1u];
+      ctool_c_type_node_t pointer_node;
+      ctool_c_type_node_t object_node;
+      ctool_c_type_node_t result_node;
+      cfront_integer_type_t object_integer;
+      ctool_u32 pointer_base;
+      ctool_u32 pointer_qualifiers;
+      ctool_u32 object_base;
+      ctool_u32 object_qualifiers;
+      ctool_u32 result_base;
+      ctool_u32 result_qualifiers;
+      ctool_bool object_is_integer = CTOOL_FALSE;
+      ctool_bool type_matches = CTOOL_FALSE;
+      ctool_bool value_matches = CTOOL_FALSE;
+      if (expression->child_count != expected_children ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE ||
+          expression->semantic_flags != 0u ||
+          expression->integer_bits > 5u ||
+          cfront_atomic_order_valid(
+              expression->kind, (ctool_u32)expression->integer_bits) ==
+              CTOOL_FALSE ||
+          expression->string_bytes.data != (const ctool_u8 *)0 ||
+          expression->string_bytes.size != 0u ||
+          pointer_child >= index) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context), "frozen atomic builtin expression is invalid");
+      }
+      status = cfront_underlying_type(
+          context, expressions[pointer_child].type, &pointer_base,
+          &pointer_qualifiers, &pointer_node);
+      (void)pointer_base;
+      (void)pointer_qualifiers;
+      if (status == CTOOL_OK &&
+          pointer_node.kind == CTOOL_C_TYPE_POINTER) {
+        status = cfront_underlying_type(
+            context, pointer_node.referenced_type, &object_base,
+            &object_qualifiers, &object_node);
+      }
+      if (status == CTOOL_OK &&
+          pointer_node.kind == CTOOL_C_TYPE_POINTER) {
+        object_qualifiers |= object_node.qualifiers;
+        status = cfront_integer_type(
+            context, object_base, &object_integer, &object_is_integer);
+      }
+      if (status == CTOOL_OK) {
+        status = cfront_underlying_type(
+            context, expression->type, &result_base, &result_qualifiers,
+            &result_node);
+      }
+      (void)result_base;
+      (void)result_qualifiers;
+      if (status == CTOOL_OK &&
+          expression->kind != CTOOL_C_EXPRESSION_ATOMIC_STORE) {
+        status = cfront_types_same(
+            context, expression->type, object_base, &type_matches);
+      } else if (status == CTOOL_OK) {
+        type_matches =
+            result_node.kind == CTOOL_C_TYPE_VOID ? CTOOL_TRUE : CTOOL_FALSE;
+      }
+      if (status == CTOOL_OK && value_child != CTOOL_C_AST_NONE &&
+          value_child < index) {
+        status = cfront_types_same(
+            context, expressions[value_child].type, object_base,
+            &value_matches);
+      } else if (status == CTOOL_OK &&
+                 value_child == CTOOL_C_AST_NONE) {
+        value_matches = CTOOL_TRUE;
+      }
+      if (status != CTOOL_OK ||
+          pointer_node.kind != CTOOL_C_TYPE_POINTER ||
+          object_is_integer == CTOOL_FALSE ||
+          (object_integer.width != 1u && object_integer.width != 8u &&
+           object_integer.width != 16u && object_integer.width != 32u) ||
+          (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD &&
+           object_node.kind == CTOOL_C_TYPE_BOOL) ||
+          (expression->kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD &&
+           (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) ||
+          type_matches == CTOOL_FALSE || value_matches == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen atomic builtin type contract is invalid");
       }
       break;
     }

@@ -154,10 +154,24 @@ head-built e1000, desktop, socket, and TCP objects.
 Compiler head also represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
 pointer type, evaluates the destination once, and emits the absolute GS load
-as 65 A1 00 00 00 00. The non-Doom header gate stays at 150/154. Three roots
-now pass this statement and stop at the atomic builtin in percpu.h. All six
-affected production sources reach that same boundary without producing an
-object, so normal-build ownership does not move.
+as 65 A1 00 00 00 00.
+
+Compiler head now handles the SMP integer atomic load, store, exchange, and
+fetch-add builtins for one-, two-, and four-byte objects. It checks constant
+memory orders and emits ordinary loads and release stores, memory XCHG, or
+LOCK XADD as required. The six order names are target predefines in every
+language mode, while the expressions remain GNU-only. A decoded i386 model
+checks old results, memory changes, narrow signedness, wraparound, cdecl
+state, and one-time operand evaluation. Runtime orders, pointer atomics, HLE
+flags, and eight-byte atomics remain open.
+
+The non-Doom header gate is 153/154. The percpu.h roots now parse completely,
+and only the width-aware port assembly in ports.h remains. Unchanged
+kernel/smp/acpi.c and kernel/smp/mp_tables.c emit deterministic i386 ELF32
+objects at compiler head. A disposable two-pass image boots both objects with
+four CPUs, initializes e1000, reaches the desktop, and completes /bin/ls.cc.
+The checked seed predates this work, so the normal build has not moved those
+objects yet.
 >endtree
 
 >h2 Self-Hosting Compiler Path
@@ -237,7 +251,7 @@ rounding cases, mixed expressions, call alignment, and frame state. It does
 not execute native x87 code. Floating literals, integer and floating
 conversions, comparisons, truth, a floating controlling expression, increment
 and decrement, explicit static floating initializers, long double, SIMD,
-atomic access, and over-aligned object emission remain unfinished.
+floating atomic access, and over-aligned object emission remain unfinished.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four

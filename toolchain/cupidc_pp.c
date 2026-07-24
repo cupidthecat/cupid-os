@@ -1121,6 +1121,18 @@ static ctool_bool pp_name_is_predefined(ctool_string_t name) {
                  pp_string_equal_literal(name, "__STDC_HOSTED__") ==
                      CTOOL_TRUE ||
                  pp_string_equal_literal(name, "__STDC_VERSION__") ==
+                     CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__ATOMIC_RELAXED") ==
+                     CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__ATOMIC_CONSUME") ==
+                     CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__ATOMIC_ACQUIRE") ==
+                     CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__ATOMIC_RELEASE") ==
+                     CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__ATOMIC_ACQ_REL") ==
+                     CTOOL_TRUE ||
+                 pp_string_equal_literal(name, "__ATOMIC_SEQ_CST") ==
                      CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
@@ -2013,6 +2025,10 @@ static ctool_status_t pp_build_predefined_replacement(
     pp_expand_list_t *replacement_out) {
   static const char one[] = "1";
   static const char zero[] = "0";
+  static const char two[] = "2";
+  static const char three[] = "3";
+  static const char four[] = "4";
+  static const char five[] = "5";
   static const char c11[] = "201112L";
   static const char default_date[] = "Jan  1 1970";
   static const char default_time[] = "00:00:00";
@@ -2048,6 +2064,30 @@ static ctool_status_t pp_build_predefined_replacement(
     if (pp_token_equal_literal(source, "__STDC_HOSTED__") == CTOOL_TRUE &&
         context->request->hosted_environment == CTOOL_FALSE) {
       spelling.data = zero;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__ATOMIC_RELAXED") ==
+               CTOOL_TRUE) {
+      spelling.data = zero;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__ATOMIC_CONSUME") ==
+               CTOOL_TRUE) {
+      spelling.data = one;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__ATOMIC_ACQUIRE") ==
+               CTOOL_TRUE) {
+      spelling.data = two;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__ATOMIC_RELEASE") ==
+               CTOOL_TRUE) {
+      spelling.data = three;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__ATOMIC_ACQ_REL") ==
+               CTOOL_TRUE) {
+      spelling.data = four;
+      spelling.size = 1u;
+    } else if (pp_token_equal_literal(source, "__ATOMIC_SEQ_CST") ==
+               CTOOL_TRUE) {
+      spelling.data = five;
       spelling.size = 1u;
     } else if (pp_token_equal_literal(source, "__STDC_VERSION__") ==
                CTOOL_TRUE) {

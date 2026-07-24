@@ -1783,6 +1783,46 @@ static ctool_status_t cemit_x86_store_ecx_at_eax(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_atomic_memory_ecx(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 type, ctool_bool locked) {
+  const ctool_c_type_layout_t *layout;
+  ctool_x86_reg_class_t register_class;
+  ctool_x86_instruction_t instruction;
+  ctool_u16 width_bits;
+  if (type >= context->unit->layout.type_count ||
+      (mnemonic != CTOOL_X86_MN_XCHG &&
+       mnemonic != CTOOL_X86_MN_XADD) ||
+      (locked == CTOOL_TRUE && mnemonic != CTOOL_X86_MN_XADD)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->is_integer == CTOOL_FALSE ||
+      layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE ||
+      (layout->size != 1u && layout->size != 2u &&
+       layout->size != 4u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  width_bits = (ctool_u16)(layout->size * 8u);
+  register_class = layout->size == 1u
+                       ? CTOOL_X86_REG_GPR8
+                       : layout->size == 2u ? CTOOL_X86_REG_GPR16
+                                            : CTOOL_X86_REG_GPR32;
+  instruction = cemit_x86_instruction(mnemonic, width_bits);
+  instruction.prefixes =
+      locked == CTOOL_TRUE ? CTOOL_X86_PREFIX_LOCK : 0u;
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, 0u), 0, 0u);
+  instruction.operands[0].width_bits = width_bits;
+  instruction.operands[1] =
+      cemit_x86_register_operand(register_class, 1u);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_canonicalize_eax_lane(
     cemit_context_t *context, ctool_u32 type) {
   const ctool_c_type_layout_t *layout;
@@ -5335,6 +5375,112 @@ static ctool_status_t cemit_emit_assembly(
   return status;
 }
 
+static ctool_bool cemit_atomic_order_valid(
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 order) {
+  if (order > 5u) {
+    return CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD) {
+    return order == 0u || order == 1u || order == 2u || order == 5u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE) {
+    return order == 0u || order == 3u || order == 5u ? CTOOL_TRUE
+                                                     : CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cemit_emit_atomic(
+    cemit_context_t *context,
+    const ctool_c_ir_instruction_t *instruction) {
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_node_t *object;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 object_qualifiers;
+  ctool_status_t status;
+  if (cemit_ir_type_is_represented_integer(
+          context, instruction->type) == CTOOL_FALSE ||
+      cemit_ir_type_is_i32_pointer(
+          context, instruction->input_type) == CTOOL_FALSE ||
+      cemit_underlying_type(
+          context, instruction->input_type, &pointer_qualifiers,
+          &pointer) == CTOOL_FALSE ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      cemit_underlying_type(
+          context, pointer->referenced_type, &object_qualifiers,
+          &object) == CTOOL_FALSE ||
+      cemit_ir_scalar_types_match(
+          context, pointer->referenced_type, instruction->type) ==
+          CTOOL_FALSE ||
+      (instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD &&
+       object->kind == CTOOL_C_TYPE_BOOL) ||
+      (instruction->kind != CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD &&
+       (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) ||
+      instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+      instruction->argument_count != 0u ||
+      instruction->first_argument_type != CTOOL_C_AST_NONE ||
+      instruction->reference != CTOOL_C_AST_NONE ||
+      instruction->integer_bits > 5u ||
+      cemit_atomic_order_valid(
+          instruction->kind, (ctool_u32)instruction->integer_bits) ==
+          CTOOL_FALSE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  (void)pointer_qualifiers;
+  if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_eax(context, instruction->type);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE &&
+      instruction->integer_bits != 5u) {
+    return cemit_x86_store_ecx_at_eax(context, instruction->type);
+  }
+  if (instruction->kind ==
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD) {
+    status = cemit_x86_atomic_memory_ecx(
+        context, CTOOL_X86_MN_XADD, instruction->type, CTOOL_TRUE);
+  } else {
+    status = cemit_x86_atomic_memory_ecx(
+        context, CTOOL_X86_MN_XCHG, instruction->type, CTOOL_FALSE);
+  }
+  if (status != CTOOL_OK ||
+      instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE) {
+    return status;
+  }
+  status = cemit_x86_two_registers(
+      context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 0u,
+      CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_canonicalize_eax_lane(
+        context, instruction->type);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_emit_ir_instruction(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *ir_instruction,
@@ -5352,6 +5498,12 @@ static ctool_status_t cemit_emit_ir_instruction(
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
     return cemit_emit_assembly(
         context, ir_instruction, value_temporary_offset);
+  }
+  if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD ||
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE ||
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE ||
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD) {
+    return cemit_emit_atomic(context, ir_instruction);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS) {
     ctool_u32 relative_parameter;
@@ -7283,6 +7435,7 @@ static ctool_status_t cemit_ir_stack_effect(
     case CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER:
     case CTOOL_C_IR_INSTRUCTION_ELEMENT_ADDRESS:
     case CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT:
+    case CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD:
       consumed = 1u;
       produced = 1u;
       break;
@@ -7335,6 +7488,7 @@ static ctool_status_t cemit_ir_stack_effect(
       break;
     case CTOOL_C_IR_INSTRUCTION_STORE:
     case CTOOL_C_IR_INSTRUCTION_COPY_OBJECT:
+    case CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE:
       consumed = 2u;
       break;
     case CTOOL_C_IR_INSTRUCTION_STORE_VALUE:
@@ -7344,6 +7498,11 @@ static ctool_status_t cemit_ir_stack_effect(
       break;
     case CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE:
       consumed = 3u;
+      produced = 1u;
+      break;
+    case CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE:
+    case CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD:
+      consumed = 2u;
       produced = 1u;
       break;
     case CTOOL_C_IR_INSTRUCTION_ASSEMBLY:

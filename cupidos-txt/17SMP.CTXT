@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 SMP Tier 2
-Verified against source on: 2026-07-10
+Verified against source on: 2026-07-24
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -94,6 +94,25 @@ BSP before APs are released. Do not reorder.
 
 this_cpu() compiles to a single "mov eax, gs:[0]". The struct starts with a
 self-pointer, so callers never need to know the linear address.
+
+>h3 Atomic publication
+
+Per-CPU byte flags use explicit ordering rather than plain volatile access:
+
+  percpu_write_u8()     release store
+  percpu_read_u8()      acquire load
+  percpu_exchange_u8()  acquire-release exchange
+
+AP startup publishes online with a release store. The BSP waits with an
+acquire load, so every per-CPU field written before online becomes visible
+before the BSP accepts that processor. Cross-CPU call_pending and call_done
+use the same release/acquire handoff. Exchanges claim or clear a byte flag
+without a lost update.
+
+The BKL ticket counters use 32-bit atomic fetch-add. Ticket allocation is
+sequentially consistent; advancing ticket_head is a release operation, and
+waiters load it with acquire ordering. This preserves FIFO ownership and
+publishes the completed critical section before the next ticket enters.
 
 >h3 GDT Layout
 
@@ -487,6 +506,13 @@ These constraints define the Tier 2 scope.
 
 The BKL mainly affects workloads that enter the kernel often. Tier 3 would
 need fine-grained locks to allow parallel kernel execution.
+
+Compiler-head CupidC emits the integer atomic load, store, exchange, and
+fetch-add operations used by ACPI and MP discovery. A disposable two-pass
+kernel built acpi.c and mp_tables.c with that path, discovered four virtual
+CPUs through ACPI, brought all four online, and reached the desktop without a
+panic. The normal build still uses the checked seed from before this compiler
+addition.
 >endtree
 
 >h2 Source File Index

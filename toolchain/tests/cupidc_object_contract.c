@@ -12200,6 +12200,20 @@ static int narrow_oracle_step(narrow_oracle_machine_t *machine,
   if (!narrow_oracle_read_operand(machine, left, &left_value)) {
     return 0;
   }
+  if (instruction->mnemonic == CTOOL_X86_MN_XCHG) {
+    return narrow_oracle_write_operand(machine, left, right_value) &&
+                   narrow_oracle_write_operand(machine, right, left_value)
+               ? 1
+               : 0;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_XADD) {
+    if (!narrow_oracle_write_operand(
+            machine, left, left_value + right_value) ||
+        !narrow_oracle_write_operand(machine, right, left_value)) {
+      return 0;
+    }
+    return 1;
+  }
   if (instruction->mnemonic == CTOOL_X86_MN_ADD) {
     left_value += right_value;
   } else if (instruction->mnemonic == CTOOL_X86_MN_SUB) {
@@ -24231,20 +24245,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 196u, 177u, 314u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 199u, 180u, 317u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      188654u, 369969u, 301404u, 615610u, 139612u, 70368u, 77981u,
+      190304u, 378204u, 307843u, 627357u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      224176u, 395316u, 322656u, 729652u, 157796u, 79348u, 131640u,
+      226668u, 403872u, 329396u, 743424u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
-      0x7238e153u, 0x999f97b7u, 0x94f54f57u,
-      0x69377c12u, 0x76a7b3b2u, 0x2821e0b1u, 0x3f69aac3u,
+      0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
+      0x715e3db7u, 0xe5e493a4u, 0x69c83929u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   for (index = 0u; index <
@@ -26335,6 +26349,583 @@ static int validate_pointer_output_assembly_object(
   return 1;
 }
 
+typedef struct {
+  const char *name;
+  ctool_x86_mnemonic_t mnemonic;
+  ctool_u16 width_bits;
+  ctool_u8 prefixes;
+  const ctool_u8 *bytes;
+  ctool_u32 byte_count;
+  ctool_u32 expected_count;
+  int load;
+} atomic_object_case_t;
+
+static int atomic_function_uses_callee_saved_register(
+    const ctool_x86_instruction_t *instruction) {
+  ctool_u32 index;
+  for (index = 0u; index < instruction->operand_count; index++) {
+    const ctool_x86_operand_t *operand = &instruction->operands[index];
+    if (operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+        operand->as.reg.class_id != CTOOL_X86_REG_NONE &&
+        (operand->as.reg.index == 3u || operand->as.reg.index == 6u ||
+         operand->as.reg.index == 7u)) {
+      return 1;
+    }
+    if (operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+        ((operand->as.memory.base.class_id != CTOOL_X86_REG_NONE &&
+          (operand->as.memory.base.index == 3u ||
+           operand->as.memory.base.index == 6u ||
+           operand->as.memory.base.index == 7u)) ||
+         (operand->as.memory.index.class_id != CTOOL_X86_REG_NONE &&
+          (operand->as.memory.index.index == 3u ||
+           operand->as.memory.index.index == 6u ||
+           operand->as.memory.index.index == 7u)))) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int atomic_core_instruction_matches(
+    const ctool_x86_instruction_t *instruction,
+    const atomic_object_case_t *expected) {
+  const ctool_x86_operand_t *memory;
+  const ctool_x86_operand_t *reg;
+  ctool_x86_reg_class_t expected_class =
+      expected->load != 0
+          ? CTOOL_X86_REG_GPR32
+          : expected->width_bits == 8u
+          ? CTOOL_X86_REG_GPR8
+          : expected->width_bits == 16u ? CTOOL_X86_REG_GPR16
+                                        : CTOOL_X86_REG_GPR32;
+  if (instruction->mnemonic != expected->mnemonic ||
+      instruction->operand_bits !=
+          (expected->load != 0 ? 32u : expected->width_bits) ||
+      instruction->prefixes != expected->prefixes ||
+      instruction->operand_count != 2u) {
+    return 0;
+  }
+  memory = expected->load != 0 ? &instruction->operands[1]
+                               : &instruction->operands[0];
+  reg = expected->load != 0 ? &instruction->operands[0]
+                            : &instruction->operands[1];
+  return memory->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 memory->width_bits == expected->width_bits &&
+                 memory->as.memory.base.class_id ==
+                     CTOOL_X86_REG_GPR32 &&
+                 memory->as.memory.base.index == 0u &&
+                 memory->as.memory.index.class_id == CTOOL_X86_REG_NONE &&
+                 memory->as.memory.displacement.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 memory->as.memory.displacement.bits == 0u &&
+                 reg->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 reg->as.reg.class_id == expected_class &&
+                 reg->as.reg.index == (expected->load != 0 ? 0u : 1u)
+             ? 1
+             : 0;
+}
+
+static int validate_atomic_object_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    const atomic_object_case_t *expected) {
+  ctool_u32 cursor;
+  ctool_u32 end;
+  ctool_u32 core_count = 0u;
+  if (text == NULL || text->contents.data == NULL || symbol == NULL ||
+      symbol->size == 0u || symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  cursor = symbol->value;
+  end = symbol->value + symbol->size;
+  while (cursor < end) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor, end - cursor);
+    ctool_status_t status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    int core;
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.consumed > end - cursor ||
+        atomic_function_uses_callee_saved_register(
+            &decoded.instruction) != 0 ||
+        decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      return 0;
+    }
+    core = atomic_core_instruction_matches(
+        &decoded.instruction, expected);
+    if (core != 0) {
+      if (decoded.consumed != expected->byte_count ||
+          memcmp(remaining.data, expected->bytes,
+                 (size_t)expected->byte_count) != 0) {
+        return 0;
+      }
+      core_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_XCHG ||
+               decoded.instruction.mnemonic == CTOOL_X86_MN_XADD ||
+               (decoded.instruction.prefixes &
+                CTOOL_X86_PREFIX_LOCK) != 0u) {
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == end && core_count == expected->expected_count ? 1 : 0;
+}
+
+static int validate_atomic_builtin_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 load_byte[] = {0x0fu, 0xb6u, 0x00u};
+  static const ctool_u8 store_byte[] = {0x88u, 0x08u};
+  static const ctool_u8 exchange_byte[] = {0x86u, 0x08u};
+  static const ctool_u8 exchange_word[] = {0x66u, 0x87u, 0x08u};
+  static const ctool_u8 exchange_dword[] = {0x87u, 0x08u};
+  static const ctool_u8 fetch_byte[] = {0xf0u, 0x0fu, 0xc0u, 0x08u};
+  static const ctool_u8 fetch_dword[] = {0xf0u, 0x0fu, 0xc1u, 0x08u};
+  static const ctool_u8 load_dword[] = {0x8bu, 0x00u};
+  static const atomic_object_case_t cases[] = {
+      {"atomic_load_byte", CTOOL_X86_MN_MOVZX, 8u, 0u,
+       load_byte, (ctool_u32)sizeof(load_byte), 1u, 1},
+      {"atomic_load_consume", CTOOL_X86_MN_MOVZX, 8u, 0u,
+       load_byte, (ctool_u32)sizeof(load_byte), 1u, 1},
+      {"atomic_store_byte", CTOOL_X86_MN_MOV, 8u, 0u,
+       store_byte, (ctool_u32)sizeof(store_byte), 1u, 0},
+      {"atomic_store_seq_word", CTOOL_X86_MN_XCHG, 16u, 0u,
+       exchange_word, (ctool_u32)sizeof(exchange_word), 1u, 0},
+      {"atomic_exchange_byte", CTOOL_X86_MN_XCHG, 8u, 0u,
+       exchange_byte, (ctool_u32)sizeof(exchange_byte), 1u, 0},
+      {"atomic_exchange_signed_byte", CTOOL_X86_MN_XCHG, 8u, 0u,
+       exchange_byte, (ctool_u32)sizeof(exchange_byte), 1u, 0},
+      {"atomic_exchange_dword", CTOOL_X86_MN_XCHG, 32u, 0u,
+       exchange_dword, (ctool_u32)sizeof(exchange_dword), 1u, 0},
+      {"atomic_fetch_byte", CTOOL_X86_MN_XADD, 8u,
+       CTOOL_X86_PREFIX_LOCK, fetch_byte,
+       (ctool_u32)sizeof(fetch_byte), 1u, 0},
+      {"atomic_fetch_signed_byte", CTOOL_X86_MN_XADD, 8u,
+       CTOOL_X86_PREFIX_LOCK, fetch_byte,
+       (ctool_u32)sizeof(fetch_byte), 1u, 0},
+      {"atomic_fetch_dword", CTOOL_X86_MN_XADD, 32u,
+       CTOOL_X86_PREFIX_LOCK, fetch_dword,
+       (ctool_u32)sizeof(fetch_dword), 1u, 0},
+      {"atomic_load_dword", CTOOL_X86_MN_MOV, 32u, 0u,
+       load_dword, (ctool_u32)sizeof(load_dword), 2u, 1},
+      {"atomic_side_effect", CTOOL_X86_MN_XADD, 32u,
+       CTOOL_X86_PREFIX_LOCK, fetch_dword,
+       (ctool_u32)sizeof(fetch_dword), 1u, 0}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  if (text == NULL || object->relocation_count != 0u) {
+    (void)fprintf(stderr, "atomic object section or relocation differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       index++) {
+    if (!validate_atomic_object_function(
+            job, text, find_symbol(object, cases[index].name),
+            &cases[index])) {
+      (void)fprintf(stderr, "atomic object function %s differs\n",
+                    cases[index].name);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+typedef struct {
+  ctool_u32 address;
+  ctool_u16 width_bits;
+  ctool_u32 value;
+} atomic_oracle_cell_t;
+
+static int atomic_oracle_execute(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, const ctool_u32 *arguments,
+    ctool_u32 argument_count, const atomic_oracle_cell_t *cells,
+    ctool_u32 cell_count, narrow_oracle_machine_t *machine_out) {
+  static const ctool_u32 return_address = 0x13579bdfu;
+  static const ctool_u32 saved_ebp = 0x55667788u;
+  static const ctool_u32 saved_ebx = 0xb3b3b3b3u;
+  static const ctool_u32 saved_esi = 0xe6e6e6e6u;
+  static const ctool_u32 saved_edi = 0xd7d7d7d7u;
+  narrow_oracle_machine_t machine;
+  ctool_u32 cursor = 0u;
+  ctool_u32 observed;
+  ctool_u32 index;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      machine_out == NULL ||
+      (argument_count != 0u && arguments == NULL) ||
+      (cell_count != 0u && cells == NULL) ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      argument_count >
+          (NARROW_ORACLE_MEMORY_SIZE - NARROW_ORACLE_INITIAL_ESP) / 4u -
+              1u) {
+    return 0;
+  }
+  (void)memset(&machine, 0xa5, sizeof(machine));
+  machine.x87_depth = 0u;
+  machine.registers[NARROW_ORACLE_EAX] = 0xa0a0a0a0u;
+  machine.registers[NARROW_ORACLE_ECX] = 0xc1c1c1c1u;
+  machine.registers[NARROW_ORACLE_EDX] = 0xd2d2d2d2u;
+  machine.registers[NARROW_ORACLE_EBX] = saved_ebx;
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = saved_ebp;
+  machine.registers[NARROW_ORACLE_ESI] = saved_esi;
+  machine.registers[NARROW_ORACLE_EDI] = saved_edi;
+  for (index = 0u; index < cell_count; index++) {
+    if (!narrow_oracle_write_memory(
+            &machine, cells[index].address, cells[index].width_bits,
+            cells[index].value)) {
+      return 0;
+    }
+  }
+  if (!narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, return_address)) {
+    return 0;
+  }
+  for (index = 0u; index < argument_count; index++) {
+    if (!narrow_oracle_write_memory(
+            &machine, NARROW_ORACLE_INITIAL_ESP + 4u + index * 4u, 32u,
+            arguments[index])) {
+      return 0;
+    }
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.consumed > symbol->size - cursor ||
+        !narrow_oracle_step(&machine, &decoded.instruction, &returned)) {
+      (void)fprintf(
+          stderr, "atomic execution oracle stopped at %u on %s\n",
+          (unsigned int)cursor,
+          status == CTOOL_OK && decoded.kind == CTOOL_X86_DECODE_KNOWN
+              ? ctool_x86_mnemonic_name(decoded.instruction.mnemonic).data
+              : "invalid instruction");
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
+      machine.registers[NARROW_ORACLE_EBP] != saved_ebp ||
+      machine.registers[NARROW_ORACLE_EBX] != saved_ebx ||
+      machine.registers[NARROW_ORACLE_ESI] != saved_esi ||
+      machine.registers[NARROW_ORACLE_EDI] != saved_edi ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, &observed) ||
+      observed != return_address) {
+    return 0;
+  }
+  for (index = 0u; index < argument_count; index++) {
+    if (!narrow_oracle_read_memory(
+            &machine, NARROW_ORACLE_INITIAL_ESP + 4u + index * 4u, 32u,
+            &observed) ||
+        observed != arguments[index]) {
+      return 0;
+    }
+  }
+  *machine_out = machine;
+  return 1;
+}
+
+static int validate_atomic_builtin_execution(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  typedef struct {
+    const char *name;
+    ctool_u16 width_bits;
+    ctool_u32 initial_value;
+    ctool_u32 argument_value;
+    ctool_u32 expected_result;
+    ctool_u32 expected_value;
+    int has_value;
+    int check_result;
+  } atomic_execution_case_t;
+  static const atomic_execution_case_t cases[] = {
+      {"atomic_load_byte", 8u, 0xfeu, 0u, 0xfeu, 0xfeu, 0, 1},
+      {"atomic_load_consume", 8u, 0x80u, 0u, 0x80u, 0x80u, 0, 1},
+      {"atomic_store_byte", 8u, 0x11u, 0xaau, 0u, 0xaau, 1, 0},
+      {"atomic_store_seq_word", 16u, 0x1234u, 0xbeefu, 0u, 0xbeefu, 1, 0},
+      {"atomic_exchange_byte", 8u, 0xffu, 0x12u, 0xffu, 0x12u, 1, 1},
+      {"atomic_exchange_signed_byte", 8u, 0x80u, 0x7fu,
+       0xffffff80u, 0x7fu, 1, 1},
+      {"atomic_exchange_dword", 32u, 0xdeadbeefu, 0x01020304u,
+       0xdeadbeefu, 0x01020304u, 1, 1},
+      {"atomic_fetch_byte", 8u, 0xffu, 1u, 0xffu, 0u, 1, 1},
+      {"atomic_fetch_signed_byte", 8u, 0x80u, 0xffu,
+       0xffffff80u, 0x7fu, 1, 1},
+      {"atomic_fetch_dword", 32u, 0xffffffffu, 1u,
+       0xffffffffu, 0u, 1, 1},
+      {"atomic_load_dword", 32u, 0x89abcdefu, 0u,
+       0x89abcdefu, 0x89abcdefu, 0, 1}};
+  static const ctool_u32 object_address = 32u;
+  static const ctool_u32 guard = 0xa5a5a5a5u;
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  if (text == NULL) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       index++) {
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, cases[index].name);
+    atomic_oracle_cell_t cell = {
+        object_address, cases[index].width_bits,
+        cases[index].initial_value};
+    narrow_oracle_machine_t machine;
+    ctool_u32 arguments[2] = {
+        object_address, cases[index].argument_value};
+    ctool_u32 observed_result;
+    ctool_u32 observed_value;
+    ctool_u32 lower_guard;
+    ctool_u32 upper_guard;
+    if (function == NULL ||
+        !atomic_oracle_execute(
+            job, text, function, arguments,
+            cases[index].has_value != 0 ? 2u : 1u, &cell, 1u,
+            &machine) ||
+        !narrow_oracle_read_memory(
+            &machine, object_address, cases[index].width_bits,
+            &observed_value) ||
+        !narrow_oracle_read_memory(
+            &machine, object_address - 4u, 32u, &lower_guard) ||
+        !narrow_oracle_read_memory(
+            &machine, object_address + 4u, 32u, &upper_guard)) {
+      (void)fprintf(
+          stderr, "atomic execution setup %s differs\n",
+          cases[index].name);
+      return 0;
+    }
+    observed_result = machine.registers[NARROW_ORACLE_EAX];
+    if ((cases[index].check_result != 0 &&
+         observed_result != cases[index].expected_result) ||
+        observed_value != cases[index].expected_value ||
+        lower_guard != guard || upper_guard != guard) {
+      (void)fprintf(
+          stderr,
+          "atomic execution %s differs: eax=%08x value=%08x "
+          "guards=%08x/%08x\n",
+          cases[index].name, (unsigned int)observed_result,
+          (unsigned int)observed_value, (unsigned int)lower_guard,
+          (unsigned int)upper_guard);
+      return 0;
+    }
+  }
+  {
+    static const ctool_u32 base_address = 32u;
+    static const ctool_u32 step_address = 48u;
+    static const ctool_u32 arguments[] = {base_address, step_address};
+    static const atomic_oracle_cell_t cells[] = {
+        {base_address, 32u, 10u},
+        {base_address + 4u, 32u, 20u},
+        {step_address, 32u, 0u}};
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, "atomic_side_effect");
+    narrow_oracle_machine_t machine = {0};
+    ctool_u32 first = 0u;
+    ctool_u32 second = 0u;
+    ctool_u32 step = 0u;
+    ctool_u32 lower_guard = 0u;
+    ctool_u32 upper_guard = 0u;
+    if (function == NULL ||
+        !atomic_oracle_execute(
+            job, text, function, arguments,
+            (ctool_u32)(sizeof(arguments) / sizeof(arguments[0])),
+            cells, (ctool_u32)(sizeof(cells) / sizeof(cells[0])),
+            &machine) ||
+        !narrow_oracle_read_memory(
+            &machine, base_address, 32u, &first) ||
+        !narrow_oracle_read_memory(
+            &machine, base_address + 4u, 32u, &second) ||
+        !narrow_oracle_read_memory(
+            &machine, step_address, 32u, &step) ||
+        !narrow_oracle_read_memory(
+            &machine, base_address - 4u, 32u, &lower_guard) ||
+        !narrow_oracle_read_memory(
+            &machine, base_address + 8u, 32u, &upper_guard) ||
+        machine.registers[NARROW_ORACLE_EAX] != 10u ||
+        first != 11u || second != 20u || step != 2u ||
+        lower_guard != guard || upper_guard != guard) {
+      (void)fprintf(
+          stderr,
+          "atomic pointer/value evaluation differs: eax=%08x "
+          "base=%08x/%08x step=%08x guards=%08x/%08x\n",
+          (unsigned int)machine.registers[NARROW_ORACLE_EAX],
+          (unsigned int)first, (unsigned int)second,
+          (unsigned int)step, (unsigned int)lower_guard,
+          (unsigned int)upper_guard);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_atomic_builtin_object(const char *host_root) {
+  static const char source[] =
+      "unsigned char atomic_load_byte(volatile unsigned char *p) { return "
+      "__atomic_load_n(p, __ATOMIC_ACQUIRE); }\n"
+      "unsigned char atomic_load_consume(volatile unsigned char *p) { return "
+      "__atomic_load_n(p, __ATOMIC_CONSUME); }\n"
+      "void atomic_store_byte(volatile unsigned char *p, unsigned char v) { "
+      "__atomic_store_n(p, v, __ATOMIC_RELEASE); }\n"
+      "void atomic_store_seq_word(volatile unsigned short *p, unsigned short "
+      "v) { __atomic_store_n(p, v, __ATOMIC_SEQ_CST); }\n"
+      "unsigned char atomic_exchange_byte(volatile unsigned char *p, "
+      "unsigned char v) { return __atomic_exchange_n(p, v, "
+      "__ATOMIC_ACQ_REL); }\n"
+      "signed char atomic_exchange_signed_byte(volatile signed char *p, "
+      "signed char v) { return __atomic_exchange_n(p, v, "
+      "__ATOMIC_ACQ_REL); }\n"
+      "unsigned atomic_exchange_dword(volatile unsigned *p, unsigned v) { "
+      "return __atomic_exchange_n(p, v, __ATOMIC_RELAXED); }\n"
+      "unsigned char atomic_fetch_byte(volatile unsigned char *p, unsigned "
+      "char v) { return __atomic_fetch_add(p, v, __ATOMIC_SEQ_CST); }\n"
+      "signed char atomic_fetch_signed_byte(volatile signed char *p, signed "
+      "char v) { return __atomic_fetch_add(p, v, __ATOMIC_SEQ_CST); }\n"
+      "unsigned atomic_fetch_dword(volatile unsigned *p, unsigned v) { "
+      "return __atomic_fetch_add(p, v, __ATOMIC_RELEASE); }\n"
+      "unsigned atomic_load_dword(volatile unsigned *p) { return "
+      "__atomic_load_n(p, __ATOMIC_SEQ_CST); }\n"
+      "unsigned atomic_side_effect(volatile unsigned *base, unsigned *step) { "
+      "return __atomic_fetch_add(base + (*step)++, (*step)++, "
+      "__ATOMIC_RELAXED); }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_expression_t *expressions = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 atomic_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/atomic-builtins-object.c", source,
+                         CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 12u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "atomic builtin object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 2048u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 2048u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 2048u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "atomic builtin buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first atomic builtin object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat atomic builtin object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "atomic builtin object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/atomic-builtins-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read atomic builtin object") ||
+      !validate_atomic_builtin_object(job, &object) ||
+      !validate_atomic_builtin_execution(job, &object)) {
+    (void)fprintf(stderr, "atomic builtin object validation failed\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*expressions));
+  if (expressions == NULL) {
+    (void)fprintf(stderr, "atomic builtin mutation allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*expressions));
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (expressions[index].kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+      atomic_expression = index;
+      break;
+    }
+  }
+  if (atomic_expression == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "atomic builtin expression is absent\n");
+    goto cleanup;
+  }
+  expressions[atomic_expression].integer_bits = 3u;
+  mutant = unit;
+  mutant.expressions = expressions;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "atomic builtin invalid order") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "atomic builtin recovery")) {
+    (void)fprintf(stderr, "atomic builtin rollback or recovery failed\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expressions);
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("atomic-builtins: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_pointer_output_assembly_object(
     const char *host_root) {
   static const char source[] =
@@ -26791,6 +27382,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
+    return run_atomic_builtin_object(argv[2]);
+  }
   if (argc == 3 &&
       strcmp(argv[1], "pointer-output-assembly") == 0) {
     return run_pointer_output_assembly_object(argv[2]);
@@ -26877,7 +27471,8 @@ int main(int argc, char **argv) {
                 "aggregate-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"
-                "void-casts|inline-assembly|pointer-output-assembly|"
+                "void-casts|inline-assembly|atomic-builtins|"
+                "pointer-output-assembly|"
                 "operand-free-assembly|"
                 "structure-values|call-alignment|"
                 "compound-literals|old-style-empty-functions|block-records|"

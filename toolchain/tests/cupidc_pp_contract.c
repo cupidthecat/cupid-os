@@ -1357,6 +1357,16 @@ static int run_predefined_macros(void) {
       "#ifndef __LINE__\n"
       "not_taken\n"
       "#endif\n"
+      "orders __ATOMIC_RELAXED __ATOMIC_CONSUME __ATOMIC_ACQUIRE "
+      "__ATOMIC_RELEASE __ATOMIC_ACQ_REL __ATOMIC_SEQ_CST\n"
+      "#if defined(__ATOMIC_RELAXED) && defined(__ATOMIC_CONSUME) && "
+      "defined(__ATOMIC_ACQUIRE) && defined(__ATOMIC_RELEASE) && "
+      "defined(__ATOMIC_ACQ_REL) && defined(__ATOMIC_SEQ_CST) && "
+      "__ATOMIC_RELAXED == 0 && __ATOMIC_CONSUME == 1 && "
+      "__ATOMIC_ACQUIRE == 2 && __ATOMIC_RELEASE == 3 && "
+      "__ATOMIC_ACQ_REL == 4 && __ATOMIC_SEQ_CST == 5\n"
+      "atomic_orders_condition\n"
+      "#endif\n"
       "timestamp __DATE__ __TIME__\n"
       "#if defined(__DATE__) && defined(__TIME__)\n"
       "timestamp_condition\n"
@@ -1374,7 +1384,9 @@ static int run_predefined_macros(void) {
   static const char *const expected_text[] = {
       "first", "\"/predefined/path.c\"", "2", "1", "0", "201112L",
       "site", "\"/predefined/path.c\"", "3", "predefined_condition",
-      "ifdef_ok", "timestamp", "\"Jan  1 1970\"", "\"00:00:00\"",
+      "ifdef_ok", "orders", "0", "1", "2", "3", "4", "5",
+      "atomic_orders_condition", "timestamp", "\"Jan  1 1970\"",
+      "\"00:00:00\"",
       "timestamp_condition"};
   ctool_host_adapter_t adapter;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -1644,7 +1656,9 @@ static int run_predefined_files(void) {
 static int run_predefined_errors(void) {
   static const char *const names[] = {
       "__FILE__", "__LINE__", "__DATE__", "__TIME__", "__STDC__",
-      "__STDC_HOSTED__", "__STDC_VERSION__", "defined"};
+      "__STDC_HOSTED__", "__STDC_VERSION__", "__ATOMIC_RELAXED",
+      "__ATOMIC_CONSUME", "__ATOMIC_ACQUIRE", "__ATOMIC_RELEASE",
+      "__ATOMIC_ACQ_REL", "__ATOMIC_SEQ_CST", "defined"};
   static const char recovery_text[] =
       "#define ID(defined) defined\nrecovered ID(value) __STDC__\n";
   static const char action_text[] = "unreached\n";

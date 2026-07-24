@@ -6749,14 +6749,14 @@ static int validate_toolchain_frontier(const char *host_root) {
        2201u, 47u, 26u, 0u, 0u},
       {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
-      {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
-       25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 196u, 5885u,
-       52768u, 728u, 246u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 177u, 4843u,
-       41691u, 589u, 300u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 314u,
-       12585u, 82283u, 1863u, 1248u, 0u, 0u},
+      {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
+       25287u, 479u, 286u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 199u, 5994u,
+       53812u, 751u, 260u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 180u, 4931u,
+       42479u, 598u, 300u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 317u,
+       12802u, 83788u, 1902u, 1265u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23735,6 +23735,198 @@ static int validate_pointer_output_assembly_unit(
   return assembly_statement_count == unit->assembly_count ? 0 : 1;
 }
 
+static int validate_atomic_builtin_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_expression_kind_t kinds[] = {
+      CTOOL_C_EXPRESSION_ATOMIC_LOAD,
+      CTOOL_C_EXPRESSION_ATOMIC_LOAD,
+      CTOOL_C_EXPRESSION_ATOMIC_LOAD,
+      CTOOL_C_EXPRESSION_ATOMIC_STORE,
+      CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE,
+      CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD};
+  static const ctool_u32 orders[] = {0u, 1u, 2u, 3u, 4u, 5u};
+  static const ctool_u32 sizes[] = {1u, 1u, 1u, 0u, 4u, 4u};
+  ctool_u32 found = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != ARRAY_COUNT(kinds) ||
+      unit->expressions == NULL || unit->expression_children == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind < CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
+        expression->kind > CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
+      continue;
+    }
+    if (found >= ARRAY_COUNT(kinds) ||
+        expression->kind != kinds[found] ||
+        expression->child_count != (found < 3u ? 1u : 2u) ||
+        expression->first_child == CTOOL_C_AST_NONE ||
+        expression->first_child + expression->child_count >
+            unit->expression_child_count ||
+        expression->reference != CTOOL_C_AST_NONE ||
+        expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        expression->conversion != CTOOL_C_CONVERSION_NONE ||
+        expression->computation_type != CTOOL_C_TYPE_NONE ||
+        expression->integer_bits != orders[found] ||
+        expression->string_bytes.data != NULL ||
+        expression->string_bytes.size != 0u ||
+        expression->type >= unit->layout.type_count ||
+        (found == 3u
+             ? unit->graph.types[expression->type].kind !=
+                   CTOOL_C_TYPE_VOID
+             : unit->layout.types[expression->type].size != sizes[found])) {
+      return 1;
+    }
+    found++;
+  }
+  return found == ARRAY_COUNT(kinds) ? 0 : 1;
+}
+
+static int run_atomic_builtins(const char *host_root) {
+  static const char source[] =
+      "volatile unsigned char byte_value;\n"
+      "unsigned load_relaxed(void) { return __atomic_load_n(&byte_value, "
+      "__ATOMIC_RELAXED); }\n"
+      "unsigned load_consume(void) { return __atomic_load_n(&byte_value, "
+      "__ATOMIC_CONSUME); }\n"
+      "unsigned load_byte(void) { return __atomic_load_n(&byte_value, "
+      "__ATOMIC_ACQUIRE); }\n"
+      "void store_byte(unsigned char value) { __atomic_store_n(&byte_value, "
+      "value, __ATOMIC_RELEASE); }\n"
+      "volatile unsigned word_value;\n"
+      "unsigned exchange_word(unsigned value) { return "
+      "__atomic_exchange_n(&word_value, value, __ATOMIC_ACQ_REL); }\n"
+      "unsigned fetch_word(unsigned value) { return "
+      "__atomic_fetch_add(&word_value, value, __ATOMIC_SEQ_CST); }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"missing memory order",
+        "volatile unsigned value; "
+        "unsigned bad(void) { return __atomic_load_n(&value); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       0u, 0u, "expected source token is missing"},
+      {{"excess load argument",
+        "volatile unsigned value; "
+        "unsigned bad(void) { return __atomic_load_n(&value, 0, 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
+       0u, 0u, "expected source token is missing"},
+      {{"non-pointer object",
+        "unsigned bad(unsigned value) { "
+        "return __atomic_load_n(value, __ATOMIC_RELAXED); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "GNU atomic builtin requires a pointer to an integer object"},
+      {{"record object",
+        "struct pair { unsigned first; unsigned second; }; "
+        "struct pair value; "
+        "void bad(void) { __atomic_store_n(&value, value, 0); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "GNU atomic builtin object type is outside the represented integer "
+       "slice"},
+      {{"floating object",
+        "float value; "
+        "float bad(void) { return __atomic_load_n(&value, 0); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "GNU atomic builtin object type is outside the represented integer "
+       "slice"},
+      {{"wide object",
+        "unsigned long long value; "
+        "unsigned long long bad(void) { return __atomic_load_n(&value, 0); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "GNU atomic builtin requires a represented 1-, 2-, or 4-byte "
+       "integer object"},
+      {{"const write",
+        "const unsigned value = 0; "
+        "void bad(void) { __atomic_store_n(&value, 1, 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "GNU atomic write requires a non-const object"},
+      {{"Boolean fetch add",
+        "_Bool value; "
+        "_Bool bad(void) { return __atomic_fetch_add(&value, 1, 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "__atomic_fetch_add does not accept a Boolean object"},
+      {{"release load",
+        "unsigned value; "
+        "unsigned bad(void) { return __atomic_load_n(&value, "
+        "__ATOMIC_RELEASE); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "GNU atomic memory order is invalid for this operation"},
+      {{"acquire store",
+        "unsigned value; "
+        "void bad(void) { __atomic_store_n(&value, 1, __ATOMIC_ACQUIRE); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "GNU atomic memory order is invalid for this operation"},
+      {{"runtime memory order",
+        "unsigned value; "
+        "unsigned bad(int order) { return __atomic_load_n(&value, order); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       0u, 0u, "integer constant expression operand is unsupported"},
+      {{"incompatible value",
+        "struct pair { unsigned first; unsigned second; }; "
+        "unsigned value; "
+        "void bad(struct pair pair) { __atomic_store_n(&value, pair, 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "GNU atomic value is not assignment-compatible with its object"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"disabled GNU extensions",
+       "volatile unsigned value; "
+       "unsigned bad(void) { return __atomic_load_n(&value, 0); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      0u, 0u, "atomic builtins require GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "atomic-builtins", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/atomic-builtins.c", source, &unit) !=
+          0 ||
+      validate_atomic_builtin_unit(&unit) != 0) {
+    (void)fprintf(stderr, "atomic-builtins: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/atomic-builtins-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_atomic_builtin_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/atomic-builtins-strict.c", disabled_gnu_case.line,
+          disabled_gnu_case.column, disabled_gnu_case.message) != 0 ||
+      validate_atomic_builtin_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("atomic-builtins: ok");
+  }
+  return failed;
+}
+
 static int run_pointer_output_assembly(const char *host_root) {
   static const char source[] =
       "struct cpu_state { unsigned id; };\n"
@@ -24215,6 +24407,7 @@ int main(int argc, char **argv) {
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-conversions|"
                    "variadic-callees|"
+                   "atomic-builtins|"
                    "inline-assembly|pointer-output-assembly|"
                    "operand-free-assembly|"
                    "block-bindings|"
@@ -24272,6 +24465,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);
+  }
+  if (strcmp(argv[1], "atomic-builtins") == 0) {
+    return run_atomic_builtins(argv[2]);
   }
   if (strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly(argv[2]);

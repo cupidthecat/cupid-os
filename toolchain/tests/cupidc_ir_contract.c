@@ -27868,6 +27868,165 @@ static const char pointer_output_assembly_source[] =
     "  asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value));\n"
     "}\n";
 
+static int atomic_builtin_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_ir_instruction_kind_t kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD,
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD,
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD,
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE,
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE,
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD};
+  static const ctool_u64 orders[] = {0u, 1u, 2u, 3u, 4u, 5u};
+  static const ctool_u32 sizes[] = {1u, 1u, 1u, 1u, 4u, 4u};
+  ctool_u32 found = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || unit->layout.types == NULL ||
+      ir->function_count != 7u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[index];
+    if (instruction->kind < CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD ||
+        instruction->kind >
+            CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD) {
+      continue;
+    }
+    if (found >=
+            (ctool_u32)(sizeof(kinds) / sizeof(kinds[0])) ||
+        instruction->kind != kinds[found] ||
+        instruction->type >= unit->layout.type_count ||
+        unit->layout.types[instruction->type].size != sizes[found] ||
+        instruction->input_type >= unit->layout.type_count ||
+        unit->layout.types[instruction->input_type].size != 4u ||
+        instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        instruction->argument_count != 0u ||
+        instruction->first_argument_type != CTOOL_C_AST_NONE ||
+        instruction->reference != CTOOL_C_AST_NONE ||
+        instruction->integer_bits != orders[found]) {
+      return 0;
+    }
+    found++;
+  }
+  return found == (ctool_u32)(sizeof(kinds) / sizeof(kinds[0])) ? 1 : 0;
+}
+
+static int run_atomic_builtins(const char *host_root) {
+  static const char source[] =
+      "volatile unsigned char byte_value;\n"
+      "unsigned load_relaxed(void) { return __atomic_load_n(&byte_value, "
+      "__ATOMIC_RELAXED); }\n"
+      "unsigned load_consume(void) { return __atomic_load_n(&byte_value, "
+      "__ATOMIC_CONSUME); }\n"
+      "unsigned load_byte(void) { return __atomic_load_n(&byte_value, "
+      "__ATOMIC_ACQUIRE); }\n"
+      "void store_byte(unsigned char value) { __atomic_store_n(&byte_value, "
+      "value, __ATOMIC_RELEASE); }\n"
+      "volatile unsigned word_value;\n"
+      "unsigned exchange_word(unsigned value) { return "
+      "__atomic_exchange_n(&word_value, value, __ATOMIC_ACQ_REL); }\n"
+      "unsigned fetch_word(unsigned value) { return "
+      "__atomic_fetch_add(&word_value, value, __ATOMIC_SEQ_CST); }\n"
+      "void dead_store(void) { return; __atomic_store_n(&byte_value, 0, "
+      "__ATOMIC_RELEASE); }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_expression_t *expressions = NULL;
+  ctool_u32 dead_store = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/atomic-builtins.c", source, CTOOL_TRUE,
+                         &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "atomic builtin lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !atomic_builtin_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat atomic builtin lowering") ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !atomic_builtin_ir_matches(&unit, &repeat_ir)) {
+    goto cleanup;
+  }
+  if (unit.expressions == NULL) {
+    goto cleanup;
+  }
+  expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*expressions));
+  if (expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*expressions));
+  for (index = unit.expression_count; index != 0u;) {
+    index--;
+    if (expressions[index].kind == CTOOL_C_EXPRESSION_ATOMIC_STORE) {
+      dead_store = index;
+      break;
+    }
+  }
+  if (dead_store == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  expressions[dead_store].integer_bits = 2u;
+  invalid_unit = unit;
+  invalid_unit.expressions = expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unreachable atomic order mutation")) {
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "atomic builtin recovery") ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !atomic_builtin_ir_matches(&unit, &recovered_ir)) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("atomic-builtins: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int pointer_output_assembly_ir_matches(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
@@ -28507,6 +28666,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
+    return run_atomic_builtins(argv[2]);
+  }
   if (argc == 3 &&
       strcmp(argv[1], "pointer-output-assembly") == 0) {
     return run_pointer_output_assembly(argv[2]);
@@ -28533,7 +28695,7 @@ int main(int argc, char **argv) {
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"
                 "wide-objects|wide-mutations|self-host-frontier|"
-                "inline-assembly|pointer-output-assembly|"
+                "inline-assembly|atomic-builtins|pointer-output-assembly|"
                 "operand-free-assembly "
                 "HOST_ROOT\n");
   return 2;

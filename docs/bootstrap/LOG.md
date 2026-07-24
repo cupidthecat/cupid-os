@@ -7916,3 +7916,102 @@ The focused raw-source and source-manifest tests both pass. This correction
 changes no boot source, memory address, object, image, or runtime behavior; it
 brings the checked evidence into line with the stack relocation that already
 passed the clean build and QEMU smoke.
+
+## 2026-07-24: CupidC emits the active SMP integer atomics
+
+The active source contains thirteen GNU atomic calls, all in `kernel/smp`.
+Eight operate on byte flags and five operate on 32-bit counters. The set uses
+four stores, three loads, two exchanges, and four fetch-add operations with
+acquire, release, acquire-release, and sequentially consistent orders.
+
+CupidC now represents `__atomic_load_n`, `__atomic_store_n`,
+`__atomic_exchange_n`, and `__atomic_fetch_add` for complete one-, two-, and
+four-byte integer objects. The six `__ATOMIC_*` order names are reserved
+target predefines with values zero through five in every language mode; the
+four expressions remain GNU-only. The frontend checks the operation's legal
+order set, evaluates the pointer and optional value once, and publishes a
+dedicated typed expression. Store has type `void`; the other operations
+return the unqualified object type.
+
+Linear IR keeps one instruction per operation, with the object width,
+evaluated pointer type, and constant order. Whole-unit validation covers
+reachable and unreachable expressions before lowering. The i386 emitter uses
+ordinary width-correct loads for relaxed, consume, acquire, and sequentially
+consistent load; ordinary stores for relaxed and release store; memory
+`XCHG` for every exchange and sequentially consistent store; and `LOCK XADD`
+for every fetch-add. Narrow old values are sign- or zero-extended before they
+return to C.
+
+The first frontend contract stopped at undeclared `__atomic_load_n`. Once the
+parser published the new expressions, the IR contract stopped because it had
+no atomic instruction kind. The first object proof then stopped at the
+emitter. Those three red results fixed the boundary between parsing, lowering,
+and code generation before each layer was implemented.
+
+Useful failures now cover strict mode, missing and excess arguments,
+non-pointer operands, record and floating objects, eight-byte objects, const
+writes, Boolean fetch-add, illegal load and store orders, runtime order
+arguments, incompatible values, forged unreachable metadata, constrained
+output, and same-job recovery. Runtime order values remain explicit deferred
+work because the current public node stores a checked constant rather than a
+runtime operand. Pointer atomics, HLE bits, and eight-byte atomics also remain
+open.
+
+### Active-source result
+
+The non-Doom header sweep advances from 150/154 to 153/154. All three roots
+that include `percpu.h` parse completely. `ports.h` remains at line 8 on its
+fixed-register port I/O assembly.
+
+Compiler head was run twice against the complete `KERNEL_I386` profile for
+the two newly complete SMP sources. Both pairs are byte-identical and pass
+the production i386 relocatable-object validator:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/smp/acpi.c` | 5,708 | `0e32026db8af4d22ad9007c1900df16bee2bca342187a797dc12f154f340b1d5` |
+| `kernel/smp/mp_tables.c` | 4,156 | `37791cc5ab28b93e92553735a2c8380d539f9473529e3f8d5731859c37358960` |
+
+The remaining four audited roots move to their next real source requirement:
+
+| Source | Next boundary |
+| --- | --- |
+| `kernel/smp/percpu.c` | input-only GNU assembly at line 73 |
+| `kernel/smp/bkl.c` | the `pushf; pop %0; cli` flags template at line 27 |
+| `kernel/smp/smp.c` | the GNU `naked` attribute at line 134 |
+| `kernel/core/process.c` | input-only FXSAVE assembly at line 378 |
+
+The first hybrid attempt requested `kernel/cpu/ksyms_data.o` from Make after
+replacing the two SMP objects. The root graph's global `FORCE` edge rebuilt
+every kernel object and silently restored the host versions. Exact object
+hash checks caught the replacement before it could be used as evidence. The
+accepted run rebuilt both CupidC objects, then invoked the two CupidLD passes,
+symbol generation, the single generated-symbol C compile, CupidObj, and image
+construction through dependency-free commands. No normal Make target ran
+after the second replacement.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused preprocessor contracts | PASS | The predefined and predefined-error selectors cover all six order macros and their reserved identity. |
+| Focused frontend, IR, and object contracts | PASS | Atomic selectors cover typed graphs, all six order values, all four operations, exact instruction bytes, deterministic repeat, malformed units, rollback, and recovery. The decoded i386 oracle checks old results, memory changes, signed and unsigned narrow values, wraparound, guard bytes, cdecl state, and pointer-before-value single evaluation. |
+| Active header gate | PASS | The audit-derived 154-header contract reports 153 passes and only `ports.h` as a failure. |
+| Native Toolchain contract suite | PASS | `make -C toolchain BUILD_DIR=build-root-atomic-review test` passes every registered selector, the 13-source self-host object frontier, and all five static Cupid-built tool links. |
+| Active production-source probe | PASS AT COMPILER HEAD | The two objects above emit twice and validate. The four remaining roots fail at the later boundaries listed above. |
+| Disposable hybrid link | PASS | Both CupidLD passes and CupidObj accept the two head-built SMP objects in an otherwise normal detached build. The 6,443,588-byte `kernel.elf` has SHA-256 `c3b94b99f3601530c3d82e267ad36990d061ca4a699df8ebfcd3f29fc04896ae`; `_kernel_end` is `0x00B1A910`, leaving 939,760 bytes below the fixed stack. The 6,266,807-byte `kernel.bin` has SHA-256 `6bf59b4ed7fd50c0e908fcc88015a08f118c98ee20d2cefa67963ca14caf6fda`. Before boot, the 209,715,200-byte image has SHA-256 `4ce33c9812c9dea154cae4b151d4a23f2281e165ef8545a3b79075d9307f3ff5`. |
+| Hybrid QEMU runtime | PASS | With four CPUs, the `max` CPU model, and e1000, ACPI reports four CPUs and all four come online. RDRAND seeds the generator, exactly 62 crypto, ASN.1, and X.509 checks pass, e1000 initializes, the desktop opens a terminal, and `/bin/ls.cc` reaches JIT completion. The 51,061-byte log has SHA-256 `3cd54a8de26a0856e7b1819c1f616e7e35b9ac5f3f78033eb172b03efd9cb1b8` and no accepted failure marker. |
+| Active build audit | PASS | Regeneration and `make check-bootstrap-audit` agree on 698 active inputs, 252 feature requirements, 501 transforms, and 39 accounted unreachable files. The active-source digest is `1e4f5fecd656ca495ce453df98064ee63645bd0997fe316ea2fbaf01fe87fb3a`; the audit JSON SHA-256 is `9f2f6e57d9d9f6e2937f3ef26e465ff7e0cdac29683ded7797868895a1a7fcde`. |
+| Full repository gate | PASS | `make test` passes all 464 tests in 1,669.329 seconds with one expected skip. Make returns successfully in 1,710.6 seconds. |
+
+The self-source locks were refreshed from successful output rather than
+estimated. The final tuples for definitions, statements, expressions, block
+bindings, and initializers are `cupidc_pp.c`
+143/3,932/25,287/479/286, `cupidc_ir.c`
+199/5,994/53,812/751/260, `cupidc_emit.c`
+180/4,931/42,479/598/300, and `cupidc_frontend.c`
+317/12,802/83,788/1,902/1,265. Their deterministic object sizes and text
+fingerprints are pinned in the object contract.
+
+ADR 0101 records the language, IR, memory-order, and i386 decisions. A staged
+seed refresh is the next ownership step; only after that seed proves a fixed
+point can `acpi.c` and `mp_tables.c` move into the normal build with an image
+and boot gate.

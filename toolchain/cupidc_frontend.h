@@ -295,7 +295,11 @@ typedef enum {
   CTOOL_C_EXPRESSION_VARIADIC_START,
   CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT,
   CTOOL_C_EXPRESSION_VARIADIC_COPY,
-  CTOOL_C_EXPRESSION_VARIADIC_END
+  CTOOL_C_EXPRESSION_VARIADIC_END,
+  CTOOL_C_EXPRESSION_ATOMIC_LOAD,
+  CTOOL_C_EXPRESSION_ATOMIC_STORE,
+  CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE,
+  CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -381,6 +385,10 @@ typedef struct {
    * VARIADIC_START: cursor lvalue, then final named parameter.
    * VARIADIC_ARGUMENT/VARIADIC_END: cursor lvalue.
    * VARIADIC_COPY: destination cursor lvalue, then converted source cursor.
+   * ATOMIC_LOAD: converted object pointer.
+   * ATOMIC_STORE/ATOMIC_EXCHANGE/ATOMIC_FETCH_ADD: converted object
+   * pointer, then converted value. The validated memory order is retained
+   * separately in integer_bits.
    * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY/UPDATE: one source-expression
    * child. COMPOUND_LITERAL has no expression children because its
    * initializer owns a separate postorder forest. */
@@ -399,7 +407,8 @@ typedef struct {
    * expression explicitly cast to void pointer. */
   ctool_u32 semantic_flags;
   /* INTEGER_CONSTANT: target-width constant bit pattern; type carries
-   * rank/sign. This includes target-folded non-VLA layout queries. */
+   * rank/sign. This includes target-folded non-VLA layout queries.
+   * ATOMIC_*: validated GNU memory-order value from zero through five. */
   ctool_u64 integer_bits;
   /* STRING: decoded target bytes including the trailing null byte. */
   ctool_bytes_t string_bytes;

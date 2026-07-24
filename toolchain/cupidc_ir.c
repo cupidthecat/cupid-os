@@ -121,6 +121,11 @@ typedef struct {
   ctool_status_t relation_status;
 } cir_context_t;
 
+static ctool_status_t cir_validate_atomic_expression_shape(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 *pointer_child_out,
+    ctool_u32 *value_child_out, ctool_u32 *object_type_out);
+
 ctool_status_t ctool_c_ir_validate_call_slices(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir, ctool_bool *valid_out) {
@@ -507,10 +512,22 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
     return cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
   }
   for (expression = 0u; expression < unit->expression_count; expression++) {
-    if (cir_expression_semantic_flags_are_valid(
-            &unit->expressions[expression]) == CTOOL_FALSE) {
+    const ctool_c_expression_t *candidate =
+        &unit->expressions[expression];
+    if (cir_expression_semantic_flags_are_valid(candidate) == CTOOL_FALSE) {
       return cir_invalid_unit(context,
-                              &unit->expressions[expression].location);
+                              &candidate->location);
+    }
+    if (candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
+        candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_STORE ||
+        candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE ||
+        candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
+      ctool_status_t status = cir_validate_atomic_expression_shape(
+          context, expression, candidate, (ctool_u32 *)0,
+          (ctool_u32 *)0, (ctool_u32 *)0);
+      if (status != CTOOL_OK) {
+        return status;
+      }
     }
   }
   for (statement = 0u; statement < unit->statement_count; statement++) {
@@ -2276,6 +2293,115 @@ static ctool_status_t cir_expression_child(
     return cir_invalid_unit(context, &expression->location);
   }
   *child_out = child;
+  return CTOOL_OK;
+}
+
+static ctool_bool cir_atomic_order_valid(
+    ctool_c_expression_kind_t kind, ctool_u32 order) {
+  if (order > 5u) {
+    return CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    return order == 0u || order == 1u || order == 2u || order == 5u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_EXPRESSION_ATOMIC_STORE) {
+    return order == 0u || order == 3u || order == 5u ? CTOOL_TRUE
+                                                     : CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cir_validate_atomic_expression_shape(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 *pointer_child_out,
+    ctool_u32 *value_child_out, ctool_u32 *object_type_out) {
+  const ctool_u32 expected_children =
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ? 1u : 2u;
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_node_t *object;
+  const ctool_c_type_layout_t *pointer_layout;
+  const ctool_c_type_layout_t *object_layout;
+  ctool_u32 pointer_child = CTOOL_C_AST_NONE;
+  ctool_u32 value_child = CTOOL_C_AST_NONE;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 object_base;
+  ctool_u32 object_qualifiers;
+  ctool_status_t status;
+  if (expression->child_count != expected_children ||
+      expression->reference != CTOOL_C_AST_NONE ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      expression->conversion != CTOOL_C_CONVERSION_NONE ||
+      expression->computation_type != CTOOL_C_TYPE_NONE ||
+      expression->semantic_flags != 0u ||
+      expression->integer_bits > 5u ||
+      cir_atomic_order_valid(
+          expression->kind, (ctool_u32)expression->integer_bits) ==
+          CTOOL_FALSE ||
+      expression->string_bytes.data != (const ctool_u8 *)0 ||
+      expression->string_bytes.size != 0u ||
+      expression->first_block_binding != CTOOL_C_AST_NONE ||
+      expression->block_binding_count != 0u ||
+      expression->block_binding_child_offset != 0u) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_expression_child(
+      context, expression_index, expression, 0u, &pointer_child);
+  if (status == CTOOL_OK && expected_children == 2u) {
+    status = cir_expression_child(
+        context, expression_index, expression, 1u, &value_child);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (cir_underlying_type(
+          context, context->unit->expressions[pointer_child].type,
+          &pointer_base, &pointer_qualifiers, &pointer) == CTOOL_FALSE ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      pointer_base >= context->unit->layout.type_count ||
+      cir_underlying_type(
+          context, pointer->referenced_type, &object_base,
+          &object_qualifiers, &object) == CTOOL_FALSE ||
+      object_base >= context->unit->layout.type_count) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  (void)pointer_qualifiers;
+  object_qualifiers |= object->qualifiers;
+  pointer_layout = &context->unit->layout.types[pointer_base];
+  object_layout = &context->unit->layout.types[object_base];
+  if (pointer_layout->is_object == CTOOL_FALSE ||
+      pointer_layout->is_complete_object == CTOOL_FALSE ||
+      pointer_layout->size != 4u ||
+      object_layout->is_integer == CTOOL_FALSE ||
+      object_layout->is_object == CTOOL_FALSE ||
+      object_layout->is_complete_object == CTOOL_FALSE ||
+      (object_layout->size != 1u && object_layout->size != 2u &&
+       object_layout->size != 4u) ||
+      (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD &&
+       object->kind == CTOOL_C_TYPE_BOOL) ||
+      (expression->kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD &&
+       (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) ||
+      (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_STORE
+           ? cir_type_is_void(context, expression->type) == CTOOL_FALSE
+           : cir_integer_value_types_match(
+                 context, object_base, expression->type) == CTOOL_FALSE) ||
+      (value_child != CTOOL_C_AST_NONE &&
+       cir_integer_value_types_match(
+           context, object_base,
+           context->unit->expressions[value_child].type) == CTOOL_FALSE)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (pointer_child_out != (ctool_u32 *)0) {
+    *pointer_child_out = pointer_child;
+  }
+  if (value_child_out != (ctool_u32 *)0) {
+    *value_child_out = value_child;
+  }
+  if (object_type_out != (ctool_u32 *)0) {
+    *object_type_out = object_base;
+  }
   return CTOOL_OK;
 }
 
@@ -5507,6 +5633,70 @@ static ctool_status_t cir_lower_variadic_builtin(
       (ctool_u32 *)0);
 }
 
+static ctool_status_t cir_lower_atomic_builtin(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 depth) {
+  cir_stack_entry_t pointer = {CIR_STACK_VALUE, CTOOL_C_TYPE_NONE};
+  cir_stack_entry_t value = {CIR_STACK_VALUE, CTOOL_C_TYPE_NONE};
+  ctool_c_ir_instruction_kind_t instruction_kind;
+  ctool_u32 pointer_child;
+  ctool_u32 value_child;
+  ctool_u32 object_type;
+  ctool_u32 base_depth = context->stack_depth;
+  ctool_u32 expected_values =
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ? 1u : 2u;
+  ctool_status_t status = cir_validate_atomic_expression_shape(
+      context, expression_index, expression, &pointer_child, &value_child,
+      &object_type);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cir_lower_expression(context, pointer_child, depth + 1u);
+  if (status == CTOOL_OK && value_child != CTOOL_C_AST_NONE) {
+    status = cir_lower_expression(context, value_child, depth + 1u);
+  }
+  if (status == CTOOL_OK &&
+      (cir_add_overflows(base_depth, expected_values) == CTOOL_TRUE ||
+       context->stack_depth != base_depth + expected_values)) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (status == CTOOL_OK && value_child != CTOOL_C_AST_NONE) {
+    status = cir_pop(context, &value);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_pop(context, &pointer);
+  }
+  if (status != CTOOL_OK ||
+      pointer.kind != CIR_STACK_VALUE ||
+      pointer.type != context->unit->expressions[pointer_child].type ||
+      (value_child != CTOOL_C_AST_NONE &&
+       (value.kind != CIR_STACK_VALUE ||
+        cir_integer_value_types_match(context, object_type, value.type) ==
+            CTOOL_FALSE))) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD;
+  } else if (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_STORE) {
+    instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE;
+  } else if (expression->kind ==
+             CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE) {
+    instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE;
+  } else {
+    instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD;
+  }
+  status = cir_append_instruction(
+      context, instruction_kind, object_type, pointer.type,
+      CTOOL_C_EXPRESSION_OPERATOR_NONE, CTOOL_C_CONVERSION_NONE,
+      CTOOL_C_AST_NONE, expression->integer_bits, &expression->location,
+      &expression->physical_location, (ctool_u32 *)0);
+  if (status != CTOOL_OK ||
+      instruction_kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE) {
+    return status;
+  }
+  return cir_push(context, CIR_STACK_VALUE, object_type);
+}
+
 static ctool_status_t cir_lower_enumerator_value(
     cir_context_t *context, ctool_u32 type, ctool_u64 integer_bits,
     ctool_bool integer_unsigned, const ctool_c_pp_location_t *location,
@@ -5767,6 +5957,13 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
       expression->kind == CTOOL_C_EXPRESSION_VARIADIC_END) {
     return cir_lower_variadic_builtin(context, expression_index, expression,
                                       depth);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_STORE ||
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE ||
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
+    return cir_lower_atomic_builtin(
+        context, expression_index, expression, depth);
   }
   if (expression->kind == CTOOL_C_EXPRESSION_STRING) {
     ctool_status_t string_status;

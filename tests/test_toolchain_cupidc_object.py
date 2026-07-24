@@ -507,6 +507,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
 
+    def test_atomic_builtins_emit_width_correct_i386_instructions(self):
+        result = subprocess.run(
+            [str(self.contract_path), "atomic-builtins", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "atomic-builtins: ok\n")
+
     def test_operand_free_assembly_emits_exact_i386_instructions(self):
         result = subprocess.run(
             [

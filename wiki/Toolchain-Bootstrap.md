@@ -77,10 +77,17 @@ objects through both CupidLD passes and booted them under QEMU.
 Compiler head also handles the exact per-CPU pointer output
 `mov %%gs:0, %0` with one four-byte `=r` object or `void` pointer. The frontend
 and IR preserve its pointer type and evaluate the destination once. The x86
-model emits `65 A1 00 00 00 00`. This moves three header roots from the
-pointer statement to `__atomic_store_n` without changing the 150/154 total.
-All six affected production sources stop at that atomic builtin, so this
-addition produces no new normal-build object and retires no host dependency.
+model emits `65 A1 00 00 00 00`.
+
+The compiler-head atomic slice now handles the active integer load, store,
+exchange, and fetch-add builtins with constant orders. Its i386 path selects
+ordinary loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
+the non-Doom header gate to 153/154 and lets unchanged `acpi.c` and
+`mp_tables.c` emit deterministic i386 ELF32 objects. A disposable two-pass
+image boots both objects with four CPUs and completes the normal desktop and
+CupidC runtime smoke. The checked seed still predates both the pointer-output
+and atomic additions, so these results retire no normal-build host dependency
+until the next staged seed and source cutover.
 
 The normal image now builds all 20 kernel crypto sources with that checked
 CupidC seed. The strict frontier compiles each source twice and accepts
