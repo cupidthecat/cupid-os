@@ -4335,11 +4335,10 @@ static int run_block_bindings(const char *host_root) {
         "void bad(void) { int local __attribute__((aligned(8))); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        1u, 43u, "block declaration attributes are outside this body slice"},
-      {{"GNU assembly boundary",
-        "void bad(void) { __asm__(\"nop\"); }\n",
+      {{"GNU assembly clobber boundary",
+        "void bad(void) { __asm__(\"nop\" : : : \"memory\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 31u,
-       "basic GNU inline assembly is outside this operand slice"},
+       0u, 0u, "GNU inline assembly clobbers are outside this slice"},
       {{"expired local use",
         "void sink(int value);\n"
         "void bad(void) { { int local; sink(local); } sink(local); }\n",
@@ -6752,12 +6751,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 196u, 5880u,
-       52654u, 727u, 246u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 173u, 4726u,
-       40839u, 576u, 295u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 196u, 5883u,
+       52708u, 727u, 246u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 174u, 4773u,
+       41098u, 578u, 295u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 314u,
-       12543u, 81982u, 1854u, 1243u, 0u, 0u},
+       12552u, 82111u, 1855u, 1244u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23623,6 +23622,140 @@ static int validate_inline_assembly_unit(
   return assembly_statement_count == unit->assembly_count ? 0 : 1;
 }
 
+static int validate_operand_free_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "pause; nop", "sti; hlt", "cld; sfence; fninit", "cli"};
+  static const ctool_u32 flags[] = {
+      CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != 0u ||
+      unit->assemblies == NULL || unit->assembly_operands != NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != flags[index] ||
+        assembly->first_operand != 0u ||
+        assembly->output_count != 0u ||
+        assembly->input_count != 0u ||
+        dual_location_matches(&assembly->location,
+                              &assembly->physical_location,
+                              "/operand-free-assembly.c",
+                              2u + index * 3u) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == unit->assembly_count ? 0 : 1;
+}
+
+static int run_operand_free_assembly(const char *host_root) {
+  static const char source[] =
+      "void relax_cpu(void) {\n"
+      "  __asm__ volatile(\"pause; nop\");\n"
+      "}\n"
+      "void idle_cpu(void) {\n"
+      "  asm(\"sti; hlt\");\n"
+      "}\n"
+      "void initialize_state(void) {\n"
+      "  __asm __volatile__(\"cld; sfence; fninit\" :);\n"
+      "}\n"
+      "void disable_interrupts(void) {\n"
+      "  asm(\"cli\" :);\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"blank operand-free template",
+        "void bad(void) { asm volatile(\" \\t\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly template requires an instruction"},
+      {{"operand-free clobber list",
+        "void bad(void) { asm volatile(\"nop\" : : : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly clobbers are outside this slice"},
+      {{"input-only assembly",
+        "void bad(int value) { asm volatile(\"nop\" : : \"0\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly with inputs requires an output in this slice"},
+      {{"operand-free asm goto",
+        "void bad(void) { asm goto(\"nop\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU asm goto is outside this slice"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"operand-free assembly without GNU extensions",
+       "void bad(void) { __asm__(\"pause\"); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      0u, 0u, "GNU inline assembly requires GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "operand-free-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/operand-free-assembly.c", source, &unit) != 0 ||
+      validate_operand_free_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "operand-free-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/operand-free-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_operand_free_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/operand-free-assembly-disabled.c",
+          disabled_gnu_case.line, disabled_gnu_case.column,
+          disabled_gnu_case.message) != 0 ||
+      validate_operand_free_assembly_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("operand-free-assembly: ok\n");
+  }
+  return failed;
+}
+
 static int run_inline_assembly(const char *host_root) {
   static const char source[] =
       "typedef unsigned int u32;\n"
@@ -23646,11 +23779,6 @@ static int run_inline_assembly(const char *host_root) {
       "\"=r\"(value), \"=qm\"(ok));\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"basic assembly",
-        "void bad(void) { __asm__(\"nop\"); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u,
-       "basic GNU inline assembly is outside this operand slice"},
       {{"asm goto",
         "void bad(void) { unsigned x; asm goto (\"nop\" : \"=a\"(x)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -23843,7 +23971,7 @@ int main(int argc, char **argv) {
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-conversions|"
                    "variadic-callees|"
-                   "inline-assembly|"
+                   "inline-assembly|operand-free-assembly|"
                    "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
@@ -23902,6 +24030,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "operand-free-assembly") == 0) {
+    return run_operand_free_assembly(argv[2]);
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);

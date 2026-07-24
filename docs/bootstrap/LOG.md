@@ -7762,3 +7762,65 @@ still belong to the host compiler. The CupidC objects are also not yet
 optimized like the host `-Os` objects. Larger kernel, driver, generated,
 toolchain, user, Doom, and vendored cohorts remain ahead. ADR 0098 records the
 ownership decision and the narrow X.509 claim.
+
+## 2026-07-24: CupidC emits operand-free GNU assembly statements
+
+The active assembly audit found 207 GNU or Cupid assembly occurrences across
+36 files. Outside the three represented CSPRNG statements and nine Cupid
+`asm {}` blocks, 94 are GNU basic assembly and 101 are GNU extended assembly.
+Forty-one basic statements are inside functions. Thirty-eight of those use
+only `pause`, `sti`, `hlt`, `sti; hlt`, `cli`, or `fninit`; three SMP thunks
+also contain labels and control transfer. The other 53 basic blocks are at
+file scope in `libm.c` and `dglibc.c`.
+
+This increment represents nonblank function-body basic statements and
+extended statements with an empty output list. Both forms own an empty operand
+slice and are implicitly volatile. The exact i386 template set is PAUSE, NOP,
+STI, HLT, CLI, CLD, SFENCE, and FNINIT. The emitter uses the shared x86 model
+and skips both temporary frame allocation and EBX preservation when a
+statement has no operands.
+
+Input-only assembly remains rejected until CupidC has real input constraints
+and register planning for it. Clobbers, blank compiler barriers, labeled
+templates, and file-scope assembly are also still open. A blank template is
+not accepted as a no-op because the active Doom sound barrier needs a
+`memory` clobber, not just zero emitted bytes.
+
+The first frontend test failed to compile because the public graph had no
+basic-assembly flag. After the parser change, the IR test failed with an
+invalid-unit diagnostic because lowering still required an output. The first
+object test then reached the emitter and failed with its internal diagnostic
+because frame planning also required an output. Each failure occurred before
+the matching implementation change.
+
+The active non-Doom header sweep is 150/154, not the older documented 149/154.
+`cpu.h` already passes through the represented RDTSC form. `ports.h` still
+needs width-aware fixed-register operands, and the three roots that include
+`percpu.h` still need a pointer register output.
+
+Native CupidC at source head now compiles the four unchanged production
+sources that the checked seed stopped at basic assembly. Each result passes
+the production i386 relocatable-object validator:
+
+| Source | Object bytes |
+| --- | ---: |
+| `drivers/e1000.c` | 8,780 |
+| `kernel/gui/desktop.c` | 111,196 |
+| `kernel/network/socket.c` | 12,416 |
+| `kernel/network/tcp.c` | 20,204 |
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused frontend contracts | PASS | The operand-free and existing operand-bearing assembly selectors both pass. |
+| Focused IR contracts | PASS | Both assembly selectors pass, including malformed flags, forged slices, deterministic repeat lowering, and recovery. |
+| Focused object contracts | PASS | Both assembly selectors pass. The shared decoder reads every new instruction, exact 10-byte and 12-byte function bodies prove there is no frame adjustment, repeated objects match byte for byte, failure after an emitted PAUSE publishes no partial object, and the job recovers. |
+| Complete object suite and fixed point | PASS | All 54 CupidC object tests pass in 806.507 seconds. The suite includes the five-tool static fixed-point proof. |
+| Complete build-graph audit suite | PASS | All 55 build-graph audit tests pass in 365.203 seconds, including generated-output and mutation checks. |
+| Active production-source probe | PASS | The four objects above compile under the exact `KERNEL_I386` profile and pass the shared production validator. |
+| Disposable hybrid link | PASS | Both CupidLD passes and CupidObj accept the four head-built objects in an otherwise normal detached build. `kernel.elf` is 6,525,952 bytes with SHA-256 `14ff0583a2a76ab95d17c8a4e57969c6604301baf8207eaa9f41c487b0fccd67`; `_kernel_end` is `0x00B2E910`, leaving 857,840 bytes below the stack. The 209,715,200-byte image has SHA-256 `ea33e324b3a8ea057d401cc6aa5d76a20fa4aa03d2a312a6d8a387fd5d54ad1a`. |
+| Hybrid QEMU runtime | PASS | With the `max` CPU and e1000 device, the image seeds through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, initializes e1000, reaches the desktop and terminal, and completes `/bin/ls.cc`. The 34,958-byte log has SHA-256 `534890a308a934eb47c5ebcbe19f51253d4bebf0897de34fb1765fbaed74cbe0` and no accepted failure marker. |
+| Active build audit | PASS | Regeneration and `make check-bootstrap-audit` agree on 698 active inputs, 252 feature requirements, 501 transforms, and 39 accounted unreachable files. The active-source digest is `88f15bce029e4490e8c96fdf0ffc849ebc72acd4272f08111f47dc4d45cd2820`; the audit JSON SHA-256 is `109e6762fdd93f18b08ae4dd7f14215ad94b70aaf0d86ecd05f7e67064e0a29a`. |
+
+The checked seed still contains the earlier compiler. No normal-build source
+changes owner in this increment, and the host dependency counts remain
+unchanged. ADR 0099 records the represented boundary.

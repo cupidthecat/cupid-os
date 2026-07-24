@@ -248,6 +248,8 @@ Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32`
 
 The checked CupidC seed owns all 20 normal-build kernel crypto objects. The strict frontier compiles every source twice to 204,132 byte-identical i386 ELF32 bytes, and a poisoned-host Make run rebuilds the cohort without Clang or GCC. Its GNU assembly subset represents the outputs and matching input in `csprng.c`, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model, and preserves EBX. Under QEMU's `max` CPU, the production image seeds through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, and completes an embedded CupidC JIT command. The X.509 checks cover parser, hostname, chain-state, and embedded-root lookup paths rather than full trust validation. Most normal C objects and the native contracts continue to use a host compiler, while the private in-kernel CupidC compiler handles embedded runtime compilation.
 
+Compiler head also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. A disposable hybrid image has booted with head-built e1000, desktop, socket, and TCP objects. The checked seed does not contain this addition yet.
+
 A block type name or record member can reuse a visible enum tag or define a new one.
 
 ### Global Variables

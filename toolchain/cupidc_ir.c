@@ -321,8 +321,8 @@ static ctool_status_t cir_validate_assembly_slices(
     ctool_u32 operand_offset;
     if (assembly->template_text.size == 0u ||
         assembly->template_text.data == (const char *)0 ||
-        (assembly->flags & ~CTOOL_C_ASSEMBLY_VOLATILE) != 0u ||
-        assembly->output_count == 0u ||
+        (assembly->flags &
+         ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -330,6 +330,14 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     operand_count = assembly->output_count + assembly->input_count;
+    if ((assembly->output_count == 0u &&
+         (assembly->input_count != 0u ||
+          (assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u)) ||
+        ((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u &&
+         (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
+          operand_count != 0u))) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
     if (operand_cursor > context->unit->assembly_operand_count ||
         operand_count >
             context->unit->assembly_operand_count - operand_cursor) {

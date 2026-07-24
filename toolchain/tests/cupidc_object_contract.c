@@ -24231,20 +24231,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 196u, 173u, 314u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 196u, 174u, 314u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      188654u, 369038u, 294546u, 613317u, 139612u, 70368u, 77981u,
+      188654u, 369463u, 296786u, 614138u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      224176u, 394316u, 314928u, 726780u, 157796u, 79348u, 131640u,
+      224176u, 394748u, 317544u, 727700u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0x94f54f57u,
-      0x43768ec9u, 0x26f82be0u, 0xa4cd6c70u, 0x3f69aac3u,
+      0xb1177af5u, 0x7e4cedbbu, 0xa8fd2c49u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   for (index = 0u; index <
@@ -26229,6 +26229,244 @@ cleanup:
   return 1;
 }
 
+static int operand_free_assembly_is_target(
+    ctool_x86_mnemonic_t mnemonic) {
+  return mnemonic == CTOOL_X86_MN_PAUSE ||
+                 mnemonic == CTOOL_X86_MN_NOP ||
+                 mnemonic == CTOOL_X86_MN_STI ||
+                 mnemonic == CTOOL_X86_MN_HLT ||
+                 mnemonic == CTOOL_X86_MN_CLI ||
+                 mnemonic == CTOOL_X86_MN_CLD ||
+                 mnemonic == CTOOL_X86_MN_SFENCE ||
+                 mnemonic == CTOOL_X86_MN_FNINIT
+             ? 1
+             : 0;
+}
+
+static int operand_free_assembly_uses_ebx(
+    const ctool_x86_instruction_t *instruction) {
+  ctool_u32 operand_index;
+  if (instruction == NULL) {
+    return 0;
+  }
+  for (operand_index = 0u;
+       operand_index < instruction->operand_count; operand_index++) {
+    const ctool_x86_operand_t *operand =
+        &instruction->operands[operand_index];
+    if ((operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+         operand->as.reg.class_id == CTOOL_X86_REG_GPR32 &&
+         operand->as.reg.index == 3u) ||
+        (operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+         ((operand->as.memory.base.class_id == CTOOL_X86_REG_GPR32 &&
+           operand->as.memory.base.index == 3u) ||
+          (operand->as.memory.index.class_id == CTOOL_X86_REG_GPR32 &&
+           operand->as.memory.index.index == 3u)))) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_operand_free_assembly_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    const ctool_x86_mnemonic_t *expected,
+    ctool_u32 expected_count, const ctool_u8 *expected_bytes,
+    ctool_u32 expected_byte_count) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 found = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      expected == NULL || expected_count == 0u ||
+      expected_bytes == NULL || expected_byte_count == 0u ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_byte_count ||
+      memcmp(text->contents.data + symbol->value, expected_bytes,
+             (size_t)expected_byte_count) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        operand_free_assembly_uses_ebx(&decoded.instruction)) {
+      return 0;
+    }
+    if (operand_free_assembly_is_target(
+            decoded.instruction.mnemonic)) {
+      if (found >= expected_count ||
+          decoded.instruction.mnemonic != expected[found] ||
+          decoded.instruction.operand_count != 0u) {
+        return 0;
+      }
+      found++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && found == expected_count ? 1 : 0;
+}
+
+static int validate_operand_free_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_x86_mnemonic_t basic_expected[] = {
+      CTOOL_X86_MN_PAUSE, CTOOL_X86_MN_NOP,
+      CTOOL_X86_MN_STI, CTOOL_X86_MN_HLT};
+  static const ctool_x86_mnemonic_t extended_expected[] = {
+      CTOOL_X86_MN_CLI, CTOOL_X86_MN_CLD,
+      CTOOL_X86_MN_SFENCE, CTOOL_X86_MN_FNINIT};
+  static const ctool_u8 basic_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xf3u, 0x90u,
+      0x90u, 0xfbu, 0xf4u, 0xc9u, 0xc3u};
+  static const ctool_u8 extended_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xfau, 0xfcu, 0x0fu,
+      0xaeu, 0xf8u, 0xdbu, 0xe3u, 0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !validate_operand_free_assembly_function(
+          job, text, find_symbol(object, "basic_wait"),
+          basic_expected,
+          (ctool_u32)(sizeof(basic_expected) /
+                      sizeof(basic_expected[0])),
+          basic_bytes, (ctool_u32)sizeof(basic_bytes)) ||
+      !validate_operand_free_assembly_function(
+          job, text, find_symbol(object, "extended_state"),
+          extended_expected,
+          (ctool_u32)(sizeof(extended_expected) /
+                      sizeof(extended_expected[0])),
+          extended_bytes, (ctool_u32)sizeof(extended_bytes))) {
+    (void)fprintf(stderr, "operand-free assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_operand_free_assembly_object(const char *host_root) {
+  static const char source[] =
+      "void basic_wait(void) {\n"
+      "  __asm__(\"pause; nop; sti; hlt\");\n"
+      "}\n"
+      "void extended_state(void) {\n"
+      "  __asm__ volatile(\"cli; cld; sfence; fninit\" :);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[2];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/operand-free-assembly-object.c",
+                         source, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 0u ||
+      unit.assembly_operands != NULL ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "operand-free assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "operand-free assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first operand-free assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat operand-free assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "operand-free assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/operand-free-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read operand-free assembly object") ||
+      !validate_operand_free_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_assemblies, unit.assemblies,
+               sizeof(mutant_assemblies));
+  mutant_assemblies[0].template_text = ctool_string("pause; rdtsc");
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "operand-free assembly partial template failure") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "operand-free assembly recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("operand-free-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "static-data") == 0) {
     return run_static_data(argv[2]);
@@ -26292,6 +26530,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
+    return run_operand_free_assembly_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);
@@ -26372,7 +26613,8 @@ int main(int argc, char **argv) {
                 "aggregate-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"
-                "void-casts|inline-assembly|structure-values|call-alignment|"
+                "void-casts|inline-assembly|operand-free-assembly|"
+                "structure-values|call-alignment|"
                 "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
                 "floating-arithmetic|floating-conversions|"

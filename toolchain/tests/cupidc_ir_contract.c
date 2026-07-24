@@ -27402,7 +27402,8 @@ static uint64_t inline_assembly_ir_fingerprint(
 }
 
 static int inline_assembly_instruction_matches(
-    const ctool_c_ir_instruction_t *instruction, ctool_u32 reference) {
+    const ctool_c_ir_instruction_t *instruction, ctool_u32 reference,
+    const char *path) {
   return instruction != NULL &&
                  instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY &&
                  instruction->type == CTOOL_C_TYPE_NONE &&
@@ -27413,10 +27414,8 @@ static int inline_assembly_instruction_matches(
                  instruction->first_argument_type == CTOOL_C_AST_NONE &&
                  instruction->reference == reference &&
                  instruction->integer_bits == 0u &&
-                 string_equal(instruction->location.path,
-                              "/inline-assembly.c") != 0 &&
-                 string_equal(instruction->physical_location.path,
-                              "/inline-assembly.c") != 0
+                 string_equal(instruction->location.path, path) != 0 &&
+                 string_equal(instruction->physical_location.path, path) != 0
              ? 1
              : 0;
 }
@@ -27485,10 +27484,10 @@ static int inline_assembly_ir_matches(
       }
     }
     if ((function_index < 3u &&
-         (assembly_count != 1u ||
+          (assembly_count != 1u ||
           !inline_assembly_instruction_matches(
               &ir->instructions[assembly_instructions[function_index]],
-              function_index))) ||
+              function_index, "/inline-assembly.c"))) ||
         (function_index == 3u && assembly_count != 0u)) {
       (void)fprintf(stderr,
                     "inline-assembly: function %u assembly differs\n",
@@ -27804,7 +27803,7 @@ static int run_inline_assembly(const char *host_root) {
 
   extra_assemblies[4] = unit.assemblies[3];
   extra_assemblies[4].template_text = ctool_string("nop");
-  extra_assemblies[4].flags = 0u;
+  extra_assemblies[4].flags = CTOOL_C_ASSEMBLY_VOLATILE;
   extra_assemblies[4].first_operand = unit.assembly_operand_count;
   extra_assemblies[4].output_count = 0u;
   extra_assemblies[4].input_count = 0u;
@@ -27844,6 +27843,194 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("inline-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int operand_free_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u32 expected_lines[] = {2u, 5u, 8u};
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 4u ||
+      unit->assembly_operand_count != 0u ||
+      unit->assemblies == NULL ||
+      unit->assembly_operands != NULL ||
+      ir->function_count != 4u ||
+      ir->instruction_count != 7u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (function_index = 0u; function_index < ir->function_count;
+       function_index++) {
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 assembly_count = 0u;
+    ctool_u32 offset;
+    if (function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->instruction_count !=
+            (function_index < 3u ? 2u : 1u) ||
+        function->maximum_stack_depth != 0u) {
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[function->first_instruction + offset];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+        if (function_index >= 3u ||
+            !inline_assembly_instruction_matches(
+                instruction, function_index,
+                "/operand-free-assembly.c") ||
+            instruction->location.line != expected_lines[function_index]) {
+          return 0;
+        }
+        assembly_count++;
+      }
+    }
+    if (assembly_count != (function_index < 3u ? 1u : 0u) ||
+        ir->instructions[function->first_instruction +
+                         function->instruction_count - 1u].kind !=
+            CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_operand_free_assembly(const char *host_root) {
+  static const char source[] =
+      "void relax_cpu(void) {\n"
+      "  __asm__ volatile(\"pause; nop\");\n"
+      "}\n"
+      "void idle_cpu(void) {\n"
+      "  asm(\"sti; hlt\");\n"
+      "}\n"
+      "void initialize_state(void) {\n"
+      "  __asm __volatile__(\"cld; sfence; fninit\" :);\n"
+      "}\n"
+      "void dead_wait(void) {\n"
+      "  return;\n"
+      "  __asm__(\"nop\");\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[4];
+  ctool_u32 diagnostic_count;
+  uint64_t ir_hash;
+  uint64_t unit_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/operand-free-assembly.c",
+                         source, CTOOL_TRUE, &unit) ||
+      unit.assembly_count != 4u ||
+      unit.assembly_operand_count != 0u ||
+      unit.assemblies == NULL ||
+      unit.assembly_operands != NULL) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "operand-free assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !operand_free_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat operand-free assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !operand_free_assembly_ir_matches(&unit, &repeat_ir)) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+
+  assemblies[0].flags |= 0x80000000u;
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "operand-free assembly unknown flag")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "nonvolatile basic assembly")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[2].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "nonvolatile empty extended assembly")) {
+    goto cleanup;
+  }
+  assemblies[2] = unit.assemblies[2];
+  assemblies[0].first_operand = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "operand-free assembly slice gap")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].output_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "basic assembly with an operand")) {
+    goto cleanup;
+  }
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "operand-free assembly recovery") ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !operand_free_assembly_ir_matches(&unit, &recovered_ir)) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("operand-free-assembly: ok");
     return 0;
   }
   return 1;
@@ -27981,6 +28168,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
+    return run_operand_free_assembly(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -28000,7 +28190,7 @@ int main(int argc, char **argv) {
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"
                 "wide-objects|wide-mutations|self-host-frontier|"
-                "inline-assembly "
+                "inline-assembly|operand-free-assembly "
                 "HOST_ROOT\n");
   return 2;
 }

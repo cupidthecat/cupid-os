@@ -143,6 +143,13 @@ EBX. Under QEMU's max CPU, RDRAND seeds the generator before all 62 checks pass
 and embedded CupidC completes /bin/ls.cc. CupidC optimization, removal of the
 Python and WSL launch bridge, and the remaining kernel C graph are still in
 progress.
+
+Compiler head also represents operand-free GNU assembly inside functions.
+Basic statements and extended statements with an empty output list are
+implicitly volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
+sequences emit without a temporary frame slot or EBX traffic. The checked seed
+does not contain this addition yet. A disposable hybrid image has booted with
+head-built e1000, desktop, socket, and TCP objects.
 >endtree
 
 >h2 Self-Hosting Compiler Path

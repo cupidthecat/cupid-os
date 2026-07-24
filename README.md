@@ -276,6 +276,14 @@ RDRAND, and SETC through Cupid's x86 model while preserving EBX. Every object
 is validated as an i386 ELF32 relocatable before publication, and the frontier
 compiles the complete cohort twice to 204,132 byte-identical bytes.
 
+At compiler head, function-body GNU assembly may also have no operands. Basic
+statements and extended statements with an empty output list are implicitly
+volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and
+FNINIT emit through the shared x86 model without a temporary frame slot or
+EBX save. A disposable hybrid image has booted with head-built `e1000`,
+desktop, socket, and TCP objects. This is not yet part of the checked seed or
+the normal build.
+
 A poisoned-host build proves that none of the 20 recipes invokes Clang or GCC.
 Under QEMU's `max` CPU, RDRAND seeds the generator, all 62 crypto, ASN.1, and
 X.509 checks pass, the desktop opens a terminal, and embedded CupidC runs

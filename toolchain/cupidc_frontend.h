@@ -211,6 +211,7 @@ typedef enum {
 } ctool_c_statement_kind_t;
 
 #define CTOOL_C_ASSEMBLY_VOLATILE 0x00000001u
+#define CTOOL_C_ASSEMBLY_BASIC 0x00000002u
 
 typedef struct {
   ctool_string_t constraint;
@@ -494,8 +495,8 @@ typedef struct {
   ctool_u32 statement_count;
   const ctool_u32 *statement_children;
   ctool_u32 statement_child_count;
-  /* GNU extended assembly records are ordered by their statement sites.
-   * Each record owns a packed output-then-input operand slice. */
+  /* GNU statement assembly records follow source order. Extended forms own
+   * one packed output-then-input operand slice; basic forms own no operands. */
   const ctool_c_assembly_t *assemblies;
   ctool_u32 assembly_count;
   const ctool_c_assembly_operand_t *assembly_operands;

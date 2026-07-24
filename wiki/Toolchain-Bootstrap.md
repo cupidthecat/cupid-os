@@ -62,6 +62,13 @@ the five refreshed seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
 tool behavior cases.
 
+Compiler head has advanced beyond that seed. It now represents operand-free
+GNU assembly statements inside functions and emits exact PAUSE, NOP, STI, HLT,
+CLI, CLD, SFENCE, and FNINIT sequences. A future seed refresh must carry this
+capability into production before any additional normal-build source changes
+owner. A detached hybrid build has already linked the four newly eligible
+objects through both CupidLD passes and booted them under QEMU.
+
 The normal image now builds all 20 kernel crypto sources with that checked
 CupidC seed. The strict frontier compiles each source twice and accepts
 204,132 byte-identical i386 object bytes with no blocked source. A Make run

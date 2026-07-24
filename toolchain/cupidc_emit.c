@@ -4891,6 +4891,38 @@ static ctool_bool cemit_assembly_take_word(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cemit_assembly_take_no_operand_instruction(
+    ctool_string_t text, ctool_u32 *cursor,
+    ctool_x86_mnemonic_t *mnemonic_out) {
+  if (cemit_assembly_take_word(text, cursor, "pause") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_PAUSE;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "nop") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_NOP;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "sti") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_STI;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "hlt") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_HLT;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "cli") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_CLI;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "cld") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_CLD;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "sfence") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_SFENCE;
+  } else if (cemit_assembly_take_word(
+                 text, cursor, "fninit") == CTOOL_TRUE) {
+    *mnemonic_out = CTOOL_X86_MN_FNINIT;
+  } else {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_bool cemit_assembly_take_operand(
     ctool_string_t text, ctool_u32 *cursor, ctool_u32 *operand_out) {
   ctool_u32 operand = 0u;
@@ -4925,6 +4957,7 @@ static ctool_status_t cemit_emit_assembly_template(
   ctool_status_t status = CTOOL_OK;
   while (status == CTOOL_OK) {
     ctool_u32 operand;
+    ctool_x86_mnemonic_t no_operand_mnemonic;
     cemit_assembly_skip_space(assembly->template_text, &cursor);
     if (cursor == assembly->template_text.size) {
       break;
@@ -4957,10 +4990,16 @@ static ctool_status_t cemit_emit_assembly_template(
       } else {
         status = cemit_x86_no_operand(context, CTOOL_X86_MN_CPUID);
       }
-    } else if (cemit_assembly_take_word(
+    } else if (cemit_assembly_take_no_operand_instruction(
                    assembly->template_text, &cursor,
-                   "nop") == CTOOL_TRUE) {
-      status = cemit_x86_no_operand(context, CTOOL_X86_MN_NOP);
+                   &no_operand_mnemonic) == CTOOL_TRUE) {
+      if (no_operand_mnemonic != CTOOL_X86_MN_NOP &&
+          (assembly->output_count != 0u ||
+           assembly->input_count != 0u)) {
+        status = CTOOL_ERR_UNSUPPORTED;
+      } else {
+        status = cemit_x86_no_operand(context, no_operand_mnemonic);
+      }
     } else if (cemit_assembly_take_word(
                    assembly->template_text, &cursor,
                    "rdrand") == CTOOL_TRUE) {
@@ -5031,24 +5070,24 @@ static ctool_status_t cemit_emit_assembly(
   const ctool_c_assembly_t *assembly;
   ctool_u8 registers[4] = {0u, 0u, 0u, 0u};
   ctool_u32 input;
+  ctool_u32 operand_count;
   ctool_u32 output;
   ctool_u32 ebx_byte_offset;
   ctool_status_t status;
   if (ir_instruction->reference >= context->unit->assembly_count ||
       context->unit->assemblies == (const ctool_c_assembly_t *)0 ||
-      context->unit->assembly_operands ==
-          (const ctool_c_assembly_operand_t *)0 ||
       ir_instruction->type != CTOOL_C_TYPE_NONE ||
       ir_instruction->input_type != CTOOL_C_TYPE_NONE ||
       ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
       ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
       ir_instruction->argument_count != 0u ||
       ir_instruction->first_argument_type != CTOOL_C_AST_NONE ||
-      ir_instruction->integer_bits != 0u || temporary_offset == 0u) {
+      ir_instruction->integer_bits != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
   assembly = &context->unit->assemblies[ir_instruction->reference];
-  if ((assembly->flags & ~CTOOL_C_ASSEMBLY_VOLATILE) != 0u ||
+  if ((assembly->flags &
+       ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE)) != 0u ||
       assembly->template_text.data == (const char *)0 ||
       assembly->template_text.size == 0u ||
       assembly->first_operand > context->unit->assembly_operand_count ||
@@ -5057,6 +5096,22 @@ static ctool_status_t cemit_emit_assembly(
       assembly->output_count + assembly->input_count >
           context->unit->assembly_operand_count - assembly->first_operand) {
     return CTOOL_ERR_INTERNAL;
+  }
+  operand_count = assembly->output_count + assembly->input_count;
+  if (((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u &&
+      (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
+        operand_count != 0u)) ||
+      (operand_count == 0u &&
+       (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
+        temporary_offset != 0u)) ||
+      (operand_count != 0u &&
+       (temporary_offset == 0u ||
+        context->unit->assembly_operands ==
+            (const ctool_c_assembly_operand_t *)0))) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (operand_count == 0u) {
+    return cemit_emit_assembly_template(context, assembly, registers);
   }
   for (output = 0u; output < assembly->output_count; output++) {
     const ctool_c_assembly_operand_t *operand =
@@ -7582,10 +7637,15 @@ static ctool_status_t cemit_prepare_local_offsets(
           return CTOOL_ERR_INTERNAL;
         }
         assembly = &context->unit->assemblies[instruction->reference];
-        if (assembly->output_count == 0u ||
-            assembly->output_count > 4u ||
+        if (assembly->output_count > 4u ||
             assembly->output_count > 0x3fffffffu) {
           return CTOOL_ERR_INTERNAL;
+        }
+        if (assembly->output_count == 0u) {
+          if (assembly->input_count != 0u) {
+            return CTOOL_ERR_INTERNAL;
+          }
+          continue;
         }
         size = (assembly->output_count + 1u) * 4u;
         if (frame_size > 0x7fffffffu - size) {

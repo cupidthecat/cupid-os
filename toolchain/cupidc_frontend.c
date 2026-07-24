@@ -11692,6 +11692,7 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   ctool_u32 matched_outputs = 0u;
   ctool_u32 assembly_index = CTOOL_C_AST_NONE;
   ctool_u32 template_index;
+  ctool_bool basic_assembly = CTOOL_FALSE;
   ctool_bool template_has_instruction = CTOOL_FALSE;
   ctool_status_t status = CTOOL_OK;
   cfront_zero(&assembly, (ctool_u32)sizeof(assembly));
@@ -11744,15 +11745,14 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
     }
   }
   if (status == CTOOL_OK && cfront_peek_is(context, ")") == CTOOL_TRUE) {
-    status = cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-        cfront_peek(context),
-        "basic GNU inline assembly is outside this operand slice");
+    basic_assembly = CTOOL_TRUE;
+    assembly.flags |=
+        CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE;
   }
-  if (status == CTOOL_OK) {
+  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE) {
     status = cfront_expected(context, ":");
   }
-  while (status == CTOOL_OK &&
+  while (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
          cfront_peek_is(context, ":") == CTOOL_FALSE &&
          cfront_peek_is(context, ")") == CTOOL_FALSE) {
     status = cfront_parse_assembly_output(context, &fixed_registers);
@@ -11772,14 +11772,17 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
       break;
     }
   }
-  if (status == CTOOL_OK && assembly.output_count == 0u) {
-    status = cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-        cfront_peek(context),
-        "GNU inline assembly requires an output operand in this slice");
-  }
-  if (status == CTOOL_OK && cfront_peek_is(context, ":") == CTOOL_TRUE) {
+  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
+      cfront_peek_is(context, ":") == CTOOL_TRUE) {
     (void)cfront_advance(context);
+    if (assembly.output_count == 0u &&
+        cfront_peek_is(context, ":") == CTOOL_FALSE &&
+        cfront_peek_is(context, ")") == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+          cfront_peek(context),
+          "GNU inline assembly with inputs requires an output in this slice");
+    }
     while (status == CTOOL_OK &&
            cfront_peek_is(context, ":") == CTOOL_FALSE &&
            cfront_peek_is(context, ")") == CTOOL_FALSE) {
@@ -11797,7 +11800,19 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
       }
     }
   }
-  if (status == CTOOL_OK && cfront_peek_is(context, ":") == CTOOL_TRUE) {
+  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
+      assembly.output_count == 0u) {
+    if (assembly.input_count != 0u) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+          cfront_peek(context),
+          "GNU inline assembly with inputs requires an output in this slice");
+    } else {
+      assembly.flags |= CTOOL_C_ASSEMBLY_VOLATILE;
+    }
+  }
+  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
+      cfront_peek_is(context, ":") == CTOOL_TRUE) {
     status = cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         cfront_peek(context),
@@ -16502,11 +16517,18 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     for (index = 0u; index < context->assemblies.count; index++) {
       const ctool_c_assembly_t *assembly = &assemblies[index];
       ctool_u32 operand_offset;
-      if ((assembly->flags & ~CTOOL_C_ASSEMBLY_VOLATILE) != 0u ||
+      if ((assembly->flags &
+           ~(CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_BASIC)) != 0u ||
           (assembly->template_text.data == (const char *)0 &&
            assembly->template_text.size != 0u) ||
           assembly->first_operand != operand_cursor ||
-          assembly->output_count == 0u ||
+          (assembly->output_count == 0u &&
+           (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
+            assembly->input_count != 0u)) ||
+          (((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u) &&
+           (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
+            assembly->output_count != 0u ||
+            assembly->input_count != 0u)) ||
           assembly->first_operand > context->assembly_operands.count ||
           assembly->output_count >
               context->assembly_operands.count - assembly->first_operand ||

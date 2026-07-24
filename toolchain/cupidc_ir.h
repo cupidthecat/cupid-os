@@ -54,8 +54,8 @@ typedef struct {
    * STRING_LITERAL_ADDRESS retains its character-array type.
    * STORE_VALUE uses the assignment result type. Control instructions and
    * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
-   * result type. ASSEMBLY consumes its frontend operand slice and uses
-   * CTOOL_C_TYPE_NONE. */
+   * result type. ASSEMBLY consumes its possibly empty frontend operand
+   * slice and uses CTOOL_C_TYPE_NONE. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
