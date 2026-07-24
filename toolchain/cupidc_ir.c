@@ -7257,6 +7257,7 @@ static ctool_bool cir_assembly_output_type_is_valid(
   const ctool_c_type_node_t *node;
   ctool_u32 base;
   ctool_u32 qualifiers;
+  ctool_bool is_pointer;
   ctool_u32 required_size =
       cir_string_equal(operand->constraint, ctool_string("=qm")) ==
               CTOOL_TRUE
@@ -7268,12 +7269,20 @@ static ctool_bool cir_assembly_output_type_is_valid(
   }
   (void)base;
   qualifiers |= node->qualifiers;
+  is_pointer =
+      cir_type_is_i32_pointer(context, operand->type);
   return (qualifiers & (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) == 0u &&
-                 cir_type_is_represented_integer(context, operand->type) ==
-                     CTOOL_TRUE &&
                  operand->type < context->unit->layout.type_count &&
-                 context->unit->layout.types[operand->type].size ==
-                     required_size
+                 ((is_pointer == CTOOL_TRUE &&
+                   cir_string_equal(
+                       operand->constraint, ctool_string("=r")) ==
+                       CTOOL_TRUE &&
+                   context->unit->layout.types[operand->type].size == 4u) ||
+                  (is_pointer == CTOOL_FALSE &&
+                   cir_type_is_represented_integer(
+                       context, operand->type) == CTOOL_TRUE &&
+                   context->unit->layout.types[operand->type].size ==
+                       required_size))
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }

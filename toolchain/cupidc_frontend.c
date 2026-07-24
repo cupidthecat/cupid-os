@@ -11431,12 +11431,17 @@ static ctool_status_t cfront_validate_assembly_output(
     ctool_u32 *fixed_registers_io) {
   cfront_integer_type_t integer;
   ctool_c_type_node_t node;
+  ctool_c_type_node_t referent;
   ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool is_pointer = CTOOL_FALSE;
+  ctool_bool is_supported_pointer = CTOOL_FALSE;
   ctool_bool modifiable = CTOOL_FALSE;
   ctool_u32 expected_width = 32u;
   ctool_u32 fixed_register = 0u;
   ctool_u32 base;
   ctool_u32 qualifiers;
+  ctool_u32 referent_base = 0u;
+  ctool_u32 referent_qualifiers = 0u;
   ctool_status_t status;
   if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
     fixed_register = 1u;
@@ -11463,14 +11468,21 @@ static ctool_status_t cfront_validate_assembly_output(
         constraint_token,
         "GNU inline assembly cannot use one fixed output register twice");
   }
-  if (value->is_lvalue == CTOOL_FALSE || value->is_bit_field == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
-        constraint_token,
-        "GNU inline assembly output requires a modifiable integer lvalue");
-  }
   status = cfront_underlying_type(context, value->type, &base, &qualifiers,
                                   &node);
+  if (status == CTOOL_OK) {
+    is_pointer =
+        node.kind == CTOOL_C_TYPE_POINTER ? CTOOL_TRUE : CTOOL_FALSE;
+    if (is_pointer == CTOOL_TRUE) {
+      status = cfront_underlying_type(
+          context, node.referenced_type, &referent_base,
+          &referent_qualifiers, &referent);
+      if (status == CTOOL_OK &&
+          referent.kind != CTOOL_C_TYPE_FUNCTION) {
+        is_supported_pointer = CTOOL_TRUE;
+      }
+    }
+  }
   if (status == CTOOL_OK) {
     status =
         cfront_integer_type(context, value->type, &integer, &is_integer);
@@ -11490,7 +11502,36 @@ static ctool_status_t cfront_validate_assembly_output(
         constraint_token,
         "atomic GNU inline assembly outputs are outside this slice");
   }
-  if (is_integer == CTOOL_FALSE || modifiable == CTOOL_FALSE) {
+  if (value->is_lvalue == CTOOL_FALSE ||
+      value->is_bit_field == CTOOL_TRUE ||
+      modifiable == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        is_pointer == CTOOL_TRUE
+            ? "GNU inline assembly pointer output requires a modifiable "
+              "pointer lvalue"
+            : "GNU inline assembly output requires a modifiable integer "
+              "lvalue");
+  }
+  if (is_pointer == CTOOL_TRUE) {
+    if (is_supported_pointer == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
+          "GNU inline assembly function-pointer outputs are outside this "
+          "slice");
+    }
+    if (cfront_string_literal(constraint, "=r") == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
+          "GNU inline assembly pointer output requires the =r constraint");
+    }
+    *fixed_registers_io |= fixed_register;
+    return CTOOL_OK;
+  }
+  if (is_integer == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
@@ -11613,8 +11654,11 @@ static ctool_status_t cfront_parse_assembly_input(
   cfront_expression_value_t value;
   cfront_integer_type_t input_integer;
   cfront_integer_type_t output_integer;
+  ctool_c_type_node_t output_node;
   ctool_bool input_is_integer = CTOOL_FALSE;
   ctool_bool output_is_integer = CTOOL_FALSE;
+  ctool_u32 output_base;
+  ctool_u32 output_qualifiers;
   ctool_status_t status;
   cfront_zero(&operand, (ctool_u32)sizeof(operand));
   if (constraint_token == (const ctool_c_pp_token_t *)0) {
@@ -11653,6 +11697,19 @@ static ctool_status_t cfront_parse_assembly_input(
     status = cfront_vector_get(
         &context->assembly_operands,
         first_operand + operand.matching_output, &output);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, output.type, &output_base,
+        &output_qualifiers, &output_node);
+  }
+  if (status == CTOOL_OK &&
+      output_node.kind == CTOOL_C_TYPE_POINTER) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
+        "GNU inline assembly matching pointer inputs are outside this "
+        "slice");
   }
   if (status == CTOOL_OK) {
     status = cfront_integer_type(context, value.type, &input_integer,

@@ -1559,6 +1559,28 @@ static ctool_status_t cemit_x86_two_registers(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_load_segment_absolute_register(
+    cemit_context_t *context, ctool_u8 destination_register,
+    ctool_u8 segment_register, ctool_u32 address) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_MOV, 32u);
+  if (destination_register >= 8u || segment_register >= 6u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(
+          CTOOL_X86_REG_GPR32, destination_register);
+  instruction.operands[1] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_NONE, 0u),
+      (ctool_i32)address, 32u);
+  instruction.operands[1].as.memory.segment =
+      cemit_x86_register(CTOOL_X86_REG_SEGMENT, segment_register);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_push_integer(cemit_context_t *context,
                                              ctool_u32 bits) {
   ctool_x86_instruction_t instruction =
@@ -4811,6 +4833,43 @@ static ctool_bool cemit_assembly_output_fixed_register(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cemit_assembly_output_type_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  const ctool_c_type_node_t *node;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers;
+  ctool_u32 required_size;
+  ctool_bool is_pointer;
+  if (operand->type >= context->unit->layout.type_count ||
+      cemit_underlying_type(
+          context, operand->type, &qualifiers, &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)node;
+  layout = &context->unit->layout.types[operand->type];
+  is_pointer =
+      cemit_ir_type_is_i32_pointer(context, operand->type);
+  required_size =
+      cemit_string_equals_literal(
+          operand->constraint, "=qm") == CTOOL_TRUE
+          ? 1u
+          : 4u;
+  return (qualifiers &
+          (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) == 0u &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 ((is_pointer == CTOOL_TRUE &&
+                   cemit_string_equals_literal(
+                       operand->constraint, "=r") == CTOOL_TRUE &&
+                   layout->size == 4u) ||
+                  (is_pointer == CTOOL_FALSE &&
+                   layout->is_integer == CTOOL_TRUE &&
+                   layout->size == required_size))
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cemit_plan_assembly_registers(
     cemit_context_t *context, const ctool_c_assembly_t *assembly,
     ctool_u8 registers[4]) {
@@ -4868,6 +4927,25 @@ static void cemit_assembly_skip_space(
           text.data[*cursor] == '\r' || text.data[*cursor] == '\n')) {
     (*cursor)++;
   }
+}
+
+static ctool_bool cemit_assembly_take_literal(
+    ctool_string_t text, ctool_u32 *cursor, const char *literal) {
+  ctool_u32 start = *cursor;
+  ctool_u32 index = 0u;
+  if (literal == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  while (literal[index] != '\0') {
+    if (*cursor >= text.size ||
+        text.data[*cursor] != literal[index]) {
+      *cursor = start;
+      return CTOOL_FALSE;
+    }
+    (*cursor)++;
+    index++;
+  }
+  return CTOOL_TRUE;
 }
 
 static ctool_bool cemit_assembly_take_word(
@@ -4953,8 +5031,27 @@ static ctool_status_t cemit_emit_assembly_template(
     cemit_context_t *context, const ctool_c_assembly_t *assembly,
     const ctool_u8 registers[4]) {
   ctool_u32 cursor = 0u;
+  ctool_u32 output;
   ctool_bool emitted_instruction = CTOOL_FALSE;
+  ctool_bool has_pointer_output = CTOOL_FALSE;
   ctool_status_t status = CTOOL_OK;
+  for (output = 0u; output < assembly->output_count; output++) {
+    const ctool_c_assembly_operand_t *operand =
+        &context->unit->assembly_operands[
+            assembly->first_operand + output];
+    if (cemit_ir_type_is_i32_pointer(
+            context, operand->type) == CTOOL_TRUE) {
+      has_pointer_output = CTOOL_TRUE;
+    }
+  }
+  if (has_pointer_output == CTOOL_TRUE &&
+      (assembly->output_count != 1u ||
+       assembly->input_count != 0u ||
+       cemit_string_equals_literal(
+           assembly->template_text,
+           "mov %%gs:0, %0") == CTOOL_FALSE)) {
+    status = CTOOL_ERR_UNSUPPORTED;
+  }
   while (status == CTOOL_OK) {
     ctool_u32 operand;
     ctool_x86_mnemonic_t no_operand_mnemonic;
@@ -4963,6 +5060,43 @@ static ctool_status_t cemit_emit_assembly_template(
       break;
     }
     if (cemit_assembly_take_word(
+            assembly->template_text, &cursor,
+            "mov") == CTOOL_TRUE) {
+      cemit_assembly_skip_space(assembly->template_text, &cursor);
+      if (cemit_assembly_take_literal(
+              assembly->template_text, &cursor,
+              "%%gs:0") == CTOOL_FALSE) {
+        status = CTOOL_ERR_UNSUPPORTED;
+      }
+      cemit_assembly_skip_space(assembly->template_text, &cursor);
+      if (status == CTOOL_OK &&
+          (cursor >= assembly->template_text.size ||
+           assembly->template_text.data[cursor] != ',')) {
+        status = CTOOL_ERR_UNSUPPORTED;
+      } else if (status == CTOOL_OK) {
+        cursor++;
+      }
+      if (status == CTOOL_OK &&
+          (cemit_assembly_take_operand(
+               assembly->template_text, &cursor, &operand) ==
+               CTOOL_FALSE ||
+           assembly->output_count != 1u ||
+           assembly->input_count != 0u || operand != 0u ||
+           cemit_ir_type_is_i32_pointer(
+               context,
+               context->unit->assembly_operands[
+                   assembly->first_operand].type) == CTOOL_FALSE ||
+           cemit_string_equals_literal(
+               context->unit->assembly_operands[
+                   assembly->first_operand].constraint,
+               "=r") == CTOOL_FALSE)) {
+        status = CTOOL_ERR_UNSUPPORTED;
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_load_segment_absolute_register(
+            context, registers[0], 5u, 0u);
+      }
+    } else if (cemit_assembly_take_word(
             assembly->template_text, &cursor, "rdtsc") == CTOOL_TRUE) {
       if (assembly->output_count != 2u || assembly->input_count != 0u ||
           !((registers[0] == 0u && registers[1] == 2u) ||
@@ -5124,11 +5258,8 @@ static ctool_status_t cemit_emit_assembly(
     if (operand->expression >= context->unit->expression_count ||
         operand->matching_output != CTOOL_C_AST_NONE ||
         layout == (const ctool_c_type_layout_t *)0 ||
-        layout->is_integer == CTOOL_FALSE ||
-        (layout->size != 4u &&
-         !(layout->size == 1u &&
-           cemit_string_equals_literal(
-               operand->constraint, "=qm") == CTOOL_TRUE))) {
+        cemit_assembly_output_type_is_valid(
+            context, operand) == CTOOL_FALSE) {
       return CTOOL_ERR_INTERNAL;
     }
   }

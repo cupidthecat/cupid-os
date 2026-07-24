@@ -7824,3 +7824,76 @@ the production i386 relocatable-object validator:
 The checked seed still contains the earlier compiler. No normal-build source
 changes owner in this increment, and the host dependency counts remain
 unchanged. ADR 0099 records the represented boundary.
+
+## 2026-07-24: CupidC emits the per-CPU pointer output
+
+The next unchanged header boundary was the per-CPU accessor in
+`kernel/smp/percpu.h`:
+
+```c
+__asm__ volatile("mov %%gs:0, %0" : "=r"(p));
+```
+
+CupidC already handled integer register outputs, but the frontend rejected
+this statement because `p` has a pointer type. The implementation now accepts
+one modifiable four-byte object or `void` pointer output with exact `=r`.
+Qualification on the pointed-to type remains in the semantic graph.
+Top-level `const` and `_Atomic` pointer objects, function pointers, other
+constraints, matching pointer inputs, named operands, and clobbers are still
+rejected.
+
+Linear IR keeps the pointer type and evaluates the output address once. The
+i386 emitter assigns the single output to EAX and asks the shared x86 model
+for the absolute GS load. Its exact bytes are `65 A1 00 00 00 00`. The
+existing output transport saves EBX, snapshots the assembly result, restores
+EBX, and then stores through the address that IR evaluated before the
+assembly instruction.
+
+The first focused frontend case failed at the old pointer-output diagnostic.
+After the parser accepted the pointer, the IR case failed at its integer-only
+assembly validation. The first object case then reached the emitter and
+failed before any object could be published. Those failures marked the
+frontend, IR, and emitter steps of the change.
+
+A later spec review found that type acceptance was broader than template
+acceptance. `rdrand %0` and a valid NOP before or after the GS load could use
+the pointer output even though the active requirement was only the per-CPU
+load. The emitter now scans every output and rejects any pointer-bearing
+statement unless it has one output, no inputs, and the byte-exact
+`mov %%gs:0, %0` template. Dedicated negative cases cover RDRAND, a leading
+NOP, and a trailing NOP.
+
+The object contract contains matching `struct cpu_state *` and `void *`
+functions. Each function has 54 text bytes and 20 decoded instructions,
+including one six-byte GS load. Repeated emission is byte-for-byte stable.
+Unsupported templates publish no partial object, and the same job can emit
+the valid unit afterward.
+
+The final hosted source tuple for `cupidc_emit.c` is
+177/4,843/41,691/589/300 for definitions, statements, expressions, block
+bindings, and initializers. Its self-host object has 177 functions, 301,404
+text bytes, 322,656 total bytes, and fingerprint `76a7b3b2`.
+
+The non-Doom header sweep remains 150/154. `ports.h` still stops at its
+width-aware port assembly. The three roots that include `percpu.h` now pass
+the pointer output and stop at `__atomic_store_n` on line 49.
+
+The exact `KERNEL_I386` production profile was also applied to
+`process.c`, `acpi.c`, `bkl.c`, `mp_tables.c`, `percpu.c`, and `smp.c`.
+All six reach the same atomic-builtin boundary, return a failure, and leave
+the probe output directory empty. This change therefore moves no
+normal-build source and retires no host dependency. The checked seed predates
+the capability.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused frontend, IR, and object contracts | PASS | All three pointer-output selectors pass, including the qualified referent, `void *`, single-evaluation, exact-byte, rollback, and recovery cases. |
+| Native Toolchain contract suite | PASS | `make -C toolchain BUILD_DIR=build-root-pointer-asm-full test` passes in 19.9 seconds, including the rebuilt self-source and hosted-link gates. |
+| Public frontend, IR, and object suite | PASS | All 154 tests pass in 618.416 seconds, including the five-tool static fixed-point proof. |
+| Complete build-graph audit suite | PASS | All 55 tests pass in 360.367 seconds, including generated-output, mutation, ownership, and canonical-hash checks. |
+| Active production-source probe | EXPECTED FRONTIER | The six exact-profile roots stop at `percpu.h:49:5` with undeclared `__atomic_store_n`; none emits an object. |
+| Active build audit | PASS | Regeneration and `make check-bootstrap-audit` agree on 698 active inputs, 252 feature requirements, 501 transforms, and 39 accounted unreachable files. The active-source digest is `f4b70c68052c91844b25e33444fe526a210884e860feb2ed763b2cd5ce10e599`; the audit JSON SHA-256 is `ea54c4e058c494f34797d94024eb2ec48dd1ae4c5ba7f6892bcd0256dbf3db92`. |
+| OS build and boot | NOT RUN | No normal-build object or runtime path changed, so this increment does not claim an image or boot result. |
+
+ADR 0100 records the exact pointer-output boundary. Atomic load, store,
+exchange, and fetch-add builtins are the next shared SMP requirement.

@@ -6751,12 +6751,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3904u,
        25107u, 475u, 282u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 196u, 5883u,
-       52708u, 727u, 246u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 174u, 4773u,
-       41098u, 578u, 295u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 196u, 5885u,
+       52768u, 728u, 246u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 177u, 4843u,
+       41691u, 589u, 300u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 314u,
-       12552u, 82111u, 1855u, 1244u, 0u, 0u},
+       12585u, 82283u, 1863u, 1248u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23622,6 +23622,250 @@ static int validate_inline_assembly_unit(
   return assembly_statement_count == unit->assembly_count ? 0 : 1;
 }
 
+static int pointer_output_assembly_type_matches(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_c_type_kind_t expected_referent_kind,
+    ctool_bool expect_const_referent) {
+  const ctool_c_type_node_t *node;
+  ctool_u32 pointer_qualifiers = 0u;
+  ctool_u32 referent_qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  if (unit->graph.types == NULL || type >= unit->graph.type_count) {
+    return 0;
+  }
+  node = &unit->graph.types[type];
+  while (node->kind == CTOOL_C_TYPE_ALIGNED ||
+         node->kind == CTOOL_C_TYPE_QUALIFIED) {
+    pointer_qualifiers |= node->qualifiers;
+    if (node->referenced_type >= unit->graph.type_count ||
+        traversed++ >= unit->graph.type_count) {
+      return 0;
+    }
+    node = &unit->graph.types[node->referenced_type];
+  }
+  pointer_qualifiers |= node->qualifiers;
+  if (node->kind != CTOOL_C_TYPE_POINTER ||
+      (pointer_qualifiers &
+       (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) != 0u ||
+      node->referenced_type >= unit->graph.type_count) {
+    return 0;
+  }
+  node = &unit->graph.types[node->referenced_type];
+  traversed = 0u;
+  while (node->kind == CTOOL_C_TYPE_ALIGNED ||
+         node->kind == CTOOL_C_TYPE_QUALIFIED) {
+    referent_qualifiers |= node->qualifiers;
+    if (node->referenced_type >= unit->graph.type_count ||
+        traversed++ >= unit->graph.type_count) {
+      return 0;
+    }
+    node = &unit->graph.types[node->referenced_type];
+  }
+  referent_qualifiers |= node->qualifiers;
+  return node->kind == expected_referent_kind &&
+                 (((referent_qualifiers & CTOOL_C_QUAL_CONST) != 0u)
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE) == expect_const_referent
+             ? 1
+             : 0;
+}
+
+static int validate_pointer_output_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 lines[] = {4u, 8u, 12u, 17u};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 4u ||
+      unit->assembly_count != ARRAY_COUNT(lines) ||
+      unit->assembly_operand_count != ARRAY_COUNT(lines) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    const ctool_c_type_layout_t *layout;
+    if (operand->type >= unit->layout.type_count) {
+      return 1;
+    }
+    layout = &unit->layout.types[operand->type];
+    if (string_equal(assembly->template_text,
+                     "mov %%gs:0, %0") == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != index ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 0u ||
+        string_equal(operand->constraint, "=r") == 0 ||
+        operand->expression >= unit->expression_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        !pointer_output_assembly_type_matches(
+            unit, operand->type,
+            index == 2u ? CTOOL_C_TYPE_VOID : CTOOL_C_TYPE_RECORD,
+            index == 1u ? CTOOL_TRUE : CTOOL_FALSE) ||
+        layout->is_object == CTOOL_FALSE ||
+        layout->is_complete_object == CTOOL_FALSE ||
+        layout->is_integer != CTOOL_FALSE || layout->size != 4u ||
+        dual_location_matches(&assembly->location,
+                              &assembly->physical_location,
+                              "/pointer-output-assembly.c",
+                              lines[index]) == 0 ||
+        dual_location_matches(&operand->location,
+                              &operand->physical_location,
+                              "/pointer-output-assembly.c",
+                              lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == unit->assembly_count ? 0 : 1;
+}
+
+static int run_pointer_output_assembly(const char *host_root) {
+  static const char source[] =
+      "struct cpu_state { unsigned id; };\n"
+      "struct cpu_state **next_cpu_slot(void);\n"
+      "void read_indirect(void) {\n"
+      "  __asm__ volatile(\"mov %%gs:0, %0\" : \"=r\"(*next_cpu_slot()));\n"
+      "}\n"
+      "void read_local(void) {\n"
+      "  const struct cpu_state *value;\n"
+      "  asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value));\n"
+      "}\n"
+      "void read_void(void) {\n"
+      "  void *value;\n"
+      "  asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value));\n"
+      "}\n"
+      "void dead_pointer_output(void) {\n"
+      "  struct cpu_state *value;\n"
+      "  return;\n"
+      "  asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value));\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"const pointer output",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { struct cpu_state * const value; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly pointer output requires a modifiable pointer "
+       "lvalue"},
+      {{"atomic pointer output",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { struct cpu_state * _Atomic value; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
+      {{"pointer rvalue output",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { asm volatile(\"mov %%gs:0, %0\" : "
+        "\"=r\"((struct cpu_state *)0)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly pointer output requires a modifiable pointer "
+       "lvalue"},
+      {{"fixed pointer output",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { struct cpu_state *value; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=a\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly pointer output requires the =r constraint"},
+      {{"byte or memory pointer output",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { struct cpu_state *value; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=qm\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly pointer output requires the =r constraint"},
+      {{"function pointer output",
+        "typedef void (*handler_t)(void); "
+        "void bad(void) { handler_t value; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly function-pointer outputs are outside this "
+       "slice"},
+      {{"matching pointer input",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(struct cpu_state *input) { struct cpu_state *output; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=r\"(output) : "
+        "\"0\"(input)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly matching pointer inputs are outside this "
+       "slice"},
+      {{"named pointer output",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { struct cpu_state *value; "
+        "asm volatile(\"mov %%gs:0, %[value]\" : "
+        "[value] \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly named operands are outside this slice"},
+      {{"pointer output clobber",
+        "struct cpu_state { unsigned id; }; "
+        "void bad(void) { struct cpu_state *value; "
+        "asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value) : : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly clobbers are outside this slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "pointer-output-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/pointer-output-assembly.c", source, &unit) != 0 ||
+      validate_pointer_output_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "pointer-output-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/pointer-output-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_pointer_output_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("pointer-output-assembly: ok\n");
+  }
+  return failed;
+}
+
 static int validate_operand_free_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
@@ -23971,7 +24215,8 @@ int main(int argc, char **argv) {
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-conversions|"
                    "variadic-callees|"
-                   "inline-assembly|operand-free-assembly|"
+                   "inline-assembly|pointer-output-assembly|"
+                   "operand-free-assembly|"
                    "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
@@ -24030,6 +24275,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "pointer-output-assembly") == 0) {
+    return run_pointer_output_assembly(argv[2]);
   }
   if (strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly(argv[2]);

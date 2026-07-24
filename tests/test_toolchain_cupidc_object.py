@@ -493,6 +493,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "void-casts: ok\n")
 
+    def test_pointer_output_assembly_emits_segmented_i386_load(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "pointer-output-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
+
     def test_operand_free_assembly_emits_exact_i386_instructions(self):
         result = subprocess.run(
             [

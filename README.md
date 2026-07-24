@@ -284,6 +284,16 @@ EBX save. A disposable hybrid image has booted with head-built `e1000`,
 desktop, socket, and TCP objects. This is not yet part of the checked seed or
 the normal build.
 
+Compiler head also accepts a modifiable four-byte object or `void` pointer as
+the single `=r` output of the exact `mov %%gs:0, %0` per-CPU load. The
+frontend and IR keep the pointer type and evaluate its destination once. The
+shared x86 model emits `65 A1 00 00 00 00`, then the ordinary output path
+stores the snapshot through that destination. The active non-Doom header gate
+remains 150/154: the three `percpu.h` roots now stop at the atomic builtin on
+line 49, while `ports.h` still stops at width-aware port assembly. All six
+affected production sources reach the same atomic boundary without producing
+an object, so normal-build ownership is unchanged.
+
 A poisoned-host build proves that none of the 20 recipes invokes Clang or GCC.
 Under QEMU's `max` CPU, RDRAND seeds the generator, all 62 crypto, ASN.1, and
 X.509 checks pass, the desktop opens a terminal, and embedded CupidC runs

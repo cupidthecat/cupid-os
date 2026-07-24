@@ -54,6 +54,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "active-leaf: ok\n")
 
+    def test_pointer_output_assembly_evaluates_its_destination_once(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "pointer-output-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
+
     def test_operand_free_inline_assembly_lowers_without_stack_operands(self):
         result = subprocess.run(
             [

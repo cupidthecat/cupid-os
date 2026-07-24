@@ -3864,7 +3864,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (26, 5),
-                "c.expression.sizeof": (4160, 168),
+                "c.expression.sizeof": (4183, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

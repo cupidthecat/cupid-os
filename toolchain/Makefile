@@ -434,6 +434,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
 	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
+	$(CUPIDC_FRONTEND_CONTRACT) pointer-output-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-typedefs ..
@@ -499,6 +500,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
+	$(CUPIDC_IR_CONTRACT) pointer-output-assembly ..
 	$(CUPIDC_IR_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_IR_CONTRACT) narrow-values ..
 	$(CUPIDC_IR_CONTRACT) void-casts ..
@@ -533,6 +535,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..
+	$(CUPIDC_OBJECT_CONTRACT) pointer-output-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..

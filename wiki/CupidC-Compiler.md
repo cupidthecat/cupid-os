@@ -250,6 +250,14 @@ The checked CupidC seed owns all 20 normal-build kernel crypto objects. The stri
 
 Compiler head also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. A disposable hybrid image has booted with head-built e1000, desktop, socket, and TCP objects. The checked seed does not contain this addition yet.
 
+The same compiler head accepts a modifiable four-byte object or `void` pointer
+as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,
+evaluates the output destination once, and emits the absolute GS load as
+`65 A1 00 00 00 00`. The active non-Doom header gate remains 150/154. The
+three roots that include `percpu.h` now continue to the atomic builtin on line
+49; `ports.h` still stops at width-aware port assembly. No additional
+production object changes owner at this boundary.
+
 A block type name or record member can reuse a visible enum tag or define a new one.
 
 ### Global Variables

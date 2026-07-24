@@ -150,6 +150,14 @@ implicitly volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
 sequences emit without a temporary frame slot or EBX traffic. The checked seed
 does not contain this addition yet. A disposable hybrid image has booted with
 head-built e1000, desktop, socket, and TCP objects.
+
+Compiler head also represents the exact per-CPU pointer output
+mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
+pointer type, evaluates the destination once, and emits the absolute GS load
+as 65 A1 00 00 00 00. The non-Doom header gate stays at 150/154. Three roots
+now pass this statement and stop at the atomic builtin in percpu.h. All six
+affected production sources reach that same boundary without producing an
+object, so normal-build ownership does not move.
 >endtree
 
 >h2 Self-Hosting Compiler Path

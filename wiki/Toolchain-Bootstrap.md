@@ -69,6 +69,14 @@ capability into production before any additional normal-build source changes
 owner. A detached hybrid build has already linked the four newly eligible
 objects through both CupidLD passes and booted them under QEMU.
 
+Compiler head also handles the exact per-CPU pointer output
+`mov %%gs:0, %0` with one four-byte `=r` object or `void` pointer. The frontend
+and IR preserve its pointer type and evaluate the destination once. The x86
+model emits `65 A1 00 00 00 00`. This moves three header roots from the
+pointer statement to `__atomic_store_n` without changing the 150/154 total.
+All six affected production sources stop at that atomic builtin, so this
+addition produces no new normal-build object and retires no host dependency.
+
 The normal image now builds all 20 kernel crypto sources with that checked
 CupidC seed. The strict frontier compiles each source twice and accepts
 204,132 byte-identical i386 object bytes with no blocked source. A Make run
