@@ -168,6 +168,48 @@ static const ctool_c_type_node_t *cemit_unwrapped_type(
   return node;
 }
 
+static ctool_bool cemit_underlying_type(
+    const cemit_context_t *context, ctool_u32 type,
+    ctool_u32 *qualifiers_out, const ctool_c_type_node_t **node_out) {
+  const ctool_c_type_node_t *node;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  if (qualifiers_out == (ctool_u32 *)0 ||
+      node_out == (const ctool_c_type_node_t **)0) {
+    return CTOOL_FALSE;
+  }
+  *qualifiers_out = 0u;
+  *node_out = (const ctool_c_type_node_t *)0;
+  for (;;) {
+    node = cemit_type_node(context, type);
+    if (node == (const ctool_c_type_node_t *)0) {
+      return CTOOL_FALSE;
+    }
+    qualifiers |= node->qualifiers;
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      *qualifiers_out = qualifiers;
+      *node_out = node;
+      return CTOOL_TRUE;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+  }
+}
+
+static ctool_bool cemit_type_has_atomic_qualification(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *node;
+  ctool_u32 qualifiers;
+  return cemit_underlying_type(context, type, &qualifiers, &node) ==
+                     CTOOL_TRUE &&
+                 (qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 typedef struct {
   const ctool_c_type_node_t *record;
   const ctool_c_type_node_t *member_type;
@@ -3255,6 +3297,28 @@ static ctool_bool cemit_ir_type_is_i32_pointer_value(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_ir_type_is_i32_void_pointer(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_node_t *referent;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 referent_qualifiers;
+  if (cemit_underlying_type(context, type, &pointer_qualifiers,
+                            &pointer) == CTOOL_FALSE ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      cemit_underlying_type(context, pointer->referenced_type,
+                            &referent_qualifiers,
+                            &referent) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  return cemit_ir_type_is_i32_pointer(context, type) == CTOOL_TRUE &&
+                 (pointer_qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u &&
+                 referent->kind == CTOOL_C_TYPE_VOID &&
+                 referent_qualifiers == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_ir_type_is_i32_scalar(
     const cemit_context_t *context, ctool_u32 type) {
   return cemit_ir_type_is_i32_integer(context, type) == CTOOL_TRUE ||
@@ -3849,6 +3913,33 @@ static ctool_bool cemit_ir_type_is_complete_aggregate_object(
                      CTOOL_TRUE
               ? CTOOL_TRUE
               : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_type_is_addressable_unspecified_array(
+    const cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *array = cemit_unwrapped_type(context, type);
+  const ctool_c_type_layout_t *array_layout;
+  const ctool_c_type_layout_t *element_layout;
+  if (type >= context->unit->layout.type_count ||
+      array == (const ctool_c_type_node_t *)0 ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED ||
+      array->referenced_type >= context->unit->layout.type_count ||
+      cemit_type_has_atomic_qualification(context, type) == CTOOL_TRUE ||
+      cemit_type_has_atomic_qualification(
+          context, array->referenced_type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  array_layout = &context->unit->layout.types[type];
+  element_layout = &context->unit->layout.types[array->referenced_type];
+  return array_layout->is_object == CTOOL_TRUE &&
+                 array_layout->is_complete_object == CTOOL_FALSE &&
+                 array_layout->size == 0u &&
+                 element_layout->is_object == CTOOL_TRUE &&
+                 element_layout->is_complete_object == CTOOL_TRUE &&
+                 element_layout->size != 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
 }
 
 static ctool_bool cemit_ir_type_is_structure_value(
@@ -5175,6 +5266,8 @@ static ctool_status_t cemit_emit_ir_instruction(
                                        ir_instruction->type) ==
              CTOOL_FALSE &&
          cemit_ir_type_is_complete_aggregate_object(
+             context, ir_instruction->type) == CTOOL_FALSE &&
+         cemit_ir_type_is_addressable_unspecified_array(
              context, ir_instruction->type) == CTOOL_FALSE)) {
       return CTOOL_ERR_INTERNAL;
     }
@@ -5708,9 +5801,10 @@ static ctool_status_t cemit_emit_ir_instruction(
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     ctool_bool null_conversion =
-        cemit_ir_type_is_i32_integer(context,
-                                     ir_instruction->input_type) ==
-                CTOOL_TRUE &&
+        (cemit_ir_type_is_i32_integer(
+             context, ir_instruction->input_type) == CTOOL_TRUE ||
+         cemit_ir_type_is_i32_void_pointer(
+             context, ir_instruction->input_type) == CTOOL_TRUE) &&
                 cemit_ir_type_is_i32_pointer_value(
                     context, ir_instruction->type) ==
                     CTOOL_TRUE &&

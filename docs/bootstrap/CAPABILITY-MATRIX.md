@@ -12,12 +12,26 @@ The capability requirements below are backed by `ACTIVE-SOURCE-AUDIT.md` and `au
 CupidC now owns 16 normal-build kernel crypto objects. The checked seed emits
 each one under `KERNEL_I386`, and the build validates the result as i386
 `ET_REL` before publication. A complete frontier compiles the cohort twice,
-requires byte identity, and keeps `csprng.c`, `asn1.c`, `x509.c`, and
-`x509_chain.c` as named blockers. This is the first production C cohort, not a
-claim that the remaining kernel or user C graph has moved. The build audit
-checks the evaluated wrapper command and hashes its ownership controls. The
-frontier and normal wrapper share one ELF validator, and WSL cleanup is limited
-to the frontier's dedicated private-directory pattern.
+requires byte identity, and keeps four host-owned neighbors visible. Compiler
+head now compiles `asn1.c`, `x509.c`, and `x509_chain.c`; the checked seed
+needs to be refreshed before those objects can move. `csprng.c` remains the
+only crypto language blocker because it uses GNU extended inline assembly.
+This is the first production C cohort, not a claim that the remaining kernel
+or user C graph has moved. The build audit checks the evaluated wrapper
+command and hashes its ownership controls. The frontier and normal wrapper
+share one ELF validator, and WSL cleanup is limited to the frontier's
+dedicated private-directory pattern.
+
+The hosted IR and emitter now preserve typed null conversion from an
+explicit, proved zero cast to unqualified `void *`, including the kernel's
+`((void *)0)` macro and computed integer constant expressions. The frontend
+records the proof, and whole-unit IR validation rejects missing, misplaced, or
+runtime-pointer provenance.
+External arrays with unspecified bounds may produce a file address and decay
+when their element type is complete and non-atomic. The array remains
+incomplete for every value or storage operation. Deterministic contracts pin
+the undefined symbol, relocation, element scale, and member offset used by the
+active CA bundle.
 
 `float` and `double` values reach hosted IR and deterministic i386 object emission through object loads, automatic expression initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating widths. Matching floating conditional arms keep their width; mixed arithmetic and conditional arms use `double`. The four arithmetic compound assignments compute at the common width, convert back to the left width, and evaluate the lvalue once. Every changed x87 result is stored immediately at its C width. A `float` rounds into a fresh four-byte semantic slot, and a `double` receives a fresh private eight-byte snapshot. A `double`, including a source `float` promoted at an ellipsis or unprototyped call, crosses either undeclared-parameter boundary, and `va_arg(double)` copies eight bytes before advancing the cursor. The exact `libm_tanh_impl` guard pins nested `double` arithmetic, while the complete following `float` helper slice pins width conversion. The decoder-driven oracle checks `ST1` and `ST0` operand order, target-width loads and stores, IEEE rounding cases, call alignment, and frame state. It models the emitted subset rather than executing native x87 code. Comparisons and truth, integer and floating conversions, a floating controlling expression, increment and decrement, literals, explicit static floating initializers, `long double`, SIMD, atomic access, over-aligned object emission, and production ownership remain open.
 

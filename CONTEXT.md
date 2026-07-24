@@ -144,6 +144,14 @@ _Avoid_: hosted Cupid tool, C runtime, bootstrap stage
 A representation-preserving C conversion that adds qualifiers to the object directly referenced by a pointer. CupidC accepts `char **` as `char *const *` because the intermediate pointer becomes read-only through the destination. It still rejects qualifier removal and unsafe deeper changes such as `char **` to `const char **`.
 _Avoid_: pointer cast, ignoring nested qualifiers
 
+**Typed null conversion**:
+A representation-preserving conversion from a proved integer zero constant, directly or through an explicit cast to unqualified `void *`, to the destination object-pointer type. The frontend marks that proof on the conversion node. Linear IR rejects missing, misplaced, and runtime-pointer provenance before i386 emission keeps the same four-byte zero representation.
+_Avoid_: general void pointer conversion, pointer reinterpretation
+
+**Addressable unspecified-bound array**:
+An incomplete external array whose element type is complete and has a nonzero target size. CupidC may take the linked object's address and apply ordinary array-to-pointer decay, but it does not treat the array itself as a complete value or storage object.
+_Avoid_: fixed array, flexible array member, variable-length array
+
 **Aligned call site**:
 An i386 call instruction emitted with ESP on a sixteen-byte boundary before the CPU pushes the return address. Hosted CupidC derives the required padding from the fixed frame, live Linear IR stack depth, and outgoing ABI storage.
 _Avoid_: sixteen-byte function frame, aligned callee entry

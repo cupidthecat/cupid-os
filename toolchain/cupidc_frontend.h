@@ -331,6 +331,10 @@ typedef enum {
   CTOOL_C_CONVERSION_FLOAT_PROMOTION
 } ctool_c_conversion_kind_t;
 
+#define CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT 0x00000001u
+#define CTOOL_C_EXPRESSION_SEMANTIC_ALL \
+  CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT
+
 typedef struct {
   ctool_c_expression_kind_t kind;
   /* Type produced by this node. A conversion node carries the result type;
@@ -361,6 +365,11 @@ typedef struct {
   /* ASSIGNMENT/UPDATE: arithmetic computation type; plain `=` uses result
    * type. Other expression kinds use CTOOL_C_TYPE_NONE. */
   ctool_u32 computation_type;
+  /* Frontend facts needed by later validation. NULL_POINTER_CONSTANT is
+   * present only on an implicit null-pointer conversion whose child was
+   * proved to be an integer constant expression with value zero or such an
+   * expression explicitly cast to void pointer. */
+  ctool_u32 semantic_flags;
   /* INTEGER_CONSTANT: target-width constant bit pattern; type carries
    * rank/sign. This includes target-folded non-VLA layout queries. */
   ctool_u64 integer_bits;

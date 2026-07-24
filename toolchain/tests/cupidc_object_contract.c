@@ -994,6 +994,18 @@ static const char pointer_value_object_source[] =
     "int read_global_member(void) { return global_pointer->member; }\n"
     "wrapped_row_t *call_pointer_result(row_b_t *pointer) { return pass_pointer(pointer); }\n";
 
+static const char typed_null_pointer_object_source[] =
+    "#define NULL ((void *)0)\n"
+    "typedef unsigned char uint8_t;\n"
+    "const uint8_t *typed_null(void) {\n"
+    "  const uint8_t *body = NULL;\n"
+    "  return body;\n"
+    "}\n"
+    "const uint8_t *integer_null(void) {\n"
+    "  const uint8_t *body = 0;\n"
+    "  return body;\n"
+    "}\n";
+
 static const char pointer_comparison_object_source[] =
     "typedef struct ctool_arena ctool_arena_t;\n"
     "typedef struct { ctool_arena_t *arena; } ctool_job_t;\n"
@@ -1048,6 +1060,19 @@ static const char pointer_arithmetic_object_source[] =
     "const uint16_t *advance_write_sector(const uint16_t *buf) { return buf += 256; }\n"
     "int *postfix_advance(int *pointer) { return pointer++; }\n"
     "int *prefix_retreat(int *pointer) { return --pointer; }\n";
+
+static const char incomplete_array_member_object_source[] =
+    "typedef unsigned char uint8_t;\n"
+    "typedef unsigned int uint32_t;\n"
+    "typedef struct {\n"
+    "  const char *name;\n"
+    "  const uint8_t *der;\n"
+    "  uint32_t der_len;\n"
+    "} ca_root_t;\n"
+    "extern const ca_root_t TLS_CA_BUNDLE[];\n"
+    "const uint8_t *bundle_der(uint32_t i) {\n"
+    "  return TLS_CA_BUNDLE[i].der;\n"
+    "}\n";
 
 static const char active_initializer_success[] =
     "  return !cc->error;";
@@ -2581,6 +2606,36 @@ static int validate_pointer_value_object(
   return 1;
 }
 
+static int validate_typed_null_pointer_object(
+    const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *typed = find_symbol(object, "typed_null");
+  const ctool_elf32_symbol_t *integer = find_symbol(object, "integer_null");
+  if (text == NULL || typed == NULL || integer == NULL ||
+      text->contents.data == NULL || text->relocation_count != 0u ||
+      object->relocation_count != 0u ||
+      typed->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      typed->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      typed->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      typed->section_file_index != text->file_index ||
+      integer->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      integer->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      integer->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      integer->section_file_index != text->file_index || typed->size == 0u ||
+      typed->size != integer->size ||
+      typed->value > text->contents.size ||
+      typed->size > text->contents.size - typed->value ||
+      integer->value > text->contents.size ||
+      integer->size > text->contents.size - integer->value ||
+      memcmp(text->contents.data + typed->value,
+             text->contents.data + integer->value,
+             (size_t)typed->size) != 0) {
+    (void)fprintf(stderr, "typed null pointer object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_pointer_comparison_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
@@ -3034,6 +3089,78 @@ static int validate_pointer_arithmetic_object(
                   (unsigned int)add_count, (unsigned int)subtract_count,
                   (unsigned int)multiply_count, (unsigned int)divide_count,
                   (unsigned int)return_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_incomplete_array_member_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xbau, 0x0cu, 0x00u,
+      0x00u, 0x00u, 0x0fu, 0xafu, 0xcau, 0x01u, 0xc8u, 0x50u,
+      0x58u, 0x83u, 0xc0u, 0x04u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x58u, 0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "bundle_der");
+  const ctool_elf32_symbol_t *bundle =
+      find_symbol(object, "TLS_CA_BUNDLE");
+  ctool_u32 cursor = 0u;
+  if (text == NULL || rel_text == NULL || function == NULL ||
+      bundle == NULL || text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text,
+             sizeof(expected_text)) != 0 ||
+      text->relocation_first != 0u || text->relocation_count != 1u ||
+      object->relocation_count != 1u || object->relocations == NULL ||
+      !symbol_matches(function, function->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index, 0u,
+                      text->contents.size) ||
+      !symbol_matches(bundle, bundle->file_index, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED,
+                      CTOOL_ELF32_NO_SECTION, 0u, 0u) ||
+      object->relocations[0].relocation_section_file_index !=
+          rel_text->file_index ||
+      object->relocations[0].entry_index != 0u ||
+      object->relocations[0].target_section_file_index != text->file_index ||
+      object->relocations[0].offset != 4u ||
+      object->relocations[0].symbol_file_index != bundle->file_index ||
+      object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object->relocations[0].addend_known != CTOOL_TRUE ||
+      object->relocations[0].addend != 0) {
+    (void)fprintf(stderr,
+                  "incomplete array member object inventory differs\n");
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "incomplete array member decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size) {
+    (void)fprintf(stderr,
+                  "incomplete array member text coverage differs\n");
     return 0;
   }
   return 1;
@@ -9084,7 +9211,9 @@ static int run_pointer_value_object(const char *host_root) {
   ctool_buffer_t *first = (ctool_buffer_t *)0;
   ctool_buffer_t *second = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t typed_null_unit;
   unit_snapshot_t snapshot;
+  unit_snapshot_t typed_null_snapshot;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_arena_mark_t mark;
@@ -9095,7 +9224,9 @@ static int run_pointer_value_object(const char *host_root) {
   ctool_status_t status;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&typed_null_unit, 0, sizeof(typed_null_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memset(&typed_null_snapshot, 0, sizeof(typed_null_snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/pointer-value-object.c",
                     pointer_value_object_source, &unit) ||
@@ -9157,10 +9288,67 @@ static int run_pointer_value_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  free(expected_object);
+  expected_object = NULL;
+  expected_object_size = 0u;
+  if (ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/typed-null-pointer-object.c",
+                    typed_null_pointer_object_source, &typed_null_unit) ||
+      typed_null_unit.function_definition_count != 2u ||
+      !take_unit_snapshot(&typed_null_unit, &typed_null_snapshot)) {
+    (void)fprintf(stderr, "typed null pointer object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &typed_null_unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK, "first typed null pointer object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&typed_null_snapshot, &typed_null_unit) == 0) {
+    (void)fprintf(stderr, "first typed null pointer emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(stderr,
+                  "typed null pointer object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &typed_null_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK, "repeat typed null pointer object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&typed_null_snapshot, &typed_null_unit) == 0) {
+    (void)fprintf(stderr,
+                  "typed null pointer emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/typed-null-pointer-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read typed null pointer object") ||
+      !validate_typed_null_pointer_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
   free(expected_object);
+  dispose_unit_snapshot(&typed_null_snapshot);
   dispose_unit_snapshot(&snapshot);
   if (second != (ctool_buffer_t *)0) {
     ctool_buffer_close(second);
@@ -9388,7 +9576,9 @@ static int run_pointer_arithmetic_object(const char *host_root) {
   ctool_buffer_t *first = (ctool_buffer_t *)0;
   ctool_buffer_t *second = (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t incomplete_array_unit;
   unit_snapshot_t snapshot;
+  unit_snapshot_t incomplete_array_snapshot;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_arena_mark_t mark;
@@ -9400,7 +9590,11 @@ static int run_pointer_arithmetic_object(const char *host_root) {
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&incomplete_array_unit, 0,
+               sizeof(incomplete_array_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memset(&incomplete_array_snapshot, 0,
+               sizeof(incomplete_array_snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/pointer-arithmetic-object.c",
                     pointer_arithmetic_object_source, &unit) ||
@@ -9464,10 +9658,79 @@ static int run_pointer_arithmetic_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  free(expected_object);
+  expected_object = NULL;
+  expected_object_size = 0u;
+  if (ctool_buffer_rewind(first, 0u) != CTOOL_OK ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !parse_source(job, "/incomplete-array-member-object.c",
+                    incomplete_array_member_object_source,
+                    &incomplete_array_unit) ||
+      incomplete_array_unit.function_definition_count != 1u ||
+      !take_unit_snapshot(&incomplete_array_unit,
+                          &incomplete_array_snapshot)) {
+    (void)fprintf(stderr,
+                  "incomplete array member object setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &incomplete_array_unit, first);
+  bytes = ctool_buffer_view(first);
+  if (!check_status(status, CTOOL_OK,
+                    "first incomplete array member object") ||
+      bytes.size == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&incomplete_array_snapshot,
+                            &incomplete_array_unit) == 0) {
+    (void)fprintf(stderr,
+                  "first incomplete array member emission differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  expected_object_size = bytes.size;
+  expected_object = (ctool_u8 *)malloc((size_t)expected_object_size);
+  if (expected_object == NULL) {
+    (void)fprintf(
+        stderr,
+        "incomplete array member object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(expected_object, bytes.data, (size_t)bytes.size);
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_c_emit_object(job, &incomplete_array_unit, second);
+  bytes = ctool_buffer_view(second);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat incomplete array member object") ||
+      bytes.size != expected_object_size ||
+      memcmp(bytes.data, expected_object, (size_t)bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0 ||
+      unit_snapshot_matches(&incomplete_array_snapshot,
+                            &incomplete_array_unit) == 0) {
+    (void)fprintf(
+        stderr,
+        "incomplete array member emission is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/incomplete-array-member-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read incomplete array member object") ||
+      !validate_incomplete_array_member_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
   free(expected_object);
+  dispose_unit_snapshot(&incomplete_array_snapshot);
   dispose_unit_snapshot(&snapshot);
   if (second != (ctool_buffer_t *)0) {
     ctool_buffer_close(second);
@@ -23943,20 +24206,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 187u, 160u, 306u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 190u, 164u, 306u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      188654u, 354933u, 272734u, 593008u, 139612u, 70368u, 77981u,
+      188654u, 358302u, 275649u, 593344u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      224176u, 379396u, 291584u, 700996u, 157796u, 79348u, 131640u,
+      224176u, 383028u, 294784u, 701448u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0x94f54f57u,
-      0x84f4e511u, 0x52d329d9u, 0x662bf32fu, 0x3f69aac3u,
+      0x470b1f6eu, 0x11df1c34u, 0x8cb4eebau, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   for (index = 0u; index <

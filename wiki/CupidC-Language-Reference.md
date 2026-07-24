@@ -28,6 +28,28 @@ floating increment or decrement, floating literals, `long double`, SIMD, or
 atomic floating access. The in-kernel compiler has a separate, broader
 floating and SIMD implementation.
 
+## Hosted null pointers and external arrays
+
+The self-hosting compiler accepts an integer null pointer constant and the
+common `((void *)0)` spelling when either is converted to a represented object
+pointer. It also accepts computed zero constant expressions such as
+`(void *)(1 - 1)`. The frontend marks the constant proof on the conversion,
+and IR rejects missing or misplaced proof as well as an ordinary runtime
+`void *`. The typed path requires an unqualified `void` referent and keeps the
+same four-byte zero representation.
+
+An external array declaration may omit its bound when the element type is
+complete:
+
+```c
+extern const struct Entry entries[];
+```
+
+The array designator can decay to a pointer, be indexed with the target
+element size, and continue through member access. The array remains
+incomplete, so this support does not provide its storage size or turn it into
+an array value.
+
 ## String Escape Sequences
 
 CupidC supports the following escape sequences in string and character literals:

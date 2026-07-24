@@ -129,10 +129,11 @@ Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. The complete frontier compiles every source twice and
 requires the object bytes to match.
 
-Four neighboring sources still use the host C compiler. csprng.c needs GNU
-inline assembly. asn1.c, x509.c, and x509_chain.c need an unsupported
-conversion. CupidC optimization and the remaining kernel C graph are still
-in progress.
+Four neighboring sources still use the host C compiler because the checked
+seed predates the current compiler work. Compiler head now compiles asn1.c,
+x509.c, and x509_chain.c to deterministic i386 objects. csprng.c remains
+blocked on GNU extended inline assembly. A refreshed checked seed, CupidC
+optimization, and the remaining kernel C graph are still in progress.
 >endtree
 
 >h2 Self-Hosting Compiler Path
@@ -258,12 +259,23 @@ an aggregate member selected from a structure rvalue remain unfinished.
 
 A direct four-byte integer literal zero can form a represented function-pointer
 null.
+An object-pointer null written as ((void *)0), or with a computed integer
+constant zero inside that cast, can also convert to its destination pointer
+type without changing the four-byte value. The typed conversion keeps a
+frontend proof bit. Linear IR rejects a missing or misplaced bit and does not
+treat an ordinary runtime void pointer as a null constant.
 Object pointers can convert to signed or unsigned eight-byte integers with a
 zero high word, and conversion back keeps the low word. Computed or nonzero
 function-pointer casts and conversions between function pointers and wide
 integers remain unsupported. Static compatible character and void pointers
 accept an ordinary string literal through parentheses or a macro. Arithmetic
 and explicit casts on that static address remain unfinished.
+
+An external array with an unspecified bound can produce its linked address and
+decay to the compatible element pointer when the element type is complete.
+Indexing uses the element's target size, and member access keeps the normal
+record offset. The array itself remains incomplete and cannot be loaded as a
+value.
 
 Pointer qualification accepts the safe char ** to char *const * conversion.
 It rejects char ** to const char ** because that would add a qualifier at an

@@ -30,15 +30,21 @@ The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 b
 
 The normal root build now gives CupidC its first C source cohort. The checked
 seed compiles 16 `kernel/crypto` translation units to validated i386 ELF32
-objects. `csprng.c`, `asn1.c`, `x509.c`, and `x509_chain.c` remain host-owned
-with named diagnostics. The wrapper freezes and verifies the seed before each
-compile and publishes only a validated object. The complete frontier compiles
-the 16 sources twice, watches the crypto source and header closure for drift,
-and requires byte identity. The frontier and wrapper share one ELF validator.
-The audit checks the evaluated Python command and hashes the ownership-control
-files, while WSL cleanup accepts only the frontier's private staging path.
-Python launches the compiler, and Windows still uses WSL to run the static
-i386 seed.
+objects. Compiler head now accepts the ordinary `((void *)0)` null path used
+by `asn1.c` and `x509.c`. The frontend carries its proved-zero provenance into
+the typed AST, and IR rejects a missing, misplaced, or forged runtime-pointer
+claim. Compiler head also accepts the external unspecified-bound CA bundle
+used by `x509_chain.c`. All three unchanged sources compile twice to matching,
+validated objects. The checked seed predates that work, so production
+ownership remains at 16 sources and those three still use the host compiler.
+`csprng.c` remains blocked on GNU extended inline assembly. The wrapper freezes
+and verifies the seed before each compile and publishes only a validated
+object. The complete production frontier compiles the 16 owned sources twice,
+watches the crypto source and header closure for drift, and requires byte
+identity. The frontier and wrapper share one ELF validator. The audit checks
+the evaluated Python command and hashes the ownership-control files, while
+WSL cleanup accepts only the frontier's private staging path. Python launches
+the compiler, and Windows still uses WSL to run the static i386 seed.
 
 The current QEMU smoke passes all 40 TLS checks and runs `/bin/ls.cc` twice
 after reaching the desktop. Those boot vectors execute 12 migrated crypto

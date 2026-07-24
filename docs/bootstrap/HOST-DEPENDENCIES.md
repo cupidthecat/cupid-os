@@ -9,6 +9,13 @@ objects, and the native contract and development commands. Python launches
 the checked compiler, and Windows needs WSL for this static i386 seed until a
 native CupidC handoff is available.
 
+Compiler head can now emit `asn1.c`, `x509.c`, and `x509_chain.c` as
+deterministic validated objects. Their host dependency remains until the
+checked seed is rebuilt and passes the staged fixed point. `csprng.c` remains
+the only crypto source blocked by a missing language feature, GNU extended
+inline assembly. This capability change does not alter the current transform
+counts.
+
 Later sections preserve the ownership wording that accompanied earlier
 capability slices. When an older entry says every normal C object was
 host-built, this current 16-object transfer supersedes that snapshot.

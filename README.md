@@ -268,12 +268,17 @@ make HDD_MB=100
 
 ### Self-hosting compiler status
 
-The normal image build now uses the checked CupidC seed for 16 kernel crypto
-objects. Clang or GCC still builds the four blocked crypto sources and the
-rest of the normal C graph. The migrated objects are validated i386 ELF32
-relocatables before publication. A current QEMU boot passes all 40 TLS checks;
-those vectors execute 12 migrated sources, while bigint, RSA, SHA-512, and
-Ed25519 currently have compile and link coverage.
+The normal image build uses the checked CupidC seed for 16 kernel crypto
+objects. The current compiler source also compiles the unchanged `asn1.c`,
+`x509.c`, and `x509_chain.c` after adding typed `((void *)0)` null conversion
+and address decay for external arrays with unspecified bounds. The checked
+seed predates those changes, so the three sources remain host-built until the
+seed is refreshed. `csprng.c`, which uses GNU extended inline assembly, is the
+remaining crypto language blocker. Clang or GCC still builds the rest of the
+normal C graph. Migrated objects are validated i386 ELF32 relocatables before
+publication. A current QEMU boot passes all 40 TLS checks; those vectors
+execute 12 migrated sources, while bigint, RSA, SHA-512, and Ed25519 currently
+have compile and link coverage.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,

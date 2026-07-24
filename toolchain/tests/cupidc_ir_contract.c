@@ -698,6 +698,20 @@ static const char pointer_value_source[] =
     "char *const *qualify_nested_pointer(char **pointer) { return pointer; }\n"
     "typedef const char **unsafe_nested_pointer_t;\n";
 
+static const char typed_null_pointer_source[] =
+    "#define NULL ((void *)0)\n"
+    "typedef unsigned char uint8_t;\n"
+    "const uint8_t *open_body(void) {\n"
+    "  const uint8_t *body = NULL;\n"
+    "  return body;\n"
+    "}\n";
+
+static const char computed_typed_null_pointer_source[] =
+    "typedef unsigned char uint8_t;\n"
+    "const uint8_t *computed_body(void) {\n"
+    "  return (void *)(1 - 1);\n"
+    "}\n";
+
 static const char pointer_comparison_source[] =
     "typedef struct ctool_arena ctool_arena_t;\n"
     "typedef struct { ctool_arena_t *arena; } ctool_job_t;\n"
@@ -751,6 +765,19 @@ static const char pointer_arithmetic_source[] =
     "const uint16_t *advance_write_sector(const uint16_t *buf) { return buf += 256; }\n"
     "int *postfix_advance(int *pointer) { return pointer++; }\n"
     "int *prefix_retreat(int *pointer) { return --pointer; }\n";
+
+static const char incomplete_array_member_source[] =
+    "typedef unsigned char uint8_t;\n"
+    "typedef unsigned int uint32_t;\n"
+    "typedef struct {\n"
+    "  const char *name;\n"
+    "  const uint8_t *der;\n"
+    "  uint32_t der_len;\n"
+    "} ca_root_t;\n"
+    "extern const ca_root_t TLS_CA_BUNDLE[];\n"
+    "const uint8_t *bundle_der(uint32_t i) {\n"
+    "  return TLS_CA_BUNDLE[i].der;\n"
+    "}\n";
 
 static const char atomic_pointer_update_source[] =
     "int * _Atomic shared_pointer;\n"
@@ -14677,6 +14704,164 @@ static int validate_pointer_value_ir(
   return 1;
 }
 
+static const ctool_c_type_node_t *typed_null_unwrapped_type(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type) {
+  const ctool_c_type_node_t *node;
+  ctool_u32 traversed = 0u;
+  while (type < unit->graph.type_count) {
+    node = &unit->graph.types[type];
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      return node;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= unit->graph.type_count) {
+      return NULL;
+    }
+  }
+  return NULL;
+}
+
+static int validate_typed_null_pointer_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *integer;
+  const ctool_c_ir_instruction_t *cast;
+  const ctool_c_ir_instruction_t *conversion;
+  const ctool_c_type_node_t *cast_pointer;
+  const ctool_c_type_node_t *cast_referent;
+  const ctool_c_type_node_t *result_pointer;
+  const ctool_c_type_node_t *result_referent;
+  ctool_u32 conversion_index = CTOOL_C_AST_NONE;
+  ctool_u32 semantic_conversion_count = 0u;
+  ctool_u32 index;
+  ctool_u32 convert_count = 0u;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "typed null pointer IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
+      convert_count++;
+      if (ir->instructions[index].conversion ==
+          CTOOL_C_CONVERSION_NULL_POINTER) {
+        conversion_index = index;
+      }
+    }
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
+        expression->semantic_flags ==
+            CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT) {
+      semantic_conversion_count++;
+    }
+  }
+  if (convert_count != 2u || conversion_index < 2u ||
+      conversion_index >= ir->instruction_count ||
+      semantic_conversion_count != 1u) {
+    (void)fprintf(stderr, "typed null pointer conversion stream differs\n");
+    return 0;
+  }
+  integer = &ir->instructions[conversion_index - 2u];
+  cast = &ir->instructions[conversion_index - 1u];
+  conversion = &ir->instructions[conversion_index];
+  cast_pointer = typed_null_unwrapped_type(unit, cast->type);
+  cast_referent =
+      cast_pointer != NULL && cast_pointer->kind == CTOOL_C_TYPE_POINTER
+          ? typed_null_unwrapped_type(unit, cast_pointer->referenced_type)
+          : NULL;
+  result_pointer = typed_null_unwrapped_type(unit, conversion->type);
+  result_referent =
+      result_pointer != NULL &&
+              result_pointer->kind == CTOOL_C_TYPE_POINTER
+          ? typed_null_unwrapped_type(unit, result_pointer->referenced_type)
+          : NULL;
+  if (integer->kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+      integer->integer_bits != 0u ||
+      cast->kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      cast->input_type != integer->type ||
+      cast->conversion != CTOOL_C_CONVERSION_NONE ||
+      conversion->kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      conversion->input_type != cast->type ||
+      conversion->conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+      cast_pointer == NULL || cast_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      cast_referent == NULL || cast_referent->kind != CTOOL_C_TYPE_VOID ||
+      result_pointer == NULL ||
+      result_pointer->kind != CTOOL_C_TYPE_POINTER ||
+      result_referent == NULL ||
+      result_referent->kind != CTOOL_C_TYPE_UNSIGNED_CHAR ||
+      cast->type >= unit->layout.type_count ||
+      conversion->type >= unit->layout.type_count ||
+      unit->layout.types[cast->type].size != 4u ||
+      unit->layout.types[conversion->type].size != 4u ||
+      string_equal(conversion->location.path, "/typed-null-pointer.c") == 0 ||
+      string_equal(conversion->physical_location.path,
+                   "/typed-null-pointer.c") == 0) {
+    (void)fprintf(stderr, "typed null pointer IR shape differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_computed_typed_null_pointer_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *binary;
+  const ctool_c_ir_instruction_t *cast;
+  const ctool_c_ir_instruction_t *conversion;
+  ctool_u32 conversion_index = CTOOL_C_AST_NONE;
+  ctool_u32 semantic_conversion_count = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "computed typed null IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
+        expression->semantic_flags ==
+            CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT) {
+      semantic_conversion_count++;
+    }
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (ir->instructions[index].kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        ir->instructions[index].conversion ==
+            CTOOL_C_CONVERSION_NULL_POINTER) {
+      conversion_index = index;
+    }
+  }
+  if (semantic_conversion_count != 1u || conversion_index < 2u ||
+      conversion_index >= ir->instruction_count) {
+    (void)fprintf(stderr, "computed typed null conversion differs\n");
+    return 0;
+  }
+  binary = &ir->instructions[conversion_index - 2u];
+  cast = &ir->instructions[conversion_index - 1u];
+  conversion = &ir->instructions[conversion_index];
+  if (binary->kind != CTOOL_C_IR_INSTRUCTION_BINARY ||
+      binary->operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT ||
+      cast->kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      cast->conversion != CTOOL_C_CONVERSION_NONE ||
+      cast->input_type != binary->type ||
+      conversion->kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+      conversion->conversion != CTOOL_C_CONVERSION_NULL_POINTER ||
+      conversion->input_type != cast->type ||
+      string_equal(conversion->location.path,
+                   "/computed-typed-null-pointer.c") == 0 ||
+      string_equal(conversion->physical_location.path,
+                   "/computed-typed-null-pointer.c") == 0) {
+    (void)fprintf(stderr, "computed typed null IR shape differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_pointer_member_loads(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -14725,22 +14910,37 @@ static int run_pointer_values(const char *host_root) {
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t typed_null_unit;
+  ctool_c_translation_unit_t computed_typed_null_unit;
+  ctool_c_translation_unit_t typed_null_invalid_unit;
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *typed_null_invalid_expressions = NULL;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t typed_null_ir;
+  ctool_c_ir_unit_t typed_null_repeat_ir;
+  ctool_c_ir_unit_t computed_typed_null_ir;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   ctool_u32 dereference_expression = CTOOL_C_AST_NONE;
   ctool_u32 address_expression = CTOOL_C_AST_NONE;
   ctool_u32 null_conversion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 typed_null_conversion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 typed_null_cast_expression = CTOOL_C_AST_NONE;
   ctool_u32 qualification_conversion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 runtime_pointer_conversion_expression = CTOOL_C_AST_NONE;
   ctool_u32 incompatible_pointer_type = CTOOL_C_TYPE_NONE;
   ctool_u32 index;
   uint64_t fingerprint;
+  uint64_t typed_null_unit_fingerprint;
+  uint64_t typed_null_ir_fingerprint;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&typed_null_unit, 0, sizeof(typed_null_unit));
+  (void)memset(&computed_typed_null_unit, 0,
+               sizeof(computed_typed_null_unit));
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/pointer-values.c", pointer_value_source, &unit)) {
@@ -14754,6 +14954,122 @@ static int run_pointer_values(const char *host_root) {
       ctool_job_diagnostic_count(job) != diagnostic_count ||
       unit_fingerprint(&unit) != fingerprint ||
       !validate_pointer_value_ir(job, &unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/typed-null-pointer.c", typed_null_pointer_source,
+                    &typed_null_unit)) {
+    goto cleanup;
+  }
+  typed_null_unit_fingerprint = unit_fingerprint(&typed_null_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&typed_null_ir, 0xa5, sizeof(typed_null_ir));
+  status = ctool_c_lower_ir(job, &typed_null_unit, &typed_null_ir);
+  if (!check_status(status, CTOOL_OK, "typed void null pointer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&typed_null_unit) != typed_null_unit_fingerprint ||
+      !validate_typed_null_pointer_ir(&typed_null_unit, &typed_null_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  typed_null_ir_fingerprint =
+      ir_instruction_fingerprint(&typed_null_ir);
+  if (!parse_source(job, "/computed-typed-null-pointer.c",
+                    computed_typed_null_pointer_source,
+                    &computed_typed_null_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&computed_typed_null_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&computed_typed_null_ir, 0xa5,
+               sizeof(computed_typed_null_ir));
+  status = ctool_c_lower_ir(job, &computed_typed_null_unit,
+                            &computed_typed_null_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "computed typed null pointer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&computed_typed_null_unit) != fingerprint ||
+      !validate_computed_typed_null_pointer_ir(
+          &computed_typed_null_unit, &computed_typed_null_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < typed_null_unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &typed_null_unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_NULL_POINTER) {
+      typed_null_conversion_expression = index;
+      break;
+    }
+  }
+  if (typed_null_conversion_expression == CTOOL_C_AST_NONE ||
+      typed_null_unit.expressions[typed_null_conversion_expression]
+              .child_count != 1u ||
+      typed_null_unit.expressions[typed_null_conversion_expression]
+              .first_child >= typed_null_unit.expression_child_count) {
+    (void)fprintf(stderr, "typed null pointer rejection fixture differs\n");
+    goto cleanup;
+  }
+  typed_null_cast_expression =
+      typed_null_unit.expression_children
+          [typed_null_unit.expressions[typed_null_conversion_expression]
+               .first_child];
+  if (typed_null_cast_expression >= typed_null_unit.expression_count ||
+      typed_null_unit.expressions[typed_null_cast_expression].kind !=
+          CTOOL_C_EXPRESSION_CAST ||
+      sizeof(*typed_null_invalid_expressions) >
+          SIZE_MAX / (size_t)typed_null_unit.expression_count) {
+    (void)fprintf(stderr, "typed null pointer cast fixture differs\n");
+    goto cleanup;
+  }
+  typed_null_invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)typed_null_unit.expression_count *
+      sizeof(*typed_null_invalid_expressions));
+  if (typed_null_invalid_expressions == NULL) {
+    (void)fprintf(stderr,
+                  "typed null pointer rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(typed_null_invalid_expressions, typed_null_unit.expressions,
+               (size_t)typed_null_unit.expression_count *
+                   sizeof(*typed_null_invalid_expressions));
+  typed_null_invalid_unit = typed_null_unit;
+  typed_null_invalid_unit.expressions = typed_null_invalid_expressions;
+  typed_null_invalid_expressions[typed_null_conversion_expression]
+      .semantic_flags = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &typed_null_invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "typed null pointer provenance")) {
+    goto cleanup;
+  }
+  (void)memcpy(typed_null_invalid_expressions, typed_null_unit.expressions,
+               (size_t)typed_null_unit.expression_count *
+                   sizeof(*typed_null_invalid_expressions));
+  typed_null_invalid_expressions[typed_null_cast_expression].type =
+      typed_null_unit.expressions[typed_null_conversion_expression].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &typed_null_invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "non-void pointer mislabeled as a null pointer constant")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&typed_null_repeat_ir, 0xa5,
+               sizeof(typed_null_repeat_ir));
+  status = ctool_c_lower_ir(job, &typed_null_unit,
+                            &typed_null_repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeated typed void null pointer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&typed_null_unit) != typed_null_unit_fingerprint ||
+      ir_instruction_fingerprint(&typed_null_repeat_ir) !=
+          typed_null_ir_fingerprint ||
+      !validate_typed_null_pointer_ir(
+          &typed_null_unit, &typed_null_repeat_ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -14774,6 +15090,11 @@ static int run_pointer_values(const char *host_root) {
     } else if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
                expression->conversion == CTOOL_C_CONVERSION_QUALIFICATION) {
       qualification_conversion_expression = index;
+    } else if (
+        expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_POINTER &&
+        expression->location.line == 13u) {
+      runtime_pointer_conversion_expression = index;
     }
     if (expression->kind == CTOOL_C_EXPRESSION_PARAMETER &&
         expression->location.line == 10u) {
@@ -14784,6 +15105,7 @@ static int run_pointer_values(const char *host_root) {
       address_expression == CTOOL_C_AST_NONE ||
       null_conversion_expression == CTOOL_C_AST_NONE ||
       qualification_conversion_expression == CTOOL_C_AST_NONE ||
+      runtime_pointer_conversion_expression == CTOOL_C_AST_NONE ||
       incompatible_pointer_type == CTOOL_C_TYPE_NONE ||
       unit.expression_count == 0u ||
       sizeof(*invalid_expressions) >
@@ -14822,10 +15144,45 @@ static int run_pointer_values(const char *host_root) {
   invalid_expressions[null_conversion_expression].conversion =
       CTOOL_C_CONVERSION_POINTER;
   if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "null pointer conversion kind")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[runtime_pointer_conversion_expression].conversion =
+      CTOOL_C_CONVERSION_NULL_POINTER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "runtime void pointer lacks null pointer provenance")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[runtime_pointer_conversion_expression].conversion =
+      CTOOL_C_CONVERSION_NULL_POINTER;
+  invalid_expressions[runtime_pointer_conversion_expression].semantic_flags =
+      CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT;
+  if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
-          "null pointer conversion kind")) {
+          "runtime void pointer mislabeled as a null pointer constant")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[qualification_conversion_expression].semantic_flags =
+      CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "null pointer provenance on a qualification conversion")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -14862,6 +15219,7 @@ static int run_pointer_values(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(typed_null_invalid_expressions);
   free(invalid_expressions);
   if (job != NULL) {
     ctool_job_close(job);
@@ -16886,30 +17244,124 @@ static int validate_qualified_pointer_update_ir(
   return 1;
 }
 
+static int validate_incomplete_array_member_ir(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_instruction_t *instructions;
+  const ctool_c_type_node_t *array;
+  const ctool_c_type_node_t *pointer;
+  ctool_u32 bundle_binding = find_binding(unit, "TLS_CA_BUNDLE");
+  ctool_u32 function_binding = find_binding(unit, "bundle_der");
+  ctool_u32 der_member = find_member(unit, "der");
+  ctool_bool decay_compatible = CTOOL_FALSE;
+  ctool_status_t status;
+  if (bundle_binding == CTOOL_C_AST_NONE ||
+      function_binding == CTOOL_C_AST_NONE ||
+      der_member == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != 1u || ir->function_count != 1u ||
+      ir->instruction_count != 9u || ir->functions == NULL ||
+      ir->instructions == NULL ||
+      unit->bindings[bundle_binding].type >= unit->graph.type_count) {
+    (void)fprintf(stderr, "incomplete array member IR inventory differs\n");
+    return 0;
+  }
+  instructions = ir->instructions;
+  array = &unit->graph.types[unit->bindings[bundle_binding].type];
+  pointer =
+      instructions[1].type < unit->graph.type_count
+          ? &unit->graph.types[instructions[1].type]
+          : NULL;
+  status = ctool_c_ir_array_decay_types_compatible(
+      job, unit, unit->bindings[bundle_binding].type, instructions[1].type,
+      &decay_compatible);
+  if (status != CTOOL_OK || decay_compatible != CTOOL_TRUE ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED ||
+      array->referenced_type >= unit->layout.type_count ||
+      unit->layout.types[unit->bindings[bundle_binding].type].is_object !=
+          CTOOL_TRUE ||
+      unit->layout.types[unit->bindings[bundle_binding].type]
+              .is_complete_object != CTOOL_FALSE ||
+      unit->layout.types[array->referenced_type].is_object != CTOOL_TRUE ||
+      unit->layout.types[array->referenced_type].is_complete_object !=
+          CTOOL_TRUE ||
+      unit->layout.types[array->referenced_type].size == 0u ||
+      pointer == NULL || pointer->kind != CTOOL_C_TYPE_POINTER ||
+      pointer->referenced_type != array->referenced_type ||
+      ir->functions[0].binding != function_binding ||
+      ir->functions[0].first_instruction != 0u ||
+      ir->functions[0].instruction_count != 9u ||
+      ir->functions[0].maximum_stack_depth != 2u ||
+      instructions[0].kind != CTOOL_C_IR_INSTRUCTION_FILE_ADDRESS ||
+      instructions[0].type != unit->bindings[bundle_binding].type ||
+      instructions[0].reference != bundle_binding ||
+      instructions[1].kind != CTOOL_C_IR_INSTRUCTION_ARRAY_TO_POINTER ||
+      instructions[1].input_type != instructions[0].type ||
+      instructions[1].conversion != CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
+      instructions[2].kind != CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+      instructions[3].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[4].kind != CTOOL_C_IR_INSTRUCTION_POINTER_BINARY ||
+      instructions[4].type != instructions[1].type ||
+      instructions[4].input_type != instructions[1].type ||
+      instructions[4].operation != CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+      instructions[4].reference != instructions[3].type ||
+      instructions[5].kind != CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+      instructions[5].type != array->referenced_type ||
+      instructions[5].input_type != instructions[1].type ||
+      instructions[6].kind != CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS ||
+      instructions[6].reference != der_member ||
+      instructions[7].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+      instructions[7].conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      instructions[8].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+      instructions[8].input_type != instructions[7].type ||
+      !pointer_value_query_matches(
+          job, unit, instructions[8].type, instructions[7].type,
+          CTOOL_TRUE) ||
+      !string_equal(instructions[0].location.path,
+                    "/incomplete-array-member.c") ||
+      !string_equal(instructions[8].physical_location.path,
+                    "/incomplete-array-member.c")) {
+    (void)fprintf(stderr, "incomplete array member IR shape differs\n");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_pointer_arithmetic(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t incomplete_array_unit;
   ctool_c_translation_unit_t atomic_unit;
   ctool_c_translation_unit_t wide_unit;
   ctool_c_translation_unit_t qualified_unit;
   ctool_c_translation_unit_t qualified_pointer_unit;
+  ctool_c_translation_unit_t invalid_incomplete_array_unit;
   ctool_c_translation_unit_t invalid_decay_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t incomplete_array_ir;
+  ctool_c_ir_unit_t incomplete_array_repeat_ir;
   ctool_c_ir_unit_t qualified_ir;
   ctool_c_ir_unit_t qualified_pointer_ir;
+  ctool_c_type_node_t *invalid_incomplete_array_types = NULL;
   ctool_c_expression_t *invalid_decay_expressions = NULL;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_u32 assignment_expression = CTOOL_C_AST_NONE;
+  ctool_u32 bundle_binding = CTOOL_C_AST_NONE;
+  ctool_u32 bundle_array_type = CTOOL_C_TYPE_NONE;
   ctool_u32 decay_expression = CTOOL_C_AST_NONE;
   ctool_u32 unqualified_pointer_binding = CTOOL_C_AST_NONE;
   ctool_u32 index;
+  ctool_u32 diagnostic_count;
   ctool_status_t status;
+  uint64_t fingerprint;
+  uint64_t incomplete_array_ir_fingerprint;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&incomplete_array_unit, 0, sizeof(incomplete_array_unit));
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
   (void)memset(&wide_unit, 0, sizeof(wide_unit));
   (void)memset(&qualified_unit, 0, sizeof(qualified_unit));
@@ -16925,6 +17377,88 @@ static int run_pointer_arithmetic(const char *host_root) {
   status = ctool_c_lower_ir(job, &unit, &ir);
   if (!check_status(status, CTOOL_OK, "object-pointer arithmetic lowering") ||
       !validate_pointer_arithmetic_ir(job, &unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/incomplete-array-member.c",
+                    incomplete_array_member_source,
+                    &incomplete_array_unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&incomplete_array_unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&incomplete_array_ir, 0xa5,
+               sizeof(incomplete_array_ir));
+  status = ctool_c_lower_ir(job, &incomplete_array_unit,
+                            &incomplete_array_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "incomplete array member lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&incomplete_array_unit) != fingerprint ||
+      !validate_incomplete_array_member_ir(
+          job, &incomplete_array_unit, &incomplete_array_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  incomplete_array_ir_fingerprint =
+      ir_instruction_fingerprint(&incomplete_array_ir);
+  bundle_binding = find_binding(&incomplete_array_unit, "TLS_CA_BUNDLE");
+  if (bundle_binding == CTOOL_C_AST_NONE ||
+      incomplete_array_unit.bindings[bundle_binding].type >=
+          incomplete_array_unit.graph.type_count ||
+      incomplete_array_unit.graph.type_count == 0u ||
+      sizeof(*invalid_incomplete_array_types) >
+          SIZE_MAX / (size_t)incomplete_array_unit.graph.type_count) {
+    (void)fprintf(stderr,
+                  "incomplete array rejection fixture differs\n");
+    goto cleanup;
+  }
+  invalid_incomplete_array_types = (ctool_c_type_node_t *)malloc(
+      (size_t)incomplete_array_unit.graph.type_count *
+      sizeof(*invalid_incomplete_array_types));
+  if (invalid_incomplete_array_types == NULL) {
+    (void)fprintf(stderr,
+                  "incomplete array rejection allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_incomplete_array_types,
+               incomplete_array_unit.graph.types,
+               (size_t)incomplete_array_unit.graph.type_count *
+                   sizeof(*invalid_incomplete_array_types));
+  bundle_array_type = incomplete_array_unit.bindings[bundle_binding].type;
+  if (invalid_incomplete_array_types[bundle_array_type].kind !=
+          CTOOL_C_TYPE_ARRAY ||
+      invalid_incomplete_array_types[bundle_array_type].array_bound_kind !=
+          CTOOL_C_ARRAY_UNSPECIFIED) {
+    (void)fprintf(stderr,
+                  "incomplete array rejection type differs\n");
+    goto cleanup;
+  }
+  invalid_incomplete_array_types[bundle_array_type].array_bound_kind =
+      CTOOL_C_ARRAY_VARIABLE;
+  invalid_incomplete_array_unit = incomplete_array_unit;
+  invalid_incomplete_array_unit.graph.types =
+      invalid_incomplete_array_types;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_incomplete_array_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "non-fixed incomplete array designator")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&incomplete_array_repeat_ir, 0xa5,
+               sizeof(incomplete_array_repeat_ir));
+  status = ctool_c_lower_ir(job, &incomplete_array_unit,
+                            &incomplete_array_repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeated incomplete array member lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&incomplete_array_unit) != fingerprint ||
+      ir_instruction_fingerprint(&incomplete_array_repeat_ir) !=
+          incomplete_array_ir_fingerprint ||
+      !validate_incomplete_array_member_ir(
+          job, &incomplete_array_unit, &incomplete_array_repeat_ir)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -17048,6 +17582,7 @@ static int run_pointer_arithmetic(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_incomplete_array_types);
   free(invalid_decay_expressions);
   free(invalid_expressions);
   if (job != NULL) {

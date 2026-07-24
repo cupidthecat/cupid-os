@@ -7654,6 +7654,13 @@ static ctool_status_t cfront_append_conversion(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         cfront_peek(context), "expression conversion child is unavailable");
   }
+  if (conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
+      cfront_is_null_pointer_constant(value) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        cfront_peek(context),
+        "null pointer conversion lacks constant provenance");
+  }
   status = cfront_vector_append(&context->expression_children,
                                 &value->expression, &first_child);
   if (status != CTOOL_OK) {
@@ -7665,6 +7672,11 @@ static ctool_status_t cfront_append_conversion(
   expression.first_child = first_child;
   expression.child_count = 1u;
   expression.conversion = conversion;
+  if (conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
+      cfront_is_null_pointer_constant(value) == CTOOL_TRUE) {
+    expression.semantic_flags =
+        CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT;
+  }
   status = cfront_append_expression(context, &expression,
                                     &value->expression);
   if (status == CTOOL_OK) {

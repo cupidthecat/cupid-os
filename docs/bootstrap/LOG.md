@@ -7348,3 +7348,131 @@ objects still use Clang or GCC, and CupidC optimization remains open.
 [Issue #28](https://github.com/cupidthecat/cupid-os/issues/28) stays open for
 the remaining strict kernel and driver cohorts. ADR 0093 records the production
 and memory-map decisions.
+
+## 2026-07-23: CupidC clears three crypto conversion blockers
+
+### Following the active source
+
+The first failing shape was the kernel's existing null macro, `((void *)0)`.
+The frontend already retained both conversion stages: integer zero to
+`void *`, then a destination-typed null conversion to the object pointer used
+by `asn1.c` and `x509.c`. Linear IR accepted only an integer source for the
+second stage. The initial focused IR run therefore stopped at
+`/typed-null-pointer.c:4:25` with `CTD000006`, and the object contract returned
+the corresponding internal emission failure.
+
+The frontend now gives each proved null conversion a semantic provenance bit.
+It sets the bit only for an integer constant expression with value zero or for
+that expression explicitly cast to `void *`; publishing the conversion
+without proof is an internal error. IR checks the bit on every frozen
+expression, requires it exactly on null conversions, and requires a typed
+`void *` source to retain its cast node. The lowerer and emitter then accept
+the typed second stage when its source is a non-atomic i386 pointer to
+unqualified `void`. No bytes are needed because the source and destination
+share the same four-byte representation.
+
+The negative contracts clear and misplace the bit, relabel a runtime `void *`
+with and without a forged bit, and change the typed source to a non-`void`
+pointer. Each failure is transactional. This keeps ordinary runtime pointer
+conversion outside the null path.
+
+That change let the current compiler finish `asn1.c` and `x509.c`.
+`x509_chain.c` then exposed a separate failure at line 119:
+`TLS_CA_BUNDLE` is declared as `extern const ca_root_t TLS_CA_BUNDLE[]`.
+Its element is a complete 12-byte record, but the external array deliberately
+has no bound. The former IR rule rejected its file address because the array
+object itself is incomplete.
+
+The new address rule accepts only an unspecified-bound array with a complete,
+nonzero-sized object element and no atomic qualification. It permits the file
+address and compatible array-to-pointer decay. It does not make the array
+complete or admit variable-length and arbitrary incomplete aggregates. A
+mutated non-fixed array receives `CTD000003` transactionally.
+
+Rewriting `NULL`, inventing a CA bundle bound in the consumer, and treating
+all incomplete objects as addressable were rejected. Each alternative would
+either change a valid active-source interface or widen the compiler beyond
+the type facts available here. No design question needed a user decision
+because C semantics, the existing typed AST, and the fixed i386 layout gave
+one narrow boundary.
+
+### Contract and source evidence
+
+The typed-null IR fixtures cover integer zero, `((void *)0)`, and the computed
+constant expression `(void *)(1 - 1)`. They contain the integer-to-`void *`
+conversion followed by the destination-typed null conversion. A repeated
+lowering after the negative cases must retain the input unit and produce the
+same instruction fingerprint. The object proof emits the typed and integer
+spellings twice, finds no relocation, and requires the two function bodies to
+match byte for byte.
+
+The external-array IR fixture fixes a nine-instruction function with maximum
+stack depth two: file address, array decay, parameter load, scaled pointer
+addition, dereference, member address, pointer load, and return. The object
+contains one undefined `TLS_CA_BUNDLE` symbol and one `R_386_32` relocation at
+text offset four. Its exact 44-byte function multiplies the index by 12 and
+adds four for the `der` member. A second IR lowering and a second emission
+must match their first results and leave the frozen translation unit
+unchanged.
+
+Compiler head then compiled the three unchanged active sources twice under the
+complete `KERNEL_I386` profile. All six results passed the production i386
+ELF32 relocatable-object validator:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/crypto/asn1.c` | 9,032 | `51c5300859a80579bf27ef2f978bccfb53fdf02947c219caf01ad9bf826d872b` |
+| `kernel/crypto/x509.c` | 16,072 | `82536ae0f6c1a026757f45236fe6ce2454b147764e12105e8dc0fe199bb09801` |
+| `kernel/crypto/x509_chain.c` | 7,028 | `bbcad318a413be4cfce52541a0b803368ec1515e9ff4faa119552715bf0aec98` |
+
+The focused `pointer-values` and `pointer-arithmetic` selectors pass in both
+the public IR and object suites.
+
+The exact source guards were refreshed after adding provenance validation.
+The settled Toolchain suite passes. The current `cupidc_ir.c` object has 190
+functions, 358,302 text bytes, 383,028 total bytes, and fingerprint
+`470B1F6E`. The current `cupidc_emit.c` object has 164 functions, 275,649 text
+bytes, 294,784 total bytes, and fingerprint `11DF1C34`. The current
+`cupidc_frontend.c` object has 306 functions, 593,344 text bytes, 701,448
+total bytes, and fingerprint `8CB4EEBA`.
+
+The first 90-test production run reached 89 passes before the active-build
+audit found its old `sizeof` occurrence count. The completed contract and
+provenance work raised that count from 4,052 to 4,079 without changing the
+168-file set. The focused drift test passes after the correction, and the
+final wrapper, crypto-frontier, and build-audit set reports 90 passes in
+527.12 seconds.
+
+The final active-source audit remains at 698 inputs, 252 feature requirements,
+and 501 transforms. Its digest is
+`f0749b24927fae85fb8559929199e782162413b664ddcbc17289503e883c8dba`,
+and `make check-bootstrap-audit` accepts the generated JSON, Markdown summary,
+and preprocessing manifest. The complete audit JSON has SHA-256
+`c31c87b9f32939f6ed9fab9a6c73277c67066e996931dc49d0170dd70de85bd2`.
+
+The checked seed also builds the current 19-source Toolchain union to a fixed
+point. All 19 C objects, startup, and five tool images match between stages
+two and three. Five help checks, ten successful operations, and six failure
+cases agree. The rebuilt CupidC is 1,829,508 bytes with SHA-256
+`ebbd9d3d1d303f9c7ed976aaead1460413e5d26b81cae501262d869e8be04c7a`;
+the source snapshot is
+`58ed0099722a6af81157d4531dc9f0af38b996bbf10f1b11e951df40a86347e4`.
+The run took 477.3 seconds.
+
+The default checked-seed output directory already contained a completed run,
+so the harness refused to overwrite it and returned status two. Repeating the
+gate with a fresh dedicated output directory passed without deleting or
+replacing the earlier artifacts.
+
+### Ownership boundary
+
+This increment changes compiler capability, not the normal build owner. The
+checked seed still predates both rules, so `asn1.c`, `x509.c`, and
+`x509_chain.c` remain host-built. Production CupidC ownership stays at 16
+crypto sources until a refreshed seed passes the staged fixed point and the
+frontier is updated. `csprng.c` is now the only crypto source with a language
+blocker; its GNU extended inline assembly remains open.
+
+ADR 0094 records the conversion and address rules. Issue #25 remains open for
+the broader C language surface, issue #26 remains open for inline assembly,
+and issue #28 remains open for the next production kernel cohorts.

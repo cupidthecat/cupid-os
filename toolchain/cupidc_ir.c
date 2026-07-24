@@ -309,8 +309,24 @@ static ctool_status_t cir_unsupported_initializer_leaf(
       location, message);
 }
 
+static ctool_bool cir_expression_semantic_flags_are_valid(
+    const ctool_c_expression_t *expression) {
+  ctool_u32 expected =
+      expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+              expression->conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
+              expression->child_count == 1u
+          ? CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT
+          : 0u;
+  return (expression->semantic_flags &
+          ~CTOOL_C_EXPRESSION_SEMANTIC_ALL) == 0u &&
+                 expression->semantic_flags == expected
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
   const ctool_c_translation_unit_t *unit = context->unit;
+  ctool_u32 expression;
   if ((unit->graph.type_count != 0u &&
        unit->graph.types == (const ctool_c_type_node_t *)0) ||
       (unit->graph.member_count != 0u &&
@@ -352,6 +368,13 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
       (unit->expression_child_count != 0u &&
        unit->expression_children == (const ctool_u32 *)0)) {
     return cir_invalid_unit(context, (const ctool_c_pp_location_t *)0);
+  }
+  for (expression = 0u; expression < unit->expression_count; expression++) {
+    if (cir_expression_semantic_flags_are_valid(
+            &unit->expressions[expression]) == CTOOL_FALSE) {
+      return cir_invalid_unit(context,
+                              &unit->expressions[expression].location);
+    }
   }
   return CTOOL_OK;
 }
@@ -551,6 +574,39 @@ static ctool_bool cir_type_is_i32_pointer_value(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_null_pointer_conversion_source_is_valid(
+    const cir_context_t *context, ctool_u32 expression, ctool_u32 type) {
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_node_t *referent;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 referent_base;
+  ctool_u32 referent_qualifiers;
+  if (cir_type_is_i32_integer(context, type) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (cir_type_is_i32_pointer(context, type) == CTOOL_FALSE ||
+      cir_underlying_type(context, type, &pointer_base, &pointer_qualifiers,
+                          &pointer) == CTOOL_FALSE ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      ((pointer_qualifiers | pointer->qualifiers) & CTOOL_C_QUAL_ATOMIC) !=
+          0u ||
+      cir_underlying_type(context, pointer->referenced_type, &referent_base,
+                          &referent_qualifiers, &referent) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)pointer_base;
+  (void)referent_base;
+  return referent->kind == CTOOL_C_TYPE_VOID &&
+                 (referent_qualifiers | referent->qualifiers) == 0u &&
+                 expression < context->unit->expression_count &&
+                 context->unit->expressions[expression].kind ==
+                     CTOOL_C_EXPRESSION_CAST &&
+                 context->unit->expressions[expression].type == type
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_type_is_i32_scalar(const cir_context_t *context,
                                          ctool_u32 type) {
   return cir_type_is_i32_integer(context, type) == CTOOL_TRUE ||
@@ -601,6 +657,33 @@ static ctool_bool cir_type_is_truth_scalar(const cir_context_t *context,
                                            ctool_u32 type) {
   return cir_type_is_value_integer(context, type) == CTOOL_TRUE ||
                  cir_type_is_i32_pointer_value(context, type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_type_is_addressable_unspecified_array(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_node_t *array = cir_unwrapped_type(context, type);
+  const ctool_c_type_layout_t *array_layout;
+  const ctool_c_type_layout_t *element_layout;
+  if (type >= context->unit->layout.type_count ||
+      array == (const ctool_c_type_node_t *)0 ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_UNSPECIFIED ||
+      array->referenced_type >= context->unit->layout.type_count ||
+      cir_type_has_atomic_qualification(context, type) == CTOOL_TRUE ||
+      cir_type_has_atomic_qualification(
+          context, array->referenced_type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  array_layout = &context->unit->layout.types[type];
+  element_layout = &context->unit->layout.types[array->referenced_type];
+  return array_layout->is_object == CTOOL_TRUE &&
+                 array_layout->is_complete_object == CTOOL_FALSE &&
+                 array_layout->size == 0u &&
+                 element_layout->is_object == CTOOL_TRUE &&
+                 element_layout->is_complete_object == CTOOL_TRUE &&
+                 element_layout->size != 0u
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -956,8 +1039,10 @@ static ctool_bool cir_array_decay_types_match(
                           &array_qualifiers, &array) == CTOOL_FALSE ||
       array->kind != CTOOL_C_TYPE_ARRAY ||
       array_type >= context->unit->layout.type_count ||
-      context->unit->layout.types[array_type].is_complete_object ==
-          CTOOL_FALSE ||
+      (context->unit->layout.types[array_type].is_complete_object ==
+           CTOOL_FALSE &&
+       cir_type_is_addressable_unspecified_array(
+           context, array_type) == CTOOL_FALSE) ||
       pointer == (const ctool_c_type_node_t *)0 ||
       pointer->kind != CTOOL_C_TYPE_POINTER ||
       cir_type_is_i32_pointer(context, pointer_type) == CTOOL_FALSE ||
@@ -2511,7 +2596,10 @@ static ctool_status_t cir_lower_conversion(
   } else if (expression->conversion ==
              CTOOL_C_CONVERSION_NULL_POINTER) {
     if (source.kind != CIR_STACK_VALUE ||
-        cir_type_is_i32_integer(context, source.type) == CTOOL_FALSE ||
+        expression->semantic_flags !=
+            CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT ||
+        cir_null_pointer_conversion_source_is_valid(
+            context, child, source.type) == CTOOL_FALSE ||
         cir_type_is_i32_pointer_value(context, expression->type) ==
             CTOOL_FALSE) {
       return cir_unsupported_conversion(context, &expression->location);
@@ -5451,7 +5539,9 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
     if (cir_type_is_value_scalar(context, expression->type) ==
             CTOOL_FALSE &&
         cir_type_is_complete_aggregate_object(context, expression->type) ==
-            CTOOL_FALSE) {
+            CTOOL_FALSE &&
+        cir_type_is_addressable_unspecified_array(
+            context, expression->type) == CTOOL_FALSE) {
       return cir_unsupported_type(context, &expression->location);
     }
     status = cir_append_instruction(
