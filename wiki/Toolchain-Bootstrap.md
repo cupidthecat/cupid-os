@@ -53,6 +53,11 @@ It does not complete the normal OS build migration. Native contract runners,
 hosted development commands, and the remaining normal C objects still use a
 host C compiler.
 
+The production boot source assembles to an exact 2,560-byte image with SHA-256
+`b3e3f6f2897cd5980394e4d1a0e2f94bf6ac6d7ae9aafa5d6de1fc326a5b3442`.
+CupidASM and the optional NASM oracle produce the same bytes for the current
+`0x00E00000` boot-stack layout.
+
 The checked seed now includes the active CSPRNG GNU assembly subset. Its
 stage-three CupidC image is 1,883,836 bytes with SHA-256
 `f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df`.

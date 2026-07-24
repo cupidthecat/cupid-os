@@ -7897,3 +7897,22 @@ the capability.
 
 ADR 0100 records the exact pointer-output boundary. Atomic load, store,
 exchange, and fetch-add builtins are the next shared SMP requirement.
+
+## 2026-07-24: Boot assembly evidence follows the relocated stack
+
+The kernel crypto ownership change moved the boot stack from `0x00D00000` to
+`0x00E00000`, but two checked assembly facts still described the earlier
+source. CupidASM already emitted the updated 2,560-byte image. Its active
+source fixture still expected the old image hash, and the x86 manifest kept
+two line numbers from before the nearby comment was shortened.
+
+The fixture now records SHA-256
+`b3e3f6f2897cd5980394e4d1a0e2f94bf6ac6d7ae9aafa5d6de1fc326a5b3442`.
+The source manifest follows the VGA byte store on line 267 and the far jump on
+line 271. Their instruction encodings did not change. The optional NASM
+oracle produces the same boot image as CupidASM.
+
+The focused raw-source and source-manifest tests both pass. This correction
+changes no boot source, memory address, object, image, or runtime behavior; it
+brings the checked evidence into line with the stack relocation that already
+passed the clean build and QEMU smoke.

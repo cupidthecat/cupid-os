@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-07-22
+Verified against source on: 2026-07-24
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -80,6 +80,11 @@ Hosted CupidDis can inspect one flat image that changes between 16-bit and
 Mode offsets are relative to the start of the file. They must increase and
 remain inside the input. CupidDis validates those rules. The caller places
 each transition between instructions.
+
+The production boot source assembles to an exact 2,560-byte image with
+SHA-256 b3e3f6f2897cd5980394e4d1a0e2f94bf6ac6d7ae9aafa5d6de1fc326a5b3442.
+CupidASM and the optional NASM oracle produce the same bytes. This image uses
+the current 0x00E00000 boot stack.
 
 The hosted i386 contract compiles the unchanged CupidC, CupidASM, CupidDis,
 CupidLD, and CupidObj command closures with CupidC under the checked four-byte

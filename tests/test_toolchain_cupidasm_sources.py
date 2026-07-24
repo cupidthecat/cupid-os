@@ -18,7 +18,7 @@ RAW_FIXTURES = (
         "name": "boot",
         "source": REPO_ROOT / "boot" / "boot.asm",
         "size": 2560,
-        "sha256": "57884f86c907d8669f16a667e83238b5f840f2b67e7b82eeeedea09ec5244445",
+        "sha256": "b3e3f6f2897cd5980394e4d1a0e2f94bf6ac6d7ae9aafa5d6de1fc326a5b3442",
     },
     {
         "name": "smp-trampoline",
