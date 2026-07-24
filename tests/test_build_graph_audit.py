@@ -2276,8 +2276,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 667)
-            self.assertEqual(contract["include_occurrences"], 2369)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2137)
+            self.assertEqual(contract["include_occurrences"], 2373)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2141)
             self.assertEqual(contract["direct_angle_occurrences"], 232)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 

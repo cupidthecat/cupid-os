@@ -46,12 +46,13 @@ the evaluated Python command and hashes the ownership-control files, while
 WSL cleanup accepts only the frontier's private staging path. Python launches
 the compiler, and Windows still uses WSL to run the static i386 seed.
 
-The current QEMU smoke passes all 40 TLS checks and runs `/bin/ls.cc` twice
-after reaching the desktop. Those boot vectors execute 12 migrated crypto
-sources. `bigint.c`, `rsa.c`, `sha512.c`, and `ed25519.c` are compiled and
-linked but still need direct runtime vectors. An isolated-image smoke runs
-`/home/hello` twice at `0x00E00000` and observes release of the external arena
-before the second process claims it.
+The current QEMU smoke passes all 48 TLS checks and runs a GUI terminal
+command after reaching the desktop. The boot vectors now execute code from
+all 16 migrated crypto sources. SHA-512 and SHA-384 use empty-input vectors;
+bigint covers big-endian conversion and modular exponentiation; RSA and
+Ed25519 each accept a known valid signature and reject a corrupted one. An
+isolated-image smoke runs `/home/hello` twice at `0x00E00000` and observes
+release of the external arena before the second process claims it.
 
 The unoptimized CupidC cohort increased the current kernel enough to cross the
 old fixed stack boundary. The kernel ceiling is now `0x00C00000`; the full

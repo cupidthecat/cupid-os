@@ -276,9 +276,10 @@ seed predates those changes, so the three sources remain host-built until the
 seed is refreshed. `csprng.c`, which uses GNU extended inline assembly, is the
 remaining crypto language blocker. Clang or GCC still builds the rest of the
 normal C graph. Migrated objects are validated i386 ELF32 relocatables before
-publication. A current QEMU boot passes all 40 TLS checks; those vectors
-execute 12 migrated sources, while bigint, RSA, SHA-512, and Ed25519 currently
-have compile and link coverage.
+publication. A current QEMU boot passes all 48 TLS checks and executes code
+from all 16 migrated sources. The added SHA-512, SHA-384, bigint, RSA, and
+Ed25519 checks cover expected results and require corrupted RSA and Ed25519
+signatures to be rejected.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,

@@ -9,6 +9,11 @@ objects, and the native contract and development commands. Python launches
 the checked compiler, and Windows needs WSL for this static i386 seed until a
 native CupidC handoff is available.
 
+The 16 owned objects all have direct boot evidence. Forty-eight TLS self-tests
+exercise their production code in the linked kernel, including valid and
+corrupted signature paths for RSA and Ed25519. This closes the cohort's
+runtime-evidence gap without retiring Python, WSL, or another host dependency.
+
 Compiler head can now emit `asn1.c`, `x509.c`, and `x509_chain.c` as
 deterministic validated objects. Their host dependency remains until the
 checked seed is rebuilt and passes the staged fixed point. `csprng.c` remains

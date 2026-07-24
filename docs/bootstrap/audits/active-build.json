@@ -7298,14 +7298,18 @@
           "kernel/tls/tls_selftest.c",
           "kernel/tls/tls_selftest.h",
           "kernel/crypto/sha256.h",
+          "kernel/crypto/sha512.h",
           "kernel/crypto/hmac.h",
           "kernel/crypto/hkdf.h",
           "kernel/crypto/chacha20poly1305.h",
           "kernel/crypto/aes.h",
           "kernel/crypto/aes_gcm.h",
+          "kernel/crypto/bigint.h",
+          "kernel/crypto/rsa.h",
           "kernel/crypto/x25519.h",
           "kernel/crypto/p256.h",
           "kernel/crypto/ecdsa.h",
+          "kernel/crypto/ed25519.h",
           "kernel/crypto/asn1.h",
           "kernel/core/panic.h",
           "drivers/serial.h"
@@ -8918,10 +8922,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 232,
-      "direct_quoted_occurrences": 2137,
-      "include_occurrences": 2369,
+      "direct_quoted_occurrences": 2141,
+      "include_occurrences": 2373,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2369,
+      "ordinary_marker_occurrences": 2373,
       "pp_token_operand_occurrences": 0,
       "source_files": 667,
       "status": "pass"
@@ -14414,7 +14418,7 @@
         "toolchain/x86.c"
       ],
       "id": "c.control.for",
-      "occurrences": 3429
+      "occurrences": 3431
     },
     {
       "category": "control",
@@ -14853,7 +14857,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.control.if",
-      "occurrences": 29650
+      "occurrences": 29652
     },
     {
       "category": "control",
@@ -16110,7 +16114,7 @@
         "user/examples/cat.c"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 4079
+      "occurrences": 4094
     },
     {
       "category": "extension",
@@ -18804,7 +18808,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2369
+      "occurrences": 2373
     },
     {
       "category": "preprocessor",
@@ -19347,7 +19351,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 11221
+      "occurrences": 11238
     },
     {
       "category": "qualifier",
@@ -19859,7 +19863,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.storage.static",
-      "occurrences": 6782
+      "occurrences": 6799
     },
     {
       "category": "type",
@@ -20976,7 +20980,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.int",
-      "occurrences": 19882
+      "occurrences": 19883
     },
     {
       "category": "type",
@@ -22424,7 +22428,7 @@
         "user/examples/ls.c"
       ],
       "id": "c.type.void",
-      "occurrences": 12038
+      "occurrences": 12046
     },
     {
       "category": "declaration",
@@ -23035,11 +23039,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "f0749b24927fae85fb8559929199e782162413b664ddcbc17289503e883c8dba",
+    "active_source_digest": "a7c32295b70613897248cd3fd707f64e9e7e159867d9e45bec986fc3312b5b02",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "d4e52ed923a07626bc99f5200c90f78419e65ab4caf39d5f379a7985feef2497"
+        "sha256": "d51abfea63a5af615d5dad74ad613147c40161d2b7c480f8eab8e5d1f9a2785a"
       },
       {
         "path": "user/Makefile",
@@ -31283,6 +31287,7 @@
     {
       "build_owners": [
         "cupid_c_compiler",
+        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31672,6 +31677,7 @@
     {
       "build_owners": [
         "cupid_c_compiler",
+        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32123,6 +32129,7 @@
     {
       "build_owners": [
         "cupid_c_compiler",
+        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -45274,22 +45281,26 @@
         "kernel/crypto/aes.h",
         "kernel/crypto/aes_gcm.h",
         "kernel/crypto/asn1.h",
+        "kernel/crypto/bigint.h",
         "kernel/crypto/chacha20poly1305.h",
         "kernel/crypto/ecdsa.h",
+        "kernel/crypto/ed25519.h",
         "kernel/crypto/hkdf.h",
         "kernel/crypto/hmac.h",
         "kernel/crypto/p256.h",
+        "kernel/crypto/rsa.h",
         "kernel/crypto/sha256.h",
+        "kernel/crypto/sha512.h",
         "kernel/crypto/x25519.h",
         "kernel/tls/tls_selftest.h"
       ],
       "language": "c",
-      "lines": 512,
+      "lines": 675,
       "origin": "tracked",
       "path": "kernel/tls/tls_selftest.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "6175cc76d4de5b8ac34e99c49da484b36779734556805c5aed1dd941f24cca8c"
+      "sha256": "3051de79e808486a8a8f374813181ce4f3d7fc9356e50318d4d8847cc9d3a655"
     },
     {
       "build_owners": [

@@ -509,7 +509,7 @@ kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.c kernel/crypto/x
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle_data.c -o kernel/tls/tls_ca_bundle_data.o
 endif
 
-kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/crypto/sha256.h kernel/crypto/hmac.h kernel/crypto/hkdf.h kernel/crypto/chacha20poly1305.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/asn1.h kernel/core/panic.h drivers/serial.h
+kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/hmac.h kernel/crypto/hkdf.h kernel/crypto/chacha20poly1305.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/bigint.h kernel/crypto/rsa.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/asn1.h kernel/core/panic.h drivers/serial.h
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o
 
 # USB core scaffold

@@ -129,6 +129,10 @@ Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. The complete frontier compiles every source twice and
 requires the object bytes to match.
 
+The boot self-test runs production code from all 16 migrated sources. Its 48
+checks include SHA-512, SHA-384, bigint import and modular exponentiation, and
+valid plus corrupted RSA and Ed25519 signatures.
+
 Four neighboring sources still use the host C compiler because the checked
 seed predates the current compiler work. Compiler head now compiles asn1.c,
 x509.c, and x509_chain.c to deterministic i386 objects. csprng.c remains

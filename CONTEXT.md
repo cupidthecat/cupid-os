@@ -120,6 +120,10 @@ _Avoid_: aggregate scalar, borrowed object address
 The unchanged implementation files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current gate contains all twelve hermetic `HOSTED_TOOLCHAIN_64` units and `kernel/lang/as_elf.c`. The complete static i386 profile adds the hosted adapters, driver, runtime, and runtime contract, for 19 strict C11 units plus the GNU-enabled runtime. Complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. The checked i386 Linux seed consumes this frontier, while production ownership remains a separate boundary.
 _Avoid_: self-hosted toolchain, completed source cohort
 
+**Production crypto cohort**:
+The sixteen `kernel/crypto` translation units built by checked-seed CupidC in the normal image build. Each deterministic i386 ELF32 object passes the shared validator before publication, and all sixteen execute through the 48-check TLS boot self-test. Compiler head can emit neighboring sources without changing this ownership boundary until the seed and frontier are refreshed.
+_Avoid_: compiler-head frontier, all kernel crypto
+
 **Hosted i386 ABI profile**:
 The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. The CupidC command represents those roots with `-I` and `--include-angle` in caller order. Tool sources use strict C11. The hosted runtime alone enables CupidC's GNU variadic built-ins for formatted diagnostics.
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers

@@ -108,12 +108,13 @@ The kernel loader and process contracts pass with the new external arena.
 CupidLD still rejects an image that reaches the stack. The three user examples
 link as static i386 executables with entry `0x00E00000`.
 
-A current-image QEMU smoke passes all 40 TLS checks, reaches the desktop, and
-compiles and runs `/bin/ls.cc` twice. The boot vectors execute code from 12 of
-the migrated sources. `bigint.c`, `rsa.c`, `sha512.c`, and `ed25519.c` have
-compile and link coverage in this gate, but no direct runtime vector yet. The
+A current-image QEMU smoke passes all 48 TLS checks, reaches the desktop, and
+runs a GUI terminal command. The boot vectors execute code from all 16
+migrated sources. SHA-512, SHA-384, bigint, RSA, and Ed25519 now have direct
+vectors, including corrupted RSA and Ed25519 signatures that must fail. The
 embedded kernel bytes match `kernel/kernel.bin`, and the serial log contains
 no panic, exception, memory-corruption, stack-overflow, or stack-guard failure.
+ADR 0095 records the added runtime-evidence boundary.
 
 An isolated-image smoke also runs `/home/hello` twice from `0x00E00000`.
 The first process exits and releases the external arena before the second

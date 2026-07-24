@@ -7476,3 +7476,38 @@ blocker; its GNU extended inline assembly remains open.
 ADR 0094 records the conversion and address rules. Issue #25 remains open for
 the broader C language surface, issue #26 remains open for inline assembly,
 and issue #28 remains open for the next production kernel cohorts.
+
+## 2026-07-23: every CupidC-owned crypto object runs at boot
+
+The first production CupidC cohort compiled and validated sixteen crypto
+objects, then linked them into a booting image. Its TLS self-test called code
+from twelve of them. Bigint, RSA, SHA-512, and Ed25519 had no direct runtime
+vector, so the boot result could not yet speak for the whole owned cohort.
+
+The self-test now adds eight checks. SHA-512 and SHA-384 use their empty-input
+digests. Bigint round-trips a four-byte big-endian value and computes
+`4^13 mod 497 = 445`. RSA PKCS#1 v1.5 SHA-256 accepts a fixed valid signature
+and rejects a copy with one bit flipped. Ed25519 accepts RFC 8032's empty-message
+signature and rejects a corrupted copy. The two negative signature checks
+make rejection behavior part of the boot contract.
+
+The Make dependency for `tls_selftest.o` now lists the four added module
+headers. No crypto implementation, public interface, ownership list, or
+memory-map boundary changed.
+
+### Evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Checked-seed crypto frontier | PASS | All sixteen owned sources compile twice to 165,112 byte-identical i386 `ET_REL` bytes and pass the shared validator. |
+| TLS self-test object | PASS | The updated caller compiles with the normal freestanding kernel flags and links against the existing CupidC-produced crypto objects. |
+| Independent signature oracle | PASS | Public-exponent arithmetic recovers the exact RSA PKCS#1 v1.5 SHA-256 encoding. Python's Ed25519 verifier accepts the fixed signature and rejects the same one-bit change used at boot. |
+| Normal image build | PASS | The two-pass CupidLD build completes. `kernel.elf` is 6,414,372 bytes with SHA-256 `2bb6adcfa61fc2ec166d2dd380b80e9d4e7ff9cbaf8e542684438e4d45f602da`; `kernel.bin` is 6,235,333 bytes with SHA-256 `1f7c42a264a5be699981b42a09469c54c05e1c90847b80162908aa4d4b8f3f0c`; `cupidos.img` is 209,715,200 bytes with SHA-256 `ff0fa1356c4f27a5438d1629cf501a525c2832954aef60933c777a854367a0ea`. |
+| QEMU boot and GUI command | PASS | The serial log contains exactly 48 successful TLS checks, the all-vectors marker, desktop startup, terminal startup, and a completed `ls` command. It contains no failed self-test, panic, or exception. The log SHA-256 is `6a32754caa6039da7fb079302c55bf4fa114e3306f65525e935552af597ce08c`. |
+| Runtime scope | PASS | Boot now executes production code from all sixteen CupidC-owned crypto sources, with success and rejection paths for both signature verifiers. |
+| Active build audit | PASS | The regenerated graph contains 698 active inputs, 252 feature requirements, and 501 transforms. The source/control digest is `a7c32295b70613897248cd3fd707f64e9e7e159867d9e45bec986fc3312b5b02`; the JSON SHA-256 is `4651c1507dc784ebe8d8cb150aed740a6bdb55d36243069c5578a5f3e6e9d4e1`. The checked audit and focused include-operand drift test both pass. |
+
+This increment strengthens the evidence for the existing ownership boundary.
+It does not promote `asn1.c`, `x509.c`, `x509_chain.c`, or `csprng.c`, and it
+does not retire Python, WSL, or a host compiler dependency. Issue #28 remains
+open for later production cohorts. ADR 0095 records the runtime decision.

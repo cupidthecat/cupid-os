@@ -52,7 +52,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_mm` | 7 | 1296 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1161 |
-| `kernel_tls` | 13 | 6409 |
+| `kernel_tls` | 13 | 6572 |
 | `kernel_usb` | 8 | 1701 |
 | `kernel_util` | 2 | 660 |
 | `toolchain_contract` | 15 | 96745 |
@@ -99,17 +99,17 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 775 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 64093 |
+| `c.control` | 12 | 64097 |
 | `c.declaration` | 1 | 26 |
 | `c.declarator` | 4 | 2840 |
-| `c.expression` | 2 | 4119 |
+| `c.expression` | 2 | 4134 |
 | `c.extension` | 18 | 382 |
 | `c.initializer` | 1 | 638 |
 | `c.output` | 1 | 245 |
-| `c.preprocessor` | 18 | 6598 |
-| `c.qualifier` | 2 | 11450 |
-| `c.storage` | 4 | 7592 |
-| `c.type` | 14 | 43833 |
+| `c.preprocessor` | 18 | 6602 |
+| `c.qualifier` | 2 | 11467 |
+| `c.storage` | 4 | 7609 |
+| `c.type` | 14 | 43842 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
@@ -224,7 +224,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 425 linked objects; 432 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 109 conditional expressions (105 #if, 4 #elif); 22 normalized expressions; 23 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2369 C include operands (2137 quoted, 232 angle, 0 pp-token); 667 source files; max conditional depth 2 |
+| `c_preprocessor_include_operands` | `pass` | 2373 C include operands (2141 quoted, 232 angle, 0 pp-token); 667 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 667 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 379 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=12, HOSTED_KERNEL_BRIDGE_64=1, HOSTED_I386_LINUX=19, HOSTED_I386_LINUX_GNU=1); 22 include-only, 2 non-root headers; 20 hosted deferred (20 external, 0 hermetic) |
