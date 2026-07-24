@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0102 carries this capability in the checked i386 Linux
+seed. The normal build has not transferred the surrounding SMP sources yet.
+
 ## Context
 
 The per-CPU accessor in `kernel/smp/percpu.h` reads the current processor

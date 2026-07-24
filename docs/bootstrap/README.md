@@ -26,7 +26,7 @@ The i386 Linux adapter objects are `ctool_host.c` at 11 functions, 5,522 text by
 
 The `ctool_host.c` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 1,883,836 bytes. The repository keeps those exact stage-three images as its checked i386 Linux seed. CupidC has SHA-256 `f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df`; the other four images remain byte-identical to the first seed. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The manifest names source revision `b04c5b5ead1be504669ad8f0f84b3531eda3df9c` and the stage-two checked-seed producer trio. The harness also pins the exact 19-source mapping, freezes the verified manifest and binary bytes for the run, and watches a 40-input source snapshot that includes `link.ld`. The seed producer trio compiles the source union and assembles and links stage two. Stage-two CupidC, CupidASM, and CupidLD repeat that work for stage three. The 19 C object pairs, startup objects, and all five tool images match byte for byte. The stages also agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. `make verify-bootstrap-seed` checks the inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and production C ownership remain open.
+The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 1,921,292 bytes. The repository keeps those exact stage-three images as its checked i386 Linux seed. CupidC has SHA-256 `ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976`; the other four images remain byte-identical to the first seed. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The manifest names source revision `6639799ee3da19b077c890223e3340fc5e05e7ba` and the stage-two checked-seed producer trio. The harness also pins the exact 19-source mapping, freezes the verified manifest and binary bytes for the run, and watches a 40-input source snapshot that includes `link.ld`. The seed producer trio compiles the source union and assembles and links stage two. Stage-two CupidC, CupidASM, and CupidLD repeat that work for stage three. The 19 C object pairs, startup objects, and all five tool images match byte for byte. The stages also agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. `make verify-bootstrap-seed` checks the inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and production C ownership remain open.
 
 The normal root build now gives CupidC the complete 20-source
 `kernel/crypto` cohort. Typed null conversion covers `asn1.c` and `x509.c`;
@@ -61,8 +61,9 @@ operand slice and are implicitly volatile. The i386 emitter handles exact
 sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT without a
 temporary frame slot or EBX traffic. Native compilation of the unchanged
 `e1000.c`, `desktop.c`, `socket.c`, and `tcp.c` sources produces validated
-i386 ELF32 objects. The checked seed still predates this capability, so these
-objects do not move into the normal build yet. ADR 0099 records the boundary.
+i386 ELF32 objects. The refreshed checked seed contains this capability, but
+these objects do not move into the normal build yet. ADR 0099 records the
+language boundary, and ADR 0102 records the seed transition.
 A detached hybrid build linked those four head-built objects through both
 CupidLD passes and CupidObj. QEMU then initialized e1000, reached the desktop
 and terminal, and completed `/bin/ls.cc`.
@@ -92,8 +93,8 @@ byte-identical, validated i386 ELF32 objects. A disposable hybrid carries both
 objects through the production two-pass CupidLD and CupidObj path. Its
 four-vCPU QEMU run discovers and starts every CPU, initializes e1000, passes
 all 62 crypto, ASN.1, and X.509 checks, reaches the desktop, and completes
-`/bin/ls.cc`. Their next production step still needs a staged seed refresh
-and a Make cutover. ADR 0101 records the atomic boundary.
+`/bin/ls.cc`. Their next production step is the Make cutover. ADR 0101
+records the atomic boundary, and ADR 0102 records the seed transition.
 
 The unoptimized CupidC cohort increased the current kernel enough to cross the
 old fixed stack boundary. The kernel ceiling is now `0x00C00000`; the full

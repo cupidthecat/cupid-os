@@ -147,9 +147,10 @@ progress.
 Compiler head also represents operand-free GNU assembly inside functions.
 Basic statements and extended statements with an empty output list are
 implicitly volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
-sequences emit without a temporary frame slot or EBX traffic. The checked seed
-does not contain this addition yet. A disposable hybrid image has booted with
-head-built e1000, desktop, socket, and TCP objects.
+sequences emit without a temporary frame slot or EBX traffic. The refreshed
+checked seed contains this addition. A disposable hybrid image has booted with
+head-built e1000, desktop, socket, and TCP objects, but those sources have not
+changed normal-build owner.
 
 Compiler head also represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
@@ -170,8 +171,8 @@ and only the width-aware port assembly in ports.h remains. Unchanged
 kernel/smp/acpi.c and kernel/smp/mp_tables.c emit deterministic i386 ELF32
 objects at compiler head. A disposable two-pass image boots both objects with
 four CPUs, initializes e1000, reaches the desktop, and completes /bin/ls.cc.
-The checked seed predates this work, so the normal build has not moved those
-objects yet.
+The refreshed checked seed contains this work, but the normal build has not
+moved those objects yet.
 >endtree
 
 >h2 Self-Hosting Compiler Path
@@ -351,6 +352,9 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
+The current 1,921,292-byte CupidC image has SHA-256
+ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976
+and comes from revision 6639799ee3da19b077c890223e3340fc5e05e7ba.
 The harness freezes the verified manifest and binaries and captures 40 current
 inputs, including link.ld. The seed producer trio builds stage two from that
 snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,

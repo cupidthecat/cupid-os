@@ -260,7 +260,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df",
+                "ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -499,7 +499,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             (
                 "source revision",
                 "source_revision",
-                "d5e4ed784c54ea8dad581ac736ee8b62553627d8",
+                "b04c5b5ead1be504669ad8f0f84b3531eda3df9c",
                 "source revision differs",
             ),
             (
@@ -633,7 +633,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "b04c5b5ead1be504669ad8f0f84b3531eda3df9c",
+                "6639799ee3da19b077c890223e3340fc5e05e7ba",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -669,7 +669,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             seed_transition_snapshot = (
-                "b616fb0a65a9e31824a817356ec665a0acaf5448f8e8aa4b4fa23aff06f24fe3"
+                "175bf51130ca860f82874b5052fb0852f6e0ad9952f283394ed42d8b70cbf88e"
             )
             if report["source_snapshot_sha256"] == seed_transition_snapshot:
                 self.assertTrue(all(initial_matches.values()))

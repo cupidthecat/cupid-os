@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0102 carries these builtins in the checked i386 Linux
+seed. Production ownership of `acpi.c` and `mp_tables.c` remains separate.
+
 ## Context
 
 The per-CPU helpers and SMP startup code use four GNU atomic builtins:

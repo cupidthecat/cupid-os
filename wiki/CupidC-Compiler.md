@@ -222,7 +222,7 @@ The repository runtime supplies the checked file, heap, memory, string, `errno`,
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Both forms accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches byte for byte. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and most normal Cupid OS C objects still come from a host compiler.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 1,921,292-byte stage-three output from revision `6639799ee3da19b077c890223e3340fc5e05e7ba`, with SHA-256 `ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and most normal Cupid OS C objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -248,7 +248,7 @@ Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32`
 
 The checked CupidC seed owns all 20 normal-build kernel crypto objects. The strict frontier compiles every source twice to 204,132 byte-identical i386 ELF32 bytes, and a poisoned-host Make run rebuilds the cohort without Clang or GCC. Its GNU assembly subset represents the outputs and matching input in `csprng.c`, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model, and preserves EBX. Under QEMU's `max` CPU, the production image seeds through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, and completes an embedded CupidC JIT command. The X.509 checks cover parser, hostname, chain-state, and embedded-root lookup paths rather than full trust validation. Most normal C objects and the native contracts continue to use a host compiler, while the private in-kernel CupidC compiler handles embedded runtime compilation.
 
-Compiler head also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. A disposable hybrid image has booted with head-built e1000, desktop, socket, and TCP objects. The checked seed does not contain this addition yet.
+Compiler head also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. A disposable hybrid image has booted with head-built e1000, desktop, socket, and TCP objects. The refreshed checked seed contains this addition, but those objects have not changed normal-build owner.
 
 The same compiler head accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,
@@ -272,8 +272,7 @@ port assembly. Compiler head emits unchanged `kernel/smp/acpi.c` and
 `kernel/smp/mp_tables.c` as deterministic i386 ELF32 objects. A disposable
 image links both objects with CupidLD and boots all four discovered CPUs
 before reaching the desktop and completing `/bin/ls.cc`. The checked seed
-does not contain this work yet, so no additional production object has
-changed owner.
+contains this work, but no additional production object has changed owner.
 
 A block type name or record member can reuse a visible enum tag or define a new one.
 

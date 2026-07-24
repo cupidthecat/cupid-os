@@ -511,8 +511,8 @@ Compiler-head CupidC emits the integer atomic load, store, exchange, and
 fetch-add operations used by ACPI and MP discovery. A disposable two-pass
 kernel built acpi.c and mp_tables.c with that path, discovered four virtual
 CPUs through ACPI, brought all four online, and reached the desktop without a
-panic. The normal build still uses the checked seed from before this compiler
-addition.
+panic. The refreshed checked seed contains this compiler addition, but the
+normal build has not transferred the two sources yet.
 >endtree
 
 >h2 Source File Index

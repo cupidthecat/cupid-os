@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0102 carries this capability in the checked i386 Linux
+seed. Production ownership of the newly eligible sources remains separate.
+
 ## Context
 
 CupidC first learned the GNU assembly forms used by `kernel/crypto/csprng.c`.

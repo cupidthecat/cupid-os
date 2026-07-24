@@ -58,21 +58,21 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00E00000` boot-stack layout.
 
-The checked seed now includes the active CSPRNG GNU assembly subset. Its
-stage-three CupidC image is 1,883,836 bytes with SHA-256
-`f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df`.
-It came from stage three of the previous checked-seed bootstrap, not from the
-native compiler candidate. With host compiler and linker commands poisoned,
-the five refreshed seed images match stage two. All 19 stage-two C objects,
-startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases.
+The checked seed now includes the active CSPRNG assembly, operand-free
+function assembly, per-CPU pointer output, and integer atomic subset. Its
+stage-three CupidC image is 1,921,292 bytes with SHA-256
+`ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976`.
+It came from stage three of the checked bootstrap at revision
+`6639799ee3da19b077c890223e3340fc5e05e7ba`, not from the native compiler
+candidate. With host compiler and linker commands poisoned, all five seed
+images match stage two. All 19 stage-two C objects, startup, and five images
+then match stage three, and both stages pass all 21 tool behavior cases.
 
-Compiler head has advanced beyond that seed. It now represents operand-free
-GNU assembly statements inside functions and emits exact PAUSE, NOP, STI, HLT,
-CLI, CLD, SFENCE, and FNINIT sequences. A future seed refresh must carry this
-capability into production before any additional normal-build source changes
-owner. A detached hybrid build has already linked the four newly eligible
-objects through both CupidLD passes and booted them under QEMU.
+The refreshed seed represents operand-free GNU assembly statements inside
+functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
+sequences. A detached hybrid build has already linked the four newly eligible
+objects through both CupidLD passes and booted them under QEMU. Those objects
+still need a normal-build ownership cutover.
 
 Compiler head also handles the exact per-CPU pointer output
 `mov %%gs:0, %0` with one four-byte `=r` object or `void` pointer. The frontend
@@ -85,9 +85,9 @@ ordinary loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
 the non-Doom header gate to 153/154 and lets unchanged `acpi.c` and
 `mp_tables.c` emit deterministic i386 ELF32 objects. A disposable two-pass
 image boots both objects with four CPUs and completes the normal desktop and
-CupidC runtime smoke. The checked seed still predates both the pointer-output
-and atomic additions, so these results retire no normal-build host dependency
-until the next staged seed and source cutover.
+CupidC runtime smoke. The checked seed now carries both the pointer-output and
+atomic additions, but these results retire no normal-build host dependency
+until the source cutover.
 
 The normal image now builds all 20 kernel crypto sources with that checked
 CupidC seed. The strict frontier compiles each source twice and accepts

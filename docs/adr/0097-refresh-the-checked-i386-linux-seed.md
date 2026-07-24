@@ -3,8 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-24
 
-Current status: ADR 0098 consumes this refreshed seed for all 20 production
-kernel crypto sources. The staged refresh evidence below remains unchanged.
+Current status: ADR 0098 consumes this seed lineage for all 20 production
+kernel crypto sources. ADR 0102 records the next stage-three refresh and
+supersedes the current artifact inventory below. This transition evidence
+remains unchanged.
 
 ## Context
 

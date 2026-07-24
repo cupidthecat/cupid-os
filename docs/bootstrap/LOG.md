@@ -8015,3 +8015,72 @@ ADR 0101 records the language, IR, memory-order, and i386 decisions. A staged
 seed refresh is the next ownership step; only after that seed proves a fixed
 point can `acpi.c` and `mp_tables.c` move into the normal build with an image
 and boot gate.
+
+## 2026-07-24: Refresh the checked seed with the SMP compiler additions
+
+The checked seed at revision
+`b04c5b5ead1be504669ad8f0f84b3531eda3df9c` already owned the complete
+kernel crypto cohort. It predated operand-free function assembly, the per-CPU
+pointer output, and the integer atomic operations added in the next three
+compiler commits. Commit `6639799ee3da19b077c890223e3340fc5e05e7ba`
+is the committed capability boundary for this refresh.
+
+The first transition command chose an output directory outside the
+repository. The bootstrap rejected it before executing a seed tool because
+outputs must stay under the captured source root. A fresh private in-repo
+directory was used for the accepted run. `CC` and `LD` both named commands
+that do not exist.
+
+The old seed built stages two and three in 484.4 seconds. All 19 C objects,
+the startup object, and five tool images match across the stages. Both stages
+also agree on five help paths, ten successful operations, and six useful
+failures. The transition report records 40 source inputs and snapshot
+SHA-256
+`175bf51130ca860f82874b5052fb0852f6e0ad9952f283394ed42d8b70cbf88e`.
+Its SHA-256 is
+`4068ad260e135cfd6dc0d7dc3a20216c0c949aa56959f9e1e592c149f56cfb4c`.
+The previous manifest has SHA-256
+`90f30ede183176337cbe56463e7f7321291d7b87255c6692784ed6c57634dd6e`.
+
+Only CupidC differs between the old seed and stage two. The other four images
+already match. The complete stage-three set was nevertheless promoted:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0` |
+| CupidDis | 366,968 | `67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 1,921,292 | `ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976` |
+
+The manifest retains its stage-three generation, stage-two producer trio,
+fixed-point command, target ABI, source and link plan, and build-plan SHA-256
+`7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0`.
+Its source revision is now the capability commit above. The refreshed
+manifest has SHA-256
+`f8bd649a1f87ecdd368c22b4149315b4fa48c98fd3f59aaeef706c802d803f33`.
+
+The refreshed seed then repeated the poisoned-host bootstrap in a second
+fresh directory. All five seed images match stage two, and stage two matches
+stage three at every C object, startup object, and linked image. All 21
+behavior cases pass. The reproof took 518.1 seconds, and its report has
+SHA-256
+`74d70178ee2cadf342bc85a2c1ecf8d5c144f6a2d2a7f5db358008165b97d1b9`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Previous seed transition | PASS | The poisoned-host run reaches a complete five-tool stage-two to stage-three fixed point. The expected old-seed mismatch is limited to CupidC. |
+| Refreshed seed verification | PASS | `make verify-bootstrap-seed` accepts the five promoted static ELF32 files, manifest, hashes, source revision, lineage, and unchanged build plan. |
+| Refreshed seed reproof | PASS | A second poisoned-host run reproduces all five seed images at stage two, then reproduces every compared artifact at stage three and passes all behavior cases. |
+| Public seed contracts | PASS | All 14 tests pass in 592.424 seconds. They include another poisoned-host fixed point plus schema, provenance, lineage, plan, source-drift, frozen-input, hash, and ELF mutation cases. |
+| Kernel compile wrapper | PASS | All 13 tests pass, including a real refreshed-seed compile, manifest freezing, private WSL staging, source approval, ELF validation, and rollback. |
+| Production crypto frontier | PASS | The refreshed seed compiles all 20 approved sources twice to 204,132 byte-identical validated object bytes in 67.799 seconds. |
+| Active build audit | PASS | Regeneration and `make check-bootstrap-audit` agree on 698 active inputs, 252 feature requirements, 501 transforms, and 39 accounted unreachable files. The source digest remains `1e4f5fecd656ca495ce453df98064ee63645bd0997fe316ea2fbaf01fe87fb3a`; the audit JSON SHA-256 is `2b3aec9c4f4046d8d08e8b1e1420fa76ca1b9c3eff050cb5ed1ef0e824030477`. |
+| Normal image build | PASS | The two CupidLD passes and CupidObj complete with all 20 refreshed-seed crypto objects. The 6,443,216-byte `kernel.elf` has SHA-256 `8eb00fa9cfa447f759c4ff16878aeb1676b5e8caab60ad621fb2fc615df70727`; `_kernel_end` leaves 939,760 bytes below the stack. The 6,264,573-byte `kernel.bin` has SHA-256 `2d73e5deacf45ad486b98e3fd1b77f5d87c6465455783f8bb74b00a8122669ab`. Before boot, the image has SHA-256 `e36977654f8716018518d709cec503c8f1ebdf1102cc299cb1cecd06b7f6fb53`. |
+| Four-vCPU runtime | PASS | QEMU's `max` CPU seeds through RDRAND, reports four discovered and online CPUs, passes exactly 62 crypto, ASN.1, and X.509 checks, initializes e1000, reaches the desktop and terminal, and completes `/bin/ls.cc`. The 21,662-byte log has SHA-256 `9250a817047041cef012a26155767ab256570752522af0a428e9055e1cb4a374` and no accepted failure marker. |
+| Full repository gate | PASS | `make test` passes all 464 tests in 1,836.419 seconds with one expected skip. Make returns successfully in 1,884.3 seconds. |
+
+ADR 0102 records the trust transition. The refreshed seed changes no
+normal-build owner by itself. The next coherent change can transfer
+`acpi.c` and `mp_tables.c` with their frontier, rollback, image, and runtime
+gates.
