@@ -260,7 +260,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "29cd222c6e33590932457d36f3728705134c8c6750947e7cfbc4aba3b7c5500b",
+                "f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -494,6 +494,64 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "producer lineage differs\n",
         )
 
+    def test_changed_exact_provenance_is_rejected(self):
+        cases = (
+            (
+                "source revision",
+                "source_revision",
+                "d5e4ed784c54ea8dad581ac736ee8b62553627d8",
+                "source revision differs",
+            ),
+            (
+                "seed generation",
+                "seed_generation",
+                "generation-one",
+                "seed generation differs",
+            ),
+            (
+                "fixed-point result",
+                "fixed_point_result",
+                "not-run",
+                "seed lacks passing fixed-point provenance",
+            ),
+        )
+        for label, field, value, expected in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory(
+                prefix="cupid-bootstrap-seed-"
+            ) as temporary:
+                copied_seed = Path(temporary) / "i386-linux"
+                shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+                manifest_path = copied_seed / "manifest.json"
+                manifest = json.loads(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+                manifest["provenance"][field] = value
+                manifest_path.write_text(
+                    json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                    newline="\n",
+                )
+
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(BOOTSTRAP_TOOL),
+                        "verify",
+                        "--manifest",
+                        str(manifest_path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(
+                result.stderr,
+                f"bootstrap seed verification failed: {expected}\n",
+            )
+
     def test_changed_fixed_point_command_is_rejected(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-seed-"
@@ -575,7 +633,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "d5e4ed784c54ea8dad581ac736ee8b62553627d8",
+                "b04c5b5ead1be504669ad8f0f84b3531eda3df9c",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -599,6 +657,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "success_cases": 10,
                 },
             )
+            initial_matches = report["initial_seed_matches_stage_two"]
+            self.assertEqual(
+                set(initial_matches),
+                {
+                    "cupidasm",
+                    "cupidc",
+                    "cupiddis",
+                    "cupidld",
+                    "cupidobj",
+                },
+            )
+            seed_transition_snapshot = (
+                "b616fb0a65a9e31824a817356ec665a0acaf5448f8e8aa4b4fa23aff06f24fe3"
+            )
+            if report["source_snapshot_sha256"] == seed_transition_snapshot:
+                self.assertTrue(all(initial_matches.values()))
             self.assertEqual(report["source_inputs"]["count"], 40)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),

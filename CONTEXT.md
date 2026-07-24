@@ -121,7 +121,7 @@ The unchanged implementation files that hosted CupidC can preprocess, parse, low
 _Avoid_: self-hosted toolchain, completed source cohort
 
 **Production crypto cohort**:
-The sixteen `kernel/crypto` translation units built by checked-seed CupidC in the normal image build. Each deterministic i386 ELF32 object passes the shared validator before publication, and all sixteen execute through the 48-check TLS boot self-test. Compiler head can now emit all four neighboring crypto sources, including the CSPRNG assembly forms, without changing this ownership boundary until the seed and frontier are refreshed.
+The sixteen `kernel/crypto` translation units built by checked-seed CupidC in the normal image build. Each deterministic i386 ELF32 object passes the shared validator before publication, and all sixteen execute through the 48-check TLS boot self-test. The refreshed seed can emit all four neighboring crypto sources, including the CSPRNG assembly forms, without changing this ownership boundary until the production frontier moves.
 _Avoid_: compiler-head frontier, all kernel crypto
 
 **Hosted i386 ABI profile**:
@@ -231,7 +231,7 @@ A checked-in Cupid Toolchain executable that starts a bootstrap without an exter
 _Avoid_: oracle toolchain
 
 **Checked i386 Linux bootstrap seed**:
-The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. A bootstrap freezes the verified manifest and binaries, then the seed producer trio builds stage two from a captured 40-input source snapshot. Stage two builds the byte-identical stage three.
+The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed is the stage-three output of a checked-seed bootstrap at revision `b04c5b5ead1be504669ad8f0f84b3531eda3df9c`. With host compiler and linker commands poisoned, its five images match stage two; all 19 stage-two C objects, startup, and five images then match stage three. Both stages pass all 21 tool behavior cases. Its historical identity remains separate from the live 40-input source snapshot used by a later bootstrap.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Bootstrap stage**:

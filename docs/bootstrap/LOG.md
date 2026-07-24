@@ -7600,3 +7600,59 @@ so all four neighboring crypto files remain host-built until a refreshed seed
 passes its staged bootstrap and the production frontier moves. Broader GNU
 assembly remains open under issue #26. ADR 0096 records the language, IR, and
 ABI decisions.
+
+## 2026-07-24: the checked seed advances to compiler stage three
+
+The first checked seed could build the current compiler, but its own CupidC
+image predated the typed null, external-array address, and active GNU assembly
+work. The production frontier could not move the four neighboring crypto
+sources until those capabilities reached the bootstrap root.
+
+The old seed ran the complete staged bootstrap in a fresh dedicated output
+directory at exact source revision
+`b04c5b5ead1be504669ad8f0f84b3531eda3df9c`. `CC` and `LD` both named
+nonexistent commands for the run. The seed built all 19 C objects, startup,
+and five tools for stage two; the stage-two producer trio repeated the work
+for stage three. Every pair matched, and both stages passed five help checks,
+ten successful operations, and six expected failures. The run took 451.5
+seconds.
+
+Only the compiler differed from the old seed. The stage-three files promoted
+into the checked directory are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0` |
+| CupidDis | 366,968 | `67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 1,883,836 | `f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df` |
+
+The manifest now calls this generation `stage-three` and names the stage-two
+checked-seed CupidC, CupidASM, and CupidLD as its producers. It records
+`make bootstrap-from-seed`, a passing result, and source revision
+`b04c5b5ead1be504669ad8f0f84b3531eda3df9c`. Verification rejects the
+former revision and generation, a non-passing result, changed lineage, and a
+changed command.
+
+The refreshed seed then repeated the complete bootstrap with host tools
+poisoned. All five seed images matched stage two at the recorded source
+snapshot, every stage-two artifact matched stage three, and all 21 behavior
+checks passed. The seed-to-stage-two assertion is limited to that snapshot,
+so a later source edit can still use the historical seed to reach a valid new
+fixed point.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Transition bootstrap | PASS | The old seed's 451.5-second run matches 19 C objects, startup, and five images across stages. Its source snapshot is `b616fb0a65a9e31824a817356ec665a0acaf5448f8e8aa4b4fa23aff06f24fe3`; the report SHA-256 is `40f7418c7067f079bd7f1a4a13cb12d1d523e70ee82d99d98c14e65a72026925`. |
+| Refreshed manifest | PASS | `make verify-bootstrap-seed` accepts manifest SHA-256 `90f30ede183176337cbe56463e7f7321291d7b87255c6692784ed6c57634dd6e` and all five static i386 ELF images. |
+| Refreshed-seed reproof | PASS | The 461.1-second poisoned-host run reports every seed-to-stage-two value true, all stage comparisons true, and 5 help, 10 success, and 6 failure cases. Its report SHA-256 is `9757b0e4318c50acde1f42ddedce60a17ab611d6578cce175806150312412ab8`. |
+| Provenance negatives | PASS | Focused tests reject the old source revision, old generation, a non-pass result, changed producer lineage, and a changed fixed-point command before execution. |
+| Public seed module | PASS | All 14 verification, tamper, provenance, source-drift, ELF, freeze, and complete-bootstrap tests pass in 452.450 seconds. |
+| Active build audit | PASS | Regeneration and `make check-bootstrap-audit` retain 698 active inputs, 252 feature requirements, 501 transforms, 39 accounted unreachable files, and source digest `6329bb747a955541dcff628d3ad6190f5026339856667a3758f63a0e952eeb05`. The JSON SHA-256 is `9f34ef304fbdb2e832bd9222e66f602f465afb7582d116b61803e2e968045819`; the focused drift test passes in 127.076 seconds. |
+
+This transition updates the bootstrap input without moving a normal-build
+source owner. The refreshed seed can compile all four neighboring crypto
+sources, but the normal build remains at 16 CupidC-owned crypto objects until
+the frontier and four Make rules move with a fresh linked-kernel boot proof.
+ADR 0097 records the trust transition.

@@ -20,7 +20,7 @@ from typing import Sequence
 
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
-SEED_SOURCE_REVISION = "d5e4ed784c54ea8dad581ac736ee8b62553627d8"
+SEED_SOURCE_REVISION = "b04c5b5ead1be504669ad8f0f84b3531eda3df9c"
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 PRODUCER_NAMES = ("cupidc", "cupidasm", "cupidld")
 EXPECTED_TARGET = {
@@ -33,11 +33,11 @@ EXPECTED_TARGET = {
     "operating_system": "linux",
 }
 EXPECTED_PRODUCER_LINEAGE = {
-    "assembly": "host-built CupidASM core",
-    "c": "host-built CupidC core",
-    "link": "host-built CupidLD core",
+    "assembly": "stage-two CupidASM from the checked-seed bootstrap",
+    "c": "stage-two CupidC from the checked-seed bootstrap",
+    "link": "stage-two CupidLD from the checked-seed bootstrap",
 }
-EXPECTED_FIXED_POINT_COMMAND = "make test-toolchain-fixed-point"
+EXPECTED_FIXED_POINT_COMMAND = "make bootstrap-from-seed"
 EXPECTED_INCLUDE_ARGUMENTS = (
     "-I",
     "/toolchain",
@@ -660,7 +660,7 @@ def _verify_seed_manifest_data(
     revision = provenance.get("source_revision")
     if revision != SEED_SOURCE_REVISION:
         raise BootstrapError("source revision differs")
-    if provenance.get("seed_generation") != "generation-one":
+    if provenance.get("seed_generation") != "stage-three":
         raise BootstrapError("seed generation differs")
     if provenance.get("fixed_point_result") != "pass":
         raise BootstrapError("seed lacks passing fixed-point provenance")

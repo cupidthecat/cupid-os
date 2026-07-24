@@ -269,19 +269,18 @@ make HDD_MB=100
 ### Self-hosting compiler status
 
 The normal image build uses the checked CupidC seed for 16 kernel crypto
-objects. The current compiler source also compiles the unchanged `asn1.c`,
-`x509.c`, and `x509_chain.c` after adding typed `((void *)0)` null conversion
-and address decay for external arrays with unspecified bounds. It now compiles
-`csprng.c` as well. The new GNU assembly slice represents typed outputs and a
-matching input, emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model,
-and preserves EBX across the statement. The checked seed predates all four
-changes, so those sources remain host-built until the seed and production
-frontier are refreshed. A disposable two-pass kernel build has already booted
-with compiler head's `csprng.o`: RDRAND seeded the generator, all 48 TLS
-checks passed, the desktop opened a terminal, and the embedded CupidC ran
-`ls.cc`. Clang or GCC still builds the rest of the normal C graph. Migrated
-objects are validated i386 ELF32 relocatables before publication. The regular
-QEMU image also executes code from all 16 migrated sources. Its added
+objects. The refreshed seed can also compile the unchanged `asn1.c`, `x509.c`,
+`x509_chain.c`, and `csprng.c`. Typed `((void *)0)` conversion, address decay
+for external arrays with unspecified bounds, and typed GNU assembly operands
+cover those sources without weakening them. The assembly path emits RDTSC,
+CPUID, RDRAND, and SETC through Cupid's x86 model and preserves EBX. The four
+sources remain host-built only because their production Make rules and
+frontier have not moved yet. A disposable two-pass kernel build already
+booted with the CupidC-produced `csprng.o`: RDRAND seeded the generator, all
+48 TLS checks passed, the desktop opened a terminal, and the embedded CupidC
+ran `ls.cc`. Clang or GCC still builds the rest of the normal C graph.
+Migrated objects are validated i386 ELF32 relocatables before publication.
+The regular QEMU image also executes code from all 16 migrated sources. Its
 SHA-512, SHA-384, bigint, RSA, and Ed25519 checks cover expected results and
 require corrupted RSA and Ed25519 signatures to be rejected.
 
@@ -310,7 +309,7 @@ CupidC emits the repository's i386 Linux runtime and five command closures: Cupi
 
 The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Both options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file.
 
-The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The harness pins that plan independently, freezes the verified manifest and binaries, and captures 40 live inputs, including `link.ld`. Seed CupidC, CupidASM, and CupidLD build stage two, then the stage-two producer trio repeats the work for stage three. The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and the remaining production handoff stay open.
+The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 1,883,836-byte stage-three image with SHA-256 `f412a39f204380de8986d6dc3c3a8d6feecf4c40990c40b31634e58d254624df`. The harness pins the build plan independently, freezes the verified manifest and binaries, and captures 40 live inputs, including `link.ld`. Seed CupidC, CupidASM, and CupidLD build stage two, then the stage-two producer trio repeats the work for stage three. The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and the remaining production handoff stay open.
 
 Hosted i386 object emission places ESP on a sixteen-byte boundary immediately before every `CALL`. The emitter derives padding from the function frame, the live Linear IR stack depth, and any outgoing target-sized argument area. Direct and indirect calls use the same rule for prototyped, variadic, unprototyped, nested, structure, and wide cases, with zero, four, eight, or twelve bytes of padding as needed.
 
@@ -332,7 +331,7 @@ Runtime narrow string expressions now receive deterministic local `.rodata` symb
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
 
-[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the checked seed, verification boundary, and source-drift guard.
+[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the stage-three seed refresh and its poisoned-host reproof.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 

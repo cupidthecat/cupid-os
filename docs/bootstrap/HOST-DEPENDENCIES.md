@@ -14,12 +14,12 @@ exercise their production code in the linked kernel, including valid and
 corrupted signature paths for RSA and Ed25519. This closes the cohort's
 runtime-evidence gap without retiring Python, WSL, or another host dependency.
 
-Compiler head now emits all four host-owned crypto neighbors as deterministic,
-validated objects. The GNU assembly slice used by `csprng.c` has typed register
-outputs, a matching input, exact CPU-instruction templates, and EBX
-preservation. These objects remain host dependencies until a refreshed checked
-seed passes the staged fixed point and the production frontier moves. This
-capability change does not alter the current transform counts.
+The refreshed seed now emits all four host-owned crypto neighbors as
+deterministic, validated objects. The GNU assembly slice used by `csprng.c`
+has typed register outputs, a matching input, exact CPU-instruction templates,
+and EBX preservation. These objects remain host dependencies only because the
+production frontier and four Make rules have not moved. The seed refresh does
+not alter the current transform counts.
 
 Later sections preserve the ownership wording that accompanied earlier
 capability slices. When an older entry says every normal C object was
@@ -37,7 +37,7 @@ The self-host source frontier also retires no dependency. Hosted CupidC emits de
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
-The five static commands now share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. Checked CupidC compiles the stage-two union, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three. Every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. A clean checkout can rebuild this static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and normal OS C objects remain host-owned.
+The five static commands now share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `b04c5b5ead1be504669ad8f0f84b3531eda3df9c`; only CupidC changed from the first seed. Checked CupidC compiles the stage-two union, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three. Every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. A clean checkout can rebuild this static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
 
 Two active-source fragments anchor the wide call requirement. `toolchain/tests/cupidc_object_contract.c::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.c::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover those call fragments only. They do not establish whole-function CupidC ownership. No active-source guard covers a wide `va_arg` or an unprototyped wide call, so those paths have focused ABI fixture evidence only. Current public modules contain 53 frontend tests, 40 IR tests, and 52 object tests. The neighboring `variadic-callees`, `old-style-empty-functions`, `wide-returns`, and `floating-transport` modes remain part of the full gate. The `js_push_num` guard covers its declaration and assignment lines only, not the full browser interpreter function.
 

@@ -23063,11 +23063,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "b66fbfeea828f3ea93451bf2162c9615892b9da738ea84299cb5f55eae93d827"
+        "sha256": "f9f982916b8d2a1146c1b8dd792ec01776a6051a266abe3e5597df0ee6fd0f30"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
-        "sha256": "ca9c1cca497717317ffdc7af3f22eb330074b1fd5656ec4625c379363bb80412"
+        "sha256": "90f30ede183176337cbe56463e7f7321291d7b87255c6692784ed6c57634dd6e"
       }
     ],
     "generator": {

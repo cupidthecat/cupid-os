@@ -112,3 +112,10 @@ Future seed replacement must preserve strict provenance, update the manifest
 and hashes together, pass the complete staged comparison and behavior suite,
 and document the new trust transition. The existing seed remains a reviewable
 recovery point rather than an opaque rolling binary.
+
+ADR 0097 records the first replacement. It promotes the checked bootstrap's
+stage-three images at source revision
+`b04c5b5ead1be504669ad8f0f84b3531eda3df9c`, then proves that the refreshed
+seed reproduces every stage-two and stage-three artifact. ADR 0097 supersedes
+this ADR's artifact inventory and current provenance values; the decision and
+evidence above remain the history of the original seed.
