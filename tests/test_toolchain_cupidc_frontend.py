@@ -94,6 +94,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_pointer_output_inline_assembly_preserves_pointer_types(self):
         self.run_contract("pointer-output-assembly")
 
+    def test_port_io_assembly_keeps_widths_registers_and_memory_clobber(self):
+        self.run_contract("port-io-assembly")
+
     def test_operand_free_inline_assembly_retains_basic_and_extended_forms(self):
         self.run_contract("operand-free-assembly")
 
@@ -237,7 +240,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 18259)
+        self.assertEqual(feature["occurrences"], 18382)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -245,7 +248,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 3486)
+        self.assertEqual(feature["occurrences"], 3498)
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -253,7 +256,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.while"
         )
-        self.assertEqual(feature["occurrences"], 2587)
+        self.assertEqual(feature["occurrences"], 2590)
         self.assertEqual(len(feature["files"]), 256)
 
     def test_active_do_statement_inventory_is_drift_gated(self):
@@ -280,9 +283,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 30192)
+        self.assertEqual(features["c.control.if"]["occurrences"], 30399)
         self.assertEqual(len(features["c.control.if"]["files"]), 365)
-        self.assertEqual(features["c.control.else"]["occurrences"], 4051)
+        self.assertEqual(features["c.control.else"]["occurrences"], 4078)
         self.assertEqual(len(features["c.control.else"]["files"]), 276)
 
     def test_active_goto_inventory_is_drift_gated(self):
@@ -291,7 +294,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.goto"
         )
-        self.assertEqual(feature["occurrences"], 1733)
+        self.assertEqual(feature["occurrences"], 1767)
         self.assertEqual(len(feature["files"]), 26)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):
@@ -315,13 +318,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             and not source["path"].startswith("kernel/doom/")
             and source["path"] not in excluded
         )
-        failures = {
-            "/kernel/core/ports.h": (
-                "/kernel/core/ports.h", 8, 40, "0x0b00000f"
-            ),
-        }
+        failures = {}
         self.assertEqual(len(headers), 154)
-        self.assertEqual(len(failures), 1)
+        self.assertEqual(len(failures), 0)
         expected_lines = []
         for header in headers:
             if header not in failures:
@@ -331,7 +330,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tinput\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 153 1")
+        expected_lines.append("header-sweep: ok 154 0")
         result = subprocess.run(
             [
                 str(self.contract_path),

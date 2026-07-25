@@ -493,6 +493,22 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "void-casts: ok\n")
 
+    def test_inline_assembly_preserves_legacy_register_and_tied_input_bytes(
+        self,
+    ):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "inline-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "inline-assembly: ok\n")
+
     def test_pointer_output_assembly_emits_segmented_i386_load(self):
         result = subprocess.run(
             [
@@ -506,6 +522,22 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
+
+    def test_port_io_assembly_emits_exact_i386_and_preserves_callee_registers(
+        self,
+    ):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "port-io-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "port-io-assembly: ok\n")
 
     def test_atomic_builtins_emit_width_correct_i386_instructions(self):
         result = subprocess.run(

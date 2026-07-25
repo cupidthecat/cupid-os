@@ -8327,3 +8327,173 @@ remaining strict kernel, driver, and generated-C cohorts. The normal graph
 still contains 271 host-C transforms. Python, WSL on Windows, and hosted
 development commands also remain explicit bootstrap or orchestration
 dependencies.
+
+## 2026-07-24: CupidC compiles the active port-I/O assembly
+
+`kernel/core/ports.h` was the last failure in the 154-header non-Doom sweep.
+Its unchanged helpers use three accumulator widths, an independent DX input,
+read/write string pointers and counts, and one memory clobber. Replacing those
+helpers with intrinsics or weaker C would have hidden a real compiler and ABI
+requirement, so this increment extends the shared GNU assembly path.
+
+### Frontend and IR
+
+The frontend accepts the independent `a` and `d` integer inputs used by the
+active port helpers and keeps their represented 8-bit, 16-bit, or 32-bit
+source width. The `=a` accumulator output accepts the same three widths;
+`=b`, `=c`, and `=d` remain 32-bit forms. A fixed register cannot be assigned
+to two independent operands. The existing numbered matching inputs keep
+their former rules.
+
+Read/write `+c` takes a modifiable 32-bit integer. `+S` and `+D` take
+modifiable 32-bit object or void pointers, including the pointer-to-const
+buffer used by OUTSW. The frontend records one `memory` clobber and rejects a
+duplicate or another clobber name. An input-only extended statement is
+implicitly volatile. A represented extended statement may use the memory
+flag as a byte-free compiler barrier, while basic assembly cannot carry a
+clobber list.
+
+Linear IR evaluates every output address once in output order, followed by
+each input value in input order. Read/write outputs remain one address entry;
+the emitter, not IR, loads and writes their values. The complete unchanged
+header fixture publishes eight assembly records, 18 operands, and 51 IR
+instructions. Scalar helpers have maximum stack depth two, the string helpers
+have depth three, and the IR fingerprint is `0632DB96740C4BAB`.
+
+### i386 object emission
+
+The new emitter path recognizes only the eight complete active templates. The
+scalar forms pop DX and the accumulator in semantic stack order and select
+AL, AX, or EAX from the retained source width. INSW and OUTSW reserve 12
+private frame bytes for two output addresses and the caller's string
+register. They load EDI or ESI and ECX, issue CLD plus the repeated word
+operation, write the final count and pointer back, and restore EDI or ESI.
+The path never borrows EBX.
+
+The deterministic fixture has 408 text bytes, 916 total bytes, five sections,
+nine symbols, no relocations, and text fingerprint `008DEF58`. The decoder
+pins these instruction sequences:
+
+| Helper | Bytes |
+| --- | --- |
+| INB | `EC` |
+| OUTB | `EE` |
+| INW | `66 ED` |
+| OUTW | `66 EF` |
+| INL | `ED` |
+| OUTL | `EF` |
+| INSW | `FC F3 66 6D` |
+| OUTSW | `FC F3 66 6F` |
+
+Port instructions cannot execute in a hosted user process. The object
+contract therefore decodes every helper and checks stack order, lane width,
+both string writebacks, distinct saved output addresses, exact private
+storage, the EDX port load, the ECX count load, callee-register restoration,
+and the absence of EBX. Malformed flags, constraints, widths, register
+assignments, and partial templates fail before publication. A narrow
+accumulator used outside the eight port templates receives an
+unsupported-template diagnostic instead of an internal error. Repeated
+output is byte-identical, and the same job emits the valid object again after
+each failure.
+
+### Corrections made during implementation
+
+The first width check looked at the old 32-bit-only fixed-output rule. The
+unchanged 16-bit port helper exposed that mistake immediately. The final
+frontend retains the operand's declared width and leaves the exact template
+to select its physical lane.
+
+The first dedicated emitter branch handled INSW's memory flag but rejected a
+memory clobber on every other represented statement. Review of the ordinary
+operand-free path found that gap. The flag now passes through any represented
+extended statement without adding bytes, while the exact port path still
+requires the unchanged INSW and OUTSW flag layouts.
+
+Standards review found that the first public draft admitted independent `b`
+and `c` inputs and narrow `=b`, `=c`, and `=d` outputs even though the emitter
+did not own them. The final contract keeps independent input support at the
+active `a` and `d` boundary and reserves narrow output support for `=a`.
+Spec review then found that forged integer `+S` and `+D` outputs could pass
+IR validation and that narrow non-port `=a` output reached an internal
+emitter error. Both paths now stop transactionally at their proper typed or
+unsupported-template boundary.
+
+The first string-I/O decoder counted loads and writebacks without tying them
+to their saved slots. It also did not prove the EDX port pop or the ECX count
+load. The final oracle follows the complete assembly sequence as one ABI
+state machine. It checks all three runtime pops, the count and pointer loads,
+the two distinct saved addresses, each address-specific writeback, the
+repeated operation, and the matching ESI or EDI restoration. Register-use
+checks now recognize byte, word, and doubleword GPR operands.
+
+The self-parse and self-host object guards also caught the expected compiler
+source drift. The final source tuples, reported as definitions, statements,
+expressions, block bindings, and initializers, are
+`cupidc_ir.c` 200/6,053/54,245/756/262,
+`cupidc_emit.c` 188/5,133/44,216/620/313, and
+`cupidc_frontend.c` 318/12,858/84,185/1,909/1,273. Their self-host object
+proofs are:
+
+| Source | Functions | Text bytes | Object bytes | Fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `cupidc_ir.c` | 200 | 382,105 | 408,200 | `987466FB` |
+| `cupidc_emit.c` | 188 | 321,271 | 344,364 | `C39886ED` |
+| `cupidc_frontend.c` | 318 | 631,572 | 748,660 | `16B92969` |
+
+### Active-source result
+
+The compiler-head header gate is now 154/154. A separate frozen frontier then
+compiled every unchanged source whose only measured blocker was
+`ports.h`. It used the production `KERNEL_I386` profile, watched 302 inputs,
+validated each i386 relocatable object, compiled the full cohort twice, and
+published only a complete byte-identical result. An independent direct probe
+compiled the same sources twice more. All four copies agree:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `drivers/ata.c` | 10,748 | `9042af40ca59db2c8f03575757ec79cf3477ebc4065a7712b87840b1a05c9176` |
+| `drivers/keyboard.c` | 11,256 | `d8fb7e5a198a60b09e2bcbf1c1ce680aba25be759d72d4a5ac38ca5f0a2982f6` |
+| `drivers/mouse.c` | 12,732 | `5c0b4cae730708db39803ac8224dfa9bdd08f40a39197723ec3f3aa279617a1c` |
+| `drivers/pci.c` | 7,136 | `7d006772700b8b0192daa7690417bc6872b8324588cd67e50126cf318858a68e` |
+| `drivers/pit.c` | 1,816 | `988d4678c3ca72ee706192c22138dbe3a899d70d7ce059eaed5c613e2ca77b53` |
+| `drivers/rtc.c` | 7,520 | `e4e81e276d1fc15c04f3b56ace9816479af6e8c4c3a4f3b1a38b2a137766ef4a` |
+| `drivers/rtl8139.c` | 8,416 | `0244bebe07cbaf334725e28a4b23963cbbd7cff409b53f6be209557b9561157a` |
+| `drivers/speaker.c` | 1,576 | `f880fc8db95090e040596589725c0935384da2387ba45661cb25657337bc55fa` |
+| `drivers/vga.c` | 4,764 | `ab0ffd587b4e4ea473f161957d53255cbb755a401c176cf205eee571d8969840` |
+| `kernel/audio/ac97.c` | 13,652 | `df599091b5d6786240b7eac89be288dee6972f557236f7fff23fb5362c7b172c` |
+| `kernel/core/syscall.c` | 11,396 | `77a2c25956272ae2cdd8f49bd992304021ee5f8fb5a03cc10aaeee89a1eeb8b8` |
+| `kernel/lang/shell.c` | 173,416 | `95c873157efca5fe35031b546daa5d535565bfea1ca85b0b0226b84c8775f2b4` |
+| `kernel/usb/ehci.c` | 15,436 | `2e24ef117ea09fed69afb37d1dc1b51c82b5434b8aa2d6bb39273c4d5d1015de` |
+| `kernel/usb/uhci.c` | 12,812 | `c528e72315061492ded1ac1a4b25686ecb659823721be553ae95e1e72ba3e463` |
+
+The 14-source result contains 292,676 bytes. Its atomic manifest is 35,981
+bytes with SHA-256
+`6d49f6923c1a010e8e631f0d9753295a560b08a5d18f253b5d63c8e296c87cf9`;
+the input snapshot has SHA-256
+`2321569f7b913829a4e1ba0039b9cf297dbcbd9d0053a8e3626c02c20a75e5c6`.
+These are compiler-head migration candidates, not production objects.
+
+### Verification and ownership
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Frontend suite | PASS | All 58 tests pass in 13.604 seconds. The active header contract reports 154 passes and no failures. |
+| IR suite | PASS | All 45 tests pass in 14.121 seconds. The port selector covers exact operand order, typed widths, repeated lowering, forged-unit failures, rollback, and recovery. |
+| Focused object and self-host gates | PASS | Port I/O, operand-free memory-clobber emission, legacy matching-register assembly, pointer output, and the 13-source self-host object frontier pass after the final correction. |
+| Complete object suite | PASS | All 58 object tests pass in 676.275 seconds after the review corrections. The suite covers exact ELF and i386 ABI behavior, useful failures, rollback, recovery, repeat determinism, and the compiler's self-host object frontier. |
+| Hosted Toolchain build | PASS | A strict Clang rebuild completes every hosted tool and contract, and `self-host-link-tools` accepts the Cupid-built static i386 tool images. |
+| Checked seed | PASS | `make verify-bootstrap-seed` accepts all five checked i386 Linux tools. This verifies the existing seed; it does not claim that the new port-I/O compiler is present there yet. |
+| Active build audit | PASS | Regeneration completes in 46.8 seconds. The 698-input graph has 252 feature requirements, 501 transforms, and 39 accounted unreachable files. Its active-source digest is `f846738ec2fb820837590a0f7df6bd5c50c7c213a91f59744b6ffdde627d24f7`. The 1,413,588-byte JSON has SHA-256 `f08cb190c399f9c7deef034489b7300fec8c7d1c67aa462ff7955f8b97742ee0`; the final 42.9-second deterministic check and the 141.149-second mutation-based drift test both pass. |
+| Independent review | PASS | Standards and Spec reviews are clean after narrowing unsupported register forms, closing forged pointer and diagnostic gaps, and strengthening the string-I/O ABI oracle. |
+
+No design question needed a user decision. The unchanged header, i386 cdecl
+ABI, and existing shared x86 forms fixed the required behavior.
+
+This increment changes compiler-head capability only. The checked seed still
+contains the previous compiler, and the normal build remains at 26 CupidC
+objects and 366,592 deterministic bytes. Issue #26 remains open for the
+remaining attributes, file-scope assembly, labels and control transfer,
+general clobbers and constraints, naked code, register snapshots, FXSAVE,
+x87, SSE2, and the other active privileged forms. Issue #28 remains open for
+the production hand-off and all later C cohorts. ADR 0105 records this
+boundary.

@@ -24245,20 +24245,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 199u, 180u, 317u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 200u, 188u, 318u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 378204u, 307843u, 627357u, 139612u, 70368u, 77981u,
+      190304u, 382105u, 321271u, 631572u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 403872u, 329396u, 743424u, 157796u, 79348u, 131640u,
+      226668u, 408200u, 344364u, 748660u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x715e3db7u, 0xe5e493a4u, 0x69c83929u, 0x3f69aac3u,
+      0x987466fbu, 0xc39886edu, 0x16b92969u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   for (index = 0u; index <
@@ -26926,6 +26926,787 @@ cleanup:
   return 1;
 }
 
+static int port_io_register_matches(
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_u8 index) {
+  ctool_x86_reg_class_t expected_class =
+      width_bits == 8u
+          ? CTOOL_X86_REG_GPR8
+          : width_bits == 16u ? CTOOL_X86_REG_GPR16
+                              : CTOOL_X86_REG_GPR32;
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 operand->width_bits == width_bits &&
+                 operand->as.reg.class_id == expected_class &&
+                 operand->as.reg.index == index
+             ? 1
+             : 0;
+}
+
+static int port_io_instruction_uses_gpr(
+    const ctool_x86_instruction_t *instruction, ctool_u8 index) {
+  ctool_u32 operand_index;
+  if (instruction == NULL) {
+    return 0;
+  }
+  for (operand_index = 0u;
+       operand_index < instruction->operand_count; operand_index++) {
+    const ctool_x86_operand_t *operand =
+        &instruction->operands[operand_index];
+    if ((operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+         (operand->as.reg.class_id == CTOOL_X86_REG_GPR8 ||
+          operand->as.reg.class_id == CTOOL_X86_REG_GPR16 ||
+          operand->as.reg.class_id == CTOOL_X86_REG_GPR32) &&
+         operand->as.reg.index == index) ||
+        (operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+         ((operand->as.memory.base.class_id ==
+               CTOOL_X86_REG_GPR32 &&
+           operand->as.memory.base.index == index) ||
+          (operand->as.memory.index.class_id ==
+               CTOOL_X86_REG_GPR32 &&
+           operand->as.memory.index.index == index)))) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int port_io_memory_uses_register(
+    const ctool_x86_operand_t *operand, ctool_u8 index) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->as.memory.base.class_id ==
+                     CTOOL_X86_REG_GPR32 &&
+                 operand->as.memory.base.index == index
+             ? 1
+             : 0;
+}
+
+static int validate_port_io_scalar_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    ctool_x86_mnemonic_t mnemonic, ctool_u16 width_bits,
+    const ctool_u8 *expected_bytes, ctool_u32 expected_size) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 target_count = 0u;
+  ctool_u32 output_writeback_state = 0u;
+  ctool_x86_mnemonic_t previous_mnemonic = CTOOL_X86_MN_INVALID;
+  ctool_x86_mnemonic_t before_previous_mnemonic =
+      CTOOL_X86_MN_INVALID;
+  ctool_u8 previous_pop_register = 0xffu;
+  ctool_u8 before_previous_pop_register = 0xffu;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      expected_bytes == NULL || expected_size == 0u ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (port_io_instruction_uses_gpr(
+            &decoded.instruction, 3u) ||
+        port_io_instruction_uses_gpr(
+            &decoded.instruction, 6u) ||
+        port_io_instruction_uses_gpr(
+            &decoded.instruction, 7u)) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == mnemonic) {
+      const ctool_x86_instruction_t *instruction =
+          &decoded.instruction;
+      if (target_count != 0u || decoded.consumed != expected_size ||
+          expected_size > symbol->size - cursor ||
+          memcmp(text->contents.data + symbol->value + cursor,
+                 expected_bytes, (size_t)expected_size) != 0 ||
+          instruction->operand_count != 2u ||
+          instruction->operand_bits != width_bits ||
+          (mnemonic == CTOOL_X86_MN_IN &&
+           (previous_mnemonic != CTOOL_X86_MN_POP ||
+            previous_pop_register != 2u)) ||
+          (mnemonic == CTOOL_X86_MN_OUT &&
+           (previous_mnemonic != CTOOL_X86_MN_POP ||
+            previous_pop_register != 0u ||
+            before_previous_mnemonic != CTOOL_X86_MN_POP ||
+            before_previous_pop_register != 2u))) {
+        return 0;
+      }
+      if (mnemonic == CTOOL_X86_MN_IN) {
+        if (!port_io_register_matches(
+                &instruction->operands[0], width_bits, 0u) ||
+            !port_io_register_matches(
+                &instruction->operands[1], 16u, 2u)) {
+          return 0;
+        }
+      } else if (!port_io_register_matches(
+                     &instruction->operands[0], 16u, 2u) ||
+                 !port_io_register_matches(
+                     &instruction->operands[1], width_bits, 0u)) {
+        return 0;
+      }
+      target_count++;
+    }
+    if (mnemonic == CTOOL_X86_MN_IN && target_count != 0u &&
+        decoded.instruction.mnemonic != mnemonic &&
+        output_writeback_state < 3u) {
+      ctool_bool expected =
+          output_writeback_state == 0u
+              ? decoded.instruction.mnemonic == CTOOL_X86_MN_MOV &&
+                    decoded.instruction.operand_count == 2u &&
+                    port_io_register_matches(
+                        &decoded.instruction.operands[0], 32u, 1u) &&
+                    port_io_register_matches(
+                        &decoded.instruction.operands[1], 32u, 0u)
+              : output_writeback_state == 1u
+                    ? decoded.instruction.mnemonic == CTOOL_X86_MN_POP &&
+                          decoded.instruction.operand_count == 1u &&
+                          port_io_register_matches(
+                              &decoded.instruction.operands[0], 32u, 0u)
+                    : decoded.instruction.mnemonic == CTOOL_X86_MN_MOV &&
+                          decoded.instruction.operand_count == 2u &&
+                          port_io_memory_uses_register(
+                              &decoded.instruction.operands[0], 0u) &&
+                          port_io_register_matches(
+                              &decoded.instruction.operands[1],
+                              width_bits, 1u);
+      if (expected == CTOOL_FALSE) {
+        return 0;
+      }
+      output_writeback_state++;
+    }
+    before_previous_mnemonic = previous_mnemonic;
+    before_previous_pop_register = previous_pop_register;
+    previous_mnemonic = decoded.instruction.mnemonic;
+    previous_pop_register =
+        decoded.instruction.mnemonic == CTOOL_X86_MN_POP &&
+                decoded.instruction.operand_count == 1u &&
+                decoded.instruction.operands[0].kind ==
+                    CTOOL_X86_OPERAND_REGISTER
+            ? decoded.instruction.operands[0].as.reg.index
+            : 0xffu;
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size || target_count != 1u ||
+      output_writeback_state !=
+          (mnemonic == CTOOL_X86_MN_IN ? 3u : 0u)) {
+    (void)fprintf(
+        stderr,
+        "port I/O scalar decode differs: cursor=%u size=%u "
+        "targets=%u writeback-state=%u\n",
+        (unsigned int)cursor, (unsigned int)symbol->size,
+        (unsigned int)target_count,
+        (unsigned int)output_writeback_state);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_port_io_string_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    ctool_x86_mnemonic_t mnemonic, ctool_u8 preserved_register,
+    const ctool_u8 *expected_bytes, ctool_u32 expected_size) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 target_sequence_cursor = 0u;
+  ctool_u32 target_count = 0u;
+  ctool_u32 abi_state = 0u;
+  ctool_u32 frame_allocation_count = 0u;
+  ctool_x86_value_t saved_slot;
+  ctool_x86_value_t count_address_slot;
+  ctool_x86_value_t pointer_address_slot;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      expected_bytes == NULL || expected_size == 0u ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  (void)memset(&saved_slot, 0, sizeof(saved_slot));
+  (void)memset(&count_address_slot, 0,
+               sizeof(count_address_slot));
+  (void)memset(&pointer_address_slot, 0,
+               sizeof(pointer_address_slot));
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (port_io_instruction_uses_gpr(instruction, 3u) ||
+        port_io_instruction_uses_gpr(
+            instruction, preserved_register == 7u ? 6u : 7u)) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_SUB &&
+        instruction->operand_count == 2u &&
+        port_io_register_matches(
+            &instruction->operands[0], 32u, 4u) &&
+        instruction->operands[1].kind ==
+            CTOOL_X86_OPERAND_IMMEDIATE &&
+        instruction->operands[1].as.value.kind ==
+            CTOOL_X86_VALUE_CONSTANT &&
+        instruction->operands[1].as.value.bits +
+                (ctool_u32)instruction->operands[1].as.value.addend ==
+            12u) {
+      frame_allocation_count++;
+    }
+    if (instruction->mnemonic == mnemonic) {
+      target_count++;
+    }
+    if (abi_state == 0u) {
+      if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+          instruction->operand_count == 2u &&
+          inline_assembly_memory_uses_ebp(
+              &instruction->operands[0]) &&
+          port_io_register_matches(
+              &instruction->operands[1], 32u,
+              preserved_register)) {
+        saved_slot =
+            instruction->operands[0].as.memory.displacement;
+        abi_state = 1u;
+      }
+    } else if (abi_state == 1u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_POP ||
+          instruction->operand_count != 1u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 2u)) {
+        return 0;
+      }
+      abi_state = 2u;
+    } else if (abi_state == 2u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_POP ||
+          instruction->operand_count != 1u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 0u)) {
+        return 0;
+      }
+      abi_state = 3u;
+    } else if (abi_state == 3u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !inline_assembly_memory_uses_ebp(
+              &instruction->operands[0]) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u, 0u)) {
+        return 0;
+      }
+      count_address_slot =
+          instruction->operands[0].as.memory.displacement;
+      abi_state = 4u;
+    } else if (abi_state == 4u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 0u) ||
+          !port_io_memory_uses_register(
+              &instruction->operands[1], 0u)) {
+        return 0;
+      }
+      abi_state = 5u;
+    } else if (abi_state == 5u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 1u) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u, 0u)) {
+        return 0;
+      }
+      abi_state = 6u;
+    } else if (abi_state == 6u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_POP ||
+          instruction->operand_count != 1u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 0u)) {
+        return 0;
+      }
+      abi_state = 7u;
+    } else if (abi_state == 7u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !inline_assembly_memory_uses_ebp(
+              &instruction->operands[0]) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u, 0u)) {
+        return 0;
+      }
+      pointer_address_slot =
+          instruction->operands[0].as.memory.displacement;
+      if (inline_assembly_values_match(
+              &count_address_slot,
+              &pointer_address_slot)) {
+        return 0;
+      }
+      abi_state = 8u;
+    } else if (abi_state == 8u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 0u) ||
+          !port_io_memory_uses_register(
+              &instruction->operands[1], 0u)) {
+        return 0;
+      }
+      abi_state = 9u;
+    } else if (abi_state == 9u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u,
+              preserved_register) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u, 0u)) {
+        return 0;
+      }
+      abi_state = 10u;
+    } else if (abi_state == 10u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_CLD ||
+          instruction->operand_count != 0u) {
+        return 0;
+      }
+      target_sequence_cursor = cursor;
+      abi_state = 11u;
+    } else if (abi_state == 11u) {
+      if (instruction->mnemonic != mnemonic ||
+          target_count != 1u ||
+          expected_size >
+              symbol->size - target_sequence_cursor ||
+          cursor + decoded.consumed -
+                  target_sequence_cursor != expected_size ||
+          memcmp(text->contents.data + symbol->value +
+                     target_sequence_cursor,
+                 expected_bytes, (size_t)expected_size) != 0 ||
+          instruction->operand_count != 0u ||
+          instruction->operand_bits != 16u ||
+          instruction->prefixes != CTOOL_X86_PREFIX_REP) {
+        return 0;
+      }
+      abi_state = 12u;
+    } else if (abi_state == 12u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 0u) ||
+          !inline_assembly_memory_uses_ebp(
+              &instruction->operands[1]) ||
+          !inline_assembly_values_match(
+              &count_address_slot,
+              &instruction->operands[1].as.memory.displacement)) {
+        return 0;
+      }
+      abi_state = 13u;
+    } else if (abi_state == 13u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_memory_uses_register(
+              &instruction->operands[0], 0u) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u, 1u)) {
+        return 0;
+      }
+      abi_state = 14u;
+    } else if (abi_state == 14u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 1u) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u,
+              preserved_register)) {
+        return 0;
+      }
+      abi_state = 15u;
+    } else if (abi_state == 15u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u, 0u) ||
+          !inline_assembly_memory_uses_ebp(
+              &instruction->operands[1]) ||
+          !inline_assembly_values_match(
+              &pointer_address_slot,
+              &instruction->operands[1].as.memory.displacement)) {
+        return 0;
+      }
+      abi_state = 16u;
+    } else if (abi_state == 16u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_memory_uses_register(
+              &instruction->operands[0], 0u) ||
+          !port_io_register_matches(
+              &instruction->operands[1], 32u, 1u)) {
+        return 0;
+      }
+      abi_state = 17u;
+    } else if (abi_state == 17u) {
+      if (instruction->mnemonic != CTOOL_X86_MN_MOV ||
+          instruction->operand_count != 2u ||
+          !port_io_register_matches(
+              &instruction->operands[0], 32u,
+              preserved_register) ||
+          !inline_assembly_memory_uses_ebp(
+              &instruction->operands[1]) ||
+          !inline_assembly_values_match(
+              &saved_slot,
+              &instruction->operands[1].as.memory.displacement)) {
+        return 0;
+      }
+      abi_state = 18u;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size || target_count != 1u ||
+      abi_state != 18u ||
+      frame_allocation_count != 1u) {
+    (void)fprintf(
+        stderr,
+        "port I/O string decode differs: cursor=%u size=%u targets=%u "
+        "abi-state=%u frame=%u\n",
+        (unsigned int)cursor, (unsigned int)symbol->size,
+        (unsigned int)target_count, (unsigned int)abi_state,
+        (unsigned int)frame_allocation_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_port_io_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 inb_bytes[] = {0xecu};
+  static const ctool_u8 outb_bytes[] = {0xeeu};
+  static const ctool_u8 inw_bytes[] = {0x66u, 0xedu};
+  static const ctool_u8 outw_bytes[] = {0x66u, 0xefu};
+  static const ctool_u8 inl_bytes[] = {0xedu};
+  static const ctool_u8 outl_bytes[] = {0xefu};
+  static const ctool_u8 insw_bytes[] = {
+      0xfcu, 0xf3u, 0x66u, 0x6du};
+  static const ctool_u8 outsw_bytes[] = {
+      0xfcu, 0xf3u, 0x66u, 0x6fu};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u) {
+    (void)fprintf(stderr, "port I/O object container differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "port_inb"),
+          CTOOL_X86_MN_IN, 8u, inb_bytes,
+          (ctool_u32)sizeof(inb_bytes))) {
+    (void)fprintf(stderr, "port_inb object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "port_outb"),
+          CTOOL_X86_MN_OUT, 8u, outb_bytes,
+          (ctool_u32)sizeof(outb_bytes))) {
+    (void)fprintf(stderr, "port_outb object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "port_inw"),
+          CTOOL_X86_MN_IN, 16u, inw_bytes,
+          (ctool_u32)sizeof(inw_bytes))) {
+    (void)fprintf(stderr, "port_inw object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "port_outw"),
+          CTOOL_X86_MN_OUT, 16u, outw_bytes,
+          (ctool_u32)sizeof(outw_bytes))) {
+    (void)fprintf(stderr, "port_outw object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "port_inl"),
+          CTOOL_X86_MN_IN, 32u, inl_bytes,
+          (ctool_u32)sizeof(inl_bytes))) {
+    (void)fprintf(stderr, "port_inl object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "port_outl"),
+          CTOOL_X86_MN_OUT, 32u, outl_bytes,
+          (ctool_u32)sizeof(outl_bytes))) {
+    (void)fprintf(stderr, "port_outl object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_string_function(
+          job, text, find_symbol(object, "port_insw"),
+          CTOOL_X86_MN_INSW, 7u, insw_bytes,
+          (ctool_u32)sizeof(insw_bytes))) {
+    (void)fprintf(stderr, "port_insw object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_string_function(
+          job, text, find_symbol(object, "port_outsw"),
+          CTOOL_X86_MN_OUTSW, 6u, outsw_bytes,
+          (ctool_u32)sizeof(outsw_bytes))) {
+    (void)fprintf(stderr, "port_outsw object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_port_io_assembly_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char port_u8;\n"
+      "typedef unsigned short port_u16;\n"
+      "typedef unsigned int port_u32;\n"
+      "port_u8 port_inb(port_u16 port) { port_u8 result;\n"
+      "  __asm__ volatile(\"in %%dx, %%al\" : \"=a\"(result) : \"d\"(port));\n"
+      "  return result; }\n"
+      "void port_outb(port_u16 port, port_u8 data) {\n"
+      "  __asm__ volatile(\"out %%al, %%dx\" : : \"a\"(data), \"d\"(port)); }\n"
+      "port_u16 port_inw(port_u16 port) { port_u16 result;\n"
+      "  __asm__ volatile(\"in %%dx, %%ax\" : \"=a\"(result) : \"d\"(port));\n"
+      "  return result; }\n"
+      "void port_outw(port_u16 port, port_u16 data) {\n"
+      "  __asm__ volatile(\"out %%ax, %%dx\" : : \"a\"(data), \"d\"(port)); }\n"
+      "port_u32 port_inl(port_u16 port) { port_u32 result;\n"
+      "  __asm__ volatile(\"in %%dx, %%eax\" : \"=a\"(result) : \"d\"(port));\n"
+      "  return result; }\n"
+      "void port_outl(port_u16 port, port_u32 data) {\n"
+      "  __asm__ volatile(\"out %%eax, %%dx\" : : \"a\"(data), \"d\"(port)); }\n"
+      "void port_insw(port_u16 port, void *buffer, port_u32 count) {\n"
+      "  __asm__ volatile(\"cld; rep insw\" : \"+D\"(buffer), \"+c\"(count)\n"
+      "      : \"d\"(port) : \"memory\"); }\n"
+      "void port_outsw(port_u16 port, const void *buffer, port_u32 count) {\n"
+      "  __asm__ volatile(\"cld; rep outsw\" : \"+S\"(buffer), \"+c\"(count)\n"
+      "      : \"d\"(port)); }\n";
+  static const char narrow_non_port_source[] =
+      "void narrow_non_port(void) {\n"
+      "  unsigned char value;\n"
+      "  __asm__ volatile(\"nop\" : \"=a\"(value));\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t narrow_non_port_unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[8];
+  ctool_c_assembly_operand_t mutant_operands[18];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&narrow_non_port_unit, 0,
+               sizeof(narrow_non_port_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/port-io-assembly-object.c",
+                         source, CTOOL_TRUE, &unit) ||
+      !parse_source_mode(job, "/narrow-non-port-assembly-object.c",
+                         narrow_non_port_source, CTOOL_TRUE,
+                         &narrow_non_port_unit) ||
+      unit.function_definition_count != 8u ||
+      unit.assembly_count != 8u ||
+      unit.assembly_operand_count != 18u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "port I/O assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "port I/O assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first port I/O assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat port I/O assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "port I/O assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/port-io-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read port I/O assembly object") ||
+      !validate_port_io_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 916u ||
+      find_section(&object, ".text")->contents.size != 408u ||
+      object.section_count != 5u || object.symbol_count != 9u ||
+      object.relocation_count != 0u ||
+      structure_text_fingerprint(
+          find_section(&object, ".text")->contents) != 0x008def58u) {
+    (void)fprintf(
+        stderr,
+        "port-io-assembly: object metrics differ: object=%u text=%u "
+        "sections=%u symbols=%u relocations=%u fingerprint=%08x\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count,
+        (unsigned int)structure_text_fingerprint(
+            find_section(&object, ".text")->contents));
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_assemblies, unit.assemblies,
+               sizeof(mutant_assemblies));
+  (void)memcpy(mutant_operands, unit.assembly_operands,
+               sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string("in %%dx, %%ax");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "port input wrong accumulator width") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[6].template_text =
+      ctool_string("cld; rep insw; nop");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "INSW partial template failure") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[6] = unit.assemblies[6];
+
+  mutant_assemblies[6].flags &=
+      ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "INSW missing memory clobber") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[6] = unit.assemblies[6];
+
+  mutant_assemblies[7].flags |=
+      CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "OUTSW unexpected memory clobber") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[7] = unit.assemblies[7];
+
+  if (!expect_object_failure_preserves_unit(
+          job, &narrow_non_port_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "narrow accumulator outside the port templates") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_operands[1].constraint = ctool_string("c");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unsupported independent ECX input") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[1] = unit.assembly_operands[1];
+
+  mutant_operands[15].constraint = ctool_string("+D");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "OUTSW wrong pointer register") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "port I/O assembly recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("port-io-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_pointer_output_assembly_object(
     const char *host_root) {
   static const char source[] =
@@ -27207,7 +27988,8 @@ static int run_operand_free_assembly_object(const char *host_root) {
       "  __asm__(\"pause; nop; sti; hlt\");\n"
       "}\n"
       "void extended_state(void) {\n"
-      "  __asm__ volatile(\"cli; cld; sfence; fninit\" :);\n"
+      "  __asm__ volatile("
+      "\"cli; cld; sfence; fninit\" : : : \"memory\");\n"
       "}\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -27234,6 +28016,10 @@ static int run_operand_free_assembly_object(const char *host_root) {
       unit.assembly_count != 2u ||
       unit.assembly_operand_count != 0u ||
       unit.assembly_operands != NULL ||
+      unit.assemblies == NULL ||
+      unit.assemblies[1].flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
       !take_unit_snapshot(&unit, &snapshot)) {
     (void)fprintf(stderr, "operand-free assembly object setup failed\n");
     goto cleanup;
@@ -27382,6 +28168,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "port-io-assembly") == 0) {
+    return run_port_io_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtin_object(argv[2]);
   }
@@ -27471,7 +28260,8 @@ int main(int argc, char **argv) {
                 "aggregate-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"
-                "void-casts|inline-assembly|atomic-builtins|"
+                "void-casts|inline-assembly|port-io-assembly|"
+                "atomic-builtins|"
                 "pointer-output-assembly|"
                 "operand-free-assembly|"
                 "structure-values|call-alignment|"

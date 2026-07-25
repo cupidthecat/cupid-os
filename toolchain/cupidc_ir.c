@@ -272,6 +272,11 @@ static ctool_bool cir_output_assembly_constraint_is_valid(
        constraint.data[1] == 'r')) {
     return CTOOL_TRUE;
   }
+  if (constraint.size == 2u && constraint.data[0] == '+' &&
+      (constraint.data[1] == 'c' || constraint.data[1] == 'S' ||
+       constraint.data[1] == 'D')) {
+    return CTOOL_TRUE;
+  }
   return constraint.size == 3u && constraint.data[0] == '=' &&
                  constraint.data[1] == 'q' &&
                  constraint.data[2] == 'm'
@@ -282,20 +287,42 @@ static ctool_bool cir_output_assembly_constraint_is_valid(
 static ctool_u32 cir_fixed_output_assembly_register(
     ctool_string_t constraint) {
   if (constraint.size != 2u ||
-      constraint.data == (const char *)0 ||
-      constraint.data[0] != '=') {
+      constraint.data == (const char *)0) {
     return 0u;
   }
-  if (constraint.data[1] == 'a') {
-    return 1u;
+  if (constraint.data[0] == '=' && constraint.data[1] == 'a') {
+    return CTOOL_C_ASSEMBLY_FIXED_A;
   }
-  if (constraint.data[1] == 'b') {
-    return 2u;
+  if (constraint.data[0] == '=' && constraint.data[1] == 'b') {
+    return CTOOL_C_ASSEMBLY_FIXED_B;
   }
-  if (constraint.data[1] == 'c') {
-    return 4u;
+  if ((constraint.data[0] == '=' || constraint.data[0] == '+') &&
+      constraint.data[1] == 'c') {
+    return CTOOL_C_ASSEMBLY_FIXED_C;
   }
-  return constraint.data[1] == 'd' ? 8u : 0u;
+  if (constraint.data[0] == '=' && constraint.data[1] == 'd') {
+    return CTOOL_C_ASSEMBLY_FIXED_D;
+  }
+  if (constraint.data[0] == '+' && constraint.data[1] == 'S') {
+    return CTOOL_C_ASSEMBLY_FIXED_SI;
+  }
+  return constraint.data[0] == '+' && constraint.data[1] == 'D'
+             ? CTOOL_C_ASSEMBLY_FIXED_DI
+             : 0u;
+}
+
+static ctool_u32 cir_fixed_input_assembly_register(
+    ctool_string_t constraint) {
+  if (constraint.size != 1u ||
+      constraint.data == (const char *)0) {
+    return 0u;
+  }
+  if (constraint.data[0] == 'a') {
+    return CTOOL_C_ASSEMBLY_FIXED_A;
+  }
+  return constraint.data[0] == 'd'
+             ? CTOOL_C_ASSEMBLY_FIXED_D
+             : 0u;
 }
 
 static ctool_bool cir_matching_assembly_constraint(
@@ -320,14 +347,15 @@ static ctool_status_t cir_validate_assembly_slices(
        assembly_index++) {
     const ctool_c_assembly_t *assembly =
         &context->unit->assemblies[assembly_index];
-    ctool_u32 fixed_output_registers = 0u;
+    ctool_u32 fixed_registers = 0u;
     ctool_u32 matched_outputs = 0u;
     ctool_u32 operand_count;
     ctool_u32 operand_offset;
     if (assembly->template_text.size == 0u ||
         assembly->template_text.data == (const char *)0 ||
         (assembly->flags &
-         ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE)) != 0u ||
+         ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -336,10 +364,10 @@ static ctool_status_t cir_validate_assembly_slices(
     }
     operand_count = assembly->output_count + assembly->input_count;
     if ((assembly->output_count == 0u &&
-         (assembly->input_count != 0u ||
-          (assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u)) ||
+         (assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
         ((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u &&
          (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
+          (assembly->flags & CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) != 0u ||
           operand_count != 0u))) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -361,10 +389,10 @@ static ctool_status_t cir_validate_assembly_slices(
           operand->matching_output != CTOOL_C_AST_NONE ||
           cir_output_assembly_constraint_is_valid(
               operand->constraint) == CTOOL_FALSE ||
-          (fixed_output_registers & fixed_output_register) != 0u) {
+          (fixed_registers & fixed_output_register) != 0u) {
         return cir_invalid_unit(context, &operand->location);
       }
-      fixed_output_registers |= fixed_output_register;
+      fixed_registers |= fixed_output_register;
     }
     for (operand_offset = assembly->output_count;
          operand_offset < operand_count; operand_offset++) {
@@ -372,16 +400,27 @@ static ctool_status_t cir_validate_assembly_slices(
           &context->unit
                ->assembly_operands[operand_cursor + operand_offset];
       ctool_u32 matching_output;
+      ctool_u32 fixed_input_register =
+          cir_fixed_input_assembly_register(operand->constraint);
+      ctool_bool matching = cir_matching_assembly_constraint(
+          operand->constraint, &matching_output);
       if (operand->expression >= context->unit->expression_count ||
           operand->type >= context->unit->graph.type_count ||
-          cir_matching_assembly_constraint(
-              operand->constraint, &matching_output) == CTOOL_FALSE ||
-          operand->matching_output != matching_output ||
-          matching_output >= assembly->output_count ||
-          (matched_outputs & (1u << matching_output)) != 0u) {
+          (fixed_input_register == 0u && matching == CTOOL_FALSE) ||
+          (fixed_input_register != 0u &&
+           (operand->matching_output != CTOOL_C_AST_NONE ||
+            (fixed_registers & fixed_input_register) != 0u)) ||
+          (matching == CTOOL_TRUE &&
+           (operand->matching_output != matching_output ||
+            matching_output >= assembly->output_count ||
+            (matched_outputs & (1u << matching_output)) != 0u))) {
         return cir_invalid_unit(context, &operand->location);
       }
-      matched_outputs |= 1u << matching_output;
+      if (fixed_input_register != 0u) {
+        fixed_registers |= fixed_input_register;
+      } else {
+        matched_outputs |= 1u << matching_output;
+      }
     }
     operand_cursor += operand_count;
   }
@@ -7455,11 +7494,8 @@ static ctool_bool cir_assembly_output_type_is_valid(
   ctool_u32 base;
   ctool_u32 qualifiers;
   ctool_bool is_pointer;
-  ctool_u32 required_size =
-      cir_string_equal(operand->constraint, ctool_string("=qm")) ==
-              CTOOL_TRUE
-          ? 1u
-          : 4u;
+  ctool_bool is_integer;
+  ctool_u32 size;
   if (cir_underlying_type(context, operand->type, &base, &qualifiers,
                           &node) == CTOOL_FALSE) {
     return CTOOL_FALSE;
@@ -7468,20 +7504,53 @@ static ctool_bool cir_assembly_output_type_is_valid(
   qualifiers |= node->qualifiers;
   is_pointer =
       cir_type_is_i32_pointer(context, operand->type);
-  return (qualifiers & (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) == 0u &&
-                 operand->type < context->unit->layout.type_count &&
-                 ((is_pointer == CTOOL_TRUE &&
-                   cir_string_equal(
-                       operand->constraint, ctool_string("=r")) ==
-                       CTOOL_TRUE &&
-                   context->unit->layout.types[operand->type].size == 4u) ||
-                  (is_pointer == CTOOL_FALSE &&
-                   cir_type_is_represented_integer(
-                       context, operand->type) == CTOOL_TRUE &&
-                   context->unit->layout.types[operand->type].size ==
-                       required_size))
-             ? CTOOL_TRUE
-             : CTOOL_FALSE;
+  is_integer = cir_type_is_represented_integer(
+      context, operand->type);
+  if ((qualifiers &
+       (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) != 0u ||
+      operand->type >= context->unit->layout.type_count) {
+    return CTOOL_FALSE;
+  }
+  size = context->unit->layout.types[operand->type].size;
+  if (is_pointer == CTOOL_TRUE) {
+    return size == 4u &&
+                   (cir_string_equal(
+                        operand->constraint, ctool_string("=r")) ==
+                        CTOOL_TRUE ||
+                    cir_string_equal(
+                        operand->constraint, ctool_string("+S")) ==
+                        CTOOL_TRUE ||
+                    cir_string_equal(
+                        operand->constraint, ctool_string("+D")) ==
+                        CTOOL_TRUE)
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (is_integer == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (cir_string_equal(
+          operand->constraint, ctool_string("=qm")) == CTOOL_TRUE) {
+    return size == 1u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (cir_string_equal(
+          operand->constraint, ctool_string("=r")) == CTOOL_TRUE ||
+      cir_string_equal(
+          operand->constraint, ctool_string("+c")) == CTOOL_TRUE) {
+    return size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (cir_string_equal(
+          operand->constraint, ctool_string("+S")) == CTOOL_TRUE ||
+      cir_string_equal(
+          operand->constraint, ctool_string("+D")) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  if (cir_string_equal(
+          operand->constraint, ctool_string("=a")) == CTOOL_TRUE) {
+    return size == 1u || size == 2u || size == 4u ? CTOOL_TRUE
+                                                   : CTOOL_FALSE;
+  }
+  return size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
 }
 
 static ctool_status_t cir_lower_assembly_statement(
@@ -7536,16 +7605,31 @@ static ctool_status_t cir_lower_assembly_statement(
       }
     } else {
       const ctool_c_assembly_operand_t *output;
+      ctool_u32 fixed_input_register =
+          cir_fixed_input_assembly_register(operand->constraint);
+      ctool_u32 input_size;
       if (entry->kind != CIR_STACK_VALUE ||
           cir_type_is_represented_integer(context, operand->type) ==
               CTOOL_FALSE ||
-          operand->matching_output >= assembly->output_count) {
+          operand->type >= context->unit->layout.type_count) {
         return cir_invalid_unit(context, &operand->location);
       }
-      output = &context->unit->assembly_operands
-          [assembly->first_operand + operand->matching_output];
+      input_size = context->unit->layout.types[operand->type].size;
+      if (fixed_input_register != 0u) {
+        if (operand->matching_output != CTOOL_C_AST_NONE ||
+            (input_size != 1u && input_size != 2u &&
+             input_size != 4u)) {
+          return cir_invalid_unit(context, &operand->location);
+        }
+        continue;
+      }
+      if (operand->matching_output >= assembly->output_count) {
+        return cir_invalid_unit(context, &operand->location);
+      }
+      output = &context->unit->assembly_operands[
+          assembly->first_operand + operand->matching_output];
       if (output->type >= context->unit->layout.type_count ||
-          context->unit->layout.types[operand->type].size !=
+          input_size !=
               context->unit->layout.types[output->type].size) {
         return cir_invalid_unit(context, &operand->location);
       }

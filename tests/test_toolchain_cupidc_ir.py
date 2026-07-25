@@ -92,6 +92,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "operand-free-assembly: ok\n")
 
+    def test_port_io_assembly_lowers_widths_and_read_write_operands(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "port-io-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "port-io-assembly: ok\n")
+
     def test_direct_forward_goto_lowers_to_function_relative_ir(self):
         result = subprocess.run(
             [str(self.contract_path), "forward-goto", str(REPO_ROOT)],

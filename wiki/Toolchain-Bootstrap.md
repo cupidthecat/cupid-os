@@ -83,11 +83,21 @@ model emits `65 A1 00 00 00 00`.
 The checked compiler's atomic slice handles the active integer load, store,
 exchange, and fetch-add builtins with constant orders. Its i386 path selects
 ordinary loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
-the non-Doom header gate to 153/154 and lets unchanged `acpi.c` and
-`mp_tables.c` emit deterministic i386 ELF32 objects. The normal Make graph now
-owns both through the checked seed. A four-vCPU image boots every discovered
-CPU and completes the normal e1000, desktop, terminal, and CupidC runtime
-smoke.
+unchanged `acpi.c` and `mp_tables.c` through deterministic i386 ELF32 object
+emission. The normal Make graph owns both through the checked seed. A
+four-vCPU image boots every discovered CPU and completes the normal e1000,
+desktop, terminal, and CupidC runtime smoke.
+
+Compiler head now parses all eight helpers in unchanged
+`kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,
+the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
+count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
+forms emit through the shared x86 model. This brings the active non-Doom
+header gate to 154/154 at compiler head.
+
+The checked seed does not contain the port-I/O capability yet. The normal
+image therefore remains at 26 CupidC-owned sources and 366,592 deterministic
+object bytes.
 
 The normal image now builds 26 kernel sources with that checked CupidC seed:
 all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop shell,

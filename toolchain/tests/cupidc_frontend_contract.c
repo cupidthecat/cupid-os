@@ -4336,9 +4336,9 @@ static int run_block_bindings(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        1u, 43u, "block declaration attributes are outside this body slice"},
       {{"GNU assembly clobber boundary",
-        "void bad(void) { __asm__(\"nop\" : : : \"memory\"); }\n",
+        "void bad(void) { __asm__(\"nop\" : : : \"cc\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u, "GNU inline assembly clobbers are outside this slice"},
+       0u, 0u, "GNU inline assembly clobber is outside this slice"},
       {{"expired local use",
         "void sink(int value);\n"
         "void bad(void) { { int local; sink(local); } sink(local); }\n",
@@ -6751,12 +6751,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 199u, 5994u,
-       53812u, 751u, 260u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 180u, 4931u,
-       42479u, 598u, 300u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 317u,
-       12802u, 83788u, 1902u, 1265u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 200u, 6053u,
+       54245u, 756u, 262u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 188u, 5133u,
+       44216u, 620u, 313u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 318u,
+       12858u, 84185u, 1909u, 1273u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23927,6 +23927,191 @@ cleanup:
   return failed;
 }
 
+static int validate_port_io_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "in %%dx, %%al", "out %%al, %%dx",
+      "in %%dx, %%ax", "out %%ax, %%dx",
+      "in %%dx, %%eax", "out %%eax, %%dx",
+      "cld; rep insw", "cld; rep outsw"};
+  static const ctool_u32 first_operands[] = {
+      0u, 2u, 4u, 6u, 8u, 10u, 12u, 15u};
+  static const ctool_u32 output_counts[] = {
+      1u, 0u, 1u, 0u, 1u, 0u, 2u, 2u};
+  static const ctool_u32 input_counts[] = {
+      1u, 2u, 1u, 2u, 1u, 2u, 1u, 1u};
+  static const ctool_u32 lines[] = {
+      8u, 13u, 18u, 23u, 28u, 33u, 38u, 46u};
+  static const char *const constraints[] = {
+      "=a", "d", "a", "d", "=a", "d", "a", "d", "=a",
+      "d", "a", "d", "+D", "+c", "d", "+S", "+c", "d"};
+  static const ctool_u32 expected_sizes[] = {
+      1u, 2u, 1u, 2u, 2u, 2u, 2u, 2u, 4u,
+      2u, 4u, 2u, 4u, 4u, 2u, 4u, 4u, 2u};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != ARRAY_COUNT(templates) ||
+      unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    ctool_u32 expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+    if (index == 6u) {
+      expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+    }
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != expected_flags ||
+        assembly->first_operand != first_operands[index] ||
+        assembly->output_count != output_counts[index] ||
+        assembly->input_count != input_counts[index] ||
+        dual_location_matches(&assembly->location,
+                              &assembly->physical_location,
+                              "/kernel/core/ports.h", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->assembly_operand_count; index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->expression >= unit->expression_count ||
+        operand->type >= unit->layout.type_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        unit->layout.types[operand->type].size != expected_sizes[index] ||
+        operand->matching_output != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == unit->assembly_count ? 0 : 1;
+}
+
+static int run_port_io_assembly(const char *host_root) {
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"narrow read-write counter",
+        "void bad(void) { unsigned short count; "
+        "asm volatile(\"nop\" : \"+c\"(count)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"narrow EBX output",
+        "void bad(void) { unsigned char value; "
+        "asm volatile(\"nop\" : \"=b\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"narrow ECX output",
+        "void bad(void) { unsigned short value; "
+        "asm volatile(\"nop\" : \"=c\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"narrow EDX output",
+        "void bad(void) { unsigned char value; "
+        "asm volatile(\"nop\" : \"=d\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"integer string pointer",
+        "void bad(void) { unsigned value; "
+        "asm volatile(\"nop\" : \"+D\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly +S and +D outputs require a pointer"},
+      {{"independent EBX input",
+        "void bad(unsigned value) { "
+        "asm volatile(\"nop\" : : \"b\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly input requires a matching output number"},
+      {{"independent ECX input",
+        "void bad(unsigned value) { "
+        "asm volatile(\"nop\" : : \"c\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly input requires a matching output number"},
+      {{"duplicate fixed input",
+        "void bad(unsigned first, unsigned second) { "
+        "asm volatile(\"nop\" : : \"a\"(first), \"a\"(second)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot assign one fixed register twice"},
+      {{"pointer fixed input",
+        "void bad(void *value) { "
+        "asm volatile(\"nop\" : : \"d\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly fixed-register input requires an integer"},
+      {{"wide fixed input",
+        "void bad(unsigned long long value) { "
+        "asm volatile(\"nop\" : : \"a\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly fixed-register input requires an "
+       "8-, 16-, or 32-bit integer"},
+      {{"duplicate memory clobber",
+        "void bad(void) { "
+        "asm volatile(\"nop\" : : : \"memory\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly memory clobber is listed twice"}};
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "port-io-assembly", host_root,
+                             16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0) {
+    goto cleanup;
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_loaded_fixture(&fixture, "/kernel/core/ports.h", NULL, 0u,
+                           &unit) != 0 ||
+      validate_port_io_assembly_unit(&unit) != 0) {
+    (void)fprintf(stderr, "port-io-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/port-io-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_port_io_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("port-io-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_pointer_output_assembly(const char *host_root) {
   static const char source[] =
       "struct cpu_state { unsigned id; };\n"
@@ -23976,14 +24161,14 @@ static int run_pointer_output_assembly(const char *host_root) {
         "asm volatile(\"mov %%gs:0, %0\" : \"=a\"(value)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly pointer output requires the =r constraint"},
+       "GNU inline assembly pointer output requires =r, +S, or +D"},
       {{"byte or memory pointer output",
         "struct cpu_state { unsigned id; }; "
         "void bad(void) { struct cpu_state *value; "
         "asm volatile(\"mov %%gs:0, %0\" : \"=qm\"(value)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly pointer output requires the =r constraint"},
+       "GNU inline assembly pointer output requires =r, +S, or +D"},
       {{"function pointer output",
         "typedef void (*handler_t)(void); "
         "void bad(void) { handler_t value; "
@@ -24013,10 +24198,10 @@ static int run_pointer_output_assembly(const char *host_root) {
         "struct cpu_state { unsigned id; }; "
         "void bad(void) { struct cpu_state *value; "
         "asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value) : : "
-        "\"memory\"); }\n",
+        "\"cc\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly clobbers are outside this slice"}};
+       "GNU inline assembly clobber is outside this slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -24065,7 +24250,7 @@ static int validate_operand_free_assembly_unit(
   static const ctool_u32 flags[] = {
       CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE,
       CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE,
-      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_MEMORY_CLOBBER,
       CTOOL_C_ASSEMBLY_VOLATILE};
   ctool_u32 assembly_statement_count = 0u;
   ctool_u32 index;
@@ -24113,7 +24298,7 @@ static int run_operand_free_assembly(const char *host_root) {
       "  asm(\"sti; hlt\");\n"
       "}\n"
       "void initialize_state(void) {\n"
-      "  __asm __volatile__(\"cld; sfence; fninit\" :);\n"
+      "  __asm __volatile__(\"cld; sfence; fninit\" : : : \"memory\");\n"
       "}\n"
       "void disable_interrupts(void) {\n"
       "  asm(\"cli\" :);\n"
@@ -24125,14 +24310,14 @@ static int run_operand_free_assembly(const char *host_root) {
        0u, 0u,
        "GNU inline assembly template requires an instruction"},
       {{"operand-free clobber list",
-        "void bad(void) { asm volatile(\"nop\" : : : \"memory\"); }\n",
+        "void bad(void) { asm volatile(\"nop\" : : : \"cc\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u, "GNU inline assembly clobbers are outside this slice"},
+       0u, 0u, "GNU inline assembly clobber is outside this slice"},
       {{"input-only assembly",
-        "void bad(int value) { asm volatile(\"nop\" : : \"0\"(value)); }\n",
+        "void bad(int value) { asm volatile(\"nop\" : : \"q\"(value)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly with inputs requires an output in this slice"},
+       "GNU inline assembly input requires a matching output number"},
       {{"operand-free asm goto",
         "void bad(void) { asm goto(\"nop\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -24294,7 +24479,7 @@ static int run_inline_assembly(const char *host_root) {
        0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
       {{"unsupported input constraint",
         "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : "
-        "\"a\"(x)); }\n",
+        "\"q\"(x)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
        "GNU inline assembly input requires a matching output number"},
@@ -24323,9 +24508,9 @@ static int run_inline_assembly(const char *host_root) {
        "GNU inline assembly matching input has the wrong integer width"},
       {{"clobber list",
         "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : : "
-        "\"memory\"); }\n",
+        "\"cc\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u, "GNU inline assembly clobbers are outside this slice"}};
+       0u, 0u, "GNU inline assembly clobber is outside this slice"}};
   static const frontend_exact_failure_case_t disabled_gnu_case = {
       {"inline assembly without GNU extensions",
        "void bad(void) { unsigned x; __asm__(\"nop\" : \"=a\"(x)); }\n",
@@ -24408,7 +24593,7 @@ int main(int argc, char **argv) {
                    "floating-conversions|"
                    "variadic-callees|"
                    "atomic-builtins|"
-                   "inline-assembly|pointer-output-assembly|"
+                   "inline-assembly|port-io-assembly|pointer-output-assembly|"
                    "operand-free-assembly|"
                    "block-bindings|"
                    "block-functions|"
@@ -24471,6 +24656,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "inline-assembly") == 0) {
     return run_inline_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "port-io-assembly") == 0) {
+    return run_port_io_assembly(argv[2]);
   }
   if (strcmp(argv[1], "pointer-output-assembly") == 0) {
     return run_pointer_output_assembly(argv[2]);

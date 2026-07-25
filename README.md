@@ -298,6 +298,16 @@ frontend and IR keep the pointer type and evaluate its destination once. The
 shared x86 model emits `65 A1 00 00 00 00`, then the ordinary output path
 stores the snapshot through that destination.
 
+Compiler head now compiles every unchanged helper in `kernel/core/ports.h`.
+The six scalar helpers retain their 8-bit, 16-bit, or 32-bit accumulator
+width and their 16-bit DX port input. The two word-string helpers retain
+read/write pointer and count operands, issue `CLD` before `REP INSW` or
+`REP OUTSW`, write the advanced values back, and restore ESI or EDI for the
+i386 cdecl caller. The frontend accepts the source's single `memory` clobber
+on INSW, and each output address or input value is evaluated once. These
+forms are present at compiler head but are not yet part of the checked seed
+or the 26-object production cohort.
+
 The same compiler now handles the active `__atomic_load_n`,
 `__atomic_store_n`, `__atomic_exchange_n`, and `__atomic_fetch_add` calls for
 one-, two-, and four-byte integer objects. It keeps the memory order in typed
@@ -310,9 +320,8 @@ wraparound, narrow signedness, cdecl state, and one-time operand evaluation.
 Runtime order arguments, pointer and eight-byte atomics, and HLE flags remain
 open.
 
-The active non-Doom header gate is now 153/154. All three roots that include
-`percpu.h` parse completely; only `ports.h` remains at its width-aware port
-assembly. Under the full kernel profile, unchanged `kernel/smp/acpi.c` and
+The active non-Doom header gate is now 154/154 at compiler head. Under the
+full kernel profile, unchanged `kernel/smp/acpi.c` and
 `kernel/smp/mp_tables.c` emit byte-identical 5,708-byte and 4,156-byte i386
 ELF32 objects. They now use the checked wrapper in the normal Make graph.
 

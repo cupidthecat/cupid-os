@@ -212,13 +212,21 @@ typedef enum {
 
 #define CTOOL_C_ASSEMBLY_VOLATILE 0x00000001u
 #define CTOOL_C_ASSEMBLY_BASIC 0x00000002u
+#define CTOOL_C_ASSEMBLY_MEMORY_CLOBBER 0x00000004u
+
+#define CTOOL_C_ASSEMBLY_FIXED_A 0x00000001u
+#define CTOOL_C_ASSEMBLY_FIXED_B 0x00000002u
+#define CTOOL_C_ASSEMBLY_FIXED_C 0x00000004u
+#define CTOOL_C_ASSEMBLY_FIXED_D 0x00000008u
+#define CTOOL_C_ASSEMBLY_FIXED_SI 0x00000010u
+#define CTOOL_C_ASSEMBLY_FIXED_DI 0x00000020u
 
 typedef struct {
   ctool_string_t constraint;
   ctool_u32 expression;
   ctool_u32 type;
-  /* Input operands name their output operand by zero-based position.
-   * Output operands use CTOOL_C_AST_NONE. */
+  /* A matching input names its output operand by zero-based position.
+   * Outputs and independent fixed-register inputs use CTOOL_C_AST_NONE. */
   ctool_u32 matching_output;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;

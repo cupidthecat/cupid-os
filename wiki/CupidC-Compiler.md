@@ -266,13 +266,26 @@ values, memory changes, narrow signedness, wraparound, cdecl state, and
 one-time operand evaluation. Runtime orders, pointer atomics, HLE flags, and
 eight-byte atomics remain outside this slice.
 
-The active non-Doom header gate is 153/154. Every root that includes
-`percpu.h` now parses completely, while `ports.h` still stops at width-aware
-port assembly. The normal build emits unchanged `kernel/smp/acpi.c` and
-`kernel/smp/mp_tables.c` with the checked seed. Their exact 5,708-byte and
-4,156-byte objects pass the shared validator before publication. A
-four-vCPU image links both with CupidLD, boots every discovered CPU, reaches
-e1000 and the desktop, and completes `/bin/ls.cc`.
+Compiler head now parses all eight unchanged helpers in
+`kernel/core/ports.h`. The byte, word, and doubleword IN and OUT forms keep
+their declared integer widths while binding the accumulator and DX inputs.
+The repeated word forms retain their read/write buffer and count operands.
+INSW also retains its `memory` clobber. Output destinations are evaluated
+once, and the string forms write back the final pointer and count while
+preserving ESI or EDI across the cdecl call.
+
+The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
+port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
+shared x86 model. This brings the active non-Doom header gate to 154/154 at
+compiler head.
+
+The checked seed still predates this port-I/O support. The normal build
+remains at 26 CupidC-owned sources and 366,592 deterministic object bytes. It
+continues to emit unchanged `kernel/smp/acpi.c` and
+`kernel/smp/mp_tables.c` with checked-seed CupidC. Their exact 5,708-byte and
+4,156-byte objects pass the shared validator before publication. A four-vCPU
+image links both with CupidLD, boots every discovered CPU, reaches e1000 and
+the desktop, and completes `/bin/ls.cc`.
 
 A block type name or record member can reuse a visible enum tag or define a new one.
 

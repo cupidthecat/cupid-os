@@ -14,8 +14,8 @@ The GNU integer atomic slice represents load, store,
 exchange, and fetch-add for one-, two-, and four-byte objects with constant
 orders. The frontend, Linear IR, and i386 emitter retain and validate that
 contract through ordinary loads and stores, memory `XCHG`, and `LOCK XADD`.
-All three `percpu.h` roots now parse, bringing the non-Doom header gate to
-153/154. Checked-seed CupidC owns the two unchanged SMP discovery sources,
+All three `percpu.h` roots parse through this checked-seed capability.
+Checked-seed CupidC owns the two unchanged SMP discovery sources,
 the complete 20-source crypto cohort, e1000, the desktop shell, the socket
 layer, and TCP in the root Make graph. The combined 26-source frontier
 produces 366,592 byte-identical i386 ELF32 bytes. A four-vCPU image boots with
@@ -24,6 +24,15 @@ command. Dual-NIC integration checks DHCP, ARP, ICMP, a TCP client, and a TCP
 server. ADR 0101 supersedes older row text that lists all atomic access as
 open or leaves the header gate at 150/154. ADRs 0102 through 0104 record the
 seed transition and production hand-offs.
+
+Compiler head now covers the remaining header boundary. It represents the six
+width-aware scalar port helpers and the two repeated word-string helpers in
+unchanged `kernel/core/ports.h`, including their fixed inputs, read/write
+outputs, and the INSW memory clobber. The active non-Doom header gate is
+154/154 at compiler head. This capability has not yet reached the checked
+seed, so normal-build ownership remains 26 CupidC transforms and 271 host C
+transforms. ADR 0105 supersedes the assembly and header-frontier wording in
+the long frontend, IR, and emitter rows below.
 
 Eight-byte integer values now serve the CupidC-built X25519, socket, and TCP objects as well as hosted contracts. Constants, matching conditional arms, fixed direct and indirect call results, object loads, initialization, assignment, mutation, parameters, arguments, discard, return, arithmetic, bitwise operations, comparisons, logical operations, switch dispatch, and represented conversions use one Linear IR handle backed by an emitter-owned eight-byte snapshot. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements reach that path. A declared argument receives eight cdecl stack bytes, and the return boundary places the low word in EAX and the high word in EDX. Calls retain packed post-conversion actual types in emitted order. Ellipsis or unprototyped calls pass each signed or unsigned wide integer in adjacent low and high words, while a wide variadic read advances by eight bytes. Multiplication combines the low-word product and two cross-word products. Division and remainder use a fixed 64-step restoring loop. Focused proofs retain the active compiler, assembler, X25519, and wide diagnostic-call guards. Wide variadic reads and unprototyped wide calls remain fixture evidence rather than whole-function ownership. GCC or Clang still builds the compiler contracts and most normal C objects.
 
