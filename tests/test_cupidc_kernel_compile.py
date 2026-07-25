@@ -49,7 +49,91 @@ SMP_SOURCES = (
     "kernel/smp/acpi.c",
     "kernel/smp/mp_tables.c",
 )
-KERNEL_SOURCES = tuple(sorted(CRYPTO_SOURCES + SMP_SOURCES))
+OPERAND_FREE_SOURCES = (
+    "drivers/e1000.c",
+    "kernel/gui/desktop.c",
+    "kernel/network/socket.c",
+    "kernel/network/tcp.c",
+)
+KERNEL_SOURCES = tuple(
+    sorted(CRYPTO_SOURCES + SMP_SOURCES + OPERAND_FREE_SOURCES)
+)
+
+OPERAND_FREE_DEPENDENCIES = {
+    "drivers/e1000.c": (
+        "drivers/pci.h",
+        "drivers/serial.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+        "kernel/network/net_if.h",
+    ),
+    "kernel/gui/desktop.c": (
+        "drivers/keyboard.h",
+        "drivers/mouse.h",
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "drivers/vga.h",
+        "kernel/core/app_launch.h",
+        "kernel/core/kernel.h",
+        "kernel/core/process.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/simd.h",
+        "kernel/fs/vfs.h",
+        "kernel/gfx/bmp.h",
+        "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_icons.h",
+        "kernel/gfx/graphics.h",
+        "kernel/gui/desktop.h",
+        "kernel/gui/gui.h",
+        "kernel/gui/gui_themes.h",
+        "kernel/gui/gui_widgets.h",
+        "kernel/gui/terminal_app.h",
+        "kernel/gui/ui.h",
+        "kernel/lang/cupidc.h",
+        "kernel/lang/dis.h",
+        "kernel/lang/shell.h",
+        "kernel/mm/memory.h",
+        "kernel/util/calendar.h",
+    ),
+    "kernel/network/socket.c": (
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/crypto/sha256.h",
+        "kernel/crypto/x509.h",
+        "kernel/crypto/x509_chain.h",
+        "kernel/mm/memory.h",
+        "kernel/network/socket.h",
+        "kernel/network/tcp.h",
+        "kernel/network/udp.h",
+        "kernel/smp/bkl.h",
+        "kernel/tls/tls_ctx.h",
+        "kernel/tls/tls_record.h",
+    ),
+    "kernel/network/tcp.c": (
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/cpu.h",
+        "kernel/cpu/isr.h",
+        "kernel/network/ip.h",
+        "kernel/network/net_if.h",
+        "kernel/network/socket.h",
+        "kernel/network/tcp.h",
+        "kernel/smp/bkl.h",
+    ),
+}
 
 KERNEL_I386_ARGUMENTS = (
     "--gnu",
@@ -218,6 +302,10 @@ class KernelCompileCommandTests(unittest.TestCase):
         self.assertEqual(kernel_compile.APPROVED_CRYPTO_SOURCES, CRYPTO_SOURCES)
         self.assertEqual(kernel_compile.APPROVED_SMP_SOURCES, SMP_SOURCES)
         self.assertEqual(
+            kernel_compile.APPROVED_OPERAND_FREE_SOURCES,
+            OPERAND_FREE_SOURCES,
+        )
+        self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
             KERNEL_SOURCES,
         )
@@ -385,6 +473,23 @@ class KernelCompileMakefileTests(unittest.TestCase):
             r"\s+kernel/smp/smp\.o",
         )
 
+        for source, headers in OPERAND_FREE_DEPENDENCIES.items():
+            output = source.removesuffix(".c") + ".o"
+            match = re.search(
+                rf"^{re.escape(output)}: ([^\n]+)$",
+                makefile,
+                re.MULTILINE,
+            )
+            self.assertIsNotNone(match, source)
+            self.assertEqual(
+                set(match.group(1).split()),
+                {
+                    source,
+                    *headers,
+                    "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                },
+            )
+
         for source in KERNEL_SOURCES:
             output = str(Path(source).with_suffix(".o")).replace("\\", "/")
             host_rule = re.compile(
@@ -418,6 +523,41 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertEqual(len(commands), 2)
         self.assertIn("--source kernel/smp/acpi.c", commands[0])
         self.assertIn("--source kernel/smp/mp_tables.c", commands[1])
+        self.assertNotIn(
+            "__host_c_compiler_must_not_run__",
+            result.stdout + result.stderr,
+        )
+
+    def test_operand_free_targets_do_not_expand_to_the_host_compiler(self):
+        targets = [
+            source.removesuffix(".c") + ".o"
+            for source in OPERAND_FREE_SOURCES
+        ]
+        result = subprocess.run(
+            [
+                "make",
+                "-B",
+                "-n",
+                "CC=__host_c_compiler_must_not_run__",
+                *targets,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [
+            line
+            for line in result.stdout.splitlines()
+            if "tools/cupidc_kernel_compile.py" in line
+        ]
+        self.assertEqual(len(commands), len(OPERAND_FREE_SOURCES))
+        for source in OPERAND_FREE_SOURCES:
+            self.assertTrue(
+                any(f"--source {source}" in command for command in commands),
+                source,
+            )
         self.assertNotIn(
             "__host_c_compiler_must_not_run__",
             result.stdout + result.stderr,
@@ -487,7 +627,10 @@ class KernelCompileOperationTests(unittest.TestCase):
         executor = FakeExecutor(root)
 
         for relative in (
+            "drivers/rtl8139.c",
             "kernel/crypto/new_cipher.c",
+            "kernel/gui/gui.c",
+            "kernel/network/udp.c",
             "kernel/smp/percpu.c",
         ):
             source = root / relative
@@ -695,6 +838,36 @@ class KernelCompileCliTests(unittest.TestCase):
             dir=REPO_ROOT,
         ) as temporary:
             for source in SMP_SOURCES:
+                output = Path(temporary) / (Path(source).stem + ".o")
+                status = kernel_compile.main(
+                    [
+                        "--root",
+                        str(REPO_ROOT),
+                        "--source",
+                        source,
+                        "--output",
+                        str(output),
+                    ]
+                )
+                self.assertEqual(status, 0)
+                kernel_compile.validate_i386_relocatable(output)
+
+    def test_real_checked_seed_compiles_operand_free_sources_when_available(
+        self,
+    ):
+        if not SEED_MANIFEST.is_file():
+            self.skipTest("checked seed manifest is not present")
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        seed = SEED_MANIFEST.parent / "cupidc.elf"
+        if os.name != "nt" and not os.access(seed, os.X_OK):
+            self.skipTest("checked seed is not executable")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-kernel-operand-free-test-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            for source in OPERAND_FREE_SOURCES:
                 output = Path(temporary) / (Path(source).stem + ".o")
                 status = kernel_compile.main(
                     [

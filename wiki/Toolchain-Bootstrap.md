@@ -70,9 +70,10 @@ then match stage three, and both stages pass all 21 tool behavior cases.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
-sequences. A detached hybrid build has already linked the four newly eligible
-objects through both CupidLD passes and booted them under QEMU. Those objects
-still need a normal-build ownership cutover.
+sequences. The normal build now uses that path for e1000, the desktop shell,
+the socket layer, and TCP. The earlier detached hybrid linked the same four
+objects through both CupidLD passes and booted them under QEMU before the
+ownership hand-off.
 
 Compiler head also handles the exact per-CPU pointer output
 `mov %%gs:0, %0` with one four-byte `=r` object or `void` pointer. The frontend
@@ -88,11 +89,12 @@ owns both through the checked seed. A four-vCPU image boots every discovered
 CPU and completes the normal e1000, desktop, terminal, and CupidC runtime
 smoke.
 
-The normal image now builds 22 kernel sources with that checked CupidC seed:
-all 20 crypto units plus ACPI and MP-table discovery. The strict frontier
-compiles each approved source twice and accepts 213,996 byte-identical i386
-object bytes. Forced Make runs with the host compiler command poisoned prove
-the production wrapper recipes.
+The normal image now builds 26 kernel sources with that checked CupidC seed:
+all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop shell,
+the socket layer, and TCP. The strict frontier compiles each approved source
+twice and accepts 366,592 byte-identical i386 object bytes. Forced Make runs
+with the host compiler command poisoned prove every production wrapper
+recipe.
 
 QEMU's `max` CPU seeds the CSPRNG through RDRAND, passes all 62 crypto, ASN.1,
 and X.509 checks, reaches the desktop, and completes an embedded CupidC JIT

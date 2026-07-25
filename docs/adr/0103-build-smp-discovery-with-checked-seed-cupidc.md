@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0104 expands the production CupidC cohort from 22 to 26
+objects and reduces host-C ownership from 275 to 271 transforms. The evidence
+below remains the record of the earlier SMP discovery hand-off.
+
 ## Context
 
 The checked i386 Linux seed from ADR 0102 can compile the unchanged ACPI and

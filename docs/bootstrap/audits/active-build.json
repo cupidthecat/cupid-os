@@ -2661,19 +2661,32 @@
       {
         "inputs": [
           "drivers/e1000.c",
-          "kernel/network/net_if.h",
           "drivers/pci.h",
-          "kernel/mm/memory.h",
+          "drivers/serial.h",
+          "kernel/core/types.h",
           "kernel/cpu/irq.h",
-          "kernel/cpu/isr.h"
+          "kernel/cpu/isr.h",
+          "kernel/mm/memory.h",
+          "kernel/network/net_if.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "drivers/e1000.o",
         "recipe": [
-          "$(CC) $(CFLAGS) drivers/e1000.c -o drivers/e1000.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source drivers/e1000.c --output drivers/e1000.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5414,17 +5427,55 @@
       {
         "inputs": [
           "kernel/gui/desktop.c",
-          "kernel/gui/desktop.h",
+          "drivers/keyboard.h",
+          "drivers/mouse.h",
+          "drivers/rtc.h",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "drivers/vga.h",
+          "kernel/core/app_launch.h",
+          "kernel/core/kernel.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/irq.h",
+          "kernel/cpu/isr.h",
+          "kernel/cpu/simd.h",
+          "kernel/fs/vfs.h",
+          "kernel/gfx/bmp.h",
+          "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_icons.h",
-          "kernel/lang/cupidc.h"
+          "kernel/gfx/graphics.h",
+          "kernel/gui/desktop.h",
+          "kernel/gui/gui.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/gui_widgets.h",
+          "kernel/gui/terminal_app.h",
+          "kernel/gui/ui.h",
+          "kernel/lang/cupidc.h",
+          "kernel/lang/dis.h",
+          "kernel/lang/shell.h",
+          "kernel/mm/memory.h",
+          "kernel/util/calendar.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/desktop.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/desktop.c -o kernel/gui/desktop.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.c --output kernel/gui/desktop.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -6980,19 +7031,42 @@
       {
         "inputs": [
           "kernel/network/socket.c",
+          "drivers/rtc.h",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/process.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/crypto/sha256.h",
+          "kernel/crypto/x509.h",
+          "kernel/crypto/x509_chain.h",
+          "kernel/mm/memory.h",
           "kernel/network/socket.h",
           "kernel/network/tcp.h",
           "kernel/network/udp.h",
           "kernel/smp/bkl.h",
-          "kernel/core/process.h"
+          "kernel/tls/tls_ctx.h",
+          "kernel/tls/tls_record.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/socket.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/socket.c -o kernel/network/socket.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/socket.c --output kernel/network/socket.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7021,19 +7095,36 @@
       {
         "inputs": [
           "kernel/network/tcp.c",
-          "kernel/network/tcp.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/process.h",
+          "kernel/core/types.h",
+          "kernel/cpu/cpu.h",
+          "kernel/cpu/isr.h",
           "kernel/network/ip.h",
+          "kernel/network/net_if.h",
           "kernel/network/socket.h",
+          "kernel/network/tcp.h",
           "kernel/smp/bkl.h",
-          "kernel/core/process.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/tcp.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/tcp.c -o kernel/network/tcp.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/tcp.c --output kernel/network/tcp.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -23119,7 +23210,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "01f152d14e0d4c505e135828c564715798dc32bb53b19666a8a373a1aacdc16a"
+        "sha256": "25049d648531ec5b708994fb776f375b36925df8fa837a26fcaad94771596d06"
       },
       {
         "path": "user/Makefile",
@@ -23131,11 +23222,11 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "9fcab2842817f02a4e43e7a083b635d41eda423242238fb45e7a3397953e2f18"
+        "sha256": "2d313f54885e0cb7a5611dd5a7d9161b443665cfa8c182dac52b3c1b4ced0a90"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
-        "sha256": "2f5dce7432fe25aa60451dcad7bf57f357b8d5f039ccd370a006253c0d104cdb"
+        "sha256": "af1e670eda2e592786b434806fba6b6e14b77fab1ab6932a836811e75cb4dce2"
       },
       {
         "path": "tools/bootstrap_toolchain.py",
@@ -28493,7 +28584,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -28532,7 +28624,7 @@
       "origin": "tracked",
       "path": "drivers/e1000.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2ec15e7bdd28b9e17ce51c839ecc28f04e1f3a2a2ff53be4b30e7e469843fd25"
     },
     {
@@ -28587,7 +28679,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -28614,7 +28708,7 @@
       "origin": "tracked",
       "path": "drivers/keyboard.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "3facc8d2fe4091c0db5e52b869f96fd8d9bc7db97252c2e1db81a7c75fa66260"
     },
     {
@@ -28662,7 +28756,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -28688,7 +28784,7 @@
       "origin": "tracked",
       "path": "drivers/mouse.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "0547038b245cf8b9d3e38a46cab5d2354993b355aab6ff97ddab6b7322a27474"
     },
     {
@@ -28726,7 +28822,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -28750,7 +28848,7 @@
       "origin": "tracked",
       "path": "drivers/pci.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b305be70a60adba288cec01023288834848c28d935265bf364e89105a9e4318b"
     },
     {
@@ -28850,7 +28948,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -28874,7 +28974,7 @@
       "origin": "tracked",
       "path": "drivers/rtc.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "97dc2b62a79781a12e8a09dcd801f1a7a85dd8f9e62b1c882866897b15d62764"
     },
     {
@@ -29115,7 +29215,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29141,7 +29243,7 @@
       "origin": "tracked",
       "path": "drivers/timer.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d31574693fe6bdeffe090d25fe1cf51de2dbc295a63f3454846e10a0add68eb3"
     },
     {
@@ -29184,7 +29286,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29206,7 +29310,7 @@
       "origin": "tracked",
       "path": "drivers/vga.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "737191585f248b28d13db361438e4d700e5e6d7d136592161d4fb37398e39a29"
     },
     {
@@ -29773,7 +29877,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29801,7 +29907,7 @@
       "origin": "tracked",
       "path": "kernel/core/app_launch.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2a4f318db4e8c3d1a13e89e79142641c23c33fb700102963ae9e2b3dd66f3688"
     },
     {
@@ -30027,7 +30133,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30054,7 +30162,7 @@
       "origin": "tracked",
       "path": "kernel/core/kernel.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "fbb7d061f7531a1bcf0610d5f08a6334a9168a46d630748b0d810504c5264bb3"
     },
     {
@@ -30477,7 +30585,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30503,7 +30613,7 @@
       "origin": "tracked",
       "path": "kernel/cpu/cpu.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "e71c554ea1d94fd75d274fd6b9b5e298fa68eeba7ff49bb8b5f43652647257c0"
     },
     {
@@ -30688,7 +30798,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30714,7 +30826,7 @@
       "origin": "tracked",
       "path": "kernel/cpu/irq.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "004aee5320606f2f729737f38e9d94ed813a2137143c9cde89190e8cb10eec12"
     },
     {
@@ -30764,7 +30876,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30792,7 +30906,7 @@
       "origin": "tracked",
       "path": "kernel/cpu/isr.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4b0a3d5003705bbb04d8669232f66f7f3eb8701d1fce3ef3bdcd5743d72b91ea"
     },
     {
@@ -31116,7 +31230,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31140,7 +31256,7 @@
       "origin": "tracked",
       "path": "kernel/cpu/simd.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "945aeb6c1fac787d157da388158fc6e8455757ff718c66faf9c3ae5d0ee069ac"
     },
     {
@@ -39770,7 +39886,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39797,7 +39915,7 @@
       "origin": "tracked",
       "path": "kernel/fs/vfs.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "40f0e8ce5c337e5e5186ac3537be4c6e85c4c427fdf3b26778090b68b5b0ed60"
     },
     {
@@ -39906,7 +40024,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39931,7 +40051,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/bmp.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "1a9134cac4d653cd39d2931864b169d6bbe61c938c5b91d268ae50c22c123c2c"
     },
     {
@@ -40186,7 +40306,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40210,7 +40332,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2b936fb4f3549facc37006202e9c51f318fc910599d736097a8a6ee155de3619"
     },
     {
@@ -40410,7 +40532,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40437,7 +40561,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_icons.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "77701dfb1ba0eb666cd88dc3dcc2a03e3bf09ab036ba757555b6cef07eb699e3"
     },
     {
@@ -40619,7 +40743,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40643,7 +40769,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/graphics.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6d599a42d167e6ac2904ec62662eea39a5cc580996f811f1c9fb1a3281736fd2"
     },
     {
@@ -41049,7 +41175,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41113,12 +41240,13 @@
       "origin": "tracked",
       "path": "kernel/gui/desktop.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "29bcc610b698d235af0169321b728cb77a7a6a1f5cd3c3d45b8ef6d93ddace63"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41148,7 +41276,7 @@
       "origin": "tracked",
       "path": "kernel/gui/desktop.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4ead5c954ab9fb862c56b29edfdd92b9f652674f5ab262cbfb6975ac7c5661c4"
     },
     {
@@ -41283,7 +41411,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41310,7 +41440,7 @@
       "origin": "tracked",
       "path": "kernel/gui/gui.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8975d18ddd6cc36ac562d0f0324a878c8e3f6563e42a41a611be0a2fd5ad8197"
     },
     {
@@ -41591,7 +41721,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41618,7 +41750,7 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_themes.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "107dc7615961b0df06a8066dbd2295fc1251ba1a096c4fb2646544960a3352b9"
     },
     {
@@ -41665,7 +41797,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41692,7 +41826,7 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_widgets.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "49560211cbe4f0955bab8a55915e879c3ffc1a31f50d82430517efb4cb4608da"
     },
     {
@@ -41804,7 +41938,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41827,7 +41963,7 @@
       "origin": "tracked",
       "path": "kernel/gui/terminal_app.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "5560c6bea1a0d0acd375e512972e55eda2388d779c85671f6c8ea8271a845a9e"
     },
     {
@@ -41875,7 +42011,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41902,7 +42040,7 @@
       "origin": "tracked",
       "path": "kernel/gui/ui.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f491673d7e7b17542ff553e45054eab2d3fa0c27c3af9e419c6ce906abb42cc4"
     },
     {
@@ -42312,7 +42450,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42341,7 +42481,7 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidc.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d5bf2c066d47cb38ac1f5bc595a456edc81ebc69b31c32da87d923c66b2ad77f"
     },
     {
@@ -43060,7 +43200,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43087,7 +43229,7 @@
       "origin": "tracked",
       "path": "kernel/lang/dis.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "fa4db1e767f2a3b2f8293beb13631bc4710f2f7591106fc08fdb98b81262ccfd"
     },
     {
@@ -43328,7 +43470,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43356,7 +43500,7 @@
       "origin": "tracked",
       "path": "kernel/lang/shell.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2999fb74da8de47f6a3d2dd8615e7ea8761ca8be0aaf468d60e17493f44e92ac"
     },
     {
@@ -43482,7 +43626,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43511,7 +43657,7 @@
       "origin": "tracked",
       "path": "kernel/mm/memory.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f32a837ebc1828a948e121e9c2743bb49cea1aa3aa1bdf3c61e7a91efe56eb27"
     },
     {
@@ -44011,7 +44157,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44035,7 +44183,7 @@
       "origin": "tracked",
       "path": "kernel/network/ip.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "297b3afa6a49af3acce03389cfe4c7ff9048190a2e55013c4b586db9c054a3b6"
     },
     {
@@ -44082,7 +44230,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44109,12 +44259,13 @@
       "origin": "tracked",
       "path": "kernel/network/net_if.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "62b015d2fb0adb5b98fe6731a1f2b249eb32870ecb615e47a492a6038b28e421"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44154,12 +44305,14 @@
       "origin": "tracked",
       "path": "kernel/network/socket.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ee1da3e203a6f09ea1ddddf27e01625fcacf92a3feb8d66d61a85fb5c04cc5e9"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44186,7 +44339,7 @@
       "origin": "tracked",
       "path": "kernel/network/socket.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "1b70c0a4e5c814bdcdf52e9b8fcfab4038f6717bc74b74a6551ae81c58e7cb51"
     },
     {
@@ -44280,7 +44433,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44323,12 +44477,14 @@
       "origin": "tracked",
       "path": "kernel/network/tcp.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "7b4da0883f38df7bf384992ce10c23051c0060f20d5a5d512d94f3d42416adca"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44351,7 +44507,7 @@
       "origin": "tracked",
       "path": "kernel/network/tcp.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d6374c4640d595e9bd3803879e8bab4671ba5c405a0bc2152cda0c5bb3bb26ae"
     },
     {
@@ -44395,7 +44551,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44418,7 +44576,7 @@
       "origin": "tracked",
       "path": "kernel/network/udp.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "677667cf4f39325b7893fda06dbb749bcef77141f1e60e8796d4c14ab5ba6fd4"
     },
     {
@@ -44528,7 +44686,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44549,7 +44709,7 @@
       "origin": "tracked",
       "path": "kernel/smp/bkl.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4282c66c68e3e2d47b3586e61de861fcc284b5f2a67af9b73868d69ea149071b"
     },
     {
@@ -45141,7 +45301,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45170,7 +45332,7 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_ctx.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "709ab3a5429004b054ac4f0377e533659ce7a2bf171a983de100b90f3e758b57"
     },
     {
@@ -45326,7 +45488,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45352,7 +45516,7 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_record.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "52a9956065e97d31dcdd4e4029f75ea6c479a284aaa29709cea413723d845458"
     },
     {
@@ -45821,7 +45985,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45848,7 +46014,7 @@
       "origin": "tracked",
       "path": "kernel/util/calendar.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "73f8647acfa6746cdf4a9c021b41cc7463db2a21f1087925a781649540fc6067"
     },
     {

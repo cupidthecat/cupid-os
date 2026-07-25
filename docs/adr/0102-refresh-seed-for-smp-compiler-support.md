@@ -3,8 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
-Current status: ADR 0103 uses this seed for the normal-build ACPI and MP-table
-discovery cutover. The account below preserves the seed transition itself.
+Current status: ADR 0103 uses this seed for ACPI and MP-table discovery, and
+ADR 0104 uses it for e1000, desktop, socket, and TCP. The account below
+preserves the seed transition itself.
 
 ## Context
 

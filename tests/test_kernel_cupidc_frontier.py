@@ -50,7 +50,15 @@ SMP_SOURCES = [
     "kernel/smp/acpi.c",
     "kernel/smp/mp_tables.c",
 ]
-KERNEL_SOURCES = CRYPTO_SOURCES + SMP_SOURCES
+OPERAND_FREE_SOURCES = [
+    "drivers/e1000.c",
+    "kernel/gui/desktop.c",
+    "kernel/network/socket.c",
+    "kernel/network/tcp.c",
+]
+KERNEL_SOURCES = sorted(
+    CRYPTO_SOURCES + SMP_SOURCES + OPERAND_FREE_SOURCES
+)
 
 BOUNDARY_DIAGNOSTICS = {}
 
@@ -405,7 +413,7 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (22 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (26 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -570,6 +578,18 @@ class DefaultSeedExecutionTests(unittest.TestCase):
 
 
 class KernelCupidCFrontierCliTests(unittest.TestCase):
+    def test_duplicate_object_stems_are_rejected_case_insensitively(self):
+        with self.assertRaisesRegex(
+            frontier.FrontierError,
+            (
+                "frontier object name collision: "
+                "drivers/Shared.c and kernel/shared.c both use shared.o"
+            ),
+        ):
+            frontier._require_unique_object_names(
+                ("drivers/Shared.c", "kernel/shared.c")
+            )
+
     def test_output_path_must_be_a_directory(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -683,7 +703,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (22 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (26 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -714,10 +734,10 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(list((output / "negative").iterdir()), [])
-            self.assertEqual(manifest["input_snapshot"]["count"], 22)
+            self.assertEqual(manifest["input_snapshot"]["count"], 26)
             self.assertEqual(
                 len(manifest["input_snapshot"]["files"]),
-                22,
+                26,
             )
             self.assertEqual(
                 len(manifest["input_snapshot"]["sha256"]),
@@ -798,6 +818,45 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
+    def test_missing_approved_operand_free_source_is_rejected_before_publication(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            (root / "drivers" / "e1000.c").unlink()
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+            output = root / "frontier"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "approved kernel source is not a file: drivers/e1000.c",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
     def test_truncated_elf32_section_table_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -830,7 +889,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stdout, "")
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "emitted object has a truncated section header table",
                 result.stderr,
             )
@@ -875,7 +934,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "emitted object section 1 payload is outside the file",
                 result.stderr,
             )
@@ -919,7 +978,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "emitted object symbol 1 has an invalid name",
                 result.stderr,
             )
@@ -968,7 +1027,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "emitted object relocation 0 has an invalid symbol",
                 result.stderr,
             )
@@ -1017,7 +1076,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "emitted object relocation 0 uses unsupported i386 type 42",
                 result.stderr,
             )
@@ -1056,7 +1115,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "emitted object relocation section 2 uses RELA",
                 result.stderr,
             )
@@ -1100,7 +1159,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/crypto/aes.c produced invalid ELF32: "
+                "drivers/e1000.c produced invalid ELF32: "
                 "absolute relocation addend is 4, expected 0",
                 result.stderr,
             )
@@ -1159,6 +1218,61 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 result.stderr,
             )
             self.assertFalse((root / "frontier").exists())
+
+    def test_late_operand_free_compile_failure_cannot_publish_the_frontier(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            (root / "fixture.o").write_bytes(_valid_elf32_object())
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+            compiler.write_text(
+                compiler.read_text(encoding="utf-8").replace(
+                    "if source in BOUNDARIES:\n",
+                    (
+                        'if source == "/kernel/network/tcp.c":\n'
+                        '    destination = root / output.lstrip("/")\n'
+                        "    destination.parent.mkdir("
+                        "parents=True, exist_ok=True)\n"
+                        '    destination.write_bytes(b"partial")\n'
+                        '    sys.stderr.write("forced late failure\\n")\n'
+                        "    raise SystemExit(1)\n"
+                        "\n"
+                        "if source in BOUNDARIES:\n"
+                    ),
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            output = root / "frontier"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "kernel/network/tcp.c did not compile: forced late failure",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
 
     def test_nondeterministic_smp_object_cannot_publish_the_frontier(self):
         with tempfile.TemporaryDirectory() as td:
@@ -1223,6 +1337,69 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
+    def test_nondeterministic_desktop_object_cannot_publish_the_frontier(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            first = _valid_elf32_object()
+            second = bytearray(first)
+            symbol_name = second.find(b"entry")
+            self.assertGreaterEqual(symbol_name, 0)
+            second[symbol_name] = ord("E")
+            (root / "fixture.o").write_bytes(first)
+            (root / "fixture-second.o").write_bytes(second)
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+            compiler.write_text(
+                compiler.read_text(encoding="utf-8").replace(
+                    'shutil.copyfile(root / "fixture.o", destination)\n',
+                    (
+                        'if source == "/kernel/gui/desktop.c":\n'
+                        '    marker = root / "desktop-first.done"\n'
+                        "    fixture = (\n"
+                        '        root / "fixture-second.o"\n'
+                        "        if marker.exists()\n"
+                        '        else root / "fixture.o"\n'
+                        "    )\n"
+                        '    marker.write_text("seen\\n", encoding="utf-8")\n'
+                        "else:\n"
+                        '    fixture = root / "fixture.o"\n'
+                        "shutil.copyfile(fixture, destination)\n"
+                    ),
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            output = root / "frontier"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "kernel/gui/desktop.c object output is not deterministic",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
     def test_success_without_an_object_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -1263,7 +1440,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stdout, "")
             self.assertIn(
-                "kernel/crypto/aes.c did not publish an object",
+                "drivers/e1000.c did not publish an object",
                 result.stderr,
             )
             self.assertFalse((root / "frontier").exists())
@@ -1318,6 +1495,58 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
+    def test_new_cohort_header_drift_stops_without_publication(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            header = root / "drivers" / "serial.h"
+            header.write_text("int serial_fixture;\n", encoding="utf-8")
+            (root / "fixture.o").write_bytes(_valid_elf32_object())
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+            compiler.write_text(
+                compiler.read_text(encoding="utf-8").replace(
+                    'shutil.copyfile(root / "fixture.o", destination)\n',
+                    (
+                        'shutil.copyfile(root / "fixture.o", destination)\n'
+                        '(root / "drivers/serial.h").write_text('
+                        '"int changed;\\n", encoding="utf-8")\n'
+                    ),
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            output = root / "frontier"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "kernel CupidC inputs changed during frontier run: "
+                "drivers/serial.h",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
 
 class RealKernelCupidCFrontierTests(unittest.TestCase):
     def test_checked_seed_compiles_the_complete_approved_cohort(self):
@@ -1352,7 +1581,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (22 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (26 sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
@@ -1364,7 +1593,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                213996,
+                366592,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1384,7 +1613,39 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "37791cc5ab28b93e92553735a2c8380d539f9473529e3f8d5731859c37358960",
                 ),
             )
-            self.assertGreater(manifest["input_snapshot"]["count"], 20)
+            self.assertEqual(
+                object_records["drivers/e1000.c"],
+                (
+                    8780,
+                    "38e896c6b1d0359c858a7601d6c0b692"
+                    "786b9ff439d78c933fdde7af2d07d875",
+                ),
+            )
+            self.assertEqual(
+                object_records["kernel/gui/desktop.c"],
+                (
+                    111196,
+                    "f6f0edc79419ebd8ecfaf9254a17dfb8"
+                    "fe8b6cc7139bf16f872c0ce0a8fba340",
+                ),
+            )
+            self.assertEqual(
+                object_records["kernel/network/socket.c"],
+                (
+                    12416,
+                    "dff17d1b2e668f577aab6d45ef341a22"
+                    "6ebaf7ae7278c5c8a2d0aafcd0346ee5",
+                ),
+            )
+            self.assertEqual(
+                object_records["kernel/network/tcp.c"],
+                (
+                    20204,
+                    "831f2a82687ab327f4b48b28fef69104"
+                    "cc94af0770dc6caf7b8a8df5b87a7368",
+                ),
+            )
+            self.assertEqual(manifest["input_snapshot"]["count"], 314)
             self.assertEqual(
                 manifest["provenance"]["compiler"],
                 {

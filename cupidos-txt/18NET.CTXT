@@ -883,21 +883,31 @@ Run same feature tests.
 
 >h3 Automated test harness (make test-net)
 
-  make test-net          # rtl8139 + e1000, ~30s
+  make test-net          # rtl8139 + e1000
   make test-net-quick    # rtl8139 only
 
-tools/net_test.py starts headless QEMU with -display none, serial stdio, and a
-filter-dump pcap. It drives the shell over COM1 through keyboard.c, runs
-ifconfig, ping, arp, feature21, and feature22, then uses host curl against the
-forwarded port. tools/net_pcap.py checks the captured ARP pairs, four-message
-DHCP exchange, ICMP echo, TCP handshake, and IP checksums.
+tools/net_test.py gives headless QEMU 512 MiB and drives COM1 through a local
+TCP serial channel. It runs ifconfig, ping, arp, feature21, and feature22,
+then opens the forwarded port from the host. tools/net_pcap.py uses Python's
+standard library to correlate the captured ARP pairs, one four-message DHCP
+transaction, ICMP identifiers and sequences, one public guest-client
+handshake, one inbound guest-server handshake, and IPv4 header checksums. Each
+TCP direction needs its own bidirectional teardown with coherent sequence and
+acknowledgment state. The causal sequence graph accepts overlapping
+retransmission, simultaneous close, and crossed or reordered data. Late data
+and impossible acknowledgments cannot backfill a close. Multicast and guest
+self-connections do not satisfy the direction checks, and a sequence-valid
+reset or invalid SYN/FIN combination cannot replace real handshake or close
+traffic. A kernel panic, CPU exception, or heap-corruption marker stops any
+guest wait immediately, and feature22 must return to a live shell after its
+PASS marker. The host HTTP read has a 20-second deadline and 64 KiB limit.
 
 Per-NIC checks:
   dhcp        ifconfig reports SLIRP-issued IP (10.0.2.15)
   ping_gw     ping 10.0.2.2 2 returns recv=2
   arp         gateway entry in cache after ping
   tcp_client  feature21_net.cc prints [feature21] PASS
-  tcp_server  curl from host returns "Hello CupidOS"
+  tcp_server  host socket returns "Hello CupidOS"
 
 Pcaps land in tests/<nic>.pcap for Wireshark inspection.
 >endtree
@@ -959,7 +969,7 @@ These constraints define the Tier 4 scope.
   bin/browser.cc + browser/*.cc HTTP/HTTPS browser stack
   kernel/network/sshd.c         SSH server
   kernel/lang/ssh_io.c          Terminal bridge for SSH/Telnet clients
-  tools/net_test.py             pexpect harness, headless QEMU,
-                                host curl, captures tests/<nic>.pcap
-  tools/net_pcap.py             scapy wire-format verifier
+  tools/net_test.py             standard-library headless QEMU driver,
+                                host socket, captures tests/<nic>.pcap
+  tools/net_pcap.py             standard-library wire-format verifier
 >endtree

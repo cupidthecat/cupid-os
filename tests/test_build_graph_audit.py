@@ -3930,6 +3930,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "kernel/crypto/x25519.c",
                 "kernel/crypto/x509.c",
                 "kernel/crypto/x509_chain.c",
+                "drivers/e1000.c",
+                "kernel/gui/desktop.c",
+                "kernel/network/socket.c",
+                "kernel/network/tcp.c",
                 "kernel/smp/acpi.c",
                 "kernel/smp/mp_tables.c",
             )
@@ -3968,9 +3972,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 22,
-                    "host_c_compiler": 275,
-                    "host_python": 31,
+                    "cupid_c_compiler": 26,
+                    "host_c_compiler": 271,
+                    "host_python": 35,
                 },
             )
 

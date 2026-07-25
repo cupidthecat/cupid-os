@@ -32,7 +32,7 @@ Language binding references:
 | ARP cache TTL | 5 min per entry (`arp_tick()` from `net_process_pending`) |
 | IP fragmentation | Send-side splitter + 4-slot reassembly table, 64KB / 30s timeout |
 | Listen-queue GC | 30 s timeout on half-open SYN-RCVD slots |
-| Test harness | `make test-net` - pexpect + scapy, both NICs, `tests/*.pcap` capture |
+| Test harness | `make test-net` - standard-library serial driver and PCAP parser, both NICs |
 
 Kernel files:
 
@@ -1121,8 +1121,10 @@ sudo tcpdump -i tap0 -n -vv
 
 ### Automated integration test (`make test-net`)
 
-The target runs headless QEMU, drives the shell, calls host `curl`, and checks
-the wire format with Scapy. Testing both NICs takes about 30 seconds.
+The target runs headless QEMU, drives the shell through a local TCP serial
+channel, opens the forwarded server port with a host socket, and checks the
+wire format with the repository's standard-library PCAP parser. QEMU receives
+512 MiB, matching the memory range Cupid OS manages.
 
 ```bash
 make test-net          # rtl8139 + e1000
@@ -1137,19 +1139,29 @@ What it verifies, per NIC:
 | `ping_gw` | `ping 10.0.2.2 2` returns `recv=2` |
 | `arp` | After ping, gateway entry is in the cache |
 | `tcp_client` | `/bin/feature21_net.cc` prints `[feature21] PASS` |
-| `tcp_server` | `/bin/feature22_net_server.cc` accepts a `127.0.0.1:18080` curl from the host and returns `Hello CupidOS` |
+| `tcp_server` | `/bin/feature22_net_server.cc` accepts a host socket at `127.0.0.1:18080` and returns `Hello CupidOS` |
 
 After the live tests, `tools/net_pcap.py` re-validates the captured
-frames at the wire level: ARP req/reply pairing, full DHCP 4-message
-exchange, ICMP echo-request -> echo-reply, TCP `SYN` / `SYN-ACK` /
-`FIN`, at least one SYN to a public (non-RFC1918) destination, and
-recomputes every IP header checksum.
+frames at the wire level. It requires reversed ARP addresses, one ordered
+DHCP transaction with matching transaction ID and client address, matching
+ICMP identifiers and sequences, one guest-client handshake to a globally
+routable destination, one inbound guest-server handshake, and valid IPv4
+header checksums. Each TCP direction needs its own bidirectional teardown
+with coherent sequence and acknowledgment state. The causal sequence graph
+accepts overlapping retransmission, simultaneous close, and crossed or
+reordered data. Late data and impossible acknowledgments cannot backfill a
+close. Multicast and guest self-connections do not satisfy the direction
+checks, and a sequence-valid reset or invalid SYN/FIN combination cannot
+stand in for handshake or close traffic.
 
-Dependencies (host-side, `pip install --user`):
-
-- `pexpect` - drives the QEMU serial REPL
-- `scapy` - pcap parser; if missing, the wire-level step is skipped
-  but the live test still runs
+The harness has no third-party Python dependency. It fails immediately on a
+kernel panic, CPU exception, or heap-corruption marker during any guest wait.
+The server test must return to a live shell after its PASS marker. The
+harness retains a bounded tail of QEMU stderr for startup failures, and
+`--boot-only` stops after the headless shell prompt when a shorter boot check
+is enough without reserving the forwarded server port. The host HTTP read has
+a 20-second overall deadline and a 64 KiB response limit. `--keep` leaves a
+failed live guest running for inspection.
 
 Pcap files persist between runs so you can open them in Wireshark for
 manual inspection if anything looks odd.

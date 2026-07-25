@@ -117,7 +117,7 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 22 kernel sources in the normal image build.
+The checked CupidC seed compiles 26 kernel sources in the normal image build.
 The first 20 make up the complete crypto cohort:
 - AES and AES-GCM
 - ChaCha20 and ChaCha20-Poly1305
@@ -127,11 +127,12 @@ The first 20 make up the complete crypto cohort:
 - ASN.1, X.509 parsing, and X.509 chain handling
 - the CSPRNG and its CPU entropy probes
 
-ACPI and MP-table discovery are the other two sources.
+ACPI and MP-table discovery, the e1000 driver, the desktop shell, the socket
+layer, and TCP make up the other six sources.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
-the build output. The strict frontier compiles all 22 approved sources twice
-and requires the 213,996 object bytes to match. The crypto-only subtotal
+the build output. The strict frontier compiles all 26 approved sources twice
+and requires the 366,592 object bytes to match. The crypto-only subtotal
 remains 204,132 bytes.
 
 The boot self-test runs production code from the complete cohort. Its 62 checks
@@ -147,13 +148,11 @@ and embedded CupidC completes /bin/ls.cc. CupidC optimization, removal of the
 Python and WSL launch bridge, and the remaining kernel C graph are still in
 progress.
 
-Compiler head also represents operand-free GNU assembly inside functions.
-Basic statements and extended statements with an empty output list are
-implicitly volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
-sequences emit without a temporary frame slot or EBX traffic. The refreshed
-checked seed contains this addition. A disposable hybrid image has booted with
-head-built e1000, desktop, socket, and TCP objects, but those sources have not
-changed normal-build owner.
+CupidC also represents operand-free GNU assembly inside functions. Basic
+statements and extended statements with an empty output list are implicitly
+volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT sequences
+emit without a temporary frame slot or EBX traffic. The checked seed now
+builds the normal e1000, desktop, socket, and TCP objects with this path.
 
 Compiler head also represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
@@ -468,11 +467,11 @@ source order before lowering runtime control flow, including case values, loop
 headers, variadic reads, aggregate designators, and compound literals.
 Represented uses become integer constants with no frame slot, symbol,
 relocation, or runtime declaration instruction. This covers the cursor
-constants in kernel/gui/desktop.c and the REPL limits in kernel/lang/shell.c
-without moving them. Block declaration attributes, nested function
-definitions, nonempty identifier lists, atomic variadic access, aggregate
-arguments without declared parameter types, and aggregate variadic reads
-remain open.
+constants in the production CupidC-built kernel/gui/desktop.c object. The
+REPL limits in kernel/lang/shell.c remain a separate active guard. Block
+declaration attributes, nested function definitions, nonempty identifier
+lists, atomic variadic access, aggregate arguments without declared parameter
+types, and aggregate variadic reads remain open.
 
 Block-static objects use static storage in the shared ELF32 path. The
 emitter places top-level const objects in .rodata, writable zero-filled objects
@@ -506,10 +505,10 @@ parameter types, aggregate variadic reads, wide strings, literal pooling, and
 block-static addresses in other
 block-static initializers remain unfinished in the shared path.
 
-Production ownership is unchanged. The normal OS build still uses a host C
-compiler for its C objects, and the private in-kernel CupidC compiler still
-handles embedded runtime compilation. The hosted shared path does
-not produce a normal Cupid OS object or change a boot or runtime artifact.
+The shared path now builds 26 normal Cupid OS objects: the 20 crypto units,
+ACPI and MP-table discovery, e1000, the desktop shell, the socket layer, and
+TCP. The host compiler still owns most other C objects, and the private
+in-kernel CupidC compiler still handles embedded runtime compilation.
 >endtree
 
 >h2 C Compatibility Notes

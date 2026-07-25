@@ -57,8 +57,18 @@ APPROVED_SMP_SOURCES = (
     "kernel/smp/acpi.c",
     "kernel/smp/mp_tables.c",
 )
+APPROVED_OPERAND_FREE_SOURCES = (
+    "drivers/e1000.c",
+    "kernel/gui/desktop.c",
+    "kernel/network/socket.c",
+    "kernel/network/tcp.c",
+)
 APPROVED_KERNEL_SOURCES = tuple(
-    sorted(APPROVED_CRYPTO_SOURCES + APPROVED_SMP_SOURCES)
+    sorted(
+        APPROVED_CRYPTO_SOURCES
+        + APPROVED_SMP_SOURCES
+        + APPROVED_OPERAND_FREE_SOURCES
+    )
 )
 
 KERNEL_I386_ARGUMENTS = (

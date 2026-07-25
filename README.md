@@ -266,24 +266,31 @@ make HDD_MB=100
 
 `make bootstrap-baseline` records tool versions and hashes, runs the host tests plus explicit CupidC/CupidASM GUI smokes, and compares two clean builds artifact by artifact across the root, user, and hosted-toolchain roots. Checked revision `1e079d1` reproduces all 447 artifacts independently on Windows Clang/LLVM and Linux GCC/binutils; `make check-bootstrap-host-comparison` verifies the shared logical cohort and behavior/quality contract without requiring cross-toolchain byte equality. See `docs/bootstrap/BASELINE.md` for the evidence contract. Networking integration remains available through `make test-net-quick` and `make test-net`.
 
+The network tests use only Python's standard library. They give QEMU the
+same 512 MiB that Cupid OS identity-maps, drive the headless shell over a
+local TCP serial channel, retain QEMU startup diagnostics, and stop any guest
+wait when a fatal kernel marker appears. Their Ethernet PCAP reader
+correlates complete ARP, DHCP, ICMP, TCP handshake, and bidirectional
+teardown exchanges without `pexpect` or Scapy.
+
 ### Self-hosting compiler status
 
-The normal image build uses the checked CupidC seed for 22 kernel objects:
-all 20 crypto sources plus ACPI and MP-table discovery. Typed `((void *)0)`
-conversion, address decay for external arrays with unspecified bounds, GNU
-assembly operands, the per-CPU GS load, and integer atomics cover those
-unchanged sources. The CSPRNG path emits RDTSC, CPUID, RDRAND, and SETC
-through Cupid's x86 model while preserving EBX. Every object is validated as
-an i386 ELF32 relocatable before publication. The strict kernel frontier
-compiles all 22 sources twice to 213,996 byte-identical bytes.
+The normal image build uses the checked CupidC seed for 26 kernel objects:
+all 20 crypto sources, ACPI and MP-table discovery, the e1000 driver, the
+desktop shell, the socket layer, and TCP. Typed `((void *)0)` conversion,
+address decay for external arrays with unspecified bounds, GNU assembly
+operands, the per-CPU GS load, and integer atomics cover those unchanged
+sources. The CSPRNG path emits RDTSC, CPUID, RDRAND, and SETC through Cupid's
+x86 model while preserving EBX. Every object is validated as an i386 ELF32
+relocatable before publication. The strict kernel frontier compiles all 26
+sources twice to 366,592 byte-identical bytes.
 
-At compiler head, function-body GNU assembly may also have no operands. Basic
-statements and extended statements with an empty output list are implicitly
-volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and
-FNINIT emit through the shared x86 model without a temporary frame slot or
-EBX save. A disposable hybrid image has booted with head-built `e1000`,
-desktop, socket, and TCP objects. The refreshed seed carries the capability,
-but those four objects have not moved into the normal build.
+Function-body GNU assembly may have no operands. Basic statements and
+extended statements with an empty output list are implicitly volatile. Exact
+sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit through
+the shared x86 model without a temporary frame slot or EBX save. That path
+now builds the unchanged e1000, desktop, socket, and TCP sources in the normal
+image rather than only in the earlier hybrid proof.
 
 Compiler head also accepts a modifiable four-byte object or `void` pointer as
 the single `=r` output of the exact `mov %%gs:0, %0` per-CPU load. The
@@ -309,15 +316,17 @@ assembly. Under the full kernel profile, unchanged `kernel/smp/acpi.c` and
 `kernel/smp/mp_tables.c` emit byte-identical 5,708-byte and 4,156-byte i386
 ELF32 objects. They now use the checked wrapper in the normal Make graph.
 
-Separate poisoned-host checks cover all 22 recipes: the established crypto
-gate rebuilds 20 objects, and this cutover rebuilds the two SMP objects. QEMU
-with four vCPUs, the `max` CPU, and e1000
+Separate poisoned-host checks cover all 26 recipes: 20 crypto objects, two
+SMP discovery objects, and the four operand-free assembly objects. QEMU with
+four vCPUs, the `max` CPU, and e1000
 discovers and starts every CPU, seeds through RDRAND, passes exactly 62
 crypto, ASN.1, and X.509 checks, reaches the desktop and terminal, and
 completes `/bin/ls.cc`. The optional strong runtime gate also rejects SMP,
 storage, crypto, CPU-exception, panic, corruption, and illegal-instruction
 failures. The X.509 checks cover parsing, name matching, chain state, and
 embedded-root lookup; they do not claim full certificate trust validation.
+The live network gate exercises the CupidC-built socket and TCP objects on
+both machines. The e1000 machine also exercises the transferred e1000 driver.
 Clang or GCC still builds most of the remaining normal C graph.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
@@ -364,6 +373,10 @@ Fixed automatic arrays and complete structures with alignment up to four bytes s
 Block-scope compound literals use the shared initializer walker and one persistent unnamed automatic object per source site. Each evaluation reruns the initializer and yields an lvalue that supports loads, address-taking, indexing, and member access. Aggregate lists are built in a separate frame slot and copied to the persistent object only after all initializer reads finish. This preserves the previous value when an escaped pointer reads the object during reevaluation. Narrow string roots zero and copy directly into the persistent array. The active `(ctool_string_t){literal, size}` call and a focused `(char[]){"Cupid"}` case now pass through the hosted frontend, IR, and object emitter unchanged.
 
 Runtime narrow string expressions now receive deterministic local `.rodata` symbols and `R_386_32` relocations, so pointer initialization, arguments, indexing, and returns use normal array decay. File-scope and other static-duration compound literals, variable-length literals, and the named-aggregate backward-jump alias case remain open under issue #25. Top-level union and Cupid class values, aggregate members selected from structure rvalues, explicit bit-field initializer leaves, volatile or atomic aggregate access, over-aligned structures, Boolean mutation, and broader floating computation or conversion remain open. Block-static addresses in other block-static initializers, arithmetic or explicit casts on static string addresses, wide strings, literal pooling, atomic and aggregate variadic values, and production integration also remain open. A copied structure may contain union, wide, or floating members because this path moves its complete target representation. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md), [ADR 0049](docs/adr/0049-cupidc-structure-values-and-cdecl-abi.md), [ADR 0050](docs/adr/0050-cupidc-sixteen-byte-call-alignment.md), [ADR 0051](docs/adr/0051-cupidc-block-scope-static-object-emission.md), [ADR 0052](docs/adr/0052-cupidc-block-scope-compound-literals.md), [ADR 0053](docs/adr/0053-cupidc-runtime-narrow-strings.md), [ADR 0054](docs/adr/0054-cupidc-scalar-variadic-calls.md), [ADR 0055](docs/adr/0055-cupidc-scalar-variadic-callees.md), [ADR 0056](docs/adr/0056-cupidc-empty-identifier-list-functions.md), [ADR 0057](docs/adr/0057-cupidc-block-scope-record-tags.md), [ADR 0058](docs/adr/0058-cupidc-block-scope-extern-objects.md), [ADR 0059](docs/adr/0059-cupidc-block-scope-typedefs.md), [ADR 0060](docs/adr/0060-cupidc-block-scope-function-declarations.md), [ADR 0061](docs/adr/0061-cupidc-block-scope-enums.md), [ADR 0062](docs/adr/0062-cupidc-nested-block-enum-definitions.md), [ADR 0063](docs/adr/0063-cupidc-bit-field-assignments.md), [ADR 0064](docs/adr/0064-cupidc-bit-field-mutation.md), [ADR 0065](docs/adr/0065-cupidc-wide-integer-returns.md), [ADR 0066](docs/adr/0066-cupidc-wide-integer-object-values.md), [ADR 0067](docs/adr/0067-cupidc-wide-integer-parameters-and-arguments.md), [ADR 0068](docs/adr/0068-cupidc-wide-integer-shifts-and-conversions.md), [ADR 0069](docs/adr/0069-cupidc-wide-integer-comparisons-and-conditions.md), [ADR 0070](docs/adr/0070-cupidc-wide-integer-addition-subtraction-and-unary.md), [ADR 0071](docs/adr/0071-cupidc-wide-integer-switch-dispatch.md), [ADR 0072](docs/adr/0072-cupidc-wide-integer-multiplication.md), [ADR 0073](docs/adr/0073-cupidc-wide-integer-division-and-remainder.md), [ADR 0074](docs/adr/0074-cupidc-wide-integer-mutation.md), [ADR 0075](docs/adr/0075-cupidc-wide-integer-variadics.md), [ADR 0076](docs/adr/0076-cupidc-floating-scalar-transport.md), [ADR 0077](docs/adr/0077-cupidc-float-default-argument-promotion.md), and [ADR 0078](docs/adr/0078-private-cupidc-tagged-control-frames.md).
+
+Here, production integration means the remaining host-owned graph. The
+checked-seed path already owns the 26-source production cohort described
+above.
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
 

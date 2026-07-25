@@ -4,7 +4,8 @@
 - Date: 2026-07-24
 
 Current status: ADR 0102 carries this capability in the checked i386 Linux
-seed. Production ownership of the newly eligible sources remains separate.
+seed, and ADR 0104 uses it for the normal e1000, desktop, socket, and TCP
+objects.
 
 ## Context
 

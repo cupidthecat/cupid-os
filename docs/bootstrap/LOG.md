@@ -8178,3 +8178,152 @@ ADR 0103 records the ownership decision. Python orchestration, WSL on
 Windows, hosted development builds, the private in-kernel compiler, and most
 normal C objects remain host dependencies. No source was reduced or rewritten
 for this cutover.
+
+## 2026-07-24: Make the network gate portable and memory-correct
+
+The network integration target could not run in the Windows checkout because
+`tools/net_test.py` imported `pexpect`. Replacing the pseudo-terminal with an
+ordinary subprocess pipe was not enough: QEMU's serial stream did not provide
+a useful failure record through that path. The harness now uses QEMU's local
+TCP serial backend and a standard-library socket reader. It retains a bounded
+tail of QEMU stderr when startup fails. It can stop after the headless prompt
+with `--boot-only`, and every guest wait stops as soon as the serial stream
+reports a kernel panic, CPU exception, or heap corruption. `--keep` now leaves
+a failed live guest running; the old `--loss` option was removed because it
+never simulated packet loss.
+
+That sharper loop exposed a second problem. The harness gave QEMU 128 MiB,
+while `memory.h` defines a 512 MiB managed range and a 256 MiB initial heap.
+The heap's first back canary landed at `0x11BFFFFC`, outside the emulated RAM,
+and the guest correctly reported corruption. Raising only the test machine to
+512 MiB made the same boot reach the shell. The `max` CPU model keeps this gate
+aligned with the stronger GUI smoke.
+
+The packet check also depended on Scapy. `tools/net_pcap.py` now reads classic
+Ethernet PCAP files directly. It validates PCAP record bounds, byte order and
+timestamp precision, Ethernet and optional VLAN framing, and every IPv4
+header checksum. ARP replies must reverse the request addresses. DHCP must
+follow one client transaction through DISCOVER, OFFER, REQUEST, and ACK with
+the right BOOTP direction and UDP ports. ICMP replies match both endpoint
+addresses, identifier, and sequence. TCP requires two distinct ordered
+handshakes with valid acknowledgments and a globally routable destination.
+Each direction must then complete its own FIN/ACK exchange with coherent
+sequence and acknowledgment state. Retransmitted SYN packets do not create
+another flow, and packets carrying reset or out-of-place SYN/FIN flags cannot
+complete a handshake or teardown. The live server check also requires the
+guest to return to a fatal-aware shell prompt after feature22 reports PASS.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Stream and CLI contracts | PASS | All 20 `test_net_test` cases pass, including pipe and socket transport, timeout/EOF separation, fatal-marker interruption, the required post-server prompt, bounded host response handling, QEMU diagnostics, real `--keep` behavior, the 512 MiB profile, port-independent boot-only routing, and exact SLIRP lease, ping, and gateway-ARP checks. |
+| PCAP parser contracts | PASS | All 30 cases cover correlated positive flows, byte-order and timestamp variants, VLAN, fragmented transport, SYN retransmission, separate client/server direction and teardown, causal and overlapping data, simultaneous close, crossed and reordered data, sequence-valid and stray resets, terminal-ACK payload rejection, private or multicast destinations, guest self-connections, malformed packet shapes, corrupt IPv4 checksums, and truncated transport, DHCP, and PCAP records. |
+| HEADLESS boot regression | PASS | `python tools/net_test.py --nic rtl8139 --boot-only` reaches the shell in 39.7 seconds with 512 MiB. The earlier 128 MiB run reproduces the missing heap canary and panic in 49.3 seconds. |
+| RTL8139 live network | PASS | DHCP binds `10.0.2.15`; two gateway pings return; ARP is populated; the guest TCP client passes; and the host receives `Hello CupidOS` from the guest server. |
+| E1000 live network | PASS | The same five live checks pass through the E1000 driver. |
+| Wire-level validation | PASS | Both captures contain two correlated ARP request/reply pairs, one complete DHCP transaction, two matching ICMP request/reply pairs, one public guest-client handshake, one inbound guest-server handshake, a separate sequence-valid teardown for each direction, and zero bad IPv4 header checksums. |
+
+The network targets no longer require `pexpect` or Scapy. QEMU and Python
+remain explicit test dependencies. After the correlation and post-PASS
+checks were tightened, the complete `make test-net` target passed in 193.177
+seconds. The run included a clean HEADLESS rebuild, both live NICs, and both
+packet checks. The RTL8139 capture is 5,964 bytes with SHA-256
+`af1c0c089c0f9647b29001a4f9f347d38f4518506766edec222c78fd366f3035`;
+the e1000 capture is 5,874 bytes with SHA-256
+`988560cdb2d33d247d56fbf8a5a932dc4ff4ace42015cbcfde4be60ab7069e50`.
+
+## 2026-07-24: Build e1000, desktop, socket, and TCP with CupidC
+
+The normal build now compiles unchanged `drivers/e1000.c`,
+`kernel/gui/desktop.c`, `kernel/network/socket.c`, and
+`kernel/network/tcp.c` with the checked CupidC seed. Together with the 20
+crypto units and two SMP discovery units, checked-seed CupidC owns 26
+production kernel objects. The complete cohort contains 366,592 object bytes.
+
+The wrapper keeps one exact source allowlist and a fixed `KERNEL_I386`
+profile. Each Make rule lists the source's complete recursive header closure
+and the wrapper, frontier, seed verifier, manifest, and checked-tool inputs.
+The frontier freezes 314 source, header, profile, and control inputs before
+compiling all 26 sources twice. It validates i386 relocatable ELF, rejects
+case-insensitive artifact-name collisions, and publishes only a complete
+byte-identical directory.
+
+A forced build with `CC=__cupid_host_cc_must_not_run__` expanded to four
+wrapper commands and reproduced the four transferred objects:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `drivers/e1000.c` | 8,780 | `38e896c6b1d0359c858a7601d6c0b692786b9ff439d78c933fdde7af2d07d875` |
+| `kernel/gui/desktop.c` | 111,196 | `f6f0edc79419ebd8ecfaf9254a17dfb8fe8b6cc7139bf16f872c0ce0a8fba340` |
+| `kernel/network/socket.c` | 12,416 | `dff17d1b2e668f577aab6d45ef341a226ebaf7ae7278c5c8a2d0aafcd0346ee5` |
+| `kernel/network/tcp.c` | 20,204 | `831f2a82687ab327f4b48b28fef69104cc94af0770dc6caf7b8a8df5b87a7368` |
+
+Review found two false-green paths in the first network gate. A panic after
+feature22's PASS marker could be hidden while the harness ignored a missing
+shell prompt, and a retransmitted SYN could be counted as another connection
+with the same teardown. The live harness now requires a fatal-aware prompt
+after feature22. The packet reader deduplicates connection attempts, counts
+unique teardown evidence, rejects invalid handshake and close flags, and
+anchors both close directions to the established stream. Its causal sequence
+graph accepts overlapping retransmission, simultaneous close, and crossed or
+reordered data while rejecting impossible acknowledgments, sequence-valid
+resets, late data, and payload on an ACK sent after that direction's FIN. It
+also excludes multicast destinations and guest self-connections from the two
+required directions. The 20 stream and CLI tests and 30 packet tests cover
+those failures.
+
+The final active audit contains 698 inputs, 252 feature requirements, 501
+transforms, and 39 accounted unreachable files. It assigns 26 transforms to
+checked-seed CupidC, 271 to the host C compiler, and 35 to Python. The
+active-source digest remains
+`1e4f5fecd656ca495ce453df98064ee63645bd0997fe316ea2fbaf01fe87fb3a`.
+The 1,413,530-byte JSON has SHA-256
+`dfe800a37e358e54db58fa7db4e98dbc12e6f7c83af4f63689dcebf1d92d763c`.
+
+The final clean normal build completed in 108.074 seconds. CupidDis returned
+the same 3,889 text and weak symbols from both link passes, and Python
+serialized their 93,384-byte kernel-symbol blob. The transferred entry points
+are present at these addresses:
+
+| Symbol | Address |
+| --- | ---: |
+| `desktop_init` | `0x0012E3A8` |
+| `desktop_run` | `0x001405FE` |
+| `socket_create` | `0x0016B1F8` |
+| `socket_bind` | `0x0016B318` |
+| `socket_listen` | `0x0016C324` |
+| `socket_connect` | `0x0016C447` |
+| `socket_send` | `0x0016C4B6` |
+| `socket_recv` | `0x0016C68E` |
+| `tcp_connect` | `0x0016E1F5` |
+| `tcp_listen` | `0x0016F12B` |
+| `tcp_input` | `0x0016FB6C` |
+| `tcp_tick` | `0x001714AF` |
+| `e1000_probe` | `0x0017AA30` |
+
+`_loaded_end` is `0x0070FE48`, leaving 2,029,496 bytes in the reserved
+area. `_kernel_end` is `0x00B30910`, leaving 849,648 bytes below the fixed
+stack. The raw kernel matches the disk image byte for byte at LBA 5.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel.elf.pass1` | 6,444,404 | `5af0d2f1aba1655f1d5c868b8dbc2b43d158eafc409da8acf942a1f2b97215f5` |
+| `kernel.elf` | 6,534,516 | `1b9909ce6e02706201e97db12a19ccad5f534429b13c7a4828f552e5e2335e27` |
+| `kernel.bin` | 6,356,552 | `3b9d786dfaee479f6c598e49506e516bb35ecdcc2a3d16813a7ff937a0db193b` |
+| Preboot disk image | 209,715,200 | `c74cffe2b603d60598939e3e31d03abf652a1fce112104bce18627af7218b425` |
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Checked seed | PASS | `make verify-bootstrap-seed` accepts all five checked tools, their hashes, source revision, lineage, and fixed build plan. |
+| Poisoned-host recipes | PASS | All four forced recipes invoke only the checked CupidC wrapper and reproduce the objects above. A fully poisoned image is not claimed because 271 C transforms remain host-owned. |
+| Production frontier | PASS | `make test-kernel-cupidc-frontier` compiles and validates all 26 approved sources in 135.280 seconds. The broader 30-case frontier module also covers rollback, malformed and late output, source/header drift, nondeterminism, and artifact collisions. |
+| Audit contracts | PASS | All 55 build-graph audit tests pass in 432.497 seconds, and regeneration plus `make check-bootstrap-audit` reproduces the checked files and counts above. |
+| Live network | PASS | The final `make test-net` run completes a clean HEADLESS build and both NICs in 193.177 seconds. Each capture has two ARP pairs, one DHCP exchange, two ICMP pairs, one public client handshake, one inbound server handshake, a separate sequence-valid teardown for each direction, and zero bad IPv4 checksums. |
+| Normal image | PASS | Both CupidLD passes, CupidDis parity, the generated symbol blob, CupidObj conversion, memory-margin checks, image staging, and the LBA 5 comparison pass. |
+| Four-vCPU GUI runtime | PASS | A copy of the exact preboot image passes the strong e1000 contract in 48.729 seconds with the `max` CPU model. The 21,662-byte log has SHA-256 `46c171cf00c70160daf56d32ed9ecb1cc1af373e1e667a1ee8af6bf53a51c5e8`. |
+| Full repository gate | PASS | `make test` passes 532 tests in 2,138.320 seconds with one expected skip. Make exits successfully after 2,187.115 seconds. |
+
+ADR 0104 records the ownership decision. Issue #28 remains open for the
+remaining strict kernel, driver, and generated-C cohorts. The normal graph
+still contains 271 host-C transforms. Python, WSL on Windows, and hosted
+development commands also remain explicit bootstrap or orchestration
+dependencies.

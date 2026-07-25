@@ -125,7 +125,7 @@ All 20 `kernel/crypto` translation units built by checked-seed CupidC in the nor
 _Avoid_: compiler-head frontier, partial crypto cohort
 
 **Production CupidC kernel cohort**:
-The 22 normal-build kernel translation units owned by checked-seed CupidC: the complete 20-source crypto cohort plus ACPI and MP-table discovery. The strict frontier compiles all 22 sources twice to 213,996 matching i386 ELF32 bytes before an atomic publication. Separate poisoned-host rebuilds and a four-vCPU boot gate cover the production hand-off.
+The 26 normal-build kernel translation units owned by checked-seed CupidC: the complete 20-source crypto cohort, ACPI and MP-table discovery, the e1000 driver, the desktop shell, the socket layer, and TCP. The strict frontier compiles all 26 sources twice to 366,592 matching i386 ELF32 bytes before atomic publication. Poisoned-host rebuilds cover every recipe. Four-vCPU GUI and dual-NIC network gates cover the production hand-off.
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Hosted i386 ABI profile**:
@@ -161,7 +161,7 @@ An incomplete external array whose element type is complete and has a nonzero ta
 _Avoid_: fixed array, flexible array member, variable-length array
 
 **Represented GNU assembly statement**:
-A GNU-mode CupidC statement whose immutable frontend record owns a decoded template and a packed operand slice. Extended statements accept one to four typed integer register outputs, single-digit matching inputs, and the CSPRNG's RDTSC, CPUID, RDRAND, SETC, and tied NOP forms. One `=r` output may instead be a modifiable four-byte object or `void` pointer for the exact `mov %%gs:0, %0` per-CPU load. Function-body basic statements and extended statements with an empty output list own no operands and are implicitly volatile. Their current exact templates use PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT. Linear IR evaluates each output address once before input values. The emitter preserves EBX for operand-bearing statements and avoids both a frame slot and EBX traffic for operand-free statements. The refreshed checked seed carries the operand-bearing, operand-free, and pointer-output forms. ACPI and MP-table discovery now use the pointer-output path in production; the four sources unlocked only by operand-free assembly still need separate normal-build cutovers.
+A GNU-mode CupidC statement whose immutable frontend record owns a decoded template and a packed operand slice. Extended statements accept one to four typed integer register outputs, single-digit matching inputs, and the CSPRNG's RDTSC, CPUID, RDRAND, SETC, and tied NOP forms. One `=r` output may instead be a modifiable four-byte object or `void` pointer for the exact `mov %%gs:0, %0` per-CPU load. Function-body basic statements and extended statements with an empty output list own no operands and are implicitly volatile. Their current exact templates use PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT. Linear IR evaluates each output address once before input values. The emitter preserves EBX for operand-bearing statements and avoids both a frame slot and EBX traffic for operand-free statements. The refreshed checked seed carries the operand-bearing, operand-free, and pointer-output forms. ACPI and MP-table discovery use the pointer-output path in production; e1000, desktop, socket, and TCP use the operand-free path.
 _Avoid_: general GNU assembly support, host-assembler escape
 
 **Represented GNU integer atomic**:

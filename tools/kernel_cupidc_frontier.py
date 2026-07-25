@@ -40,8 +40,23 @@ KERNEL_SOURCES = APPROVED_KERNEL_SOURCES
 
 BOUNDARIES = ()
 
+
 class FrontierError(Exception):
     pass
+
+
+def _require_unique_object_names(sources):
+    owners = {}
+    for source in sources:
+        name = Path(source).stem + ".o"
+        collision_key = name.casefold()
+        previous = owners.get(collision_key)
+        if previous is not None:
+            raise FrontierError(
+                "frontier object name collision: "
+                f"{previous} and {source} both use {name}"
+            )
+        owners[collision_key] = source
 
 
 def _validated_wsl_private_directory(stdout):
@@ -589,6 +604,7 @@ def _run_frontier(arguments):
     root = arguments.root.resolve()
     if not root.is_dir():
         raise FrontierError(f"repository root does not exist: {root}")
+    _require_unique_object_names(KERNEL_SOURCES)
     for source in KERNEL_SOURCES:
         path = root / source
         if path.is_symlink():

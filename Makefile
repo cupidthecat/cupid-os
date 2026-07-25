@@ -394,12 +394,12 @@ kernel/network/udp.o: kernel/network/udp.c kernel/network/udp.h kernel/network/i
 	$(CC) $(CFLAGS) kernel/network/udp.c -o kernel/network/udp.o
 
 # Socket table + BSD UDP API (P6 T10)
-kernel/network/socket.o: kernel/network/socket.c kernel/network/socket.h kernel/network/tcp.h kernel/network/udp.h kernel/smp/bkl.h kernel/core/process.h
-	$(CC) $(CFLAGS) kernel/network/socket.c -o kernel/network/socket.o
+kernel/network/socket.o: kernel/network/socket.c drivers/rtc.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/sha256.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/mm/memory.h kernel/network/socket.h kernel/network/tcp.h kernel/network/udp.h kernel/smp/bkl.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/socket.c --output kernel/network/socket.o
 
 # TCP client state machine (P6 T13)
-kernel/network/tcp.o: kernel/network/tcp.c kernel/network/tcp.h kernel/network/ip.h kernel/network/socket.h kernel/smp/bkl.h kernel/core/process.h
-	$(CC) $(CFLAGS) kernel/network/tcp.c -o kernel/network/tcp.o
+kernel/network/tcp.o: kernel/network/tcp.c drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/cpu.h kernel/cpu/isr.h kernel/network/ip.h kernel/network/net_if.h kernel/network/socket.h kernel/network/tcp.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/tcp.c --output kernel/network/tcp.o
 
 # DHCP client with static fallback (P6 T11)
 kernel/network/dhcp.o: kernel/network/dhcp.c kernel/network/dhcp.h kernel/network/net_if.h kernel/network/ip.h
@@ -417,8 +417,8 @@ drivers/rtl8139.o: drivers/rtl8139.c kernel/network/net_if.h drivers/pci.h kerne
 	$(CC) $(CFLAGS) drivers/rtl8139.c -o drivers/rtl8139.o
 
 # E1000 (Intel 82540EM) NIC driver: MMIO probe, RX/TX rings, MAC read (P6 T15)
-drivers/e1000.o: drivers/e1000.c kernel/network/net_if.h drivers/pci.h kernel/mm/memory.h kernel/cpu/irq.h kernel/cpu/isr.h
-	$(CC) $(CFLAGS) drivers/e1000.c -o drivers/e1000.o
+drivers/e1000.o: drivers/e1000.c drivers/pci.h drivers/serial.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/e1000.c --output drivers/e1000.o
 
 # TLS subsystem: crypto primitives, X.509, handshake state machine.
 # Built phase by phase under kernel/tls/. See plan in
@@ -695,8 +695,8 @@ kernel/util/calendar.o: kernel/util/calendar.c kernel/util/calendar.h
 	$(CC) $(CFLAGS) $(OPT) kernel/util/calendar.c -o kernel/util/calendar.o
 
 # Desktop shell
-kernel/gui/desktop.o: kernel/gui/desktop.c kernel/gui/desktop.h kernel/gfx/gfx2d_icons.h kernel/lang/cupidc.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/desktop.c -o kernel/gui/desktop.o
+kernel/gui/desktop.o: kernel/gui/desktop.c drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.c --output kernel/gui/desktop.o
 
 kernel/core/app_launch.o: kernel/core/app_launch.c kernel/core/app_launch.h kernel/lang/cupidc.h kernel/core/process.h kernel/lang/shell.h kernel/gui/terminal_app.h kernel/gui/ctxt_image_worker.h
 	$(CC) $(CFLAGS) kernel/core/app_launch.c -o kernel/core/app_launch.o
@@ -1175,9 +1175,9 @@ run-net-e1000: $(OS_IMAGE)
 headless-net-image: headless-image
 
 # Network integration test on rtl8139 (default) and e1000.
-# net_test.py drives the headless shell, runs feature21/22, host-curls the
-# forwarded port. net_pcap.py then re-validates the captured frames at the
-# protocol level (ARP, DHCP, ICMP, TCP handshake, IP checksums).
+# net_test.py drives the headless shell, runs feature21/22, and connects to
+# the forwarded port. net_pcap.py then correlates the captured ARP, DHCP, ICMP,
+# TCP handshake/teardown flows and checks every IPv4 header checksum.
 test-net-quick: headless-image
 	$(PYTHON) tools/net_test.py --nic rtl8139
 	$(PYTHON) tools/net_pcap.py tests/rtl8139.pcap
