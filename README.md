@@ -275,18 +275,19 @@ teardown exchanges without `pexpect` or Scapy.
 
 ### Self-hosting compiler status
 
-The normal image build uses the checked CupidC seed for 40 kernel objects.
-The cohort contains all 20 crypto sources, ACPI and MP-table discovery,
-e1000, the desktop shell, the socket layer, TCP, ATA, keyboard, mouse, PCI,
-PIT, RTC, RTL8139, speaker, VGA, AC'97, the system-call path, the shell, EHCI,
-and UHCI. Typed `((void *)0)` conversion, address decay for external arrays
-with unspecified bounds, GNU assembly operands, the per-CPU GS load, port I/O,
-and integer atomics cover these unchanged sources. The CSPRNG path emits
-RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX.
-Every object is validated as an i386 ELF32 relocatable before publication. The
-strict kernel frontier compiles all 40 sources twice to 675,340 byte-identical
-bytes. It freezes a 328-input snapshot with SHA-256
-`3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`.
+The normal image build uses the checked CupidC seed for 116 C objects. The
+cohort keeps the established 40 kernel and driver sources, adds 71 unchanged
+sources across the kernel, and adds the shared `ctool.c`, `cupidasm.c`,
+`cupiddis.c`, `elf32.c`, and `x86.c` implementations. Typed null conversion,
+external-array address decay, GNU assembly operands, the per-CPU GS load,
+port I/O, integer atomics, and the wider shared C path cover these sources.
+The CSPRNG emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model
+while preserving EBX. Every object is validated as an i386 ELF32 relocatable
+before publication. A valid data-only object may omit `.text`; its remaining
+sections and symbols still receive the full bounds checks. The strict kernel
+frontier compiles all 116 sources twice to 2,267,588 byte-identical bytes. It
+freezes a 404-input snapshot with SHA-256
+`bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`.
 
 Function-body GNU assembly may have no operands. Basic statements and
 extended statements with an empty output list are implicitly volatile. Exact
@@ -333,16 +334,15 @@ wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
 ownership path. Each transferred Make recipe carries its exact recursive
 header closure.
 
-Separate poisoned-host checks cover all 40 recipes. The check fails if a
-transferred object reaches Clang or GCC. The current audit assigns 40
-transforms to CupidC, 257 C transforms to the host compiler, 49 transforms to
-host Python, and 205 root or user objects to host-built C. The 40-object QEMU
-contract passes with four vCPUs on both e1000 and RTL8139. Each run covers
-SMP startup, RDRAND and the 62 crypto checks, keyboard and mouse detach and
-reattach, ATA storage, AC'97 and PC speaker audio, six EHCI storage lifetimes,
-a zero-padded RTC timestamp, and DHCP traffic through the selected NIC.
-The X.509 checks cover parsing, name matching, chain state, and embedded-root
-lookup. They do not claim full certificate trust validation.
+Separate poisoned-host checks cover all 116 recipes. The check fails if a
+CupidC-owned object reaches Clang or GCC. The current audit assigns 116
+transforms to CupidC, 181 C transforms to the host compiler, and 125
+transforms to host Python. The four-vCPU GUI contract reaches SMP startup,
+RDRAND and all 62 crypto checks, the desktop, terminal, e1000 network, and
+in-OS CupidC execution at `0x01100000`. The wider USB and dual-NIC gates from
+the established cohort remain part of the runtime contract. A separate smoke
+loads the same external ELF program twice at `0x00F00000`; process cleanup
+releases the first arena lease before the second load.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,
@@ -390,12 +390,12 @@ Block-scope compound literals use the shared initializer walker and one persiste
 Runtime narrow string expressions now receive deterministic local `.rodata` symbols and `R_386_32` relocations, so pointer initialization, arguments, indexing, and returns use normal array decay. File-scope and other static-duration compound literals, variable-length literals, and the named-aggregate backward-jump alias case remain open under issue #25. Top-level union and Cupid class values, aggregate members selected from structure rvalues, explicit bit-field initializer leaves, volatile or atomic aggregate access, over-aligned structures, Boolean mutation, and broader floating computation or conversion remain open. Block-static addresses in other block-static initializers, arithmetic or explicit casts on static string addresses, wide strings, literal pooling, atomic and aggregate variadic values, and production integration also remain open. A copied structure may contain union, wide, or floating members because this path moves its complete target representation. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md), [ADR 0049](docs/adr/0049-cupidc-structure-values-and-cdecl-abi.md), [ADR 0050](docs/adr/0050-cupidc-sixteen-byte-call-alignment.md), [ADR 0051](docs/adr/0051-cupidc-block-scope-static-object-emission.md), [ADR 0052](docs/adr/0052-cupidc-block-scope-compound-literals.md), [ADR 0053](docs/adr/0053-cupidc-runtime-narrow-strings.md), [ADR 0054](docs/adr/0054-cupidc-scalar-variadic-calls.md), [ADR 0055](docs/adr/0055-cupidc-scalar-variadic-callees.md), [ADR 0056](docs/adr/0056-cupidc-empty-identifier-list-functions.md), [ADR 0057](docs/adr/0057-cupidc-block-scope-record-tags.md), [ADR 0058](docs/adr/0058-cupidc-block-scope-extern-objects.md), [ADR 0059](docs/adr/0059-cupidc-block-scope-typedefs.md), [ADR 0060](docs/adr/0060-cupidc-block-scope-function-declarations.md), [ADR 0061](docs/adr/0061-cupidc-block-scope-enums.md), [ADR 0062](docs/adr/0062-cupidc-nested-block-enum-definitions.md), [ADR 0063](docs/adr/0063-cupidc-bit-field-assignments.md), [ADR 0064](docs/adr/0064-cupidc-bit-field-mutation.md), [ADR 0065](docs/adr/0065-cupidc-wide-integer-returns.md), [ADR 0066](docs/adr/0066-cupidc-wide-integer-object-values.md), [ADR 0067](docs/adr/0067-cupidc-wide-integer-parameters-and-arguments.md), [ADR 0068](docs/adr/0068-cupidc-wide-integer-shifts-and-conversions.md), [ADR 0069](docs/adr/0069-cupidc-wide-integer-comparisons-and-conditions.md), [ADR 0070](docs/adr/0070-cupidc-wide-integer-addition-subtraction-and-unary.md), [ADR 0071](docs/adr/0071-cupidc-wide-integer-switch-dispatch.md), [ADR 0072](docs/adr/0072-cupidc-wide-integer-multiplication.md), [ADR 0073](docs/adr/0073-cupidc-wide-integer-division-and-remainder.md), [ADR 0074](docs/adr/0074-cupidc-wide-integer-mutation.md), [ADR 0075](docs/adr/0075-cupidc-wide-integer-variadics.md), [ADR 0076](docs/adr/0076-cupidc-floating-scalar-transport.md), [ADR 0077](docs/adr/0077-cupidc-float-default-argument-promotion.md), and [ADR 0078](docs/adr/0078-private-cupidc-tagged-control-frames.md).
 
 Here, production integration means the remaining host-owned graph. The
-checked-seed path already owns the 40-source production cohort described
+checked-seed path already owns the 116-source production cohort described
 above.
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
 
-[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof, [ADR 0107](docs/adr/0107-cupidc-gnu-atomic-fetch-or.md) records compiler-head fetch-or, [ADR 0108](docs/adr/0108-refresh-seed-for-atomic-fetch-or.md) records its checked-seed promotion, and [ADR 0110](docs/adr/0110-cupidc-production-cutover.md) records the 40-source production cutover.
+[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof, [ADR 0107](docs/adr/0107-cupidc-gnu-atomic-fetch-or.md) records compiler-head fetch-or, [ADR 0108](docs/adr/0108-refresh-seed-for-atomic-fetch-or.md) records its checked-seed promotion, [ADR 0110](docs/adr/0110-cupidc-production-cutover.md) records the 40-source production cutover, and [ADR 0111](docs/adr/0111-expand-cupidc-production-ownership.md) records the 116-source expansion and memory map.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 
@@ -533,7 +533,7 @@ LBA 16384+  FAT16 partition (mounted as /disk)
 | `memory.c/.h` | Physical memory manager, bitmap allocator over 512MB, kernel heap |
 | `paging.c` | Page tables, identity-mapped address space |
 
-The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at 0x00C00000-0x00E00000.
+The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at `0x00D00000..0x00F00000`.
 
 ### Processes
 
@@ -712,8 +712,8 @@ hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_featur
 The `user/` directory has example ELF32 programs (`hello.c`, `cat.c`, and `ls.c`). Its `cupid.h` header defines the syscall-table ABI for programs compiled to ELF and loaded by the kernel.
 
 External executables must be linked for the current
-`0x00E00000..0x01000000` arena. Binaries linked at the former `0x00D00000`
-base now overlap the kernel stack and must be rebuilt.
+`0x00F00000..0x01100000` arena. Binaries linked at an earlier fixed base must
+be rebuilt.
 
 ---
 
@@ -725,9 +725,9 @@ base now overlap the kernel stack and must be rebuilt.
 0x100000            Kernel start (_start)
                     .text, .rodata, .data
                     .bss
-0x00C00000-0x00E00000 Kernel stack (2MB, grows down; 16-byte guard)
-0x00E00000-0x01000000 External ELF arena (exclusive fixed-address lease)
-0x01000000-0x01900000 CupidC JIT/AOT region (1MB code + 8MB data)
+0x00D00000-0x00F00000 Kernel stack (2MB, grows down; 16-byte guard)
+0x00F00000-0x01100000 External ELF arena (exclusive fixed-address lease)
+0x01100000-0x01A00000 CupidC JIT/AOT region (1MB code + 8MB data)
 0x01A00000-0x01C00000 CupidASM JIT/AOT region (1MB code + 1MB data)
 0xE0000000+         VBE linear framebuffer (address comes from BIOS)
 ```

@@ -54,9 +54,9 @@ hosted development commands, and the remaining normal C objects still use a
 host C compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
-`b3e3f6f2897cd5980394e4d1a0e2f94bf6ac6d7ae9aafa5d6de1fc326a5b3442`.
+`9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc`.
 CupidASM and the optional NASM oracle produce the same bytes for the current
-`0x00E00000` boot-stack layout.
+`0x00F00000` boot-stack layout.
 
 The checked seed includes the active CSPRNG assembly, operand-free
 function assembly, per-CPU pointer output, integer atomics through fetch-or, and
@@ -103,27 +103,29 @@ count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
-The normal image has a 40-source checked CupidC production boundary. It
-contains all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop
-shell, the socket layer, TCP, ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139,
-speaker, VGA, AC'97, the system-call path, the shell, EHCI, and UHCI. The
-strict frontier compiles each approved source twice and accepts 675,340
-byte-identical i386 ELF32 bytes. It freezes 328 inputs with SHA-256
-`3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`.
+The normal image has a 116-source checked CupidC production boundary. It
+keeps the established 40 kernel and driver sources, adds 71 unchanged kernel
+and driver sources, and adds the shared `ctool.c`, `cupidasm.c`,
+`cupiddis.c`, `elf32.c`, and `x86.c` implementations. The strict frontier
+compiles each approved source twice and accepts 2,267,588 byte-identical i386
+ELF32 bytes. It freezes 404 inputs with SHA-256
+`bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe. Each recipe lists its exact recursive header
-closure.
+closure. A valid data-only object can omit `.text` when its other sections
+and symbols pass validation.
 
-The QEMU runtime contract passes on four vCPUs with both e1000 and
-RTL8139. Each run proves ACPI and MP discovery, every secondary CPU online,
-RDRAND, the 62 crypto checks, keyboard and mouse detach and reattach, ATA
-storage, AC'97 and PC speaker audio, six EHCI storage lifetimes, a
-zero-padded RTC timestamp, and DHCP traffic through the selected NIC. The
-gate rejects SMP, storage, crypto, exception, panic, corruption, and
+The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 traffic,
+passes all 62 crypto checks, opens the desktop and terminal, and completes
+embedded CupidC execution at `0x01100000`. The established e1000 and RTL8139
+gates continue to cover audio, input reattachment, and six EHCI storage
+lifetimes. A private-image smoke loads the same external ELF program twice at
+`0x00F00000`; cleanup releases the first arena lease before the second load.
+The gate rejects SMP, storage, crypto, exception, panic, corruption, and
 illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-The current audit assigns 40 transforms to CupidC, 257 C transforms to the
-host compiler, 49 transforms to host Python, and 205 root or user objects to
+The current audit assigns 116 transforms to CupidC, 181 C transforms to the
+host compiler, 125 transforms to host Python, and 129 root or user objects to
 host-built C.

@@ -39,7 +39,7 @@ CUPIDLD_SOURCES := ../toolchain/ctool.c ../toolchain/ctool.h \
                    ../toolchain/elf32.c ../toolchain/elf32.h \
                    ../toolchain/cupidld.c ../toolchain/cupidld.h \
                    ../toolchain/cupidld_main.c ../toolchain/Makefile
-USER_TEXT_ADDRESS ?= 0x00E00000
+USER_TEXT_ADDRESS ?= 0x00F00000
 # Cupid user programs have no CFI unwinder, so their objects must not retain
 # host-generated .eh_frame metadata either.
 FREESTANDING_CODEGEN_CFLAGS := -fno-asynchronous-unwind-tables -fno-unwind-tables

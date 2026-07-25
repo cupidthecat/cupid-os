@@ -308,8 +308,8 @@ drivers/timer.o: drivers/timer.c drivers/timer.h
 	$(CC) $(CFLAGS) drivers/timer.c -o drivers/timer.o
 
 # Add a rule to compile math.c
-kernel/cpu/math.o: kernel/cpu/math.c kernel/cpu/math.h
-	$(CC) $(CFLAGS) kernel/cpu/math.c -o kernel/cpu/math.o
+kernel/cpu/math.o: kernel/cpu/math.c kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/math.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/math.c --output kernel/cpu/math.o
 
 # Programmable interval timer driver
 drivers/pit.o: drivers/pit.c drivers/pit.h kernel/core/ports.h \
@@ -354,8 +354,8 @@ kernel/core/string.o: kernel/core/string.c kernel/core/string.h
 	$(CC) $(CFLAGS) $(OPT) kernel/core/string.c -o kernel/core/string.o
 
 # Add new rule for fs.o
-kernel/fs/fs.o: kernel/fs/fs.c kernel/fs/fs.h
-	$(CC) $(CFLAGS) kernel/fs/fs.c -o kernel/fs/fs.o
+kernel/fs/fs.o: kernel/fs/fs.c kernel/core/string.h kernel/core/types.h kernel/fs/fs.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fs.c --output kernel/fs/fs.o
 
 # Add new rule for memory.o
 kernel/mm/memory.o: kernel/mm/memory.c kernel/mm/memory.h
@@ -382,8 +382,8 @@ kernel/smp/lapic.o: kernel/smp/lapic.c kernel/smp/lapic.h kernel/core/ports.h ke
 	$(CC) $(CFLAGS) kernel/smp/lapic.c -o kernel/smp/lapic.o
 
 # IOAPIC redirection table + 8259 mask (P5 SMP)
-kernel/smp/ioapic.o: kernel/smp/ioapic.c kernel/smp/ioapic.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/smp/ioapic.c -o kernel/smp/ioapic.o
+kernel/smp/ioapic.o: kernel/smp/ioapic.c drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/smp/ioapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/ioapic.c --output kernel/smp/ioapic.o
 
 # Big Kernel Lock: recursive ticket spinlock, IRQ-save (P5 T7)
 kernel/smp/bkl.o: kernel/smp/bkl.c kernel/smp/bkl.h kernel/smp/percpu.h
@@ -403,20 +403,20 @@ kernel/smp/smp.o: kernel/smp/smp.c kernel/smp/smp.h kernel/smp/mp_tables.h kerne
 	$(CC) $(CFLAGS) kernel/smp/smp.c -o kernel/smp/smp.o
 
 # NIC interface scaffold + 64-slot lockless RX ring (P6 T1)
-kernel/network/net_if.o: kernel/network/net_if.c kernel/network/net_if.h kernel/network/arp.h kernel/network/ip.h kernel/network/tcp.h kernel/network/dhcp.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/network/net_if.c -o kernel/network/net_if.o
+kernel/network/net_if.o: kernel/network/net_if.c drivers/serial.h kernel/core/types.h kernel/network/arp.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/net_if.c --output kernel/network/net_if.o
 
 # ARP: 16-entry cache + blocking resolve + Ethernet dispatch (P6 T6)
-kernel/network/arp.o: kernel/network/arp.c kernel/network/arp.h kernel/network/net_if.h
-	$(CC) $(CFLAGS) kernel/network/arp.c -o kernel/network/arp.o
+kernel/network/arp.o: kernel/network/arp.c drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/arp.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/arp.c --output kernel/network/arp.o
 
 # IPv4: parse + build + dispatch to ICMP/UDP/TCP (P6 T7)
-kernel/network/ip.o: kernel/network/ip.c kernel/network/ip.h kernel/network/tcp.h kernel/network/net_if.h kernel/network/arp.h
-	$(CC) $(CFLAGS) kernel/network/ip.c -o kernel/network/ip.o
+kernel/network/ip.o: kernel/network/ip.c drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/arp.h kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h kernel/network/udp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/ip.c --output kernel/network/ip.o
 
 # ICMP: echo reply (P6 T8)
-kernel/network/icmp.o: kernel/network/icmp.c kernel/network/icmp.h kernel/network/ip.h
-	$(CC) $(CFLAGS) kernel/network/icmp.c -o kernel/network/icmp.o
+kernel/network/icmp.o: kernel/network/icmp.c drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/icmp.c --output kernel/network/icmp.o
 
 # UDP: send + recv + pseudo-header checksum (P6 T9)
 kernel/network/udp.o: kernel/network/udp.c kernel/network/udp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/dhcp.h
@@ -431,12 +431,12 @@ kernel/network/tcp.o: kernel/network/tcp.c drivers/timer.h kernel/core/kernel.h 
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/tcp.c --output kernel/network/tcp.o
 
 # DHCP client with static fallback (P6 T11)
-kernel/network/dhcp.o: kernel/network/dhcp.c kernel/network/dhcp.h kernel/network/net_if.h kernel/network/ip.h
-	$(CC) $(CFLAGS) kernel/network/dhcp.c -o kernel/network/dhcp.o
+kernel/network/dhcp.o: kernel/network/dhcp.c drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dhcp.c --output kernel/network/dhcp.o
 
 # DNS A-record resolver + 16-entry cache (P6 T12)
-kernel/network/dns.o: kernel/network/dns.c kernel/network/dns.h kernel/network/socket.h kernel/network/net_if.h
-	$(CC) $(CFLAGS) kernel/network/dns.c -o kernel/network/dns.o
+kernel/network/dns.o: kernel/network/dns.c drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dns.h kernel/network/net_if.h kernel/network/socket.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dns.c --output kernel/network/dns.o
 
 kernel/network/sshd.o: kernel/network/sshd.c kernel/network/sshd.h kernel/network/socket.h kernel/core/process.h kernel/lang/shell.h kernel/fs/vfs.h kernel/crypto/x25519.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/p256.h kernel/crypto/ecdsa.h
 	$(CC) $(CFLAGS) kernel/network/sshd.c -o kernel/network/sshd.o
@@ -517,36 +517,35 @@ kernel/crypto/x509_chain.o: kernel/crypto/x509_chain.c kernel/crypto/x509_chain.
 kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.c kernel/crypto/x509_chain.h kernel/core/types.h
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle.c -o kernel/tls/tls_ca_bundle.o
 
-kernel/tls/tls_record.o: kernel/tls/tls_record.c kernel/tls/tls_record.h kernel/crypto/chacha20poly1305.h kernel/crypto/aes_gcm.h kernel/crypto/ct.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_record.c -o kernel/tls/tls_record.o
+kernel/tls/tls_record.o: kernel/tls/tls_record.c kernel/core/types.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/chacha20poly1305.h kernel/crypto/ct.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_record.c --output kernel/tls/tls_record.o
 
-kernel/tls/tls_kdf.o: kernel/tls/tls_kdf.c kernel/tls/tls_kdf.h kernel/crypto/hkdf.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_kdf.c -o kernel/tls/tls_kdf.o
+kernel/tls/tls_kdf.o: kernel/tls/tls_kdf.c kernel/core/types.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/tls/tls_kdf.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_kdf.c --output kernel/tls/tls_kdf.o
 
-kernel/tls/tls_ctx.o: kernel/tls/tls_ctx.c kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/crypto/x509_chain.h kernel/crypto/sha256.h kernel/crypto/ct.h kernel/crypto/csprng.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_ctx.c -o kernel/tls/tls_ctx.o
+kernel/tls/tls_ctx.o: kernel/tls/tls_ctx.c kernel/core/types.h kernel/crypto/csprng.h kernel/crypto/ct.h kernel/crypto/p256.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ctx.c --output kernel/tls/tls_ctx.o
 
-kernel/tls/tls_handshake.o: kernel/tls/tls_handshake.c kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/tls_kdf.h kernel/crypto/sha256.h kernel/crypto/hmac.h kernel/crypto/hkdf.h kernel/crypto/ct.h kernel/crypto/csprng.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/crypto/rsa.h kernel/crypto/asn1.h kernel/tls/tls12_handshake.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_handshake.c -o kernel/tls/tls_handshake.o
+kernel/tls/tls_handshake.o: kernel/tls/tls_handshake.c drivers/serial.h kernel/core/types.h kernel/crypto/asn1.h kernel/crypto/csprng.h kernel/crypto/ct.h kernel/crypto/ecdsa.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_kdf.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_handshake.c --output kernel/tls/tls_handshake.o
 
-kernel/tls/tls12_handshake.o: kernel/tls/tls12_handshake.c kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h kernel/tls/tls_kdf.h kernel/crypto/sha256.h kernel/crypto/ct.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/crypto/rsa.h kernel/crypto/asn1.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls12_handshake.c -o kernel/tls/tls12_handshake.o
+kernel/tls/tls12_handshake.o: kernel/tls/tls12_handshake.c drivers/serial.h kernel/core/types.h kernel/crypto/asn1.h kernel/crypto/ct.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_kdf.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls12_handshake.c --output kernel/tls/tls12_handshake.o
 
 # Optional auto-generated bundle blob; only built if the file exists
 # (run tools/fetch_ca_bundle.sh to populate it).
 ifneq (,$(wildcard kernel/tls/tls_ca_bundle_data.c))
 KERNEL_OBJS += kernel/tls/tls_ca_bundle_data.o
-kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.c kernel/crypto/x509_chain.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle_data.c -o kernel/tls/tls_ca_bundle_data.o
+kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.c kernel/core/types.h kernel/crypto/x509.h kernel/crypto/x509_chain.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle_data.c --output kernel/tls/tls_ca_bundle_data.o
 endif
 
-kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/hmac.h kernel/crypto/hkdf.h kernel/crypto/chacha20poly1305.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/bigint.h kernel/crypto/rsa.h kernel/crypto/x25519.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/asn1.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/core/panic.h drivers/serial.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o
+kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c drivers/serial.h kernel/core/panic.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/asn1.h kernel/crypto/bigint.h kernel/crypto/chacha20poly1305.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls_selftest.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_selftest.c --output kernel/tls/tls_selftest.o
 
 # USB core scaffold
-kernel/usb/usb.o: kernel/usb/usb.c drivers/timer.h kernel/usb/usb.h \
-	kernel/usb/usb_hc.h
-	$(CC) $(CFLAGS) kernel/usb/usb.c -o kernel/usb/usb.o
+kernel/usb/usb.o: kernel/usb/usb.c drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb.c --output kernel/usb/usb.o
 
 # UHCI host controller init + port ops
 kernel/usb/uhci.o: kernel/usb/uhci.c drivers/pci.h drivers/serial.h \
@@ -565,17 +564,16 @@ kernel/usb/ehci.o: kernel/usb/ehci.c drivers/pci.h drivers/serial.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/ehci.c --output kernel/usb/ehci.o
 
 # USB HID boot-protocol keyboard driver
-kernel/usb/usb_hid.o: kernel/usb/usb_hid.c kernel/usb/usb.h kernel/usb/usb_hc.h \
-	drivers/keyboard.h drivers/serial.h drivers/timer.h
-	$(CC) $(CFLAGS) kernel/usb/usb_hid.c -o kernel/usb/usb_hid.o
+kernel/usb/usb_hid.o: kernel/usb/usb_hid.c drivers/keyboard.h drivers/mouse.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hid.c --output kernel/usb/usb_hid.o
 
 # USB hub class driver (recursive enumeration + TT routing)
-kernel/usb/usb_hub.o: kernel/usb/usb_hub.c kernel/usb/usb.h kernel/usb/usb_hc.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/usb/usb_hub.c -o kernel/usb/usb_hub.o
+kernel/usb/usb_hub.o: kernel/usb/usb_hub.c drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hub.c --output kernel/usb/usb_hub.o
 
 # USB mass storage class driver (BBB + SCSI)
-kernel/usb/usb_msc.o: kernel/usb/usb_msc.c kernel/usb/usb.h kernel/usb/usb_hc.h kernel/fs/blockdev.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/usb/usb_msc.c -o kernel/usb/usb_msc.o
+kernel/usb/usb_msc.o: kernel/usb/usb_msc.c drivers/serial.h kernel/core/types.h kernel/fs/blockdev.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_msc.c --output kernel/usb/usb_msc.o
 
 # AC97 audio: BDL DMA, IRQ, and smoke helper
 kernel/audio/ac97.o: kernel/audio/ac97.c drivers/pci.h drivers/serial.h \
@@ -585,33 +583,27 @@ kernel/audio/ac97.o: kernel/audio/ac97.c drivers/pci.h drivers/serial.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/ac97.c --output kernel/audio/ac97.o
 
 # Mixer — 16-slot s16 stereo software mixer
-kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/core/types.h \
-	drivers/serial.h
-	$(CC) $(CFLAGS) kernel/audio/mixer.c -o kernel/audio/mixer.o
+kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mixer.c --output kernel/audio/mixer.o
 
 # Nuked-OPL3 emulator — vendored LGPL-2.1, built with relaxed CFLAGS_DOOM
 kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.c kernel/audio/nuked_opl3.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
 # mus2midi + memio — vendored GPL-2, built with relaxed CFLAGS_DOOM
-kernel/audio/memio.o: kernel/audio/memio.c kernel/audio/memio.h \
-	kernel/core/types.h kernel/core/string.h kernel/mm/memory.h
-	$(CC) $(CFLAGS_DOOM) -o $@ $<
+kernel/audio/memio.o: kernel/audio/memio.c kernel/audio/memio.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/memio.c --output kernel/audio/memio.o
 
-kernel/audio/mus2midi.o: kernel/audio/mus2midi.c kernel/audio/mus2midi.h \
-	kernel/audio/memio.h kernel/core/types.h kernel/core/string.h kernel/mm/memory.h
-	$(CC) $(CFLAGS_DOOM) -o $@ $<
+kernel/audio/mus2midi.o: kernel/audio/mus2midi.c kernel/audio/memio.h kernel/audio/mus2midi.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mus2midi.c --output kernel/audio/mus2midi.o
 
 # midiopl — MIDI → OPL3 synth (our code; built with strict CFLAGS)
-kernel/audio/midiopl.o: kernel/audio/midiopl.c kernel/audio/midiopl.h \
-	kernel/audio/nuked_opl3.h kernel/core/types.h kernel/core/string.h drivers/serial.h
-	$(CC) $(CFLAGS) -o $@ $<
+kernel/audio/midiopl.o: kernel/audio/midiopl.c drivers/serial.h kernel/audio/midiopl.h kernel/audio/nuked_opl3.h kernel/core/string.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/midiopl.c --output kernel/audio/midiopl.o
 
 # OPL smoke test — Nuked-OPL3 → mixer → AC97 path verification
-kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.c kernel/audio/opl_smoke.h \
-	kernel/audio/nuked_opl3.h kernel/audio/mixer.h kernel/audio/ac97.h \
-	kernel/core/types.h drivers/serial.h
-	$(CC) $(CFLAGS) -o $@ $<
+kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.c drivers/serial.h kernel/audio/ac97.h kernel/audio/mixer.h kernel/audio/nuked_opl3.h kernel/audio/opl_smoke.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/opl_smoke.c --output kernel/audio/opl_smoke.o
 
 # dglibc — DOOM libc shim (heap/string/stdio/fmt/setjmp) built with relaxed CFLAGS_DOOM
 kernel/doom/dglibc.o: kernel/doom/dglibc.c kernel/doom/dglibc.h kernel/core/types.h \
@@ -687,12 +679,12 @@ kernel/mm/paging.o: kernel/mm/paging.c kernel/mm/memory.h
 	$(CC) $(CFLAGS) kernel/mm/paging.c -o kernel/mm/paging.o
 
 # Add new rule for blockdev.o
-kernel/fs/blockdev.o: kernel/fs/blockdev.c kernel/fs/blockdev.h
-	$(CC) $(CFLAGS) kernel/fs/blockdev.c -o kernel/fs/blockdev.o
+kernel/fs/blockdev.o: kernel/fs/blockdev.c kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockdev.c --output kernel/fs/blockdev.o
 
 # Add new rule for blockcache.o
-kernel/fs/blockcache.o: kernel/fs/blockcache.c kernel/fs/blockcache.h
-	$(CC) $(CFLAGS) kernel/fs/blockcache.c -o kernel/fs/blockcache.o
+kernel/fs/blockcache.o: kernel/fs/blockcache.c kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.c --output kernel/fs/blockcache.o
 
 # Add new rule for fat16.o
 kernel/fs/fat16.o: kernel/fs/fat16.c kernel/fs/fat16.h
@@ -731,20 +723,20 @@ drivers/mouse.o: drivers/mouse.c drivers/mouse.h drivers/serial.h \
 	$(CUPIDC_KERNEL_COMPILE) --source drivers/mouse.c --output drivers/mouse.o
 
 # 8x8 bitmap font
-kernel/gfx/font_8x8.o: kernel/gfx/font_8x8.c kernel/gfx/font_8x8.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/font_8x8.c -o kernel/gfx/font_8x8.o
+kernel/gfx/font_8x8.o: kernel/gfx/font_8x8.c kernel/core/types.h kernel/gfx/font_8x8.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/font_8x8.c --output kernel/gfx/font_8x8.o
 
 # Graphics primitives
-kernel/gfx/graphics.o: kernel/gfx/graphics.c kernel/gfx/graphics.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/graphics.c -o kernel/gfx/graphics.o
+kernel/gfx/graphics.o: kernel/gfx/graphics.c drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/cpu/simd.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/graphics.c --output kernel/gfx/graphics.o
 
 # GUI / window manager
-kernel/gui/gui.o: kernel/gui/gui.c kernel/gui/gui.h kernel/core/process.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui.c -o kernel/gui/gui.o
+kernel/gui/gui.o: kernel/gui/gui.c drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/vga.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/mm/memory.h kernel/smp/bkl.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui.c --output kernel/gui/gui.o
 
 # Calendar math and formatting
-kernel/util/calendar.o: kernel/util/calendar.c kernel/util/calendar.h
-	$(CC) $(CFLAGS) $(OPT) kernel/util/calendar.c -o kernel/util/calendar.o
+kernel/util/calendar.o: kernel/util/calendar.c drivers/rtc.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/util/calendar.c --output kernel/util/calendar.o
 
 # Desktop shell
 kernel/gui/desktop.o: kernel/gui/desktop.c drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -754,17 +746,17 @@ kernel/core/app_launch.o: kernel/core/app_launch.c kernel/core/app_launch.h kern
 	$(CC) $(CFLAGS) kernel/core/app_launch.c -o kernel/core/app_launch.o
 
 # Terminal application
-kernel/gui/ansi.o: kernel/gui/ansi.c kernel/gui/ansi.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/ansi.c -o kernel/gui/ansi.o
+kernel/gui/ansi.o: kernel/gui/ansi.c kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ansi.c --output kernel/gui/ansi.o
 
 kernel/gui/terminal_ansi.o: kernel/gui/terminal_ansi.c kernel/gui/terminal_ansi.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gui/terminal_ansi.c -o kernel/gui/terminal_ansi.o
 
-kernel/gui/terminal_app.o: kernel/gui/terminal_app.c kernel/gui/terminal_app.h kernel/gui/terminal_ansi.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/terminal_app.c -o kernel/gui/terminal_app.o
+kernel/gui/terminal_app.o: kernel/gui/terminal_app.c drivers/keyboard.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/gfx/font_8x8.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/terminal_ansi.h kernel/gui/terminal_app.h kernel/lang/shell.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/terminal_app.c --output kernel/gui/terminal_app.o
 
-kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c kernel/gui/ctxt_image_worker.h kernel/network/dns.h kernel/network/socket.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/process.h
-	$(CC) $(CFLAGS) kernel/gui/ctxt_image_worker.c -o kernel/gui/ctxt_image_worker.o
+kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gui/ctxt_image_worker.h kernel/mm/memory.h kernel/network/dns.h kernel/network/socket.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.c --output kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler (process.c)
 kernel/core/process.o: kernel/core/process.c kernel/core/process.h kernel/mm/memory.h
@@ -775,16 +767,16 @@ kernel/core/context_switch.o: kernel/core/context_switch.asm $(CUPIDASM)
 	$(CUPIDASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o
 
 # Clipboard
-kernel/gui/clipboard.o: kernel/gui/clipboard.c kernel/gui/clipboard.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/clipboard.c -o kernel/gui/clipboard.o
+kernel/gui/clipboard.o: kernel/gui/clipboard.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/clipboard.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/clipboard.c --output kernel/gui/clipboard.o
 
 # UI widget toolkit
-kernel/gui/ui.o: kernel/gui/ui.c kernel/gui/ui.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/ui.c -o kernel/gui/ui.o
+kernel/gui/ui.o: kernel/gui/ui.c drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_themes.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ui.c --output kernel/gui/ui.o
 
 # GodSpeak helper
-kernel/lang/godspeak.o: kernel/lang/godspeak.c kernel/lang/godspeak.h
-	$(CC) $(CFLAGS) $(OPT) kernel/lang/godspeak.c -o kernel/lang/godspeak.o
+kernel/lang/godspeak.o: kernel/lang/godspeak.c drivers/timer.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/godspeak.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/godspeak.c --output kernel/lang/godspeak.o
 
 kernel/cpu/fpu.o: kernel/cpu/fpu.c kernel/cpu/fpu.h kernel/core/panic.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/cpu/fpu.c -o kernel/cpu/fpu.o
@@ -792,48 +784,48 @@ kernel/cpu/fpu.o: kernel/cpu/fpu.c kernel/cpu/fpu.h kernel/core/panic.h drivers/
 kernel/cpu/libm.o: kernel/cpu/libm.c kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/cpu/libm.c -o kernel/cpu/libm.o
 
-kernel/lang/cupidscript_lex.o: kernel/lang/cupidscript_lex.c kernel/lang/cupidscript.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_lex.c -o kernel/lang/cupidscript_lex.o
+kernel/lang/cupidscript_lex.o: kernel/lang/cupidscript_lex.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_lex.c --output kernel/lang/cupidscript_lex.o
 
-kernel/lang/cupidscript_parse.o: kernel/lang/cupidscript_parse.c kernel/lang/cupidscript.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_parse.c -o kernel/lang/cupidscript_parse.o
+kernel/lang/cupidscript_parse.o: kernel/lang/cupidscript_parse.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_parse.c --output kernel/lang/cupidscript_parse.o
 
-kernel/lang/cupidscript_exec.o: kernel/lang/cupidscript_exec.c kernel/lang/cupidscript.h kernel/lang/shell.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_exec.c -o kernel/lang/cupidscript_exec.o
+kernel/lang/cupidscript_exec.o: kernel/lang/cupidscript_exec.c drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidc.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/lang/dis.h kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_exec.c --output kernel/lang/cupidscript_exec.o
 
-kernel/lang/cupidscript_runtime.o: kernel/lang/cupidscript_runtime.c kernel/lang/cupidscript.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_runtime.c -o kernel/lang/cupidscript_runtime.o
+kernel/lang/cupidscript_runtime.o: kernel/lang/cupidscript_runtime.c drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_runtime.c --output kernel/lang/cupidscript_runtime.o
 
-kernel/lang/cupidscript_streams.o: kernel/lang/cupidscript_streams.c kernel/lang/cupidscript_streams.h kernel/lang/cupidscript.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_streams.c -o kernel/lang/cupidscript_streams.o
+kernel/lang/cupidscript_streams.o: kernel/lang/cupidscript_streams.c drivers/keyboard.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_streams.c --output kernel/lang/cupidscript_streams.o
 
-kernel/lang/cupidscript_strings.o: kernel/lang/cupidscript_strings.c kernel/lang/cupidscript.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_strings.c -o kernel/lang/cupidscript_strings.o
+kernel/lang/cupidscript_strings.o: kernel/lang/cupidscript_strings.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_strings.c --output kernel/lang/cupidscript_strings.o
 
-kernel/lang/cupidscript_arrays.o: kernel/lang/cupidscript_arrays.c kernel/lang/cupidscript_arrays.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_arrays.c -o kernel/lang/cupidscript_arrays.o
+kernel/lang/cupidscript_arrays.o: kernel/lang/cupidscript_arrays.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/lang/cupidscript_arrays.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_arrays.c --output kernel/lang/cupidscript_arrays.o
 
-kernel/lang/cupidscript_jobs.o: kernel/lang/cupidscript_jobs.c kernel/lang/cupidscript_jobs.h kernel/core/process.h
-	$(CC) $(CFLAGS) kernel/lang/cupidscript_jobs.c -o kernel/lang/cupidscript_jobs.o
+kernel/lang/cupidscript_jobs.o: kernel/lang/cupidscript_jobs.c drivers/serial.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/lang/cupidscript_jobs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_jobs.c --output kernel/lang/cupidscript_jobs.o
 
 # VFS core
-kernel/fs/vfs.o: kernel/fs/vfs.c kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/fs/vfs.c -o kernel/fs/vfs.o
+kernel/fs/vfs.o: kernel/fs/vfs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs.c --output kernel/fs/vfs.o
 
 # RamFS
-kernel/fs/ramfs.o: kernel/fs/ramfs.c kernel/fs/ramfs.h kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/fs/ramfs.c -o kernel/fs/ramfs.o
+kernel/fs/ramfs.o: kernel/fs/ramfs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/ramfs.c --output kernel/fs/ramfs.o
 
 # DevFS
-kernel/fs/devfs.o: kernel/fs/devfs.c kernel/fs/devfs.h kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/fs/devfs.c -o kernel/fs/devfs.o
+kernel/fs/devfs.o: kernel/fs/devfs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/crypto/csprng.h kernel/fs/devfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/devfs.c --output kernel/fs/devfs.o
 
 # FAT16 VFS wrapper
-kernel/fs/fat16_vfs.o: kernel/fs/fat16_vfs.c kernel/fs/fat16_vfs.h kernel/fs/vfs.h kernel/fs/fat16.h
-	$(CC) $(CFLAGS) kernel/fs/fat16_vfs.c -o kernel/fs/fat16_vfs.o
+kernel/fs/fat16_vfs.o: kernel/fs/fat16_vfs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_vfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16_vfs.c --output kernel/fs/fat16_vfs.o
 
-kernel/fs/homefs.o: kernel/fs/homefs.c kernel/fs/homefs.h kernel/fs/fat16.h kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/fs/homefs.c -o kernel/fs/homefs.o
+kernel/fs/homefs.o: kernel/fs/homefs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.c --output kernel/fs/homefs.o
 
 # File-backed loop block device (for ISO9660 mounting)
 kernel/fs/loopdev.o: kernel/fs/loopdev.c kernel/fs/loopdev.h kernel/fs/blockdev.h kernel/fs/vfs.h kernel/mm/memory.h drivers/serial.h
@@ -843,18 +835,18 @@ kernel/fs/loopdev.o: kernel/fs/loopdev.c kernel/fs/loopdev.h kernel/fs/blockdev.
 kernel/fs/iso9660.o: kernel/fs/iso9660.c kernel/fs/iso9660.h kernel/fs/blockdev.h kernel/fs/vfs.h kernel/core/string.h drivers/serial.h
 	$(CC) $(CFLAGS) $(OPT) kernel/fs/iso9660.c -o kernel/fs/iso9660.o
 
-kernel/fs/iso9660_vfs.o: kernel/fs/iso9660_vfs.c kernel/fs/iso9660_vfs.h kernel/fs/iso9660.h kernel/fs/loopdev.h kernel/fs/vfs.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/fs/iso9660_vfs.c -o kernel/fs/iso9660_vfs.o
+kernel/fs/iso9660_vfs.o: kernel/fs/iso9660_vfs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/iso9660_vfs.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660_vfs.c --output kernel/fs/iso9660_vfs.o
 
-kernel/mm/swap_disk.o: kernel/mm/swap_disk.c kernel/mm/swap_disk.h kernel/fs/vfs.h drivers/serial.h
-	$(CC) $(CFLAGS) $(OPT) kernel/mm/swap_disk.c -o kernel/mm/swap_disk.o
+kernel/mm/swap_disk.o: kernel/mm/swap_disk.c drivers/serial.h kernel/core/types.h kernel/fs/vfs.h kernel/mm/swap_disk.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap_disk.c --output kernel/mm/swap_disk.o
 
-kernel/mm/swap.o: kernel/mm/swap.c kernel/mm/swap.h kernel/mm/swap_disk.h kernel/mm/memory.h kernel/fs/vfs.h drivers/serial.h
-	$(CC) $(CFLAGS) $(OPT) kernel/mm/swap.c -o kernel/mm/swap.o
+kernel/mm/swap.o: kernel/mm/swap.c drivers/serial.h kernel/core/panic.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/mm/memory.h kernel/mm/swap.h kernel/mm/swap_disk.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap.c --output kernel/mm/swap.o
 
 # Program loader (ELF + CUPD)
-kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel/core/process.h kernel/core/syscall.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/lang/exec.c -o kernel/lang/exec.o
+kernel/lang/exec.o: kernel/lang/exec.c drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/syscall.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/exec.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/exec.c --output kernel/lang/exec.o
 
 # Syscall table for ELF programs
 kernel/core/syscall.o: kernel/core/syscall.c drivers/ata.h drivers/pci.h \
@@ -870,8 +862,8 @@ kernel/core/syscall.o: kernel/core/syscall.c drivers/ata.h drivers/pci.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/syscall.c --output kernel/core/syscall.o
 
 # BMP image encoding/decoding
-kernel/gfx/bmp.o: kernel/gfx/bmp.c kernel/gfx/bmp.h kernel/fs/vfs.h kernel/mm/memory.h drivers/vga.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/bmp.c -o kernel/gfx/bmp.o
+kernel/gfx/bmp.o: kernel/gfx/bmp.c drivers/serial.h drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/bmp.c --output kernel/gfx/bmp.o
 
 kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/gfx/deflate.h kernel/mm/memory.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/png.c -o kernel/gfx/png.o
@@ -883,71 +875,71 @@ kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
 
 # TrueType font system: parser, rasterizer, registry/cache.
-kernel/gfx/ttf.o: kernel/gfx/ttf.c kernel/gfx/ttf.h drivers/serial.h kernel/core/string.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/ttf.c -o kernel/gfx/ttf.o
+kernel/gfx/ttf.o: kernel/gfx/ttf.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gfx/ttf.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/ttf.c --output kernel/gfx/ttf.o
 
 kernel/gfx/glyph_raster.o: kernel/gfx/glyph_raster.c kernel/gfx/glyph_raster.h kernel/mm/memory.h kernel/core/string.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/glyph_raster.c -o kernel/gfx/glyph_raster.o
 
-kernel/gfx/fontsys.o: kernel/gfx/fontsys.c kernel/gfx/fontsys.h kernel/gfx/ttf.h kernel/gfx/glyph_raster.h kernel/gfx/gfx2d.h kernel/mm/memory.h kernel/core/string.h drivers/serial.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/fontsys.c -o kernel/gfx/fontsys.o
+kernel/gfx/fontsys.o: kernel/gfx/fontsys.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/glyph_raster.h kernel/gfx/ttf.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/fontsys.c --output kernel/gfx/fontsys.o
 
 # VFS helpers (read_all, write_all, read_text, write_text)
-kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.c kernel/fs/vfs_helpers.h kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/fs/vfs_helpers.c -o kernel/fs/vfs_helpers.o
+kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.c kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.c --output kernel/fs/vfs_helpers.o
 
 # 2D graphics library (includes file dialog)
 kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.c kernel/gfx/gfx2d.h kernel/gfx/font_8x8.h drivers/vga.h kernel/fs/vfs.h kernel/gui/ui.h kernel/core/process.h drivers/keyboard.h drivers/mouse.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d.c -o kernel/gfx/gfx2d.o
 
 # gfx2d subsystems
-kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d.h kernel/gfx/bmp.h kernel/gfx/png.h kernel/gfx/jpeg.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/gfx/font_8x8.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_assets.c -o kernel/gfx/gfx2d_assets.o
+kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/bmp.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/jpeg.h kernel/gfx/png.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_assets.c --output kernel/gfx/gfx2d_assets.o
 
-kernel/gfx/gfx2d_transform.o: kernel/gfx/gfx2d_transform.c kernel/gfx/gfx2d_transform.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_transform.c -o kernel/gfx/gfx2d_transform.o
+kernel/gfx/gfx2d_transform.o: kernel/gfx/gfx2d_transform.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d_transform.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_transform.c --output kernel/gfx/gfx2d_transform.o
 
-kernel/gfx/gfx2d_effects.o: kernel/gfx/gfx2d_effects.c kernel/gfx/gfx2d_effects.h kernel/gfx/gfx2d.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_effects.c -o kernel/gfx/gfx2d_effects.o
+kernel/gfx/gfx2d_effects.o: kernel/gfx/gfx2d_effects.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_effects.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_effects.c --output kernel/gfx/gfx2d_effects.o
 
 # Desktop icon system
-kernel/gfx/gfx2d_icons.o: kernel/gfx/gfx2d_icons.c kernel/gfx/gfx2d_icons.h kernel/gfx/gfx2d.h kernel/fs/vfs.h kernel/core/string.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_icons.c -o kernel/gfx/gfx2d_icons.o
+kernel/gfx/gfx2d_icons.o: kernel/gfx/gfx2d_icons.c drivers/serial.h kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_icons.c --output kernel/gfx/gfx2d_icons.o
 
 # GUI subsystems
-kernel/gui/gui_widgets.o: kernel/gui/gui_widgets.c kernel/gui/gui_widgets.h kernel/gfx/gfx2d.h kernel/gui/ui.h kernel/gfx/font_8x8.h drivers/vga.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_widgets.c -o kernel/gui/gui_widgets.o
+kernel/gui/gui_widgets.o: kernel/gui/gui_widgets.c drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_widgets.c --output kernel/gui/gui_widgets.o
 
-kernel/gui/gui_containers.o: kernel/gui/gui_containers.c kernel/gui/gui_containers.h kernel/gfx/gfx2d.h kernel/gui/ui.h kernel/gfx/font_8x8.h drivers/vga.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_containers.c -o kernel/gui/gui_containers.o
+kernel/gui/gui_containers.o: kernel/gui/gui_containers.c drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_containers.h kernel/gui/gui_themes.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_containers.c --output kernel/gui/gui_containers.o
 
-kernel/gui/gui_menus.o: kernel/gui/gui_menus.c kernel/gui/gui_menus.h kernel/gfx/gfx2d.h kernel/gui/ui.h kernel/gfx/font_8x8.h drivers/vga.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_menus.c -o kernel/gui/gui_menus.o
+kernel/gui/gui_menus.o: kernel/gui/gui_menus.c drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_menus.c --output kernel/gui/gui_menus.o
 
-kernel/gui/gui_events.o: kernel/gui/gui_events.c kernel/gui/gui_events.h kernel/gfx/gfx2d.h kernel/gui/ui.h kernel/gui/gui.h kernel/gfx/font_8x8.h drivers/vga.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_events.c -o kernel/gui/gui_events.o
+kernel/gui/gui_events.o: kernel/gui/gui_events.c drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/gui_events.h kernel/gui/ui.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.c --output kernel/gui/gui_events.o
 
-kernel/gui/gui_themes.o: kernel/gui/gui_themes.c kernel/gui/gui_themes.h kernel/core/string.h kernel/mm/memory.h kernel/fs/fs.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_themes.c -o kernel/gui/gui_themes.o
+kernel/gui/gui_themes.o: kernel/gui/gui_themes.c kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gui/gui_themes.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.c --output kernel/gui/gui_themes.o
 
 # CupidC compiler
-toolchain/ctool.o: toolchain/ctool.c toolchain/ctool.h
-	$(CC) $(CFLAGS) toolchain/ctool.c -o toolchain/ctool.o
+toolchain/ctool.o: toolchain/ctool.c toolchain/ctool.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.c --output toolchain/ctool.o
 
-toolchain/elf32.o: toolchain/elf32.c toolchain/elf32.h toolchain/ctool.h
-	$(CC) $(CFLAGS) toolchain/elf32.c -o toolchain/elf32.o
+toolchain/elf32.o: toolchain/elf32.c toolchain/ctool.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.c --output toolchain/elf32.o
 
-toolchain/x86.o: toolchain/x86.c toolchain/x86.h toolchain/ctool.h
-	$(CC) $(CFLAGS) toolchain/x86.c -o toolchain/x86.o
+toolchain/x86.o: toolchain/x86.c toolchain/ctool.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.c --output toolchain/x86.o
 
-toolchain/cupiddis.o: toolchain/cupiddis.c toolchain/cupiddis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h
-	$(CC) $(CFLAGS) toolchain/cupiddis.c -o toolchain/cupiddis.o
+toolchain/cupiddis.o: toolchain/cupiddis.c toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.c --output toolchain/cupiddis.o
 
-toolchain/cupidasm.o: toolchain/cupidasm.c toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h
-	$(CC) $(CFLAGS) toolchain/cupidasm.c -o toolchain/cupidasm.o
+toolchain/cupidasm.o: toolchain/cupidasm.c toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.c --output toolchain/cupidasm.o
 
-kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/mm/memory.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/core/kernel.h kernel/core/string.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/lang/ctool_kernel.c -o kernel/lang/ctool_kernel.o
+kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.c --output kernel/lang/ctool_kernel.o
 
 kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc.c -o kernel/lang/cupidc.o
@@ -961,8 +953,8 @@ kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.c kernel/lang/cupidc.h
 kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.c kernel/lang/cupidc.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc_parse.c -o kernel/lang/cupidc_parse.o
 
-kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.c kernel/lang/cupidc.h kernel/lang/exec.h kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/lang/cupidc_elf.c -o kernel/lang/cupidc_elf.o
+kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.c drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.c --output kernel/lang/cupidc_elf.o
 
 kernel/lang/ssh_io.o: kernel/lang/ssh_io.c kernel/lang/ssh_io.h kernel/lang/shell.h drivers/keyboard.h kernel/core/process.h kernel/core/kernel.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/core/types.h
 	$(CC) $(CFLAGS) kernel/lang/ssh_io.c -o kernel/lang/ssh_io.o
@@ -971,11 +963,11 @@ kernel/lang/ssh_io.o: kernel/lang/ssh_io.c kernel/lang/ssh_io.h kernel/lang/shel
 kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/lang/as_elf.h kernel/lang/ctool_kernel.h kernel/lang/shell.h toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h
 	$(CC) $(CFLAGS) kernel/lang/as.c -o kernel/lang/as.o
 
-kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as_elf.h toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h
-	$(CC) $(CFLAGS) kernel/lang/as_elf.c -o kernel/lang/as_elf.o
+kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.c --output kernel/lang/as_elf.o
 
-kernel/lang/dis.o: kernel/lang/dis.c kernel/lang/dis.h kernel/lang/ctool_kernel.h toolchain/cupiddis.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/core/types.h kernel/core/kernel.h kernel/fs/vfs.h
-	$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o
+kernel/lang/dis.o: kernel/lang/dis.c kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/dis.c --output kernel/lang/dis.o
 
 # Auto-generate browser CSS data tables from Blink .in files.
 # Produces gen_css_properties.h, gen_css_keywords.h, gen_media_features.h

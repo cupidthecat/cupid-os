@@ -117,8 +117,8 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 40 kernel sources in the normal image build.
-The first 20 make up the complete crypto cohort:
+The checked CupidC seed compiles 116 C sources in the normal image build.
+The complete 20-source crypto cohort includes:
 - AES and AES-GCM
 - ChaCha20 and ChaCha20-Poly1305
 - constant-time helpers, HMAC, and HKDF
@@ -127,14 +127,20 @@ The first 20 make up the complete crypto cohort:
 - ASN.1, X.509 parsing, and X.509 chain handling
 - the CSPRNG and its CPU entropy probes
 
-ACPI and MP-table discovery, e1000, the desktop shell, the socket layer, TCP,
-ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, the
-system-call path, the shell, EHCI, and UHCI make up the other 20 sources.
+The established driver and kernel group also includes ACPI and MP-table
+discovery, e1000, the desktop shell, the socket layer, TCP, ATA, keyboard,
+mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, system calls, the shell,
+EHCI, and UHCI. Seventy-one more unchanged sources cover audio, filesystems,
+graphics, GUI, language services, memory, networking, SMP, TLS, USB, and
+utility code. The shared ctool.c, cupidasm.c, cupiddis.c, elf32.c, and x86.c
+implementations complete the current group.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
-the build output. The strict frontier compiles all 40 approved sources twice
-and requires 675,340 object bytes to match. It freezes 328 inputs with
-SHA-256 3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032.
+the build output. A valid data-only object may omit .text, but its other
+sections and symbols must still pass validation. The strict frontier compiles
+all 116 approved sources twice and requires 2,267,588 object bytes to match.
+It freezes 404 inputs with SHA-256
+bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03.
 
 The boot self-test runs production code from the complete cohort. Its 62 checks
 cover cryptographic primitives, positive and negative ASN.1 inputs, X.509
@@ -144,12 +150,14 @@ ownership check, not a claim that certificate trust validation is complete.
 
 The CSPRNG path represents typed GNU assembly outputs and a matching input,
 emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model, and preserves
-EBX. The 40-object runtime contract passes on four vCPUs with e1000
-and RTL8139. Each run covers SMP, crypto, keyboard and mouse detach and
+EBX. The four-vCPU GUI contract reaches SMP, all 62 crypto checks, e1000
+traffic, the desktop, terminal, and CupidC execution at 0x01100000. The
+established e1000 and RTL8139 gates still cover keyboard and mouse detach and
 reattach, ATA, AC'97 and PC speaker audio, EHCI storage across six lifetimes,
-a zero-padded RTC timestamp, and DHCP traffic through the selected NIC.
-CupidC optimization, removal of the Python and WSL launch bridge, and the
-remaining kernel C graph are still in progress.
+a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check loads
+the same external ELF program twice at 0x00F00000 and releases its first arena
+lease before the second load. CupidC optimization, removal of the Python and
+WSL launch bridge, and the remaining kernel C graph are still in progress.
 
 CupidC also represents operand-free GNU assembly inside functions. Basic
 statements and extended statements with an empty output list are implicitly
@@ -187,7 +195,7 @@ FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
 header gate is 154/154 at compiler head.
 
 The refreshed checked seed carries this port-I/O capability. The normal build
-uses it in the 40-source CupidC cohort. It emits unchanged kernel/smp/acpi.c
+uses it in the 116-source CupidC cohort. It emits unchanged kernel/smp/acpi.c
 and kernel/smp/mp_tables.c with the checked seed. Their 5,708-byte and
 4,156-byte objects are deterministic and validated. Exact recursive header
 closures and poisoned host recipes protect each transferred build rule.
@@ -519,12 +527,12 @@ parameter types, aggregate variadic reads, wide strings, literal pooling, and
 block-static addresses in other
 block-static initializers remain unfinished in the shared path.
 
-The shared path builds 40 normal Cupid OS objects: the 20 crypto units,
-ACPI and MP-table discovery, e1000, the desktop shell, the socket layer, TCP,
-ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, the
-system-call path, the shell, EHCI, and UHCI. The host compiler owns 257 C
-transforms and 205 root or user objects. Host Python owns 49 transforms. The
-private in-kernel CupidC compiler still handles embedded runtime compilation.
+The shared path builds 116 normal Cupid OS objects. It owns the established
+40-source kernel and driver group, 71 additional kernel and driver sources,
+and five shared toolchain implementations. The host compiler owns 181 C
+transforms and 129 root or user objects. Host Python owns 125 transforms.
+The private in-kernel CupidC compiler still handles embedded runtime
+compilation.
 >endtree
 
 >h2 C Compatibility Notes

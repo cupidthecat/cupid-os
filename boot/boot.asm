@@ -258,7 +258,7 @@ init_pm:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esp, 0xE00000           ; Boot stack top (2 MB stack from 0xC00000).
+    mov esp, 0xF00000           ; Boot stack top (2 MB stack from 0xD00000).
                                 ; The stack and external ELF arena use the
                                 ; former 1 MB gap below CupidC's fixed arena.
     mov ebp, esp

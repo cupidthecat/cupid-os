@@ -43,16 +43,16 @@
 #define CC_MAX_LABEL_PATCHES 128     /* pending goto patches/label */
 
 /* JIT/AOT regions live well above kernel BSS and kernel stack.
- * Layout puts the JIT image at 16 MB, with 9 MB of code+data headroom
- * (1 MB code + 8 MB data) before CupidASM at 26 MB. The browser's
+ * Layout puts the JIT image at 17 MB, with 9 MB of code and data headroom
+ * (1 MB code and 8 MB data) before CupidASM at 26 MB. The browser's
  * static globals (parallel arrays for DOM/style/RT/atom pools, plus
  * 128 webfont slots with 3-deep URL fallbacks) are the largest user
  * of the data section so far.*/
-#define CC_JIT_CODE_BASE 0x01000000u
-#define CC_JIT_DATA_BASE 0x01100000u /* 1 MB after code */
+#define CC_JIT_CODE_BASE 0x01100000u
+#define CC_JIT_DATA_BASE 0x01200000u /* 1 MB after code */
 
-#define CC_AOT_CODE_BASE 0x01000000u
-#define CC_AOT_DATA_BASE 0x01100000u /* 1 MB after code */
+#define CC_AOT_CODE_BASE 0x01100000u
+#define CC_AOT_DATA_BASE 0x01200000u /* 1 MB after code */
 
 /* Token Types */
 typedef enum {

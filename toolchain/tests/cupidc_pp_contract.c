@@ -135,9 +135,9 @@ static const active_row_t active_rows[] = {
 };
 
 static const active_expected_profile_t active_expected_profiles[] = {
-    {"KERNEL_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 152u,
+    {"KERNEL_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 154u,
      18u, 8u, 0u},
-    {"DOOM_COMPAT_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 6u,
+    {"DOOM_COMPAT_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 4u,
      20u, 7u, 0u},
     {"DOOM_TREE_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, 80u,
      20u, 9u, 1u},

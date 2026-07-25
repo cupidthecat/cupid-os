@@ -26,7 +26,7 @@
         ".text"
       ],
       "path": "link.ld",
-      "sha256": "ec69f3e03b7b1b05ed75efee6f953d89b63c6e6ee46c314113f5d4630b88f80b"
+      "sha256": "2c8da90636551e805149b7c8e50dd071dcc02d7eadb9b1148626df566d0fcae1"
     },
     "object_interchange": "ELF32 ET_REL",
     "plain_char": "signed",
@@ -3083,35 +3083,57 @@
         "inputs": [
           "kernel/audio/memio.c",
           "kernel/audio/memio.h",
-          "kernel/core/types.h",
           "kernel/core/string.h",
-          "kernel/mm/memory.h"
+          "kernel/core/types.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/audio/memio.o",
         "recipe": [
-          "$(CC) $(CFLAGS_DOOM) -o $@ $<"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/memio.c --output kernel/audio/memio.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/audio/midiopl.c",
+          "drivers/serial.h",
           "kernel/audio/midiopl.h",
           "kernel/audio/nuked_opl3.h",
-          "kernel/core/types.h",
           "kernel/core/string.h",
-          "drivers/serial.h"
+          "kernel/core/types.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/audio/midiopl.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -o $@ $<"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/midiopl.c --output kernel/audio/midiopl.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3119,33 +3141,54 @@
           "kernel/audio/mixer.c",
           "kernel/audio/mixer.h",
           "kernel/core/types.h",
-          "drivers/serial.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/audio/mixer.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/audio/mixer.c -o kernel/audio/mixer.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mixer.c --output kernel/audio/mixer.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/audio/mus2midi.c",
-          "kernel/audio/mus2midi.h",
           "kernel/audio/memio.h",
-          "kernel/core/types.h",
+          "kernel/audio/mus2midi.h",
           "kernel/core/string.h",
-          "kernel/mm/memory.h"
+          "kernel/core/types.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/audio/mus2midi.o",
         "recipe": [
-          "$(CC) $(CFLAGS_DOOM) -o $@ $<"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mus2midi.c --output kernel/audio/mus2midi.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3165,20 +3208,31 @@
       {
         "inputs": [
           "kernel/audio/opl_smoke.c",
-          "kernel/audio/opl_smoke.h",
-          "kernel/audio/nuked_opl3.h",
-          "kernel/audio/mixer.h",
+          "drivers/serial.h",
           "kernel/audio/ac97.h",
+          "kernel/audio/mixer.h",
+          "kernel/audio/nuked_opl3.h",
+          "kernel/audio/opl_smoke.h",
           "kernel/core/types.h",
-          "drivers/serial.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/audio/opl_smoke.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -o $@ $<"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/opl_smoke.c --output kernel/audio/opl_smoke.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3450,15 +3504,29 @@
       {
         "inputs": [
           "kernel/cpu/math.c",
-          "kernel/cpu/math.h"
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/cpu/math.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/cpu/math.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/cpu/math.c -o kernel/cpu/math.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/math.c --output kernel/cpu/math.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5144,44 +5212,95 @@
       {
         "inputs": [
           "kernel/fs/blockcache.c",
-          "kernel/fs/blockcache.h"
+          "kernel/core/debug.h",
+          "kernel/core/kernel.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/blockcache.h",
+          "kernel/fs/blockdev.h",
+          "kernel/fs/homefs.h",
+          "kernel/fs/vfs.h",
+          "kernel/mm/memory.h",
+          "kernel/smp/bkl.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/blockcache.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/blockcache.c -o kernel/fs/blockcache.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.c --output kernel/fs/blockcache.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/fs/blockdev.c",
-          "kernel/fs/blockdev.h"
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/blockdev.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/blockdev.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/blockdev.c -o kernel/fs/blockdev.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockdev.c --output kernel/fs/blockdev.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/fs/devfs.c",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/crypto/csprng.h",
           "kernel/fs/devfs.h",
-          "kernel/fs/vfs.h"
+          "kernel/fs/vfs.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/devfs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/devfs.c -o kernel/fs/devfs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/devfs.c --output kernel/fs/devfs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5201,47 +5320,94 @@
       {
         "inputs": [
           "kernel/fs/fat16_vfs.c",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/blockdev.h",
+          "kernel/fs/fat16.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/vfs.h",
-          "kernel/fs/fat16.h"
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/fat16_vfs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/fat16_vfs.c -o kernel/fs/fat16_vfs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16_vfs.c --output kernel/fs/fat16_vfs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/fs/fs.c",
-          "kernel/fs/fs.h"
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/fs.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/fs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/fs.c -o kernel/fs/fs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fs.c --output kernel/fs/fs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/fs/homefs.c",
-          "kernel/fs/homefs.h",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/blockcache.h",
+          "kernel/fs/blockdev.h",
           "kernel/fs/fat16.h",
-          "kernel/fs/vfs.h"
+          "kernel/fs/homefs.h",
+          "kernel/fs/vfs.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/homefs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/homefs.c -o kernel/fs/homefs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.c --output kernel/fs/homefs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5265,19 +5431,34 @@
       {
         "inputs": [
           "kernel/fs/iso9660_vfs.c",
-          "kernel/fs/iso9660_vfs.h",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/blockdev.h",
           "kernel/fs/iso9660.h",
+          "kernel/fs/iso9660_vfs.h",
           "kernel/fs/loopdev.h",
           "kernel/fs/vfs.h",
-          "drivers/serial.h"
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/iso9660_vfs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/iso9660_vfs.c -o kernel/fs/iso9660_vfs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660_vfs.c --output kernel/fs/iso9660_vfs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5301,62 +5482,120 @@
       {
         "inputs": [
           "kernel/fs/ramfs.c",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
           "kernel/fs/ramfs.h",
-          "kernel/fs/vfs.h"
+          "kernel/fs/vfs.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/ramfs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/ramfs.c -o kernel/fs/ramfs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/ramfs.c --output kernel/fs/ramfs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/fs/vfs.c",
-          "kernel/fs/vfs.h"
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/vfs.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/vfs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/vfs.c -o kernel/fs/vfs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs.c --output kernel/fs/vfs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/fs/vfs_helpers.c",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/vfs.h",
           "kernel/fs/vfs_helpers.h",
-          "kernel/fs/vfs.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/fs/vfs_helpers.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/fs/vfs_helpers.c -o kernel/fs/vfs_helpers.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.c --output kernel/fs/vfs_helpers.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gfx/bmp.c",
-          "kernel/gfx/bmp.h",
+          "drivers/serial.h",
+          "drivers/vga.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
           "kernel/fs/vfs.h",
+          "kernel/gfx/bmp.h",
+          "kernel/gfx/gfx2d.h",
           "kernel/mm/memory.h",
-          "drivers/vga.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/bmp.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/bmp.c -o kernel/gfx/bmp.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/bmp.c --output kernel/gfx/bmp.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5376,35 +5615,61 @@
       {
         "inputs": [
           "kernel/gfx/font_8x8.c",
-          "kernel/gfx/font_8x8.h"
+          "kernel/core/types.h",
+          "kernel/gfx/font_8x8.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/font_8x8.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/font_8x8.c -o kernel/gfx/font_8x8.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/font_8x8.c --output kernel/gfx/font_8x8.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gfx/fontsys.c",
-          "kernel/gfx/fontsys.h",
-          "kernel/gfx/ttf.h",
-          "kernel/gfx/glyph_raster.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/mm/memory.h",
+          "drivers/serial.h",
           "kernel/core/string.h",
-          "drivers/serial.h"
+          "kernel/core/types.h",
+          "kernel/fs/vfs.h",
+          "kernel/fs/vfs_helpers.h",
+          "kernel/gfx/fontsys.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/glyph_raster.h",
+          "kernel/gfx/ttf.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/fontsys.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/fontsys.c -o kernel/gfx/fontsys.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/fontsys.c --output kernel/gfx/fontsys.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5431,73 +5696,132 @@
       {
         "inputs": [
           "kernel/gfx/gfx2d_assets.c",
-          "kernel/gfx/gfx2d_assets.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/gfx/bmp.h",
-          "kernel/gfx/png.h",
-          "kernel/gfx/jpeg.h",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
           "kernel/fs/vfs.h",
           "kernel/fs/vfs_helpers.h",
+          "kernel/gfx/bmp.h",
+          "kernel/gfx/font_8x8.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/gfx2d_assets.h",
+          "kernel/gfx/jpeg.h",
+          "kernel/gfx/png.h",
           "kernel/mm/memory.h",
-          "kernel/gfx/font_8x8.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/gfx2d_assets.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_assets.c -o kernel/gfx/gfx2d_assets.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_assets.c --output kernel/gfx/gfx2d_assets.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gfx/gfx2d_effects.c",
-          "kernel/gfx/gfx2d_effects.h",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/simd.h",
           "kernel/gfx/gfx2d.h",
-          "kernel/mm/memory.h"
+          "kernel/gfx/gfx2d_effects.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/gfx2d_effects.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_effects.c -o kernel/gfx/gfx2d_effects.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_effects.c --output kernel/gfx/gfx2d_effects.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gfx/gfx2d_icons.c",
-          "kernel/gfx/gfx2d_icons.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/fs/vfs.h",
+          "drivers/serial.h",
+          "kernel/core/app_launch.h",
+          "kernel/core/process.h",
           "kernel/core/string.h",
-          "kernel/mm/memory.h"
+          "kernel/core/types.h",
+          "kernel/fs/vfs.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/gfx2d_icons.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/gfx2d_icons.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_icons.c -o kernel/gfx/gfx2d_icons.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_icons.c --output kernel/gfx/gfx2d_icons.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gfx/gfx2d_transform.c",
-          "kernel/gfx/gfx2d_transform.h",
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/math.h",
           "kernel/gfx/gfx2d.h",
-          "kernel/gfx/gfx2d_assets.h"
+          "kernel/gfx/gfx2d_assets.h",
+          "kernel/gfx/gfx2d_transform.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/gfx2d_transform.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d_transform.c -o kernel/gfx/gfx2d_transform.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_transform.c --output kernel/gfx/gfx2d_transform.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5520,15 +5844,33 @@
       {
         "inputs": [
           "kernel/gfx/graphics.c",
-          "kernel/gfx/graphics.h"
+          "drivers/vga.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/simd.h",
+          "kernel/gfx/font_8x8.h",
+          "kernel/gfx/fontsys.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/graphics.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/graphics.c -o kernel/gfx/graphics.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/graphics.c --output kernel/gfx/graphics.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5566,64 +5908,120 @@
       {
         "inputs": [
           "kernel/gfx/ttf.c",
-          "kernel/gfx/ttf.h",
           "drivers/serial.h",
-          "kernel/core/string.h"
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gfx/ttf.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/ttf.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/ttf.c -o kernel/gfx/ttf.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/ttf.c --output kernel/gfx/ttf.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/ansi.c",
-          "kernel/gui/ansi.h"
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gui/ansi.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/ansi.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/ansi.c -o kernel/gui/ansi.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ansi.c --output kernel/gui/ansi.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/clipboard.c",
-          "kernel/gui/clipboard.h"
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gui/clipboard.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/clipboard.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/clipboard.c -o kernel/gui/clipboard.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/clipboard.c --output kernel/gui/clipboard.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/ctxt_image_worker.c",
-          "kernel/gui/ctxt_image_worker.h",
-          "kernel/network/dns.h",
-          "kernel/network/socket.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
           "kernel/fs/vfs.h",
           "kernel/fs/vfs_helpers.h",
-          "kernel/core/process.h"
+          "kernel/gui/ctxt_image_worker.h",
+          "kernel/mm/memory.h",
+          "kernel/network/dns.h",
+          "kernel/network/socket.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/ctxt_image_worker.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/gui/ctxt_image_worker.c -o kernel/gui/ctxt_image_worker.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.c --output kernel/gui/ctxt_image_worker.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -5697,136 +6095,277 @@
       {
         "inputs": [
           "kernel/gui/gui.c",
+          "drivers/mouse.h",
+          "drivers/rtc.h",
+          "drivers/serial.h",
+          "drivers/vga.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/cpu/simd.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/desktop.h",
           "kernel/gui/gui.h",
-          "kernel/core/process.h"
+          "kernel/gui/gui_themes.h",
+          "kernel/mm/memory.h",
+          "kernel/smp/bkl.h",
+          "kernel/util/calendar.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/gui.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/gui.c -o kernel/gui/gui.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui.c --output kernel/gui/gui.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/gui_containers.c",
-          "kernel/gui/gui_containers.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/gui/ui.h",
+          "drivers/vga.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
           "kernel/gfx/font_8x8.h",
-          "drivers/vga.h"
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/gui_containers.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/ui.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/gui_containers.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_containers.c -o kernel/gui/gui_containers.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_containers.c --output kernel/gui/gui_containers.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/gui_events.c",
-          "kernel/gui/gui_events.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/gui/ui.h",
-          "kernel/gui/gui.h",
-          "kernel/gfx/font_8x8.h",
           "drivers/vga.h",
-          "kernel/mm/memory.h"
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gfx/font_8x8.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/gui.h",
+          "kernel/gui/gui_events.h",
+          "kernel/gui/ui.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/gui_events.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_events.c -o kernel/gui/gui_events.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.c --output kernel/gui/gui_events.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/gui_menus.c",
-          "kernel/gui/gui_menus.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/gui/ui.h",
+          "drivers/vga.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
           "kernel/gfx/font_8x8.h",
-          "drivers/vga.h"
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/gui_menus.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/ui.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/gui_menus.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_menus.c -o kernel/gui/gui_menus.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_menus.c --output kernel/gui/gui_menus.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/gui_themes.c",
-          "kernel/gui/gui_themes.h",
           "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/vfs.h",
+          "kernel/gui/gui_themes.h",
           "kernel/mm/memory.h",
-          "kernel/fs/fs.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/gui_themes.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_themes.c -o kernel/gui/gui_themes.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.c --output kernel/gui/gui_themes.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/gui_widgets.c",
-          "kernel/gui/gui_widgets.h",
-          "kernel/gfx/gfx2d.h",
-          "kernel/gui/ui.h",
+          "drivers/vga.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/math.h",
           "kernel/gfx/font_8x8.h",
-          "drivers/vga.h"
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/gui_widgets.h",
+          "kernel/gui/ui.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/gui_widgets.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/gui_widgets.c -o kernel/gui/gui_widgets.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_widgets.c --output kernel/gui/gui_widgets.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/terminal_app.c",
+          "drivers/keyboard.h",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "drivers/vga.h",
+          "kernel/core/kernel.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/irq.h",
+          "kernel/cpu/isr.h",
+          "kernel/gfx/font_8x8.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/gui.h",
+          "kernel/gui/terminal_ansi.h",
           "kernel/gui/terminal_app.h",
-          "kernel/gui/terminal_ansi.h"
+          "kernel/lang/shell.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/terminal_app.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/terminal_app.c -o kernel/gui/terminal_app.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/terminal_app.c --output kernel/gui/terminal_app.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/gui/ui.c",
-          "kernel/gui/ui.h"
+          "drivers/vga.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gfx/font_8x8.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/ui.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gui/ui.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gui/ui.c -o kernel/gui/ui.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ui.c --output kernel/gui/ui.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -6749,41 +7288,67 @@
         "inputs": [
           "kernel/lang/as_elf.c",
           "kernel/lang/as_elf.h",
-          "toolchain/cupidasm.h",
           "toolchain/ctool.h",
-          "toolchain/elf32.h"
+          "toolchain/cupidasm.h",
+          "toolchain/elf32.h",
+          "toolchain/x86.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/as_elf.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/as_elf.c -o kernel/lang/as_elf.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.c --output kernel/lang/as_elf.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/ctool_kernel.c",
+          "drivers/serial.h",
+          "kernel/core/kernel.h",
+          "kernel/core/panic.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/vfs.h",
+          "kernel/fs/vfs_helpers.h",
           "kernel/lang/ctool_kernel.h",
           "kernel/lang/dis.h",
+          "kernel/mm/memory.h",
           "toolchain/ctool.h",
           "toolchain/elf32.h",
           "toolchain/x86.h",
-          "kernel/mm/memory.h",
-          "kernel/fs/vfs.h",
-          "kernel/fs/vfs_helpers.h",
-          "kernel/core/kernel.h",
-          "kernel/core/string.h",
-          "drivers/serial.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/ctool_kernel.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/ctool_kernel.c -o kernel/lang/ctool_kernel.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.c --output kernel/lang/ctool_kernel.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -6810,17 +7375,34 @@
       {
         "inputs": [
           "kernel/lang/cupidc_elf.c",
+          "drivers/serial.h",
+          "kernel/core/kernel.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/vfs.h",
           "kernel/lang/cupidc.h",
+          "kernel/lang/dis.h",
           "kernel/lang/exec.h",
-          "kernel/fs/vfs.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidc_elf.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidc_elf.c -o kernel/lang/cupidc_elf.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.c --output kernel/lang/cupidc_elf.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -6869,170 +7451,375 @@
       {
         "inputs": [
           "kernel/lang/cupidscript_arrays.c",
-          "kernel/lang/cupidscript_arrays.h"
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_arrays.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_arrays.c -o kernel/lang/cupidscript_arrays.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_arrays.c --output kernel/lang/cupidscript_arrays.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_exec.c",
+          "drivers/rtc.h",
+          "drivers/serial.h",
+          "kernel/core/kernel.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/blockdev.h",
+          "kernel/fs/fat16.h",
+          "kernel/fs/fs.h",
+          "kernel/fs/vfs.h",
+          "kernel/gui/ansi.h",
+          "kernel/lang/cupidc.h",
           "kernel/lang/cupidscript.h",
-          "kernel/lang/shell.h"
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/lang/cupidscript_jobs.h",
+          "kernel/lang/cupidscript_streams.h",
+          "kernel/lang/dis.h",
+          "kernel/lang/exec.h",
+          "kernel/lang/shell.h",
+          "kernel/mm/memory.h",
+          "kernel/util/calendar.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_exec.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_exec.c -o kernel/lang/cupidscript_exec.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_exec.c --output kernel/lang/cupidscript_exec.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_jobs.c",
+          "drivers/serial.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/math.h",
           "kernel/lang/cupidscript_jobs.h",
-          "kernel/core/process.h"
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_jobs.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_jobs.c -o kernel/lang/cupidscript_jobs.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_jobs.c --output kernel/lang/cupidscript_jobs.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_lex.c",
-          "kernel/lang/cupidscript.h"
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gui/ansi.h",
+          "kernel/lang/cupidscript.h",
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/lang/cupidscript_jobs.h",
+          "kernel/lang/cupidscript_streams.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_lex.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_lex.c -o kernel/lang/cupidscript_lex.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_lex.c --output kernel/lang/cupidscript_lex.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_parse.c",
-          "kernel/lang/cupidscript.h"
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gui/ansi.h",
+          "kernel/lang/cupidscript.h",
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/lang/cupidscript_jobs.h",
+          "kernel/lang/cupidscript_streams.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_parse.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_parse.c -o kernel/lang/cupidscript_parse.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_parse.c --output kernel/lang/cupidscript_parse.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_runtime.c",
-          "kernel/lang/cupidscript.h"
+          "drivers/rtc.h",
+          "drivers/serial.h",
+          "kernel/core/kernel.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/gui/ansi.h",
+          "kernel/lang/cupidscript.h",
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/lang/cupidscript_jobs.h",
+          "kernel/lang/cupidscript_streams.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_runtime.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_runtime.c -o kernel/lang/cupidscript_runtime.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_runtime.c --output kernel/lang/cupidscript_runtime.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_streams.c",
+          "drivers/keyboard.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/irq.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/vfs.h",
+          "kernel/gui/ansi.h",
+          "kernel/lang/cupidscript.h",
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/lang/cupidscript_jobs.h",
           "kernel/lang/cupidscript_streams.h",
-          "kernel/lang/cupidscript.h"
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_streams.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_streams.c -o kernel/lang/cupidscript_streams.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_streams.c --output kernel/lang/cupidscript_streams.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/cupidscript_strings.c",
-          "kernel/lang/cupidscript.h"
+          "drivers/serial.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/gui/ansi.h",
+          "kernel/lang/cupidscript.h",
+          "kernel/lang/cupidscript_arrays.h",
+          "kernel/lang/cupidscript_jobs.h",
+          "kernel/lang/cupidscript_streams.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/cupidscript_strings.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/cupidscript_strings.c -o kernel/lang/cupidscript_strings.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_strings.c --output kernel/lang/cupidscript_strings.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/dis.c",
-          "kernel/lang/dis.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/vfs.h",
           "kernel/lang/ctool_kernel.h",
-          "toolchain/cupiddis.h",
+          "kernel/lang/dis.h",
           "toolchain/ctool.h",
+          "toolchain/cupiddis.h",
           "toolchain/elf32.h",
           "toolchain/x86.h",
-          "kernel/core/types.h",
-          "kernel/core/kernel.h",
-          "kernel/fs/vfs.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/dis.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/dis.c -o kernel/lang/dis.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/dis.c --output kernel/lang/dis.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/exec.c",
-          "kernel/lang/exec.h",
-          "kernel/fs/vfs.h",
+          "drivers/serial.h",
+          "kernel/core/kernel.h",
           "kernel/core/process.h",
+          "kernel/core/string.h",
           "kernel/core/syscall.h",
-          "kernel/mm/memory.h"
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/vfs.h",
+          "kernel/lang/exec.h",
+          "kernel/mm/memory.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/exec.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/lang/exec.c -o kernel/lang/exec.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/exec.c --output kernel/lang/exec.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/lang/godspeak.c",
-          "kernel/lang/godspeak.h"
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/lang/godspeak.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/lang/godspeak.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/lang/godspeak.c -o kernel/lang/godspeak.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/godspeak.c --output kernel/lang/godspeak.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7163,133 +7950,254 @@
       {
         "inputs": [
           "kernel/mm/swap.c",
+          "drivers/serial.h",
+          "kernel/core/panic.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/fs/vfs.h",
+          "kernel/mm/memory.h",
           "kernel/mm/swap.h",
           "kernel/mm/swap_disk.h",
-          "kernel/mm/memory.h",
-          "kernel/fs/vfs.h",
-          "drivers/serial.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/mm/swap.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/mm/swap.c -o kernel/mm/swap.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap.c --output kernel/mm/swap.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/mm/swap_disk.c",
-          "kernel/mm/swap_disk.h",
+          "drivers/serial.h",
+          "kernel/core/types.h",
           "kernel/fs/vfs.h",
-          "drivers/serial.h"
+          "kernel/mm/swap_disk.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/mm/swap_disk.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/mm/swap_disk.c -o kernel/mm/swap_disk.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap_disk.c --output kernel/mm/swap_disk.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/network/arp.c",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
           "kernel/network/arp.h",
-          "kernel/network/net_if.h"
+          "kernel/network/net_if.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/arp.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/arp.c -o kernel/network/arp.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/arp.c --output kernel/network/arp.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/network/dhcp.c",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
           "kernel/network/dhcp.h",
+          "kernel/network/ip.h",
           "kernel/network/net_if.h",
-          "kernel/network/ip.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/dhcp.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/dhcp.c -o kernel/network/dhcp.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dhcp.c --output kernel/network/dhcp.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/network/dns.c",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
           "kernel/network/dns.h",
+          "kernel/network/net_if.h",
           "kernel/network/socket.h",
-          "kernel/network/net_if.h"
+          "kernel/smp/bkl.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/dns.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/dns.c -o kernel/network/dns.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dns.c --output kernel/network/dns.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/network/icmp.c",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
           "kernel/network/icmp.h",
-          "kernel/network/ip.h"
+          "kernel/network/ip.h",
+          "kernel/network/net_if.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/icmp.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/icmp.c -o kernel/network/icmp.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/icmp.c --output kernel/network/icmp.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/network/ip.c",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/network/arp.h",
+          "kernel/network/icmp.h",
           "kernel/network/ip.h",
-          "kernel/network/tcp.h",
           "kernel/network/net_if.h",
-          "kernel/network/arp.h"
+          "kernel/network/tcp.h",
+          "kernel/network/udp.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/ip.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/ip.c -o kernel/network/ip.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/ip.c --output kernel/network/ip.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/network/net_if.c",
-          "kernel/network/net_if.h",
+          "drivers/serial.h",
+          "kernel/core/types.h",
           "kernel/network/arp.h",
-          "kernel/network/ip.h",
-          "kernel/network/tcp.h",
           "kernel/network/dhcp.h",
-          "kernel/mm/memory.h"
+          "kernel/network/ip.h",
+          "kernel/network/net_if.h",
+          "kernel/network/tcp.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/network/net_if.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/network/net_if.c -o kernel/network/net_if.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/net_if.c --output kernel/network/net_if.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7457,16 +8365,29 @@
       {
         "inputs": [
           "kernel/smp/ioapic.c",
+          "drivers/serial.h",
+          "kernel/core/types.h",
+          "kernel/mm/memory.h",
           "kernel/smp/ioapic.h",
-          "kernel/mm/memory.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/smp/ioapic.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/smp/ioapic.c -o kernel/smp/ioapic.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/ioapic.c --output kernel/smp/ioapic.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7582,28 +8503,40 @@
       {
         "inputs": [
           "kernel/tls/tls12_handshake.c",
-          "kernel/tls/tls12_handshake.h",
-          "kernel/tls/tls_ctx.h",
-          "kernel/tls/tls_record.h",
-          "kernel/tls/tls_kdf.h",
-          "kernel/crypto/sha256.h",
+          "drivers/serial.h",
+          "kernel/core/types.h",
+          "kernel/crypto/asn1.h",
           "kernel/crypto/ct.h",
-          "kernel/crypto/x25519.h",
-          "kernel/crypto/p256.h",
           "kernel/crypto/ecdsa.h",
+          "kernel/crypto/p256.h",
+          "kernel/crypto/rsa.h",
+          "kernel/crypto/sha256.h",
+          "kernel/crypto/x25519.h",
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
-          "kernel/crypto/rsa.h",
-          "kernel/crypto/asn1.h",
-          "kernel/core/types.h"
+          "kernel/tls/tls12_handshake.h",
+          "kernel/tls/tls_ctx.h",
+          "kernel/tls/tls_kdf.h",
+          "kernel/tls/tls_record.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls12_handshake.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls12_handshake.c -o kernel/tls/tls12_handshake.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls12_handshake.c --output kernel/tls/tls12_handshake.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7624,134 +8557,208 @@
       {
         "inputs": [
           "kernel/tls/tls_ca_bundle_data.c",
+          "kernel/core/types.h",
+          "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
-          "kernel/core/types.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls_ca_bundle_data.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle_data.c -o kernel/tls/tls_ca_bundle_data.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle_data.c --output kernel/tls/tls_ca_bundle_data.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/tls/tls_ctx.c",
+          "kernel/core/types.h",
+          "kernel/crypto/csprng.h",
+          "kernel/crypto/ct.h",
+          "kernel/crypto/p256.h",
+          "kernel/crypto/sha256.h",
+          "kernel/crypto/x25519.h",
+          "kernel/crypto/x509.h",
+          "kernel/crypto/x509_chain.h",
           "kernel/tls/tls_ctx.h",
           "kernel/tls/tls_record.h",
-          "kernel/crypto/x509_chain.h",
-          "kernel/crypto/sha256.h",
-          "kernel/crypto/ct.h",
-          "kernel/crypto/csprng.h",
-          "kernel/crypto/x25519.h",
-          "kernel/crypto/p256.h",
-          "kernel/core/types.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls_ctx.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls_ctx.c -o kernel/tls/tls_ctx.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ctx.c --output kernel/tls/tls_ctx.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/tls/tls_handshake.c",
-          "kernel/tls/tls_ctx.h",
-          "kernel/tls/tls_record.h",
-          "kernel/tls/tls_kdf.h",
-          "kernel/crypto/sha256.h",
-          "kernel/crypto/hmac.h",
-          "kernel/crypto/hkdf.h",
-          "kernel/crypto/ct.h",
+          "drivers/serial.h",
+          "kernel/core/types.h",
+          "kernel/crypto/asn1.h",
           "kernel/crypto/csprng.h",
-          "kernel/crypto/x25519.h",
-          "kernel/crypto/p256.h",
+          "kernel/crypto/ct.h",
           "kernel/crypto/ecdsa.h",
+          "kernel/crypto/hkdf.h",
+          "kernel/crypto/hmac.h",
+          "kernel/crypto/p256.h",
+          "kernel/crypto/rsa.h",
+          "kernel/crypto/sha256.h",
+          "kernel/crypto/x25519.h",
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
-          "kernel/crypto/rsa.h",
-          "kernel/crypto/asn1.h",
           "kernel/tls/tls12_handshake.h",
-          "kernel/core/types.h"
+          "kernel/tls/tls_ctx.h",
+          "kernel/tls/tls_kdf.h",
+          "kernel/tls/tls_record.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls_handshake.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls_handshake.c -o kernel/tls/tls_handshake.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_handshake.c --output kernel/tls/tls_handshake.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/tls/tls_kdf.c",
-          "kernel/tls/tls_kdf.h",
+          "kernel/core/types.h",
           "kernel/crypto/hkdf.h",
-          "kernel/core/types.h"
+          "kernel/crypto/hmac.h",
+          "kernel/crypto/sha256.h",
+          "kernel/tls/tls_kdf.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls_kdf.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls_kdf.c -o kernel/tls/tls_kdf.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_kdf.c --output kernel/tls/tls_kdf.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/tls/tls_record.c",
-          "kernel/tls/tls_record.h",
-          "kernel/crypto/chacha20poly1305.h",
+          "kernel/core/types.h",
+          "kernel/crypto/aes.h",
           "kernel/crypto/aes_gcm.h",
+          "kernel/crypto/chacha20poly1305.h",
           "kernel/crypto/ct.h",
-          "kernel/core/types.h"
+          "kernel/tls/tls_record.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls_record.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls_record.c -o kernel/tls/tls_record.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_record.c --output kernel/tls/tls_record.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/tls/tls_selftest.c",
-          "kernel/tls/tls_selftest.h",
-          "kernel/crypto/sha256.h",
-          "kernel/crypto/sha512.h",
-          "kernel/crypto/hmac.h",
-          "kernel/crypto/hkdf.h",
-          "kernel/crypto/chacha20poly1305.h",
+          "drivers/serial.h",
+          "kernel/core/panic.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
           "kernel/crypto/aes.h",
           "kernel/crypto/aes_gcm.h",
+          "kernel/crypto/asn1.h",
           "kernel/crypto/bigint.h",
-          "kernel/crypto/rsa.h",
-          "kernel/crypto/x25519.h",
-          "kernel/crypto/p256.h",
+          "kernel/crypto/chacha20poly1305.h",
           "kernel/crypto/ecdsa.h",
           "kernel/crypto/ed25519.h",
-          "kernel/crypto/asn1.h",
+          "kernel/crypto/hkdf.h",
+          "kernel/crypto/hmac.h",
+          "kernel/crypto/p256.h",
+          "kernel/crypto/rsa.h",
+          "kernel/crypto/sha256.h",
+          "kernel/crypto/sha512.h",
+          "kernel/crypto/x25519.h",
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
-          "kernel/core/panic.h",
-          "drivers/serial.h"
+          "kernel/tls/tls_selftest.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/tls/tls_selftest.o",
         "recipe": [
-          "$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_selftest.c --output kernel/tls/tls_selftest.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -7829,68 +8836,128 @@
       {
         "inputs": [
           "kernel/usb/usb.c",
+          "drivers/serial.h",
           "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/irq.h",
+          "kernel/cpu/isr.h",
+          "kernel/mm/memory.h",
           "kernel/usb/usb.h",
-          "kernel/usb/usb_hc.h"
+          "kernel/usb/usb_hc.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/usb/usb.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/usb/usb.c -o kernel/usb/usb.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb.c --output kernel/usb/usb.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/usb/usb_hid.c",
+          "drivers/keyboard.h",
+          "drivers/mouse.h",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/types.h",
+          "kernel/cpu/irq.h",
+          "kernel/cpu/isr.h",
+          "kernel/mm/memory.h",
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
-          "drivers/keyboard.h",
-          "drivers/serial.h",
-          "drivers/timer.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/usb/usb_hid.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/usb/usb_hid.c -o kernel/usb/usb_hid.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hid.c --output kernel/usb/usb_hid.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/usb/usb_hub.c",
+          "drivers/serial.h",
+          "kernel/core/types.h",
+          "kernel/mm/memory.h",
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
-          "drivers/serial.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/usb/usb_hub.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/usb/usb_hub.c -o kernel/usb/usb_hub.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hub.c --output kernel/usb/usb_hub.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "kernel/usb/usb_msc.c",
+          "drivers/serial.h",
+          "kernel/core/types.h",
+          "kernel/fs/blockdev.h",
+          "kernel/mm/memory.h",
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
-          "kernel/fs/blockdev.h",
-          "drivers/serial.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/usb/usb_msc.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/usb/usb_msc.c -o kernel/usb/usb_msc.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_msc.c --output kernel/usb/usb_msc.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -8051,15 +9118,30 @@
       {
         "inputs": [
           "kernel/util/calendar.c",
-          "kernel/util/calendar.h"
+          "drivers/rtc.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/fs/vfs.h",
+          "kernel/util/calendar.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/util/calendar.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/util/calendar.c -o kernel/util/calendar.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/util/calendar.c --output kernel/util/calendar.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -8341,79 +9423,134 @@
       {
         "inputs": [
           "toolchain/ctool.c",
-          "toolchain/ctool.h"
+          "toolchain/ctool.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "toolchain/ctool.o",
         "recipe": [
-          "$(CC) $(CFLAGS) toolchain/ctool.c -o toolchain/ctool.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.c --output toolchain/ctool.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "toolchain/cupidasm.c",
-          "toolchain/cupidasm.h",
           "toolchain/ctool.h",
+          "toolchain/cupidasm.h",
           "toolchain/elf32.h",
-          "toolchain/x86.h"
+          "toolchain/x86.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "toolchain/cupidasm.o",
         "recipe": [
-          "$(CC) $(CFLAGS) toolchain/cupidasm.c -o toolchain/cupidasm.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.c --output toolchain/cupidasm.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "toolchain/cupiddis.c",
-          "toolchain/cupiddis.h",
           "toolchain/ctool.h",
+          "toolchain/cupiddis.h",
           "toolchain/elf32.h",
-          "toolchain/x86.h"
+          "toolchain/x86.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "toolchain/cupiddis.o",
         "recipe": [
-          "$(CC) $(CFLAGS) toolchain/cupiddis.c -o toolchain/cupiddis.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.c --output toolchain/cupiddis.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "toolchain/elf32.c",
+          "toolchain/ctool.h",
           "toolchain/elf32.h",
-          "toolchain/ctool.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "toolchain/elf32.o",
         "recipe": [
-          "$(CC) $(CFLAGS) toolchain/elf32.c -o toolchain/elf32.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.c --output toolchain/elf32.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
           "toolchain/x86.c",
+          "toolchain/ctool.h",
           "toolchain/x86.h",
-          "toolchain/ctool.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "toolchain/x86.o",
         "recipe": [
-          "$(CC) $(CFLAGS) toolchain/x86.c -o toolchain/x86.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.c --output toolchain/x86.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       }
     ]
@@ -9607,7 +10744,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "KERNEL_I386",
-          "tracked_translation_units": 152
+          "tracked_translation_units": 154
         },
         {
           "forced_includes": [],
@@ -9728,7 +10865,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "DOOM_COMPAT_I386",
-          "tracked_translation_units": 6
+          "tracked_translation_units": 4
         },
         {
           "forced_includes": [
@@ -13441,7 +14578,7 @@
         {
           "line": 261,
           "path": "boot/boot.asm",
-          "text": "mov esp, 0xE00000           ; Boot stack top (2 MB stack from 0xC00000)."
+          "text": "mov esp, 0xF00000           ; Boot stack top (2 MB stack from 0xD00000)."
         },
         {
           "line": 264,
@@ -16092,7 +17229,7 @@
         "kernel/smp/percpu.h"
       ],
       "id": "c.declaration.static_assert",
-      "occurrences": 26
+      "occurrences": 28
     },
     {
       "category": "declarator",
@@ -23529,15 +24666,15 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "21750921084705c65abafda2d0a71bf88a18fd2d0d2683a21dde3a4a43d25275",
+    "active_source_digest": "b2687273e9b0aff71479bf97c4624e51bdb911611cf5cc894d4a400d2c906eb1",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "94b711b2e2ac3dc1bda9811df0702b86f293dc83f6b455848b91a910dd12ab33"
+        "sha256": "abc9376f7d8d7ee1dca33e03bd92cc80546f63119b986c762938b4090894b177"
       },
       {
         "path": "user/Makefile",
-        "sha256": "818b3b0c902e6ddfe4da78b22c8b3cd552d56d744f66a2bad33eaee35bde42dc"
+        "sha256": "70b54663e9555d173ea7b9dcb854317ff0aa04481b2377ec056f5d767493eea6"
       },
       {
         "path": "toolchain/Makefile",
@@ -23545,7 +24682,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "b794d7fbb6a650755044a6a824e312bdc1aff87ae0f1b064d40006ebbdcef237"
+        "sha256": "1aae56bc790c1b66307f6311a63bffa14465b91a0814d199090828b3a1363135"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -23562,7 +24699,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "7dd962af41a8431c0f7e2bfca85184f05e8947341e3bb2da59bec63f9a90fe3c"
+      "sha256": "3ae82345223ae58f47c34565390743b2f349e10fb2566555bca7d7b171058429"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -27980,7 +29117,7 @@
       "path": "boot/boot.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "b74ee23d4466b3a8cbb7e73661d062c6fdb207f248b87f3cff3a514b55756f7a"
+      "sha256": "291f042d70de1720cb03c97b903f5ae27749ec3f11beb2bbb3945825170d3397"
     },
     {
       "build_owners": [
@@ -29704,7 +30841,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -29733,7 +30869,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29773,12 +30910,13 @@
       "origin": "tracked",
       "path": "kernel/audio/memio.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "bdd0f94cb7c881f5dd4b935aa28b93a83c35f40bacd9d5a536ccef9a8bd4d540"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29806,12 +30944,13 @@
       "origin": "tracked",
       "path": "kernel/audio/memio.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b36fc93df7ad758c5f1c93ce569d952cc9c01d8ffd7caa7dbd35ad993827fb7a"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29852,12 +30991,13 @@
       "origin": "tracked",
       "path": "kernel/audio/midiopl.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f8e94def9dc9a6d15af510227fc7f75fbd294da0ae4f5763cbd9677465e76d91"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29880,12 +31020,13 @@
       "origin": "tracked",
       "path": "kernel/audio/midiopl.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "aee4b712f2791a610b73fb34897fd4d9b91ed33a307adc0ffd5ac1b97fab3f06"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29915,12 +31056,14 @@
       "origin": "tracked",
       "path": "kernel/audio/mixer.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "3aa89db61d1638f0daf9d71de0f434e24f12f21997976ec0d736e1f0cc72e799"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29945,12 +31088,13 @@
       "origin": "tracked",
       "path": "kernel/audio/mixer.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "137ddf4f9e1c030f4b5e7a2bcb388eecc55285b064843ef12a415da3f4d286b5"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -29995,12 +31139,13 @@
       "origin": "tracked",
       "path": "kernel/audio/mus2midi.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4bacd625a7a42f8ceea0a440ded441c34fb169a0531dd1387ad26c8c1537838e"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30031,7 +31176,7 @@
       "origin": "tracked",
       "path": "kernel/audio/mus2midi.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8e2da8a113c66b8b0156fd63a1054fdee5df081944986d3dc3930f057b4dfefc"
     },
     {
@@ -30084,7 +31229,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30111,12 +31258,13 @@
       "origin": "tracked",
       "path": "kernel/audio/nuked_opl3.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "463a05de21a4c2086bb74432cf9715d58ebcd69af5ad95576752096524e6a314"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30144,12 +31292,13 @@
       "origin": "tracked",
       "path": "kernel/audio/opl_smoke.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "cd59955b6aca08ead7b272cfd6c2878f392526d48412a974a062c2d163065039"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -30167,7 +31316,7 @@
       "origin": "tracked",
       "path": "kernel/audio/opl_smoke.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "44578c4a4f7761b20f1cc7421a5f243247a9c259de5e440f85d0b5994040ca28"
     },
     {
@@ -30472,7 +31621,7 @@
       "path": "kernel/core/kernel.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "22c89c23439f46f24650249092f7a978956f001661cdb7fef2b96411cc9fbf16"
+      "sha256": "11628117bcb287f881b536fda8f1102f2910ab391d6f9f36ad169a9e94178dae"
     },
     {
       "build_owners": [
@@ -30865,7 +32014,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31421,7 +32569,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31449,13 +32598,12 @@
       "origin": "tracked",
       "path": "kernel/cpu/math.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "33e3a7f70faec0115e15763b34ed89d36e0ade775fa934f1372c127dfb5d2efd"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31645,7 +32793,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31710,7 +32857,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31773,7 +32919,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31839,7 +32984,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -31971,7 +33115,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32042,7 +33185,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32101,7 +33243,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32232,7 +33373,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32296,7 +33436,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32356,7 +33495,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32555,7 +33693,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32618,7 +33755,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32684,7 +33820,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32813,7 +33948,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -39402,7 +40536,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39438,13 +40573,12 @@
       "origin": "tracked",
       "path": "kernel/fs/blockcache.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "9fe2806800db2f5b678ee06c7f123a488937058ba30e296ce90e5ef15258b2b5"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -39479,7 +40613,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39510,7 +40645,7 @@
       "origin": "tracked",
       "path": "kernel/fs/blockdev.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f13c8244aae6694e9dc99426d74ded3bb52956e02c61e2378813f9658c0c5943"
     },
     {
@@ -39549,7 +40684,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39588,12 +40724,13 @@
       "origin": "tracked",
       "path": "kernel/fs/devfs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "1b7fafe3c81ee193fc0ce3b6167012e062c4aa7ab088db8179687d3347541c7e"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39618,7 +40755,7 @@
       "origin": "tracked",
       "path": "kernel/fs/devfs.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2572fab28ce9392f840a3f8d4b27d7b13c7ea50076c9e8ce6e5bf1e8046be514"
     },
     {
@@ -39704,7 +40841,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39745,12 +40883,13 @@
       "origin": "tracked",
       "path": "kernel/fs/fat16_vfs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "c7b60e4085c8afdc6e219eb0bc8932bc156c43781c9c125e79bdb60acdde0c37"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39771,12 +40910,13 @@
       "origin": "tracked",
       "path": "kernel/fs/fat16_vfs.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "0cb29b03a65ade283986f619397c987be50fb360b3151be6de4ca704af8290da"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39805,13 +40945,12 @@
       "origin": "tracked",
       "path": "kernel/fs/fs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "687f0d486d26fbe2bd7d6f486059e639e13005132a17034a46a79968687a6ea9"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -39842,7 +40981,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39886,12 +41026,13 @@
       "origin": "tracked",
       "path": "kernel/fs/homefs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f70b5056cc6c67017d6827ee4d6a6618c579485037e9bf3d40a91b4a1e21752d"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39914,7 +41055,7 @@
       "origin": "tracked",
       "path": "kernel/fs/homefs.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4e1af113c3cdce12dcee5014f1240c50b160cdf7e27630d18a195b07b5437c69"
     },
     {
@@ -39964,7 +41105,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -39991,12 +41134,13 @@
       "origin": "tracked",
       "path": "kernel/fs/iso9660.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2777371db3cb33e744b16185d4365c4cfcc9691dcd20747106f3a4bb976086b5"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40040,12 +41184,13 @@
       "origin": "tracked",
       "path": "kernel/fs/iso9660_vfs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ba90800c16c9737c8b92def409f098a7ec926dafcb8ef9192881703215f319d2"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40066,7 +41211,7 @@
       "origin": "tracked",
       "path": "kernel/fs/iso9660_vfs.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "71926194e4c0ad81a5d9f6f4bc4cd7f1a5e56916fce82fb880fd696abc74f233"
     },
     {
@@ -40110,7 +41255,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40133,12 +41280,13 @@
       "origin": "tracked",
       "path": "kernel/fs/loopdev.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6dc6345481146ace38ee7b6b15c2789cce1c2aaaba66a8548db036e28ab78162"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40178,12 +41326,13 @@
       "origin": "tracked",
       "path": "kernel/fs/ramfs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6a5e7d1c65289e004457d90d3d59a7df8a9d49dec71f4478653ae1e783c186e4"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40208,12 +41357,13 @@
       "origin": "tracked",
       "path": "kernel/fs/ramfs.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "bf0e60369768b15e28f8bd66bcf116e4b9e5f3c84bef6a19fa683e852054954c"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40248,7 +41398,7 @@
       "origin": "tracked",
       "path": "kernel/fs/vfs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d027f02bb0e6f15f6cca66313c88d525c4c33565fcad2608ec1a1cc63f85632f"
     },
     {
@@ -40287,7 +41437,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40315,7 +41466,7 @@
       "origin": "tracked",
       "path": "kernel/fs/vfs_helpers.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "0fe17a413c1f208c2b46986dcfdf01ae42e5f90e2b7fa20dc16a90ed0446ec51"
     },
     {
@@ -40351,7 +41502,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40388,13 +41540,12 @@
       "origin": "tracked",
       "path": "kernel/gfx/bmp.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8d47168d4a04aec94d21743324be414294f7367589e617e04058e7688fac160d"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -40487,7 +41638,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40506,12 +41658,14 @@
       "origin": "tracked",
       "path": "kernel/gfx/font_8x8.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b2cae62515622e1c4e21f7500a8e08daaa1573a5ced07648fb45deaa6b878641"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40533,12 +41687,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/font_8x8.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "904d86da253c60fee83325bbd3992281bf8e566b9f7f5910c3722a21e2cafd4a"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40581,12 +41736,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/fontsys.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "5af1ae01836a11dd0a516aea350833b4b73f8926c0d09589f496dea43fd86e22"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40610,7 +41766,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/fontsys.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "5f0e7a6c8cdcc5ffc4d532e7add847baea46f7f88cb4b3e7d10af087022fab82"
     },
     {
@@ -40706,7 +41862,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40749,12 +41906,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_assets.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "11f8e5c58808d50e7207ceb1ac5de5dd66c021f296cce386beac4991df905340"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40780,12 +41938,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_assets.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "e03ed11ba878f5e2526405d8258e6670b679dce68c88602e10bb468c4e2b4ef5"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40822,12 +41981,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_effects.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d0c0a34d1aebd904a967faf6882aa6a33a222db4eb241468bb02f693e7036266"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40849,12 +42009,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_effects.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4878d4954121246acb7a49b4ecb76008b5332241a0b6fcc915a588febfa27a00"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40896,7 +42057,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_icons.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8f45d4eb2ec9bec6e84301e3648fe2e707371870cba23c11f0771f689a7e0213"
     },
     {
@@ -40935,7 +42096,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -40970,12 +42132,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_transform.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "067334e1526f9b3db221fcec30946a8b336011b73aabee9eb1b1a5d42537283c"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41000,7 +42163,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_transform.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "95f8ba1e6f5a346625682bc5b94e6df69029e76c2df16c492e5045209a93f104"
     },
     {
@@ -41044,7 +42207,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41066,12 +42231,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/glyph_raster.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "65394a460eec851c41081ac2b7f48e232bb1e840549de9c1ba04b7d245e3a9e0"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41107,13 +42273,12 @@
       "origin": "tracked",
       "path": "kernel/gfx/graphics.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "fcb550ba556e1d1b159930236d581617e03050a7f08e75742015c815cb596d90"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -41182,7 +42347,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41204,7 +42371,7 @@
       "origin": "tracked",
       "path": "kernel/gfx/jpeg.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "478b45564ca1095af8c670a151aa8fabd45d772eb6141374a907f680419257aa"
     },
     {
@@ -41249,7 +42416,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41271,12 +42440,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/png.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "7cad50ee7da7346b33173f94b442ddc91565669fac2e7cd3a81d0267abe0d797"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41309,12 +42479,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/ttf.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "389b0f6e673e6115f65e6ae4a72c70c7cd6c18b30e407fe7e774023882296e19"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41337,12 +42508,13 @@
       "origin": "tracked",
       "path": "kernel/gfx/ttf.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "9005fde810bc9e15312776f22b2456f45dcd928cf1dec03d2cf99213fd9900c7"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41373,13 +42545,12 @@
       "origin": "tracked",
       "path": "kernel/gui/ansi.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "4a36af8ce6b8b2b3143d309cd1308223b0444d02abc9d7589d936b670d8ca006"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -41412,7 +42583,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41440,12 +42612,13 @@
       "origin": "tracked",
       "path": "kernel/gui/clipboard.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "7f77395c03ba986ac77aad66589a1fc53dab02e231515d02835d6288fb894eb5"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41471,12 +42644,13 @@
       "origin": "tracked",
       "path": "kernel/gui/clipboard.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "32192cfc66791b5f3258dc6c99027e3badd4ca316029aac034c0346e64a32081"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41518,12 +42692,14 @@
       "origin": "tracked",
       "path": "kernel/gui/ctxt_image_worker.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "a3b54b94ab52639b86ff21b1dfacc48b237a9055dc198e0ee5acad8dc4b808b0"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41541,7 +42717,7 @@
       "origin": "tracked",
       "path": "kernel/gui/ctxt_image_worker.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b421cf1ebba8238fae7536710bfc00cd3d1283fccf0b93a10323d48a8fe72768"
     },
     {
@@ -41732,7 +42908,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41777,13 +42954,12 @@
       "origin": "tracked",
       "path": "kernel/gui/gui.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "80cd536a00fa146956c253756d763693518f6d5b5e7bf7ce972cd21207da2de4"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -41816,7 +42992,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41850,12 +43027,13 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_containers.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "401a932b0c6ca13c172d87015383f076c6ab3d14f0c241ba5bea75f078651aa1"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41882,12 +43060,13 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_containers.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d653d0ed3bf1af80b1739f9a1de6285721d8e6efb6e76fd568306c709b3a7aef"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41929,12 +43108,13 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_events.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2fcda61d24c7ad24833a1369bf20fa97d0acd8d6ccda15ed6833906ab80591f4"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -41964,12 +43144,13 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_events.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d9d6ee3e7fb3e4ee8055b34a918c7fc3dbf9029673accc764c0d856a16658997"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42006,12 +43187,13 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_menus.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "c1517a9e6b22809989ea65960ef7f8e0f5877ecd55e94435c2769dbe12782955"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42039,12 +43221,13 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_menus.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "47a5ce40625383a5aeced8b8e607f55a0f9132c64203374f7b6e170cd5a15739"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42087,13 +43270,12 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_themes.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8fd41fa374b9be879f4805fbfb01d67986fd1a08395da24db3708eacfb87238b"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -42126,7 +43308,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42163,13 +43346,12 @@
       "origin": "tracked",
       "path": "kernel/gui/gui_widgets.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "bc4674aa07542c9486a053dbdcca68a85615d94aad4b02a058c838452b91b570"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -42229,7 +43411,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42256,12 +43439,13 @@
       "origin": "tracked",
       "path": "kernel/gui/terminal_ansi.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b0d0bac65890c1b950b8a73da497281d42c50626fcdb489b9dded87565b94dc5"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42304,7 +43488,7 @@
       "origin": "tracked",
       "path": "kernel/gui/terminal_app.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2cfb23761c9423ae2e29e8c99ba217880283ea7317244745703d7cc4b3e68f39"
     },
     {
@@ -42339,7 +43523,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42377,7 +43562,7 @@
       "origin": "tracked",
       "path": "kernel/gui/ui.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6cfd9e4aaa68fab4c7b13a277c17e3f2623137735b482577e5d5655eb2a1159d"
     },
     {
@@ -42566,7 +43751,9 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         ".",
@@ -42590,12 +43777,14 @@
       "origin": "tracked",
       "path": "kernel/lang/as_elf.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6bb2224ba6802469676517774db1d25f5a0cd6550704016bfd563bec74c510d5"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         ".",
@@ -42618,12 +43807,13 @@
       "origin": "tracked",
       "path": "kernel/lang/as_elf.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b1093cf2828f666573743b102d6c52a3ef775fc4a266c94bf2663fa25ffbec3e"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42665,12 +43855,14 @@
       "origin": "tracked",
       "path": "kernel/lang/ctool_kernel.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "0115d27b7eb4c1c9cd7c0bf6df41b33334398fb33c9e66ef8cf559f7314dfc7e"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42691,7 +43883,7 @@
       "origin": "tracked",
       "path": "kernel/lang/ctool_kernel.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ab8b9c80eaa16bc02b51eddd0dba9eefc450faedcc7b5c4c345e21c83ebb5a42"
     },
     {
@@ -42855,11 +44047,12 @@
       "path": "kernel/lang/cupidc.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d5bf2c066d47cb38ac1f5bc595a456edc81ebc69b31c32da87d923c66b2ad77f"
+      "sha256": "77ae66b73fdea88cfc8441e512fd09470e1298039b0cb3ec5812bc305b4cd683"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42890,8 +44083,8 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidc_elf.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "682540382bfc371b11695e905949785abd838ec32e3b38fc17016c938beb991c"
+      "runtime_owner": "CupidC",
+      "sha256": "294b2a95cecaece9d0c7d8931e6c0f12fce6d0902f700a90a59cdffed65548d7"
     },
     {
       "build_owners": [
@@ -43056,7 +44249,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -43095,7 +44287,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43124,13 +44317,12 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_arrays.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "817c93cc47780ec92b2636e63fd4d38dcdfaf54d1ecef131e3ba2189b267eb7a"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -43162,7 +44354,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43215,12 +44408,13 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_exec.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "fe40ebea69510f51923a388115c48847f2fc1ddf62d264738132f5b9ac8ea37a"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43255,13 +44449,12 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_jobs.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "e5b7a4a7637ec63dfae051fb1ab812a67591726e26b740e75c7a707590ad4ad3"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -43295,7 +44488,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43327,12 +44521,13 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_lex.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "52ca06b0a2e27d9ee0b33b4598db0fd355f759bce9949801ed3372dc240cb069"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43369,12 +44564,13 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_parse.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "fc9984f15efd778df29681d539224e150c7e1e94bc6c9f63aaef9e866a1d5fa8"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43417,12 +44613,13 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_runtime.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "5c2655da14c9a61855a545920a5a4547db5176b1993c559217632554ffeec35a"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43459,13 +44656,12 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_streams.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "806c871c6268c773c23c4a9c2714f4714b19325779451cc445228e35fc8932ab"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -43500,7 +44696,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43532,12 +44729,13 @@
       "origin": "tracked",
       "path": "kernel/lang/cupidscript_strings.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d327c512a6af945c7f285eb768863880141dc9218cde376972326f9ff5b4cc7f"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43576,13 +44774,12 @@
       "origin": "tracked",
       "path": "kernel/lang/dis.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "0738931dcb9e9ced0debf9a780289663ddd00297a2d6ee8ff0151d7c4b406b3f"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -43615,7 +44812,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43660,7 +44858,7 @@
       "origin": "tracked",
       "path": "kernel/lang/exec.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "33e0322b3195339fa1af8762a6c1c580c91babcc3aa04c627a3b64ca29fd95e4"
     },
     {
@@ -43698,7 +44896,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43731,12 +44930,13 @@
       "origin": "tracked",
       "path": "kernel/lang/godspeak.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6d2e8cf4fdcaba3dc91bf41d0ec2abe6640d2703bba00213261283bd25d0925c"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43758,7 +44958,7 @@
       "origin": "tracked",
       "path": "kernel/lang/godspeak.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "3fcae623dc427c22954da5da50c065b49d514f13e2150e5f0d66e313c4275fed"
     },
     {
@@ -44006,7 +45206,7 @@
       "path": "kernel/mm/memory.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "54e81a3a3b87890951c5bb446cb54533a48391e8c1c950feb421e7cf88aa993a"
+      "sha256": "9afa2d707d88bcb655d05e379be3f9e0eb5c90fb4943a43cc2d8f61d1b149b6e"
     },
     {
       "build_owners": [
@@ -44037,12 +45237,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 119,
+      "lines": 124,
       "origin": "tracked",
       "path": "kernel/mm/memory.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f32a837ebc1828a948e121e9c2743bb49cea1aa3aa1bdf3c61e7a91efe56eb27"
+      "sha256": "371787576e9a85e3bc54d6bf66e020eee9b5015235d0fb78874f82409fe97e4b"
     },
     {
       "build_owners": [
@@ -44079,7 +45279,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44115,13 +45316,12 @@
       "origin": "tracked",
       "path": "kernel/mm/swap.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "deb774e4da9a60f341f4eed2772bbf2d4e67ddb17c287f0e3c036c426bd9315c"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -44153,7 +45353,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44183,12 +45384,13 @@
       "origin": "tracked",
       "path": "kernel/mm/swap_disk.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "e1f3022ecc2a3ff64602ae6a7635a76b2e7601249250738ad619bc05bb32935c"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44213,12 +45415,13 @@
       "origin": "tracked",
       "path": "kernel/mm/swap_disk.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8649869b43cccee10e708a83cab1a210d82e4d196dbbaae6ee70da881ee15585"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44252,13 +45455,12 @@
       "origin": "tracked",
       "path": "kernel/network/arp.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "15a6a86297159f249548b6bcbf75118fb75c1c52ab22c3058005167c9d7c7f89"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -44288,7 +45490,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44328,12 +45531,14 @@
       "origin": "tracked",
       "path": "kernel/network/dhcp.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f3abd5225e71a178a959684f5f1b7dba530bc96b4da1d2f4edc095c68c29c9b2"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44355,12 +45560,13 @@
       "origin": "tracked",
       "path": "kernel/network/dhcp.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "94b78dc3984d953f5511642514b0a2c2c7bae2d1ae383714d57b08ff24ea8793"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44400,13 +45606,12 @@
       "origin": "tracked",
       "path": "kernel/network/dns.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "075ad15ba814e9da71682b86703d54dbea3efd0a090b3cd925b4a6ad0051ff45"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -44435,7 +45640,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44465,13 +45671,12 @@
       "origin": "tracked",
       "path": "kernel/network/icmp.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "daca026a3ae5fdeb3abf4ee512d6476924f3cff4c56306255bab036f3cc3d552"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -44500,7 +45705,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44544,7 +45750,7 @@
       "origin": "tracked",
       "path": "kernel/network/ip.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "8897fe3cdfbecb9f2c6312e9a095a2c710fc7fe4cc85f92ed72b8be5c88013a1"
     },
     {
@@ -44580,7 +45786,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -44617,7 +45824,7 @@
       "origin": "tracked",
       "path": "kernel/network/net_if.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "60188d403ed68e433bf853083f95b3e829312dc4aed8f3cb465122cf1950d540"
     },
     {
@@ -44877,7 +46084,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -45108,7 +46314,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45136,7 +46343,7 @@
       "origin": "tracked",
       "path": "kernel/smp/ioapic.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b22b6211fa7601d96c8e00131e2a88a3e23ff590ac6232133b5e088ac5afe3f6"
     },
     {
@@ -45531,7 +46738,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45575,12 +46783,13 @@
       "origin": "tracked",
       "path": "kernel/tls/tls12_handshake.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "c4d01a7416f142f82b95c9824cb92d977e62aacfc2f3090c8609bc8f4a4a7745"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45602,7 +46811,7 @@
       "origin": "tracked",
       "path": "kernel/tls/tls12_handshake.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "79a8d816ed6f0961f545909e4c463bb7cd46d7b2a63bdd45c4849ed310fcf8c9"
     },
     {
@@ -45632,7 +46841,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45656,12 +46866,13 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_ca_bundle_data.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ebd70628a51d299560c20cb2cc544e49bae492c733e36239dcd1f722ab3f193f"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45694,13 +46905,12 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_ctx.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "333a3378cc3e4567179e9d994bd3191359cdb79b10deeb420f7d34ba174bdb74"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -45735,7 +46945,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45786,12 +46997,13 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_handshake.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2e856bb423b7793a975e77b0c9141e3ad5389490f8f0c1ab7d346a51d77e5bf6"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45817,12 +47029,13 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_kdf.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "44d6a9933d508efdac7e01f94c0834eefdd470876516fceec4f45116f8fc27ae"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45845,12 +47058,13 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_kdf.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f37164de78e33bfea5943e37beb52709eb29a59868a3b8529ee654656100cd88"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45881,13 +47095,12 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_record.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "80d9212d2e2cccc1b794a0e02e80cdee0653a3e8dc2aa22b55ead4bbebd8d6d2"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -45919,7 +47132,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45965,12 +47179,13 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_selftest.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ee4480a28e5d95142deef7b59ca77c682ef62e0e4db07ccbeb89e97b26b75331"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -45988,7 +47203,7 @@
       "origin": "tracked",
       "path": "kernel/tls/tls_selftest.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "a4e3ea347503b4d8b47931fdf390c7949483ad8756ac0a2c513a53131faa41c9"
     },
     {
@@ -46101,7 +47316,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -46143,7 +47359,7 @@
       "origin": "tracked",
       "path": "kernel/usb/usb.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "b88c8bb1dd1ea7e8976eacfca80a960d686dd8364487496052d0a1fe9cc772ae"
     },
     {
@@ -46185,7 +47401,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -46224,7 +47439,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -46262,12 +47478,13 @@
       "origin": "tracked",
       "path": "kernel/usb/usb_hid.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "3da3fd6aa1bdb59ce2a5389d6aabde2385b35aa3902beeebef50fdb305ff3dce"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -46303,12 +47520,13 @@
       "origin": "tracked",
       "path": "kernel/usb/usb_hub.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ad8de373f0d91d9347e3b6b1bb60fb01d331f073e191c418a8dad30f828c3905"
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -46347,7 +47565,7 @@
       "origin": "tracked",
       "path": "kernel/usb/usb_msc.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "72d7ee976ee5a0f77803c07e4ebe18259355093ed1c985ae1e3a652d4a7dbd71"
     },
     {
@@ -46372,7 +47590,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -46406,13 +47625,12 @@
       "origin": "tracked",
       "path": "kernel/util/calendar.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6f1925094ff172aea79053f9b865cac0e966dff6b79758057511eca55bbbaace"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -46485,6 +47703,7 @@
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -46534,11 +47753,12 @@
       "origin": "tracked",
       "path": "toolchain/ctool.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "dc8e1657cce15293bfb55cd067f94b591b4f1d95f10df918f606e302fc27de48"
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -46572,7 +47792,7 @@
       "origin": "tracked",
       "path": "toolchain/ctool.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "a8f6cc89f5a47bc1caf040b8cb053f72b3de33dd17e00fb3a33f75344119cb2a"
     },
     {
@@ -46654,6 +47874,7 @@
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -46695,11 +47916,12 @@
       "origin": "tracked",
       "path": "toolchain/cupidasm.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d709289d54a3845876132baddc0b682d22a393b525865a4b3c4dccf74e5c4305"
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -46730,7 +47952,7 @@
       "origin": "tracked",
       "path": "toolchain/cupidasm.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "2a495ce179fa48f818205e7945956db8be4c1c8bd4cb579d7fffa38f9c3d199f"
     },
     {
@@ -47201,6 +48423,7 @@
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -47242,11 +48465,12 @@
       "origin": "tracked",
       "path": "toolchain/cupiddis.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "eb999caec2fb417290339bf3daa3bd02d98d99819e8d5585fd675866cbd68cdf"
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -47276,7 +48500,7 @@
       "origin": "tracked",
       "path": "toolchain/cupiddis.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "87e96838168d24a082debbaee4ab8a6ab69924c2316ae078138edf27477b3227"
     },
     {
@@ -47589,6 +48813,7 @@
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -47627,11 +48852,12 @@
       "origin": "tracked",
       "path": "toolchain/elf32.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "9c0210e75fb9cb9c6ee46fc693d1e2c238a9627377c60760697f23d2ad62c8c3"
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -47660,7 +48886,7 @@
       "origin": "tracked",
       "path": "toolchain/elf32.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "6f145d1e9336b5e4f17b4ff895268de741df5572054ada2285d756b149eee1a8"
     },
     {
@@ -48276,7 +49502,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "bb79d40e6c0435d241dfec4d186a11ef122f79c794510a17152201e12db99d14"
+      "sha256": "59f1d24a44c1e796359bd1fd6ea1c5d192485ac1edec97c7675d05418d4ac858"
     },
     {
       "build_owners": [
@@ -48549,6 +49775,7 @@
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -48593,11 +49820,12 @@
       "origin": "tracked",
       "path": "toolchain/x86.c",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ec709ea9670e401980de03c65a947a3ec52a7477851dd9fa2c1e8f8154f373d7"
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
         "host_c_compiler",
         "host_python",
         "make"
@@ -48627,7 +49855,7 @@
       "origin": "tracked",
       "path": "toolchain/x86.h",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "abfd3845aa346f98f005c2c3375515e85051bece459aa150f01cf4961385f36f"
     },
     {
@@ -48664,7 +49892,7 @@
       "path": "user/cupid.h",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "a7eb11280ce453b3323d992963a9f018be47e0eaf92eb19de44a013c59b3d431"
+      "sha256": "b32624e12c7807d5351b28e1836263ccbcda54b8f8732ebd2d1711eef6c66c9e"
     },
     {
       "build_owners": [
@@ -48694,7 +49922,7 @@
       "path": "user/examples/cat.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "af24e385e79aeaca5738d228a9f62229ca6bdbf331a1d4a637fe7d41768a99ec"
+      "sha256": "59a45365608250003b9ed429ccb1ababeb47b1c897c136e2b0636ad21125b4e5"
     },
     {
       "build_owners": [
@@ -48718,7 +49946,7 @@
       "path": "user/examples/hello.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "135e706c412d63076edaddb08f5b246ebe5bd83f4dc8d935ff58c16941d31e03"
+      "sha256": "cce1301ae6e54ea0d003ebd0de73e4e1f55d4e568799014b914410f7a10e856d"
     },
     {
       "build_owners": [
@@ -48749,14 +49977,14 @@
       "path": "user/examples/ls.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "2d1a98bfab5f20b856015aaefc306af4462371c69a7d1273cdbae1986d86690e"
+      "sha256": "14f05432ed45ce7e65b5213fa5fbd6291df68c27418de1b5d313e95b44e568cb"
     }
   ],
   "summary": {
     "active_sources": 698,
     "features": 252,
     "transforms": 501,
-    "unreachable_sources": 39
+    "unreachable_sources": 42
   },
   "supplemental_builds": [
     {
@@ -50974,6 +52202,36 @@
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
       "sha256": "de86f7f12a3b997510d61bf05aa23dc8b81b9a803c5f546b072fb18c13f94214"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c",
+      "lines": 50,
+      "path": "tests/usb_interrupt_ownership_contract.c",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "7c5335ce7b739978acfa6ac82cce24a742c0ee0f6252333a2441e7d04c77ff1a"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c",
+      "lines": 150,
+      "path": "tests/usb_msc_lifetime_contract.c",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "cf22822f8a8f96f759a532e5c73bab73b6dc7b1d707ee4cd7f2a03ea17da793b"
+    },
+    {
+      "classification": "not_reached",
+      "duplicate_of": [],
+      "language": "c",
+      "lines": 728,
+      "path": "tests/usb_reconciliation_runtime.c",
+      "reason": "not reachable from the supported Make target or include closure",
+      "relations": [],
+      "sha256": "37f44256dbd63d55c173d56e3d2d93578609fdae02d4a0c82c446a51f160026c"
     },
     {
       "classification": "not_reached",

@@ -907,7 +907,7 @@ mov eax, [label]         ; absolute address (label)
 | JIT Code | `0x01A00000` | 1 MB |
 | JIT Data | `0x01B00000` | 1 MB |
 
-JIT code and data are separate from CupidC's JIT region (`0x01000000`-`0x01900000`). Both can coexist.
+JIT code and data are separate from CupidC's JIT region (`0x01100000`-`0x01A00000`). Both can coexist.
 
 ---
 

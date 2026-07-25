@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 import os
 import re
 import shutil
@@ -71,12 +72,97 @@ PORT_IO_SOURCES = (
     "kernel/usb/ehci.c",
     "kernel/usb/uhci.c",
 )
+COMPILER_READY_SOURCES = (
+    "kernel/audio/memio.c",
+    "kernel/audio/midiopl.c",
+    "kernel/audio/mixer.c",
+    "kernel/audio/mus2midi.c",
+    "kernel/audio/opl_smoke.c",
+    "kernel/cpu/math.c",
+    "kernel/fs/blockcache.c",
+    "kernel/fs/blockdev.c",
+    "kernel/fs/devfs.c",
+    "kernel/fs/fat16_vfs.c",
+    "kernel/fs/fs.c",
+    "kernel/fs/homefs.c",
+    "kernel/fs/iso9660_vfs.c",
+    "kernel/fs/ramfs.c",
+    "kernel/fs/vfs.c",
+    "kernel/fs/vfs_helpers.c",
+    "kernel/gfx/bmp.c",
+    "kernel/gfx/font_8x8.c",
+    "kernel/gfx/fontsys.c",
+    "kernel/gfx/gfx2d_assets.c",
+    "kernel/gfx/gfx2d_effects.c",
+    "kernel/gfx/gfx2d_icons.c",
+    "kernel/gfx/gfx2d_transform.c",
+    "kernel/gfx/graphics.c",
+    "kernel/gfx/ttf.c",
+    "kernel/gui/ansi.c",
+    "kernel/gui/clipboard.c",
+    "kernel/gui/ctxt_image_worker.c",
+    "kernel/gui/gui.c",
+    "kernel/gui/gui_containers.c",
+    "kernel/gui/gui_events.c",
+    "kernel/gui/gui_menus.c",
+    "kernel/gui/gui_themes.c",
+    "kernel/gui/gui_widgets.c",
+    "kernel/gui/terminal_app.c",
+    "kernel/gui/ui.c",
+    "kernel/lang/as_elf.c",
+    "kernel/lang/ctool_kernel.c",
+    "kernel/lang/cupidc_elf.c",
+    "kernel/lang/cupidscript_arrays.c",
+    "kernel/lang/cupidscript_exec.c",
+    "kernel/lang/cupidscript_jobs.c",
+    "kernel/lang/cupidscript_lex.c",
+    "kernel/lang/cupidscript_parse.c",
+    "kernel/lang/cupidscript_runtime.c",
+    "kernel/lang/cupidscript_streams.c",
+    "kernel/lang/cupidscript_strings.c",
+    "kernel/lang/dis.c",
+    "kernel/lang/exec.c",
+    "kernel/lang/godspeak.c",
+    "kernel/mm/swap.c",
+    "kernel/mm/swap_disk.c",
+    "kernel/network/arp.c",
+    "kernel/network/dhcp.c",
+    "kernel/network/dns.c",
+    "kernel/network/icmp.c",
+    "kernel/network/ip.c",
+    "kernel/network/net_if.c",
+    "kernel/smp/ioapic.c",
+    "kernel/tls/tls_ca_bundle_data.c",
+    "kernel/tls/tls_ctx.c",
+    "kernel/tls/tls_handshake.c",
+    "kernel/tls/tls_kdf.c",
+    "kernel/tls/tls_record.c",
+    "kernel/tls/tls_selftest.c",
+    "kernel/tls/tls12_handshake.c",
+    "kernel/usb/usb.c",
+    "kernel/usb/usb_hid.c",
+    "kernel/usb/usb_hub.c",
+    "kernel/usb/usb_msc.c",
+    "kernel/util/calendar.c",
+)
+TOOLCHAIN_KERNEL_SOURCES = (
+    "toolchain/ctool.c",
+    "toolchain/cupidasm.c",
+    "toolchain/cupiddis.c",
+    "toolchain/elf32.c",
+    "toolchain/x86.c",
+)
+NEW_PRODUCTION_SOURCES = (
+    COMPILER_READY_SOURCES + TOOLCHAIN_KERNEL_SOURCES
+)
 KERNEL_SOURCES = tuple(
     sorted(
         CRYPTO_SOURCES
         + SMP_SOURCES
         + OPERAND_FREE_SOURCES
         + PORT_IO_SOURCES
+        + COMPILER_READY_SOURCES
+        + TOOLCHAIN_KERNEL_SOURCES
     )
 )
 
@@ -510,6 +596,83 @@ def _valid_elf32_object():
     return bytes(image)
 
 
+def _data_only_elf32_object(symbol_size=4):
+    data = b"\x10\x20\x30\x40"
+    strings = b"\0font_table\0"
+    section_strings = b"\0.rodata\0.symtab\0.strtab\0.shstrtab\0"
+
+    data_offset = 52
+    symbol_offset = _align(data_offset + len(data), 4)
+    symbols = bytearray(2 * 16)
+    struct.pack_into(
+        "<IIIBBH",
+        symbols,
+        16,
+        1,
+        0,
+        symbol_size,
+        0x11,
+        0,
+        1,
+    )
+    string_offset = symbol_offset + len(symbols)
+    section_string_offset = string_offset + len(strings)
+    section_offset = _align(section_string_offset + len(section_strings), 4)
+    image = bytearray(section_offset + 5 * 40)
+    image[0:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        1,
+        3,
+        1,
+        0,
+        0,
+        section_offset,
+        0,
+        52,
+        0,
+        0,
+        40,
+        5,
+        4,
+    )
+    image[data_offset : data_offset + len(data)] = data
+    image[symbol_offset:string_offset] = symbols
+    image[string_offset:section_string_offset] = strings
+    image[section_string_offset : section_string_offset + len(section_strings)] = (
+        section_strings
+    )
+
+    sections = (
+        (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        (1, 1, 2, 0, data_offset, len(data), 0, 0, 4, 0),
+        (9, 2, 0, 0, symbol_offset, len(symbols), 3, 1, 4, 16),
+        (17, 3, 0, 0, string_offset, len(strings), 0, 0, 1, 0),
+        (
+            25,
+            3,
+            0,
+            0,
+            section_string_offset,
+            len(section_strings),
+            0,
+            0,
+            1,
+            0,
+        ),
+    )
+    for index, section in enumerate(sections):
+        struct.pack_into(
+            "<IIIIIIIIII",
+            image,
+            section_offset + index * 40,
+            *section,
+        )
+    return bytes(image)
+
+
 class FakeExecutor:
     def __init__(self, root, result=None, payload=None, events=None):
         self.root = root
@@ -542,11 +705,19 @@ class KernelCompileCommandTests(unittest.TestCase):
             PORT_IO_SOURCES,
         )
         self.assertEqual(
+            kernel_compile.APPROVED_COMPILER_READY_SOURCES,
+            COMPILER_READY_SOURCES,
+        )
+        self.assertEqual(
+            kernel_compile.APPROVED_TOOLCHAIN_KERNEL_SOURCES,
+            TOOLCHAIN_KERNEL_SOURCES,
+        )
+        self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
             KERNEL_SOURCES,
         )
-        self.assertEqual(len(KERNEL_SOURCES), 40)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 40)
+        self.assertEqual(len(KERNEL_SOURCES), 116)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 116)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -746,6 +917,53 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 },
             )
 
+        audit = json.loads(
+            (
+                REPO_ROOT
+                / "docs"
+                / "bootstrap"
+                / "audits"
+                / "active-build.json"
+            ).read_text(encoding="utf-8")
+        )
+        audited_sources = {
+            entry["path"]: entry for entry in audit["sources"]
+        }
+
+        def recursive_includes(source):
+            closure = set()
+            pending = list(audited_sources[source]["includes"])
+            while pending:
+                dependency = pending.pop()
+                if dependency in closure:
+                    continue
+                closure.add(dependency)
+                entry = audited_sources.get(dependency)
+                if entry is not None:
+                    pending.extend(entry["includes"])
+            return closure
+
+        for source in NEW_PRODUCTION_SOURCES:
+            output = source.removesuffix(".c") + ".o"
+            match = re.search(
+                rf"^{re.escape(output)}: ([^\n]+)$",
+                logical_makefile,
+                re.MULTILINE,
+            )
+            self.assertIsNotNone(match, source)
+            self.assertEqual(
+                set(match.group(1).split()),
+                {
+                    source,
+                    *recursive_includes(source),
+                    "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                },
+            )
+        self.assertIn(
+            "kernel/usb/usb_hc.h",
+            recursive_includes("kernel/usb/usb.c"),
+        )
+
         for source in KERNEL_SOURCES:
             output = str(Path(source).with_suffix(".o")).replace("\\", "/")
             host_rule = re.compile(
@@ -754,6 +972,41 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 re.MULTILINE,
             )
             self.assertNotRegex(makefile, host_rule)
+
+    def test_new_production_targets_do_not_expand_to_the_host_compiler(self):
+        targets = [
+            source.removesuffix(".c") + ".o"
+            for source in NEW_PRODUCTION_SOURCES
+        ]
+        result = subprocess.run(
+            [
+                "make",
+                "-B",
+                "-n",
+                "CC=__host_c_compiler_must_not_run__",
+                *targets,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [
+            line
+            for line in result.stdout.splitlines()
+            if "tools/cupidc_kernel_compile.py" in line
+        ]
+        self.assertEqual(len(commands), len(NEW_PRODUCTION_SOURCES))
+        for source in NEW_PRODUCTION_SOURCES:
+            self.assertTrue(
+                any(f"--source {source}" in command for command in commands),
+                source,
+            )
+        self.assertNotIn(
+            "__host_c_compiler_must_not_run__",
+            result.stdout + result.stderr,
+        )
 
     def test_smp_targets_do_not_expand_to_the_host_compiler(self):
         result = subprocess.run(
@@ -919,14 +1172,14 @@ class KernelCompileOperationTests(unittest.TestCase):
 
         for relative in (
             "drivers/serial.c",
-            "kernel/audio/mixer.c",
+            "kernel/audio/nuked_opl3.c",
             "kernel/core/string.c",
             "kernel/crypto/new_cipher.c",
-            "kernel/gui/gui.c",
+            "kernel/gfx/png.c",
+            "kernel/gui/ed.c",
             "kernel/lang/as.c",
             "kernel/network/udp.c",
             "kernel/smp/percpu.c",
-            "kernel/usb/usb.c",
         ):
             source = root / relative
             source.parent.mkdir(parents=True, exist_ok=True)
@@ -1060,6 +1313,20 @@ class KernelCompileOperationTests(unittest.TestCase):
             "PC-relative relocation addend is 0, expected -4",
         ):
             kernel_compile.validate_i386_relocatable(path)
+
+    def test_public_validator_accepts_a_data_only_relocatable_object(self):
+        kernel_compile.validate_i386_relocatable_bytes(
+            _data_only_elf32_object()
+        )
+
+    def test_public_validator_rejects_a_data_symbol_outside_its_section(self):
+        with self.assertRaisesRegex(
+            kernel_compile.KernelCompileError,
+            "symbol 1 exceeds its section",
+        ):
+            kernel_compile.validate_i386_relocatable_bytes(
+                _data_only_elf32_object(symbol_size=5)
+            )
 
 
 class KernelCompileCliTests(unittest.TestCase):

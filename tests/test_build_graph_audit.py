@@ -2846,8 +2846,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             {name: sum(case_name == name for case_name, _ in active)
              for name, _, _, _ in profiles},
             {
-                "KERNEL_I386": 152,
-                "DOOM_COMPAT_I386": 6,
+                "KERNEL_I386": 154,
+                "DOOM_COMPAT_I386": 4,
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
                 "CUPID_RUNTIME": 105,
@@ -2860,6 +2860,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(len(active), 379)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.c"),
+            ("KERNEL_I386", "/kernel/audio/memio.c"),
+            ("KERNEL_I386", "/kernel/audio/mus2midi.c"),
             ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
             ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.c"),
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
@@ -2882,6 +2884,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
         ):
             self.assertIn(expected, active)
+        self.assertNotIn(
+            ("DOOM_COMPAT_I386", "/kernel/audio/memio.c"),
+            active,
+        )
+        self.assertNotIn(
+            ("DOOM_COMPAT_I386", "/kernel/audio/mus2midi.c"),
+            active,
+        )
         self.assertEqual(
             generated,
             [
@@ -3839,8 +3849,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for profile in contract["profiles"]
                 ],
                 [
-                    ("KERNEL_I386", 152, 4),
-                    ("DOOM_COMPAT_I386", 6, 0),
+                    ("KERNEL_I386", 154, 4),
+                    ("DOOM_COMPAT_I386", 4, 0),
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
                     ("CUPID_RUNTIME", 105, 0),
@@ -3856,14 +3866,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 698,
                     "features": 252,
                     "transforms": 501,
-                    "unreachable_sources": 39,
+                    "unreachable_sources": 42,
                 },
             )
             features = {
                 entry["id"]: entry for entry in audit_payload["features"]
             }
             expected_c_expression_inventory = {
-                "c.declaration.static_assert": (26, 5),
+                "c.declaration.static_assert": (28, 5),
                 "c.expression.sizeof": (4254, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
@@ -4207,9 +4217,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 40,
-                    "host_c_compiler": 257,
-                    "host_python": 49,
+                    "cupid_c_compiler": 116,
+                    "host_c_compiler": 181,
+                    "host_python": 125,
                 },
             )
 

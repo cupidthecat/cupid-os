@@ -72,8 +72,93 @@ PORT_IO_SOURCES = [
     "kernel/usb/ehci.c",
     "kernel/usb/uhci.c",
 ]
+COMPILER_READY_SOURCES = [
+    "kernel/audio/memio.c",
+    "kernel/audio/midiopl.c",
+    "kernel/audio/mixer.c",
+    "kernel/audio/mus2midi.c",
+    "kernel/audio/opl_smoke.c",
+    "kernel/cpu/math.c",
+    "kernel/fs/blockcache.c",
+    "kernel/fs/blockdev.c",
+    "kernel/fs/devfs.c",
+    "kernel/fs/fat16_vfs.c",
+    "kernel/fs/fs.c",
+    "kernel/fs/homefs.c",
+    "kernel/fs/iso9660_vfs.c",
+    "kernel/fs/ramfs.c",
+    "kernel/fs/vfs.c",
+    "kernel/fs/vfs_helpers.c",
+    "kernel/gfx/bmp.c",
+    "kernel/gfx/font_8x8.c",
+    "kernel/gfx/fontsys.c",
+    "kernel/gfx/gfx2d_assets.c",
+    "kernel/gfx/gfx2d_effects.c",
+    "kernel/gfx/gfx2d_icons.c",
+    "kernel/gfx/gfx2d_transform.c",
+    "kernel/gfx/graphics.c",
+    "kernel/gfx/ttf.c",
+    "kernel/gui/ansi.c",
+    "kernel/gui/clipboard.c",
+    "kernel/gui/ctxt_image_worker.c",
+    "kernel/gui/gui.c",
+    "kernel/gui/gui_containers.c",
+    "kernel/gui/gui_events.c",
+    "kernel/gui/gui_menus.c",
+    "kernel/gui/gui_themes.c",
+    "kernel/gui/gui_widgets.c",
+    "kernel/gui/terminal_app.c",
+    "kernel/gui/ui.c",
+    "kernel/lang/as_elf.c",
+    "kernel/lang/ctool_kernel.c",
+    "kernel/lang/cupidc_elf.c",
+    "kernel/lang/cupidscript_arrays.c",
+    "kernel/lang/cupidscript_exec.c",
+    "kernel/lang/cupidscript_jobs.c",
+    "kernel/lang/cupidscript_lex.c",
+    "kernel/lang/cupidscript_parse.c",
+    "kernel/lang/cupidscript_runtime.c",
+    "kernel/lang/cupidscript_streams.c",
+    "kernel/lang/cupidscript_strings.c",
+    "kernel/lang/dis.c",
+    "kernel/lang/exec.c",
+    "kernel/lang/godspeak.c",
+    "kernel/mm/swap.c",
+    "kernel/mm/swap_disk.c",
+    "kernel/network/arp.c",
+    "kernel/network/dhcp.c",
+    "kernel/network/dns.c",
+    "kernel/network/icmp.c",
+    "kernel/network/ip.c",
+    "kernel/network/net_if.c",
+    "kernel/smp/ioapic.c",
+    "kernel/tls/tls_ca_bundle_data.c",
+    "kernel/tls/tls_ctx.c",
+    "kernel/tls/tls_handshake.c",
+    "kernel/tls/tls_kdf.c",
+    "kernel/tls/tls_record.c",
+    "kernel/tls/tls_selftest.c",
+    "kernel/tls/tls12_handshake.c",
+    "kernel/usb/usb.c",
+    "kernel/usb/usb_hid.c",
+    "kernel/usb/usb_hub.c",
+    "kernel/usb/usb_msc.c",
+    "kernel/util/calendar.c",
+]
+TOOLCHAIN_KERNEL_SOURCES = [
+    "toolchain/ctool.c",
+    "toolchain/cupidasm.c",
+    "toolchain/cupiddis.c",
+    "toolchain/elf32.c",
+    "toolchain/x86.c",
+]
 KERNEL_SOURCES = sorted(
-    CRYPTO_SOURCES + SMP_SOURCES + OPERAND_FREE_SOURCES + PORT_IO_SOURCES
+    CRYPTO_SOURCES
+    + SMP_SOURCES
+    + OPERAND_FREE_SOURCES
+    + PORT_IO_SOURCES
+    + COMPILER_READY_SOURCES
+    + TOOLCHAIN_KERNEL_SOURCES
 )
 
 BOUNDARY_DIAGNOSTICS = {}
@@ -336,14 +421,14 @@ class FrontierElfValidationTests(unittest.TestCase):
         ):
             frontier._validate_elf32_header(malformed)
 
-    def test_missing_required_section_is_rejected(self):
+    def test_missing_required_string_table_section_is_rejected(self):
         malformed = bytearray(_valid_elf32_object())
         section_offset = struct.unpack_from("<I", malformed, 32)[0]
-        struct.pack_into("<I", malformed, section_offset + 40, 0)
+        struct.pack_into("<I", malformed, section_offset + 4 * 40, 0)
 
         with self.assertRaisesRegex(
             frontier.FrontierError,
-            r"missing required section \.text",
+            r"missing required section \.strtab",
         ):
             frontier._validate_elf32_header(malformed)
 
@@ -429,7 +514,7 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (40 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (116 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -719,7 +804,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (40 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (116 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -750,10 +835,10 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(list((output / "negative").iterdir()), [])
-            self.assertEqual(manifest["input_snapshot"]["count"], 40)
+            self.assertEqual(manifest["input_snapshot"]["count"], 116)
             self.assertEqual(
                 len(manifest["input_snapshot"]["files"]),
-                40,
+                116,
             )
             self.assertEqual(
                 len(manifest["input_snapshot"]["sha256"]),
@@ -1591,13 +1676,13 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 cwd=REPO_ROOT,
                 text=True,
                 capture_output=True,
-                timeout=600,
+                timeout=1200,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (40 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (116 sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
@@ -1609,7 +1694,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                675340,
+                2267588,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1719,8 +1804,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/lang/shell.c": (
                     175056,
-                    "d6e32e24d9682a4d9f0967317a1abbd"
-                    "75340602f0b852e39c33de122a37d7fbe",
+                    "6f608e0ab1abefa467949f18b3731e31"
+                    "a9f46fbdda73f691dcfddf941c1c1559",
                 ),
                 "kernel/usb/ehci.c": (
                     22820,
@@ -1740,11 +1825,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 port_io_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 328)
+            self.assertEqual(manifest["input_snapshot"]["count"], 404)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "3dedac2c0a5733f531871b6bc83ebb42"
-                "7b92e6dfa448edc93a7804ec28025032",
+                "bba3c57ce5617d7afb70fb1c32b721b2"
+                "13aea86a54d4f905bb270c211c321c03",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

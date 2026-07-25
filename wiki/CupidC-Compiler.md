@@ -246,7 +246,7 @@ Block-scope compound literals use one persistent unnamed automatic object per so
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, floating literals, integer and floating conversions, floating comparisons and truth, floating update, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-The checked CupidC seed owns 40 normal-build kernel objects. The cohort has all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop shell, the socket layer, TCP, ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, the system-call path, the shell, EHCI, and UHCI. The strict frontier compiles every approved source twice to 675,340 byte-identical i386 ELF32 bytes. It freezes a 328-input snapshot with SHA-256 `3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`. Forced poisoned-host builds cover every production wrapper recipe, and each recipe declares its exact recursive header closure. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX. The port-I/O users keep their declared lane widths, and EHCI uses the represented atomic fetch-or operation. The 40-object runtime contract passes on four vCPUs with e1000 and RTL8139. Each run covers SMP startup, crypto, input detach and reattach, ATA, audio, USB hot-plug, six EHCI storage lifetimes, a zero-padded RTC timestamp, and DHCP traffic through the selected NIC. The host compiler still builds 257 C transforms and 205 root or user objects. Host Python owns 49 transforms. The private in-kernel CupidC compiler still handles embedded runtime compilation.
+The checked CupidC seed owns 116 normal-build C objects. The cohort keeps the established 40 kernel and driver sources, adds 71 unchanged sources across the kernel, and adds the shared `ctool.c`, `cupidasm.c`, `cupiddis.c`, `elf32.c`, and `x86.c` implementations. The strict frontier compiles every approved source twice to 2,267,588 byte-identical i386 ELF32 bytes. It freezes a 404-input snapshot with SHA-256 `bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`. Forced poisoned-host builds cover every production wrapper recipe, and each recipe declares its exact recursive header closure. A valid data-only object may omit `.text` while its remaining sections and symbols still receive bounds checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX. The four-vCPU GUI contract reaches SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC execution at `0x01100000`. A separate gate loads and reaps the same external program twice at `0x00F00000`. The host compiler still builds 181 C transforms and 129 root or user objects. Host Python owns 125 transforms. The private in-kernel CupidC compiler still handles embedded runtime compilation.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects rather than only the earlier hybrid image.
 
@@ -283,8 +283,8 @@ shared x86 model. This brings the active non-Doom header gate to 154/154 at
 compiler head.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 40-source CupidC cohort, whose deterministic frontier has
-675,340 object bytes. `kernel/smp/acpi.c` and `kernel/smp/mp_tables.c`
+uses it in the 116-source CupidC cohort, whose deterministic frontier has
+2,267,588 object bytes. `kernel/smp/acpi.c` and `kernel/smp/mp_tables.c`
 continue to emit 5,708-byte and 4,156-byte objects that pass the shared
 validator. The runtime contract passes on four vCPUs with both
 supported NIC paths.
@@ -1128,12 +1128,12 @@ Symbols are stored in a 4,096-entry flat array and searched backward so that loc
 
 ```
 JIT Mode:
-  0x01000000 - 0x010FFFFF  Code region (1 MB)
-  0x01100000 - 0x018FFFFF  Data region (8 MB strings/globals)
+  0x01100000 - 0x011FFFFF  Code region (1 MB)
+  0x01200000 - 0x019FFFFF  Data region (8 MB strings/globals)
 
 AOT Mode:
-  0x01000000 - 0x010FFFFF  Code segment
-  0x01100000 - 0x018FFFFF  Data segment
+  0x01100000 - 0x011FFFFF  Code segment
+  0x01200000 - 0x019FFFFF  Data segment
   Code and data packed into a fixed-address ELF32 executable
 ```
 

@@ -7,7 +7,7 @@
  * The output ELF has:
  *   - ELF header (52 bytes)
  *   - Two program headers (PT_LOAD for code, PT_LOAD for data)
- *   - Code section loaded at CC_AOT_CODE_BASE (0x01000000)
+ *   - Code section loaded at CC_AOT_CODE_BASE (0x01100000)
  *   - Data section loaded at CC_AOT_DATA_BASE
 */
 

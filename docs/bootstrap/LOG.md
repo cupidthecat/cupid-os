@@ -8977,3 +8977,131 @@ ADR 0110 records the ownership decision.
 No migration-order question was needed. The checked seed already represented
 the language forms used by these sources, and the strict frontier fixed the
 cohort that could move without changing active source.
+
+## 2026-07-25: Expand production CupidC ownership to 116 sources
+
+The next audit compiled unchanged active sources with the verified seed
+instead of judging readiness from syntax alone. Seventy-one kernel and driver
+roots passed the strict kernel profile, deterministic object emission, and
+ELF32 validation. They cover audio, filesystems, graphics, GUI, language
+services, memory, networking, SMP, TLS, USB, and utility code.
+
+A second probe covered the 43 strict roots that remained after that handoff.
+Five shared implementation files passed:
+
+- `toolchain/ctool.c`
+- `toolchain/cupidasm.c`
+- `toolchain/cupiddis.c`
+- `toolchain/elf32.c`
+- `toolchain/x86.c`
+
+The other 38 roots failed before publication. The failures cluster around GNU
+attributes and inline assembly, floating constants and conversions, static
+pointer or floating initialization, and unsupported IR statement, conversion,
+or expression forms. The probe left each source unchanged. Those diagnostics
+now define the next compiler work.
+
+### Production ownership and dependencies
+
+The root Make graph now sends 116 objects through
+`tools/cupidc_kernel_compile.py`. The wrapper keeps an explicit allowlist,
+verifies and freezes the checked seed, compiles under `KERNEL_I386`, validates
+the result, and publishes only after success. Tests keep an independent copy
+of the allowlist so production code cannot quietly expand its own authority.
+
+The first Make conversion listed direct headers. That was not enough to make
+incremental rebuilds follow the actual compiler input graph. The accepted
+rules list each source's recursive tracked header closure together with the
+wrapper, frontier, seed verifier, manifest, and five checked seed images.
+Poisoning `CC` proves that each transferred recipe stays on the CupidC path.
+
+`kernel/audio/memio.c` and `kernel/audio/mus2midi.c` passed strict C and no
+longer use the relaxed Doom compatibility profile. Four audio sources remain
+in that relaxed profile.
+
+### Data-only relocatable objects
+
+`kernel/gfx/font_8x8.c` produced a valid object with data but no code. The
+first frontier stopped because the shared validator required `.text` in every
+relocatable object. A focused test first reproduced that rejection.
+
+The validator now requires `.symtab`, `.strtab`, and `.shstrtab`, but not
+`.text`. It still checks section bounds, symbol-table structure, symbol
+ranges, and relocation rules. A positive fixture covers a valid data-only
+object. A negative fixture gives a data symbol a range beyond its section and
+confirms that the validator rejects it.
+
+### Fixed memory map
+
+The 111-source image reached `_kernel_end = 0x00BDFA70`, only 132,496 bytes
+below the old stack boundary. The five shared implementation objects would
+not fit with a useful safety margin. Reducing the cohort, shrinking an arena,
+or rewriting source around unoptimized output was rejected.
+
+The map reclaims the unused one-MiB gap before CupidASM:
+
+| Region | Current range |
+| --- | --- |
+| Kernel image | below `0x00D00000` |
+| Kernel stack | `[0x00D00000, 0x00F00000)` |
+| External ELF arena | `[0x00F00000, 0x01100000)` |
+| CupidC JIT/AOT | `[0x01100000, 0x01A00000)` |
+| CupidASM JIT/AOT | `[0x01A00000, 0x01C00000)` |
+
+The stack remains two MiB, the external arena remains two MiB, CupidC remains
+nine MiB, and CupidASM remains two MiB at its original base. Static assertions
+and focused tests pin alignment, size, adjacency, the linker ceiling, both
+stack setup sites, the user link base, and the CupidC code and data bases.
+The three tracked user executables were rebuilt at `0x00F00000`.
+
+### Evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Deterministic production frontier | PASS | All 116 sources compile twice to 2,267,588 byte-identical i386 ELF32 bytes in 752.885 seconds. The 404-input snapshot has SHA-256 `bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`; the manifest has SHA-256 `64afe80b241f360bd7eb6d985fed04f42ca3924f7ac21087c819b3a1c2f37294`. |
+| Poisoned-host recipes | PASS | Forced builds cover the 71 kernel and driver additions and all five shared toolchain implementation objects with `CC` set to a command that must not run. |
+| Fixed memory layout | PASS | All three layout tests check region sizes and adjacency, code constants, Make dependencies, and the rebuilt user executables. |
+| Normal image build | PASS | The complete two-pass CupidLD and CupidObj build finishes in 255.9 seconds with `_loaded_end = 0x007F6641` and `_kernel_end = 0x00C1BA70`. The bootloader reserve keeps 1,085,375 bytes free, and the kernel keeps 935,312 bytes below the stack. The final `kernel.elf` has SHA-256 `61a0cf53421b20bd8f9e101b1012f094b9b270d5da78cd5da4d15c598ff0b3ac`; `kernel.bin` has SHA-256 `21009aea9cba81af02b402ae98a7b5decd58f55c7690c47e4e3b138553163137`. |
+| Four-vCPU GUI runtime | PASS | The strong e1000 smoke passes SMP startup, all 62 crypto checks, desktop and terminal startup, and CupidC execution at `0x01100000` in 57.0 seconds. The 21,695-byte serial log has SHA-256 `0875b0f14f9945f0394795ebd3d9c5544bc51dca0a0f5681c74980ac17850ca0`. |
+| External ELF lease reuse | PASS | The same program loads twice at `0x00F00000`. PID 4 releases lease 1 before the next PID 4 claims lease 2, and both instances exit without a panic. The 22,529-byte serial log has SHA-256 `1845c55ac48da1a966d41707cbe6d5259b25bd8a61f784ae22fbe0e21ae3a662`. |
+| Active build audit | PASS | The graph has 698 active sources, 252 feature IDs, 501 transforms, and 42 accounted unreachable files. CupidC owns 116 transforms, host C owns 181, host Python owns 125, CupidASM owns four, CupidDis owns one, CupidLD owns five, and CupidObj owns 182. The active-source digest is `b2687273e9b0aff71479bf97c4624e51bdb911611cf5cc894d4a400d2c906eb1`; the JSON SHA-256 is `b9069f86aa59e7bcc32d343b82496fc3e13b108f356f55a2ee6a917e3d6061a8`. |
+| Repository suite | PASS | All 638 tests pass in 2,629.025 seconds. One environment-dependent case is skipped. The focused corpus-contract rerun passes all 99 tests, and the optional NASM parity oracle passes both active-source cases. |
+
+The first external runtime attempt used `/home/hello`, but the private image
+already had a persistent HomeFS container. A newly staged FAT file therefore
+appeared under `/disk`. The next run reached the program but the Windows
+shell removed quote characters from the success expression. Encoding those
+quotes as `\x22` fixed the harness argument. One repeated command then lost a
+keyboard scancode and became `/dik/hello`; staging the same binary as
+`/disk/h` shortened the sequence and completed both lease cycles. These were
+test-harness and image-state problems, not loader failures.
+
+Independent review found stale memory addresses, obsolete 40-source wording,
+an imprecise frontier snapshot description, and a missing assertion for the
+two-MiB CupidASM reservation. The corrected contracts now pin both ends,
+alignment, and size for every fixed region. The documentation distinguishes
+the 116 source files and 288 recursive header or include inputs from the
+separately recorded compiler profile and checked seed. All 119 affected
+contracts pass in 402.719 seconds, and the corrected 116-source frontier
+passes in 752.885 seconds.
+
+The final four-vCPU image passed its strong GUI gate after those corrections.
+Seven attempts to repeat the external loader gate reached the terminal but
+did not enter the loader. A monitor-boundary trace confirmed that QEMU
+accepted every `/disk/h` key report. The guest later reported that EHCI could
+not quiesce its asynchronous schedule; one longer attempt eventually stopped
+with an EHCI DMA-ownership panic. These runs are recorded as USB input
+failures, not loader results. The successful two-generation lease capture
+above remains the accepted loader evidence because the review corrections
+changed assertions, comments, and documentation rather than loader or
+process behavior.
+
+This handoff moves 76 normal-build C transforms away from GCC or Clang. The
+host compiler remains responsible for 181 transforms. Python orchestration,
+WSL on Windows, native contracts, hosted development commands, Doom, user C,
+and 38 probed strict kernel roots remain in the bootstrap boundary. No `.c`
+file is renamed at this stage. ADR 0111 records the ownership, object, and
+memory-map decisions.
+
+No design question was needed. The unchanged source, checked-seed result,
+linker headroom, and existing fixed-region sizes determined the safe boundary.

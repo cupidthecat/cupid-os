@@ -434,7 +434,7 @@ void print(const char* str) {
  *
  * 1. Setting up the stack:
  *    - Sets ESP to the top of the fixed 2 MiB kernel-stack reservation
- *    - Stack grows downward through [0x00C00000, 0x00E00000)
+ *    - Stack grows downward through [0x00D00000, 0x00F00000)
  *    - Initializes base pointer (EBP) to match stack pointer
  *
  * 2. Transferring control:
@@ -449,8 +449,8 @@ void _start(void) {
     // BSS follows text+data above 1MB and must be zeroed explicitly.
     __asm__ volatile(
         /* link.ld asserts that the complete kernel image stays below the
-         * fixed [0x00C00000, 0x00E00000) stack reservation. See memory.h.*/
-        "mov $0xE00000, %%esp\n"
+         * fixed [0x00D00000, 0x00F00000) stack reservation. See memory.h.*/
+        "mov $0xF00000, %%esp\n"
         "mov %%esp, %%ebp\n"
         /* Zero BSS region (_bss_start to _kernel_end) */
         "mov $_bss_start, %%edi\n"

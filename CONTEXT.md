@@ -31,7 +31,7 @@ The narrow allocator, whole-file, and text-output capabilities that connect the 
 _Avoid_: tool backend, giant platform vtable
 
 **External executable arena**:
-The permanently reserved identity-mapped range `[0x00E00000, 0x01000000)` leased exclusively to one ordinary fixed-address ELF process at a time.
+The permanently reserved identity-mapped range `[0x00F00000, 0x01100000)` leased exclusively to one ordinary fixed-address ELF process at a time.
 _Avoid_: dynamically allocated user memory, CupidC region, CupidASM region
 
 **TempleOS reference tree**:
@@ -125,7 +125,7 @@ All 20 `kernel/crypto` translation units built by checked-seed CupidC in the nor
 _Avoid_: compiler-head frontier, partial crypto cohort
 
 **Production CupidC kernel cohort**:
-The 40 normal-build kernel translation units owned by checked-seed CupidC: the complete 20-source crypto cohort, ACPI and MP-table discovery, e1000, the desktop shell, the socket layer, TCP, ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, the system-call path, the shell, EHCI, and UHCI. The strict frontier compiles all 40 sources twice to 675,340 matching i386 ELF32 bytes before atomic publication. Its 328-input snapshot has SHA-256 `3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`. Poisoned-host rebuilds and exact recursive header closures cover every transferred recipe. Four-vCPU QEMU gates pass with both e1000 and RTL8139. Each run covers SMP, the 62 crypto checks, input, ATA, audio, USB hot-plug, DHCP traffic, a zero-padded RTC timestamp, and six EHCI storage lifetimes.
+The 116 normal-build C translation units owned by checked-seed CupidC. The cohort keeps the established 40 kernel and driver sources, adds 71 unchanged sources across audio, filesystems, graphics, GUI, language, memory, networking, SMP, TLS, USB, and utility code, and adds the shared `ctool.c`, `cupidasm.c`, `cupiddis.c`, `elf32.c`, and `x86.c` implementations. The strict frontier compiles all 116 sources twice to 2,267,588 matching i386 ELF32 bytes before atomic publication. Its 404-input snapshot has SHA-256 `bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`. Poisoned-host rebuilds and exact recursive header closures cover every recipe. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The four-vCPU GUI gate reaches SMP, the 62 crypto checks, the desktop, terminal, network, and CupidC execution. The shifted external arena also loads and reaps the same fixed-address program twice, releasing its first lease before reuse.
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Hosted i386 ABI profile**:

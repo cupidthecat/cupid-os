@@ -31,22 +31,36 @@ class MemoryLayoutContractTests(unittest.TestCase):
         )
         external_end = _macro_value(header, "EXTERNAL_EXEC_ARENA_END")
         cupidc_start = _macro_value(header, "CUPIDC_EXEC_ARENA_START")
+        cupidc_end = _macro_value(header, "CUPIDC_EXEC_ARENA_END")
+        cupidasm_start = _macro_value(
+            header, "CUPIDASM_EXEC_ARENA_START"
+        )
+        cupidasm_end = _macro_value(header, "CUPIDASM_EXEC_ARENA_END")
 
-        self.assertEqual(stack_bottom, 0x00C00000)
-        self.assertEqual(stack_top, 0x00E00000)
-        self.assertEqual(external_start, 0x00E00000)
-        self.assertEqual(external_end, 0x01000000)
-        self.assertEqual(cupidc_start, 0x01000000)
+        self.assertEqual(stack_bottom, 0x00D00000)
+        self.assertEqual(stack_top, 0x00F00000)
+        self.assertEqual(external_start, 0x00F00000)
+        self.assertEqual(external_end, 0x01100000)
+        self.assertEqual(cupidc_start, 0x01100000)
+        self.assertEqual(cupidc_end, 0x01A00000)
+        self.assertEqual(cupidasm_start, 0x01A00000)
+        self.assertEqual(cupidasm_end, 0x01C00000)
         self.assertEqual(stack_top - stack_bottom, 2 * 1024 * 1024)
         self.assertEqual(external_end - external_start, 2 * 1024 * 1024)
+        self.assertEqual(cupidc_end - cupidc_start, 9 * 1024 * 1024)
+        self.assertEqual(cupidasm_end - cupidasm_start, 2 * 1024 * 1024)
         self.assertEqual(stack_top, external_start)
         self.assertEqual(external_end, cupidc_start)
+        self.assertEqual(cupidc_end, cupidasm_start)
         for address in (
             stack_bottom,
             stack_top,
             external_start,
             external_end,
             cupidc_start,
+            cupidc_end,
+            cupidasm_start,
+            cupidasm_end,
         ):
             self.assertEqual(address % 4096, 0)
 
@@ -56,15 +70,23 @@ class MemoryLayoutContractTests(unittest.TestCase):
         kernel = (REPO_ROOT / "kernel/core/kernel.c").read_text(
             encoding="utf-8"
         )
+        cupidc = (REPO_ROOT / "kernel/lang/cupidc.h").read_text(
+            encoding="utf-8"
+        )
         root_makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        logical_makefile = root_makefile.replace("\\\n", " ")
         user_makefile = (REPO_ROOT / "user/Makefile").read_text(
             encoding="utf-8"
         )
 
-        self.assertIn("ASSERT(_kernel_end <= 0xC00000,", linker)
-        self.assertRegex(boot, r"(?m)^\s*mov esp, 0xE00000\s+;")
-        self.assertIn('"mov $0xE00000, %%esp\\n"', kernel)
-        self.assertIn("USER_TEXT_ADDRESS ?= 0x00E00000", user_makefile)
+        self.assertIn("ASSERT(_kernel_end <= 0xD00000,", linker)
+        self.assertRegex(boot, r"(?m)^\s*mov esp, 0xF00000\s+;")
+        self.assertIn('"mov $0xF00000, %%esp\\n"', kernel)
+        self.assertIn("#define CC_JIT_CODE_BASE 0x01100000u", cupidc)
+        self.assertIn("#define CC_JIT_DATA_BASE 0x01200000u", cupidc)
+        self.assertIn("#define CC_AOT_CODE_BASE 0x01100000u", cupidc)
+        self.assertIn("#define CC_AOT_DATA_BASE 0x01200000u", cupidc)
+        self.assertIn("USER_TEXT_ADDRESS ?= 0x00F00000", user_makefile)
         self.assertRegex(
             user_makefile,
             r"(?m)^\$\(BUILD\)/%: \$\(BUILD\)/%\.o \$\(CUPIDLD\) Makefile$",
@@ -76,7 +98,7 @@ class MemoryLayoutContractTests(unittest.TestCase):
         ):
             rule = re.search(
                 rf"(?m)^{re.escape(target)}: ([^\r\n]+)$",
-                root_makefile,
+                logical_makefile,
             )
             self.assertIsNotNone(rule, target)
             self.assertIn("kernel/mm/memory.h", rule.group(1))
@@ -96,7 +118,7 @@ class MemoryLayoutContractTests(unittest.TestCase):
                 self.assertEqual(ident[:6], b"\x7fELF\x01\x01")
                 self.assertEqual(file_type, 2)
                 self.assertEqual(machine, 3)
-                self.assertEqual(entry, 0x00E00000)
+                self.assertEqual(entry, 0x00F00000)
 
                 entry_is_executable = False
                 load_count = 0
@@ -116,9 +138,9 @@ class MemoryLayoutContractTests(unittest.TestCase):
                     if segment_type != 1:
                         continue
                     load_count += 1
-                    self.assertGreaterEqual(virtual_address, 0x00E00000)
+                    self.assertGreaterEqual(virtual_address, 0x00F00000)
                     self.assertLessEqual(
-                        virtual_address + memory_size, 0x01000000
+                        virtual_address + memory_size, 0x01100000
                     )
                     self.assertLessEqual(file_offset + file_size, len(image))
                     if (

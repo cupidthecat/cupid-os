@@ -7,7 +7,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 698
-- Unreachable source-like files: 39
+- Unreachable source-like files: 42
 - Reachable output transforms: 501
 - Distinct feature requirements: 252
 - The `TempleOS/` reference tree is excluded.
@@ -49,7 +49,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_gfx` | 28 | 12182 |
 | `kernel_gui` | 28 | 11971 |
 | `kernel_lang` | 20 | 10542 |
-| `kernel_mm` | 7 | 1296 |
+| `kernel_mm` | 7 | 1301 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1161 |
 | `kernel_tls` | 13 | 6661 |
@@ -76,12 +76,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 40 |
+| `cupid_c_compiler` | 116 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 257 |
-| `host_python` | 49 |
+| `host_c_compiler` | 181 |
+| `host_python` | 125 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -100,7 +100,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
 | `c.control` | 12 | 66028 |
-| `c.declaration` | 1 | 26 |
+| `c.declaration` | 1 | 28 |
 | `c.declarator` | 4 | 2943 |
 | `c.expression` | 2 | 4294 |
 | `c.extension` | 18 | 387 |
@@ -132,7 +132,7 @@ The JSON companion records stable feature IDs, occurrence counts, files, and rep
 | Required relocations | `R_386_32, R_386_PC32` |
 | Stack alignment | 16 bytes |
 
-`link.ld` has SHA-256 `ec69f3e03b7b1b05ed75efee6f953d89b63c6e6ee46c314113f5d4630b88f80b` and uses `ALIGN`, `ASSERT`, `COMMON`, `ENTRY`, `SECTIONS`, `input_section_wildcards`, `location_counter`, `symbol_definitions`.
+`link.ld` has SHA-256 `2c8da90636551e805149b7c8e50dd071dcc02d7eadb9b1148626df566d0fcae1` and uses `ALIGN`, `ASSERT`, `COMMON`, `ENTRY`, `SECTIONS`, `input_section_wildcards`, `location_counter`, `symbol_definitions`.
 It is also a declared Make prerequisite.
 
 ## Source-driven capability priority
@@ -170,7 +170,7 @@ It is also a declared Make prerequisite.
 | `exact_duplicate` | 7 |
 | `explicitly_excluded` | 2 |
 | `historical_copy` | 7 |
-| `not_reached` | 18 |
+| `not_reached` | 21 |
 | `superseded` | 5 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -215,6 +215,9 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |
 | `tests/kernel_exec_contract.c` | `c` | `not_reached` | 601 | not reachable from the supported Make target or include closure |
 | `tests/kernel_process_contract.c` | `c` | `not_reached` | 929 | not reachable from the supported Make target or include closure |
+| `tests/usb_interrupt_ownership_contract.c` | `c` | `not_reached` | 50 | not reachable from the supported Make target or include closure |
+| `tests/usb_msc_lifetime_contract.c` | `c` | `not_reached` | 150 | not reachable from the supported Make target or include closure |
+| `tests/usb_reconciliation_runtime.c` | `c` | `not_reached` | 728 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/elf32_oracle.c` | `c` | `not_reached` | 8 | not reachable from the supported Make target or include closure |
 
 ## Audit contracts
@@ -227,7 +230,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_include_operands` | `pass` | 2382 C include operands (2150 quoted, 232 angle, 0 pp-token); 667 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 667 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
-| `c_preprocessor_translation_units` | `pass` | 379 tracked + 4 generated translation units (KERNEL_I386=152, DOOM_COMPAT_I386=6, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=12, HOSTED_KERNEL_BRIDGE_64=1, HOSTED_I386_LINUX=19, HOSTED_I386_LINUX_GNU=1); 22 include-only, 2 non-root headers; 20 hosted deferred (20 external, 0 hermetic) |
+| `c_preprocessor_translation_units` | `pass` | 379 tracked + 4 generated translation units (KERNEL_I386=154, DOOM_COMPAT_I386=4, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=12, HOSTED_KERNEL_BRIDGE_64=1, HOSTED_I386_LINUX=19, HOSTED_I386_LINUX_GNU=1); 22 include-only, 2 non-root headers; 20 hosted deferred (20 external, 0 hermetic) |
 | `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 10 success and 6 failure cases; i386-linux |
 
 ## Interpretation limits

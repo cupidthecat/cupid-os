@@ -79,12 +79,94 @@ APPROVED_PORT_IO_SOURCES = (
     "kernel/usb/ehci.c",
     "kernel/usb/uhci.c",
 )
+APPROVED_COMPILER_READY_SOURCES = (
+    "kernel/audio/memio.c",
+    "kernel/audio/midiopl.c",
+    "kernel/audio/mixer.c",
+    "kernel/audio/mus2midi.c",
+    "kernel/audio/opl_smoke.c",
+    "kernel/cpu/math.c",
+    "kernel/fs/blockcache.c",
+    "kernel/fs/blockdev.c",
+    "kernel/fs/devfs.c",
+    "kernel/fs/fat16_vfs.c",
+    "kernel/fs/fs.c",
+    "kernel/fs/homefs.c",
+    "kernel/fs/iso9660_vfs.c",
+    "kernel/fs/ramfs.c",
+    "kernel/fs/vfs.c",
+    "kernel/fs/vfs_helpers.c",
+    "kernel/gfx/bmp.c",
+    "kernel/gfx/font_8x8.c",
+    "kernel/gfx/fontsys.c",
+    "kernel/gfx/gfx2d_assets.c",
+    "kernel/gfx/gfx2d_effects.c",
+    "kernel/gfx/gfx2d_icons.c",
+    "kernel/gfx/gfx2d_transform.c",
+    "kernel/gfx/graphics.c",
+    "kernel/gfx/ttf.c",
+    "kernel/gui/ansi.c",
+    "kernel/gui/clipboard.c",
+    "kernel/gui/ctxt_image_worker.c",
+    "kernel/gui/gui.c",
+    "kernel/gui/gui_containers.c",
+    "kernel/gui/gui_events.c",
+    "kernel/gui/gui_menus.c",
+    "kernel/gui/gui_themes.c",
+    "kernel/gui/gui_widgets.c",
+    "kernel/gui/terminal_app.c",
+    "kernel/gui/ui.c",
+    "kernel/lang/as_elf.c",
+    "kernel/lang/ctool_kernel.c",
+    "kernel/lang/cupidc_elf.c",
+    "kernel/lang/cupidscript_arrays.c",
+    "kernel/lang/cupidscript_exec.c",
+    "kernel/lang/cupidscript_jobs.c",
+    "kernel/lang/cupidscript_lex.c",
+    "kernel/lang/cupidscript_parse.c",
+    "kernel/lang/cupidscript_runtime.c",
+    "kernel/lang/cupidscript_streams.c",
+    "kernel/lang/cupidscript_strings.c",
+    "kernel/lang/dis.c",
+    "kernel/lang/exec.c",
+    "kernel/lang/godspeak.c",
+    "kernel/mm/swap.c",
+    "kernel/mm/swap_disk.c",
+    "kernel/network/arp.c",
+    "kernel/network/dhcp.c",
+    "kernel/network/dns.c",
+    "kernel/network/icmp.c",
+    "kernel/network/ip.c",
+    "kernel/network/net_if.c",
+    "kernel/smp/ioapic.c",
+    "kernel/tls/tls_ca_bundle_data.c",
+    "kernel/tls/tls_ctx.c",
+    "kernel/tls/tls_handshake.c",
+    "kernel/tls/tls_kdf.c",
+    "kernel/tls/tls_record.c",
+    "kernel/tls/tls_selftest.c",
+    "kernel/tls/tls12_handshake.c",
+    "kernel/usb/usb.c",
+    "kernel/usb/usb_hid.c",
+    "kernel/usb/usb_hub.c",
+    "kernel/usb/usb_msc.c",
+    "kernel/util/calendar.c",
+)
+APPROVED_TOOLCHAIN_KERNEL_SOURCES = (
+    "toolchain/ctool.c",
+    "toolchain/cupidasm.c",
+    "toolchain/cupiddis.c",
+    "toolchain/elf32.c",
+    "toolchain/x86.c",
+)
 APPROVED_KERNEL_SOURCES = tuple(
     sorted(
         APPROVED_CRYPTO_SOURCES
         + APPROVED_SMP_SOURCES
         + APPROVED_OPERAND_FREE_SOURCES
         + APPROVED_PORT_IO_SOURCES
+        + APPROVED_COMPILER_READY_SOURCES
+        + APPROVED_TOOLCHAIN_KERNEL_SOURCES
     )
 )
 
@@ -375,7 +457,7 @@ def validate_i386_relocatable_bytes(image: bytes) -> None:
                 f"emitted object section {index} name is not ASCII"
             ) from error
 
-    required_sections = {".text", ".symtab", ".strtab", ".shstrtab"}
+    required_sections = {".symtab", ".strtab", ".shstrtab"}
     missing_sections = sorted(required_sections - set(section_names))
     if missing_sections:
         raise KernelCompileError(

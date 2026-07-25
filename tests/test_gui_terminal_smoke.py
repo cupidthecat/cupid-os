@@ -113,7 +113,7 @@ def _frontier_command_outputs():
         ),
         (
             "[cupidc] JIT compile: /bin/godsong.cc\n"
-            "[cupidc] Executing at 0x0x01000000\n"
+            "[cupidc] Executing at 0x0x01100000\n"
             "[print_int] num=1 (0x0x00000001) gui_mode=1\n"
             "[print_int] num=200 (0x0x000000c8) gui_mode=1\n"
             "[cupidc] JIT execution complete\n"

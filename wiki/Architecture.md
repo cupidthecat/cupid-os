@@ -58,14 +58,12 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
 0x00100000 ├──────────────────────────┤
            │ Kernel image             │ .text/.rodata/.data/.bss
            │                          │ extends to linker _kernel_end
-0x00C00000 ├──────────────────────────┤
+0x00D00000 ├──────────────────────────┤
            │ Kernel stack             │ 2MB, grows down
-0x00E00000 ├──────────────────────────┤
+0x00F00000 ├──────────────────────────┤
            │ External ELF arena       │ 2MB, permanent reservation/exclusive lease
-0x01000000 ├──────────────────────────┤
+0x01100000 ├──────────────────────────┤
            │ CupidC JIT/AOT           │ 1MB code + 8MB data
-0x01900000 ├──────────────────────────┤
-           │ Reserved gap             │
 0x01A00000 ├──────────────────────────┤
            │ CupidASM JIT/AOT         │ 1MB code + 1MB data
 0x01C00000 ├──────────────────────────┤

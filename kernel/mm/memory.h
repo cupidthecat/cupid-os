@@ -26,19 +26,19 @@ typedef struct heap_block {
 
 /* link.ld keeps the kernel below this fixed stack. The stack and external ELF
  * arena occupy the four megabytes below CupidC's fixed execution arena. */
-#define STACK_BOTTOM 0xC00000u /* Bottom of kernel stack (12 MB) */
-#define STACK_TOP 0xE00000u    /* Top of kernel stack (2 MB tall) */
+#define STACK_BOTTOM 0xD00000u /* Bottom of kernel stack (13 MB) */
+#define STACK_TOP 0xF00000u    /* Top of kernel stack (2 MB tall) */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes) */
 
 /* Fixed executable arenas are identity-mapped and permanently reserved.
  * The external arena is the transitional CupidLD user-program layout.
- * CupidC and CupidASM retain their existing fixed JIT/AOT layouts. */
-#define EXTERNAL_EXEC_ARENA_START 0x00E00000u
-#define EXTERNAL_EXEC_ARENA_END   0x01000000u
-#define CUPIDC_EXEC_ARENA_START   0x01000000u
-#define CUPIDC_EXEC_ARENA_END     0x01900000u
+ * CupidC keeps nine MiB of JIT/AOT space, and CupidASM keeps its fixed base. */
+#define EXTERNAL_EXEC_ARENA_START 0x00F00000u
+#define EXTERNAL_EXEC_ARENA_END   0x01100000u
+#define CUPIDC_EXEC_ARENA_START   0x01100000u
+#define CUPIDC_EXEC_ARENA_END     0x01A00000u
 #define CUPIDASM_EXEC_ARENA_START 0x01A00000u
 #define CUPIDASM_EXEC_ARENA_END   0x01C00000u
 
@@ -51,6 +51,11 @@ _Static_assert(EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START ==
                "external ELF arena must remain 2 MiB");
 _Static_assert(EXTERNAL_EXEC_ARENA_END == CUPIDC_EXEC_ARENA_START,
                "external ELF arena must end at the CupidC arena");
+_Static_assert(CUPIDC_EXEC_ARENA_END == CUPIDASM_EXEC_ARENA_START,
+               "CupidC and CupidASM arenas must be adjacent");
+_Static_assert(CUPIDASM_EXEC_ARENA_END - CUPIDASM_EXEC_ARENA_START ==
+                   2u * 1024u * 1024u,
+               "CupidASM arena must remain 2 MiB");
 
 void pmm_init(uint32_t kernel_end);
 void *pmm_alloc_page(void);
