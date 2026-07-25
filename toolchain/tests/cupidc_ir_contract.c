@@ -28289,13 +28289,14 @@ static int atomic_builtin_ir_matches(
       CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD,
       CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE,
       CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE,
-      CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD};
-  static const ctool_u64 orders[] = {0u, 1u, 2u, 3u, 4u, 5u};
-  static const ctool_u32 sizes[] = {1u, 1u, 1u, 1u, 4u, 4u};
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD,
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR};
+  static const ctool_u64 orders[] = {0u, 1u, 2u, 3u, 4u, 5u, 3u};
+  static const ctool_u32 sizes[] = {1u, 1u, 1u, 1u, 4u, 4u, 4u};
   ctool_u32 found = 0u;
   ctool_u32 index;
   if (unit == NULL || ir == NULL || unit->layout.types == NULL ||
-      ir->function_count != 7u || ir->functions == NULL ||
+      ir->function_count != 9u || ir->functions == NULL ||
       ir->instructions == NULL) {
     return 0;
   }
@@ -28304,7 +28305,7 @@ static int atomic_builtin_ir_matches(
         &ir->instructions[index];
     if (instruction->kind < CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD ||
         instruction->kind >
-            CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD) {
+            CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR) {
       continue;
     }
     if (found >=
@@ -28343,8 +28344,12 @@ static int run_atomic_builtins(const char *host_root) {
       "__atomic_exchange_n(&word_value, value, __ATOMIC_ACQ_REL); }\n"
       "unsigned fetch_word(unsigned value) { return "
       "__atomic_fetch_add(&word_value, value, __ATOMIC_SEQ_CST); }\n"
+      "unsigned fetch_or_word(unsigned value) { return "
+      "__atomic_fetch_or(&word_value, value, __ATOMIC_RELEASE); }\n"
       "void dead_store(void) { return; __atomic_store_n(&byte_value, 0, "
-      "__ATOMIC_RELEASE); }\n";
+      "__ATOMIC_RELEASE); }\n"
+      "void dead_fetch_or(void) { return; "
+      "__atomic_fetch_or(&word_value, 1, __ATOMIC_RELEASE); }\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
@@ -28354,7 +28359,7 @@ static int run_atomic_builtins(const char *host_root) {
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
   ctool_c_expression_t *expressions = NULL;
-  ctool_u32 dead_store = CTOOL_C_AST_NONE;
+  ctool_u32 dead_fetch_or = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_u32 diagnostic_count;
   uint64_t unit_hash;
@@ -28401,22 +28406,23 @@ static int run_atomic_builtins(const char *host_root) {
                (size_t)unit.expression_count * sizeof(*expressions));
   for (index = unit.expression_count; index != 0u;) {
     index--;
-    if (expressions[index].kind == CTOOL_C_EXPRESSION_ATOMIC_STORE) {
-      dead_store = index;
+    if (expressions[index].kind ==
+        CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) {
+      dead_fetch_or = index;
       break;
     }
   }
-  if (dead_store == CTOOL_C_AST_NONE) {
+  if (dead_fetch_or == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
-  expressions[dead_store].integer_bits = 2u;
+  expressions[dead_fetch_or].integer_bits = 6u;
   invalid_unit = unit;
   invalid_unit.expressions = expressions;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "unreachable atomic order mutation")) {
+          "unreachable atomic fetch-or order mutation")) {
     goto cleanup;
   }
   status = ctool_c_lower_ir(job, &unit, &recovered_ir);

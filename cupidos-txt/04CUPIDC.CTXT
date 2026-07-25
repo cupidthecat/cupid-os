@@ -159,14 +159,17 @@ mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
 pointer type, evaluates the destination once, and emits the absolute GS load
 as 65 A1 00 00 00 00.
 
-Compiler head now handles the SMP integer atomic load, store, exchange, and
-fetch-add builtins for one-, two-, and four-byte objects. It checks constant
-memory orders and emits ordinary loads and release stores, memory XCHG, or
-LOCK XADD as required. The six order names are target predefines in every
-language mode, while the expressions remain GNU-only. A decoded i386 model
-checks old results, memory changes, narrow signedness, wraparound, cdecl
-state, and one-time operand evaluation. Runtime orders, pointer atomics, HLE
-flags, and eight-byte atomics remain open.
+Compiler head handles integer atomic load, store, exchange, fetch-add, and
+fetch-or builtins for one-, two-, and four-byte objects. It checks constant
+memory orders and emits ordinary loads and release stores, memory XCHG, LOCK
+XADD, or a LOCK CMPXCHG retry loop. Fetch-or rebuilds its desired value after
+contention, returns the old value, and preserves EBX. The six order names are
+target predefines in every language mode, while the expressions remain
+GNU-only. A decoded i386 model checks old results, memory changes, narrow
+signedness, wraparound, cdecl state, one-time operand evaluation, and a
+forced competing update. Runtime orders, pointer atomics, HLE flags, and
+eight-byte atomics remain open. The checked seed carries the first four
+operations; fetch-or still needs a staged refresh.
 
 Compiler head and the checked seed parse all eight unchanged helpers in
 kernel/core/ports.h. The

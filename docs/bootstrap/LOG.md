@@ -8585,3 +8585,81 @@ runtime checks for storage, PCI, RTC, USB, input, audio, syscall, and shell
 behavior. Issue #26 remains open for the rest of the GNU platform surface,
 and issue #28 remains open for production migration. ADR 0106 records this
 seed transition.
+
+## 2026-07-24: Add atomic fetch-or to compiler head
+
+The USB port-change path needs to restore a rejected port bitmap without
+overwriting bits raised by another CPU. The source uses
+`__atomic_fetch_or` with release ordering for that job. The checked compiler
+understood atomic load, store, exchange, and fetch-add, but it parsed
+fetch-or as an undeclared identifier.
+
+### Implementation and decisions
+
+The frontend now publishes a dedicated fetch-or expression for complete,
+non-Boolean integer objects that are one, two, or four bytes wide. It retains
+the evaluated pointer, converted value, and constant order. Linear IR
+validates that public record and lowers it to its own two-input, one-result
+instruction.
+
+The i386 emitter cannot use `LOCK OR` because that instruction does not
+return the old value. It saves EBX and emits a `LOCK CMPXCHG` loop instead.
+Each failed attempt receives the current memory value in EAX, rebuilds the OR
+result in EBX, and retries. Byte and word operations use their native lanes,
+then sign-extend or zero-extend the successful old value before returning it.
+The locked operation is stronger than release ordering, which is valid on
+this target.
+
+The first narrow emitter draft passed the object width as the memory
+displacement width. Four-byte output happened to encode, but byte output
+failed with `no x86 form matches the instruction`. The final helper sets a
+zero displacement and writes the operand's data width explicitly. This keeps
+all three encodings on the existing shared x86 forms.
+
+The object oracle now models compare-exchange and a conditional retry. One
+32-bit case and one signed-byte case inject a competing memory update before
+the first compare-exchange. The signed-byte case starts with a negative old
+value and injects a positive value, which checks that stale high EAX bits do
+not leak through the final canonicalization. Exact loop bytes, guard memory,
+all cdecl callee-saved registers, returned old values, stored values, and
+single evaluation of the pointer and value are checked. Whole-unit IR and
+object rollback cases now corrupt fetch-or itself rather than relying on an
+older atomic operation.
+
+### Self-host evidence
+
+The source frontier parses the changed compiler files at these current
+five-number tuples: definitions, statements, expressions, block bindings,
+and initializers.
+
+| Source | Parse tuple |
+| --- | --- |
+| `cupidc_ir.c` | 200/6,056/54,288/756/262 |
+| `cupidc_emit.c` | 191/5,229/44,981/634/315 |
+| `cupidc_frontend.c` | 318/12,865/84,249/1,909/1,273 |
+
+Their repeated CupidC object proofs agree byte for byte:
+
+| Source | Functions | Text bytes | Object bytes | Fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `cupidc_ir.c` | 200 | 382,389 | 408,484 | `28605671` |
+| `cupidc_emit.c` | 191 | 326,667 | 350,092 | `429DCBCD` |
+| `cupidc_frontend.c` | 318 | 632,095 | 749,392 | `1D8C7C81` |
+
+### Verification and boundary
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused compiler contracts | PASS | The frontend atomic contract, aggregate source frontier, IR atomic contract, exact object and execution contract, and self-host frontier pass together: five tests in 40.619 seconds. |
+| Complete frontend suite | PASS | An isolated candidate containing only this commit passes all 58 tests in 10.385 seconds. |
+| Complete IR suite | PASS | All 45 tests pass in 15.440 seconds. |
+| Complete object suite | PASS | All 58 tests pass in 709.903 seconds, including the five-tool static fixed-point proof. |
+| Strict hosted Toolchain build | PASS | `make -C toolchain BUILD_DIR=build-root-fetch-or-full all` rebuilds every hosted command and contract, then links all five static i386 tools through the self-host path. |
+| Active translation unit | PASS | Hosted compiler head emits the complete `kernel/usb/ehci.c` translation unit with the normal freestanding i386 kernel profile. |
+| Independent review | PASS | Review checked enum stability, CAS retry semantics, signed narrow results, exact encodings, memory-order strength, cdecl state, and the contention oracle. |
+
+This step changes compiler head only. The checked i386 Linux seed remains the
+1,946,320-byte port-I/O compiler from ADR 0106, and the normal build remains
+at 26 CupidC-owned sources. A staged seed refresh is required before fetch-or
+can enter the production build. ADR 0107 records the language, IR, and i386
+boundary. Issues #26 and #28 remain open.

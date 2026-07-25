@@ -560,7 +560,8 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
     if (candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
         candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_STORE ||
         candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE ||
-        candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
+        candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD ||
+        candidate->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) {
       ctool_status_t status = cir_validate_atomic_expression_shape(
           context, expression, candidate, (ctool_u32 *)0,
           (ctool_u32 *)0, (ctool_u32 *)0);
@@ -2418,7 +2419,8 @@ static ctool_status_t cir_validate_atomic_expression_shape(
       object_layout->is_complete_object == CTOOL_FALSE ||
       (object_layout->size != 1u && object_layout->size != 2u &&
        object_layout->size != 4u) ||
-      (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD &&
+      ((expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD ||
+        expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) &&
        object->kind == CTOOL_C_TYPE_BOOL) ||
       (expression->kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD &&
        (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) ||
@@ -5721,8 +5723,11 @@ static ctool_status_t cir_lower_atomic_builtin(
   } else if (expression->kind ==
              CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE) {
     instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE;
-  } else {
+  } else if (expression->kind ==
+             CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
     instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD;
+  } else {
+    instruction_kind = CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR;
   }
   status = cir_append_instruction(
       context, instruction_kind, object_type, pointer.type,
@@ -6000,7 +6005,8 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   if (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
       expression->kind == CTOOL_C_EXPRESSION_ATOMIC_STORE ||
       expression->kind == CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE ||
-      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD ||
+      expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) {
     return cir_lower_atomic_builtin(
         context, expression_index, expression, depth);
   }

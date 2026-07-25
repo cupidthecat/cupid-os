@@ -256,15 +256,19 @@ evaluates the output destination once, and emits the absolute GS load as
 `65 A1 00 00 00 00`.
 
 Compiler head also represents `__atomic_load_n`, `__atomic_store_n`,
-`__atomic_exchange_n`, and `__atomic_fetch_add` on one-, two-, and four-byte
-integer objects. Constant memory orders stay in the typed AST and Linear IR.
-The i386 emitter uses ordinary loads and release stores, memory `XCHG` for
-exchange and sequentially consistent store, and `LOCK XADD` for fetch-add.
+`__atomic_exchange_n`, `__atomic_fetch_add`, and `__atomic_fetch_or` on
+one-, two-, and four-byte integer objects. Constant memory orders stay in the
+typed AST and Linear IR. The i386 emitter uses ordinary loads and release
+stores, memory `XCHG` for exchange and sequentially consistent store,
+`LOCK XADD` for fetch-add, and a `LOCK CMPXCHG` retry loop for fetch-or. The
+loop rebuilds the desired value from the latest EAX value and preserves EBX.
 The six order names are target predefines in every language mode, while the
 expressions remain GNU-only. A decoded i386 oracle checks returned old
-values, memory changes, narrow signedness, wraparound, cdecl state, and
-one-time operand evaluation. Runtime orders, pointer atomics, HLE flags, and
-eight-byte atomics remain outside this slice.
+values, memory changes, narrow signedness, wraparound, cdecl state, one-time
+operand evaluation, and a forced competing fetch-or update. Runtime orders,
+pointer atomics, HLE flags, and eight-byte atomics remain outside this slice.
+Fetch-or is present at compiler head; the checked seed still needs the staged
+refresh that makes it available to normal-build objects.
 
 Compiler head and the checked seed now parse all eight unchanged helpers in
 `kernel/core/ports.h`. The byte, word, and doubleword IN and OUT forms keep

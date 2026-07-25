@@ -165,7 +165,7 @@ A GNU-mode CupidC statement whose immutable frontend record owns a decoded templ
 _Avoid_: general GNU assembly support, host-assembler escape
 
 **Represented GNU integer atomic**:
-A GNU-mode CupidC load, store, exchange, or fetch-add on a complete one-, two-, or four-byte integer object. Its public AST and Linear IR keep the object width, evaluated pointer type, and constant memory order. The i386 emitter uses ordinary loads and release stores, memory `XCHG` for exchanges and sequentially consistent stores, and `LOCK XADD` for fetch-add. The refreshed checked seed covers the active SMP byte flags and 32-bit counters. The normal build now uses that path for `acpi.c` and `mp_tables.c`; a checked four-vCPU boot discovers and starts every CPU through the resulting objects.
+A GNU-mode CupidC load, store, exchange, fetch-add, or fetch-or on a complete one-, two-, or four-byte integer object. Its public AST and Linear IR keep the object width, evaluated pointer type, and constant memory order. The i386 emitter uses ordinary loads and release stores, memory `XCHG` for exchanges and sequentially consistent stores, `LOCK XADD` for fetch-add, and a `LOCK CMPXCHG` retry loop for fetch-or. The retry loop returns the old value, retains competing updates, and preserves EBX. The checked seed covers the first four operations used by the active SMP byte flags and 32-bit counters; fetch-or is present at compiler head and still needs a seed refresh. The normal build uses the seeded path for `acpi.c` and `mp_tables.c`; a checked four-vCPU boot discovers and starts every CPU through those objects.
 _Avoid_: volatile substitute, general atomic library, runtime memory order
 
 **Aligned call site**:

@@ -81,13 +81,20 @@ Compiler head also handles the exact per-CPU pointer output
 and IR preserve its pointer type and evaluate the destination once. The x86
 model emits `65 A1 00 00 00 00`.
 
-The checked compiler's atomic slice handles the active integer load, store,
-exchange, and fetch-add builtins with constant orders. Its i386 path selects
-ordinary loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
+The checked compiler's atomic slice handles integer load, store, exchange,
+and fetch-add builtins with constant orders. Its i386 path selects ordinary
+loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
 unchanged `acpi.c` and `mp_tables.c` through deterministic i386 ELF32 object
 emission. The normal Make graph owns both through the checked seed. A
 four-vCPU image boots every discovered CPU and completes the normal e1000,
 desktop, terminal, and CupidC runtime smoke.
+
+Compiler head adds `__atomic_fetch_or` at the same one-, two-, and four-byte
+integer widths. It emits a `LOCK CMPXCHG` retry loop because `LOCK OR` cannot
+return the old value. Exact byte and execution checks cover a competing
+update, signed narrow results, guard bytes, one-time operand evaluation, and
+callee-saved EBX. The checked seed still needs a staged refresh before the
+normal build can use this operation.
 
 Compiler head and the checked seed now parse all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,

@@ -5,15 +5,19 @@
 Hosted CupidC now emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic `HOSTED_TOOLCHAIN_64` profile. `kernel/lang/as_elf.c` is the cohort's kernel bridge, while `ctool_host.c`, `cupidasm_main.c`, and `cupiddis_main.c` use a checked i386 Linux profile with Cupid-owned declarations for their hosted interfaces. The same gate now covers complete CupidLD and CupidObj command closures. Each object is emitted twice and read back through Cupid's ELF32 reader. The adapters also lock their named undefined imports and bounded relocation records. This supersedes the older nine-file, eleven-file, and core-only counts in the historical notes and long-form rows below.
 
 Repository startup and runtime code now take five complete CupidC-emitted command closures across CupidASM and CupidLD. The runtime supplies the checked heap, file, memory, string, `errno`, working-directory, and diagnostic interfaces. CupidC, CupidASM, CupidDis, CupidLD, and CupidObj run on i386 Linux or through WSL. Their checked seed binds the static images to the target ABI, source revision, producer lineage, and complete build plan. The harness freezes the verified seed and watches 40 current inputs, including `link.ld`. The seed producer trio builds the 19-source stage-two union and all five tools, then the stage-two trio repeats that work for stage three. Every C object, startup object, and tool image matches across the two stages, and both stages agree on positive and failure behavior for all five commands. ADR 0086 records the sibling commands, ADR 0088 records the compiler driver, ADR 0089 records the compiler fixed point, ADR 0090 records the five-tool fixed point, and ADR 0092 records the checked seed.
-ADR 0102 records the current stage-three seed refresh. It carries operand-free
-assembly, the per-CPU pointer output, and the active integer atomics. ADR 0103
-uses that seed to transfer ACPI and MP-table discovery into the normal build.
-ADR 0104 transfers e1000, the desktop shell, the socket layer, and TCP.
+ADRs 0102 and 0106 record the current stage-three seed lineage. The seed
+carries operand-free assembly, the per-CPU pointer output, the active integer
+atomics through fetch-add, and width-aware port I/O. ADR 0103 uses that seed
+to transfer ACPI and MP-table discovery into the normal build. ADR 0104
+transfers e1000, the desktop shell, the socket layer, and TCP.
 
-The GNU integer atomic slice represents load, store,
-exchange, and fetch-add for one-, two-, and four-byte objects with constant
-orders. The frontend, Linear IR, and i386 emitter retain and validate that
-contract through ordinary loads and stores, memory `XCHG`, and `LOCK XADD`.
+The GNU integer atomic slice represents load, store, exchange, fetch-add, and
+fetch-or for one-, two-, and four-byte objects with constant orders. The
+frontend, Linear IR, and i386 emitter retain and validate that contract
+through ordinary loads and stores, memory `XCHG`, `LOCK XADD`, and a
+`LOCK CMPXCHG` retry loop. The current checked seed carries the first four
+operations. Fetch-or is present at compiler head and awaits a staged seed
+refresh.
 All three `percpu.h` roots parse through this checked-seed capability.
 Checked-seed CupidC owns the two unchanged SMP discovery sources,
 the complete 20-source crypto cohort, e1000, the desktop shell, the socket
@@ -22,17 +26,18 @@ produces 366,592 byte-identical i386 ELF32 bytes. A four-vCPU image boots with
 every CPU online, e1000, the desktop, the terminal, and an embedded CupidC
 command. Dual-NIC integration checks DHCP, ARP, ICMP, a TCP client, and a TCP
 server. ADR 0101 supersedes older row text that lists all atomic access as
-open or leaves the header gate at 150/154. ADRs 0102 through 0104 record the
-seed transition and production hand-offs.
+open or leaves the header gate at 150/154. ADR 0107 records fetch-or. ADRs
+0102 through 0104 and ADR 0106 record the seed transitions and production
+hand-offs.
 
-Compiler head now covers the remaining header boundary. It represents the six
-width-aware scalar port helpers and the two repeated word-string helpers in
-unchanged `kernel/core/ports.h`, including their fixed inputs, read/write
-outputs, and the INSW memory clobber. The active non-Doom header gate is
-154/154 at compiler head. This capability has not yet reached the checked
-seed, so normal-build ownership remains 26 CupidC transforms and 271 host C
-transforms. ADR 0105 supersedes the assembly and header-frontier wording in
-the long frontend, IR, and emitter rows below.
+The checked seed represents the six width-aware scalar port helpers and the
+two repeated word-string helpers in unchanged `kernel/core/ports.h`,
+including their fixed inputs, read/write outputs, and the INSW memory
+clobber. The active non-Doom header gate is 154/154. Normal-build ownership
+remains 26 CupidC transforms and 271 host C transforms until the separate
+production hand-off. ADRs 0105 and 0106 supersede the assembly,
+header-frontier, and seed wording in the long frontend, IR, and emitter rows
+below.
 
 Eight-byte integer values now serve the CupidC-built X25519, socket, and TCP objects as well as hosted contracts. Constants, matching conditional arms, fixed direct and indirect call results, object loads, initialization, assignment, mutation, parameters, arguments, discard, return, arithmetic, bitwise operations, comparisons, logical operations, switch dispatch, and represented conversions use one Linear IR handle backed by an emitter-owned eight-byte snapshot. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements reach that path. A declared argument receives eight cdecl stack bytes, and the return boundary places the low word in EAX and the high word in EDX. Calls retain packed post-conversion actual types in emitted order. Ellipsis or unprototyped calls pass each signed or unsigned wide integer in adjacent low and high words, while a wide variadic read advances by eight bytes. Multiplication combines the low-word product and two cross-word products. Division and remainder use a fixed 64-step restoring loop. Focused proofs retain the active compiler, assembler, X25519, and wide diagnostic-call guards. Wide variadic reads and unprototyped wide calls remain fixture evidence rather than whole-function ownership. GCC or Clang still builds the compiler contracts and most normal C objects.
 

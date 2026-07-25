@@ -6751,12 +6751,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 200u, 6053u,
-       54245u, 756u, 262u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 188u, 5133u,
-       44216u, 620u, 313u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 200u, 6056u,
+       54288u, 756u, 262u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 191u, 5229u,
+       44981u, 634u, 315u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 318u,
-       12858u, 84185u, 1909u, 1273u, 0u, 0u},
+       12865u, 84249u, 1909u, 1273u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23743,9 +23743,10 @@ static int validate_atomic_builtin_unit(
       CTOOL_C_EXPRESSION_ATOMIC_LOAD,
       CTOOL_C_EXPRESSION_ATOMIC_STORE,
       CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE,
-      CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD};
-  static const ctool_u32 orders[] = {0u, 1u, 2u, 3u, 4u, 5u};
-  static const ctool_u32 sizes[] = {1u, 1u, 1u, 0u, 4u, 4u};
+      CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD,
+      CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR};
+  static const ctool_u32 orders[] = {0u, 1u, 2u, 3u, 4u, 5u, 3u};
+  static const ctool_u32 sizes[] = {1u, 1u, 1u, 0u, 4u, 4u, 4u};
   ctool_u32 found = 0u;
   ctool_u32 index;
 
@@ -23757,7 +23758,7 @@ static int validate_atomic_builtin_unit(
   for (index = 0u; index < unit->expression_count; index++) {
     const ctool_c_expression_t *expression = &unit->expressions[index];
     if (expression->kind < CTOOL_C_EXPRESSION_ATOMIC_LOAD ||
-        expression->kind > CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD) {
+        expression->kind > CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) {
       continue;
     }
     if (found >= ARRAY_COUNT(kinds) ||
@@ -23800,7 +23801,9 @@ static int run_atomic_builtins(const char *host_root) {
       "unsigned exchange_word(unsigned value) { return "
       "__atomic_exchange_n(&word_value, value, __ATOMIC_ACQ_REL); }\n"
       "unsigned fetch_word(unsigned value) { return "
-      "__atomic_fetch_add(&word_value, value, __ATOMIC_SEQ_CST); }\n";
+      "__atomic_fetch_add(&word_value, value, __ATOMIC_SEQ_CST); }\n"
+      "unsigned fetch_or_word(unsigned value) { return "
+      "__atomic_fetch_or(&word_value, value, __ATOMIC_RELEASE); }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"missing memory order",
         "volatile unsigned value; "
@@ -23850,6 +23853,11 @@ static int run_atomic_builtins(const char *host_root) {
         "_Bool bad(void) { return __atomic_fetch_add(&value, 1, 0); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "__atomic_fetch_add does not accept a Boolean object"},
+      {{"Boolean fetch or",
+        "_Bool value; "
+        "_Bool bad(void) { return __atomic_fetch_or(&value, 1, 0); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "__atomic_fetch_or does not accept a Boolean object"},
       {{"release load",
         "unsigned value; "
         "unsigned bad(void) { return __atomic_load_n(&value, "

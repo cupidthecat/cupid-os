@@ -11846,6 +11846,7 @@ typedef struct {
   ctool_u16 x87_width_bits[FLOATING_ORACLE_X87_DEPTH];
   ctool_bool x87_bits_valid[FLOATING_ORACLE_X87_DEPTH];
   ctool_u8 x87_depth;
+  ctool_bool zero_flag;
 } narrow_oracle_machine_t;
 
 typedef struct {
@@ -12211,6 +12212,34 @@ static int narrow_oracle_step(narrow_oracle_machine_t *machine,
             machine, left, left_value + right_value) ||
         !narrow_oracle_write_operand(machine, right, left_value)) {
       return 0;
+    }
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_CMPXCHG) {
+    ctool_x86_reg_t accumulator;
+    ctool_u32 accumulator_value;
+    if (right->kind != CTOOL_X86_OPERAND_REGISTER ||
+        narrow_oracle_operand_width(left) !=
+            narrow_oracle_operand_width(right)) {
+      return 0;
+    }
+    accumulator = right->as.reg;
+    accumulator.index = 0u;
+    if (!narrow_oracle_read_register(
+            machine, accumulator, &accumulator_value)) {
+      return 0;
+    }
+    if (accumulator_value == left_value) {
+      if (!narrow_oracle_write_operand(machine, left, right_value)) {
+        return 0;
+      }
+      machine->zero_flag = CTOOL_TRUE;
+    } else {
+      if (!narrow_oracle_write_register(
+              machine, accumulator, left_value)) {
+        return 0;
+      }
+      machine->zero_flag = CTOOL_FALSE;
     }
     return 1;
   }
@@ -24245,22 +24274,23 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 200u, 188u, 318u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 200u, 191u, 318u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 382105u, 321271u, 631572u, 139612u, 70368u, 77981u,
+      190304u, 382389u, 326667u, 632095u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 408200u, 344364u, 748660u, 157796u, 79348u, 131640u,
+      226668u, 408484u, 350092u, 749392u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x987466fbu, 0xc39886edu, 0x16b92969u, 0x3f69aac3u,
+      0x28605671u, 0x429dcbcdu, 0x1d8c7c81u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
+  int all_matched = 1;
   for (index = 0u; index <
                        (ctool_u32)(sizeof(paths) / sizeof(paths[0]));
        index++) {
@@ -24385,10 +24415,10 @@ static int validate_active_self_host_frontier_objects(
     }
     ctool_job_close(job);
     if (failed != 0) {
-      return 0;
+      all_matched = 0;
     }
   }
-  return 1;
+  return all_matched;
 }
 
 typedef struct {
@@ -26475,6 +26505,215 @@ static int validate_atomic_object_function(
   return cursor == end && core_count == expected->expected_count ? 1 : 0;
 }
 
+static int atomic_register_operand_matches(
+    const ctool_x86_operand_t *operand,
+    ctool_x86_reg_class_t class_id, ctool_u8 index) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 operand->as.reg.class_id == class_id &&
+                 operand->as.reg.index == index
+             ? 1
+             : 0;
+}
+
+static int atomic_edx_memory_operand_matches(
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->width_bits == width_bits &&
+                 operand->as.memory.base.class_id ==
+                     CTOOL_X86_REG_GPR32 &&
+                 operand->as.memory.base.index == NARROW_ORACLE_EDX &&
+                 operand->as.memory.index.class_id ==
+                     CTOOL_X86_REG_NONE &&
+                 operand->as.memory.displacement.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.memory.displacement.bits == 0u &&
+                 operand->as.memory.displacement.addend == 0
+             ? 1
+             : 0;
+}
+
+static int validate_atomic_fetch_or_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u16 width_bits,
+    int is_signed) {
+  static const ctool_u8 byte_loop[] = {
+      0x89u, 0xc3u, 0x08u, 0xcbu, 0xf0u, 0x0fu, 0xb0u,
+      0x1au, 0x0fu, 0x85u, 0xf2u, 0xffu, 0xffu, 0xffu};
+  static const ctool_u8 word_loop[] = {
+      0x89u, 0xc3u, 0x66u, 0x09u, 0xcbu, 0xf0u, 0x66u, 0x0fu,
+      0xb1u, 0x1au, 0x0fu, 0x85u, 0xf0u, 0xffu, 0xffu, 0xffu};
+  static const ctool_u8 dword_loop[] = {
+      0x89u, 0xc3u, 0x09u, 0xcbu, 0xf0u, 0x0fu, 0xb1u,
+      0x1au, 0x0fu, 0x85u, 0xf2u, 0xffu, 0xffu, 0xffu};
+  const ctool_x86_reg_class_t lane_class =
+      width_bits == 8u
+          ? CTOOL_X86_REG_GPR8
+          : width_bits == 16u ? CTOOL_X86_REG_GPR16
+                              : CTOOL_X86_REG_GPR32;
+  const ctool_u8 *expected_loop =
+      width_bits == 8u
+          ? byte_loop
+          : width_bits == 16u ? word_loop : dword_loop;
+  const ctool_u32 expected_loop_size =
+      width_bits == 8u
+          ? (ctool_u32)sizeof(byte_loop)
+          : width_bits == 16u ? (ctool_u32)sizeof(word_loop)
+                              : (ctool_u32)sizeof(dword_loop);
+  ctool_u32 cursor = 0u;
+  ctool_u32 load_at = CTOOL_C_AST_NONE;
+  ctool_u32 loop_at = CTOOL_C_AST_NONE;
+  ctool_u32 or_at = CTOOL_C_AST_NONE;
+  ctool_u32 cmpxchg_at = CTOOL_C_AST_NONE;
+  ctool_u32 branch_at = CTOOL_C_AST_NONE;
+  ctool_u32 branch_target = CTOOL_C_AST_NONE;
+  ctool_u32 push_at = CTOOL_C_AST_NONE;
+  ctool_u32 pop_at = CTOOL_C_AST_NONE;
+  if (job == NULL || text == NULL || text->contents.data == NULL ||
+      symbol == NULL || symbol->size == 0u ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      (width_bits != 8u && width_bits != 16u &&
+       width_bits != 32u)) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.consumed > symbol->size - cursor) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_CALL ||
+        instruction->mnemonic == CTOOL_X86_MN_XADD ||
+        instruction->mnemonic == CTOOL_X86_MN_XCHG ||
+        ((instruction->prefixes & CTOOL_X86_PREFIX_LOCK) != 0u &&
+         instruction->mnemonic != CTOOL_X86_MN_CMPXCHG)) {
+      return 0;
+    }
+    if ((instruction->mnemonic == CTOOL_X86_MN_MOV ||
+         instruction->mnemonic == CTOOL_X86_MN_MOVSX ||
+         instruction->mnemonic == CTOOL_X86_MN_MOVZX) &&
+        instruction->operand_count == 2u &&
+        atomic_register_operand_matches(
+            &instruction->operands[0], CTOOL_X86_REG_GPR32,
+            NARROW_ORACLE_EAX) &&
+        atomic_edx_memory_operand_matches(
+            &instruction->operands[1], width_bits)) {
+      const ctool_x86_mnemonic_t expected =
+          width_bits == 32u
+              ? CTOOL_X86_MN_MOV
+              : is_signed != 0 ? CTOOL_X86_MN_MOVSX
+                               : CTOOL_X86_MN_MOVZX;
+      if (instruction->mnemonic != expected ||
+          load_at != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      load_at = cursor;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+        instruction->operand_bits == 32u &&
+        instruction->operand_count == 2u &&
+        atomic_register_operand_matches(
+            &instruction->operands[0], CTOOL_X86_REG_GPR32,
+            NARROW_ORACLE_EBX) &&
+        atomic_register_operand_matches(
+            &instruction->operands[1], CTOOL_X86_REG_GPR32,
+            NARROW_ORACLE_EAX)) {
+      if (loop_at != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      loop_at = cursor;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_OR &&
+        instruction->operand_bits == width_bits &&
+        instruction->operand_count == 2u &&
+        atomic_register_operand_matches(
+            &instruction->operands[0], lane_class,
+            NARROW_ORACLE_EBX) &&
+        atomic_register_operand_matches(
+            &instruction->operands[1], lane_class,
+            NARROW_ORACLE_ECX)) {
+      if (or_at != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      or_at = cursor;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_CMPXCHG) {
+      if (instruction->prefixes != CTOOL_X86_PREFIX_LOCK ||
+          instruction->operand_bits != width_bits ||
+          instruction->operand_count != 2u ||
+          !atomic_edx_memory_operand_matches(
+              &instruction->operands[0], width_bits) ||
+          !atomic_register_operand_matches(
+              &instruction->operands[1], lane_class,
+              NARROW_ORACLE_EBX) ||
+          cmpxchg_at != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      cmpxchg_at = cursor;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_JNE) {
+      if (branch_at != CTOOL_C_AST_NONE ||
+          !call_alignment_branch_target(
+              &decoded, cursor, symbol->size, &branch_target)) {
+        return 0;
+      }
+      branch_at = cursor;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_PUSH &&
+        instruction->operand_count == 1u &&
+        atomic_register_operand_matches(
+            &instruction->operands[0], CTOOL_X86_REG_GPR32,
+            NARROW_ORACLE_EBX)) {
+      if (push_at != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      push_at = cursor;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_POP &&
+        instruction->operand_count == 1u &&
+        atomic_register_operand_matches(
+            &instruction->operands[0], CTOOL_X86_REG_GPR32,
+            NARROW_ORACLE_EBX)) {
+      if (pop_at != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      pop_at = cursor;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size &&
+                 push_at != CTOOL_C_AST_NONE &&
+                 load_at != CTOOL_C_AST_NONE &&
+                 loop_at != CTOOL_C_AST_NONE &&
+                 or_at != CTOOL_C_AST_NONE &&
+                 cmpxchg_at != CTOOL_C_AST_NONE &&
+                 branch_at != CTOOL_C_AST_NONE &&
+                 pop_at != CTOOL_C_AST_NONE &&
+                 push_at < load_at && load_at < loop_at &&
+                 loop_at < or_at && or_at < cmpxchg_at &&
+                 cmpxchg_at < branch_at && branch_at < pop_at &&
+                 branch_target == loop_at &&
+                 expected_loop_size <= symbol->size - loop_at &&
+                 memcmp(
+                     text->contents.data + symbol->value + loop_at,
+                     expected_loop, (size_t)expected_loop_size) == 0
+             ? 1
+             : 0;
+}
+
 static int validate_atomic_builtin_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 load_byte[] = {0x0fu, 0xb6u, 0x00u};
@@ -26531,6 +26770,29 @@ static int validate_atomic_builtin_object(
       return 0;
     }
   }
+  if (!validate_atomic_fetch_or_function(
+          job, text, find_symbol(object, "atomic_fetch_or_byte"),
+          8u, 0) ||
+      !validate_atomic_fetch_or_function(
+          job, text,
+          find_symbol(object, "atomic_fetch_or_signed_byte"),
+          8u, 1) ||
+      !validate_atomic_fetch_or_function(
+          job, text, find_symbol(object, "atomic_fetch_or_word"),
+          16u, 0) ||
+      !validate_atomic_fetch_or_function(
+          job, text,
+          find_symbol(object, "atomic_fetch_or_signed_word"),
+          16u, 1) ||
+      !validate_atomic_fetch_or_function(
+          job, text, find_symbol(object, "atomic_fetch_or_dword"),
+          32u, 0) ||
+      !validate_atomic_fetch_or_function(
+          job, text, find_symbol(object, "atomic_or_side_effect"),
+          32u, 0)) {
+    (void)fprintf(stderr, "atomic fetch-or CAS loop differs\n");
+    return 0;
+  }
   return 1;
 }
 
@@ -26544,7 +26806,9 @@ static int atomic_oracle_execute(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol, const ctool_u32 *arguments,
     ctool_u32 argument_count, const atomic_oracle_cell_t *cells,
-    ctool_u32 cell_count, narrow_oracle_machine_t *machine_out) {
+    ctool_u32 cell_count, int force_cmpxchg_contention,
+    ctool_u32 contention_value,
+    narrow_oracle_machine_t *machine_out) {
   static const ctool_u32 return_address = 0x13579bdfu;
   static const ctool_u32 saved_ebp = 0x55667788u;
   static const ctool_u32 saved_ebx = 0xb3b3b3b3u;
@@ -26554,6 +26818,8 @@ static int atomic_oracle_execute(
   ctool_u32 cursor = 0u;
   ctool_u32 observed;
   ctool_u32 index;
+  ctool_u32 steps = 0u;
+  int contention_injected = 0;
   ctool_bool returned = CTOOL_FALSE;
   if (job == NULL || text == NULL || symbol == NULL ||
       machine_out == NULL ||
@@ -26607,7 +26873,7 @@ static int atomic_oracle_execute(
         decoded.kind != CTOOL_X86_DECODE_KNOWN ||
         decoded.consumed == 0u ||
         decoded.consumed > symbol->size - cursor ||
-        !narrow_oracle_step(&machine, &decoded.instruction, &returned)) {
+        ++steps > 1024u) {
       (void)fprintf(
           stderr, "atomic execution oracle stopped at %u on %s\n",
           (unsigned int)cursor,
@@ -26616,9 +26882,42 @@ static int atomic_oracle_execute(
               : "invalid instruction");
       return 0;
     }
+    if (force_cmpxchg_contention != 0 &&
+        contention_injected == 0 &&
+        decoded.instruction.mnemonic == CTOOL_X86_MN_CMPXCHG) {
+      if (decoded.instruction.operand_count != 2u ||
+          !narrow_oracle_write_operand(
+              &machine, &decoded.instruction.operands[0],
+              contention_value)) {
+        return 0;
+      }
+      contention_injected = 1;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_JNE) {
+      ctool_u32 target;
+      if (!call_alignment_branch_target(
+              &decoded, cursor, symbol->size, &target)) {
+        return 0;
+      }
+      cursor = machine.zero_flag == CTOOL_TRUE
+                   ? cursor + decoded.consumed
+                   : target;
+      continue;
+    }
+    if (!narrow_oracle_step(
+            &machine, &decoded.instruction, &returned)) {
+      (void)fprintf(
+          stderr, "atomic execution oracle stopped at %u on %s\n",
+          (unsigned int)cursor,
+          ctool_x86_mnemonic_name(
+              decoded.instruction.mnemonic).data);
+      return 0;
+    }
     cursor += decoded.consumed;
   }
   if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      (force_cmpxchg_contention != 0 &&
+       contention_injected == 0) ||
       machine.registers[NARROW_ORACLE_ESP] != NARROW_ORACLE_INITIAL_ESP ||
       machine.registers[NARROW_ORACLE_EBP] != saved_ebp ||
       machine.registers[NARROW_ORACLE_EBX] != saved_ebx ||
@@ -26652,24 +26951,46 @@ static int validate_atomic_builtin_execution(
     ctool_u32 expected_value;
     int has_value;
     int check_result;
+    int force_contention;
+    ctool_u32 contention_value;
   } atomic_execution_case_t;
   static const atomic_execution_case_t cases[] = {
-      {"atomic_load_byte", 8u, 0xfeu, 0u, 0xfeu, 0xfeu, 0, 1},
-      {"atomic_load_consume", 8u, 0x80u, 0u, 0x80u, 0x80u, 0, 1},
-      {"atomic_store_byte", 8u, 0x11u, 0xaau, 0u, 0xaau, 1, 0},
-      {"atomic_store_seq_word", 16u, 0x1234u, 0xbeefu, 0u, 0xbeefu, 1, 0},
-      {"atomic_exchange_byte", 8u, 0xffu, 0x12u, 0xffu, 0x12u, 1, 1},
+      {"atomic_load_byte", 8u, 0xfeu, 0u, 0xfeu, 0xfeu,
+       0, 1, 0, 0u},
+      {"atomic_load_consume", 8u, 0x80u, 0u, 0x80u, 0x80u,
+       0, 1, 0, 0u},
+      {"atomic_store_byte", 8u, 0x11u, 0xaau, 0u, 0xaau,
+       1, 0, 0, 0u},
+      {"atomic_store_seq_word", 16u, 0x1234u, 0xbeefu, 0u, 0xbeefu,
+       1, 0, 0, 0u},
+      {"atomic_exchange_byte", 8u, 0xffu, 0x12u, 0xffu, 0x12u,
+       1, 1, 0, 0u},
       {"atomic_exchange_signed_byte", 8u, 0x80u, 0x7fu,
-       0xffffff80u, 0x7fu, 1, 1},
+       0xffffff80u, 0x7fu, 1, 1, 0, 0u},
       {"atomic_exchange_dword", 32u, 0xdeadbeefu, 0x01020304u,
-       0xdeadbeefu, 0x01020304u, 1, 1},
-      {"atomic_fetch_byte", 8u, 0xffu, 1u, 0xffu, 0u, 1, 1},
+       0xdeadbeefu, 0x01020304u, 1, 1, 0, 0u},
+      {"atomic_fetch_byte", 8u, 0xffu, 1u, 0xffu, 0u,
+       1, 1, 0, 0u},
       {"atomic_fetch_signed_byte", 8u, 0x80u, 0xffu,
-       0xffffff80u, 0x7fu, 1, 1},
+       0xffffff80u, 0x7fu, 1, 1, 0, 0u},
       {"atomic_fetch_dword", 32u, 0xffffffffu, 1u,
-       0xffffffffu, 0u, 1, 1},
+       0xffffffffu, 0u, 1, 1, 0, 0u},
+      {"atomic_fetch_or_byte", 8u, 0x12u, 0x80u,
+       0x12u, 0x92u, 1, 1, 0, 0u},
+      {"atomic_fetch_or_signed_byte", 8u, 0x80u, 0x01u,
+       0xffffff80u, 0x81u, 1, 1, 0, 0u},
+      {"atomic_fetch_or_signed_byte", 8u, 0x80u, 0x02u,
+       0x40u, 0x42u, 1, 1, 1, 0x40u},
+      {"atomic_fetch_or_word", 16u, 0x1234u, 0x8000u,
+       0x1234u, 0x9234u, 1, 1, 0, 0u},
+      {"atomic_fetch_or_signed_word", 16u, 0x8001u, 0x0100u,
+       0xffff8001u, 0x8101u, 1, 1, 0, 0u},
+      {"atomic_fetch_or_dword", 32u, 0x01020304u, 0x80000001u,
+       0x01020304u, 0x81020305u, 1, 1, 0, 0u},
+      {"atomic_fetch_or_dword", 32u, 0x10u, 0x04u,
+       0x20u, 0x24u, 1, 1, 1, 0x20u},
       {"atomic_load_dword", 32u, 0x89abcdefu, 0u,
-       0x89abcdefu, 0x89abcdefu, 0, 1}};
+       0x89abcdefu, 0x89abcdefu, 0, 1, 0, 0u}};
   static const ctool_u32 object_address = 32u;
   static const ctool_u32 guard = 0xa5a5a5a5u;
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -26696,6 +27017,8 @@ static int validate_atomic_builtin_execution(
         !atomic_oracle_execute(
             job, text, function, arguments,
             cases[index].has_value != 0 ? 2u : 1u, &cell, 1u,
+            cases[index].force_contention,
+            cases[index].contention_value,
             &machine) ||
         !narrow_oracle_read_memory(
             &machine, object_address, cases[index].width_bits,
@@ -26732,42 +27055,55 @@ static int validate_atomic_builtin_execution(
         {base_address, 32u, 10u},
         {base_address + 4u, 32u, 20u},
         {step_address, 32u, 0u}};
-    const ctool_elf32_symbol_t *function =
-        find_symbol(object, "atomic_side_effect");
-    narrow_oracle_machine_t machine = {0};
-    ctool_u32 first = 0u;
-    ctool_u32 second = 0u;
-    ctool_u32 step = 0u;
-    ctool_u32 lower_guard = 0u;
-    ctool_u32 upper_guard = 0u;
-    if (function == NULL ||
-        !atomic_oracle_execute(
-            job, text, function, arguments,
-            (ctool_u32)(sizeof(arguments) / sizeof(arguments[0])),
-            cells, (ctool_u32)(sizeof(cells) / sizeof(cells[0])),
-            &machine) ||
-        !narrow_oracle_read_memory(
-            &machine, base_address, 32u, &first) ||
-        !narrow_oracle_read_memory(
-            &machine, base_address + 4u, 32u, &second) ||
-        !narrow_oracle_read_memory(
-            &machine, step_address, 32u, &step) ||
-        !narrow_oracle_read_memory(
-            &machine, base_address - 4u, 32u, &lower_guard) ||
-        !narrow_oracle_read_memory(
-            &machine, base_address + 8u, 32u, &upper_guard) ||
-        machine.registers[NARROW_ORACLE_EAX] != 10u ||
-        first != 11u || second != 20u || step != 2u ||
-        lower_guard != guard || upper_guard != guard) {
-      (void)fprintf(
-          stderr,
-          "atomic pointer/value evaluation differs: eax=%08x "
-          "base=%08x/%08x step=%08x guards=%08x/%08x\n",
-          (unsigned int)machine.registers[NARROW_ORACLE_EAX],
-          (unsigned int)first, (unsigned int)second,
-          (unsigned int)step, (unsigned int)lower_guard,
-          (unsigned int)upper_guard);
-      return 0;
+    static const char *const function_names[] = {
+        "atomic_side_effect", "atomic_or_side_effect"};
+    ctool_u32 function_index;
+    for (function_index = 0u;
+         function_index <
+             (ctool_u32)(sizeof(function_names) /
+                         sizeof(function_names[0]));
+         function_index++) {
+      const ctool_elf32_symbol_t *function =
+          find_symbol(object, function_names[function_index]);
+      narrow_oracle_machine_t machine = {0};
+      ctool_u32 first = 0u;
+      ctool_u32 second = 0u;
+      ctool_u32 step = 0u;
+      ctool_u32 lower_guard = 0u;
+      ctool_u32 upper_guard = 0u;
+      if (function == NULL ||
+          !atomic_oracle_execute(
+              job, text, function, arguments,
+              (ctool_u32)(sizeof(arguments) /
+                          sizeof(arguments[0])),
+              cells,
+              (ctool_u32)(sizeof(cells) / sizeof(cells[0])),
+              0, 0u, &machine) ||
+          !narrow_oracle_read_memory(
+              &machine, base_address, 32u, &first) ||
+          !narrow_oracle_read_memory(
+              &machine, base_address + 4u, 32u, &second) ||
+          !narrow_oracle_read_memory(
+              &machine, step_address, 32u, &step) ||
+          !narrow_oracle_read_memory(
+              &machine, base_address - 4u, 32u, &lower_guard) ||
+          !narrow_oracle_read_memory(
+              &machine, base_address + 8u, 32u, &upper_guard) ||
+          machine.registers[NARROW_ORACLE_EAX] != 10u ||
+          first != 11u || second != 20u || step != 2u ||
+          lower_guard != guard || upper_guard != guard) {
+        (void)fprintf(
+            stderr,
+            "atomic pointer/value evaluation %s differs: "
+            "eax=%08x base=%08x/%08x step=%08x "
+            "guards=%08x/%08x\n",
+            function_names[function_index],
+            (unsigned int)machine.registers[NARROW_ORACLE_EAX],
+            (unsigned int)first, (unsigned int)second,
+            (unsigned int)step, (unsigned int)lower_guard,
+            (unsigned int)upper_guard);
+        return 0;
+      }
     }
   }
   return 1;
@@ -26797,11 +27133,28 @@ static int run_atomic_builtin_object(const char *host_root) {
       "char v) { return __atomic_fetch_add(p, v, __ATOMIC_SEQ_CST); }\n"
       "unsigned atomic_fetch_dword(volatile unsigned *p, unsigned v) { "
       "return __atomic_fetch_add(p, v, __ATOMIC_RELEASE); }\n"
+      "unsigned char atomic_fetch_or_byte(volatile unsigned char *p, "
+      "unsigned char v) { return __atomic_fetch_or(p, v, "
+      "__ATOMIC_RELEASE); }\n"
+      "signed char atomic_fetch_or_signed_byte(volatile signed char *p, "
+      "signed char v) { return __atomic_fetch_or(p, v, "
+      "__ATOMIC_ACQUIRE); }\n"
+      "unsigned short atomic_fetch_or_word(volatile unsigned short *p, "
+      "unsigned short v) { return __atomic_fetch_or(p, v, "
+      "__ATOMIC_ACQ_REL); }\n"
+      "signed short atomic_fetch_or_signed_word(volatile signed short *p, "
+      "signed short v) { return __atomic_fetch_or(p, v, "
+      "__ATOMIC_SEQ_CST); }\n"
+      "unsigned atomic_fetch_or_dword(volatile unsigned *p, unsigned v) { "
+      "return __atomic_fetch_or(p, v, __ATOMIC_RELEASE); }\n"
       "unsigned atomic_load_dword(volatile unsigned *p) { return "
       "__atomic_load_n(p, __ATOMIC_SEQ_CST); }\n"
       "unsigned atomic_side_effect(volatile unsigned *base, unsigned *step) { "
       "return __atomic_fetch_add(base + (*step)++, (*step)++, "
-      "__ATOMIC_RELAXED); }\n";
+      "__ATOMIC_RELAXED); }\n"
+      "unsigned atomic_or_side_effect(volatile unsigned *base, "
+      "unsigned *step) { return __atomic_fetch_or(base + (*step)++, "
+      "(*step)++, __ATOMIC_RELAXED); }\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
@@ -26826,7 +27179,7 @@ static int run_atomic_builtin_object(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/atomic-builtins-object.c", source,
                          CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 12u ||
+      unit.function_definition_count != 18u ||
       !take_unit_snapshot(&unit, &snapshot)) {
     (void)fprintf(stderr, "atomic builtin object setup failed\n");
     goto cleanup;
@@ -26879,7 +27232,8 @@ static int run_atomic_builtin_object(const char *host_root) {
   (void)memcpy(expressions, unit.expressions,
                (size_t)unit.expression_count * sizeof(*expressions));
   for (index = 0u; index < unit.expression_count; index++) {
-    if (expressions[index].kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD) {
+    if (expressions[index].kind ==
+        CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) {
       atomic_expression = index;
       break;
     }
@@ -26888,14 +27242,14 @@ static int run_atomic_builtin_object(const char *host_root) {
     (void)fprintf(stderr, "atomic builtin expression is absent\n");
     goto cleanup;
   }
-  expressions[atomic_expression].integer_bits = 3u;
+  expressions[atomic_expression].integer_bits = 6u;
   mutant = unit;
   mutant.expressions = expressions;
   if (!expect_object_failure(
           job, &mutant, failure, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "atomic builtin invalid order") ||
+          "atomic fetch-or invalid order") ||
       ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
       !expect_object_success_preserves_unit(
           job, &unit, failure, "atomic builtin recovery")) {

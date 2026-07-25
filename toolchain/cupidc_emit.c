@@ -1823,6 +1823,151 @@ static ctool_status_t cemit_x86_atomic_memory_ecx(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_load_atomic_eax_at_edx(
+    cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_layout_t *layout;
+  ctool_x86_mnemonic_t mnemonic;
+  ctool_x86_instruction_t instruction;
+  ctool_u16 width_bits;
+  if (type >= context->unit->layout.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->is_integer == CTOOL_FALSE ||
+      layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE ||
+      (layout->size != 1u && layout->size != 2u &&
+       layout->size != 4u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  width_bits = (ctool_u16)(layout->size * 8u);
+  mnemonic = layout->size == 4u
+                 ? CTOOL_X86_MN_MOV
+                 : layout->is_signed == CTOOL_TRUE ? CTOOL_X86_MN_MOVSX
+                                                    : CTOOL_X86_MN_MOVZX;
+  instruction = cemit_x86_instruction(mnemonic, 32u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+  instruction.operands[1] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, 2u), 0, 0u);
+  instruction.operands[1].width_bits = width_bits;
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_atomic_cmpxchg_edx_ebx(
+    cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_layout_t *layout;
+  ctool_x86_reg_class_t register_class;
+  ctool_x86_instruction_t instruction;
+  ctool_u16 width_bits;
+  if (type >= context->unit->layout.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->is_integer == CTOOL_FALSE ||
+      layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE ||
+      (layout->size != 1u && layout->size != 2u &&
+       layout->size != 4u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  width_bits = (ctool_u16)(layout->size * 8u);
+  register_class = layout->size == 1u
+                       ? CTOOL_X86_REG_GPR8
+                       : layout->size == 2u ? CTOOL_X86_REG_GPR16
+                                            : CTOOL_X86_REG_GPR32;
+  instruction = cemit_x86_instruction(
+      CTOOL_X86_MN_CMPXCHG, width_bits);
+  instruction.prefixes = CTOOL_X86_PREFIX_LOCK;
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, 2u), 0, 0u);
+  instruction.operands[0].width_bits = width_bits;
+  instruction.operands[1] =
+      cemit_x86_register_operand(register_class, 3u);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_canonicalize_eax_lane(
+    cemit_context_t *context, ctool_u32 type);
+
+static ctool_status_t cemit_emit_atomic_fetch_or(
+    cemit_context_t *context, ctool_u32 type) {
+  const ctool_c_type_layout_t *layout;
+  ctool_x86_reg_class_t register_class;
+  ctool_u32 repeat_target;
+  ctool_u32 repeat_patch = CTOOL_C_AST_NONE;
+  ctool_u32 repeat_after = CTOOL_C_AST_NONE;
+  ctool_status_t status;
+  if (type >= context->unit->layout.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->is_integer == CTOOL_FALSE ||
+      layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE ||
+      (layout->size != 1u && layout->size != 2u &&
+       layout->size != 4u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  register_class = layout->size == 1u
+                       ? CTOOL_X86_REG_GPR8
+                       : layout->size == 2u ? CTOOL_X86_REG_GPR16
+                                            : CTOOL_X86_REG_GPR32;
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 3u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_atomic_eax_at_edx(context, type);
+  }
+  repeat_target = ctool_buffer_view(context->text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 3u,
+        CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_OR, register_class, 3u,
+        register_class, 1u, (ctool_u16)(layout->size * 8u));
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_atomic_cmpxchg_edx_ebx(context, type);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JNE, &repeat_patch, &repeat_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->text, repeat_patch, repeat_after, repeat_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 3u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_canonicalize_eax_lane(context, type);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_x86_canonicalize_eax_lane(
     cemit_context_t *context, ctool_u32 type) {
   const ctool_c_type_layout_t *layout;
@@ -5800,7 +5945,8 @@ static ctool_status_t cemit_emit_atomic(
       cemit_ir_scalar_types_match(
           context, pointer->referenced_type, instruction->type) ==
           CTOOL_FALSE ||
-      (instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD &&
+      ((instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD ||
+        instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR) &&
        object->kind == CTOOL_C_TYPE_BOOL) ||
       (instruction->kind != CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD &&
        (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) ||
@@ -5827,6 +5973,10 @@ static ctool_status_t cemit_emit_atomic(
           context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
     }
     return status;
+  }
+  if (instruction->kind ==
+      CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR) {
+    return cemit_emit_atomic_fetch_or(context, instruction->type);
   }
   status = cemit_x86_one_register(
       context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
@@ -5888,7 +6038,8 @@ static ctool_status_t cemit_emit_ir_instruction(
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_LOAD ||
       ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_STORE ||
       ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE ||
-      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD) {
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD ||
+      ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR) {
     return cemit_emit_atomic(context, ir_instruction);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS) {
@@ -7888,6 +8039,7 @@ static ctool_status_t cemit_ir_stack_effect(
       break;
     case CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE:
     case CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD:
+    case CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR:
       consumed = 2u;
       produced = 1u;
       break;

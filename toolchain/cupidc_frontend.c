@@ -7508,7 +7508,8 @@ static ctool_status_t cfront_parse_body_primary(
   if (cfront_token_is(token, "__atomic_load_n") == CTOOL_TRUE ||
       cfront_token_is(token, "__atomic_store_n") == CTOOL_TRUE ||
       cfront_token_is(token, "__atomic_exchange_n") == CTOOL_TRUE ||
-      cfront_token_is(token, "__atomic_fetch_add") == CTOOL_TRUE) {
+      cfront_token_is(token, "__atomic_fetch_add") == CTOOL_TRUE ||
+      cfront_token_is(token, "__atomic_fetch_or") == CTOOL_TRUE) {
     return cfront_parse_atomic_builtin(context, value_out);
   }
   if (cfront_token_is(token, "(") == CTOOL_TRUE) {
@@ -8307,6 +8308,13 @@ static ctool_status_t cfront_atomic_object_type(
         builtin_token,
         "__atomic_fetch_add does not accept a Boolean object");
   }
+  if (kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR &&
+      object_node.kind == CTOOL_C_TYPE_BOOL) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        builtin_token,
+        "__atomic_fetch_or does not accept a Boolean object");
+  }
   status = cfront_layout_query_now(
       context, object_base, (const cfront_vector_t *)0, builtin_token,
       CTOOL_C_PARSE_DIAG_EXPRESSION,
@@ -8356,8 +8364,11 @@ static ctool_status_t cfront_parse_atomic_builtin(
   } else if (cfront_token_is(builtin_token, "__atomic_exchange_n") ==
              CTOOL_TRUE) {
     kind = CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE;
-  } else {
+  } else if (cfront_token_is(builtin_token, "__atomic_fetch_add") ==
+             CTOOL_TRUE) {
     kind = CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD;
+  } else {
+    kind = CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR;
   }
   child_count = kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ? 1u : 2u;
   cfront_zero(&pointer, (ctool_u32)sizeof(pointer));
@@ -18180,7 +18191,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     case CTOOL_C_EXPRESSION_ATOMIC_LOAD:
     case CTOOL_C_EXPRESSION_ATOMIC_STORE:
     case CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE:
-    case CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD: {
+    case CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD:
+    case CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR: {
       const ctool_u32 expected_children =
           expression->kind == CTOOL_C_EXPRESSION_ATOMIC_LOAD ? 1u : 2u;
       const ctool_u32 pointer_child =
@@ -18268,7 +18280,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           object_is_integer == CTOOL_FALSE ||
           (object_integer.width != 1u && object_integer.width != 8u &&
            object_integer.width != 16u && object_integer.width != 32u) ||
-          (expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD &&
+          ((expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD ||
+            expression->kind == CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR) &&
            object_node.kind == CTOOL_C_TYPE_BOOL) ||
           (expression->kind != CTOOL_C_EXPRESSION_ATOMIC_LOAD &&
            (object_qualifiers & CTOOL_C_QUAL_CONST) != 0u) ||

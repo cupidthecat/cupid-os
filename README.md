@@ -308,17 +308,20 @@ on INSW, and each output address or input value is evaluated once. These
 forms are present at compiler head and in the checked seed. The normal build
 still remains at the separate 26-object production boundary.
 
-The same compiler now handles the active `__atomic_load_n`,
-`__atomic_store_n`, `__atomic_exchange_n`, and `__atomic_fetch_add` calls for
+The same compiler handles `__atomic_load_n`, `__atomic_store_n`,
+`__atomic_exchange_n`, `__atomic_fetch_add`, and `__atomic_fetch_or` for
 one-, two-, and four-byte integer objects. It keeps the memory order in typed
 AST and IR records, emits ordinary width-correct loads and release stores,
 uses memory `XCHG` for exchanges and sequentially consistent stores, and uses
-`LOCK XADD` for fetch-add. The six `__ATOMIC_*` order macros are reserved
-target predefines in every language mode; the four expressions remain
-GNU-only. A decoded i386 oracle checks old values, memory updates,
-wraparound, narrow signedness, cdecl state, and one-time operand evaluation.
-Runtime order arguments, pointer and eight-byte atomics, and HLE flags remain
-open.
+`LOCK XADD` for fetch-add. Fetch-or uses a `LOCK CMPXCHG` retry loop so it can
+return the old value without losing a competing update. The loop also
+preserves EBX for i386 cdecl. The six `__ATOMIC_*` order macros are reserved
+target predefines in every language mode; the five expressions remain
+GNU-only. A decoded i386 oracle checks old values, memory updates, wraparound,
+narrow signedness, cdecl state, one-time operand evaluation, and forced
+contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
+flags remain open. The checked seed carries the first four operations;
+fetch-or still needs a staged refresh.
 
 The active non-Doom header gate is now 154/154 at compiler head. Under the
 full kernel profile, unchanged `kernel/smp/acpi.c` and
@@ -389,7 +392,7 @@ above.
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
 
-[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, and [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof.
+[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof, and [ADR 0107](docs/adr/0107-cupidc-gnu-atomic-fetch-or.md) records compiler-head fetch-or.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 

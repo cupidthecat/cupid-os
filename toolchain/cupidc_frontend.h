@@ -307,7 +307,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_ATOMIC_LOAD,
   CTOOL_C_EXPRESSION_ATOMIC_STORE,
   CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE,
-  CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD
+  CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD,
+  CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -394,9 +395,9 @@ typedef struct {
    * VARIADIC_ARGUMENT/VARIADIC_END: cursor lvalue.
    * VARIADIC_COPY: destination cursor lvalue, then converted source cursor.
    * ATOMIC_LOAD: converted object pointer.
-   * ATOMIC_STORE/ATOMIC_EXCHANGE/ATOMIC_FETCH_ADD: converted object
-   * pointer, then converted value. The validated memory order is retained
-   * separately in integer_bits.
+   * ATOMIC_STORE/ATOMIC_EXCHANGE/ATOMIC_FETCH_ADD/ATOMIC_FETCH_OR:
+   * converted object pointer, then converted value. The validated memory
+   * order is retained separately in integer_bits.
    * IMPLICIT_CONVERSION/CAST/MEMBER/UNARY/UPDATE: one source-expression
    * child. COMPOUND_LITERAL has no expression children because its
    * initializer owns a separate postorder forest. */
