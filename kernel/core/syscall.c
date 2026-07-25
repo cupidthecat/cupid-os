@@ -135,11 +135,17 @@ static uint32_t sc_net_tx_errors(void) {
 }
 static int sc_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
   block_device_t *d = blkdev_get(idx);
-  return d ? blkdev_read(d, lba, count, buf) : -1;
+  if (!d) return -1;
+  int result = blkdev_read(d, lba, count, buf);
+  (void)blkdev_put(d);
+  return result;
 }
 static int sc_blkdev_write(int idx, uint32_t lba, uint32_t count, const void *buf) {
   block_device_t *d = blkdev_get(idx);
-  return d ? blkdev_write(d, lba, count, buf) : -1;
+  if (!d) return -1;
+  int result = blkdev_write(d, lba, count, buf);
+  (void)blkdev_put(d);
+  return result;
 }
 static uint32_t sc_pci_vendor(int idx) {
   pci_device_t *d = pci_get_device(idx);

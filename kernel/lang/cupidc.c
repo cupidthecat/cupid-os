@@ -950,12 +950,16 @@ static uint32_t cc_proto_tcp(void)  { return (uint32_t)IP_PROTO_TCP;  }
 static int cc_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
   block_device_t *d = blkdev_get(idx);
   if (!d) return -1;
-  return blkdev_read(d, lba, count, buf);
+  int result = blkdev_read(d, lba, count, buf);
+  (void)blkdev_put(d);
+  return result;
 }
 static int cc_blkdev_write(int idx, uint32_t lba, uint32_t count, const void *buf) {
   block_device_t *d = blkdev_get(idx);
   if (!d) return -1;
-  return blkdev_write(d, lba, count, buf);
+  int result = blkdev_write(d, lba, count, buf);
+  (void)blkdev_put(d);
+  return result;
 }
 
 /* PCI introspection by index (avoids exposing pci_device_t* to user code). */

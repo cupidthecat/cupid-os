@@ -3,6 +3,7 @@
 #include "serial.h"
 #include "keyboard.h"
 #include "mouse.h"
+#include "timer.h"
 
 #define HID_CLASS 0x03
 #define HID_SUBCLASS_BOOT 0x01
@@ -60,6 +61,7 @@ typedef struct {
     uint8_t  ep_in;
     uint8_t  max_packet;
     usb_device_t *dev;
+    usb_transfer_t interrupt_transfer;
 } hid_kbd_state_t;
 
 static void hid_kbd_cb(int status, usb_transfer_t *t) {
@@ -112,15 +114,38 @@ static void hid_kbd_cb(int status, usb_transfer_t *t) {
     for (int i = 0; i < 8; i++) prev[i] = cur[i];
 }
 
-static int hid_kbd_probe(usb_device_t *dev) {
+static usb_probe_result_t hid_kbd_probe(usb_device_t *dev) {
     if (dev->class_code != HID_CLASS || dev->subclass != HID_SUBCLASS_BOOT
-        || dev->protocol != HID_PROTO_KBD) return -1;
+        || dev->protocol != HID_PROTO_KBD) {
+        return USB_PROBE_NOT_SUPPORTED;
+    }
 
-    usb_control(dev, 0x21, HID_SET_PROTOCOL, 0, 0, NULL, 0);
-    usb_control(dev, 0x21, HID_SET_IDLE, 0, 0, NULL, 0);
+    if (
+        usb_control_retry(
+            dev,
+            0x21,
+            HID_SET_PROTOCOL,
+            0,
+            0,
+            NULL,
+            0
+        ) < 0
+        || usb_control_retry(
+            dev,
+            0x21,
+            HID_SET_IDLE,
+            0,
+            0,
+            NULL,
+            0
+        ) < 0
+    ) {
+        KWARN("usb_hid: keyboard setup failed");
+        return USB_PROBE_RETRY;
+    }
 
     hid_kbd_state_t *st = (hid_kbd_state_t*)kmalloc(sizeof(hid_kbd_state_t));
-    if (!st) return -1;
+    if (!st) return USB_PROBE_RETRY;
     for (int i = 0; i < 8; i++) { st->prev_report[i] = 0; st->cur_report[i] = 0; }
     st->ep_in = 0x81;
     st->max_packet = 8;
@@ -132,16 +157,42 @@ static int hid_kbd_probe(usb_device_t *dev) {
     t.max_packet = st->max_packet; t.speed = dev->speed; t.data_toggle = 0;
     t.buffer = st->cur_report; t.length = 8;
     t.tt_hub_addr = dev->tt_hub_addr; t.tt_port = dev->tt_port;
-    dev->hc->submit_interrupt(dev->hc, &t, hid_kbd_cb);
+    st->interrupt_transfer = t;
+    if (
+        dev->hc->submit_interrupt(
+            dev->hc,
+            &st->interrupt_transfer,
+            hid_kbd_cb
+        ) < 0
+    ) {
+        KWARN("usb_hid: keyboard interrupt registration failed");
+        dev->driver_data = NULL;
+        kfree(st);
+        return USB_PROBE_RETRY;
+    }
 
     KINFO("usb_hid: keyboard attached addr=%u", dev->address);
-    return 0;
+    return USB_PROBE_BOUND;
 }
 
-static void hid_kbd_disconnect(usb_device_t *dev) {
-    if (dev->driver_data) kfree(dev->driver_data);
+static int hid_kbd_disconnect(usb_device_t *dev) {
+    hid_kbd_state_t *st = dev->driver_data;
+    if (st) {
+        if (
+            !dev->hc->cancel_interrupt
+            || dev->hc->cancel_interrupt(
+                dev->hc,
+                &st->interrupt_transfer
+            ) < 0
+        ) {
+            KERROR("usb_hid: keyboard interrupt cancellation failed; state retained");
+            return -1;
+        }
+        kfree(st);
+    }
     dev->driver_data = NULL;
     KINFO("usb_hid: keyboard detached");
+    return 0;
 }
 
 static usb_driver_t hid_kbd_driver = {
@@ -152,11 +203,29 @@ static usb_driver_t hid_kbd_driver = {
 typedef struct {
     uint8_t report[4];   /* Intellimouse-style: [buttons, dx, dy, wheel] */
     usb_device_t *dev;
+    usb_transfer_t interrupt_transfer;
 } hid_mouse_state_t;
+
+static uint32_t hid_mouse_activity_reports = 0;
+static uint32_t hid_mouse_last_log_ms = 0;
 
 static void hid_mouse_cb(int status, usb_transfer_t *t) {
     if (status < 0) return;
     uint8_t *r = t->buffer;
+    if (r[0] != 0 || r[1] != 0 || r[2] != 0 || r[3] != 0) {
+        hid_mouse_activity_reports++;
+        uint32_t now_ms = timer_get_uptime_ms();
+        if (
+            hid_mouse_activity_reports == 1u
+            || now_ms - hid_mouse_last_log_ms >= 250u
+        ) {
+            KINFO(
+                "usb_hid: mouse activity report=%u",
+                hid_mouse_activity_reports
+            );
+            hid_mouse_last_log_ms = now_ms;
+        }
+    }
     mouse_inject_event(r[0], (int8_t)r[1], (int8_t)r[2]);
     /* Byte 3 is the wheel delta on most modern HID mice (boot protocol
      * is officially 3 bytes; 4-byte devices place wheel here). For pure
@@ -165,34 +234,85 @@ static void hid_mouse_cb(int status, usb_transfer_t *t) {
     mouse_inject_wheel((int8_t)r[3]);
 }
 
-static int hid_mouse_probe(usb_device_t *dev) {
+static usb_probe_result_t hid_mouse_probe(usb_device_t *dev) {
     if (dev->class_code != HID_CLASS || dev->subclass != HID_SUBCLASS_BOOT
-        || dev->protocol != HID_PROTO_MOUSE) return -1;
+        || dev->protocol != HID_PROTO_MOUSE) {
+        return USB_PROBE_NOT_SUPPORTED;
+    }
 
-    usb_control(dev, 0x21, HID_SET_PROTOCOL, 0, 0, NULL, 0);
-    usb_control(dev, 0x21, HID_SET_IDLE, 0, 0, NULL, 0);
+    if (
+        usb_control_retry(
+            dev,
+            0x21,
+            HID_SET_PROTOCOL,
+            0,
+            0,
+            NULL,
+            0
+        ) < 0
+        || usb_control_retry(
+            dev,
+            0x21,
+            HID_SET_IDLE,
+            0,
+            0,
+            NULL,
+            0
+        ) < 0
+    ) {
+        KWARN("usb_hid: mouse setup failed");
+        return USB_PROBE_RETRY;
+    }
 
     hid_mouse_state_t *st = (hid_mouse_state_t*)kmalloc(sizeof(hid_mouse_state_t));
-    if (!st) return -1;
+    if (!st) return USB_PROBE_RETRY;
     for (int i = 0; i < 4; i++) st->report[i] = 0;
     st->dev = dev;
     dev->driver_data = st;
+    hid_mouse_activity_reports = 0;
+    hid_mouse_last_log_ms = 0;
 
     usb_transfer_t t;
     t.dir = USB_DIR_IN; t.endpoint = 1; t.device_addr = dev->address;
     t.max_packet = 4; t.speed = dev->speed; t.data_toggle = 0;
     t.buffer = st->report; t.length = 4;
     t.tt_hub_addr = dev->tt_hub_addr; t.tt_port = dev->tt_port;
-    dev->hc->submit_interrupt(dev->hc, &t, hid_mouse_cb);
+    st->interrupt_transfer = t;
+    if (
+        dev->hc->submit_interrupt(
+            dev->hc,
+            &st->interrupt_transfer,
+            hid_mouse_cb
+        ) < 0
+    ) {
+        KWARN("usb_hid: mouse interrupt registration failed");
+        dev->driver_data = NULL;
+        kfree(st);
+        return USB_PROBE_RETRY;
+    }
 
     KINFO("usb_hid: mouse attached addr=%u", dev->address);
-    return 0;
+    return USB_PROBE_BOUND;
 }
 
-static void hid_mouse_disconnect(usb_device_t *dev) {
-    if (dev->driver_data) kfree(dev->driver_data);
+static int hid_mouse_disconnect(usb_device_t *dev) {
+    hid_mouse_state_t *st = dev->driver_data;
+    if (st) {
+        if (
+            !dev->hc->cancel_interrupt
+            || dev->hc->cancel_interrupt(
+                dev->hc,
+                &st->interrupt_transfer
+            ) < 0
+        ) {
+            KERROR("usb_hid: mouse interrupt cancellation failed; state retained");
+            return -1;
+        }
+        kfree(st);
+    }
     dev->driver_data = NULL;
     KINFO("usb_hid: mouse detached");
+    return 0;
 }
 
 static usb_driver_t hid_mouse_driver = {

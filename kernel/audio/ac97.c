@@ -66,6 +66,7 @@ typedef struct __attribute__((packed)) {
 static bdl_entry_t *s_bdl;
 static int16_t     *s_dma_pool;
 static volatile uint8_t s_next_fill;   /* BDL index to refill on next IOC */
+static volatile uint32_t s_refill_count;
 
 static struct {
     bool         present;
@@ -132,6 +133,7 @@ static void ac97_isr(struct registers *r) {
             }
             outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_LVI), buf);
             s_next_fill = (uint8_t)((buf + 1u) & (uint8_t)(AC97_BDL_ENTRIES - 1u));
+            s_refill_count++;
         }
     }
     /* ack all status bits */
@@ -217,6 +219,7 @@ int ac97_init(void) {
     outb((uint16_t)(s_ac97.bar_nabm + NABM_PO_LVI),
          (uint8_t)(AC97_LOOKAHEAD - 1u));
     s_next_fill = (uint8_t)AC97_LOOKAHEAD;
+    s_refill_count = 0u;
 
     /* Install IRQ handler */
     irq_install_handler((int)s_ac97.irq_line, ac97_isr);
@@ -389,11 +392,18 @@ static int16_t *make_triangle_pcm(uint32_t *out_frames) {
 }
 
 void audiotest_all(void) {
+    uint32_t refill_start = s_refill_count;
     ac97_smoke_sine();
     ac97_smoke_sweep();
     ac97_smoke_pan();
     extern void opl_smoke(void);
     opl_smoke();
+    uint32_t refills = s_refill_count - refill_start;
+    if (refills == 0u) {
+        serial_write_string("[FAIL] audiotest all: no AC97 DMA refills\n");
+        return;
+    }
+    serial_printf("[ac97] DMA refills during audiotest: %u\n", refills);
     serial_write_string("[PASS] audiotest all\n");
 }
 

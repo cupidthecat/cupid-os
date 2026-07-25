@@ -89,7 +89,7 @@ class CupidAsmDemoCorpusTests(unittest.TestCase):
         )
         self.assertEqual(active, EXPECTED_DEMOS)
 
-    def test_all_unmodified_demos_assemble_as_deterministic_fixed_images(self):
+    def test_all_active_demos_assemble_as_deterministic_fixed_images(self):
         result = self._run_contract("all")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         expected_lines = tuple(f"{path}: ok" for path in EXPECTED_DEMOS) + (

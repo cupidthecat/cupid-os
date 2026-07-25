@@ -151,6 +151,11 @@ static void mouse_enable_scroll_wheel(void) {
 void mouse_init(void) {
     uint8_t status_byte;
 
+    if (inb(0x64) == 0xFFu) {
+        KINFO("PS/2 mouse unavailable; USB input remains available");
+        return;
+    }
+
     /* 1. Enable auxiliary PS/2 device */
     mouse_wait_write();
     outb(0x64, 0xA8);

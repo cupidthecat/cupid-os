@@ -97,13 +97,16 @@ static const binding_oracle_t binding_oracles[] = {
     {"keyboard_state_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/core/types.h", 54u, 0u},
     {"timer_state_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/core/types.h", 62u, 0u},
     {"timer_measure_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/core/types.h", 68u, 0u},
-    {"block_device_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/blockdev.h", 15u, 0u},
-    {"blkdev_init", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 17u, 0u},
-    {"blkdev_register", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 18u, 0u},
-    {"blkdev_get", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 19u, 0u},
-    {"blkdev_count", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 20u, 0u},
-    {"blkdev_read", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 21u, 0u},
-    {"blkdev_write", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 22u, 0u},
+    {"block_device_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/blockdev.h", 18u, 0u},
+    {"blkdev_init", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 28u, 0u},
+    {"blkdev_register", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 29u, 0u},
+    {"blkdev_unregister", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 30u, 0u},
+    {"blkdev_get", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 31u, 0u},
+    {"blkdev_put", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 32u, 0u},
+    {"blkdev_count", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 34u, 0u},
+    {"blkdev_index_limit", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 36u, 0u},
+    {"blkdev_read", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 37u, 0u},
+    {"blkdev_write", CTOOL_C_BINDING_FUNCTION, "/kernel/fs/blockdev.h", 38u, 0u},
     {"mbr_partition_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 35u, 0u},
     {"mbr_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 41u, 0u},
     {"fat16_boot_sector_t", CTOOL_C_BINDING_TYPEDEF, "/kernel/fs/fat16.h", 58u, 0u},
@@ -153,8 +156,10 @@ static const ctool_u32 timer_state_offsets[] = {0u, 8u, 12u, 16u};
 static const char *const timer_measure_names[] = {"start_tick", "duration_ms"};
 static const ctool_u32 timer_measure_offsets[] = {0u, 8u};
 static const char *const block_device_names[] = {
-    "name", "sector_count", "sector_size", "driver_data", "read", "write"};
-static const ctool_u32 block_device_offsets[] = {0u, 4u, 8u, 12u, 16u, 20u};
+    "name", "sector_count", "sector_size", "driver_data", "read", "write",
+    "release", "registry_ref_count", "registry_registered"};
+static const ctool_u32 block_device_offsets[] = {
+    0u, 4u, 8u, 12u, 16u, 20u, 24u, 28u, 32u};
 static const char *const mbr_partition_names[] = {
     "status", "chs_start", "type", "chs_end", "lba_start", "sector_count"};
 static const ctool_u32 mbr_partition_offsets[] = {0u, 1u, 4u, 5u, 8u, 12u};
@@ -195,7 +200,7 @@ static const record_oracle_t record_oracles[] = {
      ARRAY_COUNT(timer_state_names), 0u},
     {"timer_measure_t", 16u, 4u, timer_measure_names, timer_measure_offsets,
      ARRAY_COUNT(timer_measure_names), 0u},
-    {"block_device_t", 24u, 4u, block_device_names, block_device_offsets,
+    {"block_device_t", 36u, 4u, block_device_names, block_device_offsets,
      ARRAY_COUNT(block_device_names), 0u},
     {"mbr_partition_t", 16u, 1u, mbr_partition_names, mbr_partition_offsets,
      ARRAY_COUNT(mbr_partition_names), 1u},
@@ -552,19 +557,21 @@ static int validate_fat16_tape(const ctool_c_pp_result_t *tape) {
   ctool_u32 index;
 
   (void)memset(kinds, 0, sizeof(kinds));
-  if (tape->tokens == NULL || tape->token_count != 710u) {
-    (void)fprintf(stderr, "fat16: expected 710 preprocessing tokens\n");
+  if (tape->tokens == NULL || tape->token_count != 749u) {
+    (void)fprintf(stderr,
+                  "fat16: expected 749 preprocessing tokens, got %u\n",
+                  tape->token_count);
     return 1;
   }
   for (index = 0u; index < tape->token_count; index++) {
     const ctool_c_pp_token_t *token = &tape->tokens[index];
     const char *expected_path;
-    ctool_u32 expected_pack = index >= 298u && index <= 453u ? 1u : 0u;
+    ctool_u32 expected_pack = index >= 337u && index <= 492u ? 1u : 0u;
 
     if (index <= 168u) {
       expected_path = "/kernel/core/types.h";
       types_count++;
-    } else if (index <= 297u) {
+    } else if (index <= 336u) {
       expected_path = "/kernel/fs/blockdev.h";
       block_count++;
     } else {
@@ -589,15 +596,27 @@ static int validate_fat16_tape(const ctool_c_pp_result_t *tape) {
       pack_one_count++;
     }
   }
-  if (types_count != 169u || block_count != 129u || fat_count != 412u ||
-      kinds[CTOOL_C_PP_TOKEN_IDENTIFIER] != 386u ||
+  if (types_count != 169u || block_count != 168u || fat_count != 412u ||
+      kinds[CTOOL_C_PP_TOKEN_IDENTIFIER] != 405u ||
       kinds[CTOOL_C_PP_TOKEN_NUMBER] != 17u ||
       kinds[CTOOL_C_PP_TOKEN_CHARACTER] != 0u ||
       kinds[CTOOL_C_PP_TOKEN_STRING] != 0u ||
-      kinds[CTOOL_C_PP_TOKEN_PUNCTUATOR] != 307u ||
-      kinds[CTOOL_C_PP_TOKEN_CUPID_EXE] != 0u || pack_zero_count != 554u ||
+      kinds[CTOOL_C_PP_TOKEN_PUNCTUATOR] != 327u ||
+      kinds[CTOOL_C_PP_TOKEN_CUPID_EXE] != 0u || pack_zero_count != 593u ||
       pack_one_count != 156u) {
-    (void)fprintf(stderr, "fat16: preprocessing tape inventory differs\n");
+    (void)fprintf(
+        stderr,
+        "fat16: preprocessing tape inventory differs "
+        "(paths=%u/%u/%u ids=%u nums=%u chars=%u strings=%u punct=%u "
+        "cupid=%u pack=%u/%u)\n",
+        types_count, block_count, fat_count,
+        kinds[CTOOL_C_PP_TOKEN_IDENTIFIER],
+        kinds[CTOOL_C_PP_TOKEN_NUMBER],
+        kinds[CTOOL_C_PP_TOKEN_CHARACTER],
+        kinds[CTOOL_C_PP_TOKEN_STRING],
+        kinds[CTOOL_C_PP_TOKEN_PUNCTUATOR],
+        kinds[CTOOL_C_PP_TOKEN_CUPID_EXE], pack_zero_count,
+        pack_one_count);
     return 1;
   }
   if (tape->tokens[97].kind != CTOOL_C_PP_TOKEN_NUMBER ||
@@ -606,17 +625,17 @@ static int validate_fat16_tape(const ctool_c_pp_result_t *tape) {
                              &tape->tokens[97].physical_location,
                              "/kernel/core/types.h", 42u) ||
       tape->tokens[97].physical_location.column != 24u ||
-      !string_equal(tape->tokens[298].spelling, "typedef") ||
-      !dual_location_matches(&tape->tokens[298].location,
-                             &tape->tokens[298].physical_location,
+      !string_equal(tape->tokens[337].spelling, "typedef") ||
+      !dual_location_matches(&tape->tokens[337].location,
+                             &tape->tokens[337].physical_location,
                              "/kernel/fs/fat16.h", 28u) ||
-      !string_equal(tape->tokens[453].spelling, ";") ||
-      !dual_location_matches(&tape->tokens[453].location,
-                             &tape->tokens[453].physical_location,
+      !string_equal(tape->tokens[492].spelling, ";") ||
+      !dual_location_matches(&tape->tokens[492].location,
+                             &tape->tokens[492].physical_location,
                              "/kernel/fs/fat16.h", 74u) ||
-      !string_equal(tape->tokens[454].spelling, "typedef") ||
-      !dual_location_matches(&tape->tokens[454].location,
-                             &tape->tokens[454].physical_location,
+      !string_equal(tape->tokens[493].spelling, "typedef") ||
+      !dual_location_matches(&tape->tokens[493].location,
+                             &tape->tokens[493].physical_location,
                              "/kernel/fs/fat16.h", 78u)) {
     (void)fprintf(stderr, "fat16: preprocessing tape anchors differ\n");
     return 1;
@@ -631,7 +650,10 @@ static int validate_bindings(const ctool_c_translation_unit_t *unit) {
   (void)memset(kind_counts, 0, sizeof(kind_counts));
   if (unit->bindings == NULL ||
       unit->binding_count != ARRAY_COUNT(binding_oracles)) {
-    (void)fprintf(stderr, "fat16: expected 50 ordinary bindings\n");
+    (void)fprintf(stderr,
+                  "fat16: expected %u ordinary bindings, got %u\n",
+                  (ctool_u32)ARRAY_COUNT(binding_oracles),
+                  unit->binding_count);
     return 1;
   }
   for (index = 0u; index < unit->binding_count; index++) {
@@ -665,7 +687,7 @@ static int validate_bindings(const ctool_c_translation_unit_t *unit) {
   }
   if (kind_counts[CTOOL_C_BINDING_TYPEDEF] != 24u ||
       kind_counts[CTOOL_C_BINDING_OBJECT] != 0u ||
-      kind_counts[CTOOL_C_BINDING_FUNCTION] != 21u ||
+      kind_counts[CTOOL_C_BINDING_FUNCTION] != 24u ||
       kind_counts[CTOOL_C_BINDING_ENUMERATOR] != 5u) {
     (void)fprintf(stderr, "fat16: binding kinds differ\n");
     return 1;
@@ -687,12 +709,17 @@ static int validate_graph_inventory(const ctool_c_translation_unit_t *unit) {
   if (unit->graph.types == NULL || unit->graph.type_count == 0u ||
       unit->layout.types == NULL ||
       unit->layout.type_count != unit->graph.type_count ||
-      unit->graph.members == NULL || unit->graph.member_count != 78u ||
-      unit->layout.members == NULL || unit->layout.member_count != 78u ||
+      unit->graph.members == NULL || unit->graph.member_count != 81u ||
+      unit->layout.members == NULL || unit->layout.member_count != 81u ||
       unit->graph.parameter_types == NULL ||
-      unit->graph.parameter_type_count != 44u || unit->parameters == NULL ||
-      unit->parameter_count != 44u) {
-    (void)fprintf(stderr, "fat16: frozen graph inventory differs\n");
+      unit->graph.parameter_type_count != 47u || unit->parameters == NULL ||
+      unit->parameter_count != 47u) {
+    (void)fprintf(
+        stderr,
+        "fat16: frozen graph inventory differs "
+        "(members=%u/%u parameters=%u/%u)\n",
+        unit->graph.member_count, unit->layout.member_count,
+        unit->graph.parameter_type_count, unit->parameter_count);
     return 1;
   }
   for (index = 0u; index < unit->graph.type_count; index++) {
@@ -731,11 +758,13 @@ static int validate_graph_inventory(const ctool_c_translation_unit_t *unit) {
       unnamed_parameter_count++;
     }
   }
-  if (record_count != 12u || enum_count != 2u || function_count != 27u ||
+  if (record_count != 12u || enum_count != 2u || function_count != 31u ||
       unnamed_parameter_count != 3u) {
     (void)fprintf(stderr,
-                  "fat16: expected 12 records, 2 enums, 27 functions, and "
-                  "3 abstract parameters\n");
+                  "fat16: expected 12 records, 2 enums, 31 functions, and "
+                  "3 abstract parameters, got %u/%u/%u/%u\n",
+                  record_count, enum_count, function_count,
+                  unnamed_parameter_count);
     return 1;
   }
   return 0;
@@ -1095,8 +1124,8 @@ static int run_fat16(const char *host_root) {
   if (status != CTOOL_OK || ctool_job_diagnostic_count(job) != 0u ||
       memcmp(mutant_snapshot, mutant_tokens, token_bytes) != 0 ||
       memcmp(snapshot, tape.tokens, token_bytes) != 0 ||
-      mutant_unit.binding_count != 50u || mutant_unit.graph.member_count != 78u ||
-      mutant_unit.graph.parameter_type_count != 44u ||
+      mutant_unit.binding_count != 53u || mutant_unit.graph.member_count != 81u ||
+      mutant_unit.graph.parameter_type_count != 47u ||
       validate_mutant_layout(&unit, &mutant_unit) != 0) {
     (void)fprintf(stderr, "fat16: mutant parse: %s\n",
                   ctool_status_name(status));
@@ -4398,8 +4427,6 @@ static int block_function_active_source_is_unchanged(
        "    extern void ac97_set_fill_callback(void (*)(int16_t *, uint32_t));",
        1u},
       {"/kernel/core/kernel.c", "    extern void ehci_init_all(void);", 1u},
-      {"/kernel/core/kernel.c", "    extern void ehci_poll_interrupts(void);",
-       1u},
       {"/kernel/core/kernel.c", "    extern void uhci_init_all(void);", 1u},
       {"/kernel/core/kernel.c", "    extern void usb_hid_init(void);", 1u},
       {"/kernel/core/kernel.c", "    extern void usb_hub_init(void);", 1u},

@@ -6,6 +6,8 @@
 #include "irq.h"
 #include "isr.h"
 #include "serial.h"
+#include "timer.h"
+#include "panic.h"
 
 /* UHCI register offsets (IO-port). */
 #define UHCI_USBCMD    0x00
@@ -44,6 +46,8 @@
 #define UHCI_PID_SETUP 0x2D
 #define UHCI_PID_IN    0x69
 #define UHCI_PID_OUT   0xE1
+#define UHCI_POLL_STEP_US 50u
+#define UHCI_HALT_TIMEOUT_US 10000u
 
 typedef struct __attribute__((packed, aligned(16))) {
     uint32_t link;
@@ -58,6 +62,13 @@ typedef struct __attribute__((packed, aligned(16))) {
     uint32_t elem_link;
 } uhci_qh_t;
 
+#define UHCI_INT_SLOTS 16
+typedef struct {
+    usb_interrupt_ownership_t owner;
+    usb_transfer_t            t;
+    usb_complete_cb_t         cb;
+} uhci_int_slot_t;
+
 #define UHCI_FRAME_COUNT 1024u
 
 typedef struct {
@@ -67,6 +78,9 @@ typedef struct {
     uint32_t *frame_list;
     uhci_qh_t *skel_qh;
     void      *skel_qh_raw; /* original kmalloc ptr for kfree */
+    volatile uint32_t submit_lock;
+    bool submit_failed;
+    uhci_int_slot_t interrupt_slots[UHCI_INT_SLOTS];
     usb_hc_t hc;
     uint32_t last_port_status[8];
 } uhci_ctrl_t;
@@ -77,10 +91,60 @@ static int uhci_count = 0;
 
 static int uhci_submit_sync(usb_hc_t *, usb_transfer_t *, uint32_t);
 static int uhci_submit_interrupt(usb_hc_t *, usb_transfer_t *, usb_complete_cb_t);
+static int uhci_cancel_interrupt(usb_hc_t *, usb_transfer_t *);
 static int uhci_port_count_fn(usb_hc_t *);
 static int uhci_port_status(usb_hc_t *, int port, uint32_t *status);
-static int uhci_port_reset(usb_hc_t *, int port);
+static usb_port_reset_result_t uhci_port_reset(usb_hc_t *, int port, bool);
 static void uhci_irq_handler_fn(usb_hc_t *);
+
+static void uhci_submit_lock(uhci_ctrl_t *c) {
+    while (
+        __atomic_exchange_n(
+            &c->submit_lock,
+            1u,
+            __ATOMIC_ACQUIRE
+        ) != 0u
+    ) {
+        __asm__ volatile("pause");
+    }
+}
+
+static void uhci_submit_unlock(uhci_ctrl_t *c) {
+    __atomic_store_n(&c->submit_lock, 0u, __ATOMIC_RELEASE);
+}
+
+static bool uhci_stop_schedule(
+    uhci_ctrl_t *c,
+    uint16_t *saved_command
+) {
+    *saved_command = inw(c->io_base + UHCI_USBCMD);
+    outw(
+        c->io_base + UHCI_USBCMD,
+        (uint16_t)(*saved_command & ~UHCI_CMD_RS)
+    );
+    for (
+        uint32_t waited_us = 0;
+        waited_us <= UHCI_HALT_TIMEOUT_US;
+        waited_us += UHCI_POLL_STEP_US
+    ) {
+        if (inw(c->io_base + UHCI_USBSTS) & UHCI_STS_HALTED) {
+            return true;
+        }
+        if (waited_us < UHCI_HALT_TIMEOUT_US) {
+            timer_delay_us(UHCI_POLL_STEP_US);
+        }
+    }
+    return false;
+}
+
+static void uhci_restore_schedule(
+    uhci_ctrl_t *c,
+    uint16_t saved_command
+) {
+    if (saved_command & UHCI_CMD_RS) {
+        outw(c->io_base + UHCI_USBCMD, saved_command);
+    }
+}
 
 static void uhci_global_reset(uint16_t io) {
     outw(io + UHCI_USBCMD, UHCI_CMD_GRESET);
@@ -99,6 +163,13 @@ static int uhci_probe_pci(pci_device_t *d) {
     c->io_base = (uint16_t)(bar4 & 0xFFFCu);
     c->irq_line = d->irq_line;
     c->port_count = 2;
+    c->submit_lock = 0;
+    c->submit_failed = false;
+    for (int i = 0; i < UHCI_INT_SLOTS; i++) {
+        usb_interrupt_ownership_init(&c->interrupt_slots[i].owner);
+        c->interrupt_slots[i].t.buffer = NULL;
+        c->interrupt_slots[i].cb = NULL;
+    }
 
     pci_config_write_dword(d->bus, d->device, d->function, 0xC0, 0x8F00u);
 
@@ -140,6 +211,7 @@ static int uhci_probe_pci(pci_device_t *d) {
     c->hc.root_speed = USB_SPEED_FULL;
     c->hc.submit_sync      = uhci_submit_sync;
     c->hc.submit_interrupt = uhci_submit_interrupt;
+    c->hc.cancel_interrupt = uhci_cancel_interrupt;
     c->hc.port_count       = uhci_port_count_fn;
     c->hc.port_status      = uhci_port_status;
     c->hc.port_reset       = uhci_port_reset;
@@ -233,48 +305,119 @@ static int uhci_submit_sync(usb_hc_t *hc, usb_transfer_t *t, uint32_t timeout_ms
     }
     tds[td_count-1]->ctrl_sts |= UHCI_TD_IOC;
 
+    uhci_submit_lock(c);
+    if (c->submit_failed) {
+        uhci_submit_unlock(c);
+        for (int i = 0; i < td_count; i++) kfree(td_raw[i]);
+        return -3;
+    }
+
     c->skel_qh->elem_link = (uint32_t)tds[0];
 
-    uint32_t spins = timeout_ms * 10000u;
+    uint32_t timeout_us = timeout_ms > 4294967u
+        ? 0xFFFFFFFFu : timeout_ms * 1000u;
+    uint32_t waited_us = 0;
     int status = -1;
-    while (spins--) {
+    for (;;) {
         bool done = true;
         for (int i = 0; i < td_count; i++) {
             if (tds[i]->ctrl_sts & UHCI_TD_ACTIVE) { done = false; break; }
         }
         if (done) { status = 0; break; }
+        if (waited_us >= timeout_us) break;
+        uint32_t delay_us = timeout_us - waited_us;
+        if (delay_us > UHCI_POLL_STEP_US) delay_us = UHCI_POLL_STEP_US;
+        timer_delay_us(delay_us);
+        waited_us += delay_us;
     }
     uint32_t s = tds[td_count-1]->ctrl_sts;
     if (s & (0x7Eu << 16)) status = -2;
 
     c->skel_qh->elem_link = UHCI_TD_TERMINATE;
+    /*
+     * UHCI may prefetch a queue element before software unlinks it. Prove the
+     * schedule is halted before releasing TD storage on success, error, or
+     * timeout.
+     */
+    uint16_t saved_command = 0;
+    if (!uhci_stop_schedule(c, &saved_command)) {
+        c->submit_failed = true;
+        uhci_submit_unlock(c);
+        kernel_panic(
+            "uhci: DMA ownership could not be revoked after transfer"
+        );
+    }
     for (int i = 0; i < td_count; i++) kfree(td_raw[i]);
+    uhci_restore_schedule(c, saved_command);
 
-    t->data_toggle = toggle;
+    if (status == 0) t->data_toggle = toggle;
+    uhci_submit_unlock(c);
     return status;
 }
 
-typedef struct {
-    bool     active;
-    usb_hc_t *hc;
-    usb_transfer_t t;
-    usb_complete_cb_t cb;
-} uhci_int_slot_t;
-
-#define UHCI_INT_SLOTS 16
-static uhci_int_slot_t uhci_int[UHCI_INT_SLOTS];
-
 static int uhci_submit_interrupt(usb_hc_t *hc, usb_transfer_t *t, usb_complete_cb_t cb) {
+    uhci_ctrl_t *c = (uhci_ctrl_t*)hc->driver_data;
+    uhci_submit_lock(c);
+    if (c->submit_failed) {
+        uhci_submit_unlock(c);
+        return -1;
+    }
     for (int i = 0; i < UHCI_INT_SLOTS; i++) {
-        if (!uhci_int[i].active) {
-            uhci_int[i].active = true;
-            uhci_int[i].hc = hc;
-            uhci_int[i].t = *t;
-            uhci_int[i].cb = cb;
+        uhci_int_slot_t *slot = &c->interrupt_slots[i];
+        if (usb_interrupt_ownership_publish(&slot->owner) != 0u) {
+            slot->t = *t;
+            slot->cb = cb;
+            uhci_submit_unlock(c);
             return 0;
         }
     }
+    uhci_submit_unlock(c);
     return -1;
+}
+static int uhci_cancel_interrupt(usb_hc_t *hc, usb_transfer_t *t) {
+    uhci_ctrl_t *c = (uhci_ctrl_t*)hc->driver_data;
+    uhci_int_slot_t *slot = NULL;
+    uint32_t generation = 0u;
+    uhci_submit_lock(c);
+    for (int i = 0; i < UHCI_INT_SLOTS; i++) {
+        uhci_int_slot_t *candidate = &c->interrupt_slots[i];
+        if (
+            candidate->owner.active
+            && candidate->t.device_addr == t->device_addr
+            && candidate->t.endpoint == t->endpoint
+            && candidate->t.buffer == t->buffer
+        ) {
+            slot = candidate;
+            generation = usb_interrupt_ownership_request_cancel(
+                &slot->owner
+            );
+            break;
+        }
+    }
+    uhci_submit_unlock(c);
+    if (!slot || generation == 0u) return -1;
+
+    /*
+     * The poller owns the caller's buffer until both DMA and its callback
+     * finish. Waiting here makes a successful return a release guarantee.
+     */
+    while (usb_interrupt_ownership_is_in_flight(&slot->owner)) {
+        __asm__ volatile("pause");
+    }
+
+    uhci_submit_lock(c);
+    if (slot->owner.generation != generation) {
+        uhci_submit_unlock(c);
+        return 0;
+    }
+    if (!usb_interrupt_ownership_retire(&slot->owner, generation)) {
+        uhci_submit_unlock(c);
+        return -1;
+    }
+    slot->cb = NULL;
+    slot->t.buffer = NULL;
+    uhci_submit_unlock(c);
+    return 0;
 }
 static int uhci_port_count_fn(usb_hc_t *hc) {
     return ((uhci_ctrl_t*)hc->driver_data)->port_count;
@@ -285,9 +428,16 @@ static int uhci_port_status(usb_hc_t *hc, int port, uint32_t *status) {
     *status = inw((uint16_t)(c->io_base + UHCI_PORTSC(port)));
     return 0;
 }
-static int uhci_port_reset(usb_hc_t *hc, int port) {
+static usb_port_reset_result_t uhci_port_reset(
+    usb_hc_t *hc,
+    int port,
+    bool must_reset
+) {
+    (void)must_reset;
     uhci_ctrl_t *c = hc->driver_data;
-    if (port < 0 || port >= c->port_count) return -1;
+    if (port < 0 || port >= c->port_count) {
+        return USB_PORT_RESET_FAILED;
+    }
     uint16_t val = inw((uint16_t)(c->io_base + UHCI_PORTSC(port)));
     KDEBUG("uhci: port %u reset start portsc=%x", (uint32_t)port, (uint32_t)val);
     outw((uint16_t)(c->io_base + UHCI_PORTSC(port)), (uint16_t)(val | UHCI_PORT_RESET));
@@ -298,7 +448,15 @@ static int uhci_port_reset(usb_hc_t *hc, int port) {
          (uint16_t)(inw((uint16_t)(c->io_base + UHCI_PORTSC(port))) | UHCI_PORT_ENABLE));
     uint16_t final = inw((uint16_t)(c->io_base + UHCI_PORTSC(port)));
     KDEBUG("uhci: port %u reset done portsc=%x", (uint32_t)port, (uint32_t)final);
-    return 0;
+    if (
+        (final & UHCI_PORT_CONNECT) == 0u
+        || (final & UHCI_PORT_RESET) != 0u
+        || (final & UHCI_PORT_ENABLE) == 0u
+    ) {
+        KWARN("uhci: port %u reset did not reach enabled state", (uint32_t)port);
+        return USB_PORT_RESET_FAILED;
+    }
+    return USB_PORT_RESET_OK;
 }
 static void uhci_irq_handler_fn(usb_hc_t *hc) {
     uhci_ctrl_t *c = hc->driver_data;
@@ -308,11 +466,46 @@ static void uhci_irq_handler_fn(usb_hc_t *hc) {
 }
 void uhci_poll_interrupts(void);
 void uhci_poll_interrupts(void) {
-    for (int i = 0; i < UHCI_INT_SLOTS; i++) {
-        if (!uhci_int[i].active) continue;
-        usb_transfer_t local = uhci_int[i].t;
-        int r = uhci_submit_sync(uhci_int[i].hc, &local, 5);
-        if (r == 0 && uhci_int[i].cb) uhci_int[i].cb(0, &local);
+    for (int controller = 0; controller < uhci_count; controller++) {
+        uhci_ctrl_t *c = &uhci_ctrls[controller];
+        for (int i = 0; i < UHCI_INT_SLOTS; i++) {
+            uhci_int_slot_t *slot = &c->interrupt_slots[i];
+            usb_transfer_t local;
+            usb_complete_cb_t cb = NULL;
+            uint32_t generation = 0u;
+
+            uhci_submit_lock(c);
+            if (!c->submit_failed) {
+                generation = usb_interrupt_ownership_claim(&slot->owner);
+                if (generation != 0u) {
+                    local = slot->t;
+                    cb = slot->cb;
+                }
+            }
+            uhci_submit_unlock(c);
+            if (generation == 0u) continue;
+
+            int r = uhci_submit_sync(&c->hc, &local, 5);
+            bool deliver = false;
+            uhci_submit_lock(c);
+            if (
+                r == 0
+                && usb_interrupt_ownership_may_deliver(
+                    &slot->owner,
+                    generation
+                )
+            ) {
+                slot->t.data_toggle = local.data_toggle;
+                deliver = cb != NULL;
+            }
+            uhci_submit_unlock(c);
+
+            if (deliver) cb(0, &local);
+
+            uhci_submit_lock(c);
+            usb_interrupt_ownership_finish(&slot->owner, generation);
+            uhci_submit_unlock(c);
+        }
     }
 }
 
@@ -323,9 +516,15 @@ void uhci_poll_ports(void) {
         for (int p = 0; p < c->port_count; p++) {
             uint16_t val = inw((uint16_t)(c->io_base + UHCI_PORTSC(p)));
             if (val & UHCI_PORT_CONNECT_CH) {
-                outw((uint16_t)(c->io_base + UHCI_PORTSC(p)),
-                     (uint16_t)(val | UHCI_PORT_CONNECT_CH));
-                if (val & UHCI_PORT_CONNECT) usb_port_change(&c->hc, p);
+                /*
+                 * PORTSC keeps the change bit asserted until software clears
+                 * it. A full software queue therefore leaves the bit alone so
+                 * the next poll can retry the same port.
+                 */
+                if (usb_port_change(&c->hc, p)) {
+                    outw((uint16_t)(c->io_base + UHCI_PORTSC(p)),
+                         (uint16_t)(val | UHCI_PORT_CONNECT_CH));
+                }
             }
         }
     }

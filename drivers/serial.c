@@ -314,6 +314,14 @@ const char *get_log_level_name(void) {
     }
 }
 
+static void klog_emit_char(char *line, int *pos, char ch) {
+    serial_write_char(ch);
+    if (*pos < LOG_LINE_MAX - 1) {
+        line[*pos] = ch;
+        (*pos)++;
+    }
+}
+
 void klog(log_level_t level, const char *fmt, ...) {
     if (level < current_log_level) return;
 
@@ -373,6 +381,18 @@ void klog(log_level_t level, const char *fmt, ...) {
             continue;
         }
         fmt++;
+
+        char pad_ch = ' ';
+        int width = 0;
+        if (*fmt == '0') {
+            pad_ch = '0';
+            fmt++;
+        }
+        while (*fmt >= '0' && *fmt <= '9') {
+            width = width * 10 + (*fmt - '0');
+            fmt++;
+        }
+
         switch (*fmt) {
         case 's': {
             const char *s = __builtin_va_arg(ap, const char *);
@@ -383,19 +403,30 @@ void klog(log_level_t level, const char *fmt, ...) {
         }
         case 'd': {
             int v = __builtin_va_arg(ap, int);
+            bool negative = v < 0;
+            uint32_t uv = negative
+                ? 0u - (uint32_t)v
+                : (uint32_t)v;
             char tmp[12]; int t = 0;
-            if (v < 0) {
-                serial_write_char('-');
-                if (pos < LOG_LINE_MAX-1) line[pos++] = '-';
-                v = -v;
-            }
-            uint32_t uv = (uint32_t)v;
             if (uv == 0) { tmp[t++] = '0'; }
             else { while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; } }
+            int total = t + (negative ? 1 : 0);
+            if (pad_ch == '0' && negative) {
+                klog_emit_char(line, &pos, '-');
+                while (total < width) {
+                    klog_emit_char(line, &pos, '0');
+                    total++;
+                }
+            } else {
+                while (total < width) {
+                    klog_emit_char(line, &pos, pad_ch);
+                    total++;
+                }
+                if (negative) klog_emit_char(line, &pos, '-');
+            }
             while (t > 0) {
                 char ch = tmp[--t];
-                serial_write_char(ch);
-                if (pos < LOG_LINE_MAX-1) line[pos++] = ch;
+                klog_emit_char(line, &pos, ch);
             }
             break;
         }
@@ -404,21 +435,44 @@ void klog(log_level_t level, const char *fmt, ...) {
             char tmp[12]; int t = 0;
             if (uv == 0) { tmp[t++] = '0'; }
             else { while (uv > 0) { tmp[t++] = (char)('0' + (uv % 10)); uv /= 10; } }
+            int total = t;
+            while (total < width) {
+                klog_emit_char(line, &pos, pad_ch);
+                total++;
+            }
             while (t > 0) {
                 char ch = tmp[--t];
-                serial_write_char(ch);
-                if (pos < LOG_LINE_MAX-1) line[pos++] = ch;
+                klog_emit_char(line, &pos, ch);
             }
             break;
         }
         case 'x': {
             uint32_t xv = __builtin_va_arg(ap, uint32_t);
             const char hex[] = "0123456789abcdef";
-            char buf2[11]; buf2[0]='0'; buf2[1]='x';
-            for (int i2 = 9; i2 >= 2; i2--) { buf2[i2] = hex[xv & 0xF]; xv >>= 4; }
-            buf2[10] = '\0';
-            serial_write_string(buf2);
-            for (int i2 = 0; buf2[i2] && pos < LOG_LINE_MAX-1; i2++) line[pos++] = buf2[i2];
+            if (width > 0) {
+                char tmp[16]; int t = 0;
+                if (xv == 0) tmp[t++] = '0';
+                else {
+                    while (xv > 0) {
+                        tmp[t++] = hex[xv & 0xFu];
+                        xv >>= 4;
+                    }
+                }
+                int total = t;
+                while (total < width) {
+                    klog_emit_char(line, &pos, pad_ch);
+                    total++;
+                }
+                while (t > 0) {
+                    klog_emit_char(line, &pos, tmp[--t]);
+                }
+            } else {
+                char buf2[11]; buf2[0]='0'; buf2[1]='x';
+                for (int i2 = 9; i2 >= 2; i2--) { buf2[i2] = hex[xv & 0xF]; xv >>= 4; }
+                buf2[10] = '\0';
+                serial_write_string(buf2);
+                for (int i2 = 0; buf2[i2] && pos < LOG_LINE_MAX-1; i2++) line[pos++] = buf2[i2];
+            }
             break;
         }
         case 'p': {
@@ -442,10 +496,20 @@ void klog(log_level_t level, const char *fmt, ...) {
             if (pos < LOG_LINE_MAX-1) line[pos++] = '%';
             break;
         default:
-            serial_write_char('%');
-            serial_write_char(*fmt);
-            if (pos < LOG_LINE_MAX-1) line[pos++] = '%';
-            if (pos < LOG_LINE_MAX-1) line[pos++] = *fmt;
+            klog_emit_char(line, &pos, '%');
+            if (pad_ch == '0') klog_emit_char(line, &pos, '0');
+            if (width > 0) {
+                char tmp[12]; int t = 0;
+                int remaining = width;
+                while (remaining > 0) {
+                    tmp[t++] = (char)('0' + (remaining % 10));
+                    remaining /= 10;
+                }
+                while (t > 0) {
+                    klog_emit_char(line, &pos, tmp[--t]);
+                }
+            }
+            klog_emit_char(line, &pos, *fmt);
             break;
         }
         if (*fmt) fmt++;

@@ -12,6 +12,7 @@
 #define DUR_16_16_8 6
 
 int gs_seed;
+int gs_input_seed;
 int gs_quarter_ms;
 int gs_complexity;
 int gs_rests;
@@ -103,6 +104,7 @@ void gs_seed_from_args() {
   if (args == 0 || args[0] == 0) {
     gs_seed = uptime_ms() ^ 0x534F4E47;
     if (gs_seed == 0) gs_seed = 1;
+    gs_input_seed = gs_seed;
     gs_quarter_ms = 800;
     return;
   }
@@ -115,6 +117,7 @@ void gs_seed_from_args() {
   if (v <= 0) v = uptime_ms() ^ 0x534F4E47;
   if (v == 0) v = 1;
   gs_seed = v;
+  gs_input_seed = gs_seed;
 
   while (args[i] == ' ') {
     i = i + 1;
@@ -412,7 +415,7 @@ void main() {
   gs_make_song_str(gs_song2);
 
   print("godsong seed=");
-  print_int(gs_seed);
+  print_int(gs_input_seed);
   print("\n");
   print("godsong quarter_ms=");
   print_int(gs_quarter_ms);

@@ -8749,3 +8749,231 @@ hosted development commands, most kernel C objects, and all user C objects
 remain host dependencies. The port-I/O and USB production cutover still needs
 its complete image and runtime proof. ADR 0108 records this transition.
 Issues #26 and #28 remain open.
+
+## 2026-07-25: Make USB reconciliation and lifetime boundaries durable
+
+USB port changes describe hardware state that the core must reconcile. A
+connect or disconnect can arrive while the work ring is full, while another
+port is waiting to retry, or after a hub slot has been removed and reused.
+The earlier one-shot path could lose work in each case.
+
+### Reconciliation ownership
+
+`usb_poll()` serializes controller polling and reconciliation. Work stays in
+the ring until it completes or a stale hub generation proves that it no
+longer describes a live parent. One poll cycle attempts each pending item at
+most once. A failed item rotates behind its peers and receives a retry delay
+that grows from 10 milliseconds to 1 second. A fresh state observation resets
+that delay.
+
+The durable ring keeps its current item represented while callbacks may queue
+more work. This closes the reentrant full-ring case where popping first and
+trying to requeue later could discard the original request. Root-controller
+change state is acknowledged only after the core accepts the work. A hub
+callback queues its observation and leaves teardown, reset, enumeration,
+change acknowledgement, and the final state reread to the core. If
+acknowledgement fails, the retry does not tear the same subtree down twice.
+
+Ordinary USB control transfers retry at most five times with timer-based
+delays. Device addresses 1 through 127 come from a reusable bitmap.
+Failure after an ambiguous address or configuration request keeps the address
+quarantined until reset, disconnect, or stale-work cleanup makes reuse safe.
+Releasing every reported failure immediately was rejected because the device
+may have accepted the request before the controller lost its completion.
+
+Class-driver probes return distinct typed outcomes. An unsupported result
+lets the next driver try. A successful result publishes the binding. A
+temporary failure unwinds enumeration and keeps the port work queued, while a
+permanent rejection leaves the device present and unbound. Invalid results
+also unwind and retry. HID setup, hub descriptor and power requests, and the
+mass-storage maximum-LUN request use the bounded control helper.
+
+### Interrupt, DMA, and block-device lifetimes
+
+EHCI and UHCI use controller-local interrupt slots. Each slot carries an
+active flag, cancellation request, in-flight claim, and generation. Pollers
+claim a generation under the submit lock, copy the transfer state, and invoke
+the callback after releasing the lock. Cancellation waits for that same
+generation's callback and DMA access to finish before it retires the slot. A
+stale cancellation cannot retire a later registration that reused the slot.
+
+Synchronous EHCI and UHCI transfers prove schedule quiescence before they
+free DMA descriptors. A failed revocation takes the panic path and keeps the
+memory rather than freeing storage that hardware may still own. Holding the
+submit lock across callbacks and returning from cancellation while work was
+in flight were both rejected.
+
+The block registry reuses its first vacant slot and shortens its sparse scan
+bound when trailing entries become vacant. `blkdev_count()` keeps its public
+meaning as the live registration count. `blkdev_index_limit()` exposes the
+separate scan bound. Its numeric index is a registration-scoped lease.
+
+Each successful `blkdev_get()` owns a reference until `blkdev_put()`.
+USB mass storage keeps its I/O callbacks fixed. They take the command lock
+and reject work after the state goes offline. Disconnect clears the USB
+device pointer under that lock and unregisters the public slot. A cached
+`block_device_t` pointer therefore remains safe after disconnect even when
+the numeric slot later names another device. The final returned reference
+releases the retained mass-storage allocation.
+
+### Evidence and limits
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Compiled reconciliation fixture | PASS | The real USB core covers reentrant queue pressure, retry timing and fairness, all control-failure phases, address quarantine and reuse, transactional removal, stale hub generations, and acknowledgement retry. |
+| Compiled interrupt fixture | PASS | Both controller implementations cover generation claims, callback ordering, cancellation wait, slot reuse, and DMA quiescence. |
+| Compiled block registry fixture | PASS | The real registry cycles one public slot through nine registration lifetimes and checks trailing-hole contraction. |
+| USB test suite | PASS | All 35 `test_usb_*.py` cases pass. |
+| GUI gate unit suite | PASS | All 62 cases cover the expected storage, input, audio, syscall, network, RTC, and USB markers and their failure forms. |
+| Live QEMU detach and reattach | PASS | Four-vCPU e1000 and RTL8139 runs each detach and reattach the UHCI keyboard and mouse with fresh input, then cycle the EHCI disk through six storage lifetimes. |
+
+The first live storage attempt used a legacy `-drive if=none` backend. QEMU
+removed that backend when the attached device was deleted, and the monitor
+reader consumed only its first 4 KiB, so the later `device_add` failure stayed
+hidden. The gate creates persistent file and raw block nodes, drains each
+monitor command through its prompt, rejects monitor errors, and polls
+`info qtree` until the deleted device ID is gone. The first HID assertions
+also expected decimal USB class numbers even though the kernel logs them in
+hexadecimal. The corrected expressions accept the kernel's fixed-width form.
+These were harness failures, so the kernel did not gain a speculative EHCI
+port-status fallback.
+
+A callback may not cancel its own registration. The stack still lacks OHCI,
+xHCI, isochronous transfers, USB Attached SCSI, full HID report parsing, and
+USB FAT16 automatic mounting. Live device storage remains bounded to 32 USB
+slots, hub depth five, and four public block slots. ADR 0109 records the
+ownership and lifetime rules.
+
+No design question was needed. The active controller callbacks, hub
+acknowledgement path, and observed failure modes determine the ownership
+boundary.
+
+## 2026-07-25: Transfer 14 port-I/O and USB sources to production CupidC
+
+The checked seed could compile the width-aware port I/O and atomic fetch-or
+used by the next production cohort, but the Make graph still routed those
+objects through GCC or Clang. The ownership change keeps every active source
+intact and moves the real recipes to the checked CupidC wrapper.
+
+### Production cohort
+
+The handoff adds these 14 sources:
+
+- `drivers/ata.c`
+- `drivers/keyboard.c`
+- `drivers/mouse.c`
+- `drivers/pci.c`
+- `drivers/pit.c`
+- `drivers/rtc.c`
+- `drivers/rtl8139.c`
+- `drivers/speaker.c`
+- `drivers/vga.c`
+- `kernel/audio/ac97.c`
+- `kernel/core/syscall.c`
+- `kernel/lang/shell.c`
+- `kernel/usb/ehci.c`
+- `kernel/usb/uhci.c`
+
+Together with the established 26 sources, checked-seed CupidC owns 40
+normal-build C transforms. The wrapper freezes and verifies the seed, emits
+under `KERNEL_I386`, validates i386 ELF32 relocatable output, and replaces a
+target only after the complete object is ready.
+
+### Exact Make prerequisites
+
+Every row below depends on its source, the listed recursive header closure,
+and the same checked controls:
+
+- `Makefile`
+- `tools/cupidc_kernel_compile.py`
+- `tools/kernel_cupidc_frontier.py`
+- `tools/bootstrap_toolchain.py`
+- `bootstrap/seeds/i386-linux/manifest.json`
+- `bootstrap/seeds/i386-linux/cupidasm.elf`
+- `bootstrap/seeds/i386-linux/cupidc.elf`
+- `bootstrap/seeds/i386-linux/cupiddis.elf`
+- `bootstrap/seeds/i386-linux/cupidld.elf`
+- `bootstrap/seeds/i386-linux/cupidobj.elf`
+
+| Source | Recursive header closure |
+| --- | --- |
+| `drivers/ata.c` | `drivers/ata.h`, `kernel/core/debug.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/isr.h`, `kernel/fs/blockdev.h` |
+| `drivers/keyboard.c` | `drivers/keyboard.h`, `drivers/rtc.h`, `drivers/serial.h`, `drivers/vga.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/process.h`, `kernel/core/types.h`, `kernel/cpu/irq.h`, `kernel/cpu/isr.h`, `kernel/gui/desktop.h`, `kernel/gui/gui.h`, `kernel/lang/shell.h`, `kernel/util/calendar.h` |
+| `drivers/mouse.c` | `drivers/mouse.h`, `drivers/serial.h`, `drivers/vga.h`, `kernel/core/ports.h`, `kernel/core/string.h`, `kernel/core/types.h`, `kernel/cpu/isr.h`, `kernel/cpu/pic.h`, `kernel/gfx/graphics.h` |
+| `drivers/pci.c` | `drivers/pci.h`, `drivers/serial.h`, `kernel/core/ports.h`, `kernel/core/types.h` |
+| `drivers/pit.c` | `drivers/pit.h`, `kernel/core/ports.h`, `kernel/core/types.h` |
+| `drivers/rtc.c` | `drivers/rtc.h`, `drivers/serial.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/isr.h` |
+| `drivers/rtl8139.c` | `drivers/pci.h`, `drivers/serial.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/irq.h`, `kernel/cpu/isr.h`, `kernel/mm/memory.h`, `kernel/network/net_if.h` |
+| `drivers/speaker.c` | `drivers/pit.h`, `drivers/speaker.h`, `drivers/timer.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/isr.h` |
+| `drivers/vga.c` | `drivers/timer.h`, `drivers/vga.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/string.h`, `kernel/core/types.h`, `kernel/cpu/isr.h`, `kernel/cpu/simd.h`, `kernel/mm/memory.h` |
+| `kernel/audio/ac97.c` | `drivers/pci.h`, `drivers/serial.h`, `kernel/audio/ac97.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/irq.h`, `kernel/cpu/isr.h`, `kernel/mm/memory.h` |
+| `kernel/core/syscall.c` | `drivers/ata.h`, `drivers/pci.h`, `drivers/pit.h`, `drivers/serial.h`, `drivers/speaker.h`, `drivers/timer.h`, `kernel/core/kernel.h`, `kernel/core/ports.h`, `kernel/core/process.h`, `kernel/core/string.h`, `kernel/core/syscall.h`, `kernel/core/types.h`, `kernel/cpu/isr.h`, `kernel/fs/blockdev.h`, `kernel/fs/vfs.h`, `kernel/fs/vfs_helpers.h`, `kernel/lang/exec.h`, `kernel/lang/shell.h`, `kernel/mm/memory.h`, `kernel/network/arp.h`, `kernel/network/dns.h`, `kernel/network/icmp.h`, `kernel/network/ip.h`, `kernel/network/net_if.h`, `kernel/network/socket.h`, `kernel/network/udp.h`, `kernel/smp/bkl.h`, `kernel/smp/lapic.h` |
+| `kernel/lang/shell.c` | `drivers/keyboard.h`, `drivers/pci.h`, `drivers/rtc.h`, `drivers/serial.h`, `drivers/timer.h`, `drivers/vga.h`, `kernel/core/app_launch.h`, `kernel/core/assert.h`, `kernel/core/kernel.h`, `kernel/core/panic.h`, `kernel/core/ports.h`, `kernel/core/process.h`, `kernel/core/string.h`, `kernel/core/types.h`, `kernel/cpu/irq.h`, `kernel/cpu/isr.h`, `kernel/cpu/math.h`, `kernel/fs/blockcache.h`, `kernel/fs/blockdev.h`, `kernel/fs/fat16.h`, `kernel/fs/fs.h`, `kernel/fs/vfs.h`, `kernel/gfx/gfx2d.h`, `kernel/gui/ansi.h`, `kernel/gui/desktop.h`, `kernel/gui/gui.h`, `kernel/gui/gui_themes.h`, `kernel/gui/terminal_app.h`, `kernel/lang/as.h`, `kernel/lang/cupidc.h`, `kernel/lang/cupidscript.h`, `kernel/lang/cupidscript_arrays.h`, `kernel/lang/cupidscript_jobs.h`, `kernel/lang/cupidscript_streams.h`, `kernel/lang/dis.h`, `kernel/lang/exec.h`, `kernel/lang/shell.h`, `kernel/mm/memory.h`, `kernel/mm/swap.h`, `kernel/network/arp.h`, `kernel/network/dns.h`, `kernel/network/icmp.h`, `kernel/network/ip.h`, `kernel/network/net_if.h`, `kernel/network/socket.h`, `kernel/network/sshd.h`, `kernel/smp/bkl.h`, `kernel/smp/percpu.h`, `kernel/smp/smp.h`, `kernel/usb/usb.h`, `kernel/usb/usb_hc.h`, `kernel/util/calendar.h` |
+| `kernel/usb/ehci.c` | `drivers/pci.h`, `drivers/serial.h`, `drivers/timer.h`, `kernel/core/kernel.h`, `kernel/core/panic.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/irq.h`, `kernel/cpu/isr.h`, `kernel/mm/memory.h`, `kernel/usb/usb.h`, `kernel/usb/usb_hc.h` |
+| `kernel/usb/uhci.c` | `drivers/pci.h`, `drivers/serial.h`, `drivers/timer.h`, `kernel/core/kernel.h`, `kernel/core/panic.h`, `kernel/core/ports.h`, `kernel/core/types.h`, `kernel/cpu/irq.h`, `kernel/cpu/isr.h`, `kernel/mm/memory.h`, `kernel/usb/usb.h`, `kernel/usb/usb_hc.h` |
+
+### Verification and remaining ownership
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Deterministic production frontier | PASS | Forty sources compile twice to 675,340 matching bytes. The locked test completed in 212.786 seconds. The frozen 328-input snapshot has SHA-256 `3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`. |
+| Make dependency closures | PASS | Tests compare every transferred recipe against the exact source, recursive headers, and common checked controls listed above. |
+| Poisoned host compiler | PASS | Each transferred recipe fails if it reaches the host compiler. Together with the established recipe checks, all 40 CupidC-owned transforms are covered. |
+| Strict syntax and focused tests | PASS | Freestanding syntax checks cover the changed runtime code. All 44 USB, 6 focused input, seed-reporting, and block-device, 62 GUI gate, 21 checked CupidC and CupidASM, and 55 build-audit tests pass. The focused CupidC frontend `fat16` and `block-functions` contracts also pass. |
+| Normal image build | PASS | `make -j2 all WAD_SRCS=` completes the full two-pass CupidLD and CupidObj path with all 40 checked-seed CupidC objects. `kernel.elf` is 6,694,808 bytes with SHA-256 `9ea52f9368896de159c71a9d3ddc0dd977362ec2d4a30adfa856ff1139455007`; `kernel.bin` is 6,509,875 bytes with SHA-256 `596f6edad80da77c3de04ab79302e53e52f9059b26936061c97fedfe779a7c4e`. |
+| Active build audit | PASS | The graph has 698 active inputs and 501 transforms. CupidC owns 40 transforms, the host C compiler owns 257, host Python owns 49, and 205 root/user objects remain host-built. The active source digest is `21750921084705c65abafda2d0a71bf88a18fd2d0d2683a21dde3a4a43d25275`; the JSON SHA-256 is `bc1c5d8e1d34782d4db918d1d5399c51d42bd562af3d4a6d70ee34f649a241ad`. |
+| Expanded live QEMU gate | PASS | Four-vCPU e1000 and RTL8139 runs complete the fixed command suite, SMP startup, selected-NIC DHCP traffic, framebuffer changes, both captured audio paths, UHCI input reattachment, and six EHCI storage lifetimes without a rejected failure marker. |
+
+Independent review found four lifetime errors in the first candidate. EHCI
+treated pre-reset J-state as full speed, even though a high-speed-capable
+device can idle in that state. The core also released a quarantined address
+when companion handoff had not proved reset. Mass-storage unregister failure
+left the attachment offline, and a saturated block reference could wrap to
+zero. The final code sends only unquarantined low-speed K-state directly to a
+companion, requires a proved reset before releasing a quarantine, restores
+mass-storage state after unregister failure, and refuses a saturated
+`blkdev_get()`. Negative cases cover each rule. A second read-only review
+found no remaining defect in those four paths.
+
+The first frontier refresh became obsolete when the review changed EHCI and
+the USB host-controller contract. Its 674,716-byte result and
+`8bb4f0f2be57ef9185047ad2a1c01ba0e01e5158e708e7a1972bff177542c4dd`
+snapshot were not accepted. The final frontier and audit values in the table
+above come from the reviewed source.
+
+The first complete post-USB run reached every storage lifetime but failed the
+RTC assertion because `klog()` printed the active `%02u` fields literally.
+The RTC source kept its ordinary C format. The shared kernel logger
+parses zero or space padding and decimal or hexadecimal integer widths, which
+matches the existing `serial_printf()` surface. A private boot probe logged
+`RTC: 2026-07-25 07:37:55`, and both final QEMU gates require the padded
+timestamp.
+
+The final e1000 gate passed in 175.7 seconds and wrote the 32,560-byte
+`build/bootstrap/frontier-runtime-e1000-20260725-final-review.log`, whose
+SHA-256 is
+`5515b4608d9df5f5a28370fc2f0ebb7fc70e35fba2ebd414aa370c828f7a2a31`.
+Its framebuffer changed by 98,763 pixels; captured AC'97 and PC speaker peaks
+were 25,600 and 27,940. The final RTL8139 gate passed in 174.5 seconds and
+wrote the 32,548-byte
+`build/bootstrap/frontier-runtime-rtl8139-20260725-final-review.log`, whose
+SHA-256 is
+`12cd8b935f92d9c4e057d6480faf90a360f5eb4cdb06dfd77c06f43b46cd0508`.
+Its framebuffer changed by 98,775 pixels; the two captured peaks were 25,600
+and 32,035.
+
+The first full build-audit test run found two stale inventory locks. The added
+fixtures raised the direct include count from 2,375 to 2,382 and the active
+`sizeof` count from 4,253 to 4,254. The checked JSON already held the right
+inventory. Updating those exact test values made all 55 audit cases pass in
+416.930 seconds.
+
+This cutover moves 14 normal-build C transforms away from GCC or Clang. The
+host compiler remains required for 257 transforms. Python orchestration, WSL
+on Windows, native contract runners, hosted development commands, and all
+remaining host-built root and user objects stay in the bootstrap boundary.
+ADR 0110 records the ownership decision.
+
+No migration-order question was needed. The checked seed already represented
+the language forms used by these sources, and the strict frontier fixed the
+cohort that could move without changing active source.

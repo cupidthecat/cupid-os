@@ -56,8 +56,24 @@ OPERAND_FREE_SOURCES = [
     "kernel/network/socket.c",
     "kernel/network/tcp.c",
 ]
+PORT_IO_SOURCES = [
+    "drivers/ata.c",
+    "drivers/keyboard.c",
+    "drivers/mouse.c",
+    "drivers/pci.c",
+    "drivers/pit.c",
+    "drivers/rtc.c",
+    "drivers/rtl8139.c",
+    "drivers/speaker.c",
+    "drivers/vga.c",
+    "kernel/audio/ac97.c",
+    "kernel/core/syscall.c",
+    "kernel/lang/shell.c",
+    "kernel/usb/ehci.c",
+    "kernel/usb/uhci.c",
+]
 KERNEL_SOURCES = sorted(
-    CRYPTO_SOURCES + SMP_SOURCES + OPERAND_FREE_SOURCES
+    CRYPTO_SOURCES + SMP_SOURCES + OPERAND_FREE_SOURCES + PORT_IO_SOURCES
 )
 
 BOUNDARY_DIAGNOSTICS = {}
@@ -413,7 +429,7 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (26 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (40 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -703,7 +719,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (26 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (40 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -734,10 +750,10 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(list((output / "negative").iterdir()), [])
-            self.assertEqual(manifest["input_snapshot"]["count"], 26)
+            self.assertEqual(manifest["input_snapshot"]["count"], 40)
             self.assertEqual(
                 len(manifest["input_snapshot"]["files"]),
-                26,
+                40,
             )
             self.assertEqual(
                 len(manifest["input_snapshot"]["sha256"]),
@@ -818,7 +834,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
-    def test_missing_approved_operand_free_source_is_rejected_before_publication(
+    def test_missing_approved_port_io_source_is_rejected_before_publication(
         self,
     ):
         with tempfile.TemporaryDirectory() as td:
@@ -827,7 +843,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
-            (root / "drivers" / "e1000.c").unlink()
+            (root / "drivers" / "ata.c").unlink()
             compiler = root / "fake_cupidc.py"
             _write_fake_compiler(compiler)
             output = root / "frontier"
@@ -852,7 +868,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "approved kernel source is not a file: drivers/e1000.c",
+                "approved kernel source is not a file: drivers/ata.c",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -889,7 +905,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stdout, "")
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "emitted object has a truncated section header table",
                 result.stderr,
             )
@@ -934,7 +950,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "emitted object section 1 payload is outside the file",
                 result.stderr,
             )
@@ -978,7 +994,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "emitted object symbol 1 has an invalid name",
                 result.stderr,
             )
@@ -1027,7 +1043,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "emitted object relocation 0 has an invalid symbol",
                 result.stderr,
             )
@@ -1076,7 +1092,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "emitted object relocation 0 uses unsupported i386 type 42",
                 result.stderr,
             )
@@ -1115,7 +1131,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "emitted object relocation section 2 uses RELA",
                 result.stderr,
             )
@@ -1159,7 +1175,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/e1000.c produced invalid ELF32: "
+                "drivers/ata.c produced invalid ELF32: "
                 "absolute relocation addend is 4, expected 0",
                 result.stderr,
             )
@@ -1219,7 +1235,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse((root / "frontier").exists())
 
-    def test_late_operand_free_compile_failure_cannot_publish_the_frontier(self):
+    def test_late_port_io_compile_failure_cannot_publish_the_frontier(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             for source in KERNEL_SOURCES:
@@ -1233,7 +1249,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     "if source in BOUNDARIES:\n",
                     (
-                        'if source == "/kernel/network/tcp.c":\n'
+                        'if source == "/kernel/usb/uhci.c":\n'
                         '    destination = root / output.lstrip("/")\n'
                         "    destination.parent.mkdir("
                         "parents=True, exist_ok=True)\n"
@@ -1269,7 +1285,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/network/tcp.c did not compile: forced late failure",
+                "kernel/usb/uhci.c did not compile: forced late failure",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1337,7 +1353,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
-    def test_nondeterministic_desktop_object_cannot_publish_the_frontier(self):
+    def test_nondeterministic_port_io_object_cannot_publish_the_frontier(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             for source in KERNEL_SOURCES:
@@ -1357,8 +1373,8 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     'shutil.copyfile(root / "fixture.o", destination)\n',
                     (
-                        'if source == "/kernel/gui/desktop.c":\n'
-                        '    marker = root / "desktop-first.done"\n'
+                        'if source == "/kernel/lang/shell.c":\n'
+                        '    marker = root / "shell-first.done"\n'
                         "    fixture = (\n"
                         '        root / "fixture-second.o"\n'
                         "        if marker.exists()\n"
@@ -1395,7 +1411,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/gui/desktop.c object output is not deterministic",
+                "kernel/lang/shell.c object output is not deterministic",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1440,7 +1456,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stdout, "")
             self.assertIn(
-                "drivers/e1000.c did not publish an object",
+                "drivers/ata.c did not publish an object",
                 result.stderr,
             )
             self.assertFalse((root / "frontier").exists())
@@ -1495,15 +1511,15 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
-    def test_new_cohort_header_drift_stops_without_publication(self):
+    def test_port_io_header_drift_stops_without_publication(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             for source in KERNEL_SOURCES:
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
-            header = root / "drivers" / "serial.h"
-            header.write_text("int serial_fixture;\n", encoding="utf-8")
+            header = root / "kernel" / "core" / "ports.h"
+            header.write_text("int ports_fixture;\n", encoding="utf-8")
             (root / "fixture.o").write_bytes(_valid_elf32_object())
             compiler = root / "fake_cupidc.py"
             _write_fake_compiler(compiler)
@@ -1512,7 +1528,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                     'shutil.copyfile(root / "fixture.o", destination)\n',
                     (
                         'shutil.copyfile(root / "fixture.o", destination)\n'
-                        '(root / "drivers/serial.h").write_text('
+                        '(root / "kernel/core/ports.h").write_text('
                         '"int changed;\\n", encoding="utf-8")\n'
                     ),
                     1,
@@ -1542,7 +1558,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn(
                 "kernel CupidC inputs changed during frontier run: "
-                "drivers/serial.h",
+                "kernel/core/ports.h",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1575,13 +1591,13 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 cwd=REPO_ROOT,
                 text=True,
                 capture_output=True,
-                timeout=300,
+                timeout=600,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (26 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (40 sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
@@ -1593,7 +1609,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                366592,
+                675340,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1645,7 +1661,91 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "cc94af0770dc6caf7b8a8df5b87a7368",
                 ),
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 314)
+            port_io_object_records = {
+                "drivers/ata.c": (
+                    10748,
+                    "7675b2eaf6aca4ae022b53943887a6fc"
+                    "5d419a41a6dd2af3300f6265fd501575",
+                ),
+                "drivers/keyboard.c": (
+                    11740,
+                    "0703723bd6aecb968fd011d8921cf8595"
+                    "eff10d2e8d30b9dd5c68c74f85e6daa",
+                ),
+                "drivers/mouse.c": (
+                    12936,
+                    "0fc5292e291cd8ff0403cda1948029cb8"
+                    "f1e92051e04f882e8935dc371f330d8",
+                ),
+                "drivers/pci.c": (
+                    7136,
+                    "7d006772700b8b0192daa7690417bc687"
+                    "2b8324588cd67e50126cf318858a68e",
+                ),
+                "drivers/pit.c": (
+                    1816,
+                    "988d4678c3ca72ee706192c22138dbe3"
+                    "a899d70d7ce059eaed5c613e2ca77b53",
+                ),
+                "drivers/rtc.c": (
+                    7520,
+                    "e4e81e276d1fc15c04f3b56ace981647"
+                    "9af6e8c4c3a4f3b1a38b2a137766ef4a",
+                ),
+                "drivers/rtl8139.c": (
+                    8416,
+                    "0244bebe07cbaf334725e28a4b23963cb"
+                    "bd7cff409b53f6be209557b9561157a",
+                ),
+                "drivers/speaker.c": (
+                    1576,
+                    "f880fc8db95090e040596589725c0935"
+                    "384da2387ba45661cb25657337bc55fa",
+                ),
+                "drivers/vga.c": (
+                    4764,
+                    "ab0ffd587b4e4ea473f161957d53255c"
+                    "bb755a401c176cf205eee571d8969840",
+                ),
+                "kernel/audio/ac97.c": (
+                    14100,
+                    "35b1cb43e884a581f5560419b640b5dc"
+                    "811dd0c91ff7d70b19d4020db403aa07",
+                ),
+                "kernel/core/syscall.c": (
+                    11544,
+                    "0c7b7e1810590ddcd98e89248634f6f9"
+                    "9371567faeb6cd80a4839c96fb519a09",
+                ),
+                "kernel/lang/shell.c": (
+                    175056,
+                    "d6e32e24d9682a4d9f0967317a1abbd"
+                    "75340602f0b852e39c33de122a37d7fbe",
+                ),
+                "kernel/usb/ehci.c": (
+                    22820,
+                    "f56b0adb33a676b28d16317a16fb3725"
+                    "44ab6db0ee0c0c63b23e10b54534d610",
+                ),
+                "kernel/usb/uhci.c": (
+                    18576,
+                    "bfdade6cbc6210796e7b579cda617fb1b"
+                    "00eca2c41df6a9ef9b4a5200bb6940f",
+                ),
+            }
+            self.assertEqual(
+                {
+                    source: object_records[source]
+                    for source in PORT_IO_SOURCES
+                },
+                port_io_object_records,
+            )
+            self.assertEqual(manifest["input_snapshot"]["count"], 328)
+            self.assertEqual(
+                manifest["input_snapshot"]["sha256"],
+                "3dedac2c0a5733f531871b6bc83ebb42"
+                "7b92e6dfa448edc93a7804ec28025032",
+            )
             self.assertEqual(
                 manifest["provenance"]["compiler"],
                 {

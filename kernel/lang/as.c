@@ -700,12 +700,16 @@ static void as_gfx2d_text_simple(int x, int y, const char *str, int color) {
 static int as_blkdev_read(int idx, uint32_t lba, uint32_t count, void *buf) {
   block_device_t *d = blkdev_get(idx);
   if (!d) return -1;
-  return blkdev_read(d, lba, count, buf);
+  int result = blkdev_read(d, lba, count, buf);
+  (void)blkdev_put(d);
+  return result;
 }
 static int as_blkdev_write(int idx, uint32_t lba, uint32_t count, const void *buf) {
   block_device_t *d = blkdev_get(idx);
   if (!d) return -1;
-  return blkdev_write(d, lba, count, buf);
+  int result = blkdev_write(d, lba, count, buf);
+  (void)blkdev_put(d);
+  return result;
 }
 static uint32_t as_pci_vendor_idx(int idx) {
   pci_device_t *d = pci_get_device(idx);

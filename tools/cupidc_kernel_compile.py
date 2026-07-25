@@ -63,11 +63,28 @@ APPROVED_OPERAND_FREE_SOURCES = (
     "kernel/network/socket.c",
     "kernel/network/tcp.c",
 )
+APPROVED_PORT_IO_SOURCES = (
+    "drivers/ata.c",
+    "drivers/keyboard.c",
+    "drivers/mouse.c",
+    "drivers/pci.c",
+    "drivers/pit.c",
+    "drivers/rtc.c",
+    "drivers/rtl8139.c",
+    "drivers/speaker.c",
+    "drivers/vga.c",
+    "kernel/audio/ac97.c",
+    "kernel/core/syscall.c",
+    "kernel/lang/shell.c",
+    "kernel/usb/ehci.c",
+    "kernel/usb/uhci.c",
+)
 APPROVED_KERNEL_SOURCES = tuple(
     sorted(
         APPROVED_CRYPTO_SOURCES
         + APPROVED_SMP_SOURCES
         + APPROVED_OPERAND_FREE_SOURCES
+        + APPROVED_PORT_IO_SOURCES
     )
 )
 

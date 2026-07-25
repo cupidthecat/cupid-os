@@ -174,17 +174,8 @@ void timer_callback_channel1(struct registers* r, uint32_t channel) {
  * Called from safe voluntary points (desktop event loop, process_yield)
  * where ESP/EBP manipulation won't corrupt an IRQ stack frame.
 */
-/* Forward declarations for USB idle-loop polls (ehci.c, uhci.c, usb.c) */
-extern void ehci_poll_interrupts(void);
-extern void uhci_poll_ports(void);
-extern void uhci_poll_interrupts(void);
-
 void kernel_check_reschedule(void) {
-    /* USB idle-loop polls */
-    ehci_poll_interrupts();
-    uhci_poll_ports();
-    uhci_poll_interrupts();
-    usb_process_pending();
+    usb_poll();
     net_process_pending();
 
     if (need_reschedule && process_is_active()) {
@@ -681,7 +672,6 @@ void kmain(void) {
     // EHCI MUST run first: it sets CONFIGFLAG=1 and releases LS/FS ports
     // to companion UHCI via PORT_OWNER. Reversed order causes races.
     extern void ehci_init_all(void);
-    extern void ehci_poll_interrupts(void);
     extern void uhci_init_all(void);
     extern void usb_hid_init(void);
     extern void usb_hub_init(void);

@@ -143,6 +143,17 @@ static const char scancode_to_ascii_shift[] = {
 static kbd_event_cb s_kbd_sub_cb  = NULL;
 static void        *s_kbd_sub_ctx = NULL;
 
+#define PS2_INPUT_WAIT_ATTEMPTS 100000u
+
+static bool keyboard_wait_input_empty(void) {
+    for (uint32_t attempt = 0; attempt < PS2_INPUT_WAIT_ATTEMPTS; attempt++) {
+        uint8_t status = inb(KEYBOARD_STATUS_PORT);
+        if (status == 0xFFu) return false;
+        if ((status & 0x02u) == 0) return true;
+    }
+    return false;
+}
+
 int keyboard_subscribe(kbd_event_cb cb, void *ctx) {
     if (s_kbd_sub_cb != NULL) return -1;
     s_kbd_sub_cb  = cb;
@@ -201,9 +212,6 @@ static void enqueue_event(uint8_t scancode, char ascii) {
 
 // Initialize keyboard
 void keyboard_init(void) {
-    // Register keyboard interrupt handler for IRQ1
-    irq_install_handler(1, keyboard_handler);
-
     // Reset keyboard state
     for (int i = 0; i < 256; i++) {
         keyboard_state.key_states[i] = KEY_UP;
@@ -218,11 +226,20 @@ void keyboard_init(void) {
     keyboard_state.buffer.tail = 0;
     keyboard_state.buffer.count = 0;
 
-    // Enable keyboard
-    while (inb(KEYBOARD_STATUS_PORT) & 0x02);
+    /*
+     * The shared state also serves USB HID keyboards. A machine may omit its
+     * i8042 controller entirely, so never let a missing PS/2 status port hold
+     * the boot path in an unbounded wait.
+     */
+    if (!keyboard_wait_input_empty()) {
+        KINFO("PS/2 keyboard unavailable; USB input remains available");
+        return;
+    }
+
+    irq_install_handler(1, keyboard_handler);
     outb(KEYBOARD_DATA_PORT, KEYBOARD_CMD_ENABLE);
 
-    print("Keyboard initialized.\n");
+    KINFO("PS/2 keyboard initialized");
 }
 
 // Update system ticks (usually called from timer interrupt)
@@ -557,6 +574,7 @@ static bool     s_test_last_pressed = false;
 
 static void test_subscriber_cb(uint8_t sc, bool pressed, void *ctx) {
     (void)ctx;
+    if (sc != 0x2Au) return;
     s_test_calls++;
     s_test_last_sc      = sc;
     s_test_last_pressed = pressed;

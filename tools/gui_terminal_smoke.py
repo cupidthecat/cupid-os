@@ -9,12 +9,17 @@ Build a normal GUI image first (`make`), then run:
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
+import wave
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -23,6 +28,9 @@ PANIC_RE = re.compile(r"KERNEL PANIC|Heap corruption|CORRUPTION detected")
 DEFAULT_SUCCESS_PATTERN = r"JIT execution complete"
 KEY_HOLD_MILLISECONDS = 300
 KEY_PAUSE_SECONDS = 0.35
+COMMAND_SETTLE_SECONDS = 1.0
+MIN_CHANGED_PIXELS = 16
+FRONTIER_STORAGE_REATTACHMENTS = 5
 SMP_RUNTIME_TLS_SUCCESS_COUNT = 62
 SMP_RUNTIME_REQUIRED_MARKERS = (
     "[csprng] seeded from RDRAND",
@@ -32,7 +40,6 @@ SMP_RUNTIME_REQUIRED_MARKERS = (
     "cpu2: online",
     "cpu3: online",
     "smp: 4 CPUs online (of 4 discovered)",
-    "e1000: init OK",
     "Scheduler started",
     "Entering desktop environment",
     "Terminal launched",
@@ -58,13 +65,274 @@ SMP_RUNTIME_REJECTED_MARKERS = (
     "[homefs] flush failed",
     "FAT16: write incomplete",
 )
+NIC_RUNTIME_PATTERNS = {
+    "e1000": (
+        ("e1000 initialization", r"e1000: init OK"),
+        (
+            "e1000 packet traffic",
+            r"dhcp: bound ip=0x(?!00000000\b)[0-9A-Fa-f]{8}"
+            r".*net: if=e1000 ip=[1-9][0-9]*\.[0-9]+\.[0-9]+\.[0-9]+",
+        ),
+    ),
+    "rtl8139": (
+        ("RTL8139 initialization", r"rtl8139: init OK"),
+        (
+            "RTL8139 packet traffic",
+            r"dhcp: bound ip=0x(?!00000000\b)[0-9A-Fa-f]{8}"
+            r".*net: if=rtl8139 ip=[1-9][0-9]*\.[0-9]+\.[0-9]+\.[0-9]+",
+        ),
+    ),
+}
+NIC_RUNTIME_REJECTED_MARKERS = (
+    "e1000: BAR0 not MMIO",
+    "e1000: rx ring alloc failed",
+    "e1000: rx buf alloc failed",
+    "e1000: tx ring alloc failed",
+    "e1000: tx buf alloc failed",
+    "rtl8139: BAR0 not IO port",
+    "rtl8139: rx alloc failed",
+    "rtl8139: tx alloc failed",
+)
+CUPIDC_COMPLETION_PATTERN = r"\[cupidc\] JIT execution complete"
+ASM_COMPLETION_PATTERN = r"\[asm\] JIT execution complete"
+
+
+@dataclass(frozen=True)
+class TerminalCommand:
+    """One terminal command and the serial evidence that completes it."""
+
+    text: str
+    expected_pattern: str
+    followup_keys: tuple[str, ...] = ()
+    interaction_pattern: str | None = None
+
+
+FRONTIER_RUNTIME_COMMANDS = (
+    TerminalCommand(
+        "ls",
+        (
+            r"\[cupidc\] JIT compile: /bin/ls\.cc"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "/bin/kbdsub_test.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/kbdsub_test\.cc"
+            r".*?\[PASS\] kbdsub: subscribe/unsubscribe round-trip"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+        ("shift",),
+        r"\[kbdsub\] waiting for USB Shift make/break",
+    ),
+    TerminalCommand(
+        "/bin/date.cc +epoch",
+        (
+            r"\[cupidc\] JIT compile: /bin/date\.cc"
+            r".*?\[print_int\] num=[1-9][0-9]{8,9} "
+            r"\(0x0x[0-9A-Fa-f]+\) gui_mode=1"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "as /demos/syscall_vfs_extended_demo.asm",
+        (
+            r"\[asm\] JIT assemble: "
+            r"/demos/syscall_vfs_extended_demo\.asm"
+            r".*?\[asm\] Assembled: [1-9][0-9]* bytes code, "
+            r"[0-9]+ bytes data"
+            r".*?extended SYS VFS calls: OK"
+            rf".*?{ASM_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "/bin/feature17_iso.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature17_iso\.cc"
+            rf".*?PASS feature17_iso.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "/bin/feature18_swap.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature18_swap\.cc"
+            rf".*?PASS feature18_swap.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "audiotest all",
+        (
+            r"\[cupidc\] JIT compile: /bin/audiotest\.cc"
+            r".*?\[ac97\] DMA refills during audiotest: [1-9][0-9]*"
+            rf".*?\[PASS\] audiotest all.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
+        "godsong 1 200",
+        (
+            r"\[cupidc\] JIT compile: /bin/godsong\.cc"
+            r".*?\[print_int\] num=1 \(0x0x[0-9A-Fa-f]+\) gui_mode=1"
+            r".*?\[print_int\] num=200 \(0x0x[0-9A-Fa-f]+\) gui_mode=1"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+        ("esc", "n", "n", "esc", "esc"),
+        r"\[cupidc\] Executing at 0x(?:0x)?[0-9A-Fa-f]+",
+    ),
+)
+
+FRONTIER_RUNTIME_REQUIRED_PATTERNS = (
+    ("PCI enumeration", r"pci: enumerated [1-9][0-9]* devices"),
+    (
+        "RTC",
+        (
+            r"RTC: (?:19[7-9][0-9]|20[0-9]{2})-"
+            r"(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01]) "
+            r"(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
+        ),
+    ),
+    ("FAT storage", r"FAT16 mounted at /disk"),
+    (
+        "AC97 initialization",
+        r"\[ac97\] present: NAM=0x[0-9A-Fa-f]+ NABM=0x[0-9A-Fa-f]+",
+    ),
+    (
+        "AC97 refill exercise",
+        r"\[ac97\] DMA refills during audiotest: [1-9][0-9]*",
+    ),
+    ("EHCI initialization", r"ehci: init OK"),
+    ("UHCI initialization", r"uhci: init OK"),
+    ("USB keyboard", r"usb_hid: keyboard attached addr=[1-9][0-9]*"),
+    ("USB mouse", r"usb_hid: mouse attached addr=[1-9][0-9]*"),
+    (
+        "USB storage",
+        r"usb_msc: usb[0-9]+ [1-9][0-9]*x[1-9][0-9]*",
+    ),
+    (
+        "USB FAT storage",
+        r"usb_msc: usb[0-9]+ has [1-9][0-9]* FAT16 partition\(s\)",
+    ),
+    (
+        "USB mouse input",
+        r"usb_hid: mouse activity report=[1-9][0-9]*",
+    ),
+    (
+        "syscall initialization",
+        r"\[SYSCALL\] Syscall table initialized \(v[0-9]+, [0-9]+ bytes\)",
+    ),
+    ("shell", r"Terminal launched"),
+    (
+        "graphics",
+        r"VBE graphics initialized \(640x480, 32bpp\)",
+    ),
+)
+
+FRONTIER_STORAGE_READY_PATTERN = (
+    r"usb: dev addr=[1-9][0-9]* .*class=(?:8|0[xX]0*8)"
+    r".*usb_msc: (usb[0-9]+) "
+    r"[1-9][0-9]*x[1-9][0-9]*"
+    r".*usb_msc: \1 has [1-9][0-9]* "
+    r"FAT16 partition\(s\)"
+)
+
+FRONTIER_RUNTIME_REJECTED_MARKERS = (
+    "KERNEL PANIC",
+    "[PANIC] CPU Exception",
+    "Heap corruption",
+    "CORRUPTION detected",
+    "illegal instruction",
+    "ATA: Timeout",
+    "ATA: Write error",
+    "ATA: No drives detected",
+    "Block cache initialization failed",
+    "Block cache: writeback failed",
+    "Block cache: disk read failed",
+    "Block cache: flush failed",
+    "[homefs] flush failed",
+    "FAT16: write incomplete",
+    "RTC: invalid data",
+    "usb: work queue full",
+    "usb: root port reset failed",
+    "usb: no free device slot",
+    "usb: first GET_DESC failed",
+    "usb: address space exhausted",
+    "usb: SET_ADDRESS failed",
+    "usb: full GET_DESC failed",
+    "usb: GET_CONFIG(short) failed",
+    "usb: GET_CONFIG(full) failed",
+    "usb: SET_CONFIGURATION failed",
+    "usb: driver refused removal",
+    "usb_hid: keyboard interrupt registration failed",
+    "usb_hid: keyboard interrupt cancellation failed",
+    "usb_hid: mouse interrupt registration failed",
+    "usb_hid: mouse interrupt cancellation failed",
+    "usb_hub: interrupt registration failed",
+    "usb_hub: interrupt cancellation failed",
+    "ehci: BAR0 not MMIO",
+    "ehci: alloc failed",
+    "ehci: could not quiesce async schedule",
+    "ehci: timeout teardown could not quiesce controller",
+    "uhci: BAR4 not IO port",
+    "uhci: HC reset stuck",
+    "uhci: alloc failed",
+    "uhci: too many TDs",
+    "uhci: timeout teardown could not halt controller",
+    "usb_msc: not ready",
+    "usb_msc: read capacity failed",
+    "usb_msc: mbr read failed",
+    "usb_msc: block device registry is full",
+    "usb_msc: detached block device was not registered",
+    "[ac97] no AC97 device found",
+    "[ac97] OOM allocating BDL/DMA pool",
+    "[SKIP] audiotest",
+    "[FAIL] audiotest",
+    "[FAIL] kbdsub",
+    "[cupidc] error",
+    "[asm] error",
+    "FAIL feature17_iso",
+    "FAIL feature18_swap",
+    "extended SYS VFS calls: FAIL",
+) + NIC_RUNTIME_REJECTED_MARKERS
 
 
 class SmpRuntimeContractError(RuntimeError):
     """A serial log did not prove the checked four-vCPU runtime contract."""
 
 
-def validate_smp_runtime_log(data: str) -> None:
+class FrontierRuntimeContractError(RuntimeError):
+    """The serial or artifact evidence did not prove the frontier runtime."""
+
+
+@dataclass(frozen=True)
+class FramebufferEvidence:
+    """The dimensions and changed-pixel count from two QEMU screendumps."""
+
+    width: int
+    height: int
+    changed_pixels: int
+
+
+@dataclass(frozen=True)
+class AudioEvidence:
+    """The useful PCM facts retained from QEMU's WAV capture."""
+
+    channels: int
+    sample_rate: int
+    frames: int
+    peak: int
+
+
+def _required_nic_patterns(
+    nic: str,
+    require_traffic: bool,
+) -> tuple[tuple[str, str], ...]:
+    try:
+        patterns = NIC_RUNTIME_PATTERNS[nic]
+    except KeyError as error:
+        raise ValueError(f"unsupported runtime NIC: {nic}") from error
+    return patterns if require_traffic else patterns[:1]
+
+
+def validate_smp_runtime_log(data: str, nic: str = "e1000") -> None:
     """Require the SMP, crypto, network, desktop, and command boot evidence."""
     for marker in SMP_RUNTIME_REQUIRED_MARKERS:
         if marker not in data:
@@ -85,6 +353,279 @@ def validate_smp_runtime_log(data: str) -> None:
             raise SmpRuntimeContractError(
                 f"found failure marker: {marker}"
             )
+    for marker in NIC_RUNTIME_REJECTED_MARKERS:
+        if marker.casefold() in folded:
+            raise SmpRuntimeContractError(
+                f"found failure marker: {marker}"
+            )
+    for subsystem, pattern in _required_nic_patterns(nic, False):
+        if re.search(pattern, data, re.S | re.M) is None:
+            raise SmpRuntimeContractError(
+                f"missing {subsystem} marker: {pattern}"
+            )
+
+
+def validate_frontier_runtime_log(data: str, nic: str = "e1000") -> None:
+    """Require the stable subsystem markers for the port-I/O cohort."""
+    folded = data.casefold()
+    for marker in FRONTIER_RUNTIME_REJECTED_MARKERS:
+        if marker.casefold() in folded:
+            raise FrontierRuntimeContractError(
+                f"found failure marker: {marker}"
+            )
+
+    for subsystem, pattern in FRONTIER_RUNTIME_REQUIRED_PATTERNS:
+        if re.search(pattern, data, re.S | re.M) is None:
+            raise FrontierRuntimeContractError(
+                f"missing {subsystem} marker: {pattern}"
+            )
+    for subsystem, pattern in _required_nic_patterns(nic, True):
+        if re.search(pattern, data, re.S | re.M) is None:
+            raise FrontierRuntimeContractError(
+                f"missing {subsystem} marker: {pattern}"
+            )
+
+
+def _ppm_token(data: bytes, offset: int) -> tuple[bytes, int]:
+    while offset < len(data):
+        if data[offset] in b" \t\r\n":
+            offset += 1
+            continue
+        if data[offset] == ord("#"):
+            newline = data.find(b"\n", offset)
+            if newline < 0:
+                raise ValueError("unterminated PPM comment")
+            offset = newline + 1
+            continue
+        break
+    start = offset
+    while offset < len(data) and data[offset] not in b" \t\r\n#":
+        offset += 1
+    if start == offset:
+        raise ValueError("missing PPM header token")
+    return data[start:offset], offset
+
+
+def _read_ppm(path: Path, label: str) -> tuple[int, int, bytes]:
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise FrontierRuntimeContractError(
+            f"{label} framebuffer could not be read: {error}"
+        ) from error
+
+    try:
+        magic, offset = _ppm_token(data, 0)
+        width_token, offset = _ppm_token(data, offset)
+        height_token, offset = _ppm_token(data, offset)
+        maximum_token, offset = _ppm_token(data, offset)
+        if magic != b"P6":
+            raise ValueError("expected binary P6 PPM")
+        width = int(width_token)
+        height = int(height_token)
+        maximum = int(maximum_token)
+        if width < 1 or height < 1:
+            raise ValueError("PPM dimensions must be positive")
+        if maximum != 255:
+            raise ValueError("PPM maximum channel value must be 255")
+        if offset >= len(data) or data[offset] not in b" \t\r\n":
+            raise ValueError("PPM header is not separated from pixels")
+        if data[offset:offset + 2] == b"\r\n":
+            offset += 2
+        else:
+            offset += 1
+        pixels = data[offset:]
+        expected = width * height * 3
+        if len(pixels) != expected:
+            raise ValueError(
+                f"PPM has {len(pixels)} pixel bytes; expected {expected}"
+            )
+    except (ValueError, OverflowError) as error:
+        raise FrontierRuntimeContractError(
+            f"{label} framebuffer is not a valid P6 screendump: {error}"
+        ) from error
+    return width, height, pixels
+
+
+def _validate_framebuffer_pixels(label: str, pixels: bytes) -> None:
+    if not any(pixels):
+        raise FrontierRuntimeContractError(
+            f"{label} framebuffer is black"
+        )
+    colors = {
+        pixels[offset:offset + 3]
+        for offset in range(0, len(pixels), 3)
+    }
+    if len(colors) < 2:
+        raise FrontierRuntimeContractError(
+            f"{label} framebuffer is uniform"
+        )
+
+
+def validate_framebuffer_change(
+    before_path: Path,
+    after_path: Path,
+) -> FramebufferEvidence:
+    """Require two visible, nonuniform frames with meaningful pixel changes."""
+    before_width, before_height, before = _read_ppm(
+        before_path,
+        "before",
+    )
+    after_width, after_height, after = _read_ppm(after_path, "after")
+    if (before_width, before_height) != (after_width, after_height):
+        raise FrontierRuntimeContractError(
+            "framebuffer dimensions changed from "
+            f"{before_width}x{before_height} to "
+            f"{after_width}x{after_height}"
+        )
+    _validate_framebuffer_pixels("before", before)
+    _validate_framebuffer_pixels("after", after)
+    changed_pixels = sum(
+        before[offset:offset + 3] != after[offset:offset + 3]
+        for offset in range(0, len(before), 3)
+    )
+    if changed_pixels < MIN_CHANGED_PIXELS:
+        raise FrontierRuntimeContractError(
+            "framebuffer changed by only "
+            f"{changed_pixels} pixel(s) after mouse input; "
+            f"expected at least {MIN_CHANGED_PIXELS}"
+        )
+    return FramebufferEvidence(
+        width=before_width,
+        height=before_height,
+        changed_pixels=changed_pixels,
+    )
+
+
+def _hmp_path(path: Path) -> str:
+    rendered = path.resolve().as_posix()
+    return '"' + rendered.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def capture_screendump(
+    monitor: socket.socket,
+    output: Path,
+    timeout: float = 5.0,
+) -> None:
+    """Ask QEMU for a PPM frame and wait until it has bytes."""
+    try:
+        output.unlink()
+    except FileNotFoundError:
+        pass
+    hmp(monitor, f"screendump {_hmp_path(output)}")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            if output.stat().st_size > 0:
+                return
+        except FileNotFoundError:
+            pass
+        time.sleep(0.05)
+    raise FrontierRuntimeContractError(
+        f"QEMU did not write screendump: {output}"
+    )
+
+
+def _pcm_peak(samples: bytes, sample_width: int) -> int:
+    if sample_width == 1:
+        return max((abs(sample - 128) for sample in samples), default=0)
+    if sample_width not in (2, 3, 4):
+        raise ValueError(f"unsupported PCM sample width: {sample_width}")
+    peak = 0
+    for offset in range(0, len(samples), sample_width):
+        sample = int.from_bytes(
+            samples[offset:offset + sample_width],
+            "little",
+            signed=True,
+        )
+        peak = max(peak, abs(sample))
+    return peak
+
+
+def validate_wav_audio(path: Path) -> AudioEvidence:
+    """Require a readable PCM WAV with at least one nonzero sample.
+
+    QEMU's WAV backend can leave both length fields at their initial zero
+    values after a clean monitor quit. Accept that exact canonical header and
+    derive its closed-file lengths in memory before asking ``wave`` to parse
+    it. Other malformed headers remain errors.
+    """
+    try:
+        contents = path.read_bytes()
+        if (
+            len(contents) >= 44
+            and contents[0:4] == b"RIFF"
+            and contents[4:8] == b"\x00\x00\x00\x00"
+            and contents[8:12] == b"WAVE"
+            and contents[12:16] == b"fmt "
+            and contents[16:20] == b"\x10\x00\x00\x00"
+            and contents[20:22] == b"\x01\x00"
+            and contents[36:40] == b"data"
+            and contents[40:44] == b"\x00\x00\x00\x00"
+        ):
+            block_align = int.from_bytes(contents[32:34], "little")
+            data_length = len(contents) - 44
+            if block_align < 1 or data_length % block_align != 0:
+                raise ValueError(
+                    "QEMU placeholder capture has misaligned PCM data"
+                )
+            if len(contents) - 8 > 0xFFFFFFFF:
+                raise ValueError("QEMU placeholder capture exceeds RIFF limits")
+            normalized = bytearray(contents)
+            normalized[4:8] = (len(contents) - 8).to_bytes(4, "little")
+            normalized[40:44] = data_length.to_bytes(4, "little")
+            contents = bytes(normalized)
+
+        with wave.open(io.BytesIO(contents), "rb") as capture:
+            if capture.getcomptype() != "NONE":
+                raise ValueError(
+                    f"unsupported compression: {capture.getcomptype()}"
+                )
+            channels = capture.getnchannels()
+            sample_rate = capture.getframerate()
+            frames = capture.getnframes()
+            sample_width = capture.getsampwidth()
+            samples = capture.readframes(frames)
+        if channels < 1:
+            raise ValueError("channel count must be positive")
+        if sample_rate < 1:
+            raise ValueError("sample rate must be positive")
+        if frames < 1:
+            raise ValueError("capture has no frames")
+        expected = frames * channels * sample_width
+        if len(samples) != expected:
+            raise ValueError(
+                f"capture has {len(samples)} PCM bytes; expected {expected}"
+            )
+        peak = _pcm_peak(samples, sample_width)
+    except (EOFError, OSError, ValueError, wave.Error) as error:
+        raise FrontierRuntimeContractError(
+            f"audio capture is not a readable PCM WAV: {error}"
+        ) from error
+    if peak == 0:
+        raise FrontierRuntimeContractError("audio capture is silent")
+    return AudioEvidence(
+        channels=channels,
+        sample_rate=sample_rate,
+        frames=frames,
+        peak=peak,
+    )
+
+
+def qemu_supports_wav_audio(qemu: str) -> bool:
+    """Ask QEMU whether its build includes the WAV audio backend."""
+    try:
+        result = subprocess.run(
+            [qemu, "-audiodev", "help"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=5.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return re.search(r"(?m)^wav\r?$", result.stdout or "") is not None
 
 
 def completion_pattern(success_pattern: str) -> re.Pattern[str]:
@@ -146,6 +687,29 @@ def wait_log(proc: subprocess.Popen, log: Path, pattern: str, timeout: float) ->
     return False, read_log(log)
 
 
+def wait_log_after(
+    proc: subprocess.Popen,
+    log: Path,
+    pattern: str,
+    start_offset: int,
+    timeout: float,
+) -> tuple[bool, str]:
+    """Wait for a marker written after a known log position."""
+    deadline = time.time() + timeout
+    compiled = re.compile(pattern, re.S)
+    while time.time() < deadline:
+        data = read_log(log)
+        recent = data[start_offset:]
+        if frontier_failure_marker(recent) is not None:
+            return False, data
+        if compiled.search(recent):
+            return True, data
+        if proc.poll() is not None:
+            return False, data
+        time.sleep(0.1)
+    return False, read_log(log)
+
+
 def wait_log_success_count(
     proc: subprocess.Popen,
     log: Path,
@@ -185,13 +749,80 @@ def connect_monitor(port: int, timeout: float) -> socket.socket:
     raise RuntimeError(f"could not connect to QEMU monitor: {last_error}")
 
 
-def hmp(sock: socket.socket, command: str, pause: float = 0.25) -> None:
+def hmp(
+    sock: socket.socket,
+    command: str,
+    pause: float = 0.25,
+    *,
+    expect_prompt: bool = True,
+) -> str:
     sock.sendall((command + "\n").encode())
     time.sleep(pause)
-    try:
-        sock.recv(4096)
-    except OSError:
-        pass
+    response_bytes = bytearray()
+    prompt_seen = False
+    while len(response_bytes) < 1024 * 1024:
+        try:
+            chunk = sock.recv(4096)
+        except OSError as error:
+            if expect_prompt:
+                raise FrontierRuntimeContractError(
+                    f"QEMU monitor did not finish {command!r}: {error}"
+                ) from error
+            break
+        if not chunk:
+            if expect_prompt:
+                raise FrontierRuntimeContractError(
+                    f"QEMU monitor closed while running {command!r}"
+                )
+            break
+        response_bytes.extend(chunk)
+        if b"(qemu)" in response_bytes:
+            prompt_seen = True
+            break
+    if expect_prompt and not prompt_seen:
+        raise FrontierRuntimeContractError(
+            f"QEMU monitor response exceeded 1048576 bytes for {command!r}"
+        )
+    response = response_bytes.decode("utf-8", errors="replace")
+    failure = re.search(
+        r"(?i)(?:error:|unknown command\b)[^\r\n]*",
+        response,
+    )
+    if failure is not None:
+        raise FrontierRuntimeContractError(
+            f"QEMU monitor rejected {command!r}: {failure.group(0)}"
+        )
+    return response
+
+
+def wait_hmp_device_deleted(
+    sock: socket.socket,
+    device_id: str,
+    timeout: float,
+) -> None:
+    """Wait until QEMU's object tree no longer owns a deleted device."""
+    device_pattern = re.compile(
+        rf'dev: [^,\r\n]+, id "{re.escape(device_id)}"'
+    )
+    deadline = time.time() + timeout
+    while True:
+        response = hmp(sock, "info qtree", pause=0.05)
+        if device_pattern.search(response) is None:
+            return
+        if time.time() >= deadline:
+            raise FrontierRuntimeContractError(
+                f"QEMU did not delete device {device_id!r} before timeout"
+            )
+        time.sleep(0.05)
+
+
+def inject_mouse_activity(sock: socket.socket) -> None:
+    """Exercise relative motion, the primary button, and both wheel lanes."""
+    hmp(sock, "mouse_move 32 24")
+    hmp(sock, "mouse_button 1")
+    hmp(sock, "mouse_button 0")
+    hmp(sock, "mouse_move -16 8 1")
+    hmp(sock, "mouse_move 0 0 -1")
 
 
 def stop_qemu(proc: subprocess.Popen, mon: socket.socket | None) -> None:
@@ -199,8 +830,8 @@ def stop_qemu(proc: subprocess.Popen, mon: socket.socket | None) -> None:
     graceful = mon is not None
     if mon is not None:
         try:
-            hmp(mon, "quit")
-        except OSError:
+            hmp(mon, "quit", expect_prompt=False)
+        except (OSError, FrontierRuntimeContractError):
             pass
         finally:
             mon.close()
@@ -238,14 +869,346 @@ def key_name(ch: str) -> str:
         return "dot"
     if ch == "-":
         return "minus"
+    if ch == "_":
+        return "shift-minus"
+    if ch == "+":
+        return "shift-equal"
     raise ValueError(f"unsupported smoke-test character: {ch!r}")
 
 
-def qemu_args(args: argparse.Namespace, monitor_port: int) -> list[str]:
+def frontier_failure_marker(data: str) -> str | None:
+    """Return the first known frontier failure found in serial output."""
+    folded = data.casefold()
+    for marker in FRONTIER_RUNTIME_REJECTED_MARKERS:
+        if marker.casefold() in folded:
+            return marker
+    return None
+
+
+def wait_frontier_command(
+    proc: subprocess.Popen,
+    log: Path,
+    command: TerminalCommand,
+    start_offset: int,
+    timeout: float,
+) -> tuple[int, str]:
+    """Wait for one command's marker after the preceding command."""
+    deadline = time.time() + timeout
+    compiled = re.compile(command.expected_pattern, re.S | re.M)
+    while time.time() < deadline:
+        data = read_log(log)
+        failure = frontier_failure_marker(data)
+        if failure is not None:
+            raise FrontierRuntimeContractError(
+                f"frontier command {command.text!r} saw failure marker: "
+                f"{failure}"
+            )
+
+        suffix = data[start_offset:]
+        matched = compiled.search(suffix)
+        if matched is not None:
+            return start_offset + matched.end(), data
+
+        status = proc.poll()
+        if status is not None:
+            raise FrontierRuntimeContractError(
+                f"frontier command {command.text!r} did not reach "
+                f"{command.expected_pattern!r}; QEMU exited with status "
+                f"{status}"
+            )
+        time.sleep(0.1)
+
+    raise FrontierRuntimeContractError(
+        f"frontier command {command.text!r} timed out waiting for "
+        f"{command.expected_pattern!r}"
+    )
+
+
+def run_frontier_commands(
+    proc: subprocess.Popen,
+    monitor: socket.socket,
+    log: Path,
+    start_offset: int,
+    timeout: float,
+    key_pause: float,
+) -> str:
+    """Run the fixed acceptance sequence, waiting after every command."""
+    cursor = start_offset
+    data = read_log(log)
+    for command_index, command in enumerate(FRONTIER_RUNTIME_COMMANDS):
+        for ch in command.text:
+            send_key(monitor, key_name(ch), key_pause)
+        send_key(monitor, "ret", key_pause)
+        if command.followup_keys:
+            if command.interaction_pattern is None:
+                raise FrontierRuntimeContractError(
+                    f"frontier command {command.text!r} has follow-up "
+                    "keys without an interaction marker"
+                )
+            wait_frontier_command(
+                proc,
+                log,
+                TerminalCommand(
+                    command.text,
+                    command.interaction_pattern,
+                ),
+                cursor,
+                timeout,
+            )
+            for key in command.followup_keys:
+                send_key(
+                    monitor,
+                    key,
+                    max(key_pause, KEY_PAUSE_SECONDS),
+                )
+                time.sleep(0.75)
+        cursor, data = wait_frontier_command(
+            proc,
+            log,
+            command,
+            cursor,
+            timeout,
+        )
+        if command_index + 1 < len(FRONTIER_RUNTIME_COMMANDS):
+            time.sleep(max(COMMAND_SETTLE_SECONDS, key_pause * 2.0))
+    return data
+
+
+def require_frontier_log_after(
+    proc: subprocess.Popen,
+    log: Path,
+    pattern: str,
+    start_offset: int,
+    timeout: float,
+    step: str,
+) -> str:
+    """Require fresh guest evidence for one frontier runtime step."""
+    found, data = wait_log_after(
+        proc,
+        log,
+        pattern,
+        start_offset,
+        timeout,
+    )
+    recent = data[start_offset:]
+    failure = frontier_failure_marker(recent)
+    if failure is not None:
+        raise FrontierRuntimeContractError(
+            f"{step} saw failure marker: {failure}"
+        )
+    if found:
+        return data
+
+    status = proc.poll()
+    if status is not None:
+        raise FrontierRuntimeContractError(
+            f"{step} did not reach its guest marker; "
+            f"QEMU exited with status {status}"
+        )
+    raise FrontierRuntimeContractError(
+        f"{step} timed out waiting for fresh guest evidence"
+    )
+
+
+def run_frontier_usb_replug_contract(
+    proc: subprocess.Popen,
+    monitor: socket.socket,
+    log: Path,
+    timeout: float,
+    key_pause: float,
+) -> str:
+    """Prove HID recovery and six EHCI storage lifetimes in one boot."""
+    initial_data = read_log(log)
+    initial_failure = frontier_failure_marker(initial_data)
+    if initial_failure is not None:
+        raise FrontierRuntimeContractError(
+            "initial USB storage check saw failure marker: "
+            f"{initial_failure}"
+        )
+    if re.search(FRONTIER_STORAGE_READY_PATTERN, initial_data, re.S) is None:
+        raise FrontierRuntimeContractError(
+            "initial USB storage did not reach its FAT16 marker"
+        )
+
+    keyboard_detach_offset = len(read_log(log))
+    hmp(monitor, "device_del frontier_keyboard")
+    require_frontier_log_after(
+        proc,
+        log,
+        (
+            r"usb_hid: keyboard detached"
+            r".*usb: removed device addr=[1-9][0-9]*"
+        ),
+        keyboard_detach_offset,
+        timeout,
+        "USB keyboard detach",
+    )
+    wait_hmp_device_deleted(
+        monitor,
+        "frontier_keyboard",
+        min(timeout, 10.0),
+    )
+
+    keyboard_attach_offset = len(read_log(log))
+    hmp(
+        monitor,
+        (
+            "device_add usb-kbd,id=frontier_keyboard_replug,"
+            "bus=frontier_uhci.0,port=1"
+        ),
+    )
+    require_frontier_log_after(
+        proc,
+        log,
+        (
+            r"usb: dev addr=[1-9][0-9]* "
+            r".*class=(?:3|0[xX]0*3)"
+            r".*usb_hid: keyboard attached addr=[1-9][0-9]*"
+        ),
+        keyboard_attach_offset,
+        timeout,
+        "USB keyboard reattach",
+    )
+
+    command = FRONTIER_RUNTIME_COMMANDS[0]
+    command_offset = len(read_log(log))
+    for ch in command.text:
+        send_key(monitor, key_name(ch), key_pause)
+    send_key(monitor, "ret", key_pause)
+    _, data = wait_frontier_command(
+        proc,
+        log,
+        command,
+        command_offset,
+        timeout,
+    )
+
+    mouse_detach_offset = len(read_log(log))
+    hmp(monitor, "device_del frontier_mouse")
+    require_frontier_log_after(
+        proc,
+        log,
+        (
+            r"usb_hid: mouse detached"
+            r".*usb: removed device addr=[1-9][0-9]*"
+        ),
+        mouse_detach_offset,
+        timeout,
+        "USB mouse detach",
+    )
+    wait_hmp_device_deleted(
+        monitor,
+        "frontier_mouse",
+        min(timeout, 10.0),
+    )
+
+    mouse_attach_offset = len(read_log(log))
+    hmp(
+        monitor,
+        (
+            "device_add usb-mouse,id=frontier_mouse_replug,"
+            "bus=frontier_uhci.0,port=2"
+        ),
+    )
+    require_frontier_log_after(
+        proc,
+        log,
+        (
+            r"usb: dev addr=[1-9][0-9]* "
+            r".*class=(?:3|0[xX]0*3)"
+            r".*usb_hid: mouse attached addr=[1-9][0-9]*"
+        ),
+        mouse_attach_offset,
+        timeout,
+        "USB mouse reattach",
+    )
+
+    mouse_activity_offset = len(read_log(log))
+    inject_mouse_activity(monitor)
+    data = require_frontier_log_after(
+        proc,
+        log,
+        r"usb_hid: mouse activity report=[1-9][0-9]*",
+        mouse_activity_offset,
+        timeout,
+        "USB mouse input after reattach",
+    )
+
+    storage_id = "frontier_mass_storage"
+    for cycle in range(1, FRONTIER_STORAGE_REATTACHMENTS + 1):
+        detach_offset = len(read_log(log))
+        hmp(monitor, f"device_del {storage_id}")
+        require_frontier_log_after(
+            proc,
+            log,
+            (
+                r"usb_msc: detached"
+                r".*usb: removed device addr=[1-9][0-9]*"
+            ),
+            detach_offset,
+            timeout,
+            f"USB storage detach {cycle}",
+        )
+        wait_hmp_device_deleted(
+            monitor,
+            storage_id,
+            min(timeout, 10.0),
+        )
+
+        storage_id = f"frontier_mass_storage_replug_{cycle}"
+        attach_offset = len(read_log(log))
+        hmp(
+            monitor,
+            (
+                f"device_add usb-storage,id={storage_id},"
+                "bus=frontier_ehci.0,port=1,"
+                "drive=frontier_usb_storage"
+            ),
+        )
+        data = require_frontier_log_after(
+            proc,
+            log,
+            FRONTIER_STORAGE_READY_PATTERN,
+            attach_offset,
+            timeout,
+            f"USB storage reattach {cycle}",
+        )
+    return data
+
+
+def qemu_args(
+    args: argparse.Namespace,
+    monitor_port: int,
+    ac97_audio_path: Path | None = None,
+    pcspk_audio_path: Path | None = None,
+) -> list[str]:
     netdev = "user,id=n0"
+    frontier_runtime = (
+        getattr(args, "verify_frontier_runtime", False) is True
+    )
     command = [args.qemu]
     if args.cpu is not None:
         command.extend(("-cpu", args.cpu))
+    if (ac97_audio_path is None) != (pcspk_audio_path is None):
+        raise ValueError(
+            "AC97 and PC-speaker capture paths must be provided together"
+        )
+    if ac97_audio_path is None:
+        command.extend(("-audiodev", "none,id=shared_audio"))
+        ac97_audio_id = "shared_audio"
+        pcspk_audio_id = "shared_audio"
+    else:
+        command.extend(
+            (
+                "-audiodev",
+                f"wav,id=ac97_capture,path={ac97_audio_path}",
+                "-audiodev",
+                f"wav,id=pcspk_capture,path={pcspk_audio_path}",
+            )
+        )
+        ac97_audio_id = "ac97_capture"
+        pcspk_audio_id = "pcspk_capture"
+
     command.extend([
         "-m",
         "512M",
@@ -257,20 +1220,54 @@ def qemu_args(args: argparse.Namespace, monitor_port: int) -> list[str]:
         f"file={args.image},format=raw,if=ide,index=0,media=disk",
         "-rtc",
         "base=localtime",
-        "-audiodev",
-        "none,id=speaker",
         "-machine",
-        "pcspk-audiodev=speaker",
+        (
+            f"pcspk-audiodev={pcspk_audio_id},i8042=off"
+            if frontier_runtime
+            else f"pcspk-audiodev={pcspk_audio_id}"
+        ),
         "-device",
-        "AC97,audiodev=speaker",
-        "-device",
-        "piix3-usb-uhci",
-        "-device",
-        "usb-ehci",
-        "-device",
-        "usb-kbd",
-        "-device",
-        "usb-mouse",
+        f"AC97,audiodev={ac97_audio_id}",
+    ])
+    if frontier_runtime:
+        command.extend([
+            "-device",
+            "piix3-usb-uhci,id=frontier_uhci",
+            "-device",
+            "usb-ehci,id=frontier_ehci",
+            "-device",
+            "usb-kbd,id=frontier_keyboard,bus=frontier_uhci.0,port=1",
+            "-device",
+            "usb-mouse,id=frontier_mouse,bus=frontier_uhci.0,port=2",
+            "-blockdev",
+            (
+                f"driver=file,filename={args.usb_image},"
+                "node-name=frontier_usb_file"
+            ),
+            "-blockdev",
+            (
+                "driver=raw,file=frontier_usb_file,"
+                "node-name=frontier_usb_storage"
+            ),
+            "-device",
+            (
+                "usb-storage,id=frontier_mass_storage,"
+                "bus=frontier_ehci.0,port=1,"
+                "drive=frontier_usb_storage"
+            ),
+        ])
+    else:
+        command.extend([
+            "-device",
+            "piix3-usb-uhci",
+            "-device",
+            "usb-ehci",
+            "-device",
+            "usb-kbd",
+            "-device",
+            "usb-mouse",
+        ])
+    command.extend([
         "-netdev",
         netdev,
         "-device",
@@ -287,16 +1284,309 @@ def qemu_args(args: argparse.Namespace, monitor_port: int) -> list[str]:
     return command
 
 
+def validate_frontier_usb_image(path: Path) -> None:
+    """Require a partitioned FAT16 image before QEMU can attach it."""
+    try:
+        with path.open("rb") as image:
+            mbr = image.read(512)
+            image_size = path.stat().st_size
+    except OSError as error:
+        raise FrontierRuntimeContractError(
+            f"USB image could not be read: {path}: {error}"
+        ) from error
+    if len(mbr) != 512:
+        raise FrontierRuntimeContractError(
+            f"USB image is shorter than one sector: {path}"
+        )
+    if mbr[510:512] != b"\x55\xaa":
+        raise FrontierRuntimeContractError(
+            f"USB image has no MBR signature: {path}"
+        )
+    fat16_partition = False
+    invalid_partition = ""
+    for partition in range(4):
+        entry = 0x1BE + partition * 16
+        partition_type = mbr[entry + 4]
+        first_lba = int.from_bytes(mbr[entry + 8:entry + 12], "little")
+        sectors = int.from_bytes(mbr[entry + 12:entry + 16], "little")
+        if (
+            partition_type in (0x04, 0x06, 0x0E)
+            and first_lba > 0
+            and sectors > 0
+        ):
+            partition_end = (first_lba + sectors) * 512
+            if partition_end > image_size:
+                invalid_partition = (
+                    "FAT16 partition exceeds the USB image"
+                )
+                continue
+            try:
+                with path.open("rb") as image:
+                    image.seek(first_lba * 512)
+                    boot = image.read(512)
+            except OSError as error:
+                raise FrontierRuntimeContractError(
+                    f"USB FAT16 boot sector could not be read: {error}"
+                ) from error
+
+            bytes_per_sector = int.from_bytes(boot[11:13], "little")
+            sectors_per_cluster = boot[13] if len(boot) > 13 else 0
+            reserved_sectors = int.from_bytes(boot[14:16], "little")
+            fat_count = boot[16] if len(boot) > 16 else 0
+            root_entries = int.from_bytes(boot[17:19], "little")
+            total_sectors = int.from_bytes(boot[19:21], "little")
+            if total_sectors == 0:
+                total_sectors = int.from_bytes(boot[32:36], "little")
+            sectors_per_fat = int.from_bytes(boot[22:24], "little")
+            valid_cluster_size = (
+                sectors_per_cluster > 0
+                and sectors_per_cluster & (sectors_per_cluster - 1) == 0
+            )
+            root_dir_sectors = 0
+            if bytes_per_sector > 0:
+                root_dir_sectors = (
+                    root_entries * 32 + bytes_per_sector - 1
+                ) // bytes_per_sector
+            overhead = (
+                reserved_sectors
+                + fat_count * sectors_per_fat
+                + root_dir_sectors
+            )
+            data_clusters = 0
+            if valid_cluster_size and total_sectors > overhead:
+                data_clusters = (
+                    total_sectors - overhead
+                ) // sectors_per_cluster
+            valid_boot = (
+                len(boot) == 512
+                and boot[510:512] == b"\x55\xaa"
+                and bytes_per_sector == 512
+                and valid_cluster_size
+                and reserved_sectors > 0
+                and fat_count > 0
+                and root_entries > 0
+                and sectors_per_fat > 0
+                and 0 < total_sectors <= sectors
+                and 4085 <= data_clusters < 65525
+            )
+            if valid_boot:
+                fat16_partition = True
+                break
+            invalid_partition = (
+                "FAT16 partition has no valid FAT16 boot sector"
+            )
+    if not fat16_partition:
+        if invalid_partition:
+            raise FrontierRuntimeContractError(invalid_partition)
+        raise FrontierRuntimeContractError(
+            f"USB image has no nonempty FAT16 partition: {path}"
+        )
+
+
+def _frontier_session(
+    args: argparse.Namespace,
+    before_frame: Path,
+    after_frame: Path,
+    ac97_audio_path: Path,
+    pcspk_audio_path: Path,
+) -> int:
+    monitor_port = free_tcp_port()
+    proc = subprocess.Popen(
+        qemu_args(
+            args,
+            monitor_port,
+            ac97_audio_path,
+            pcspk_audio_path,
+        ),
+        cwd=REPO_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+    )
+    mon: socket.socket | None = None
+    last_data = ""
+    try:
+        ok, last_data = wait_log(
+            proc,
+            args.log,
+            r"Entering desktop environment",
+            args.timeout,
+        )
+        if not ok:
+            raise FrontierRuntimeContractError(
+                "GUI desktop did not boot before timeout"
+            )
+
+        mon = connect_monitor(monitor_port, 10.0)
+        time.sleep(1.0)
+        send_key(mon, "ctrl-alt-t", 0.8)
+        ok, last_data = wait_log(
+            proc,
+            args.log,
+            r"Terminal launched",
+            10.0,
+        )
+        if not ok:
+            raise FrontierRuntimeContractError(
+                "Terminal did not launch from Ctrl+Alt+T"
+            )
+
+        time.sleep(0.5)
+        start_offset = len(read_log(args.log))
+        last_data = run_frontier_commands(
+            proc,
+            mon,
+            args.log,
+            start_offset=start_offset,
+            timeout=args.timeout,
+            key_pause=args.key_pause,
+        )
+        capture_screendump(mon, before_frame)
+        mouse_activity_pattern = (
+            r"usb_hid: mouse activity report=[1-9][0-9]*"
+        )
+        previous_mouse_reports = success_count(
+            read_log(args.log),
+            mouse_activity_pattern,
+        )
+        inject_mouse_activity(mon)
+        mouse_ok, last_data = wait_log_success_count(
+            proc,
+            args.log,
+            mouse_activity_pattern,
+            previous_mouse_reports + 1,
+            5.0,
+        )
+        if not mouse_ok:
+            raise FrontierRuntimeContractError(
+                "USB mouse did not deliver an activity report"
+            )
+        time.sleep(0.5)
+        capture_screendump(mon, after_frame)
+
+        last_data = run_frontier_usb_replug_contract(
+            proc,
+            mon,
+            args.log,
+            timeout=args.timeout,
+            key_pause=args.key_pause,
+        )
+
+        panic, last_data = wait_log(
+            proc,
+            args.log,
+            PANIC_RE.pattern,
+            5.0,
+        )
+        if panic:
+            raise FrontierRuntimeContractError("panic detected")
+        if proc.poll() is not None:
+            raise FrontierRuntimeContractError(
+                "QEMU exited during the post-replug survival window "
+                f"with status {proc.poll()}"
+            )
+        validate_frontier_runtime_log(last_data, args.nic)
+        framebuffer = validate_framebuffer_change(
+            before_frame,
+            after_frame,
+        )
+        if args.verify_smp_runtime:
+            try:
+                validate_smp_runtime_log(last_data, args.nic)
+            except SmpRuntimeContractError as error:
+                raise FrontierRuntimeContractError(str(error)) from error
+
+        stop_qemu(proc, mon)
+        mon = None
+        ac97_audio = validate_wav_audio(ac97_audio_path)
+        pcspk_audio = validate_wav_audio(pcspk_audio_path)
+
+        result = (
+            "GUI terminal frontier runtime passed "
+            f"(framebuffer={framebuffer.width}x{framebuffer.height}, "
+            f"changed_pixels={framebuffer.changed_pixels}"
+        )
+        result += (
+            f", ac97_audio={ac97_audio.channels}ch@"
+            f"{ac97_audio.sample_rate}Hz, frames={ac97_audio.frames}, "
+            f"peak={ac97_audio.peak}, "
+            f"pcspk_audio={pcspk_audio.channels}ch@"
+            f"{pcspk_audio.sample_rate}Hz, frames={pcspk_audio.frames}, "
+            f"peak={pcspk_audio.peak}"
+        )
+        print(result + ")")
+        return 0
+    except FrontierRuntimeContractError as error:
+        print(f"GUI terminal frontier runtime failed: {error}", file=sys.stderr)
+        if last_data:
+            print(last_data[-5000:], file=sys.stderr)
+        return 1
+    finally:
+        stop_qemu(proc, mon)
+
+
+def run_frontier_runtime(args: argparse.Namespace) -> int:
+    """Run the destructive frontier commands against private disk copies."""
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-frontier-runtime-"
+        ) as temporary:
+            artifacts = Path(temporary)
+            system_image = artifacts / "system.img"
+            usb_image = artifacts / "usb.img"
+            shutil.copy2(args.image, system_image)
+            shutil.copy2(args.usb_image, usb_image)
+
+            private_args = argparse.Namespace(**vars(args))
+            private_args.image = system_image
+            private_args.usb_image = usb_image
+            before_frame = artifacts / "before.ppm"
+            after_frame = artifacts / "after.ppm"
+            ac97_audio_path = artifacts / "ac97.wav"
+            pcspk_audio_path = artifacts / "pcspk.wav"
+            return _frontier_session(
+                private_args,
+                before_frame,
+                after_frame,
+                ac97_audio_path,
+                pcspk_audio_path,
+            )
+    except OSError as error:
+        print(
+            f"could not prepare private frontier images: {error}",
+            file=sys.stderr,
+        )
+        return 2
+
+
 def run(args: argparse.Namespace) -> int:
     if not args.image.exists():
         print(f"image not found: {args.image}", file=sys.stderr)
         return 2
+    if args.verify_frontier_runtime:
+        try:
+            validate_frontier_usb_image(args.usb_image)
+        except FrontierRuntimeContractError as error:
+            print(
+                f"frontier runtime preflight failed: {error}",
+                file=sys.stderr,
+            )
+            return 2
+        if not qemu_supports_wav_audio(args.qemu):
+            print(
+                "frontier runtime preflight failed: QEMU does not "
+                "advertise the WAV audio backend",
+                file=sys.stderr,
+            )
+            return 2
 
     args.log.parent.mkdir(parents=True, exist_ok=True)
     try:
         args.log.unlink()
     except FileNotFoundError:
         pass
+
+    if args.verify_frontier_runtime:
+        return run_frontier_runtime(args)
 
     monitor_port = free_tcp_port()
     re.compile(args.success_pattern, re.S)
@@ -358,7 +1648,7 @@ def run(args: argparse.Namespace) -> int:
             return 1
         if args.verify_smp_runtime:
             try:
-                validate_smp_runtime_log(data_after)
+                validate_smp_runtime_log(data_after, args.nic)
             except SmpRuntimeContractError as error:
                 print(
                     f"GUI terminal smoke failed: {error}",
@@ -414,6 +1704,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "require the four-vCPU SMP, RDRAND, TLS, e1000, desktop, "
             "and command runtime contract"
         ),
+    )
+    parser.add_argument(
+        "--verify-frontier-runtime",
+        action="store_true",
+        help=(
+            "run the fixed port-I/O cohort, USB replug, graphics, and "
+            "audio acceptance contract"
+        ),
+    )
+    parser.add_argument(
+        "--usb-image",
+        type=Path,
+        default=REPO_ROOT / "test_usb_partitioned.img",
+        help="FAT16 USB image attached to EHCI by the frontier contract",
     )
     parser.add_argument("--timeout", type=float, default=45.0)
     return parser.parse_args(argv)

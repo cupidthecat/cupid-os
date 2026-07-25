@@ -55,8 +55,29 @@ OPERAND_FREE_SOURCES = (
     "kernel/network/socket.c",
     "kernel/network/tcp.c",
 )
+PORT_IO_SOURCES = (
+    "drivers/ata.c",
+    "drivers/keyboard.c",
+    "drivers/mouse.c",
+    "drivers/pci.c",
+    "drivers/pit.c",
+    "drivers/rtc.c",
+    "drivers/rtl8139.c",
+    "drivers/speaker.c",
+    "drivers/vga.c",
+    "kernel/audio/ac97.c",
+    "kernel/core/syscall.c",
+    "kernel/lang/shell.c",
+    "kernel/usb/ehci.c",
+    "kernel/usb/uhci.c",
+)
 KERNEL_SOURCES = tuple(
-    sorted(CRYPTO_SOURCES + SMP_SOURCES + OPERAND_FREE_SOURCES)
+    sorted(
+        CRYPTO_SOURCES
+        + SMP_SOURCES
+        + OPERAND_FREE_SOURCES
+        + PORT_IO_SOURCES
+    )
 )
 
 OPERAND_FREE_DEPENDENCIES = {
@@ -132,6 +153,217 @@ OPERAND_FREE_DEPENDENCIES = {
         "kernel/network/socket.h",
         "kernel/network/tcp.h",
         "kernel/smp/bkl.h",
+    ),
+}
+
+PORT_IO_DEPENDENCIES = {
+    "drivers/ata.c": (
+        "drivers/ata.h",
+        "kernel/core/debug.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/fs/blockdev.h",
+    ),
+    "drivers/keyboard.c": (
+        "drivers/keyboard.h",
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "drivers/vga.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/gui/desktop.h",
+        "kernel/gui/gui.h",
+        "kernel/lang/shell.h",
+        "kernel/util/calendar.h",
+    ),
+    "drivers/mouse.c": (
+        "drivers/mouse.h",
+        "drivers/serial.h",
+        "drivers/vga.h",
+        "kernel/core/ports.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/pic.h",
+        "kernel/gfx/graphics.h",
+    ),
+    "drivers/pci.c": (
+        "drivers/pci.h",
+        "drivers/serial.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+    ),
+    "drivers/pit.c": (
+        "drivers/pit.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+    ),
+    "drivers/rtc.c": (
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+    ),
+    "drivers/rtl8139.c": (
+        "drivers/pci.h",
+        "drivers/serial.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+        "kernel/network/net_if.h",
+    ),
+    "drivers/speaker.c": (
+        "drivers/pit.h",
+        "drivers/speaker.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+    ),
+    "drivers/vga.c": (
+        "drivers/timer.h",
+        "drivers/vga.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/simd.h",
+        "kernel/mm/memory.h",
+    ),
+    "kernel/audio/ac97.c": (
+        "drivers/pci.h",
+        "drivers/serial.h",
+        "kernel/audio/ac97.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+    ),
+    "kernel/core/syscall.c": (
+        "drivers/ata.h",
+        "drivers/pci.h",
+        "drivers/pit.h",
+        "drivers/serial.h",
+        "drivers/speaker.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/ports.h",
+        "kernel/core/process.h",
+        "kernel/core/string.h",
+        "kernel/core/syscall.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/fs/blockdev.h",
+        "kernel/fs/vfs.h",
+        "kernel/fs/vfs_helpers.h",
+        "kernel/lang/exec.h",
+        "kernel/lang/shell.h",
+        "kernel/mm/memory.h",
+        "kernel/network/arp.h",
+        "kernel/network/dns.h",
+        "kernel/network/icmp.h",
+        "kernel/network/ip.h",
+        "kernel/network/net_if.h",
+        "kernel/network/socket.h",
+        "kernel/network/udp.h",
+        "kernel/smp/bkl.h",
+        "kernel/smp/lapic.h",
+    ),
+    "kernel/lang/shell.c": (
+        "drivers/keyboard.h",
+        "drivers/pci.h",
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "drivers/vga.h",
+        "kernel/core/app_launch.h",
+        "kernel/core/assert.h",
+        "kernel/core/kernel.h",
+        "kernel/core/panic.h",
+        "kernel/core/ports.h",
+        "kernel/core/process.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/math.h",
+        "kernel/fs/blockcache.h",
+        "kernel/fs/blockdev.h",
+        "kernel/fs/fat16.h",
+        "kernel/fs/fs.h",
+        "kernel/fs/vfs.h",
+        "kernel/gfx/gfx2d.h",
+        "kernel/gui/ansi.h",
+        "kernel/gui/desktop.h",
+        "kernel/gui/gui.h",
+        "kernel/gui/gui_themes.h",
+        "kernel/gui/terminal_app.h",
+        "kernel/lang/as.h",
+        "kernel/lang/cupidc.h",
+        "kernel/lang/cupidscript.h",
+        "kernel/lang/cupidscript_arrays.h",
+        "kernel/lang/cupidscript_jobs.h",
+        "kernel/lang/cupidscript_streams.h",
+        "kernel/lang/dis.h",
+        "kernel/lang/exec.h",
+        "kernel/lang/shell.h",
+        "kernel/mm/memory.h",
+        "kernel/mm/swap.h",
+        "kernel/network/arp.h",
+        "kernel/network/dns.h",
+        "kernel/network/icmp.h",
+        "kernel/network/ip.h",
+        "kernel/network/net_if.h",
+        "kernel/network/socket.h",
+        "kernel/network/sshd.h",
+        "kernel/smp/bkl.h",
+        "kernel/smp/percpu.h",
+        "kernel/smp/smp.h",
+        "kernel/usb/usb.h",
+        "kernel/usb/usb_hc.h",
+        "kernel/util/calendar.h",
+    ),
+    "kernel/usb/ehci.c": (
+        "drivers/pci.h",
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/panic.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+        "kernel/usb/usb.h",
+        "kernel/usb/usb_hc.h",
+    ),
+    "kernel/usb/uhci.c": (
+        "drivers/pci.h",
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/panic.h",
+        "kernel/core/ports.h",
+        "kernel/core/types.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+        "kernel/usb/usb.h",
+        "kernel/usb/usb_hc.h",
     ),
 }
 
@@ -306,9 +538,15 @@ class KernelCompileCommandTests(unittest.TestCase):
             OPERAND_FREE_SOURCES,
         )
         self.assertEqual(
+            kernel_compile.APPROVED_PORT_IO_SOURCES,
+            PORT_IO_SOURCES,
+        )
+        self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
             KERNEL_SOURCES,
         )
+        self.assertEqual(len(KERNEL_SOURCES), 40)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 40)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -430,16 +668,17 @@ class KernelCompileMakefileTests(unittest.TestCase):
         }
         self.assertEqual(actual, expected)
 
+        logical_makefile = makefile.replace("\\\n", " ")
         for source, output in sorted(expected):
             rule_pattern = re.compile(
                 rf"^{re.escape(output)}: [^\n]*"
-                rf" \$\(CUPIDC_KERNEL_COMPILE_INPUTS\)"
+                rf"[ \t]+\$\(CUPIDC_KERNEL_COMPILE_INPUTS\)"
                 rf"\n\t\$\(CUPIDC_KERNEL_COMPILE\) "
                 rf"--source {re.escape(source)} "
                 rf"--output {re.escape(output)}$",
                 re.MULTILINE,
             )
-            self.assertRegex(makefile, rule_pattern)
+            self.assertRegex(logical_makefile, rule_pattern)
 
         self.assertIn(
             "kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c "
@@ -478,6 +717,23 @@ class KernelCompileMakefileTests(unittest.TestCase):
             match = re.search(
                 rf"^{re.escape(output)}: ([^\n]+)$",
                 makefile,
+                re.MULTILINE,
+            )
+            self.assertIsNotNone(match, source)
+            self.assertEqual(
+                set(match.group(1).split()),
+                {
+                    source,
+                    *headers,
+                    "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                },
+            )
+
+        for source, headers in PORT_IO_DEPENDENCIES.items():
+            output = source.removesuffix(".c") + ".o"
+            match = re.search(
+                rf"^{re.escape(output)}: ([^\n]+)$",
+                logical_makefile,
                 re.MULTILINE,
             )
             self.assertIsNotNone(match, source)
@@ -563,6 +819,41 @@ class KernelCompileMakefileTests(unittest.TestCase):
             result.stdout + result.stderr,
         )
 
+    def test_port_io_targets_do_not_expand_to_the_host_compiler(self):
+        targets = [
+            source.removesuffix(".c") + ".o"
+            for source in PORT_IO_SOURCES
+        ]
+        result = subprocess.run(
+            [
+                "make",
+                "-B",
+                "-n",
+                "CC=__host_c_compiler_must_not_run__",
+                *targets,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [
+            line
+            for line in result.stdout.splitlines()
+            if "tools/cupidc_kernel_compile.py" in line
+        ]
+        self.assertEqual(len(commands), len(PORT_IO_SOURCES))
+        for source in PORT_IO_SOURCES:
+            self.assertTrue(
+                any(f"--source {source}" in command for command in commands),
+                source,
+            )
+        self.assertNotIn(
+            "__host_c_compiler_must_not_run__",
+            result.stdout + result.stderr,
+        )
+
 
 class KernelCompileOperationTests(unittest.TestCase):
     def _root_fixture(self):
@@ -627,11 +918,15 @@ class KernelCompileOperationTests(unittest.TestCase):
         executor = FakeExecutor(root)
 
         for relative in (
-            "drivers/rtl8139.c",
+            "drivers/serial.c",
+            "kernel/audio/mixer.c",
+            "kernel/core/string.c",
             "kernel/crypto/new_cipher.c",
             "kernel/gui/gui.c",
+            "kernel/lang/as.c",
             "kernel/network/udp.c",
             "kernel/smp/percpu.c",
+            "kernel/usb/usb.c",
         ):
             source = root / relative
             source.parent.mkdir(parents=True, exist_ok=True)
@@ -880,6 +1175,35 @@ class KernelCompileCliTests(unittest.TestCase):
                     ]
                 )
                 self.assertEqual(status, 0)
+                kernel_compile.validate_i386_relocatable(output)
+
+    def test_real_checked_seed_compiles_port_io_sources_when_available(self):
+        if not SEED_MANIFEST.is_file():
+            self.skipTest("checked seed manifest is not present")
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        seed = SEED_MANIFEST.parent / "cupidc.elf"
+        if os.name != "nt" and not os.access(seed, os.X_OK):
+            self.skipTest("checked seed is not executable")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-kernel-port-io-test-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            for source in PORT_IO_SOURCES:
+                output_name = source.removesuffix(".c").replace("/", "-") + ".o"
+                output = Path(temporary) / output_name
+                status = kernel_compile.main(
+                    [
+                        "--root",
+                        str(REPO_ROOT),
+                        "--source",
+                        source,
+                        "--output",
+                        str(output),
+                    ]
+                )
+                self.assertEqual(status, 0, source)
                 kernel_compile.validate_i386_relocatable(output)
 
 

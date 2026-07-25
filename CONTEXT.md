@@ -125,7 +125,7 @@ All 20 `kernel/crypto` translation units built by checked-seed CupidC in the nor
 _Avoid_: compiler-head frontier, partial crypto cohort
 
 **Production CupidC kernel cohort**:
-The 26 normal-build kernel translation units owned by checked-seed CupidC: the complete 20-source crypto cohort, ACPI and MP-table discovery, the e1000 driver, the desktop shell, the socket layer, and TCP. The strict frontier compiles all 26 sources twice to 366,592 matching i386 ELF32 bytes before atomic publication. Poisoned-host rebuilds cover every recipe. Four-vCPU GUI and dual-NIC network gates cover the production hand-off.
+The 40 normal-build kernel translation units owned by checked-seed CupidC: the complete 20-source crypto cohort, ACPI and MP-table discovery, e1000, the desktop shell, the socket layer, TCP, ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, the system-call path, the shell, EHCI, and UHCI. The strict frontier compiles all 40 sources twice to 675,340 matching i386 ELF32 bytes before atomic publication. Its 328-input snapshot has SHA-256 `3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`. Poisoned-host rebuilds and exact recursive header closures cover every transferred recipe. Four-vCPU QEMU gates pass with both e1000 and RTL8139. Each run covers SMP, the 62 crypto checks, input, ATA, audio, USB hot-plug, DHCP traffic, a zero-padded RTC timestamp, and six EHCI storage lifetimes.
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Hosted i386 ABI profile**:

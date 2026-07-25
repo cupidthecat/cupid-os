@@ -267,7 +267,9 @@ $(BOOTLOADER): boot/boot.asm $(CUPIDASM)
 	$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
-kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h kernel/lang/as.h kernel/lang/ctool_kernel.h kernel/mm/memory.h
+kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h \
+	kernel/lang/as.h kernel/lang/ctool_kernel.h kernel/mm/memory.h \
+	kernel/usb/usb.h
 	$(CC) $(CFLAGS) kernel/core/kernel.c -o kernel/core/kernel.o
 
 # simd.c uses SSE2 inline asm helpers; keep freestanding include policy
@@ -293,9 +295,13 @@ kernel/cpu/irq.o: kernel/cpu/irq.c kernel/cpu/isr.h kernel/cpu/pic.h
 kernel/cpu/ksyms.o: kernel/cpu/ksyms.c kernel/cpu/ksyms.h
 	$(CC) $(CFLAGS) kernel/cpu/ksyms.c -o kernel/cpu/ksyms.o
 
-# Add new rule for keyboard.o
-drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h
-	$(CC) $(CFLAGS) drivers/keyboard.c -o drivers/keyboard.o
+# PS/2 keyboard driver
+drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h drivers/rtc.h \
+	drivers/serial.h drivers/vga.h kernel/core/kernel.h kernel/core/ports.h \
+	kernel/core/process.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h \
+	kernel/gui/desktop.h kernel/gui/gui.h kernel/lang/shell.h \
+	kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/keyboard.c --output drivers/keyboard.o
 
 # Add new rule for timer.o
 drivers/timer.o: drivers/timer.c drivers/timer.h
@@ -305,21 +311,43 @@ drivers/timer.o: drivers/timer.c drivers/timer.h
 kernel/cpu/math.o: kernel/cpu/math.c kernel/cpu/math.h
 	$(CC) $(CFLAGS) kernel/cpu/math.c -o kernel/cpu/math.o
 
-# Add new rule for pit.o
-drivers/pit.o: drivers/pit.c drivers/pit.h
-	$(CC) $(CFLAGS) drivers/pit.c -o drivers/pit.o
+# Programmable interval timer driver
+drivers/pit.o: drivers/pit.c drivers/pit.h kernel/core/ports.h \
+	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/pit.c --output drivers/pit.o
 
-# Add new rule for speaker.o
-drivers/speaker.o: drivers/speaker.c drivers/speaker.h
-	$(CC) $(CFLAGS) drivers/speaker.c -o drivers/speaker.o
+# PC speaker driver
+drivers/speaker.o: drivers/speaker.c drivers/pit.h drivers/speaker.h \
+	drivers/timer.h kernel/core/kernel.h kernel/core/ports.h \
+	kernel/core/types.h kernel/cpu/isr.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/speaker.c --output drivers/speaker.o
 
-# Add new rule for ata.o
-drivers/ata.o: drivers/ata.c drivers/ata.h
-	$(CC) $(CFLAGS) drivers/ata.c -o drivers/ata.o
+# ATA block-device driver
+drivers/ata.o: drivers/ata.c drivers/ata.h kernel/core/debug.h \
+	kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h \
+	kernel/cpu/isr.h kernel/fs/blockdev.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/ata.c --output drivers/ata.o
 
-# Add new rule for shell.o
-kernel/lang/shell.o: kernel/lang/shell.c kernel/lang/shell.h
-	$(CC) $(CFLAGS) kernel/lang/shell.c -o kernel/lang/shell.o
+# Kernel command shell
+kernel/lang/shell.o: kernel/lang/shell.c drivers/keyboard.h drivers/pci.h \
+	drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h \
+	kernel/core/app_launch.h kernel/core/assert.h kernel/core/kernel.h \
+	kernel/core/panic.h kernel/core/ports.h kernel/core/process.h \
+	kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h \
+	kernel/cpu/math.h kernel/fs/blockcache.h kernel/fs/blockdev.h \
+	kernel/fs/fat16.h kernel/fs/fs.h kernel/fs/vfs.h kernel/gfx/gfx2d.h \
+	kernel/gui/ansi.h kernel/gui/desktop.h kernel/gui/gui.h \
+	kernel/gui/gui_themes.h kernel/gui/terminal_app.h kernel/lang/as.h \
+	kernel/lang/cupidc.h kernel/lang/cupidscript.h \
+	kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h \
+	kernel/lang/cupidscript_streams.h kernel/lang/dis.h kernel/lang/exec.h \
+	kernel/lang/shell.h kernel/mm/memory.h kernel/mm/swap.h \
+	kernel/network/arp.h kernel/network/dns.h kernel/network/icmp.h \
+	kernel/network/ip.h kernel/network/net_if.h kernel/network/socket.h \
+	kernel/network/sshd.h kernel/smp/bkl.h kernel/smp/percpu.h \
+	kernel/smp/smp.h kernel/usb/usb.h kernel/usb/usb_hc.h \
+	kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/shell.c --output kernel/lang/shell.o
 
 # Add new rule for string.o
 kernel/core/string.o: kernel/core/string.c kernel/core/string.h
@@ -334,8 +362,9 @@ kernel/mm/memory.o: kernel/mm/memory.c kernel/mm/memory.h
 	$(CC) $(CFLAGS) kernel/mm/memory.c -o kernel/mm/memory.o
 
 # PCI configuration space layer
-drivers/pci.o: drivers/pci.c drivers/pci.h kernel/core/ports.h
-	$(CC) $(CFLAGS) drivers/pci.c -o drivers/pci.o
+drivers/pci.o: drivers/pci.c drivers/pci.h drivers/serial.h \
+	kernel/core/ports.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/pci.c --output drivers/pci.o
 
 # AP trampoline raw binary blob (P5 SMP T8)
 kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S $(CUPIDASM)
@@ -413,8 +442,10 @@ kernel/network/sshd.o: kernel/network/sshd.c kernel/network/sshd.h kernel/networ
 	$(CC) $(CFLAGS) kernel/network/sshd.c -o kernel/network/sshd.o
 
 # RTL8139 NIC driver: PCI probe, reset, RX/TX buffers, MAC read (P6 T3)
-drivers/rtl8139.o: drivers/rtl8139.c kernel/network/net_if.h drivers/pci.h kernel/mm/memory.h kernel/core/ports.h
-	$(CC) $(CFLAGS) drivers/rtl8139.c -o drivers/rtl8139.o
+drivers/rtl8139.o: drivers/rtl8139.c drivers/pci.h drivers/serial.h \
+	kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h \
+	kernel/mm/memory.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/rtl8139.c --output drivers/rtl8139.o
 
 # E1000 (Intel 82540EM) NIC driver: MMIO probe, RX/TX rings, MAC read (P6 T15)
 drivers/e1000.o: drivers/e1000.c drivers/pci.h drivers/serial.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -513,19 +544,29 @@ kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.c kernel/tls/tls_selftest.h k
 	$(CC) $(CFLAGS) -Os kernel/tls/tls_selftest.c -o kernel/tls/tls_selftest.o
 
 # USB core scaffold
-kernel/usb/usb.o: kernel/usb/usb.c kernel/usb/usb.h kernel/usb/usb_hc.h
+kernel/usb/usb.o: kernel/usb/usb.c drivers/timer.h kernel/usb/usb.h \
+	kernel/usb/usb_hc.h
 	$(CC) $(CFLAGS) kernel/usb/usb.c -o kernel/usb/usb.o
 
 # UHCI host controller init + port ops
-kernel/usb/uhci.o: kernel/usb/uhci.c kernel/usb/usb.h kernel/usb/usb_hc.h drivers/pci.h kernel/core/ports.h kernel/cpu/irq.h kernel/cpu/isr.h
-	$(CC) $(CFLAGS) kernel/usb/uhci.c -o kernel/usb/uhci.o
+kernel/usb/uhci.o: kernel/usb/uhci.c drivers/pci.h drivers/serial.h \
+	drivers/timer.h kernel/core/kernel.h kernel/core/panic.h \
+	kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h \
+	kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/uhci.c --output kernel/usb/uhci.o
 
 # EHCI host controller init + BIOS handoff + port ops
-kernel/usb/ehci.o: kernel/usb/ehci.c kernel/usb/usb.h kernel/usb/usb_hc.h drivers/pci.h kernel/core/ports.h kernel/cpu/irq.h kernel/cpu/isr.h
-	$(CC) $(CFLAGS) kernel/usb/ehci.c -o kernel/usb/ehci.o
+kernel/usb/ehci.o: kernel/usb/ehci.c drivers/pci.h drivers/serial.h \
+	drivers/timer.h kernel/core/kernel.h kernel/core/panic.h \
+	kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h \
+	kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/ehci.c --output kernel/usb/ehci.o
 
 # USB HID boot-protocol keyboard driver
-kernel/usb/usb_hid.o: kernel/usb/usb_hid.c kernel/usb/usb.h kernel/usb/usb_hc.h drivers/keyboard.h drivers/serial.h
+kernel/usb/usb_hid.o: kernel/usb/usb_hid.c kernel/usb/usb.h kernel/usb/usb_hc.h \
+	drivers/keyboard.h drivers/serial.h drivers/timer.h
 	$(CC) $(CFLAGS) kernel/usb/usb_hid.c -o kernel/usb/usb_hid.o
 
 # USB hub class driver (recursive enumeration + TT routing)
@@ -536,10 +577,12 @@ kernel/usb/usb_hub.o: kernel/usb/usb_hub.c kernel/usb/usb.h kernel/usb/usb_hc.h 
 kernel/usb/usb_msc.o: kernel/usb/usb_msc.c kernel/usb/usb.h kernel/usb/usb_hc.h kernel/fs/blockdev.h drivers/serial.h
 	$(CC) $(CFLAGS) kernel/usb/usb_msc.c -o kernel/usb/usb_msc.o
 
-# AC97 audio — BDL DMA + IRQ + smoke helper
-kernel/audio/ac97.o: kernel/audio/ac97.c kernel/audio/ac97.h drivers/pci.h \
-	kernel/core/ports.h kernel/cpu/irq.h kernel/mm/memory.h kernel/core/kernel.h drivers/serial.h drivers/timer.h
-	$(CC) $(CFLAGS) kernel/audio/ac97.c -o kernel/audio/ac97.o
+# AC97 audio: BDL DMA, IRQ, and smoke helper
+kernel/audio/ac97.o: kernel/audio/ac97.c drivers/pci.h drivers/serial.h \
+	kernel/audio/ac97.h kernel/core/kernel.h kernel/core/ports.h \
+	kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/ac97.c --output kernel/audio/ac97.o
 
 # Mixer — 16-slot s16 stereo software mixer
 kernel/audio/mixer.o: kernel/audio/mixer.c kernel/audio/mixer.h kernel/core/types.h \
@@ -587,7 +630,8 @@ kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.c \
                                     drivers/keyboard.h \
                                     drivers/serial.h \
                                     drivers/timer.h \
-                                    kernel/fs/vfs.h
+                                    kernel/fs/vfs.h \
+                                    kernel/usb/usb.h
 	$(CC) $(CFLAGS_DOOM) -o $@ $<
 
 KERNEL_OBJS += kernel/doom/doomgeneric_cupidos.o
@@ -655,8 +699,10 @@ kernel/fs/fat16.o: kernel/fs/fat16.c kernel/fs/fat16.h
 	$(CC) $(CFLAGS) kernel/fs/fat16.c -o kernel/fs/fat16.o
 
 # RTC (Real-Time Clock) driver
-drivers/rtc.o: drivers/rtc.c drivers/rtc.h
-	$(CC) $(CFLAGS) drivers/rtc.c -o drivers/rtc.o
+drivers/rtc.o: drivers/rtc.c drivers/rtc.h drivers/serial.h \
+	kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h \
+	kernel/cpu/isr.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/rtc.c --output drivers/rtc.o
 
 # Serial port driver
 drivers/serial.o: drivers/serial.c drivers/serial.h
@@ -671,12 +717,18 @@ kernel/gui/ed.o: kernel/gui/ed.c kernel/gui/ed.h
 	$(CC) $(CFLAGS) kernel/gui/ed.c -o kernel/gui/ed.o
 
 # VGA graphics mode driver (no -O2: physical address reads trigger array-bounds)
-drivers/vga.o: drivers/vga.c drivers/vga.h
-	$(CC) $(CFLAGS) drivers/vga.c -o drivers/vga.o
+drivers/vga.o: drivers/vga.c drivers/timer.h drivers/vga.h \
+	kernel/core/kernel.h kernel/core/ports.h kernel/core/string.h \
+	kernel/core/types.h kernel/cpu/isr.h kernel/cpu/simd.h \
+	kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/vga.c --output drivers/vga.o
 
 # PS/2 mouse driver
-drivers/mouse.o: drivers/mouse.c drivers/mouse.h
-	$(CC) $(CFLAGS) drivers/mouse.c -o drivers/mouse.o
+drivers/mouse.o: drivers/mouse.c drivers/mouse.h drivers/serial.h \
+	drivers/vga.h kernel/core/ports.h kernel/core/string.h \
+	kernel/core/types.h kernel/cpu/isr.h kernel/cpu/pic.h \
+	kernel/gfx/graphics.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/mouse.c --output drivers/mouse.o
 
 # 8x8 bitmap font
 kernel/gfx/font_8x8.o: kernel/gfx/font_8x8.c kernel/gfx/font_8x8.h
@@ -805,8 +857,17 @@ kernel/lang/exec.o: kernel/lang/exec.c kernel/lang/exec.h kernel/fs/vfs.h kernel
 	$(CC) $(CFLAGS) kernel/lang/exec.c -o kernel/lang/exec.o
 
 # Syscall table for ELF programs
-kernel/core/syscall.o: kernel/core/syscall.c kernel/core/syscall.h kernel/fs/vfs.h kernel/core/process.h kernel/lang/shell.h
-	$(CC) $(CFLAGS) kernel/core/syscall.c -o kernel/core/syscall.o
+kernel/core/syscall.o: kernel/core/syscall.c drivers/ata.h drivers/pci.h \
+	drivers/pit.h drivers/serial.h drivers/speaker.h drivers/timer.h \
+	kernel/core/kernel.h kernel/core/ports.h kernel/core/process.h \
+	kernel/core/string.h kernel/core/syscall.h kernel/core/types.h \
+	kernel/cpu/isr.h kernel/fs/blockdev.h kernel/fs/vfs.h \
+	kernel/fs/vfs_helpers.h kernel/lang/exec.h kernel/lang/shell.h \
+	kernel/mm/memory.h kernel/network/arp.h kernel/network/dns.h \
+	kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h \
+	kernel/network/socket.h kernel/network/udp.h kernel/smp/bkl.h \
+	kernel/smp/lapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/syscall.c --output kernel/core/syscall.o
 
 # BMP image encoding/decoding
 kernel/gfx/bmp.o: kernel/gfx/bmp.c kernel/gfx/bmp.h kernel/fs/vfs.h kernel/mm/memory.h drivers/vga.h

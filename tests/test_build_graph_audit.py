@@ -2276,8 +2276,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 667)
-            self.assertEqual(contract["include_occurrences"], 2375)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2143)
+            self.assertEqual(contract["include_occurrences"], 2382)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2150)
             self.assertEqual(contract["direct_angle_occurrences"], 232)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -3864,7 +3864,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (26, 5),
-                "c.expression.sizeof": (4253, 168),
+                "c.expression.sizeof": (4254, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -3909,7 +3909,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for transform in audit_payload["build"]["transforms"]
                 )
             )
-            cupidc_kernel_sources = (
+            established_cupidc_kernel_sources = (
                 "kernel/crypto/aes.c",
                 "kernel/crypto/aes_gcm.c",
                 "kernel/crypto/asn1.c",
@@ -3936,6 +3936,241 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "kernel/network/tcp.c",
                 "kernel/smp/acpi.c",
                 "kernel/smp/mp_tables.c",
+            )
+            port_io_header_closures = {
+                "drivers/ata.c": (
+                    "drivers/ata.h",
+                    "kernel/core/debug.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/fs/blockdev.h",
+                ),
+                "drivers/keyboard.c": (
+                    "drivers/keyboard.h",
+                    "drivers/rtc.h",
+                    "drivers/serial.h",
+                    "drivers/vga.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/process.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/irq.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/gui/desktop.h",
+                    "kernel/gui/gui.h",
+                    "kernel/lang/shell.h",
+                    "kernel/util/calendar.h",
+                ),
+                "drivers/mouse.c": (
+                    "drivers/mouse.h",
+                    "drivers/serial.h",
+                    "drivers/vga.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/string.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/cpu/pic.h",
+                    "kernel/gfx/graphics.h",
+                ),
+                "drivers/pci.c": (
+                    "drivers/pci.h",
+                    "drivers/serial.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                ),
+                "drivers/pit.c": (
+                    "drivers/pit.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                ),
+                "drivers/rtc.c": (
+                    "drivers/rtc.h",
+                    "drivers/serial.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/isr.h",
+                ),
+                "drivers/rtl8139.c": (
+                    "drivers/pci.h",
+                    "drivers/serial.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/irq.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/mm/memory.h",
+                    "kernel/network/net_if.h",
+                ),
+                "drivers/speaker.c": (
+                    "drivers/pit.h",
+                    "drivers/speaker.h",
+                    "drivers/timer.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/isr.h",
+                ),
+                "drivers/vga.c": (
+                    "drivers/timer.h",
+                    "drivers/vga.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/string.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/cpu/simd.h",
+                    "kernel/mm/memory.h",
+                ),
+                "kernel/audio/ac97.c": (
+                    "drivers/pci.h",
+                    "drivers/serial.h",
+                    "kernel/audio/ac97.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/irq.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/mm/memory.h",
+                ),
+                "kernel/core/syscall.c": (
+                    "drivers/ata.h",
+                    "drivers/pci.h",
+                    "drivers/pit.h",
+                    "drivers/serial.h",
+                    "drivers/speaker.h",
+                    "drivers/timer.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/process.h",
+                    "kernel/core/string.h",
+                    "kernel/core/syscall.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/fs/blockdev.h",
+                    "kernel/fs/vfs.h",
+                    "kernel/fs/vfs_helpers.h",
+                    "kernel/lang/exec.h",
+                    "kernel/lang/shell.h",
+                    "kernel/mm/memory.h",
+                    "kernel/network/arp.h",
+                    "kernel/network/dns.h",
+                    "kernel/network/icmp.h",
+                    "kernel/network/ip.h",
+                    "kernel/network/net_if.h",
+                    "kernel/network/socket.h",
+                    "kernel/network/udp.h",
+                    "kernel/smp/bkl.h",
+                    "kernel/smp/lapic.h",
+                ),
+                "kernel/lang/shell.c": (
+                    "drivers/keyboard.h",
+                    "drivers/pci.h",
+                    "drivers/rtc.h",
+                    "drivers/serial.h",
+                    "drivers/timer.h",
+                    "drivers/vga.h",
+                    "kernel/core/app_launch.h",
+                    "kernel/core/assert.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/panic.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/process.h",
+                    "kernel/core/string.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/irq.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/cpu/math.h",
+                    "kernel/fs/blockcache.h",
+                    "kernel/fs/blockdev.h",
+                    "kernel/fs/fat16.h",
+                    "kernel/fs/fs.h",
+                    "kernel/fs/vfs.h",
+                    "kernel/gfx/gfx2d.h",
+                    "kernel/gui/ansi.h",
+                    "kernel/gui/desktop.h",
+                    "kernel/gui/gui.h",
+                    "kernel/gui/gui_themes.h",
+                    "kernel/gui/terminal_app.h",
+                    "kernel/lang/as.h",
+                    "kernel/lang/cupidc.h",
+                    "kernel/lang/cupidscript.h",
+                    "kernel/lang/cupidscript_arrays.h",
+                    "kernel/lang/cupidscript_jobs.h",
+                    "kernel/lang/cupidscript_streams.h",
+                    "kernel/lang/dis.h",
+                    "kernel/lang/exec.h",
+                    "kernel/lang/shell.h",
+                    "kernel/mm/memory.h",
+                    "kernel/mm/swap.h",
+                    "kernel/network/arp.h",
+                    "kernel/network/dns.h",
+                    "kernel/network/icmp.h",
+                    "kernel/network/ip.h",
+                    "kernel/network/net_if.h",
+                    "kernel/network/socket.h",
+                    "kernel/network/sshd.h",
+                    "kernel/smp/bkl.h",
+                    "kernel/smp/percpu.h",
+                    "kernel/smp/smp.h",
+                    "kernel/usb/usb.h",
+                    "kernel/usb/usb_hc.h",
+                    "kernel/util/calendar.h",
+                ),
+                "kernel/usb/ehci.c": (
+                    "drivers/pci.h",
+                    "drivers/serial.h",
+                    "drivers/timer.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/panic.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/irq.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/mm/memory.h",
+                    "kernel/usb/usb.h",
+                    "kernel/usb/usb_hc.h",
+                ),
+                "kernel/usb/uhci.c": (
+                    "drivers/pci.h",
+                    "drivers/serial.h",
+                    "drivers/timer.h",
+                    "kernel/core/kernel.h",
+                    "kernel/core/panic.h",
+                    "kernel/core/ports.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/irq.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/mm/memory.h",
+                    "kernel/usb/usb.h",
+                    "kernel/usb/usb_hc.h",
+                ),
+            }
+            self.assertEqual(len(port_io_header_closures), 14)
+            cupidc_control_inputs = (
+                "Makefile",
+                "tools/cupidc_kernel_compile.py",
+                "tools/kernel_cupidc_frontier.py",
+                "tools/bootstrap_toolchain.py",
+                "bootstrap/seeds/i386-linux/manifest.json",
+                "bootstrap/seeds/i386-linux/cupidasm.elf",
+                "bootstrap/seeds/i386-linux/cupidc.elf",
+                "bootstrap/seeds/i386-linux/cupiddis.elf",
+                "bootstrap/seeds/i386-linux/cupidld.elf",
+                "bootstrap/seeds/i386-linux/cupidobj.elf",
+            )
+            for source_path, headers in port_io_header_closures.items():
+                output_path = source_path.removesuffix(".c") + ".o"
+                with self.subTest(port_io_closure=source_path):
+                    self.assertEqual(
+                        root_transform_by_output[output_path]["inputs"],
+                        [source_path, *headers, *cupidc_control_inputs],
+                    )
+
+            cupidc_kernel_sources = (
+                *established_cupidc_kernel_sources,
+                *port_io_header_closures,
             )
             for source_path in cupidc_kernel_sources:
                 output_path = source_path.removesuffix(".c") + ".o"
@@ -3972,9 +4207,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 26,
-                    "host_c_compiler": 271,
-                    "host_python": 35,
+                    "cupid_c_compiler": 40,
+                    "host_c_compiler": 257,
+                    "host_python": 49,
                 },
             )
 

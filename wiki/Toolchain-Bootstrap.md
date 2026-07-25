@@ -58,7 +58,7 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00E00000` boot-stack layout.
 
-The checked seed now includes the active CSPRNG assembly, operand-free
+The checked seed includes the active CSPRNG assembly, operand-free
 function assembly, per-CPU pointer output, integer atomics through fetch-or, and
 width-aware port I/O. Its stage-three CupidC image is 1,950,556 bytes with
 SHA-256
@@ -71,7 +71,7 @@ then match stage three, and both stages pass all 21 tool behavior cases.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
-sequences. The normal build now uses that path for e1000, the desktop shell,
+sequences. The normal build uses that path for e1000, the desktop shell,
 the socket layer, and TCP. The earlier detached hybrid linked the same four
 objects through both CupidLD passes and booted them under QEMU before the
 ownership hand-off.
@@ -93,31 +93,37 @@ Compiler head adds `__atomic_fetch_or` at the same one-, two-, and four-byte
 integer widths. It emits a `LOCK CMPXCHG` retry loop because `LOCK OR` cannot
 return the old value. Exact byte and execution checks cover a competing
 update, signed narrow results, guard bytes, one-time operand evaluation, and
-callee-saved EBX. The checked stage-three seed now carries this operation and
+callee-saved EBX. The checked stage-three seed carries this operation and
 compiles the active EHCI path.
 
-Compiler head and the checked seed now parse all eight helpers in unchanged
+Compiler head and the checked seed parse all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
-The normal image remains at the separate 26-source production boundary and
-366,592 deterministic CupidC object bytes.
+The normal image has a 40-source checked CupidC production boundary. It
+contains all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop
+shell, the socket layer, TCP, ATA, keyboard, mouse, PCI, PIT, RTC, RTL8139,
+speaker, VGA, AC'97, the system-call path, the shell, EHCI, and UHCI. The
+strict frontier compiles each approved source twice and accepts 675,340
+byte-identical i386 ELF32 bytes. It freezes 328 inputs with SHA-256
+`3dedac2c0a5733f531871b6bc83ebb427b92e6dfa448edc93a7804ec28025032`.
+Forced Make runs with the host compiler command poisoned cover every
+production wrapper recipe. Each recipe lists its exact recursive header
+closure.
 
-The normal image now builds 26 kernel sources with that checked CupidC seed:
-all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop shell,
-the socket layer, and TCP. The strict frontier compiles each approved source
-twice and accepts 366,592 byte-identical i386 object bytes. Forced Make runs
-with the host compiler command poisoned prove every production wrapper
-recipe.
-
-QEMU's `max` CPU seeds the CSPRNG through RDRAND, passes all 62 crypto, ASN.1,
-and X.509 checks, reaches the desktop, and completes an embedded CupidC JIT
-command. The four-vCPU contract also requires MP and ACPI discovery, every
-secondary CPU online, e1000, the scheduler, and the terminal, and rejects the
-known SMP, storage, crypto, exception, panic, corruption, and
-illegal-instruction failures. The X.509 checks exercise parser, hostname,
-chain-state, and embedded-root lookup paths; they are not a full
+The QEMU runtime contract passes on four vCPUs with both e1000 and
+RTL8139. Each run proves ACPI and MP discovery, every secondary CPU online,
+RDRAND, the 62 crypto checks, keyboard and mouse detach and reattach, ATA
+storage, AC'97 and PC speaker audio, six EHCI storage lifetimes, a
+zero-padded RTC timestamp, and DHCP traffic through the selected NIC. The
+gate rejects SMP, storage, crypto, exception, panic, corruption, and
+illegal-instruction failure markers. The X.509 checks exercise parser,
+hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
+
+The current audit assigns 40 transforms to CupidC, 257 C transforms to the
+host compiler, 49 transforms to host Python, and 205 root or user objects to
+host-built C.

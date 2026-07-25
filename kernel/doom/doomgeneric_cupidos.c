@@ -20,6 +20,7 @@
 #include "timer.h"
 #include "vfs.h"
 #include "types.h"
+#include "usb.h"
 
 extern void process_yield(void);
 
@@ -135,11 +136,6 @@ void DG_DrawFrame(void) {
  * never yields, so we drain pending USB events ourselves on each timer
  * query / sleep call. Without this, USB-attached keyboards never reach
  * DOOM.*/
-extern void ehci_poll_interrupts(void);
-extern void uhci_poll_interrupts(void);
-extern void uhci_poll_ports(void);
-extern void usb_process_pending(void);
-
 /* Producer for the music ring buffer (defined in i_sound_cupidos.c).
  * Synthesises OPL3 audio ahead of the AC97 IRQ on the main thread so
  * the IRQ becomes a pure memcpy.*/
@@ -163,10 +159,7 @@ static uint32_t s_last_usb_pump_ms = 0u;
 static void cup_pump_usb_throttled(uint32_t now_ms) {
     if (now_ms - s_last_usb_pump_ms < 1u) return;
     s_last_usb_pump_ms = now_ms;
-    ehci_poll_interrupts();
-    uhci_poll_ports();
-    uhci_poll_interrupts();
-    usb_process_pending();
+    usb_poll();
 }
 
 /* TSC-based clock for DOOM. The kernel PIT runs at 100 Hz, so

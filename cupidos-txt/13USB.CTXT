@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 USB Host Controller Stack
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-25
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS P4 implements these USB host controllers and class drivers:
+Cupid OS implements these USB host controllers and class drivers:
 
   - USB 1.1 via UHCI (IO-port registers, BAR4)
   - USB 2.0 via EHCI (MMIO registers, BAR0)
@@ -104,50 +104,91 @@ Source: kernel/usb/usb.c + kernel/usb/usb_hc.h + kernel/usb/usb.h
 Host controller vtable (usb_hc_t):
 
 typedef struct usb_hc {
-  int  (*submit_sync)     (struct usb_hc*, usb_transfer_t*);
-  int  (*submit_interrupt)(struct usb_hc*, usb_transfer_t*,
-                           usb_callback_t, void*);
-  int  (*port_count)      (struct usb_hc*);
-  int  (*port_status)     (struct usb_hc*, int port);
-  int  (*port_reset)      (struct usb_hc*, int port);
-  void (*irq_handler)     (struct usb_hc*);
-  void *priv;   // uhci_t* or ehci_t*
+  const char *name;
+  void *driver_data;
+  uint8_t root_speed;
+  int  (*submit_sync)(usb_hc_t*, usb_transfer_t*, uint32_t timeout_ms);
+  int  (*submit_interrupt)(usb_hc_t*, usb_transfer_t*,
+                           usb_complete_cb_t);
+  int  (*cancel_interrupt)(usb_hc_t*, usb_transfer_t*);
+  int  (*port_count)(usb_hc_t*);
+  int  (*port_status)(usb_hc_t*, int port, uint32_t *status);
+  usb_port_reset_result_t (*port_reset)(usb_hc_t*, int port,
+                                        bool must_reset);
+  void (*irq_handler)(usb_hc_t*);
 } usb_hc_t;
 
 Device model (usb_device_t):
-  - addr:        USB address assigned during enumeration (1-127)
+  - address:     USB address assigned during enumeration (1-127)
   - speed:       USB_SPEED_LOW / FULL / HIGH
-  - class:       bDeviceClass from device descriptor
-  - vid / pid:   vendor ID / product ID
-  - depth:       hub nesting depth (0 = root)
+  - class_code:  bDeviceClass from device descriptor
+  - vendor_id / product_id: USB vendor and product IDs
+  - hub_depth:   hub nesting depth (0 = root)
   - tt_hub_addr: transaction translator hub address (HS hubs only)
   - tt_port:     TT port on that hub
   - hc:          pointer to owning HC
-  - class_priv:  class driver private state
+  - driver_data: class driver private state
+  - generation:  slot lifetime checked by queued hub work
 
 Capacity: 32 devices global (USB_MAX_DEVICES).
 Hub depth cap: 5 levels.
 
-Lock-free work queue:
-  IRQ context and 256ms poll callbacks call:
-    usb_port_change(hc, port)          root port hot-plug
-    usb_hub_port_change(hub_dev, port) hub port hot-plug
-  Both push a {hc, port} tuple onto a ring buffer without locking.
-  The main idle loop drains it via usb_process_pending().
+Serialized port reconciliation:
+  usb_poll() is the public polling boundary. An atomic guard folds an
+  overlapping call into the poll already in progress. One poll cycle runs
+  EHCI port and interrupt work, UHCI port and interrupt work, then durable
+  reconciliation.
+
+  bool usb_port_change(hc, port)
+  bool usb_hub_port_change(hub_dev, port)
+
+  Both calls report whether the 32-entry work ring accepted the request.
+  Root controllers leave the hardware change pending when the ring is full.
+  A hub leaves C_PORT_CONNECTION set until the core accepts and completes
+  its work.
+
+  Work remains in the ring until it completes. A failed item rotates behind
+  its peers and retries after a delay that grows from 10ms to 1 second.
+  Hub work carries the parent's generation, so work from a removed or reused
+  hub slot is discarded.
+
+  A reconnect removes the old root device or hub subtree first. The core then
+  owns reset, enumeration, change acknowledgement, and the final status
+  reread. A state change or failed acknowledgement keeps the item queued.
 
 Enumeration FSM (per pending port):
 
-port_reset(hc, port)
+remove old device or subtree
+port_reset(hc, port, address_quarantined)
 GET_DESCRIPTOR(addr=0, len=8)      // bMaxPacketSize0
 SET_ADDRESS(new_addr)
 GET_DESCRIPTOR(new_addr, len=18)   // full device descriptor
 GET_CONFIGURATION(len=9)           // header -> wTotalLength
 GET_CONFIGURATION(len=wTotalLength)// full config tree
 SET_CONFIGURATION(bConfigVal)
-driver_probe_match()               // first matching class wins
+driver_probe_match()               // bind, retry, reject, or try next
 
-usb_control() builds an 8-byte SETUP packet and runs 3-phase control
-transfer (SETUP -> optional DATA -> STATUS) via hc->submit_sync.
+Addresses 1 through 127 use a reusable reservation map. A failure after an
+ambiguous address assignment quarantines the address until reset, disconnect,
+or stale-work cleanup proves it safe to reuse.
+address_quarantined sets must_reset on the controller call. A successful
+handoff proves that the physical reset completed before the core releases the
+reserved address.
+
+usb_control() builds an 8-byte SETUP packet and runs a 3-phase control
+transfer (SETUP -> optional DATA -> STATUS) via hc->submit_sync. Ordinary
+control requests make up to five attempts with timer-backed delays. The core
+probes the new address after an ambiguous SET_ADDRESS and reads the active
+configuration after an ambiguous SET_CONFIGURATION.
+
+Class-driver probe results:
+  USB_PROBE_NOT_SUPPORTED  try the next driver
+  USB_PROBE_BOUND          publish the binding
+  USB_PROBE_RETRY          unwind and keep the port work queued
+  USB_PROBE_REJECTED       keep the device present but unbound
+
+An invalid probe result also unwinds and retries. The core does not publish a
+partially initialized device.
 >endtree
 
 >h2 UHCI Driver
@@ -188,9 +229,16 @@ Legacy SMI disable (BIOS USB ownership release):
 // 0x8F00: bit13 disables SMI, low nibble clears pending status
 pci_write16(bus, dev, fn, 0xC0, 0x8F00);
 
-Hot-plug: UHCI has no reliable hot-plug IRQ. The idle loop calls
-uhci_poll_ports() every 256ms. On CONNECT_STATUS_CHANGE, calls
-usb_port_change(hc, port) to trigger enumeration.
+Hot-plug: UHCI has no reliable hot-plug IRQ. The serialized usb_poll() cycle
+calls uhci_poll_ports(). On CONNECT_STATUS_CHANGE, the driver calls
+usb_port_change(hc, port). It clears the change only after the work ring
+accepts the request.
+
+Synchronous and interrupt transfers use the controller submit lock. UHCI
+stops the schedule and observes the halted state before it releases
+descriptor storage. Interrupt slots carry a generation and an in-flight
+claim. Cancellation waits for the matching generation's DMA and callback
+work to finish.
 >endtree
 
 >h2 EHCI Driver
@@ -241,19 +289,43 @@ CONFIGFLAG and companion routing:
 
 // Claim all ports for EHCI
 op->CONFIGFLAG = 1;
-// Release LS/FS ports to companion UHCI
+// A low-speed K-state port can move directly when no reset is owed.
+// Reset every other connected port before selecting its owner.
 for (int p = 0; p < nports; p++) {
   uint32_t ps = op->PORTSC[p];
-  if (LINE_STATUS(ps) != K_HISPEED)
+  if (LINE_STATUS(ps) == K_STATE && !must_reset) {
     op->PORTSC[p] = ps | PORT_OWNER;
+  } else {
+    reset_port_and_wait_for_clear(p);
+    if (!(op->PORTSC[p] & PORT_ENABLE))
+      op->PORTSC[p] |= PORT_OWNER;
+  }
 }
 
+J-state before reset can describe a high-speed-capable device, so it is not
+proof of a full-speed attachment. EHCI verifies reset assertion and clearing,
+then reads PORT_OWNER back before it reports a completed companion handoff.
+
 Async schedule: circular doubly-linked QH list with dummy head (H=1).
-Periodic schedule: 1024-entry frame list; HID/Hub interrupt pipes
-  inserted at 256ms intervals (every 256th frame slot).
+Periodic schedule: 1024-entry frame list owned by the controller.
+  Class-driver interrupt registrations use controller-local software slots.
+  usb_poll() claims one slot generation and submits it through the
+  synchronous controller path.
 
 qTD page pointers: each qTD carries 5 x 4KB page buffer pointers,
 supporting up to 20KB per transfer without chaining.
+
+EHCI IRQ handling records changed root ports in an atomic pending bitmap.
+ehci_poll_ports() clears a bit only after the serialized USB core accepts the
+work. Before changing ASYNCLISTADDR or releasing a QH and qTD, EHCI disables
+the asynchronous schedule and verifies its state. It halts the controller if
+normal schedule revocation stalls. Failure takes the panic path instead of
+freeing memory still visible to hardware.
+
+Interrupt slots carry active and cancellation state, an in-flight claim, and
+a generation. Pollers release the submit lock before DMA and callback
+delivery. Successful cancellation waits for that generation to finish. A
+callback cannot cancel its own slot.
 >endtree
 
 >h2 HID Driver
@@ -310,25 +382,32 @@ Probe sequence:
   4. SET_FEATURE(PORT_POWER) for each port.
   5. Wait bPwrOn2PwrGood * 2 ms.
 
-Status-change polling (256ms interval):
-  Interrupt IN endpoint returns a bitmap where bit N = port N changed.
+Status-change polling:
+  The driver reads the interrupt IN endpoint from the active configuration
+  descriptor. Its bitmap includes bit 0 for hub status and one bit for every
+  downstream port.
 
 Per changed port:
 
 GET_PORT_STATUS(port)             // wPortStatus + wPortChange
 if C_PORT_CONNECTION set:
-  CLEAR_FEATURE(C_PORT_CONNECTION)
-  sleep(100ms)                    // debounce
-  if PORT_CONNECTION set:         // device still present
-    SET_FEATURE(PORT_RESET)
-    poll until PORT_RESET clears
-    CLEAR_FEATURE(C_PORT_RESET)
-    usb_hub_port_change(hub_dev, port)  // triggers enumeration
+  usb_hub_port_change(hub_dev, port)
+  if work ring is full:
+    leave C_PORT_CONNECTION set
+
+The serialized core removes the old child subtree, resets the connected
+port, enumerates the current attachment, clears C_PORT_RESET and
+C_PORT_CONNECTION, then rereads status and change bits. It retains the work
+item if state changed or acknowledgement failed. The callback does not clear
+the connection change before the core accepts ownership.
+
+Queued hub work carries the parent device generation. An old callback cannot
+act on a hub slot that has been removed and reused.
 
 Depth cap: maximum nesting depth = 5.
   Before recursing into a new hub: check parent_depth + 1 <= 5.
   Devices beyond depth 5 are silently ignored.
-  (USB 2.0 spec allows 7; CupidOS caps at 5.)
+  (USB 2.0 spec allows 7; Cupid OS caps at 5.)
 
 Transaction Translator routing:
   Full-speed or low-speed devices behind a high-speed hub need TT bridging.
@@ -364,13 +443,35 @@ SCSI commands implemented:
   0x2A  WRITE(10)         Write sector range
 
 Block device registration:
-  After READ_CAPACITY success, driver calls block_register() with:
-    name       = "usb0" / "usb1" / ...
-    read_block = usb_msc_read
-    write_block= usb_msc_write
-    block_size = from READ_CAPACITY response
-    block_count= from READ_CAPACITY response
-    priv       = msc_state pointer
+  After READ_CAPACITY success, the driver calls blkdev_register() with:
+    name         = "usb0" / "usb1" / ...
+    read         = blk_read
+    write        = blk_write
+    sector_size  = from READ_CAPACITY response
+    sector_count = from READ_CAPACITY response
+    driver_data  = msc_state pointer
+    release      = msc_block_release
+
+Registry and offline lifetime:
+  The registry has four sparse public slots and uses the first vacancy.
+  blkdev_count() reports live entries. blkdev_index_limit() returns the
+  exclusive bound for an index scan. A numeric index belongs to one
+  registration lifetime and may be reused after unregister.
+
+  blkdev_get(index) acquires a reference to the exact block_device_t. Its
+  caller must later call blkdev_put(dev). The registry holds one reference
+  while the device remains registered. A saturated reference count makes
+  blkdev_get() return NULL without wrapping.
+
+  The read and write callbacks stay fixed for the object's lifetime. Each
+  callback takes the MSC command lock and checks the online state and USB
+  device pointer before starting I/O. On disconnect, MSC marks the state
+  offline under that lock, clears its USB device pointer, and calls
+  blkdev_unregister(). The registry removes the public slot and drops its
+  reference. Borrowed references remain safe and return an I/O failure. The
+  driver restores the attached online state if unregister fails, so removal
+  can retry. The final blkdev_put() calls msc_block_release() and frees the
+  MSC allocation.
 
 MBR parsing (sector 0):
   Check bytes 510-511 for 0x55AA signature.
@@ -400,7 +501,7 @@ every VFS call. Wire usb_msc_probe() into fat16_mount().
 >tree open Shell Commands
 usb: list all enumerated devices
 
-CupidOS> usb
+Cupid OS> usb
 [0] addr=1  speed=HIGH  vid=8086 pid=1234  class=09 parent=root
 [1] addr=2  speed=FULL  vid=045e pid=0745  class=03 parent=0
 [2] addr=3  speed=FULL  vid=093a pid=2510  class=03 parent=0
@@ -411,7 +512,7 @@ product ID, class code, parent (root = root port, number = hub index).
 
 usb hubs: show hub tree by depth
 
-CupidOS> usb hubs
+Cupid OS> usb hubs
 depth=0  addr=1  ports=4  (root hub via EHCI)
   depth=1  addr=2  port=1  speed=FULL  (HID keyboard)
   depth=1  addr=3  port=2  speed=FULL  (HID mouse)
@@ -419,7 +520,7 @@ depth=0  addr=1  ports=4  (root hub via EHCI)
 
 usb hc: show host controller boot summary
 
-CupidOS> usb hc
+Cupid OS> usb hc
 EHCI: BAR0=0xfebf0000 ports=4 BIOS_handoff=OK
 UHCI: IO=0xc080 ports=2 legacy_SMI=disabled
 
@@ -449,8 +550,9 @@ qemu-system-i386 \
   -drive if=ide,format=raw,file=cupidos.img \
   -device piix3-usb-uhci \
   -device usb-ehci \
-  -drive if=none,id=ustick,file=test.img,format=raw \
-  -device usb-storage,drive=ustick \
+  -blockdev driver=file,filename=test.img,node-name=ustick-file \
+  -blockdev driver=raw,file=ustick-file,node-name=ustick \
+  -device usb-storage,id=ustick-device,drive=ustick \
   -serial stdio
 
 Full stack (HID + storage):
@@ -461,25 +563,39 @@ qemu-system-i386 \
   -device usb-ehci \
   -device usb-kbd \
   -device usb-mouse \
-  -drive if=none,id=ustick,file=test.img,format=raw \
-  -device usb-storage,drive=ustick \
+  -blockdev driver=file,filename=test.img,node-name=ustick-file \
+  -blockdev driver=raw,file=ustick-file,node-name=ustick \
+  -device usb-storage,id=ustick-device,drive=ustick \
   -serial stdio
 
+Persistent storage hot-plug:
+  The file and raw block nodes outlive the usb-storage front end. This lets
+  the same image survive repeated device removal and addition.
+
+QEMU monitor sequence:
+  device_del ustick-device
+  info qtree
+  device_add usb-storage,id=ustick-device,drive=ustick
+
+  Poll info qtree until ustick-device is absent before adding it again. Read
+  each monitor response through the next prompt. An Error: response means the
+  hot-plug operation failed.
+
 Note: piix3-usb-uhci emulates UHCI. OHCI (VIA/SiS real hardware) is not
-emulated and not supported by CupidOS.
+emulated and not supported by Cupid OS.
 >endtree
 
 >h2 Known Limits
 >tree open Known Limits
 OHCI:
-  VIA and SiS chipsets use OHCI, while QEMU uses UHCI. CupidOS does not
+  VIA and SiS chipsets use OHCI, while QEMU uses UHCI. Cupid OS does not
   support real OHCI hardware.
 
 xHCI:
   USB 3.x is outside the P4 scope and is not planned.
 
 Isochronous transfers:
-  CupidOS does not implement isochronous scheduling, so audio class,
+  Cupid OS does not implement isochronous scheduling, so audio class,
   webcam, and video capture devices are unsupported.
 
 BBB only (no UAS):
@@ -503,14 +619,13 @@ HID boot protocol only:
   devices may hit this limit.
 
 Hub depth 5:
-  USB 2.0 specification allows 7 levels of hub nesting. CupidOS caps
+  USB 2.0 specification allows 7 levels of hub nesting. Cupid OS caps
   at 5 for simplicity.
 
-EHCI+UHCI companion handoff timing issue:
-  Full-speed devices on a system with both EHCI and UHCI controllers
-  may occasionally fail to enumerate correctly due to companion handoff
-  timing. UHCI-only configurations (no EHCI present) enumerate reliably.
-  Under investigation (P4-DEBT).
+Interrupt callback self-cancellation:
+  A callback cannot cancel its own interrupt registration. Disconnect paths
+  cancel from outside the callback and wait for the claimed generation to
+  finish.
 
 FAT16 auto-mount not wired:
   USB mass storage registers as raw block device only.

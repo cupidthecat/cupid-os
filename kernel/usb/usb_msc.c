@@ -38,11 +38,29 @@ typedef struct {
     uint32_t tag;
     uint8_t  toggle_in;
     uint8_t  toggle_out;
+    volatile uint32_t command_lock;
+    bool online;
     block_device_t blk;
     uint32_t sector_size;
     uint32_t sector_count;
     char     name[8];
 } msc_state_t;
+
+static void msc_command_lock(msc_state_t *st) {
+    while (
+        __atomic_exchange_n(
+            &st->command_lock,
+            1u,
+            __ATOMIC_ACQUIRE
+        ) != 0u
+    ) {
+        __asm__ volatile("pause");
+    }
+}
+
+static void msc_command_unlock(msc_state_t *st) {
+    __atomic_store_n(&st->command_lock, 0u, __ATOMIC_RELEASE);
+}
 
 static int msc_bulk_transfer(msc_state_t *st, uint8_t dir, uint8_t ep,
                               uint8_t maxpkt, const void *buf, uint32_t len,
@@ -61,6 +79,12 @@ static int msc_bulk_transfer(msc_state_t *st, uint8_t dir, uint8_t ep,
 
 static int scsi_cmd(msc_state_t *st, const uint8_t *cdb, uint8_t cdb_len,
                     uint8_t dir, const void *data, uint32_t data_len) {
+    msc_command_lock(st);
+    if (!st->online || !st->dev) {
+        msc_command_unlock(st);
+        return -1;
+    }
+
     cbw_t cbw = {0};
     cbw.signature = CBW_SIG;
     cbw.tag = ++st->tag;
@@ -70,19 +94,46 @@ static int scsi_cmd(msc_state_t *st, const uint8_t *cdb, uint8_t cdb_len,
     cbw.cb_length = cdb_len;
     for (int i = 0; i < cdb_len; i++) cbw.cb[i] = cdb[i];
 
+    int result = 0;
     if (msc_bulk_transfer(st, USB_DIR_OUT, st->ep_out, st->max_packet_out,
-                          &cbw, 31, &st->toggle_out) < 0) return -1;
-    if (data_len > 0) {
+                          &cbw, 31, &st->toggle_out) < 0) {
+        result = -1;
+    }
+    if (result == 0 && data_len > 0) {
         uint8_t *tog = (dir == USB_DIR_IN) ? &st->toggle_in : &st->toggle_out;
         if (msc_bulk_transfer(st, dir, (uint8_t)((dir == USB_DIR_IN) ? st->ep_in : st->ep_out),
             (dir == USB_DIR_IN) ? st->max_packet_in : st->max_packet_out,
-            data, data_len, tog) < 0) return -1;
+            data, data_len, tog) < 0) {
+            result = -1;
+        }
     }
     csw_t csw = {0};
-    if (msc_bulk_transfer(st, USB_DIR_IN, st->ep_in, st->max_packet_in,
-                          &csw, 13, &st->toggle_in) < 0) return -1;
-    if (csw.signature != CSW_SIG || csw.tag != cbw.tag) return -2;
-    return (csw.status == 0) ? 0 : -3;
+    if (
+        result == 0
+        && msc_bulk_transfer(
+            st,
+            USB_DIR_IN,
+            st->ep_in,
+            st->max_packet_in,
+            &csw,
+            13,
+            &st->toggle_in
+        ) < 0
+    ) {
+        result = -1;
+    }
+    if (
+        result == 0
+        && (
+            csw.signature != CSW_SIG
+            || csw.tag != cbw.tag
+        )
+    ) {
+        result = -2;
+    }
+    if (result == 0 && csw.status != 0) result = -3;
+    msc_command_unlock(st);
+    return result;
 }
 
 static int scsi_inquiry(msc_state_t *st, uint8_t *buf36) {
@@ -126,43 +177,85 @@ static int blk_write(void *drv, uint32_t lba, uint32_t count, const void *buffer
     return scsi_write10((msc_state_t*)drv, lba, (uint16_t)count, buffer);
 }
 
-static int msc_probe(usb_device_t *dev) {
+static void msc_block_release(void *driver_data) {
+    if (driver_data) kfree(driver_data);
+}
+
+static bool msc_capacity_supported(
+    uint32_t last_lba,
+    uint32_t block_size
+) {
+    return block_size >= 512u && last_lba != 0xFFFFFFFFu;
+}
+
+static usb_probe_result_t msc_probe(usb_device_t *dev) {
     if (dev->class_code != MSC_CLASS
         || dev->subclass != MSC_SUBCLASS_SCSI_TRANS
-        || dev->protocol != MSC_PROTO_BBB) return -1;
+        || dev->protocol != MSC_PROTO_BBB) {
+        return USB_PROBE_NOT_SUPPORTED;
+    }
 
     msc_state_t *st = (msc_state_t*)kmalloc(sizeof(msc_state_t));
-    if (!st) return -1;
+    if (!st) return USB_PROBE_RETRY;
     st->dev = dev;
     st->ep_in = 0x81; st->ep_out = 0x02;
     st->max_packet_in = 64; st->max_packet_out = 64;
     st->tag = 0;
     st->toggle_in = 0;
     st->toggle_out = 0;
+    st->command_lock = 0;
+    st->online = true;
 
     uint8_t maxlun = 0;
-    usb_control(dev, 0xA1, MSC_GET_MAX_LUN, 0, 0, &maxlun, 1);
+    /*
+     * A Bulk-Only device may stall GET_MAX_LUN to report one logical unit.
+     * Retry transport failures, then retain the required zero default.
+     */
+    (void)usb_control_retry(
+        dev,
+        0xA1,
+        MSC_GET_MAX_LUN,
+        0,
+        0,
+        &maxlun,
+        1
+    );
     st->max_lun = maxlun;
 
     uint8_t inq[36] = {0};
-    if (scsi_inquiry(st, inq) < 0) { kfree(st); return -1; }
+    if (scsi_inquiry(st, inq) < 0) {
+        kfree(st);
+        return USB_PROBE_RETRY;
+    }
 
     int ready = -1;
     for (int i = 0; i < 100 && ready < 0; i++) {
         ready = scsi_test_ready(st);
         if (ready < 0) for (volatile int k = 0; k < 500000; k++) { }
     }
-    if (ready < 0) { KWARN("usb_msc: not ready"); kfree(st); return -1; }
+    if (ready < 0) {
+        KWARN("usb_msc: not ready");
+        kfree(st);
+        return USB_PROBE_RETRY;
+    }
 
     uint32_t last_lba = 0, block_size = 0;
     if (scsi_read_capacity(st, &last_lba, &block_size) < 0) {
-        KWARN("usb_msc: read capacity failed"); kfree(st); return -1;
+        KWARN("usb_msc: read capacity failed");
+        kfree(st);
+        return USB_PROBE_RETRY;
+    }
+    if (!msc_capacity_supported(last_lba, block_size)) {
+        KWARN("usb_msc: unsupported capacity %ux%u",
+              last_lba, block_size);
+        kfree(st);
+        return USB_PROBE_REJECTED;
     }
     st->sector_size = block_size;
     st->sector_count = last_lba + 1;
 
-    static int next_num = 0;
-    int n = next_num++;
+    static uint32_t next_num = 0u;
+    uint32_t n = next_num;
     st->name[0] = 'u'; st->name[1] = 's'; st->name[2] = 'b';
     st->name[3] = (char)('0' + (n % 10)); st->name[4] = 0;
     st->blk.name = st->name;
@@ -171,7 +264,17 @@ static int msc_probe(usb_device_t *dev) {
     st->blk.driver_data = st;
     st->blk.read = blk_read;
     st->blk.write = blk_write;
-    blkdev_register(&st->blk);
+    st->blk.release = msc_block_release;
+    st->blk.registry_ref_count = 0u;
+    st->blk.registry_registered = false;
+    if (blkdev_register(&st->blk) < 0) {
+        KWARN("usb_msc: block device registry is full");
+        st->online = false;
+        st->dev = NULL;
+        kfree(st);
+        return USB_PROBE_RETRY;
+    }
+    next_num++;
 
     dev->driver_data = st;
 
@@ -220,11 +323,31 @@ static void msc_scan_mbr(msc_state_t *st) {
     kfree(mbr);
 }
 
-static void msc_disconnect(usb_device_t *dev) {
+static int msc_disconnect(usb_device_t *dev) {
     msc_state_t *st = dev->driver_data;
-    if (st) kfree(st);
-    dev->driver_data = NULL;
+    if (st) {
+        /*
+         * Retire I/O before removing the public entry. References acquired
+         * through blkdev_get keep this state alive until their matching puts.
+         */
+        msc_command_lock(st);
+        st->online = false;
+        st->dev = NULL;
+        msc_command_unlock(st);
+
+        dev->driver_data = NULL;
+        if (blkdev_unregister(&st->blk) < 0) {
+            msc_command_lock(st);
+            st->dev = dev;
+            st->online = true;
+            msc_command_unlock(st);
+            dev->driver_data = st;
+            KERROR("usb_msc: could not unregister block device; attachment restored");
+            return -1;
+        }
+    }
     KINFO("usb_msc: detached");
+    return USB_PROBE_BOUND;
 }
 
 static usb_driver_t msc_driver = {

@@ -87,7 +87,8 @@ static const binding_spec_t syscall_table_bindings[] = {
     ABSOLUTE("syscall_get_table"), CONSTANT("SYS_TABLE_SIZE", 4u),
     CONSTANT("SYS_VERSION", 0u)};
 static const binding_spec_t syscall_vfs_bindings[] = {
-    ABSOLUTE("print"), ABSOLUTE("syscall_get_table"),
+    ABSOLUTE("print"), ABSOLUTE("serial_write_string"),
+    ABSOLUTE("syscall_get_table"),
     CONSTANT("SYS_VFS_COPY_FILE", 96u), CONSTANT("SYS_VFS_UNLINK", 88u),
     CONSTANT("SYS_VFS_WRITE_TEXT", 112u)};
 
