@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-07-24
 
+Current status: ADR 0106 promotes this compiler capability into the checked
+i386 Linux seed. The normal production cohort remains a separate hand-off.
+
 ## Context
 
 `kernel/core/ports.h` was the last failure in the 154-header active non-Doom
@@ -120,12 +123,10 @@ Port I/O instructions are privileged, so the hosted object contract uses the
 decoder as its ABI oracle instead of executing the helpers in user mode. This
 decision does not change a production object or boot path.
 
-The checked i386 Linux seed still contains the 1,921,292-byte CupidC from
-revision `6639799ee3da19b077c890223e3340fc5e05e7ba`, with SHA-256
-`ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976`.
-The normal build remains at 26 CupidC-owned sources and 366,592 deterministic
-object bytes. A staged seed refresh and separate production hand-off are
-required before any port-I/O consumer changes owner.
+The compiler-head boundary in this decision changed no production object or
+boot path. ADR 0106 later promoted its stage-three compiler into the checked
+seed. The normal build still remains at 26 CupidC-owned sources and 366,592
+deterministic object bytes until the separate production hand-off passes.
 
 File-scope assembly, labels and control transfer, general clobbers, naked
 functions, arbitrary templates, and the broader GNU constraint language

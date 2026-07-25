@@ -5,7 +5,8 @@
 
 Current status: ADR 0103 uses this seed for ACPI and MP-table discovery, and
 ADR 0104 uses it for e1000, desktop, socket, and TCP. The account below
-preserves the seed transition itself.
+preserves the seed transition itself. ADR 0106 records the next stage-three
+refresh and supersedes the current artifact inventory below.
 
 ## Context
 

@@ -8497,3 +8497,91 @@ general clobbers and constraints, naked code, register snapshots, FXSAVE,
 x87, SSE2, and the other active privileged forms. Issue #28 remains open for
 the production hand-off and all later C cohorts. ADR 0105 records this
 boundary.
+
+## 2026-07-24: Refresh the checked seed with port-I/O support
+
+The checked seed at revision
+`6639799ee3da19b077c890223e3340fc5e05e7ba` could compile the updated
+Toolchain closure, but its own CupidC image did not contain the port-I/O
+assembly path from ADR 0105. Commit
+`d76f543948621ea04520d019fad9aae670f17f11` is the coherent capability
+boundary used for the replacement.
+
+### Transition from the previous seed
+
+The previous seed ran the complete bootstrap in a fresh private directory
+inside the repository. `CC` and `LD` named commands that do not exist. The
+run rebuilt all 19 C objects, startup, and five static tools in stages two
+and three without calling a host code generator.
+
+Every stage pair matched, and both stages agreed on five help paths, ten
+successful operations, and six useful failures. The 40-input source snapshot
+has SHA-256
+`cf17ed01addfb3ce6743785b14d523b86b2eedf34579df10aa4682cb1642ab35`.
+The starting manifest has SHA-256
+`f8bd649a1f87ecdd368c22b4149315b4fa48c98fd3f59aaeef706c802d803f33`.
+The 14,860-byte transition report has SHA-256
+`b5c02487a41888142c221150b58ade3e2a55671afc8665e579cecb90122ef99e`.
+The run took 470.6 seconds.
+
+The old CupidASM, CupidDis, CupidLD, and CupidObj images matched stage two.
+CupidC did not, which is the expected result of changing only the compiler
+closure. The new stage-two and stage-three CupidC images matched each other.
+
+### Promoted stage-three seed
+
+All five stage-three files were copied and verified, including the four
+unchanged tools:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0` |
+| CupidDis | 366,968 | `67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 1,946,320 | `57bea3f86ad601254539d96081473a8309400eedfef46c03e2ad34d0f195351c` |
+
+The refreshed manifest records capability revision
+`d76f543948621ea04520d019fad9aae670f17f11` and has SHA-256
+`86001db0540aeaf2568c38359a8adb310e259bb8cac7070937e8a7f2f4714d46`.
+The target, source list, link orders, producer trio, two-worker limit, and
+build-plan SHA-256
+`7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0`
+remain unchanged.
+
+### Refreshed-seed reproof
+
+A second fully poisoned bootstrap started from the promoted files. All five
+seed images matched stage two. Every stage-two C object, startup object, and
+tool image matched stage three, and the same 21 behavior cases passed. The
+source snapshot remained
+`cf17ed01addfb3ce6743785b14d523b86b2eedf34579df10aa4682cb1642ab35`.
+The 14,859-byte reproof report has SHA-256
+`f40ccd4195cf6fbcdc515b3c043e4d1ef00efbe5fa9acf9e7aeb75579be992a6`.
+The reproof took 460.2 seconds.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Old-seed transition | PASS | The poisoned-host run reaches a 19-object, one-startup, five-image fixed point in 470.6 seconds. Only the old CupidC image differs from stage two. |
+| Refreshed manifest | PASS | `make verify-bootstrap-seed` accepts all five promoted files, their static ELF properties, sizes, hashes, provenance, and unchanged build plan. |
+| Refreshed-seed reproof | PASS | All five seed images equal stage two, stage two equals stage three, and all 21 behavior cases pass in 460.2 seconds. |
+| Checked-seed suite | PASS | All 14 tests pass in 461.627 seconds. The module rechecks the complete fixed point and rejects source drift, changed seed bytes, malformed ELF entry points, altered lineage, plan drift, and manifest schema errors. |
+| Kernel wrapper suite | PASS | All 17 tests pass in 36.297 seconds. The suite covers checked-seed compilation, rejected sources, poisoned-host Make recipes, ELF validation, manifest freezing, output preservation, and WSL isolation. |
+| Static Toolchain fixed point | PASS | The full five-tool object and link contract passes in 536.484 seconds. |
+| Production kernel frontier | PASS | The checked seed compiles the complete 26-source production cohort twice in 171.851 seconds with byte-identical output. |
+| Active build audit | PASS | Regeneration retains 698 active inputs, 252 feature requirements, 501 transforms, 39 accounted unreachable files, and active-source digest `f846738ec2fb820837590a0f7df6bd5c50c7c213a91f59744b6ffdde627d24f7`. The 1,413,588-byte JSON has SHA-256 `1f35703845402d58ec01721ba87caec5515279200c7d05c0236fd6bb1123559b`, and the deterministic check passes in 55 seconds. |
+| Independent review | PASS | Standards and Spec reviews agree on the five-file seed provenance, unchanged build plan, tests, generated audit, documentation, and 26-source production boundary. |
+
+### Ownership boundary
+
+The seed now contains the width-aware port-I/O compiler. This commit does not
+change a normal Make recipe or production object. The root build remains at
+26 CupidC-owned sources and 366,592 deterministic object bytes.
+
+The separate 14-source compiler-head proof remains the migration frontier.
+Its production hand-off needs a fresh checked-seed frontier, exact dependency
+closures, poisoned-host recipe checks, a complete image build, and stronger
+runtime checks for storage, PCI, RTC, USB, input, audio, syscall, and shell
+behavior. Issue #26 remains open for the rest of the GNU platform surface,
+and issue #28 remains open for production migration. ADR 0106 records this
+seed transition.

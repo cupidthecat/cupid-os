@@ -168,7 +168,8 @@ checks old results, memory changes, narrow signedness, wraparound, cdecl
 state, and one-time operand evaluation. Runtime orders, pointer atomics, HLE
 flags, and eight-byte atomics remain open.
 
-Compiler head parses all eight unchanged helpers in kernel/core/ports.h. The
+Compiler head and the checked seed parse all eight unchanged helpers in
+kernel/core/ports.h. The
 scalar IN and OUT forms keep their one-, two-, and four-byte accumulator
 widths and use the 16-bit DX port. The repeated word forms retain their
 read/write buffer and count operands. INSW also retains its memory clobber.
@@ -179,7 +180,7 @@ The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
 header gate is now 154/154 at compiler head.
 
-The checked seed still predates this port-I/O capability. The normal build
+The refreshed checked seed carries this port-I/O capability. The normal build
 remains at 26 CupidC-owned sources and 366,592 deterministic object bytes. It
 emits unchanged kernel/smp/acpi.c and kernel/smp/mp_tables.c with the checked
 seed. Their 5,708-byte and 4,156-byte objects are deterministic and validated.
@@ -367,9 +368,9 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current 1,921,292-byte CupidC image has SHA-256
-ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976
-and comes from revision 6639799ee3da19b077c890223e3340fc5e05e7ba.
+The current 1,946,320-byte CupidC image has SHA-256
+57bea3f86ad601254539d96081473a8309400eedfef46c03e2ad34d0f195351c
+and comes from revision d76f543948621ea04520d019fad9aae670f17f11.
 The harness freezes the verified manifest and binaries and captures 40 current
 inputs, including link.ld. The seed producer trio builds stage two from that
 snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,

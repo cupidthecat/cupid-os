@@ -59,11 +59,12 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00E00000` boot-stack layout.
 
 The checked seed now includes the active CSPRNG assembly, operand-free
-function assembly, per-CPU pointer output, and integer atomic subset. Its
-stage-three CupidC image is 1,921,292 bytes with SHA-256
-`ff8c4aba0c4fc66982343a28356d0f1953503acdb12d76177ed066609e056976`.
+function assembly, per-CPU pointer output, integer atomic subset, and
+width-aware port I/O. Its stage-three CupidC image is 1,946,320 bytes with
+SHA-256
+`57bea3f86ad601254539d96081473a8309400eedfef46c03e2ad34d0f195351c`.
 It came from stage three of the checked bootstrap at revision
-`6639799ee3da19b077c890223e3340fc5e05e7ba`, not from the native compiler
+`d76f543948621ea04520d019fad9aae670f17f11`, not from the native compiler
 candidate. With host compiler and linker commands poisoned, all five seed
 images match stage two. All 19 stage-two C objects, startup, and five images
 then match stage three, and both stages pass all 21 tool behavior cases.
@@ -88,16 +89,15 @@ emission. The normal Make graph owns both through the checked seed. A
 four-vCPU image boots every discovered CPU and completes the normal e1000,
 desktop, terminal, and CupidC runtime smoke.
 
-Compiler head now parses all eight helpers in unchanged
+Compiler head and the checked seed now parse all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
-The checked seed does not contain the port-I/O capability yet. The normal
-image therefore remains at 26 CupidC-owned sources and 366,592 deterministic
-object bytes.
+The normal image remains at the separate 26-source production boundary and
+366,592 deterministic CupidC object bytes.
 
 The normal image now builds 26 kernel sources with that checked CupidC seed:
 all 20 crypto units, ACPI and MP-table discovery, e1000, the desktop shell,
