@@ -8663,3 +8663,89 @@ This step changes compiler head only. The checked i386 Linux seed remains the
 at 26 CupidC-owned sources. A staged seed refresh is required before fetch-or
 can enter the production build. ADR 0107 records the language, IR, and i386
 boundary. Issues #26 and #28 remain open.
+
+## 2026-07-25: Refresh the checked seed for atomic fetch-or
+
+The compiler-head increment in ADR 0107 left one deliberate trust-boundary
+step. The old checked seed could build the new compiler, but it could not
+compile the active EHCI port-change source itself. This increment promotes
+the fixed-point result instead of substituting a hosted compiler binary.
+
+### Transition and promotion
+
+The previous five-tool seed ran the full staged bootstrap against exact
+source revision `10d2412ece22968e03dbe22b048c3d92f210f2ba`. `CC` and
+`LD` named commands that do not exist. The build therefore had no host
+compiler or linker fallback.
+
+The transition rebuilt 19 C objects, startup, and five static tools in stages
+two and three. Every stage pair matched. CupidASM, CupidDis, CupidLD, and
+CupidObj also matched the old seed. CupidC changed, as expected, and its two
+new stages agreed byte for byte. Both stages passed five help cases, ten
+successful operations, and six failure cases.
+
+The 40-input source snapshot has SHA-256
+`e0e5bb3d520c8c1e9354ae359c3e41f891702cd07e57235cd98ae661f8b8bd85`.
+The old-binary transition manifest has SHA-256
+`cf944909bf0795d07b06505526a2750d4c0a773aaaff1972444861db49a69ab0`.
+The 14,860-byte report has SHA-256
+`fab944312b551421f036018c484665f1c48b0c2bd4771fabec8d9fece6bd77ed`.
+The run took 482.612 seconds.
+
+All five stage-three files were promoted:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0` |
+| CupidDis | 366,968 | `67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 1,950,556 | `f4d49d8b870868ccd57aed94eaf7565404ceb10732c79c868e65f9beca5371c8` |
+
+Only CupidC changed bytes, but the manifest binds the five tools as one seed.
+The refreshed manifest names the new revision and stage-three generation
+while retaining the stage-two checked-seed producer lineage, 19-source plan,
+five link orders, two workers, and fixed-point command. Its build-plan
+SHA-256 remains
+`7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0`.
+The 5,421-byte manifest has SHA-256
+`48023cf4198f09cca96bc0db79baa920f67b32bbdb899bd55de48101a79e4c11`.
+
+### Reproof and production probe
+
+A second poisoned-host bootstrap started from the promoted set. All five seed
+images matched stage two. Every stage-two C object, startup object, and linked
+tool then matched stage three, and both stages passed the same 21 behavior
+cases. The source snapshot stayed unchanged. The 14,859-byte report has
+SHA-256
+`6921050a8f91662d4c047c916b2c64b2ae37cd55953bf9038cb1a424d91cc9be`.
+The reproof took 459.883 seconds.
+
+The normal checked-seed wrapper then compiled the complete current
+`kernel/usb/ehci.c` twice. Both 19,408-byte ELF32 objects have SHA-256
+`8e3aad270d63003a48c526a54a99d31022aac1d334a187308add52c875edb971`.
+This is the active source that required atomic fetch-or; no kernel source was
+reduced or rewritten around the older compiler.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Old-seed transition | PASS | The poisoned-host build reaches a 19-object, one-startup, five-image fixed point in 482.612 seconds. Only CupidC differs from the old seed. |
+| Refreshed manifest | PASS | The verifier accepts all five files, their hashes and sizes, static ELF properties, target ABI, source revision, lineage, and unchanged build plan. |
+| Refreshed-seed reproof | PASS | All five seed images equal stage two, stage two equals stage three, and all 21 behavior cases pass in 459.883 seconds. |
+| Active EHCI compile | PASS | The promoted seed emits the full current source twice into identical, validated i386 ELF32 objects. |
+| Checked-seed module | PASS | All 14 verification, tamper, provenance, source-drift, ELF, freeze, and complete-bootstrap tests pass in 521.307 seconds. |
+| Active-source audit | PASS | Seed-only regeneration and an independent check produce 698 active sources, 252 feature IDs, 501 transforms, 39 accounted unreachable files, and source digest `b2a1febea2ec1b7e5e32c3eee2028454734229a3b549472f6bab58f542da06e7`. The JSON SHA-256 is `abdb708c8c77148b10e6ffa7a583c7eae3d1a3d28b600d979d9b8c56a294900a`. |
+| Frontend and inventory suite | PASS | The isolated seed candidate passes all 58 tests in 10.534 seconds against the regenerated lexical inventory. |
+| Build-graph audit suite | PASS | The same isolated candidate passes all 55 generated-output, mutation, ownership, source-drift, and canonical-hash tests in 408.511 seconds. |
+
+No design question was needed. The existing checked-seed lineage and
+stage-three promotion rule determine how this binary moves forward. No failed
+candidate was promoted.
+
+This commit changes a bootstrap input. It does not transfer another
+normal-build object, so production ownership remains at 26 CupidC sources.
+Python orchestration, the WSL bridge on Windows, native contract runners,
+hosted development commands, most kernel C objects, and all user C objects
+remain host dependencies. The port-I/O and USB production cutover still needs
+its complete image and runtime proof. ADR 0108 records this transition.
+Issues #26 and #28 remain open.

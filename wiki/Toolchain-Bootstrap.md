@@ -59,12 +59,12 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00E00000` boot-stack layout.
 
 The checked seed now includes the active CSPRNG assembly, operand-free
-function assembly, per-CPU pointer output, integer atomic subset, and
-width-aware port I/O. Its stage-three CupidC image is 1,946,320 bytes with
+function assembly, per-CPU pointer output, integer atomics through fetch-or, and
+width-aware port I/O. Its stage-three CupidC image is 1,950,556 bytes with
 SHA-256
-`57bea3f86ad601254539d96081473a8309400eedfef46c03e2ad34d0f195351c`.
+`f4d49d8b870868ccd57aed94eaf7565404ceb10732c79c868e65f9beca5371c8`.
 It came from stage three of the checked bootstrap at revision
-`d76f543948621ea04520d019fad9aae670f17f11`, not from the native compiler
+`10d2412ece22968e03dbe22b048c3d92f210f2ba`, not from the native compiler
 candidate. With host compiler and linker commands poisoned, all five seed
 images match stage two. All 19 stage-two C objects, startup, and five images
 then match stage three, and both stages pass all 21 tool behavior cases.
@@ -93,8 +93,8 @@ Compiler head adds `__atomic_fetch_or` at the same one-, two-, and four-byte
 integer widths. It emits a `LOCK CMPXCHG` retry loop because `LOCK OR` cannot
 return the old value. Exact byte and execution checks cover a competing
 update, signed narrow results, guard bytes, one-time operand evaluation, and
-callee-saved EBX. The checked seed still needs a staged refresh before the
-normal build can use this operation.
+callee-saved EBX. The checked stage-three seed now carries this operation and
+compiles the active EHCI path.
 
 Compiler head and the checked seed now parse all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,

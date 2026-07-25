@@ -168,8 +168,8 @@ target predefines in every language mode, while the expressions remain
 GNU-only. A decoded i386 model checks old results, memory changes, narrow
 signedness, wraparound, cdecl state, one-time operand evaluation, and a
 forced competing update. Runtime orders, pointer atomics, HLE flags, and
-eight-byte atomics remain open. The checked seed carries the first four
-operations; fetch-or still needs a staged refresh.
+eight-byte atomics remain open. The checked seed carries all five operations
+and compiles the active EHCI fetch-or path.
 
 Compiler head and the checked seed parse all eight unchanged helpers in
 kernel/core/ports.h. The
@@ -371,9 +371,9 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current 1,946,320-byte CupidC image has SHA-256
-57bea3f86ad601254539d96081473a8309400eedfef46c03e2ad34d0f195351c
-and comes from revision d76f543948621ea04520d019fad9aae670f17f11.
+The current 1,950,556-byte CupidC image has SHA-256
+f4d49d8b870868ccd57aed94eaf7565404ceb10732c79c868e65f9beca5371c8
+and comes from revision 10d2412ece22968e03dbe22b048c3d92f210f2ba.
 The harness freezes the verified manifest and binaries and captures 40 current
 inputs, including link.ld. The seed producer trio builds stage two from that
 snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,

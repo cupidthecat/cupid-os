@@ -87,7 +87,6 @@ The self-host frontier remains valid after the change. CupidC emits
 `cupidc_frontend.c` as 632,095 text bytes in a 749,392-byte object. Repeated
 emission is byte-identical.
 
-This decision changes compiler-head capability. The checked i386 Linux seed
-still needs a staged refresh before the normal build can rely on fetch-or.
-Pointer atomics, eight-byte atomics, runtime memory orders, HLE flags, atomic
+ADR 0108 promotes this compiler into the checked i386 Linux seed. Pointer
+atomics, eight-byte atomics, runtime memory orders, HLE flags, atomic
 variadic reads, and atomic aggregates remain open.

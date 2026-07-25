@@ -222,7 +222,7 @@ The repository runtime supplies the checked file, heap, memory, string, `errno`,
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Both forms accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 1,946,320-byte stage-three output from revision `d76f543948621ea04520d019fad9aae670f17f11`, with SHA-256 `57bea3f86ad601254539d96081473a8309400eedfef46c03e2ad34d0f195351c`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and most normal Cupid OS C objects still come from a host compiler.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 1,950,556-byte stage-three output from revision `10d2412ece22968e03dbe22b048c3d92f210f2ba`, with SHA-256 `f4d49d8b870868ccd57aed94eaf7565404ceb10732c79c868e65f9beca5371c8`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and most normal Cupid OS C objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -267,8 +267,7 @@ expressions remain GNU-only. A decoded i386 oracle checks returned old
 values, memory changes, narrow signedness, wraparound, cdecl state, one-time
 operand evaluation, and a forced competing fetch-or update. Runtime orders,
 pointer atomics, HLE flags, and eight-byte atomics remain outside this slice.
-Fetch-or is present at compiler head; the checked seed still needs the staged
-refresh that makes it available to normal-build objects.
+The checked seed carries fetch-or and compiles the active EHCI path.
 
 Compiler head and the checked seed now parse all eight unchanged helpers in
 `kernel/core/ports.h`. The byte, word, and doubleword IN and OUT forms keep
