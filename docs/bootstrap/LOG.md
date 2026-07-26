@@ -7328,7 +7328,7 @@ is inside the new stack.
 | Publication and drift failures | PASS | Seed or manifest failure, compiler failure, malformed ELF, changed source/header input, and invalid output paths fail without replacing a prior object or exposing a partial frontier. |
 | Host-compiler poisoning | PASS | `make -B -j2 CC=cupid-host-compiler-must-not-run` rebuilds all 16 production objects without invoking the poisoned command. |
 | Normal image build | PASS | The complete two-pass CupidLD link and `cupidos.img` build pass with the CupidC objects. The embedded kernel SHA-256 is `79df88b67e85182a3a778b5f5e47488aaccfdca7e240d6d44501c47d330bea79`, matching `kernel/kernel.bin`. The final image SHA-256 is `c317ed6e6e1944410f9c24d9ad465a394c38343cdbbf03bdac8b6e73946c9cec`. |
-| Layout and loader contracts | PASS | Fifty-eight memory-map, ELF loader/process, and CupidLD tests pass. They cover region sizes and adjacency, the three tracked user executables, stack overlap, and rejection of a former-base image before fixed-memory copy. |
+| Layout and loader contracts | PASS | Fifty-eight memory-map, ELF loader/process, and CupidLD tests pass. They cover region sizes and adjacency, the three generated user executables, stack overlap, and rejection of a former-base image before fixed-memory copy. |
 | Shared validation and cleanup | PASS | The frontier now calls the production ELF validator. Focused negatives reject program headers, missing required sections, and a missing symbol table. Cleanup tests reject `/`, `/tmp`, wrong prefixes, traversal, whitespace, and multiline output while accepting only the dedicated six-character `mktemp` path. |
 | Focused and toolchain contracts | PASS | Ninety-two wrapper, frontier, memory-map, loader/process, and CupidLD tests pass in 34.742 seconds. Five complete audit and provenance tests pass in 285.960 seconds. The real checked-seed frontier passes separately, `make -C toolchain test` passes, and all five checked seed tools verify. |
 | QEMU CupidC runtime | PASS | The rebuilt image reports 40 successful TLS checks, the all-vectors marker, the `0x00C00000..0x00E00000` stack guard, desktop and terminal startup, and two successful `/bin/ls.cc` JIT runs. No CupidC, panic, exception, corruption, overflow, guard, or arena failure appears. The log SHA-256 is `21efa76e7136cbb37a79b07a0d78ec3b65c61dfb7c3dbd416330168af37a8813`. |
@@ -9052,7 +9052,7 @@ The stack remains two MiB, the external arena remains two MiB, CupidC remains
 nine MiB, and CupidASM remains two MiB at its original base. Static assertions
 and focused tests pin alignment, size, adjacency, the linker ceiling, both
 stack setup sites, the user link base, and the CupidC code and data bases.
-The three tracked user executables were rebuilt at `0x00F00000`.
+The three generated user executables were rebuilt at `0x00F00000`.
 
 ### Evidence
 
@@ -9146,10 +9146,26 @@ found that forged public weak metadata could reach IR or emission without an
 external object or function. Both boundaries now reject that state and
 recover cleanly.
 
+Standards review then found that the same section-name policy had three
+implementations and that the record-type attribute rejection appeared twice
+in the frontend. One pure section-name predicate now serves the frontend, IR
+validator, and object emitter, while each boundary keeps its own validation
+call. One frontend helper now owns the four record-type rejections. Direct
+boundary cases cover valid, empty, reserved, relocation-table, null-storage,
+and embedded-NUL names. The full Toolchain suite passes after refreshing the
+source and self-host object locks.
+
+The refreshed IR, emitter, and frontend source snapshots contain 203, 204,
+and 322 functions. Their emitted `.text` sizes are 392,641, 349,802, and
+645,191 bytes; their object sizes are 419,272, 375,736, and 765,588 bytes.
+Their text fingerprints are `b66f2486`, `d2d68b59`, and `675c3720`.
+
 A fresh compiler-head probe compiled 20 of the 38 previously blocked strict
 roots twice. Both runs produced 751,472 byte-identical bytes and valid i386
-ELF32 relocatables. The compiler executable had SHA-256
-`9ee75ff20cf603e934d2f4190861577c8b2a71ce546501b3986fad0d803ff904`.
+ELF32 relocatables. Their ordered source-and-object aggregate has SHA-256
+`867c9e94b716491b4395b5440ea78b392afe108a85ea89d72ecbf79e445d83d5`.
+The compiler executable had SHA-256
+`a814cc5d1107b42d4ef56135c39b12cb2eccb7eb7d0bde1f99600c8b3472e9f2`.
 The roots cover serial and timer state, application launch, IRQ and symbol
 metadata, FAT16, ISO9660, loop devices, deflate, 2D graphics, PNG, the line
 editor, CupidC parsing and strings, SSH I/O, memory, SSHD, UDP, the big kernel
@@ -9176,12 +9192,13 @@ only after the object remains unchanged. The original `.c` files were renamed
 only after these recipes and frontiers established Cupid ownership.
 
 The generated frontier tracks 194 inputs with aggregate SHA-256
-`94b2464d70077fe01d82c494b24df37b1bc1a39068fac460d7836c04aae752f6`.
+`378bb5745606cccb43e9ed6eaddc8cd72569b04e9f3c81124434a4f8f1642d8a`.
 It reproduced all three generated sources and objects twice. The user frontier
 tracks 16 inputs with aggregate SHA-256
-`9b45457c324f8c09456fc0eb8c134f48e5c4febdaaa0321043eec3a774e58f6e`.
+`86bd95ece01110db55366424b4b2907418ba8de1c39d90582a819c9def37f0cc`.
 It reproduced all three objects and executables twice and matched every
-installed build artifact.
+current local build artifact. These outputs are generated under
+`user/build/` and are not tracked.
 
 | User artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -9189,8 +9206,8 @@ installed build artifact.
 | `hello` | 13,992 | `dbef548d246e12a0933b95ec8349a97f542bd8cbecc253efc514b1483fcc9e0f` |
 | `ls.o` | 7,084 | `fe38b3e4fb38b25de29a8ae1bcff29e3f71989feba76cedefe57bc64eadb30f3` |
 | `ls` | 18,112 | `0e9da33927f611442feeff8abd7147829ef9f49e3abec0aeddb59fb8b496c635` |
-| `cat.o` | 6,292 | `d529cb42bd81bd7884f3311db4b0f3b9f92ee68520242da20e972e0896b80879` |
-| `cat` | 13,992 | `fc21f3a989a4535f8e2b4753f170f16682ef31ebc31e856919de238c45a2c789` |
+| `cat.o` | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` |
+| `cat` | 13,992 | `ffa5957fb58f0de81e564b3fbadadf60b7b8bc2beb0c50984cd1d4e9481f9367` |
 
 External `print` calls now write one PID-bound serial marker with the byte
 count and FNV-1a fingerprint. Kernel and JIT callers retain the direct path.
@@ -9198,9 +9215,9 @@ Three separate boots exercised the installed user programs:
 
 | Program | Required guest evidence | Serial log |
 | --- | --- | --- |
-| `hello` | PID 4 loaded at `0x00F00000`, the 27-byte greeting fingerprint, PID and uptime integers, and a PID 4 exit | 22,182 bytes; SHA-256 `71cba310ef8818f0c3b66912b774a2cc2b3fc7e81b5a8fc5355da78ffe2da8f4` |
-| `ls` | PID 4 loaded at `0x00F00000`; fingerprints for `bin`, `home`, `disk`, `docs`, and `demos`; and a PID 4 exit | 23,025 bytes; SHA-256 `d738646ea02388bec71e0216530f0b4ae8de85bc2298b577300eca94450fb558` |
-| `cat` | PID 4 loaded at `0x00F00000`, one 62-byte print with fingerprint `c12ed628`, no PID 999 event, and a PID 4 exit | 21,600 bytes; SHA-256 `5da6ba25e0d5407ad9246843dd2599b203c2176321e99bdc5dfa5638368ae67f` |
+| `hello` | PID 4 loaded at `0x00F00000`, the 27-byte greeting fingerprint, PID and uptime integers, and a PID 4 exit | 22,182 bytes; SHA-256 `7ab03783cb64d5c4ff5d84bc4fe65cb661140bd0d5f45e1e41b6a7dabe500b3d` |
+| `ls` | PID 4 loaded at `0x00F00000`; fingerprints for `bin`, `home`, `disk`, `docs`, and `demos`; and a PID 4 exit | 23,025 bytes; SHA-256 `0463372fa96ecc1101a49b5af55d457eb1390b5cec18ce3c6c14980b401476b1` |
+| `cat` | The private-image setup copy completed, PID 4 loaded at `0x00F00000`, one 62-byte print had fingerprint `c12ed628`, no PID 999 event appeared, PID 4 exited, and the selected image hash stayed unchanged | 50,793 bytes; SHA-256 `fa25eeb4099ca71fc060efe87d4f57308bf8dc88c587385e5591d85a22846388` |
 
 ### Corrections and rejected approaches
 
@@ -9229,8 +9246,24 @@ The first ls pattern expected `/dev` in the root directory, but the live VFS
 walk returns `bin`, `home`, `disk`, `docs`, and `demos`. The failed gate
 recorded the correct program exit and every returned name before the pattern
 was corrected. The first cat fixture used a long FAT filename that Cupid's
-reader did not resolve. The 8.3-safe `/catfix.txt` path reached the same
-marker-shaped contents and completed the intended check.
+reader did not resolve. The 8.3-safe `/catfix.txt` path reached the disk, and
+the runtime driver now uses a private image copy and writes that file over
+`/home/readme.txt` before starting cat. This keeps cat's normal HomeFS
+behavior and the selected image intact while exercising the same
+marker-shaped contents. The selected image kept SHA-256
+`7fd1f53d3fdc8ac866d802ed5a56ce62c863103e11d72b1a9054acd551235467`
+before and after the private run.
+
+The first production handoff committed the three user executables. Review
+found that this conflicted with the repository's generated-output policy.
+`user/build/` is now ignored, the executables are rebuilt before staging, and
+the source, wrapper, and deterministic frontier remain the tracked contract.
+
+Spec review recalculated the generated-table frontier after the Makefile and
+CTXT corrections. Its first recorded aggregate described the earlier input
+closure. The exact 194-input rerun produced
+`378bb5745606cccb43e9ed6eaddc8cd72569b04e9f3c81124434a4f8f1642d8a`
+and reproduced all three generated sources and objects.
 
 The first combined audit run found stale summary locks after the new
 generated and user transforms changed feature and ownership accounting. A
@@ -9263,6 +9296,8 @@ and a contract pins that wording.
 | Fresh isolated Toolchain on Linux GCC | Complete suite passed in 136.4 seconds |
 | Fresh isolated Toolchain on Linux Clang | Complete suite passed in 142.2 seconds |
 | Production wrappers and runtime contracts | 33 tests passed in 43.527 seconds |
+| Review correction suite | 103 production, runtime, freeze, memory-layout, and smoke tests passed in 30.462 seconds |
+| Generated-table frontier | All three sources and objects reproduced across the exact 194-input closure |
 | Checked active-build audit | Reproduced exactly in 52.142 seconds |
 | Guest user programs | Three separate boots passed |
 
@@ -9278,9 +9313,9 @@ transforms, 432 declared artifacts, and 425 linked objects. CupidC owns 122
 transforms, host C owns 175, host Python owns 134, CupidASM owns four,
 CupidDis owns one, CupidLD owns five, and CupidObj owns 182. The active-source
 digest is
-`b4f4628377bb8162df6ecfc036ec76e5e553e874200f57c6b0b87e5e3728db1c`.
+`630319a4b5dde5a519c0a0e4da7ee89ff489b2b7aa6224ddad64fa958588de23`.
 The audit JSON has SHA-256
-`9e62ec3c2acc715c2d641d48293919bd2f912fa4736ec33a7b75369250c211a1`.
+`91bc6ddff7805c08a293edc0d2d5b9d2fe46b89e5636aea1e3cba327387aa68d`.
 
 A read-only CupidDis audit accepted all 428 active i386 ELF32 relocatable
 objects, 41,977 relocations, and 15,182 symbols. All CupidC-owned objects,

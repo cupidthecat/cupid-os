@@ -37,10 +37,12 @@ names. The generated tables retain the strict kernel profile; the examples
 use the closed user profile and are linked by checked-seed CupidLD at
 `0x00F00000`. Their wrappers compile and link immutable input copies,
 validate every ELF result, and publish atomically. Deterministic frontiers
-match every installed object and executable, while poisoned-host recipes
-protect both build roots. Separate guest boots check hello's numeric output,
-ls reading the root directory, cat reading a marker-shaped FAT fixture, and
-a PID-matched process exit.
+match every locally generated object and executable, while poisoned-host
+recipes protect both build roots. `user/build/` is ignored by Git. Separate
+guest boots check hello's numeric output and ls reading the root directory.
+Before cat starts, the gate uses a private image copy and copies a
+marker-shaped FAT fixture over the normal `/home/readme.txt` path. Each boot
+requires a PID-matched process exit.
 
 The checked seed represents the six width-aware scalar port helpers and the
 two repeated word-string helpers in unchanged `kernel/core/ports.h`,

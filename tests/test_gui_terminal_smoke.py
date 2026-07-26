@@ -588,6 +588,98 @@ class GuiTerminalInputTests(unittest.TestCase):
         with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
             gui_terminal_smoke.parse_args(["--key-pause", "0"])
 
+    def test_cli_pairs_setup_commands_with_completion_patterns(self):
+        args = gui_terminal_smoke.parse_args(
+            [
+                "--setup-command",
+                "cp /disk/input /home/output",
+                "--setup-success-pattern",
+                "copy complete",
+            ]
+        )
+
+        self.assertEqual(
+            args.setup_command,
+            ["cp /disk/input /home/output"],
+        )
+        self.assertEqual(args.setup_success_pattern, ["copy complete"])
+
+    def test_cli_accepts_a_private_system_image(self):
+        args = gui_terminal_smoke.parse_args(["--private-image"])
+
+        self.assertTrue(args.private_image)
+
+    def test_private_system_image_preserves_the_selected_image(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "cupidos.img"
+            source.write_bytes(b"original image")
+            private = root / "private"
+            private.mkdir()
+            args = gui_terminal_smoke.parse_args(
+                ["--image", str(source)]
+            )
+
+            copied_args = gui_terminal_smoke.copy_terminal_image(
+                args,
+                private,
+            )
+            copied_args.image.write_bytes(b"guest mutation")
+
+            self.assertEqual(source.read_bytes(), b"original image")
+            self.assertEqual(
+                copied_args.image,
+                private / "cupidos.img",
+            )
+
+    def test_cli_rejects_an_unpaired_setup_command(self):
+        with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            gui_terminal_smoke.parse_args(
+                ["--setup-command", "cp /disk/input /home/output"]
+            )
+
+    def test_terminal_command_requires_a_new_completion_event(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("copy complete\n", encoding="utf-8")
+            process = mock.Mock()
+            monitor = FakeMonitorSocket()
+
+            with (
+                mock.patch(
+                    "tools.gui_terminal_smoke.send_key"
+                ) as send_key,
+                mock.patch(
+                    "tools.gui_terminal_smoke.wait_log_success_count",
+                    return_value=(
+                        True,
+                        "copy complete\ncopy complete\n",
+                    ),
+                ) as wait,
+            ):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    process,
+                    monitor,
+                    log,
+                    "cp",
+                    "copy complete",
+                    12.0,
+                    0.6,
+                )
+
+        self.assertTrue(ok)
+        self.assertEqual(
+            [call.args[1] for call in send_key.call_args_list],
+            ["c", "p", "ret"],
+        )
+        wait.assert_called_once_with(
+            process,
+            log,
+            "copy complete",
+            2,
+            12.0,
+        )
+
     def test_shutdown_requests_qemu_quit_before_process_termination_fallback(self):
         monitor = FakeMonitorSocket()
         process = mock.Mock()

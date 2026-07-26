@@ -510,38 +510,6 @@ static ctool_bool cir_expression_semantic_flags_are_valid(
              : CTOOL_FALSE;
 }
 
-static ctool_bool cir_section_name_is_valid(ctool_string_t name) {
-  static const char relocation_prefix[] = ".rel.";
-  ctool_u32 index;
-  ctool_bool relocation_name = CTOOL_TRUE;
-  if (name.data == (const char *)0 || name.size == 0u ||
-      cir_string_equal(name, ctool_string(".symtab")) == CTOOL_TRUE ||
-      cir_string_equal(name, ctool_string(".strtab")) == CTOOL_TRUE ||
-      cir_string_equal(name, ctool_string(".shstrtab")) == CTOOL_TRUE) {
-    return CTOOL_FALSE;
-  }
-  if (name.size < (ctool_u32)sizeof(relocation_prefix) - 1u) {
-    relocation_name = CTOOL_FALSE;
-  } else {
-    for (index = 0u;
-         index < (ctool_u32)sizeof(relocation_prefix) - 1u; index++) {
-      if (name.data[index] != relocation_prefix[index]) {
-        relocation_name = CTOOL_FALSE;
-        break;
-      }
-    }
-  }
-  if (relocation_name == CTOOL_TRUE) {
-    return CTOOL_FALSE;
-  }
-  for (index = 0u; index < name.size; index++) {
-    if (name.data[index] == '\0') {
-      return CTOOL_FALSE;
-    }
-  }
-  return CTOOL_TRUE;
-}
-
 static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
   const ctool_c_translation_unit_t *unit = context->unit;
   ctool_u32 binding;
@@ -624,7 +592,7 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
         (has_section == CTOOL_TRUE &&
          candidate->file_scope_visible == CTOOL_FALSE) ||
         (has_section == CTOOL_TRUE &&
-         cir_section_name_is_valid(candidate->section_name) ==
+         ctool_c_section_name_is_valid(candidate->section_name) ==
              CTOOL_FALSE) ||
         (unused == CTOOL_TRUE &&
          candidate->type >= unit->graph.type_count) ||

@@ -298,13 +298,16 @@ build also uses checked CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then
 uses checked CupidLD to place each executable in the fixed external arena.
 Both paths freeze their complete source and control inputs, validate the
 resulting ELF files, and publish only complete artifacts. Poisoned-host tests
-prove that neither path can fall back to GCC or Clang.
+prove that neither path can fall back to GCC or Clang. `user/build/` contains
+local generated outputs and is ignored by Git.
 
 The external-program gate boots `hello`, `ls`, and `cat` separately. Serial
 events bind each syscall to the loaded PID and record printable content by
 byte count and FNV-1a fingerprint instead of copying caller text into the log.
-The checks cover numeric output, root-directory reads, a fixed FAT fixture,
-and a matching process exit for every program.
+The checks cover numeric output and root-directory reads. In a private image
+copy, the cat gate copies a fixed FAT fixture over `/home/readme.txt`,
+preserving the program's normal path and the selected image. Every program
+must produce a matching process exit.
 
 Compiler head now carries another source-driven group without changing the
 active source. It emits weak ELF symbols and named sections, records `unused`
@@ -742,7 +745,8 @@ hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_featur
 The `user/` directory has three example ELF32 programs: `hello.cc`, `cat.cc`,
 and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. `make -C user`
 compiles the sources with the checked CupidC seed and links them with the
-checked CupidLD seed.
+checked CupidLD seed. The generated `user/build/` directory is ignored by
+Git, so rebuild the programs before staging them into an image.
 
 External executables must be linked for the current
 `0x00F00000..0x01100000` arena. Binaries linked at an earlier fixed base must

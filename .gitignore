@@ -44,5 +44,6 @@ __pycache__/
 # Runtime, test, and baseline output
 /build/
 /toolchain/build/
+/user/build/
 /debug.log
 /tests/*.log

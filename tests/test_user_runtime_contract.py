@@ -79,6 +79,15 @@ class ExternalUserRuntimeContractTests(unittest.TestCase):
                 f"$(USER_CUPIDC_RUNTIME_{name.upper()}_SUCCESS)",
                 recipe,
             )
+        self.assertIn(
+            '--setup-command "cp /disk/catfix.txt /home/readme.txt"',
+            recipe,
+        )
+        self.assertIn("--private-image", recipe)
+        self.assertIn(
+            "$(USER_CUPIDC_RUNTIME_CAT_SETUP_SUCCESS)",
+            recipe,
+        )
 
         fixture_recipe = " ".join(
             model.rules["sync-user-runtime"].recipe
@@ -96,6 +105,7 @@ class ExternalUserRuntimeContractTests(unittest.TestCase):
         names = (
             "USER_CUPIDC_RUNTIME_HELLO_SUCCESS",
             "USER_CUPIDC_RUNTIME_LS_SUCCESS",
+            "USER_CUPIDC_RUNTIME_CAT_SETUP_SUCCESS",
             "USER_CUPIDC_RUNTIME_CAT_SUCCESS",
         )
         patterns = build_graph_audit._read_evaluated_make_variables(
@@ -180,6 +190,17 @@ class ExternalUserRuntimeContractTests(unittest.TestCase):
                 re.S,
             )
         )
+        cat_setup_log = (
+            "[cupidc] JIT compile: /bin/cp.cc\n"
+            "[cupidc] JIT execution complete\n"
+        )
+        self.assertIsNotNone(
+            re.search(
+                patterns["USER_CUPIDC_RUNTIME_CAT_SETUP_SUCCESS"],
+                cat_setup_log,
+                re.S,
+            )
+        )
 
         ls_source = (REPO_ROOT / "user/examples/ls.cc").read_text(
             encoding="utf-8"
@@ -190,7 +211,7 @@ class ExternalUserRuntimeContractTests(unittest.TestCase):
         self.assertIn("const char *path = shell_get_cwd();", ls_source)
         self.assertNotIn('const char *path = "/disk";', ls_source)
         self.assertIn(
-            'const char *path = "/disk/catfix.txt";',
+            'const char *path = "/home/readme.txt";',
             cat_source,
         )
 

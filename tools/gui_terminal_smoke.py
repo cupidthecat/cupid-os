@@ -876,6 +876,34 @@ def key_name(ch: str) -> str:
     raise ValueError(f"unsupported smoke-test character: {ch!r}")
 
 
+def run_terminal_command(
+    proc: subprocess.Popen,
+    mon: socket.socket,
+    log: Path,
+    command: str,
+    success_pattern: str,
+    timeout: float,
+    key_pause: float,
+) -> tuple[bool, str]:
+    """Type one command and require one new matching serial event."""
+    re.compile(success_pattern, re.S)
+    completed = success_count(read_log(log), success_pattern)
+    for ch in command:
+        send_key(mon, key_name(ch), key_pause)
+    send_key(mon, "ret", key_pause)
+
+    ok, data = wait_log_success_count(
+        proc,
+        log,
+        success_pattern,
+        completed + 1,
+        timeout,
+    )
+    if PANIC_RE.search(data):
+        return False, data
+    return ok and success_count(data, success_pattern) >= completed + 1, data
+
+
 def frontier_failure_marker(data: str) -> str | None:
     """Return the first known frontier failure found in serial output."""
     folded = data.casefold()
@@ -1558,6 +1586,17 @@ def run_frontier_runtime(args: argparse.Namespace) -> int:
         return 2
 
 
+def copy_terminal_image(
+    args: argparse.Namespace,
+    directory: Path,
+) -> argparse.Namespace:
+    """Copy a system image and return arguments that select the copy."""
+    private_args = argparse.Namespace(**vars(args))
+    private_args.image = directory / args.image.name
+    shutil.copy2(args.image, private_args.image)
+    return private_args
+
+
 def run(args: argparse.Namespace) -> int:
     if not args.image.exists():
         print(f"image not found: {args.image}", file=sys.stderr)
@@ -1588,10 +1627,35 @@ def run(args: argparse.Namespace) -> int:
     if args.verify_frontier_runtime:
         return run_frontier_runtime(args)
 
+    for pattern in (
+        args.success_pattern,
+        *args.setup_success_pattern,
+    ):
+        re.compile(pattern, re.S)
+
+    runtime_args = args
+    private_directory: tempfile.TemporaryDirectory[str] | None = None
+    if args.private_image:
+        try:
+            private_directory = tempfile.TemporaryDirectory(
+                prefix="cupid-terminal-smoke-"
+            )
+            runtime_args = copy_terminal_image(
+                args,
+                Path(private_directory.name),
+            )
+        except OSError as error:
+            if private_directory is not None:
+                private_directory.cleanup()
+            print(
+                f"could not prepare private terminal image: {error}",
+                file=sys.stderr,
+            )
+            return 2
+
     monitor_port = free_tcp_port()
-    re.compile(args.success_pattern, re.S)
     proc = subprocess.Popen(
-        qemu_args(args, monitor_port),
+        qemu_args(runtime_args, monitor_port),
         cwd=REPO_ROOT,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT,
@@ -1614,24 +1678,39 @@ def run(args: argparse.Namespace) -> int:
             return 1
 
         time.sleep(0.5)
-        completed = success_count(read_log(args.log), args.success_pattern)
-        for iteration in range(args.repeat):
-            for ch in args.command:
-                send_key(mon, key_name(ch), args.key_pause)
-            send_key(mon, "ret", args.key_pause)
-
-            ok, data = wait_log_success_count(
+        for setup_index, (setup_command, setup_pattern) in enumerate(
+            zip(args.setup_command, args.setup_success_pattern),
+            start=1,
+        ):
+            ok, data = run_terminal_command(
                 proc,
+                mon,
                 args.log,
-                args.success_pattern,
-                completed + 1,
+                setup_command,
+                setup_pattern,
                 args.timeout,
+                args.key_pause,
             )
-            if PANIC_RE.search(data):
-                print("GUI terminal smoke failed: panic detected", file=sys.stderr)
+            if not ok:
+                print(
+                    "GUI terminal smoke failed: setup command did not "
+                    f"complete ({setup_index}/{len(args.setup_command)})",
+                    file=sys.stderr,
+                )
                 print(data[-5000:], file=sys.stderr)
                 return 1
-            if not ok or success_count(data, args.success_pattern) < completed + 1:
+
+        for iteration in range(args.repeat):
+            ok, data = run_terminal_command(
+                proc,
+                mon,
+                args.log,
+                args.command,
+                args.success_pattern,
+                args.timeout,
+                args.key_pause,
+            )
+            if not ok:
                 print(
                     "GUI terminal smoke failed: command did not complete "
                     f"({iteration + 1}/{args.repeat})",
@@ -1639,7 +1718,6 @@ def run(args: argparse.Namespace) -> int:
                 )
                 print(data[-5000:], file=sys.stderr)
                 return 1
-            completed += 1
 
         ok_after, data_after = wait_log(proc, args.log, PANIC_RE.pattern, 5.0)
         if ok_after:
@@ -1661,6 +1739,8 @@ def run(args: argparse.Namespace) -> int:
         return 0
     finally:
         stop_qemu(proc, mon)
+        if private_directory is not None:
+            private_directory.cleanup()
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -1680,6 +1760,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="QEMU CPU model, such as max for optional instruction coverage",
     )
     parser.add_argument("--command", default="ls")
+    parser.add_argument(
+        "--setup-command",
+        action="append",
+        default=[],
+        help="terminal command to run before the measured command",
+    )
+    parser.add_argument(
+        "--setup-success-pattern",
+        action="append",
+        default=[],
+        help="serial expression proving the matching setup command completed",
+    )
+    parser.add_argument(
+        "--private-image",
+        action="store_true",
+        help="run against a temporary copy of the system image",
+    )
     parser.add_argument(
         "--repeat",
         type=positive_count,
@@ -1720,7 +1817,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="FAT16 USB image attached to EHCI by the frontier contract",
     )
     parser.add_argument("--timeout", type=float, default=45.0)
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if len(args.setup_command) != len(args.setup_success_pattern):
+        parser.error(
+            "each --setup-command needs one --setup-success-pattern"
+        )
+    return args
 
 
 def main(argv: list[str]) -> int:

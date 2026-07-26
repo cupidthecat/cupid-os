@@ -138,6 +138,9 @@ stops publication.
 Build and check all three examples:
   make test-user-cupidc-frontier
 
+The local user/build directory is generated and ignored by Git. Rebuild the
+programs before staging an image.
+
 Stage them into the active image:
   make sync-user
 
@@ -152,12 +155,14 @@ overlap.
 Programs linked at an earlier fixed base must be rebuilt.
 
 The runtime gate boots and executes hello, ls, and cat separately. It checks
-hello's greeting and numeric output, confirms that ls reads the shell's root
-directory, and gives cat a fixed /disk/catfix.txt fixture. That fixture
-contains text shaped like a serial marker. External print calls record only
-their PID, byte count, and FNV-1a fingerprint, so file contents cannot forge
-a passing event. Every run must finish with an exit marker and process exit
-for the PID that the loader assigned.
+hello's greeting and numeric output and confirms that ls reads the shell's
+root directory. In a private image copy, the cat gate copies a fixed
+/disk/catfix.txt fixture over /home/readme.txt. Cat keeps its normal HomeFS
+path, the selected image stays unchanged, and the fixture supplies text
+shaped like a serial marker. External print calls record only their PID, byte
+count, and FNV-1a fingerprint, so file contents cannot forge a passing event.
+Every run must finish with an exit marker and process exit for the PID that
+the loader assigned.
 
 A separate lease gate starts the same external program twice at 0x00F00000.
 The first process exits and releases the arena before the second process

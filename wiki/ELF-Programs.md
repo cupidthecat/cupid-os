@@ -517,7 +517,7 @@ void _start(cupid_syscall_table_t *sys) {
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);
 
-    const char *path = "/disk/catfix.txt";
+    const char *path = "/home/readme.txt";
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
@@ -555,6 +555,9 @@ make
 python tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 \
     user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
 ```
+
+`user/build/` contains generated files and is ignored by Git. Rebuild the
+programs before staging them instead of committing local executables.
 
 On an already-booted image these staged files are visible under `/disk`; copy
 them into `/home` in the guest if persistent homefs placement is required.

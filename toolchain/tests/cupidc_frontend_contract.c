@@ -3011,6 +3011,7 @@ cleanup:
 }
 
 static int run_section_attributes(const char *host_root) {
+  static const char embedded_section_name[] = ".bad\0name";
   static const char source[] =
       "extern int boot_count;\n"
       "int boot_count __attribute__((section(\".boot.data\"))) = 7;\n"
@@ -3099,6 +3100,28 @@ static int run_section_attributes(const char *host_root) {
   const ctool_c_binding_t *ordinary_section;
   ctool_u32 failure_index;
   int failed = 1;
+
+  if (ctool_c_section_name_is_valid(ctool_string(".text.start")) ==
+          CTOOL_FALSE ||
+      ctool_c_section_name_is_valid(ctool_string(".rela.text")) ==
+          CTOOL_FALSE ||
+      ctool_c_section_name_is_valid(ctool_string(".rel")) == CTOOL_FALSE ||
+      ctool_c_section_name_is_valid(ctool_string("")) == CTOOL_TRUE ||
+      ctool_c_section_name_is_valid(
+          (ctool_string_t){NULL, 1u}) == CTOOL_TRUE ||
+      ctool_c_section_name_is_valid(ctool_string(".symtab")) == CTOOL_TRUE ||
+      ctool_c_section_name_is_valid(ctool_string(".strtab")) == CTOOL_TRUE ||
+      ctool_c_section_name_is_valid(ctool_string(".shstrtab")) ==
+          CTOOL_TRUE ||
+      ctool_c_section_name_is_valid(ctool_string(".rel.bad")) == CTOOL_TRUE ||
+      ctool_c_section_name_is_valid(
+          (ctool_string_t){
+              embedded_section_name,
+              (ctool_u32)sizeof(embedded_section_name) - 1u}) == CTOOL_TRUE) {
+    (void)fprintf(stderr,
+                  "section-attributes: shared name policy differs\n");
+    return 1;
+  }
 
   if (begin_frontend_fixture(&fixture, "section-attributes", host_root,
                              2u * 1024u * 1024u) != 0) {
@@ -7185,12 +7208,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 204u, 6243u,
-       55889u, 793u, 289u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 205u, 5578u,
-       47499u, 669u, 343u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 321u,
-       13100u, 85828u, 1924u, 1279u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 203u, 6215u,
+       55760u, 790u, 287u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 204u, 5550u,
+       47370u, 666u, 341u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 322u,
+       13098u, 85809u, 1924u, 1279u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,

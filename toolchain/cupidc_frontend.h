@@ -99,6 +99,10 @@ typedef struct {
   ctool_c_pp_location_t physical_location;
 } ctool_c_parameter_t;
 
+/* A valid source-selected ELF section name is nonempty, contains no NUL,
+ * and does not claim a symbol, string, section-name, or relocation table. */
+ctool_bool ctool_c_section_name_is_valid(ctool_string_t name);
+
 typedef struct {
   ctool_string_t name;
   ctool_c_binding_kind_t kind;

@@ -2,7 +2,7 @@
  * cat.cc - Cupid OS ELF file display program.
  *
  * The kernel does not pass command-line arguments yet, so this example reads
- * the fixed runtime fixture staged beside the checked executables.
+ * the default HomeFS readme.
  * user/Makefile compiles and links it with the checked CupidC and CupidLD
  * seeds.
  */
@@ -12,7 +12,7 @@
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);
 
-    const char *path = "/disk/catfix.txt";
+    const char *path = "/home/readme.txt";
 
     cupid_stat_t st;
     if (stat(path, &st) < 0) {

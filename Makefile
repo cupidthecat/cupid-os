@@ -1310,6 +1310,7 @@ USER_CUPIDC_RUNTIME_LS_LOG ?= tests/user-cupidc-runtime-ls.log
 USER_CUPIDC_RUNTIME_CAT_LOG ?= tests/user-cupidc-runtime-cat.log
 USER_CUPIDC_RUNTIME_HELLO_SUCCESS := \[shell_exec_cmd\] prog='/disk/hello' rpath='/disk/hello' args=''.*?\[elf\] Loaded /disk/hello as PID (?P<hello_pid>[1-9][0-9]*) \(ELF32, [1-9][0-9]* bytes at 0x(?:0x)?00f00000\).*?\[elf-syscall\] pid=(?P=hello_pid) op=print bytes=27 fnv1a=0x6d2edfa6[\r\n]+.*?\[elf-syscall\] pid=(?P=hello_pid) op=print_int value=(?P=hello_pid)[\r\n]+.*?\[elf-syscall\] pid=(?P=hello_pid) op=print_int value=[1-9][0-9]*[\r\n]+.*?\[elf-syscall\] pid=(?P=hello_pid) op=exit[\r\n]+.*?\[PROCESS\] PID (?P=hello_pid) .*/disk/hello.* exiting
 USER_CUPIDC_RUNTIME_LS_SUCCESS := \[shell_exec_cmd\] prog='/disk/ls' rpath='/disk/ls' args=''.*?\[elf\] Loaded /disk/ls as PID (?P<ls_pid>[1-9][0-9]*) \(ELF32, [1-9][0-9]* bytes at 0x(?:0x)?00f00000\)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=3 fnv1a=0x5acad8be[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=4 fnv1a=0xd2c8c28e[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=5 fnv1a=0xbd9adb9f[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=4 fnv1a=0x456040a4[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=4 fnv1a=0x28eb34d2[\r\n]+).*?\[elf-syscall\] pid=(?P=ls_pid) op=exit[\r\n]+.*?\[PROCESS\] PID (?P=ls_pid) .*/disk/ls.* exiting
+USER_CUPIDC_RUNTIME_CAT_SETUP_SUCCESS := \[cupidc\] JIT compile: /bin/cp\.cc.*?\[cupidc\] JIT execution complete
 USER_CUPIDC_RUNTIME_CAT_SUCCESS := \A(?!.*\[elf-syscall\] pid=999 op=exit[\r\n]+).*?\[shell_exec_cmd\] prog='/disk/cat' rpath='/disk/cat' args=''.*?\[elf\] Loaded /disk/cat as PID (?P<cat_pid>[1-9][0-9]*) \(ELF32, [1-9][0-9]* bytes at 0x(?:0x)?00f00000\).*?\[elf-syscall\] pid=(?P=cat_pid) op=print bytes=62 fnv1a=0xc12ed628[\r\n]+.*?\[elf-syscall\] pid=(?P=cat_pid) op=exit[\r\n]+.*?\[PROCESS\] PID (?P=cat_pid) .*/disk/cat.* exiting
 USER_CUPIDC_RUNTIME_SUCCESS := $(USER_CUPIDC_RUNTIME_HELLO_SUCCESS)
 
@@ -1324,6 +1325,9 @@ test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
 		--success-pattern "$(USER_CUPIDC_RUNTIME_LS_SUCCESS)" --timeout 90
 	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \
 		--image $(OS_IMAGE) --log $(USER_CUPIDC_RUNTIME_CAT_LOG) \
+		--private-image \
+		--setup-command "cp /disk/catfix.txt /home/readme.txt" \
+		--setup-success-pattern "$(USER_CUPIDC_RUNTIME_CAT_SETUP_SUCCESS)" \
 		--command "exec /disk/cat" --repeat 1 --key-pause 0.60 \
 		--success-pattern "$(USER_CUPIDC_RUNTIME_CAT_SUCCESS)" --timeout 90
 

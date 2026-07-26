@@ -61,15 +61,18 @@ profile, and a checked CupidLD wrapper links them into the two-MiB external
 arena. Both wrappers freeze their source and control inputs, validate ELF
 output, and replace an artifact only after the full operation succeeds.
 Deterministic frontiers repeat all six builds, while poisoned-host tests rule
-out a silent compiler or linker fallback.
+out a silent compiler or linker fallback. The local `user/build/` directory
+is generated and ignored by Git.
 
 The external syscall table records `print`, `print_int`, and `exit` events
 with the running PID before using the normal console or process path. A print
 event carries only its byte count and FNV-1a fingerprint, so newline or
 marker-shaped caller text cannot create a second serial event. Kernel and JIT
 callers still use their existing paths. Separate hello, ls, and cat boots
-check numeric output, a root-directory read, a fixed FAT fixture, and
-PID-matched process completion.
+check numeric output and a root-directory read. In a private image copy, the
+cat boot copies a fixed FAT fixture over `/home/readme.txt` before launch, so
+the program keeps its normal HomeFS path and the selected image stays
+unchanged. Every boot requires PID-matched process completion.
 
 The larger unoptimized objects needed more kernel address space. The kernel
 ceiling is now `0x00D00000`; the full two-MiB stack occupies

@@ -133,7 +133,7 @@ The ramfs program table, homefs document table, and CupidASM demo table generate
 _Avoid_: every generated C file, Python-free generation, kernel source cohort
 
 **Production external-program cohort**:
-The `hello.cc`, `ls.cc`, and `cat.cc` examples compiled by checked-seed CupidC and linked by checked-seed CupidLD. The build fixes the freestanding user profile, `_start`, and the `[0x00F00000, 0x01100000)` arena, then validates the same ELF program-header rules enforced by the kernel loader. Its guest gate boots each program separately, binds syscall evidence to the loaded PID, checks output by byte count and FNV-1a fingerprint, and requires the same PID to exit cleanly.
+The `hello.cc`, `ls.cc`, and `cat.cc` examples compiled by checked-seed CupidC and linked by checked-seed CupidLD. The build fixes the freestanding user profile, `_start`, and the `[0x00F00000, 0x01100000)` arena, then validates the same ELF program-header rules enforced by the kernel loader. `user/build/` contains ignored local outputs. The guest gate boots each program separately, binds syscall evidence to the loaded PID, checks output by byte count and FNV-1a fingerprint, copies the hostile cat fixture over the normal `/home/readme.txt` path in a private image copy, and requires the same PID to exit cleanly.
 _Avoid_: every external program, hosted GCC examples, user-mode isolation
 
 **Hosted i386 ABI profile**:

@@ -4083,6 +4083,35 @@ static const ctool_c_pp_token_t *cfront_first_attribute_token(
   return attributes->section_token;
 }
 
+static ctool_status_t cfront_validate_record_attributes(
+    cfront_context_t *context, const cfront_attributes_t *attributes) {
+  if (attributes->noreturn == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->noreturn_token,
+        "noreturn attribute cannot apply to a record type");
+  }
+  if (attributes->weak == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->weak_token,
+        "weak attribute cannot apply to a record type");
+  }
+  if (attributes->has_section == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->section_token,
+        "section attribute cannot apply to a record type");
+  }
+  if (attributes->unused == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->unused_token,
+        "unused attribute cannot apply to a record type");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_attribute_expected(
     cfront_context_t *context, const char *spelling, const char *message) {
   if (cfront_peek_is(context, spelling) == CTOOL_FALSE) {
@@ -4094,15 +4123,15 @@ static ctool_status_t cfront_attribute_expected(
   return CTOOL_OK;
 }
 
-static ctool_bool cfront_section_name_forbidden(ctool_string_t name) {
+ctool_bool ctool_c_section_name_is_valid(ctool_string_t name) {
   static const char relocation_prefix[] = ".rel.";
   ctool_u32 index;
   ctool_bool relocation_name = CTOOL_TRUE;
-  if (name.size == 0u ||
+  if (name.data == (const char *)0 || name.size == 0u ||
       cfront_string_equal(name, ctool_string(".symtab")) == CTOOL_TRUE ||
       cfront_string_equal(name, ctool_string(".strtab")) == CTOOL_TRUE ||
       cfront_string_equal(name, ctool_string(".shstrtab")) == CTOOL_TRUE) {
-    return CTOOL_TRUE;
+    return CTOOL_FALSE;
   }
   if (name.size < (ctool_u32)sizeof(relocation_prefix) - 1u) {
     relocation_name = CTOOL_FALSE;
@@ -4116,14 +4145,14 @@ static ctool_bool cfront_section_name_forbidden(ctool_string_t name) {
     }
   }
   if (relocation_name == CTOOL_TRUE) {
-    return CTOOL_TRUE;
+    return CTOOL_FALSE;
   }
   for (index = 0u; index < name.size; index++) {
     if (name.data[index] == '\0') {
-      return CTOOL_TRUE;
+      return CTOOL_FALSE;
     }
   }
-  return CTOOL_FALSE;
+  return CTOOL_TRUE;
 }
 
 static ctool_status_t cfront_parse_section_attribute(
@@ -4170,7 +4199,7 @@ static ctool_status_t cfront_parse_section_attribute(
   }
   section_name.data = (const char *)decoded.data;
   section_name.size = decoded.size - 1u;
-  if (cfront_section_name_forbidden(section_name) == CTOOL_TRUE) {
+  if (ctool_c_section_name_is_valid(section_name) == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, argument,
         "section attribute names an empty or reserved ELF section");
@@ -4647,29 +4676,9 @@ static ctool_status_t cfront_record_type_body(
       type = existing_tag.type;
     }
   }
-  if (record_attributes.noreturn == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-        record_attributes.noreturn_token,
-        "noreturn attribute cannot apply to a record type");
-  }
-  if (record_attributes.weak == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-        record_attributes.weak_token,
-        "weak attribute cannot apply to a record type");
-  }
-  if (record_attributes.has_section == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-        record_attributes.section_token,
-        "section attribute cannot apply to a record type");
-  }
-  if (record_attributes.unused == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-        record_attributes.unused_token,
-        "unused attribute cannot apply to a record type");
+  status = cfront_validate_record_attributes(context, &record_attributes);
+  if (status != CTOOL_OK) {
+    return status;
   }
   if (cfront_peek_is(context, "{") == CTOOL_FALSE) {
     if (name.size == 0u) {
@@ -4749,29 +4758,9 @@ static ctool_status_t cfront_record_type_body(
     if (status != CTOOL_OK) {
       return status;
     }
-    if (record_attributes.noreturn == CTOOL_TRUE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-          record_attributes.noreturn_token,
-          "noreturn attribute cannot apply to a record type");
-    }
-    if (record_attributes.weak == CTOOL_TRUE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-          record_attributes.weak_token,
-          "weak attribute cannot apply to a record type");
-    }
-    if (record_attributes.has_section == CTOOL_TRUE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-          record_attributes.section_token,
-          "section attribute cannot apply to a record type");
-    }
-    if (record_attributes.unused == CTOOL_TRUE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
-          record_attributes.unused_token,
-          "unused attribute cannot apply to a record type");
+    status = cfront_validate_record_attributes(context, &record_attributes);
+    if (status != CTOOL_OK) {
+      return status;
     }
     first_member = context->members.count;
     while (member_head != CFRONT_NONE) {

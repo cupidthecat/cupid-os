@@ -1,5 +1,7 @@
 import re
+import shutil
 import struct
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -109,7 +111,29 @@ class MemoryLayoutContractTests(unittest.TestCase):
             self.assertIsNotNone(rule, target)
             self.assertIn("kernel/mm/memory.h", rule.group(1))
 
-    def test_tracked_user_executables_use_the_current_external_arena(self):
+    def test_generated_user_executables_use_the_current_external_arena(self):
+        outputs = [
+            REPO_ROOT / "user/build" / name
+            for name in ("hello", "ls", "cat")
+        ]
+        if not all(path.is_file() for path in outputs):
+            make = shutil.which("make")
+            self.assertIsNotNone(make, "GNU Make is required")
+            result = subprocess.run(
+                [make, "-C", "user", "all"],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=180,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=(result.stderr + result.stdout)[-4000:],
+            )
+
+        ignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("/user/build/", ignore.splitlines())
         for name in ("hello", "ls", "cat"):
             with self.subTest(program=name):
                 image = (REPO_ROOT / "user/build" / name).read_bytes()

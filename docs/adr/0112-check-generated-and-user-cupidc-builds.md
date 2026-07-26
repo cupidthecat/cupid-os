@@ -52,6 +52,11 @@ the literal `user/build/` directory was rejected because it broke the
 intentional `BUILD` override and the two temporary frontier runs without
 adding source authority.
 
+The default `user/build/` directory is generated and ignored by Git. The
+frontier rebuilds these files before comparison, and image staging consumes
+the local results. Ordinary commits carry the sources, wrappers, tests, and
+evidence, not the executables.
+
 The external syscall table records `print`, `print_int`, and `exit` events
 with the current PID. A print event carries its byte count and FNV-1a
 fingerprint instead of caller text, then calls the existing console function.
@@ -76,16 +81,16 @@ executables, loader-rule parity, installed-artifact comparison, checked Make
 bindings, and PID-bound runtime-log requirements.
 
 The generated-table frontier tracks 194 inputs with aggregate SHA-256
-`94b2464d70077fe01d82c494b24df37b1bc1a39068fac460d7836c04aae752f6`.
+`378bb5745606cccb43e9ed6eaddc8cd72569b04e9f3c81124434a4f8f1642d8a`.
 It reproduced all three sources and objects byte for byte. The user frontier
 tracks 16 inputs with aggregate SHA-256
-`9b45457c324f8c09456fc0eb8c134f48e5c4febdaaa0321043eec3a774e58f6e`.
+`86bd95ece01110db55366424b4b2907418ba8de1c39d90582a819c9def37f0cc`.
 It reproduced all three objects and executables byte for byte and matched
-every installed artifact. The checked executables have SHA-256
+every current local artifact. The checked executables have SHA-256
 `dbef548d246e12a0933b95ec8349a97f542bd8cbecc253efc514b1483fcc9e0f`
 for hello, `0e9da33927f611442feeff8abd7147829ef9f49e3abec0aeddb59fb8b496c635`
 for ls, and
-`fc21f3a989a4535f8e2b4753f170f16682ef31ebc31e856919de238c45a2c789`
+`ffa5957fb58f0de81e564b3fbadadf60b7b8bc2beb0c50984cd1d4e9481f9367`
 for cat.
 
 The normal image build completed with `_loaded_end = 0x007FB2E3` and
@@ -99,17 +104,22 @@ Three independent guest boots loaded hello, ls, and cat at `0x00F00000` as
 PID 4. Hello emitted the exact greeting fingerprint plus PID and uptime
 integers. Ls emitted fingerprints for `bin`, `home`, `disk`, `docs`, and
 `demos`. Cat emitted one 62-byte print with FNV-1a `c12ed628` for the hostile
-fixture, produced no PID 999 event, and exited as PID 4. Their serial logs have
-SHA-256 `71cba310ef8818f0c3b66912b774a2cc2b3fc7e81b5a8fc5355da78ffe2da8f4`,
-`d738646ea02388bec71e0216530f0b4ae8de85bc2298b577300eca94450fb558`, and
-`5da6ba25e0d5407ad9246843dd2599b203c2176321e99bdc5dfa5638368ae67f`.
+fixture, produced no PID 999 event, and exited as PID 4. In a private image
+copy, the cat session first compiled and ran
+`cp /disk/catfix.txt /home/readme.txt`. This kept the program's normal HomeFS
+path intact. The selected image kept SHA-256
+`7fd1f53d3fdc8ac866d802ed5a56ce62c863103e11d72b1a9054acd551235467`
+before and after the session. Their serial logs have SHA-256
+`7ab03783cb64d5c4ff5d84bc4fe65cb661140bd0d5f45e1e41b6a7dabe500b3d`,
+`0463372fa96ecc1101a49b5af55d457eb1390b5cec18ce3c6c14980b401476b1`, and
+`fa25eeb4099ca71fc060efe87d4f57308bf8dc88c587385e5591d85a22846388`.
 
 The regenerated active graph contains 698 sources, 253 feature IDs, and 500
 transforms. CupidC owns 122 transforms, the host C compiler owns 175, and host
 Python owns 134. Its active-source digest is
-`b4f4628377bb8162df6ecfc036ec76e5e553e874200f57c6b0b87e5e3728db1c`;
+`630319a4b5dde5a519c0a0e4da7ee89ff489b2b7aa6224ddad64fa958588de23`;
 the JSON has SHA-256
-`9e62ec3c2acc715c2d641d48293919bd2f912fa4736ec33a7b75369250c211a1`.
+`91bc6ddff7805c08a293edc0d2d5b9d2fe46b89e5636aea1e3cba327387aa68d`.
 
 Python remains the generator and checked-seed launcher. Windows still uses
 WSL to run the static i386 seeds. The six ownership transfers remove host C

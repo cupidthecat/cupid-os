@@ -92,9 +92,28 @@ The compiler-head probe compiled these 20 unchanged roots twice:
 `kernel/lang/ssh_io.c`, `kernel/mm/memory.c`, `kernel/network/sshd.c`,
 `kernel/network/udp.c`, `kernel/smp/bkl.c`, and
 `kernel/tls/tls_ca_bundle.c`. Both runs produced the same 751,472 bytes of
-validated i386 ELF32 objects. The compiler executable used by the probe has
+validated i386 ELF32 objects. The ordered source-and-object aggregate has
 SHA-256
-`9ee75ff20cf603e934d2f4190861577c8b2a71ce546501b3986fad0d803ff904`.
+`867c9e94b716491b4395b5440ea78b392afe108a85ea89d72ecbf79e445d83d5`.
+The compiler executable used by the probe has SHA-256
+`a814cc5d1107b42d4ef56135c39b12cb2eccb7eb7d0bde1f99600c8b3472e9f2`.
+
+Review found two repeated validation rules. The frontend, IR validator, and
+object emitter had separate copies of the source-selected ELF section-name
+policy. One pure predicate now owns that policy, while all three boundaries
+still validate their own input. The frontend also uses one helper for the
+four attributes that cannot apply to a record type. Direct tests cover valid,
+empty, reserved, relocation-table, null-storage, and embedded-NUL section
+names. Existing positive and negative attribute cases preserve the exact
+diagnostics.
+
+The refactor changed the compiler's own source and object snapshots without
+changing the 20-root output above. The refreshed source-shape locks for IR,
+emission, and frontend contain 203, 204, and 322 functions. Their emitted
+`.text` sizes are 392,641, 349,802, and 645,191 bytes; their complete object
+sizes are 419,272, 375,736, and 765,588 bytes. The corresponding text
+fingerprints are `b66f2486`, `d2d68b59`, and `675c3720`. The complete
+Toolchain contract suite passes with these locks.
 
 This decision accepts the compiler-head behavior, not a seed promotion.
 Production ownership stays at the checked-seed boundary until a committed
