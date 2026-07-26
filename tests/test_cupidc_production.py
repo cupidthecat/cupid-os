@@ -822,10 +822,19 @@ class ProductionBuildContractTests(unittest.TestCase):
             tuple(sorted(generator_inputs["demos"])),
         )
 
-    def test_poisoned_host_compiler_cannot_break_user_build(self):
+    def test_poisoned_host_code_generators_cannot_break_user_build(self):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
+        poisons = {
+            "CC": "host-cc-must-not-run",
+            "CXX": "host-cxx-must-not-run",
+            "LD": "host-ld-must-not-run",
+            "AS": "host-as-must-not-run",
+            "NASM": "host-nasm-must-not-run",
+            "NM": "host-nm-must-not-run",
+            "OBJCOPY": "host-objcopy-must-not-run",
+        }
         with tempfile.TemporaryDirectory(
             prefix=".poison-user-build-",
             dir=REPO_ROOT / "user",
@@ -838,7 +847,7 @@ class ProductionBuildContractTests(unittest.TestCase):
                     "user",
                     "-B",
                     f"BUILD={build}",
-                    "CC=host-compiler-must-not-run",
+                    *(f"{name}={value}" for name, value in poisons.items()),
                     "all",
                 ],
                 cwd=REPO_ROOT,
@@ -851,7 +860,9 @@ class ProductionBuildContractTests(unittest.TestCase):
             0,
             msg=(result.stderr + result.stdout)[-4000:],
         )
-        self.assertNotIn("host-compiler-must-not-run", result.stdout)
+        output = result.stdout + result.stderr
+        for poison in poisons.values():
+            self.assertNotIn(poison, output)
 
     def test_poisoned_host_compiler_cannot_break_generated_objects(self):
         make = shutil.which("make")

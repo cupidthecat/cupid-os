@@ -145,6 +145,19 @@ void _start(cupid_syscall_table_t *sys) {
 
 Calls through the table do not require a privilege-mode switch, and the table exposes kernel services directly.
 
+The current table ABI is version 5. It has 103 four-byte fields and occupies
+412 bytes on i386. The first two fields carry the version and table size; the
+remaining 101 fields are kernel function pointers.
+
+The public scalar types follow the i386 data model: `uint8_t` is one byte,
+`uint16_t` is two bytes, and `uint32_t`, `int32_t`, and `size_t` are four
+bytes. `size_t` is unsigned and `int32_t` is signed.
+
+VFS names may use 128 bytes and paths may use 512 bytes. A
+`cupid_dirent_t` occupies 136 bytes: `name` starts at byte 0, `size` at byte
+128, and `type` at byte 132. A `cupid_stat_t` occupies 8 bytes, with `size`
+at byte 0 and `type` at byte 4.
+
 ---
 
 ## Compiling Programs

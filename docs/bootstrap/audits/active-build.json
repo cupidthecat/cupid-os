@@ -19469,7 +19469,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2887
+      "occurrences": 2888
     },
     {
       "category": "preprocessor",
@@ -25350,7 +25350,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "50a653c3ac9353c322d8c39044d4653a092f0e713b14535c4410b8b49558ca9e",
+    "active_source_digest": "b9e57e98690ac2763480b3ab1698cad014792397c893154f6fc9a601712badd2",
     "control_files": [
       {
         "path": "Makefile",
@@ -25358,7 +25358,7 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "3de3a0a16fc1791667cc313ee3046b3ac1e3238536c1c5b98def804db0287b29"
+        "sha256": "3bd7600d98ce286308fba493413a0b6f48d537b49866c7b205b6b51a339dcaf0"
       },
       {
         "path": "toolchain/Makefile",
@@ -25386,7 +25386,7 @@
       },
       {
         "path": "tools/cupidc_production_frontier.py",
-        "sha256": "48b2f14288fc3629dd8160cfa031ac5d0e5dc9a08f4931b026f4f4cfc7bb5216"
+        "sha256": "25e73ec73ce83be2b16fc0aa21cf3453132831ea36b7cf3b970d6d76783e125b"
       },
       {
         "path": "tools/cupidld_user_link.py",
@@ -25395,7 +25395,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "f2e202b74f435f355c08603634589a9bc76d893fc1e9b9aa110dcf7c2ea82089"
+      "sha256": "5ac6449e4b28b8695e5d3a4739356f41cbd3812e7b210475387e3c5e33816cb9"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -32655,7 +32655,8 @@
         "host_python"
       ],
       "builds": [
-        "."
+        ".",
+        "user"
       ],
       "cohort": "kernel_core",
       "features": [
@@ -32719,7 +32720,8 @@
         "host_python"
       ],
       "builds": [
-        "."
+        ".",
+        "user"
       ],
       "cohort": "kernel_core",
       "features": [
@@ -32754,7 +32756,8 @@
         "host_python"
       ],
       "builds": [
-        "."
+        ".",
+        "user"
       ],
       "cohort": "kernel_core",
       "features": [
@@ -42114,7 +42117,8 @@
         "host_python"
       ],
       "builds": [
-        "."
+        ".",
+        "user"
       ],
       "cohort": "kernel_fs",
       "features": [
@@ -46626,7 +46630,8 @@
         "host_python"
       ],
       "builds": [
-        "."
+        ".",
+        "user"
       ],
       "cohort": "kernel_network",
       "features": [
@@ -50609,12 +50614,12 @@
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 357,
+      "lines": 360,
       "origin": "tracked",
       "path": "user/cupid.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "df95eb3bad36d4f3e27a882a87d0969ac3009b70588884c1ef69ab3b8e21cf91"
+      "sha256": "9a51d3ef17bb6b4c5cfeeb45c31eceb0074fa7f482558db44b0e29dc73f7a511"
     },
     {
       "build_owners": [
@@ -50708,7 +50713,7 @@
   "summary": {
     "active_sources": 698,
     "features": 253,
-    "transforms": 500,
+    "transforms": 501,
     "unreachable_sources": 42
   },
   "supplemental_builds": [
@@ -50768,7 +50773,8 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/build"
+            "user/build",
+            "user/test-syscall-abi"
           ],
           "operation": "compile_c_to_elf32_object",
           "output": "user/build/cat.o",
@@ -50819,7 +50825,8 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/build"
+            "user/build",
+            "user/test-syscall-abi"
           ],
           "operation": "compile_c_to_elf32_object",
           "output": "user/build/hello.o",
@@ -50870,7 +50877,8 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/build"
+            "user/build",
+            "user/test-syscall-abi"
           ],
           "operation": "compile_c_to_elf32_object",
           "output": "user/build/ls.o",
@@ -50879,6 +50887,26 @@
           ],
           "tools": [
             "cupid_c_compiler",
+            "host_python"
+          ]
+        },
+        {
+          "inputs": [
+            "tools/user_syscall_abi.py",
+            "kernel/core/types.h",
+            "kernel/core/syscall.h",
+            "kernel/core/syscall.cc",
+            "kernel/fs/vfs.h",
+            "kernel/network/socket.h",
+            "user/cupid.h",
+            "user/Makefile"
+          ],
+          "operation": "verify_user_syscall_abi",
+          "output": "user/test-syscall-abi",
+          "recipe": [
+            "$(USER_SYSCALL_ABI)"
+          ],
+          "tools": [
             "host_python"
           ]
         }

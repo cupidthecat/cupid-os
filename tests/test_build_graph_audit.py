@@ -74,6 +74,77 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_user_syscall_abi_verifier_is_a_first_class_transform(self):
+        module = _load_audit_module()
+        local_inputs = [
+            "../tools/user_syscall_abi.py",
+            "../kernel/core/types.h",
+            "../kernel/core/syscall.h",
+            "../kernel/core/syscall.cc",
+            "../kernel/fs/vfs.h",
+            "../kernel/network/socket.h",
+            "cupid.h",
+            "Makefile",
+        ]
+        transform = module._build_transforms(
+            "user",
+            {"test-syscall-abi"},
+            {
+                "test-syscall-abi": module.MakeRule(
+                    prerequisites=local_inputs,
+                    recipe=["$(USER_SYSCALL_ABI)"],
+                )
+            },
+        )[0]
+
+        self.assertEqual(transform["output"], "user/test-syscall-abi")
+        self.assertEqual(transform["tools"], ["host_python"])
+        self.assertEqual(
+            transform["operation"], "verify_user_syscall_abi"
+        )
+        self.assertEqual(
+            transform["inputs"],
+            [*module.USER_SYSCALL_ABI_AUDIT_INPUTS, "user/Makefile"],
+        )
+        module._validate_user_syscall_abi_transform("user", transform)
+
+    def test_user_syscall_abi_verifier_rejects_contract_drift(self):
+        module = _load_audit_module()
+        transform = {
+            "output": "user/test-syscall-abi",
+            "inputs": [
+                *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
+                "user/Makefile",
+            ],
+            "tools": ["host_python"],
+            "operation": "verify_user_syscall_abi",
+            "recipe": ["$(USER_SYSCALL_ABI)"],
+        }
+        changes = {
+            "missing ABI input": {
+                **transform,
+                "inputs": transform["inputs"][:-2] + ["user/Makefile"],
+            },
+            "wrong target": {
+                **transform,
+                "output": "user/check-abi",
+            },
+            "wrong tool": {
+                **transform,
+                "tools": ["host_shell"],
+            },
+            "wrong recipe": {
+                **transform,
+                "recipe": ["$(PYTHON) unchecked.py"],
+            },
+        }
+        for name, changed in changes.items():
+            with self.subTest(name=name), self.assertRaisesRegex(
+                module.AuditError,
+                "user syscall ABI verifier",
+            ):
+                module._validate_user_syscall_abi_transform("user", changed)
+
     def test_inventory_attributes_assembly_outputs_to_cupidasm(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -3927,7 +3998,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 698,
                     "features": 253,
-                    "transforms": 500,
+                    "transforms": 501,
                     "unreachable_sources": 42,
                 },
             )
@@ -4323,7 +4394,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 151,
                     "host_c_compiler": 146,
-                    "host_python": 163,
+                    "host_python": 164,
                 },
             )
 
@@ -4371,34 +4442,44 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CupidC",
             )
             frontend_sources = {
-                "toolchain/cupidc_emit.cc": "toolchain_core",
-                "toolchain/cupidc_emit.h": "toolchain_core",
-                "toolchain/cupidc_frontend.cc": "toolchain_core",
-                "toolchain/cupidc_frontend.h": "toolchain_core",
-                "toolchain/cupidc_ir.cc": "toolchain_core",
-                "toolchain/cupidc_ir.h": "toolchain_core",
-                "toolchain/cupidc_main.cc": "toolchain_core",
+                "toolchain/cupidc_emit.cc":
+                    ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_emit.h":
+                    ("toolchain_core", None),
+                "toolchain/cupidc_frontend.cc":
+                    ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_frontend.h":
+                    ("toolchain_core", None),
+                "toolchain/cupidc_ir.cc":
+                    ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_ir.h":
+                    ("toolchain_core", None),
+                "toolchain/cupidc_main.cc":
+                    ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-linux/runtime.cc":
-                    "toolchain_core",
+                    ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-linux/start.asm":
-                    "toolchain_core",
+                    ("toolchain_core", None),
                 "toolchain/tests/cupidc_frontend_contract.c":
-                    "toolchain_contract",
+                    ("toolchain_contract", None),
                 "toolchain/tests/cupidc_ir_contract.c":
-                    "toolchain_contract",
+                    ("toolchain_contract", None),
                 "toolchain/tests/cupidc_object_contract.c":
-                    "toolchain_contract",
+                    ("toolchain_contract", None),
                 "toolchain/tests/hosted_i386_runtime_contract.c":
-                    "toolchain_contract",
+                    ("toolchain_contract", None),
             }
-            for path, cohort in frontend_sources.items():
+            for path, (cohort, runtime_owner) in frontend_sources.items():
                 with self.subTest(path=path):
                     self.assertEqual(source_by_path[path]["cohort"], cohort)
                     self.assertEqual(
                         source_by_path[path]["reachability"],
                         "direct_build_input",
                     )
-                    self.assertIsNone(source_by_path[path]["runtime_owner"])
+                    self.assertEqual(
+                        source_by_path[path]["runtime_owner"],
+                        runtime_owner,
+                    )
 
             toolchain_build = next(
                 build

@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 698
 - Unreachable source-like files: 42
-- Reachable output transforms: 500
+- Reachable output transforms: 501
 - Distinct feature requirements: 253
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -60,7 +60,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
-| `user_runtime_interface` | 1 | 357 |
+| `user_runtime_interface` | 1 | 360 |
 | `vendored_doom` | 183 | 65784 |
 
 ## Supported build roots
@@ -68,7 +68,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
 | `.` | `all` | 439 | 20 |
-| `user` | `all` | 7 | 0 |
+| `user` | `all` | 8 | 0 |
 | `toolchain` | `all` | 54 | 2 |
 
 ## Current output ownership
@@ -81,7 +81,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
 | `host_c_compiler` | 146 |
-| `host_python` | 163 |
+| `host_python` | 164 |
 | `make` | 4 |
 
 ## Feature inventory
@@ -106,7 +106,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 640 |
 | `c.output` | 1 | 94 |
-| `c.preprocessor` | 18 | 6664 |
+| `c.preprocessor` | 18 | 6665 |
 | `c.qualifier` | 2 | 12462 |
 | `c.storage` | 4 | 8204 |
 | `c.type` | 14 | 45227 |

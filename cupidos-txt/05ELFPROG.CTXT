@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-07-25
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -112,6 +112,21 @@ user/cupid.h exposes wrappers around the syscall table for:
 
 These wrappers expose the syscall table directly. CupidC instead uses
 pre-registered bindings.
+
+The current external-program table ABI is version 5. It contains 103
+four-byte fields and occupies 412 bytes on i386. The version and table size
+come first, followed by 101 kernel function pointers.
+
+The public i386 scalar widths are:
+- uint8_t: 1 byte, unsigned
+- uint16_t: 2 bytes, unsigned
+- uint32_t: 4 bytes, unsigned
+- int32_t: 4 bytes, signed
+- size_t: 4 bytes, unsigned
+
+VFS names may use 128 bytes and paths may use 512 bytes. cupid_dirent_t is
+136 bytes, with name at byte 0, size at byte 128, and type at byte 132.
+cupid_stat_t is 8 bytes, with size at byte 0 and type at byte 4.
 >endtree
 
 >h2 Process Model

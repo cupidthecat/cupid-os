@@ -32,6 +32,9 @@
 #ifndef CUPID_H
 #define CUPID_H
 
+/* This value must match the append-only table in kernel/core/syscall.h. */
+#define CUPID_SYSCALL_VERSION 5
+
 /* ── Base types (no libc available) ───────────────────────────────── */
 #ifndef NULL
 #define NULL ((void *)0)
@@ -59,8 +62,8 @@ typedef unsigned long      size_t;
 #define VFS_TYPE_DIR    1
 #define VFS_TYPE_DEV    2
 
-#define VFS_MAX_NAME    64
-#define VFS_MAX_PATH    128
+#define VFS_MAX_NAME    128
+#define VFS_MAX_PATH    512
 
 /* ── Network constants ────────────────────────────────────────────── */
 #define SOCK_UDP       1

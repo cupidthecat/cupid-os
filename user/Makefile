@@ -25,6 +25,7 @@ endif
 CUPIDC_PRODUCTION_COMPILE := $(PYTHON) ../tools/cupidc_production_compile.py \
 	--root .. --cohort user
 CUPIDLD_USER_LINK := $(PYTHON) ../tools/cupidld_user_link.py --root ..
+USER_SYSCALL_ABI := $(PYTHON) ../tools/user_syscall_abi.py --root ..
 CHECKED_SEED_INPUTS := ../bootstrap/seeds/i386-linux/manifest.json \
 	../bootstrap/seeds/i386-linux/cupidasm.elf \
 	../bootstrap/seeds/i386-linux/cupidc.elf \
@@ -40,8 +41,16 @@ CUPIDLD_USER_LINK_INPUTS := ../tools/cupidld_user_link.py \
 	../tools/cupidc_kernel_compile.py \
 	../tools/bootstrap_toolchain.py \
 	$(CHECKED_SEED_INPUTS)
+USER_SYSCALL_ABI_INPUTS := ../tools/user_syscall_abi.py \
+	../kernel/core/types.h \
+	../kernel/core/syscall.h \
+	../kernel/core/syscall.cc \
+	../kernel/fs/vfs.h \
+	../kernel/network/socket.h \
+	cupid.h
 USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
-	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS)
+	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS) \
+	$(USER_SYSCALL_ABI_INPUTS)
 USER_TEXT_ADDRESS ?= 0x00F00000
 
 # List of programs to build
@@ -53,7 +62,7 @@ USER_SOURCES := $(addprefix examples/,$(addsuffix .cc,$(PROGRAMS)))
 USER_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix .o,$(PROGRAMS)))
 BOOTSTRAP_ARTIFACTS := $(addprefix $(BUILD)/,$(PROGRAMS))
 
-all: $(BUILD) $(BOOTSTRAP_ARTIFACTS)
+all: test-syscall-abi $(BUILD) $(BOOTSTRAP_ARTIFACTS)
 
 .PRECIOUS: $(USER_OBJECTS) $(BOOTSTRAP_ARTIFACTS)
 .SECONDARY: $(USER_OBJECTS)
@@ -65,10 +74,13 @@ $(BUILD)/%: $(BUILD)/%.o $(CUPIDLD_USER_LINK_INPUTS) Makefile
 	$(CUPIDLD_USER_LINK) --input user/$< --output user/$@ \
 		--text-address $(USER_TEXT_ADDRESS) --entry _start
 
-$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile | $(BUILD)
+$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile | $(BUILD) test-syscall-abi
 	$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@
 
-test-cupidc-frontier: all $(USER_SOURCES) cupid.h $(USER_FRONTIER_INPUTS) Makefile
+test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile
+	$(USER_SYSCALL_ABI)
+
+test-cupidc-frontier: all test-syscall-abi $(USER_SOURCES) cupid.h $(USER_FRONTIER_INPUTS) Makefile
 	$(PYTHON) ../tools/cupidc_production_frontier.py \
 		--root .. --cohort user
 
@@ -78,4 +90,4 @@ clean:
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
-.PHONY: all clean print-bootstrap-artifacts test-cupidc-frontier
+.PHONY: all clean print-bootstrap-artifacts test-cupidc-frontier test-syscall-abi

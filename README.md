@@ -301,10 +301,14 @@ The generated ramfs, homefs, and demo installation tables are emitted as
 `.cc` sources and compiled by the checked CupidC seed. The separate `user/`
 build also uses checked CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then
 uses checked CupidLD to place each executable in the fixed external arena.
-Both paths freeze their complete source and control inputs, validate the
-resulting ELF files, and publish only complete artifacts. Poisoned-host tests
-prove that neither path can fall back to GCC or Clang. `user/build/` contains
-local generated outputs and is ignored by Git.
+Before compiling, that build checks the kernel and public syscall
+declarations as one i386 ABI. The contract is version 5 with 103 fields in
+412 bytes, a 136-byte directory entry, an 8-byte file status record, and 101
+reviewed function providers. Both paths freeze their complete source and
+control inputs, validate the resulting ELF files, and publish only complete
+artifacts. Poisoned-host tests prove that neither path can fall back to GCC
+or Clang. `user/build/` contains local generated outputs and is ignored by
+Git.
 
 The external-program gate boots `hello`, `ls`, and `cat` separately. Serial
 events bind each syscall to the loaded PID and record printable content by
@@ -427,7 +431,8 @@ Poisoned-host checks cover all 145 normal CupidC recipes and fail if a
 CupidC-owned object reaches Clang or GCC. They pass against the renamed
 graph. Across the three supported build roots, ownership
 stays at 151 transforms for CupidC, 146 C transforms for the host compiler,
-and 163 transforms for host Python.
+and 164 transforms for host Python. One Python transform checks the external
+program syscall ABI and produces no OS code.
 The CupidC transforms are 144 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
 programs. The host compiler still produces 94 root objects. The renamed graph
@@ -832,9 +837,12 @@ hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_featur
 
 The `user/` directory has three example ELF32 programs: `hello.cc`, `cat.cc`,
 and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. `make -C user`
-compiles the sources with the checked CupidC seed and links them with the
-checked CupidLD seed. The generated `user/build/` directory is ignored by
-Git, so rebuild the programs before staging them into an image.
+first compares that header with the kernel types, syscall table and
+initializer, VFS declarations, and socket constants. It then compiles the
+sources with the checked CupidC seed and links them with the checked CupidLD
+seed. The current ABI is version 5 with 103 fields and a 412-byte i386 table.
+The generated `user/build/` directory is ignored by Git, so rebuild the
+programs before staging them into an image.
 
 External executables must be linked for the current
 `0x00F00000..0x01100000` arena. Binaries linked at an earlier fixed base must

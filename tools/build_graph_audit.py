@@ -43,8 +43,18 @@ TOOL_MARKERS = (
     ("$(LD)", "host_linker"),
     ("$(OBJCOPY)", "host_object_copy"),
     ("$(NM)", "host_symbol_reader"),
+    ("$(USER_SYSCALL_ABI)", "host_python"),
     ("$(PYTHON)", "host_python"),
     ("$(MAKE)", "make"),
+)
+USER_SYSCALL_ABI_AUDIT_INPUTS = (
+    "tools/user_syscall_abi.py",
+    "kernel/core/types.h",
+    "kernel/core/syscall.h",
+    "kernel/core/syscall.cc",
+    "kernel/fs/vfs.h",
+    "kernel/network/socket.h",
+    "user/cupid.h",
 )
 CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/cupidc_kernel_compile.py",
@@ -1193,8 +1203,16 @@ def _operation_for_recipe(
     tools: list[str],
     output: str,
     c_object_operation: str,
+    inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    if any(
+        posixpath.normpath(path.replace("\\", "/")).endswith(
+            "tools/user_syscall_abi.py"
+        )
+        for path in inputs
+    ):
+        return "verify_user_syscall_abi"
     if "host_c_compiler" in tools or "cupid_c_compiler" in tools:
         if output.lower().endswith((".o", ".obj")) or re.search(
             r"(?:^|\s)-c(?:\s|$)", joined
@@ -1273,6 +1291,7 @@ def _build_transforms(
                         if local_output in host_object_outputs
                         else "compile_c_to_elf32_object"
                     ),
+                    rule.prerequisites,
                 ),
                 "recipe": rule.recipe,
             }
@@ -4960,6 +4979,47 @@ def _c_preprocessor_require_exact_paths(
         )
 
 
+def _validate_user_syscall_abi_transform(
+    directory: str,
+    transform: dict[str, object],
+) -> None:
+    expected_inputs = [
+        *USER_SYSCALL_ABI_AUDIT_INPUTS,
+        "user/Makefile",
+    ]
+    if (
+        directory != "user"
+        or transform.get("output") != "user/test-syscall-abi"
+        or transform.get("operation") != "verify_user_syscall_abi"
+        or transform.get("tools") != ["host_python"]
+    ):
+        raise AuditError(
+            "user syscall ABI verifier differs from its checked "
+            "target, operation, or tool contract"
+        )
+    inputs = transform.get("inputs")
+    if inputs != expected_inputs:
+        raise AuditError(
+            "user syscall ABI verifier inputs changed; "
+            f"expected={expected_inputs!r}, actual={inputs!r}"
+        )
+    recipe = transform.get("recipe")
+    if recipe != ["$(USER_SYSCALL_ABI)"]:
+        raise AuditError(
+            "user syscall ABI verifier recipe changed; "
+            f"expected=['$(USER_SYSCALL_ABI)'], actual={recipe!r}"
+        )
+    markers = _c_preprocessor_recipe_markers(
+        transform,
+        {"USER_SYSCALL_ABI"},
+    )
+    if markers != collections.Counter({"USER_SYSCALL_ABI": 1}):
+        raise AuditError(
+            "user syscall ABI verifier recipe marker changed; "
+            f"actual={dict(markers)!r}"
+        )
+
+
 def _c_preprocessor_active_cases_manifest(
     audit: dict[str, object],
 ) -> CPreprocessorActiveCasesManifest:
@@ -5099,6 +5159,9 @@ def _c_preprocessor_active_cases_manifest(
                 active_by_profile["HOSTED_I386_LINUX_GNU"].extend(
                     _C_PP_HOSTED_I386_GNU_CASES
                 )
+                continue
+            if operation == "verify_user_syscall_abi":
+                _validate_user_syscall_abi_transform(directory, transform)
                 continue
             if operation in {
                 "compile_c_to_elf32_object",

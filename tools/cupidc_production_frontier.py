@@ -26,6 +26,7 @@ try:
         link_user_program,
         validate_user_executable,
     )
+    from tools.user_syscall_abi import ABI_INPUTS
 except ModuleNotFoundError:
     from cupidc_production_compile import (
         GENERATED_INCLUDE_CLOSURE,
@@ -40,6 +41,7 @@ except ModuleNotFoundError:
         link_user_program,
         validate_user_executable,
     )
+    from user_syscall_abi import ABI_INPUTS
 
 
 SCHEMA = "cupid.production-frontier.v1"
@@ -60,6 +62,7 @@ CONTROL_FILES = (
 USER_CONTROL_FILES = (
     "user/Makefile",
     "tools/cupidld_user_link.py",
+    "tools/user_syscall_abi.py",
 )
 GENERATED_CONTROL_FILES = (
     "Makefile",
@@ -122,6 +125,7 @@ def _user_inputs() -> tuple[str, ...]:
             {
                 *USER_SOURCES,
                 *USER_INCLUDE_CLOSURE,
+                *ABI_INPUTS,
                 *CONTROL_FILES,
                 *USER_CONTROL_FILES,
                 *SEED_FILES,

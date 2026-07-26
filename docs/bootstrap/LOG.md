@@ -10562,3 +10562,131 @@ be recaptured from this committed revision in a later measured step.
   self-host frontier and the production lexer profile.
 
 ADRs 0125 and 0126 record the capability and naming boundaries.
+
+## 2026-07-26: lock the external program syscall ABI
+
+The checked CupidC and CupidLD user path already built and ran all three
+example programs, but the public header had drifted from the kernel. The
+kernel writes a 128-byte name into `vfs_dirent_t`; `user/cupid.h` allowed only
+64 bytes. Kernel directory entries occupy 136 bytes, while `ls.cc` had
+reserved 72 bytes through the public type. The old smoke happened to finish
+despite that stack overwrite. The public header also omitted the syscall
+version and carried the old 128-byte path limit instead of the kernel's
+512-byte limit.
+
+The public contract now matches the kernel: syscall version 5, 128-byte VFS
+names, 512-byte paths, a 136-byte directory entry, and an 8-byte file status
+record. All active external program sources already use `.cc`; this change
+renames no source and changes no program logic.
+
+### Checked ABI boundary
+
+`tools/user_syscall_abi.py` reads the kernel scalar types, syscall table and
+initializer, VFS declarations, socket declarations, and public user header.
+It checks these facts before a user object is compiled:
+
+- the kernel and public tables have the same 103 ordered fields and
+  signatures
+- the i386 table is version 5 and occupies 412 bytes
+- `uint8_t`, `uint16_t`, `uint32_t`, `int32_t`, and `size_t` have their
+  reviewed i386 widths and signedness
+- every exported VFS, socket, TLS, and TCP-state constant matches
+- directory and file status fields agree and retain their reviewed i386
+  sizes and offsets
+- `syscall_init` assigns every field exactly once
+- all 101 function fields retain their reviewed provider ordering
+
+The table-signature SHA-256 is
+`3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc`.
+The ordered provider SHA-256 is
+`0a51ba85c93b0249215b05e54867fabe0e7206d7e58a7695911a6ecb060916f4`.
+The provider check keeps the intentional `ntohs = htons` and
+`ntohl = htonl` mappings.
+
+The first scalar negative changed public `size_t` from `unsigned long` to
+`unsigned long long`; it failed before the typedef check existed and passed
+after the check was added. A second red test changed the `ntohs` provider
+without removing the field. The earlier initializer check accepted it
+because it counted only left-hand sides. Parsing the right-hand provider and
+pinning the ordered fingerprint closed that hole. The thirteen-test ABI
+suite now covers those cases along with reordered fields, matching but
+unreviewed version drift, signature drift, VFS constants and records, socket
+constants, and missing initializers.
+
+`make -C user` runs the ABI check before all three compiles. Its seven ABI
+inputs also belong to the user frontier. A forced rebuild with `CC`, `CXX`,
+`LD`, `AS`, `NASM`, `NM`, and `OBJCOPY` replaced by failing names completed
+through the checked CupidC and CupidLD wrappers without invoking any poisoned
+command.
+
+### Frontier and build graph
+
+The deterministic user frontier now tracks 22 inputs. Its aggregate SHA-256
+is `d25d079d03a0e3e2f20727d2723c7239cdbf0a4244a5b78eaa3dcef7059f309e`.
+Both passes reproduced these six artifacts:
+
+| Program | Object bytes | Object SHA-256 | Executable bytes | Executable SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| hello | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` | 13,992 | `dbef548d246e12a0933b95ec8349a97f542bd8cbecc253efc514b1483fcc9e0f` |
+| ls | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` | 18,112 | `6eb9d140dd126f74e2815a6836c8858e0d9ca8a1da837bd94784c3a1b7c5ec9d` |
+| cat | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` | 13,992 | `ffa5957fb58f0de81e564b3fbadadf60b7b8bc2beb0c50984cd1d4e9481f9367` |
+
+The active build graph names the check as
+`verify_user_syscall_abi`, with `user/test-syscall-abi` as its output and
+host Python as its only tool. The audit pins all seven ABI inputs plus the
+user Makefile. This raises the graph from 500 to 501 transforms and host
+Python from 163 to 164. CupidC remains at 151 transforms and the host C
+compiler remains at 146. The final audit records 698 active sources, 253
+feature IDs, and 42 accounted unreachable files. Its active-source digest is
+`b9a84ee56c379826913b517b18e04fc380175adc888c5c26abc91eaad9b0a17c`;
+the JSON has SHA-256
+`c8f3ca1982d0d3b287b4a14594faaf44ed5f3eebb71fa2d7ab9dc471d8c05e1a`.
+
+### Image and guest evidence
+
+The first aggregate guest attempt used a 600-second shell limit. The shell
+stopped it after 604 seconds before the harness wrote any hello, ls, or cat
+log, so that attempt is not runtime evidence.
+
+After the source and CTXT text settled, `make test-user-cupidc-runtime`
+completed in 1,072.9 seconds and returned success. It rebuilt the image,
+staged the checked executables and hostile fixture, and passed three
+independent GUI-terminal boots:
+
+- hello loaded as PID 4 at `0x00F00000`, emitted the 27-byte greeting with
+  FNV-1a `6d2edfa6`, printed PID 4 and a nonzero uptime, and exited as PID 4
+- ls loaded as PID 4, emitted the five required root-entry fingerprints
+  `5acad8be`, `d2c8c28e`, `bd9adb9f`, `456040a4`, and `28eb34d2` through the
+  corrected directory record, and exited as PID 4
+- cat loaded as PID 4, emitted 62 bytes with FNV-1a `c12ed628`, produced no
+  PID 999 exit event, and exited as PID 4
+
+| Guest log | Bytes | SHA-256 |
+| --- | ---: | --- |
+| hello | 37,253 | `e097f2eda585354b7729216d006f8bf6cf24bcf90e75ed299cdece9a5659dfa1` |
+| ls | 23,533 | `a75e929a866caae126f0d80ac4237277e3271b1bbb52e1bca2bf5d488ba0b814` |
+| cat | 50,993 | `feb93dcdecf7de2c9412d8166851924b44e3ada224ac0e11b32d4131e3795267` |
+
+The final rebuilt artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 7,953,872 | `bf7f2a725bacc4d453dede8ed1eb978fefbf83f50748988f6ab00921226d97bc` |
+| `kernel/kernel.elf` | 8,056,272 | `ba2c14de47ae282fe3c5af5868f6828548e9b2aea880074e01768a0060199e5f` |
+| `kernel/kernel.bin` | 7,862,944 | `c43f71f04541f37d3374b45b38e37a51749431085bdc045339fb2dbf8c060100` |
+| `cupidos.img` | 209,715,200 | `ad62c32337e71fe11f9c93181bfb7feb724445cdbc4305f206f9c3fc93e15732` |
+
+The ABI verifier remains a host-Python check. It produces no code and does
+not change the CupidC or CupidLD ownership of the three external programs.
+ADR 0127 records the contract and the reason for the VFS correction.
+
+### Final regression pass
+
+- The ABI, production wrapper, compile-freeze, guest-log contract, and memory
+  layout group passes 49 tests in 39.859 seconds.
+- The complete build-graph audit suite passes 58 tests in 549.955 seconds.
+- `make bootstrap-audit` and `make check-bootstrap-audit` both pass.
+- A forced user rebuild with all seven conventional host code-generator
+  variables poisoned passes in 9.3 seconds.
+- `make -C user test-cupidc-frontier` passes in 22.0 seconds with identical
+  objects and executables from both runs.
