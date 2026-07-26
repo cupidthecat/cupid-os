@@ -123,13 +123,12 @@ forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
 The normal image has 145 checked CupidC C transforms: 144 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. Of the checked-in roots,
-139 use `.cc`. The seed-bound `toolchain/ctool.c`,
-`toolchain/cupidasm.c`, `toolchain/cupiddis.c`, `toolchain/elf32.c`, and
-`toolchain/x86.c` roots keep `.c` until their fixed point and native-host
-contracts are refreshed. The generated symbol source makes 140 normal `.cc`
-translations. ADR 0124 records the 111-root naming transfer. Ten strict
-checked-in roots remain host-owned.
+and the generated `kernel/cpu/ksyms_data.cc` source. All 145 sources use
+`.cc`. The five shared Toolchain roots also belong to the 19-source i386
+Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
+records the first 111-root transfer, and ADR 0126 records the complete
+fixed-point rename and old-seed proof. Ten strict checked-in roots remain
+host-owned.
 
 The strict frontier must compile each of its 144 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every

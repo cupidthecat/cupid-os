@@ -7148,6 +7148,307 @@ static ctool_bool cfront_body_floating_constant(ctool_string_t spelling) {
   return index == spelling.size ? CTOOL_TRUE : CTOOL_FALSE;
 }
 
+typedef struct {
+  ctool_u64 high;
+  ctool_u64 low;
+} cfront_u128_t;
+
+static ctool_u32 cfront_u64_width(ctool_u64 value) {
+  ctool_u32 width = 0u;
+  while (value != 0ull) {
+    value >>= 1u;
+    width++;
+  }
+  return width;
+}
+
+static ctool_bool cfront_u64_multiply_ten(ctool_u64 *value) {
+  if (*value > 0xffffffffffffffffull / 10ull) {
+    return CTOOL_FALSE;
+  }
+  *value *= 10ull;
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cfront_u128_shifted_u64(ctool_u64 value,
+                                         ctool_u32 shift,
+                                         cfront_u128_t *result_out) {
+  ctool_u32 width = cfront_u64_width(value);
+  if (shift >= 128u ||
+      (width != 0u && width > 128u - shift)) {
+    return CTOOL_FALSE;
+  }
+  if (shift == 0u) {
+    result_out->high = 0ull;
+    result_out->low = value;
+  } else if (shift < 64u) {
+    result_out->high = value >> (64u - shift);
+    result_out->low = value << shift;
+  } else {
+    result_out->high = value << (shift - 64u);
+    result_out->low = 0ull;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cfront_u128_divide_u64(cfront_u128_t numerator,
+                                         ctool_u64 denominator,
+                                         ctool_u64 *quotient_out,
+                                         ctool_u64 *remainder_out) {
+  ctool_u64 quotient = 0ull;
+  ctool_u64 remainder = 0ull;
+  ctool_bool quotient_started = CTOOL_FALSE;
+  ctool_u32 cursor = 128u;
+  if (denominator == 0ull) {
+    return CTOOL_FALSE;
+  }
+  while (cursor != 0u) {
+    ctool_u32 bit_index = cursor - 1u;
+    ctool_u32 bit =
+        bit_index >= 64u
+            ? (ctool_u32)((numerator.high >> (bit_index - 64u)) & 1ull)
+            : (ctool_u32)((numerator.low >> bit_index) & 1ull);
+    ctool_u64 gap = denominator - remainder;
+    ctool_bool subtract =
+        remainder >= gap ||
+                (bit != 0u && remainder + 1ull == gap)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_u32 quotient_bit = 0u;
+    if (subtract == CTOOL_TRUE) {
+      remainder =
+          remainder >= gap ? remainder - gap + (ctool_u64)bit
+                           : remainder + 1ull - gap;
+      quotient_bit = 1u;
+    } else {
+      remainder = remainder * 2ull + (ctool_u64)bit;
+    }
+    if (quotient_started == CTOOL_TRUE || quotient_bit != 0u) {
+      if (quotient > 0x7fffffffffffffffull) {
+        return CTOOL_FALSE;
+      }
+      quotient = (quotient << 1u) | (ctool_u64)quotient_bit;
+      quotient_started = CTOOL_TRUE;
+    }
+    cursor--;
+  }
+  *quotient_out = quotient;
+  *remainder_out = remainder;
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cfront_decimal_floating_bits(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_c_type_kind_t kind, ctool_u64 *bits_out) {
+  ctool_string_t spelling = token->spelling;
+  ctool_u32 end = spelling.size;
+  ctool_u32 index = 0u;
+  ctool_u32 fractional_digits = 0u;
+  ctool_u32 exponent_magnitude = 0u;
+  ctool_bool after_point = CTOOL_FALSE;
+  ctool_bool exponent_negative = CTOOL_FALSE;
+  ctool_u64 numerator = 0ull;
+  ctool_u64 denominator = 1ull;
+  ctool_i32 decimal_exponent;
+  ctool_i32 binary_exponent;
+  ctool_u32 precision =
+      kind == CTOOL_C_TYPE_FLOAT ? 24u : 53u;
+  ctool_i32 minimum_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? -126 : -1022;
+  ctool_i32 maximum_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? 127 : 1023;
+  ctool_u32 exponent_bias =
+      kind == CTOOL_C_TYPE_FLOAT ? 127u : 1023u;
+  ctool_u32 mantissa_width =
+      kind == CTOOL_C_TYPE_FLOAT ? 23u : 52u;
+  ctool_i32 significand_shift;
+  ctool_u64 quotient;
+  ctool_u64 remainder;
+
+  if (end != 0u &&
+      (spelling.data[end - 1u] == 'f' ||
+       spelling.data[end - 1u] == 'F' ||
+       spelling.data[end - 1u] == 'l' ||
+       spelling.data[end - 1u] == 'L')) {
+    end--;
+  }
+  if (spelling.size >= 2u && spelling.data[0] == '0' &&
+      (spelling.data[1] == 'x' || spelling.data[1] == 'X')) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "hexadecimal floating constants are outside this decimal slice");
+  }
+  while (index < end && spelling.data[index] != 'e' &&
+         spelling.data[index] != 'E') {
+    char character = spelling.data[index++];
+    if (character == '.') {
+      after_point = CTOOL_TRUE;
+      continue;
+    }
+    if (after_point == CTOOL_TRUE) {
+      if (fractional_digits == 4096u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+            "decimal floating constant exceeds the supported scale");
+      }
+      fractional_digits++;
+    }
+    if (cfront_u64_multiply_ten(&numerator) == CTOOL_FALSE ||
+        numerator >
+            0xffffffffffffffffull -
+                (ctool_u64)(character - '0')) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the supported precision");
+    }
+    numerator += (ctool_u64)(character - '0');
+  }
+  if (index < end) {
+    index++;
+    if (index < end &&
+        (spelling.data[index] == '+' ||
+         spelling.data[index] == '-')) {
+      exponent_negative =
+          spelling.data[index] == '-' ? CTOOL_TRUE : CTOOL_FALSE;
+      index++;
+    }
+    while (index < end) {
+      ctool_u32 digit =
+          (ctool_u32)(spelling.data[index++] - '0');
+      if (exponent_magnitude > 409u ||
+          exponent_magnitude * 10u + digit > 4096u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+            "decimal floating constant exceeds the supported scale");
+      }
+      exponent_magnitude =
+          exponent_magnitude * 10u + digit;
+    }
+  }
+  decimal_exponent =
+      (exponent_negative == CTOOL_TRUE
+           ? 0 - (ctool_i32)exponent_magnitude
+           : (ctool_i32)exponent_magnitude) -
+      (ctool_i32)fractional_digits;
+  if (numerator == 0ull) {
+    *bits_out = 0ull;
+    return CTOOL_OK;
+  }
+  while (decimal_exponent > 0) {
+    if (cfront_u64_multiply_ten(&numerator) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the supported normal range");
+    }
+    decimal_exponent--;
+  }
+  while (decimal_exponent < 0) {
+    if (cfront_u64_multiply_ten(&denominator) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the supported normal range");
+    }
+    decimal_exponent++;
+  }
+  binary_exponent =
+      (ctool_i32)cfront_u64_width(numerator) -
+      (ctool_i32)cfront_u64_width(denominator);
+  if (binary_exponent >= 0) {
+    ctool_u32 shift = (ctool_u32)binary_exponent;
+    ctool_u64 scaled_denominator =
+        shift < 64u &&
+                cfront_u64_width(denominator) <= 64u - shift
+            ? denominator << shift
+            : 0ull;
+    if (scaled_denominator == 0ull ||
+        numerator < scaled_denominator) {
+      binary_exponent--;
+    }
+  } else {
+    ctool_u32 shift = (ctool_u32)(0 - binary_exponent);
+    ctool_u64 scaled_numerator =
+        shift < 64u &&
+                cfront_u64_width(numerator) <= 64u - shift
+            ? numerator << shift
+            : 0xffffffffffffffffull;
+    if (scaled_numerator < denominator) {
+      binary_exponent--;
+    }
+  }
+  if (binary_exponent < minimum_exponent ||
+      binary_exponent > maximum_exponent) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "decimal floating constant exceeds the supported normal range");
+  }
+  significand_shift =
+      (ctool_i32)(precision - 1u) - binary_exponent;
+  if (significand_shift >= 0) {
+    cfront_u128_t scaled;
+    if (cfront_u128_shifted_u64(
+            numerator, (ctool_u32)significand_shift,
+            &scaled) == CTOOL_FALSE ||
+        cfront_u128_divide_u64(
+            scaled, denominator, &quotient,
+            &remainder) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the supported precision");
+    }
+  } else {
+    ctool_u32 denominator_shift =
+        (ctool_u32)(0 - significand_shift);
+    ctool_u64 scaled_denominator;
+    if (denominator_shift >= 64u ||
+        cfront_u64_width(denominator) >
+            64u - denominator_shift) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the supported precision");
+    }
+    scaled_denominator = denominator << denominator_shift;
+    quotient = numerator / scaled_denominator;
+    remainder = numerator % scaled_denominator;
+    denominator = scaled_denominator;
+  }
+  if (remainder > denominator - remainder ||
+      (remainder == denominator - remainder &&
+       (quotient & 1ull) != 0ull)) {
+    quotient++;
+  }
+  if (quotient == (1ull << precision)) {
+    quotient >>= 1u;
+    binary_exponent++;
+    if (binary_exponent > maximum_exponent) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the supported normal range");
+    }
+  }
+  if (quotient < (1ull << (precision - 1u)) ||
+      quotient >= (1ull << precision)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        token, "decimal floating conversion produced an invalid encoding");
+  }
+  *bits_out =
+      ((ctool_u64)((ctool_u32)(binary_exponent +
+                              (ctool_i32)exponent_bias))
+       << mantissa_width) |
+      (quotient - (1ull << (precision - 1u)));
+  return CTOOL_OK;
+}
+
 static void cfront_static_address_clear(cfront_expression_value_t *value) {
   value->static_address_known = CTOOL_FALSE;
   value->static_address_binding = CTOOL_C_AST_NONE;
@@ -7510,9 +7811,47 @@ static ctool_status_t cfront_parse_body_integer_constant(
   ctool_u32 type;
   ctool_status_t status;
   if (cfront_body_floating_constant(token->spelling) == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        token, "floating constants are outside this expression slice");
+    ctool_u64 bits = 0ull;
+    char suffix =
+        token->spelling.data[token->spelling.size - 1u];
+    if (suffix == 'l' || suffix == 'L') {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "long double constants are outside this expression slice");
+    }
+    kind = suffix == 'f' || suffix == 'F'
+               ? CTOOL_C_TYPE_FLOAT
+               : CTOOL_C_TYPE_DOUBLE;
+    status = cfront_decimal_floating_bits(
+        context, token, kind, &bits);
+    if (status == CTOOL_OK) {
+      status = cfront_scalar_type(context, kind, token, &type);
+    }
+    if (status != CTOOL_OK) {
+      return status == CTOOL_ERR_LIMIT ||
+                     status == CTOOL_ERR_OVERFLOW ||
+                     status == CTOOL_ERR_NO_MEMORY
+                 ? cfront_storage_failure(context, status)
+                 : status;
+    }
+    (void)cfront_advance(context);
+    cfront_expression_init(
+        &expression, CTOOL_C_EXPRESSION_FLOATING_CONSTANT,
+        &token->location, &token->physical_location);
+    expression.type = type;
+    expression.integer_bits = bits;
+    status = cfront_append_expression(
+        context, &expression, &value_out->expression);
+    if (status == CTOOL_OK) {
+      value_out->type = type;
+      value_out->is_lvalue = CTOOL_FALSE;
+      value_out->is_bit_field = CTOOL_FALSE;
+      value_out->bit_width = 0u;
+      value_out->address_forbidden = CTOOL_FALSE;
+      cfront_constant_value_clear(value_out);
+    }
+    return status;
   }
   status = cfront_parse_number_token(
       context, token, CTOOL_C_PARSE_DIAG_EXPRESSION, &value, &kind);
@@ -8970,6 +9309,10 @@ static ctool_status_t cfront_prepare_floating_binary(
   ctool_u32 right_qualifiers;
   ctool_bool left_floating;
   ctool_bool right_floating;
+  cfront_integer_type_t left_integer;
+  cfront_integer_type_t right_integer;
+  ctool_bool left_is_integer = CTOOL_FALSE;
+  ctool_bool right_is_integer = CTOOL_FALSE;
   ctool_u32 target_type;
   ctool_status_t status = cfront_underlying_type(
       context, left->type, &left_base, &left_qualifiers, &left_node);
@@ -9037,10 +9380,35 @@ static ctool_status_t cfront_prepare_floating_binary(
         "atomic floating arithmetic is outside this expression slice");
   }
   if (left_floating != right_floating) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "integer and floating arithmetic conversions are outside this expression slice");
+    status = cfront_integer_type(
+        context, left->type, &left_integer, &left_is_integer);
+    if (status == CTOOL_OK) {
+      status = cfront_integer_type(
+          context, right->type, &right_integer,
+          &right_is_integer);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if ((left_floating == CTOOL_FALSE &&
+         (left_is_integer == CTOOL_FALSE ||
+          left_integer.width > 32u)) ||
+        (right_floating == CTOOL_FALSE &&
+         (right_is_integer == CTOOL_FALSE ||
+          right_integer.width > 32u))) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
+          "integer and floating arithmetic conversion exceeds the represented 32-bit slice");
+    }
+    if (((left_qualifiers | left_node.qualifiers |
+          right_qualifiers | right_node.qualifiers) &
+         CTOOL_C_QUAL_ATOMIC) != 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
+          "atomic mixed floating arithmetic is outside this expression slice");
+    }
   }
   status = cfront_apply_default_conversion(context, left);
   if (status == CTOOL_OK) {
@@ -9052,7 +9420,9 @@ static ctool_status_t cfront_prepare_floating_binary(
         left_node.kind == CTOOL_C_TYPE_DOUBLE ||
                 right_node.kind == CTOOL_C_TYPE_DOUBLE
             ? CTOOL_C_TYPE_DOUBLE
-            : CTOOL_C_TYPE_FLOAT,
+            : left_floating == CTOOL_TRUE
+                  ? left_node.kind
+                  : right_node.kind,
         operator_token, &target_type);
   }
   if (status != CTOOL_OK) {
@@ -9218,10 +9588,46 @@ static ctool_status_t cfront_apply_assignment_conversion(
         return CTOOL_OK;
       }
     }
+    status = cfront_integer_type(
+        context, target_type, &target_integer,
+        &target_is_integer);
+    if (status == CTOOL_OK) {
+      status = cfront_integer_type(
+          context, value->type, &source_integer,
+          &source_is_integer);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (((target_is_floating == CTOOL_TRUE &&
+          source_is_integer == CTOOL_TRUE &&
+          source_integer.width <= 32u) ||
+         (source_is_floating == CTOOL_TRUE &&
+          target_is_integer == CTOOL_TRUE &&
+          target_integer.width <= 32u &&
+          target_integer.kind != CTOOL_C_TYPE_BOOL &&
+          (target_integer.is_unsigned == CTOOL_FALSE ||
+           target_integer.width < 32u))) &&
+        (target_node.kind == CTOOL_C_TYPE_FLOAT ||
+         target_node.kind == CTOOL_C_TYPE_DOUBLE ||
+         source_node.kind == CTOOL_C_TYPE_FLOAT ||
+         source_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+        ((target_qualifiers | target_node.qualifiers |
+          original_source_qualifiers |
+          original_source_node.qualifiers) &
+         CTOOL_C_QUAL_ATOMIC) == 0u) {
+      return cfront_append_conversion(
+          context, CTOOL_C_CONVERSION_ASSIGNMENT,
+          target_type, value);
+    }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         source_token,
-        "floating assignment conversions are outside this body slice");
+        target_is_integer == CTOOL_TRUE &&
+                target_integer.is_unsigned == CTOOL_TRUE &&
+                target_integer.width == 32u
+            ? "floating to unsigned 32-bit conversion is outside this body slice"
+            : "floating assignment conversion is outside this body slice");
   }
   status = cfront_type_is_complete_object_now(
       context, target_type, &target_is_complete);
@@ -10027,7 +10433,8 @@ static ctool_status_t cfront_apply_dereference_operator(
 static ctool_status_t cfront_apply_cast(
     cfront_context_t *context, const ctool_c_pp_token_t *cast_token,
     ctool_u32 target_type, cfront_expression_value_t *operand) {
-  cfront_integer_type_t integer;
+  cfront_integer_type_t target_integer_info;
+  cfront_integer_type_t source_integer_info;
   ctool_c_type_node_t target;
   ctool_c_type_node_t source;
   ctool_u32 target_base;
@@ -10065,11 +10472,13 @@ static ctool_status_t cfront_apply_cast(
   (void)source_base;
   (void)source_qualifiers;
   if (status == CTOOL_OK) {
-    status = cfront_integer_type(context, target_type, &integer,
+    status = cfront_integer_type(context, target_type,
+                                 &target_integer_info,
                                  &target_integer);
   }
   if (status == CTOOL_OK) {
-    status = cfront_integer_type(context, operand->type, &integer,
+    status = cfront_integer_type(context, operand->type,
+                                 &source_integer_info,
                                  &source_integer);
   }
   if (status != CTOOL_OK) {
@@ -10114,9 +10523,34 @@ static ctool_status_t cfront_apply_cast(
           CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE,
           operand);
     }
+    if ((((target.kind == CTOOL_C_TYPE_FLOAT ||
+           target.kind == CTOOL_C_TYPE_DOUBLE) &&
+          source_integer == CTOOL_TRUE &&
+          source_integer_info.width <= 32u) ||
+         ((source.kind == CTOOL_C_TYPE_FLOAT ||
+           source.kind == CTOOL_C_TYPE_DOUBLE) &&
+          target_integer == CTOOL_TRUE &&
+          target_integer_info.width <= 32u &&
+          target_integer_info.kind != CTOOL_C_TYPE_BOOL &&
+          (target_integer_info.is_unsigned == CTOOL_FALSE ||
+           target_integer_info.width < 32u))) &&
+        ((target_qualifiers | target.qualifiers |
+          original_source_qualifiers | original_source.qualifiers) &
+         CTOOL_C_QUAL_ATOMIC) == 0u) {
+      return cfront_append_one_child_expression(
+          context, CTOOL_C_EXPRESSION_CAST,
+          CTOOL_C_EXPRESSION_OPERATOR_NONE, cast_token, target_type,
+          CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE,
+          operand);
+    }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        cast_token, "floating casts are outside this expression slice");
+        cast_token,
+        target_integer == CTOOL_TRUE &&
+                target_integer_info.is_unsigned == CTOOL_TRUE &&
+                target_integer_info.width == 32u
+            ? "floating to unsigned 32-bit conversion is outside this expression slice"
+            : "floating cast is outside this expression slice");
   }
   if (target.kind != CTOOL_C_TYPE_VOID &&
       target_integer == CTOOL_FALSE && target.kind != CTOOL_C_TYPE_POINTER) {
@@ -18828,6 +19262,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       break;
     case CTOOL_C_EXPRESSION_STRING:
     case CTOOL_C_EXPRESSION_INTEGER_CONSTANT:
+    case CTOOL_C_EXPRESSION_FLOATING_CONSTANT:
       if (expression->child_count != 0u ||
           expression->first_child != CTOOL_C_AST_NONE ||
           expression->reference != CTOOL_C_AST_NONE ||
@@ -18837,6 +19272,18 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen literal expression is invalid");
+      }
+      if (expression->kind ==
+              CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+        ctool_bool floating = CTOOL_FALSE;
+        status = cfront_floating_type(
+            context, expression->type, &floating);
+        if (status != CTOOL_OK || floating == CTOOL_FALSE) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INTERNAL,
+              CTOOL_C_PARSE_DIAG_INTERNAL, cfront_peek(context),
+              "frozen floating literal type is invalid");
+        }
       }
       break;
     case CTOOL_C_EXPRESSION_COMPOUND_LITERAL: {

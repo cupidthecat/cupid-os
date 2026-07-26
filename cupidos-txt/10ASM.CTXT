@@ -20,20 +20,20 @@ parser, layout engine, instruction encoder, and artifact builder serve the
 hosted command and the in-kernel JIT/AOT commands.
 
 Source architecture:
-- toolchain/cupidasm.c and .h: language, layout, RAW, ELF32 relocatable, and
+- toolchain/cupidasm.cc and .h: language, layout, RAW, ELF32 relocatable, and
   fixed-image semantics
-- toolchain/x86.c: shared instruction encoding
-- toolchain/elf32.c: shared relocatable-object output
+- toolchain/x86.cc: shared instruction encoding
+- toolchain/elf32.cc: shared relocatable-object output
 - kernel/lang/as.cc: 631 runtime definitions, VFS, fixed placement, and JIT/AOT
   execution policy; the checked CupidC seed owns its normal object
 - kernel/lang/as_elf.cc and .h: checked fixed-image to sectionless ET_EXEC bridge
-- toolchain/cupidasm_main.c: hosted cupidasm command adapter
+- toolchain/cupidasm_main.cc: hosted cupidasm command adapter
 
-The normal build compiles cupidasm.c, x86.c, and elf32.c with CupidC. They
-keep .c because the checked-seed fixed point and native hosted contracts also
-consume them. Together with ctool.c and cupiddis.c, they form the five
-seed-bound exceptions to the production .cc naming rule. ADR 0124 leaves this
-rename for a separate seed refresh and proof.
+The normal build compiles cupidasm.cc, x86.cc, and elf32.cc with CupidC. They
+also belong to the checked-seed fixed point. Together with ctool.cc and
+cupiddis.cc, they complete the five shared Toolchain roots. Native GCC or
+Clang rules select C explicitly with -x c, while the checked seed consumes
+the same .cc paths. ADR 0126 records the naming change and old-seed proof.
 
 The old kernel-only as_lex.c and as_parse.c implementations were removed.
 

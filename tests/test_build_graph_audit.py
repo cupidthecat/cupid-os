@@ -2867,20 +2867,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
             ("USER_I386", "/user/examples/hello.cc"),
             ("CUPID_RUNTIME", "/bin/browser.cc"),
-            ("HOSTED_TOOLCHAIN_64", "/toolchain/ctool.c"),
-            ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_emit.c"),
-            ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_ir.c"),
-            ("HOSTED_TOOLCHAIN_64", "/toolchain/x86.c"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/ctool.cc"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_emit.cc"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_ir.cc"),
+            ("HOSTED_TOOLCHAIN_64", "/toolchain/x86.cc"),
             ("HOSTED_KERNEL_BRIDGE_64", "/kernel/lang/as_elf.cc"),
-            ("HOSTED_I386_LINUX", "/toolchain/ctool_host.c"),
-            ("HOSTED_I386_LINUX", "/toolchain/cupidc_main.c"),
+            ("HOSTED_I386_LINUX", "/toolchain/ctool_host.cc"),
+            ("HOSTED_I386_LINUX", "/toolchain/cupidc_main.cc"),
             (
                 "HOSTED_I386_LINUX",
                 "/toolchain/tests/hosted_i386_runtime_contract.c",
             ),
             (
                 "HOSTED_I386_LINUX_GNU",
-                "/toolchain/hosted/i386-linux/runtime.c",
+                "/toolchain/hosted/i386-linux/runtime.cc",
             ),
         ):
             self.assertIn(expected, active)
@@ -2901,6 +2901,37 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ("KERNEL_I386", "/kernel/util/docs_programs_gen.cc"),
             ],
         )
+
+    def test_recursive_tool_builds_do_not_claim_cupid_source_delivery(self):
+        module = _load_audit_module()
+        audit = json.loads(
+            ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
+        )
+        recursive = [
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["operation"] == "recursive_make"
+        ]
+
+        self.assertEqual(
+            [
+                re.sub(r"\.exe$", "", transform["output"])
+                for transform in recursive
+            ],
+            [
+                "toolchain/build/cupidasm",
+                "toolchain/build/cupiddis",
+                "toolchain/build/cupidld",
+                "toolchain/build/cupidobj",
+            ],
+        )
+        self.assertTrue(
+            all(
+                any(path.endswith(".cc") for path in transform["inputs"])
+                for transform in recursive
+            )
+        )
+        module._c_preprocessor_active_cases_manifest(audit)
 
     def test_checked_cupidc_active_manifest_keeps_profiles_isolated(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
@@ -3095,7 +3126,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
         module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
-        driver = (REPO_ROOT / "toolchain" / "cupidc_main.c").read_text(
+        driver = (REPO_ROOT / "toolchain" / "cupidc_main.cc").read_text(
             encoding="utf-8"
         )
         test = (
@@ -3114,10 +3145,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "test",
                 "CUPID_TOOLCHAIN_FIXED_POINT_SOURCES = (\n"
                 '    ("runtime", '
-                '"/toolchain/hosted/i386-linux/runtime.c", True),',
+                '"/toolchain/hosted/i386-linux/runtime.cc", True),',
                 "CUPID_TOOLCHAIN_FIXED_POINT_SOURCES = (\n"
                 '    ("runtime", '
-                '"/toolchain/hosted/i386-linux/runtime.c", False),',
+                '"/toolchain/hosted/i386-linux/runtime.cc", False),',
                 r"fixed-point manifest differs: "
                 r"CUPID_TOOLCHAIN_FIXED_POINT_SOURCES",
             ),
@@ -3212,7 +3243,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         for name, (target_name, old, new, message) in mutations.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
-                driver_target = root / "toolchain" / "cupidc_main.c"
+                driver_target = root / "toolchain" / "cupidc_main.cc"
                 test_target = (
                     root / "tests" / "test_toolchain_cupidc_object.py"
                 )
@@ -3469,6 +3500,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 r"compiler argument profile differs"
                 r".*kernel/lang/as_elf\.cc",
             ),
+            "renamed hosted source loses its C language mode": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
+                    "toolchain/ctool.cc",
+                ),
+                r"hosted bridge recipe differs.*toolchain/ctool\.cc",
+            ),
+            "renamed hosted source selects C++ mode": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -x c++ -c $< -o $@",
+                    "toolchain/ctool.cc",
+                ),
+                r"compiler argument profile differs.*toolchain/ctool\.cc",
+            ),
             "hosted bridge include precedes common include roots": (
                 hosted_audit(
                     "$(CC) -I../kernel/lang $(CPPFLAGS) $(CFLAGS) -x c "
@@ -3505,32 +3550,32 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "hosted deferral moves to freestanding build": (
                 audit(
-                    ["toolchain/ctool_host.c"],
+                    ["toolchain/ctool_host.cc"],
                     "$(CC) $(CFLAGS) -c $< -o $@",
                     [
                         {
-                            "path": "toolchain/ctool_host.c",
+                            "path": "toolchain/ctool_host.cc",
                             "origin": "tracked",
                         }
                     ],
                 ),
-                r"hosted deferral transform differs.*toolchain/ctool_host\.c",
+                r"hosted deferral transform differs.*toolchain/ctool_host\.cc",
             ),
             "hosted deferral is absent from source inventory": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
-                    "toolchain/ctool_host.c",
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@",
+                    "toolchain/ctool_host.cc",
                 ),
-                r"root is absent from source inventory.*toolchain/ctool_host\.c",
+                r"root is absent from source inventory.*toolchain/ctool_host\.cc",
             ),
             "hosted deferral has generated origin": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
-                    "toolchain/ctool_host.c",
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@",
+                    "toolchain/ctool_host.cc",
                     origin="generated",
                 ),
                 r"hosted deferral is not a tracked source"
-                r".*toolchain/ctool_host\.c",
+                r".*toolchain/ctool_host\.cc",
             ),
             "hosted i386 closure omits checked inputs": (
                 {
@@ -3544,7 +3589,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                                         "toolchain/build/"
                                         "cupidc-hosted-i386-tools.json"
                                     ),
-                                    "inputs": ["toolchain/ctool.c"],
+                                    "inputs": ["toolchain/ctool.cc"],
                                     "tools": ["host_python"],
                                     "operation": "host_orchestration",
                                     "recipe": ["checked orchestration"],
@@ -3700,12 +3745,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             {path for path, _ in deferred},
             {
-                "/toolchain/ctool_host.c",
-                "/toolchain/cupidasm_main.c",
-                "/toolchain/cupiddis_main.c",
-                "/toolchain/cupidc_main.c",
-                "/toolchain/cupidld_main.c",
-                "/toolchain/cupidobj_main.c",
+                "/toolchain/ctool_host.cc",
+                "/toolchain/cupidasm_main.cc",
+                "/toolchain/cupiddis_main.cc",
+                "/toolchain/cupidc_main.cc",
+                "/toolchain/cupidld_main.cc",
+                "/toolchain/cupidobj_main.cc",
                 "/toolchain/tests/core_contract.c",
                 "/toolchain/tests/cupidasm_contract.c",
                 "/toolchain/tests/cupidasm_demos_contract.c",
@@ -3891,7 +3936,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4484, 168),
+                "c.expression.sizeof": (4516, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -3932,11 +3977,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(len(roots), 1, transform["output"])
                 checked_cupidc_roots.extend(roots)
             seed_bound_roots = {
-                "toolchain/ctool.c",
-                "toolchain/cupidasm.c",
-                "toolchain/cupiddis.c",
-                "toolchain/elf32.c",
-                "toolchain/x86.c",
+                "toolchain/ctool.cc",
+                "toolchain/cupidasm.cc",
+                "toolchain/cupiddis.cc",
+                "toolchain/elf32.cc",
+                "toolchain/x86.cc",
             }
             self.assertEqual(len(checked_cupidc_roots), 148)
             self.assertEqual(
@@ -3945,14 +3990,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for path in checked_cupidc_roots
                     if Path(path).suffix == ".c"
                 },
-                seed_bound_roots,
+                set(),
+            )
+            self.assertTrue(
+                seed_bound_roots.issubset(set(checked_cupidc_roots))
             )
             self.assertEqual(
                 sum(
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                143,
+                148,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4323,14 +4371,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CupidC",
             )
             frontend_sources = {
-                "toolchain/cupidc_emit.c": "toolchain_core",
+                "toolchain/cupidc_emit.cc": "toolchain_core",
                 "toolchain/cupidc_emit.h": "toolchain_core",
-                "toolchain/cupidc_frontend.c": "toolchain_core",
+                "toolchain/cupidc_frontend.cc": "toolchain_core",
                 "toolchain/cupidc_frontend.h": "toolchain_core",
-                "toolchain/cupidc_ir.c": "toolchain_core",
+                "toolchain/cupidc_ir.cc": "toolchain_core",
                 "toolchain/cupidc_ir.h": "toolchain_core",
-                "toolchain/cupidc_main.c": "toolchain_core",
-                "toolchain/hosted/i386-linux/runtime.c":
+                "toolchain/cupidc_main.cc": "toolchain_core",
+                "toolchain/hosted/i386-linux/runtime.cc":
                     "toolchain_core",
                 "toolchain/hosted/i386-linux/start.asm":
                     "toolchain_core",
@@ -4370,10 +4418,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(hosted_i386_manifest["tools"], ["host_python"])
             for input_path in (
-                "toolchain/hosted/i386-linux/runtime.c",
+                "toolchain/hosted/i386-linux/runtime.cc",
                 "toolchain/hosted/i386-linux/start.asm",
                 "toolchain/tests/hosted_i386_runtime_contract.c",
-                "toolchain/cupidc_main.c",
+                "toolchain/cupidc_main.cc",
             ):
                 with self.subTest(hosted_i386_input=input_path):
                     self.assertIn(input_path, hosted_i386_manifest["inputs"])

@@ -2265,16 +2265,57 @@ static ctool_bool cir_floating_conversion_is_valid(
       cir_unwrapped_type(context, source_type);
   const ctool_c_type_node_t *target =
       cir_unwrapped_type(context, target_type);
+  ctool_bool source_floating;
+  ctool_bool target_floating;
   if (source == (const ctool_c_type_node_t *)0 ||
       target == (const ctool_c_type_node_t *)0 ||
-      (source->kind != CTOOL_C_TYPE_FLOAT &&
-       source->kind != CTOOL_C_TYPE_DOUBLE) ||
-      (target->kind != CTOOL_C_TYPE_FLOAT &&
-       target->kind != CTOOL_C_TYPE_DOUBLE) ||
-      cir_type_is_floating_value(context, source_type) == CTOOL_FALSE ||
-      cir_type_is_floating_value(context, target_type) == CTOOL_FALSE ||
       cir_type_has_atomic_qualification(context, source_type) == CTOOL_TRUE ||
       cir_type_has_atomic_qualification(context, target_type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  source_floating =
+      cir_type_is_floating_value(context, source_type) == CTOOL_TRUE &&
+              (source->kind == CTOOL_C_TYPE_FLOAT ||
+               source->kind == CTOOL_C_TYPE_DOUBLE)
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  target_floating =
+      cir_type_is_floating_value(context, target_type) == CTOOL_TRUE &&
+              (target->kind == CTOOL_C_TYPE_FLOAT ||
+               target->kind == CTOOL_C_TYPE_DOUBLE)
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  if (source_floating == CTOOL_TRUE &&
+      target_floating == CTOOL_FALSE) {
+    const ctool_c_type_layout_t *layout =
+        target_type < context->unit->layout.type_count
+            ? &context->unit->layout.types[target_type]
+            : (const ctool_c_type_layout_t *)0;
+    return layout != (const ctool_c_type_layout_t *)0 &&
+                   cir_type_is_represented_integer(
+                       context, target_type) == CTOOL_TRUE &&
+                   target->kind != CTOOL_C_TYPE_BOOL &&
+                   (layout->is_signed == CTOOL_TRUE ||
+                    layout->size < 4u) &&
+                   (conversion == CTOOL_C_CONVERSION_NONE ||
+                    conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (source_floating == CTOOL_FALSE &&
+      target_floating == CTOOL_TRUE) {
+    return cir_type_is_represented_integer(
+               context, source_type) == CTOOL_TRUE &&
+                   context->unit->layout.types[source_type].size <= 4u &&
+                   (conversion == CTOOL_C_CONVERSION_NONE ||
+                    conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
+                    conversion ==
+                        CTOOL_C_CONVERSION_USUAL_ARITHMETIC)
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (source_floating == CTOOL_FALSE ||
+      target_floating == CTOOL_FALSE) {
     return CTOOL_FALSE;
   }
   if (conversion == CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
@@ -6481,6 +6522,40 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
         CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, integer_bits,
         &expression->location,
+        &expression->physical_location, (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    return cir_push(context, CIR_STACK_VALUE, expression->type);
+  }
+  if (expression->kind == CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+    const ctool_c_type_node_t *type =
+        cir_unwrapped_type(context, expression->type);
+    if (expression->child_count != 0u ||
+        expression->first_child != CTOOL_C_AST_NONE ||
+        expression->operation !=
+            CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        expression->conversion != CTOOL_C_CONVERSION_NONE ||
+        expression->computation_type != CTOOL_C_TYPE_NONE ||
+        expression->reference != CTOOL_C_AST_NONE ||
+        type == (const ctool_c_type_node_t *)0 ||
+        (type->kind != CTOOL_C_TYPE_FLOAT &&
+         type->kind != CTOOL_C_TYPE_DOUBLE) ||
+        cir_type_is_floating_value(
+            context, expression->type) == CTOOL_FALSE ||
+        (type->kind == CTOOL_C_TYPE_FLOAT &&
+         expression->integer_bits > 0xffffffffull)) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
+          "CupidC IR lowering does not yet support this value type");
+    }
+    status = cir_append_instruction(
+        context, CTOOL_C_IR_INSTRUCTION_FLOATING,
+        expression->type, CTOOL_C_TYPE_NONE,
+        CTOOL_C_EXPRESSION_OPERATOR_NONE,
+        CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
+        expression->integer_bits, &expression->location,
         &expression->physical_location, (ctool_u32 *)0);
     if (status != CTOOL_OK) {
       return status;

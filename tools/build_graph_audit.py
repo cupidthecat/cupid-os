@@ -253,28 +253,28 @@ _C_PP_ACTIVE_COUNTS = {
     "HOSTED_I386_LINUX_GNU": 1,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
-    "/toolchain/ctool.c",
-    "/toolchain/ctool_host.c",
-    "/toolchain/cupidasm.c",
-    "/toolchain/cupidasm_main.c",
-    "/toolchain/cupidc_emit.c",
-    "/toolchain/cupidc_frontend.c",
-    "/toolchain/cupidc_ir.c",
-    "/toolchain/cupidc_main.c",
-    "/toolchain/cupidc_pp.c",
-    "/toolchain/cupidc_type.c",
-    "/toolchain/cupiddis.c",
-    "/toolchain/cupiddis_main.c",
-    "/toolchain/cupidld.c",
-    "/toolchain/cupidld_main.c",
-    "/toolchain/cupidobj.c",
-    "/toolchain/cupidobj_main.c",
-    "/toolchain/elf32.c",
+    "/toolchain/ctool.cc",
+    "/toolchain/ctool_host.cc",
+    "/toolchain/cupidasm.cc",
+    "/toolchain/cupidasm_main.cc",
+    "/toolchain/cupidc_emit.cc",
+    "/toolchain/cupidc_frontend.cc",
+    "/toolchain/cupidc_ir.cc",
+    "/toolchain/cupidc_main.cc",
+    "/toolchain/cupidc_pp.cc",
+    "/toolchain/cupidc_type.cc",
+    "/toolchain/cupiddis.cc",
+    "/toolchain/cupiddis_main.cc",
+    "/toolchain/cupidld.cc",
+    "/toolchain/cupidld_main.cc",
+    "/toolchain/cupidobj.cc",
+    "/toolchain/cupidobj_main.cc",
+    "/toolchain/elf32.cc",
     "/toolchain/tests/hosted_i386_runtime_contract.c",
-    "/toolchain/x86.c",
+    "/toolchain/x86.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (
-    "/toolchain/hosted/i386-linux/runtime.c",
+    "/toolchain/hosted/i386-linux/runtime.cc",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
     "/kernel/cpu/ksyms_data.cc",
@@ -287,12 +287,12 @@ _C_PP_NON_ROOT_HEADERS = (
     "/bin/shell.h",
 )
 _C_PP_DEFERRED_HOSTED_CASES = (
-    "/toolchain/ctool_host.c",
-    "/toolchain/cupidasm_main.c",
-    "/toolchain/cupiddis_main.c",
-    "/toolchain/cupidc_main.c",
-    "/toolchain/cupidld_main.c",
-    "/toolchain/cupidobj_main.c",
+    "/toolchain/ctool_host.cc",
+    "/toolchain/cupidasm_main.cc",
+    "/toolchain/cupiddis_main.cc",
+    "/toolchain/cupidc_main.cc",
+    "/toolchain/cupidld_main.cc",
+    "/toolchain/cupidobj_main.cc",
     "/toolchain/tests/core_contract.c",
     "/toolchain/tests/cupidasm_contract.c",
     "/toolchain/tests/cupidasm_demos_contract.c",
@@ -1400,15 +1400,15 @@ def _source_cohort(path: str, language: str | None, generated: bool) -> str:
     if path.startswith("toolchain/") and basename.startswith("ctool_host"):
         return "toolchain_host_adapter"
     if path.startswith("toolchain/") and basename in {
-        "cupiddis.c",
+        "cupiddis.cc",
         "cupiddis.h",
-        "cupiddis_main.c",
+        "cupiddis_main.cc",
     }:
         return "cupiddis"
     if path.startswith("toolchain/") and basename in {
-        "cupidasm.c",
+        "cupidasm.cc",
         "cupidasm.h",
-        "cupidasm_main.c",
+        "cupidasm_main.cc",
     }:
         return "cupidasm"
     if path.startswith("toolchain/"):
@@ -4106,6 +4106,8 @@ def _c_preprocessor_profile_for_c_transform(
             if bridge_source and logical.endswith(".cc")
             else ["-I../kernel/lang"]
             if bridge_source
+            else ["-x"]
+            if logical.endswith(".cc")
             else []
         )
         if literal_flags != expected_literal_flags:
@@ -4417,7 +4419,7 @@ def _cupid_toolchain_fixed_point_contract(
     root: Path,
 ) -> dict[str, object]:
     test_path = root / "tests" / "test_toolchain_cupidc_object.py"
-    driver_path = root / "toolchain" / "cupidc_main.c"
+    driver_path = root / "toolchain" / "cupidc_main.cc"
     try:
         test_source = test_path.read_text(encoding="utf-8")
         driver_source = driver_path.read_text(encoding="utf-8")
@@ -4451,46 +4453,46 @@ def _cupid_toolchain_fixed_point_contract(
             ) from exc
 
     expected_compiler_sources = (
-        ("ctool", "/toolchain/ctool.c", False),
-        ("ctool_host", "/toolchain/ctool_host.c", False),
-        ("cupidc_pp", "/toolchain/cupidc_pp.c", False),
-        ("cupidc_type", "/toolchain/cupidc_type.c", False),
-        ("cupidc_frontend", "/toolchain/cupidc_frontend.c", False),
-        ("cupidc_ir", "/toolchain/cupidc_ir.c", False),
-        ("cupidc_emit", "/toolchain/cupidc_emit.c", False),
-        ("elf32", "/toolchain/elf32.c", False),
-        ("x86", "/toolchain/x86.c", False),
-        ("cupidc_main", "/toolchain/cupidc_main.c", False),
+        ("ctool", "/toolchain/ctool.cc", False),
+        ("ctool_host", "/toolchain/ctool_host.cc", False),
+        ("cupidc_pp", "/toolchain/cupidc_pp.cc", False),
+        ("cupidc_type", "/toolchain/cupidc_type.cc", False),
+        ("cupidc_frontend", "/toolchain/cupidc_frontend.cc", False),
+        ("cupidc_ir", "/toolchain/cupidc_ir.cc", False),
+        ("cupidc_emit", "/toolchain/cupidc_emit.cc", False),
+        ("elf32", "/toolchain/elf32.cc", False),
+        ("x86", "/toolchain/x86.cc", False),
+        ("cupidc_main", "/toolchain/cupidc_main.cc", False),
         (
             "runtime",
-            "/toolchain/hosted/i386-linux/runtime.c",
+            "/toolchain/hosted/i386-linux/runtime.cc",
             True,
         ),
     )
     expected_toolchain_sources = (
         (
             "runtime",
-            "/toolchain/hosted/i386-linux/runtime.c",
+            "/toolchain/hosted/i386-linux/runtime.cc",
             True,
         ),
-        ("ctool", "/toolchain/ctool.c", False),
-        ("ctool_host", "/toolchain/ctool_host.c", False),
-        ("elf32", "/toolchain/elf32.c", False),
-        ("x86", "/toolchain/x86.c", False),
-        ("cupidasm", "/toolchain/cupidasm.c", False),
-        ("cupidasm_main", "/toolchain/cupidasm_main.c", False),
-        ("cupiddis", "/toolchain/cupiddis.c", False),
-        ("cupiddis_main", "/toolchain/cupiddis_main.c", False),
-        ("cupidobj", "/toolchain/cupidobj.c", False),
-        ("cupidobj_main", "/toolchain/cupidobj_main.c", False),
-        ("cupidld", "/toolchain/cupidld.c", False),
-        ("cupidld_main", "/toolchain/cupidld_main.c", False),
-        ("cupidc_pp", "/toolchain/cupidc_pp.c", False),
-        ("cupidc_type", "/toolchain/cupidc_type.c", False),
-        ("cupidc_frontend", "/toolchain/cupidc_frontend.c", False),
-        ("cupidc_ir", "/toolchain/cupidc_ir.c", False),
-        ("cupidc_emit", "/toolchain/cupidc_emit.c", False),
-        ("cupidc_main", "/toolchain/cupidc_main.c", False),
+        ("ctool", "/toolchain/ctool.cc", False),
+        ("ctool_host", "/toolchain/ctool_host.cc", False),
+        ("elf32", "/toolchain/elf32.cc", False),
+        ("x86", "/toolchain/x86.cc", False),
+        ("cupidasm", "/toolchain/cupidasm.cc", False),
+        ("cupidasm_main", "/toolchain/cupidasm_main.cc", False),
+        ("cupiddis", "/toolchain/cupiddis.cc", False),
+        ("cupiddis_main", "/toolchain/cupiddis_main.cc", False),
+        ("cupidobj", "/toolchain/cupidobj.cc", False),
+        ("cupidobj_main", "/toolchain/cupidobj_main.cc", False),
+        ("cupidld", "/toolchain/cupidld.cc", False),
+        ("cupidld_main", "/toolchain/cupidld_main.cc", False),
+        ("cupidc_pp", "/toolchain/cupidc_pp.cc", False),
+        ("cupidc_type", "/toolchain/cupidc_type.cc", False),
+        ("cupidc_frontend", "/toolchain/cupidc_frontend.cc", False),
+        ("cupidc_ir", "/toolchain/cupidc_ir.cc", False),
+        ("cupidc_emit", "/toolchain/cupidc_emit.cc", False),
+        ("cupidc_main", "/toolchain/cupidc_main.cc", False),
     )
     expected_include_arguments = (
         "-I",
@@ -4930,12 +4932,12 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
 
 def _c_preprocessor_deferred_reason(path: str) -> str:
     external_header_units = {
-        "/toolchain/ctool_host.c",
-        "/toolchain/cupidasm_main.c",
-        "/toolchain/cupiddis_main.c",
-        "/toolchain/cupidc_main.c",
-        "/toolchain/cupidld_main.c",
-        "/toolchain/cupidobj_main.c",
+        "/toolchain/ctool_host.cc",
+        "/toolchain/cupidasm_main.cc",
+        "/toolchain/cupiddis_main.cc",
+        "/toolchain/cupidc_main.cc",
+        "/toolchain/cupidld_main.cc",
+        "/toolchain/cupidobj_main.cc",
     }
     if path not in external_header_units and not path.startswith(
         "/toolchain/tests/"
@@ -5044,7 +5046,7 @@ def _c_preprocessor_active_cases_manifest(
                 closure_roots = [
                     _c_preprocessor_logical_path(path)
                     for path in inputs
-                    if _language(path) == "c"
+                    if _language(path) in {"c", "cupid_c"}
                 ]
                 expected_closure = (
                     _C_PP_HOSTED_I386_STRICT_CASES
@@ -5168,6 +5170,16 @@ def _c_preprocessor_active_cases_manifest(
                         f"CupidC active preprocessing root has unknown origin "
                         f"{origin!r}: {root}"
                     )
+                continue
+            if operation == "recursive_make":
+                if tools != ["make"]:
+                    raise AuditError(
+                        "CupidC recursive Make transform has unexpected tools "
+                        f"for {transform.get('output')}: {tools!r}"
+                    )
+                # A parent Make rule names child-build sources as prerequisites,
+                # but it does not deliver those sources into Cupid OS. The
+                # supplemental child graph owns their compile classification.
                 continue
 
             inputs = transform.get("inputs")

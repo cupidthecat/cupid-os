@@ -118,14 +118,13 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-The normal CupidC cohort has 144 checked-in roots. Of those, 139 use `.cc`.
-The seed-bound `toolchain/ctool.c`, `toolchain/cupidasm.c`,
-`toolchain/cupiddis.c`, `toolchain/elf32.c`, and `toolchain/x86.c` roots keep
-`.c` until their fixed point and native-host contracts are refreshed. The
-generated `kernel/cpu/ksyms_data.cc` source makes 140 normal `.cc`
-translations. ADR 0124 records this naming boundary; ownership and output
-counts do not change. The renamed graph passes the closed two-pass frontier,
-clean image build, symbol and memory checks, and four-vCPU runtime gate.
+The normal CupidC cohort has 144 checked-in roots and one generated symbol
+root. All 145 sources use `.cc`. Five shared Toolchain roots also belong to
+the 19-source i386 Linux fixed point, and their native GCC or Clang rules
+select C with `-x c`. ADRs 0124 and 0126 record the two naming steps.
+Ownership and output counts do not change. The renamed graph passes the
+closed two-pass frontier, clean image build, symbol and memory checks, and
+four-vCPU runtime gate.
 
 The module dependencies run from top to bottom and contain no cycles:
 

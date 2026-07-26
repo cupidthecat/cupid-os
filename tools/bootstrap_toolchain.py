@@ -46,25 +46,25 @@ EXPECTED_INCLUDE_ARGUMENTS = (
 )
 EXPECTED_STARTUP = "/toolchain/hosted/i386-linux/start.asm"
 EXPECTED_SOURCES = (
-    ("runtime", "/toolchain/hosted/i386-linux/runtime.c", True),
-    ("ctool", "/toolchain/ctool.c", False),
-    ("ctool_host", "/toolchain/ctool_host.c", False),
-    ("elf32", "/toolchain/elf32.c", False),
-    ("x86", "/toolchain/x86.c", False),
-    ("cupidasm", "/toolchain/cupidasm.c", False),
-    ("cupidasm_main", "/toolchain/cupidasm_main.c", False),
-    ("cupiddis", "/toolchain/cupiddis.c", False),
-    ("cupiddis_main", "/toolchain/cupiddis_main.c", False),
-    ("cupidobj", "/toolchain/cupidobj.c", False),
-    ("cupidobj_main", "/toolchain/cupidobj_main.c", False),
-    ("cupidld", "/toolchain/cupidld.c", False),
-    ("cupidld_main", "/toolchain/cupidld_main.c", False),
-    ("cupidc_pp", "/toolchain/cupidc_pp.c", False),
-    ("cupidc_type", "/toolchain/cupidc_type.c", False),
-    ("cupidc_frontend", "/toolchain/cupidc_frontend.c", False),
-    ("cupidc_ir", "/toolchain/cupidc_ir.c", False),
-    ("cupidc_emit", "/toolchain/cupidc_emit.c", False),
-    ("cupidc_main", "/toolchain/cupidc_main.c", False),
+    ("runtime", "/toolchain/hosted/i386-linux/runtime.cc", True),
+    ("ctool", "/toolchain/ctool.cc", False),
+    ("ctool_host", "/toolchain/ctool_host.cc", False),
+    ("elf32", "/toolchain/elf32.cc", False),
+    ("x86", "/toolchain/x86.cc", False),
+    ("cupidasm", "/toolchain/cupidasm.cc", False),
+    ("cupidasm_main", "/toolchain/cupidasm_main.cc", False),
+    ("cupiddis", "/toolchain/cupiddis.cc", False),
+    ("cupiddis_main", "/toolchain/cupiddis_main.cc", False),
+    ("cupidobj", "/toolchain/cupidobj.cc", False),
+    ("cupidobj_main", "/toolchain/cupidobj_main.cc", False),
+    ("cupidld", "/toolchain/cupidld.cc", False),
+    ("cupidld_main", "/toolchain/cupidld_main.cc", False),
+    ("cupidc_pp", "/toolchain/cupidc_pp.cc", False),
+    ("cupidc_type", "/toolchain/cupidc_type.cc", False),
+    ("cupidc_frontend", "/toolchain/cupidc_frontend.cc", False),
+    ("cupidc_ir", "/toolchain/cupidc_ir.cc", False),
+    ("cupidc_emit", "/toolchain/cupidc_emit.cc", False),
+    ("cupidc_main", "/toolchain/cupidc_main.cc", False),
 )
 EXPECTED_LINKS = {
     "cupidasm": (
@@ -575,7 +575,7 @@ def _validate_build_plan(manifest: dict[str, object]) -> None:
         if (
             not isinstance(logical_path, str)
             or not logical_path.startswith("/toolchain/")
-            or not logical_path.endswith(".c")
+            or not logical_path.endswith(".cc")
         ):
             raise BootstrapError(f"build source path is invalid: {name}")
         if not isinstance(extensions, bool):

@@ -41,6 +41,8 @@ def _build_cli(build: Path, name: str, sources):
         "-Wmissing-prototypes",
         "-Wconversion",
         "-Wsign-conversion",
+        "-x",
+        "c",
     ]
     command += [str(TOOLCHAIN_ROOT / source) for source in sources]
     command += ["-o", str(output)]
@@ -147,7 +149,7 @@ class CupidObjHostedCliTests(unittest.TestCase):
         cls.cli = _build_cli(
             Path(cls._build_directory.name),
             "cupidobj",
-            ["ctool.c", "ctool_host.c", "elf32.c", "cupidobj.c", "cupidobj_main.c"],
+            ["ctool.cc", "ctool_host.cc", "elf32.cc", "cupidobj.cc", "cupidobj_main.cc"],
         )
 
     @classmethod

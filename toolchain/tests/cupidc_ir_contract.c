@@ -1896,7 +1896,7 @@ static int wide_condition_active_sources_are_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/toolchain/cupidc_pp.c");
+  path.text = ctool_string("/toolchain/cupidc_pp.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -1996,7 +1996,7 @@ static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/toolchain/cupidc_pp.c");
+  path.text = ctool_string("/toolchain/cupidc_pp.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2008,7 +2008,7 @@ static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
                   "the active preprocessor magnitude helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidasm.c");
+  path.text = ctool_string("/toolchain/cupidasm.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2022,7 +2022,7 @@ static int wide_arithmetic_active_sources_are_unchanged(ctool_job_t *job) {
                   "an active assembler arithmetic helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidc_frontend.c");
+  path.text = ctool_string("/toolchain/cupidc_frontend.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2168,7 +2168,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/toolchain/cupidc_emit.c");
+  path.text = ctool_string("/toolchain/cupidc_emit.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active emitter source") ||
@@ -2184,7 +2184,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active emitter helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidc_frontend.c");
+  path.text = ctool_string("/toolchain/cupidc_frontend.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active frontend source") ||
@@ -2196,7 +2196,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active frontend helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/ctool.c");
+  path.text = ctool_string("/toolchain/ctool.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active core source") ||
@@ -2221,7 +2221,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active CupidC source guard changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidc_ir.c");
+  path.text = ctool_string("/toolchain/cupidc_ir.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active IR source") ||
@@ -2233,7 +2233,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active conditional child array changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupiddis.c");
+  path.text = ctool_string("/toolchain/cupiddis.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active disassembler source") ||
@@ -2243,7 +2243,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active disassembler helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidobj.c");
+  path.text = ctool_string("/toolchain/cupidobj.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active object-tool source") ||
@@ -2253,7 +2253,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active object-pointer helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidld.c");
+  path.text = ctool_string("/toolchain/cupidld.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active linker source") ||
@@ -2280,7 +2280,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active initializer result changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidasm.c");
+  path.text = ctool_string("/toolchain/cupidasm.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active assembler source") ||
@@ -2292,7 +2292,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active assembler helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/x86.c");
+  path.text = ctool_string("/toolchain/x86.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active x86 source") ||
@@ -2377,7 +2377,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active browser declaration loop changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/cupidc_ir.c");
+  path.text = ctool_string("/toolchain/cupidc_ir.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active CupidC IR source") ||
@@ -19413,7 +19413,7 @@ static int run_aggregate_initializers(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job)) {
     goto cleanup;
   }
-  active_path.text = ctool_string("/toolchain/cupidc_pp.c");
+  active_path.text = ctool_string("/toolchain/cupidc_pp.cc");
   (void)memset(&active_file, 0xa5, sizeof(active_file));
   status = ctool_job_load_source(job, &active_path, &active_file);
   if (!check_status(status, CTOOL_OK,
@@ -20541,7 +20541,7 @@ static int run_void_casts(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job)) {
     goto cleanup;
   }
-  active_path.text = ctool_string("/toolchain/ctool_host.c");
+  active_path.text = ctool_string("/toolchain/ctool_host.cc");
   (void)memset(&active_file, 0xa5, sizeof(active_file));
   status = ctool_job_load_source(job, &active_path, &active_file);
   if (!check_status(status, CTOOL_OK, "load active host source") ||
@@ -26333,11 +26333,8 @@ static int run_floating_conversions(const char *host_root) {
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_u32 reverse_assignment = CTOOL_C_AST_NONE;
-  ctool_u32 widening_assignment = CTOOL_C_AST_NONE;
-  ctool_u32 narrowing_cast = CTOOL_C_AST_NONE;
   ctool_u32 float_type;
   ctool_u32 double_type;
-  ctool_u32 int_type;
   ctool_u32 diagnostic_count;
   ctool_u32 index;
   ctool_status_t status;
@@ -26357,9 +26354,8 @@ static int run_floating_conversions(const char *host_root) {
   }
   float_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_FLOAT);
   double_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_DOUBLE);
-  int_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_SIGNED_INT);
   if (float_type == CTOOL_C_TYPE_NONE ||
-      double_type == CTOOL_C_TYPE_NONE || int_type == CTOOL_C_TYPE_NONE) {
+      double_type == CTOOL_C_TYPE_NONE) {
     goto cleanup;
   }
   unit_hash = unit_fingerprint(&unit);
@@ -26407,20 +26403,9 @@ static int run_floating_conversions(const char *host_root) {
         expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
         expression->type == float_type && child_type == double_type) {
       reverse_assignment = index;
-    } else if (expression->kind ==
-                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
-               expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
-               expression->type == double_type && child_type == float_type) {
-      widening_assignment = index;
-    } else if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
-               expression->type == float_type &&
-               child_type == double_type) {
-      narrowing_cast = index;
     }
   }
-  if (reverse_assignment == CTOOL_C_AST_NONE ||
-      widening_assignment == CTOOL_C_AST_NONE ||
-      narrowing_cast == CTOOL_C_AST_NONE) {
+  if (reverse_assignment == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
   invalid_unit = unit;
@@ -26445,26 +26430,6 @@ static int run_floating_conversions(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
           "reverse usual floating conversion")) {
-    goto cleanup;
-  }
-  (void)memcpy(invalid_expressions, unit.expressions,
-               (size_t)unit.expression_count * sizeof(*invalid_expressions));
-  invalid_expressions[widening_assignment].type = int_type;
-  if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "floating assignment to integer")) {
-    goto cleanup;
-  }
-  (void)memcpy(invalid_expressions, unit.expressions,
-               (size_t)unit.expression_count * sizeof(*invalid_expressions));
-  invalid_expressions[narrowing_cast].type = int_type;
-  if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "floating and integer cast")) {
     goto cleanup;
   }
   diagnostic_count = ctool_job_diagnostic_count(job);
@@ -26494,6 +26459,292 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("floating-conversions: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_floating_scalar_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 signed_int =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
+  ctool_u32 unsigned_int =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_INT);
+  ctool_u32 float_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 constants[5] = {0u, 0u, 0u, 0u, 0u};
+  ctool_u32 integer_to_floating[3] = {0u, 0u, 0u};
+  ctool_u32 floating_to_integer[2] = {0u, 0u};
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      unit->function_definition_count != 12u ||
+      ir->function_count != 12u ||
+      signed_int == CTOOL_C_TYPE_NONE ||
+      unsigned_int == CTOOL_C_TYPE_NONE ||
+      float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[index];
+    if (instruction->kind ==
+        CTOOL_C_IR_INSTRUCTION_FLOATING) {
+      if (instruction->input_type != CTOOL_C_TYPE_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->operation !=
+              CTOOL_C_EXPRESSION_OPERATOR_NONE) {
+        return 0;
+      }
+      if (instruction->type == float_type &&
+          instruction->integer_bits == 0x3f000000u) {
+        constants[0]++;
+      } else if (instruction->type == double_type &&
+                 instruction->integer_bits == 0ull) {
+        constants[1]++;
+      } else if (instruction->type == double_type &&
+                 instruction->integer_bits ==
+                     0x3fb999999999999aull) {
+        constants[2]++;
+      } else if (instruction->type == double_type &&
+                 instruction->integer_bits ==
+                     0x3ff0000000000000ull) {
+        constants[3]++;
+      } else if (instruction->type == double_type &&
+                 instruction->integer_bits ==
+                     0x4024000000000000ull) {
+        constants[4]++;
+      } else {
+        return 0;
+      }
+      continue;
+    }
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CONVERT) {
+      continue;
+    }
+    if ((instruction->input_type == signed_int ||
+         instruction->input_type == unsigned_int) &&
+        (instruction->type == float_type ||
+         instruction->type == double_type)) {
+      if (instruction->conversion ==
+          CTOOL_C_CONVERSION_ASSIGNMENT) {
+        integer_to_floating[0]++;
+      } else if (instruction->conversion ==
+                 CTOOL_C_CONVERSION_NONE) {
+        integer_to_floating[1]++;
+      } else if (instruction->conversion ==
+                 CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+        integer_to_floating[2]++;
+      }
+    } else if ((instruction->input_type == float_type ||
+                instruction->input_type == double_type) &&
+               instruction->type == signed_int) {
+      if (instruction->conversion ==
+          CTOOL_C_CONVERSION_ASSIGNMENT) {
+        floating_to_integer[0]++;
+      } else if (instruction->conversion ==
+                 CTOOL_C_CONVERSION_NONE) {
+        floating_to_integer[1]++;
+      }
+    }
+  }
+  return constants[0] == 1u && constants[1] == 1u &&
+                 constants[2] == 1u && constants[3] == 1u &&
+                 constants[4] == 1u &&
+                 integer_to_floating[0] == 2u &&
+                 integer_to_floating[1] == 2u &&
+                 integer_to_floating[2] == 1u &&
+                 floating_to_integer[0] == 1u &&
+                 floating_to_integer[1] == 1u
+             ? 1
+             : 0;
+}
+
+static int run_floating_scalars(const char *host_root) {
+  static const char source[] =
+      "typedef long double unsupported_long_double;\n"
+      "float literal_float(void) { return .5f; }\n"
+      "double literal_zero(void) { return 0.0; }\n"
+      "double literal_tenth(void) { return 0.1; }\n"
+      "double literal_one(void) { return 1.0; }\n"
+      "double literal_ten(void) { return 10.0; }\n"
+      "double assign_from_int(int value) { return value; }\n"
+      "double assign_from_uint(unsigned int value) { return value; }\n"
+      "double cast_from_int(int value) { return (double)value; }\n"
+      "float cast_from_uint(unsigned int value) { return (float)value; }\n"
+      "int assign_from_float(float value) { return value; }\n"
+      "int cast_from_double(double value) { return (int)value; }\n"
+      "double mixed_add(int left, double right) { return left + right; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_u32 float_constant = CTOOL_C_AST_NONE;
+  ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
+  ctool_u32 floating_to_integer = CTOOL_C_AST_NONE;
+  ctool_u32 signed_int;
+  ctool_u32 unsigned_int;
+  ctool_u32 float_type;
+  ctool_u32 double_type;
+  ctool_u32 long_double_type;
+  ctool_u32 index;
+  ctool_status_t status;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-scalars.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unsigned_int =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_UNSIGNED_INT);
+  signed_int =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_SIGNED_INT);
+  float_type =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_FLOAT);
+  double_type =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_DOUBLE);
+  long_double_type =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  if (unsigned_int == CTOOL_C_TYPE_NONE ||
+      signed_int == CTOOL_C_TYPE_NONE ||
+      float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "floating scalar lowering") ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_floating_scalar_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = wide_variadic_ir_fingerprint(&ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat floating scalar lowering") ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      wide_variadic_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_floating_scalar_ir(&unit, &repeat_ir)) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count *
+          sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &unit.expressions[index];
+    ctool_u32 child =
+        expression->child_count == 1u
+            ? unit.expression_children[expression->first_child]
+            : CTOOL_C_AST_NONE;
+    if (expression->kind ==
+            CTOOL_C_EXPRESSION_FLOATING_CONSTANT &&
+        float_constant == CTOOL_C_AST_NONE) {
+      float_constant = index;
+    }
+    if (expression->kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion ==
+            CTOOL_C_CONVERSION_ASSIGNMENT &&
+        child < unit.expression_count &&
+        unit.expressions[child].type == signed_int &&
+        expression->type == double_type) {
+      integer_to_floating = index;
+    }
+    if (expression->kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion ==
+            CTOOL_C_CONVERSION_ASSIGNMENT &&
+        child < unit.expression_count &&
+        unit.expressions[child].type == float_type &&
+        expression->type == signed_int) {
+      floating_to_integer = index;
+    }
+  }
+  if (float_constant == CTOOL_C_AST_NONE ||
+      integer_to_floating == CTOOL_C_AST_NONE ||
+      floating_to_integer == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[float_constant].type = unsigned_int;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating literal with integer type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[float_constant].type = long_double_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating literal with long double type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[integer_to_floating].type =
+      long_double_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "integer to long double conversion metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_to_integer].type =
+      unsigned_int;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "floating to unsigned 32-bit conversion")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-scalars: ok");
     return 0;
   }
   return 1;
@@ -31697,6 +31948,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversions(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-scalars") == 0) {
+    return run_floating_scalars(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);
   }
@@ -31784,7 +32038,7 @@ int main(int argc, char **argv) {
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|wide-variadics|"
                 "floating-transport|floating-arithmetic|"
-                "floating-conversions|"
+                "floating-conversions|floating-scalars|"
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"

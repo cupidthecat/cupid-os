@@ -279,14 +279,11 @@ teardown exchanges without `pexpect` or Scapy.
 ### Self-hosting compiler status
 
 The normal image build uses the checked CupidC seed for 144 checked-in
-objects and the generated kernel symbol object. Of the checked-in roots, 139
-now use `.cc`. The seed-bound `toolchain/ctool.c`,
-`toolchain/cupidasm.c`, `toolchain/cupiddis.c`, `toolchain/elf32.c`, and
-`toolchain/x86.c` roots keep `.c` until their fixed point and native-host
-contracts are refreshed. The generated `kernel/cpu/ksyms_data.cc`
-translation brings the normal build to 140 `.cc` translations within its
-existing 145-transform CupidC cohort. The 111-root naming transfer changes
-neither ownership nor output counts.
+objects and the generated kernel symbol object. All 145 sources use `.cc`.
+The five shared Toolchain roots also belong to the 19-source i386 Linux
+fixed-point plan. Their native GCC and Clang rules select C explicitly with
+`-x c`. The completed naming transfer changes neither ownership nor output
+counts.
 
 Typed null conversion, external-array address decay, GNU assembly operands,
 the per-CPU GS load, port I/O, integer atomics, and the wider shared C path
@@ -327,9 +324,9 @@ all 32 bits through represented function-pointer casts. Exact output-only
 assembly forms snapshot general registers, ESP, EBP, the caller return slot,
 or EFLAGS into one four-byte destination. Those files were renamed to `.cc`
 with their ownership transfer. ADR 0124 renames another 111 exclusively
-CupidC-owned roots to `.cc`; the five shared Toolchain roots remain the
-explicit seed-refresh boundary. Ten strict checked-in roots remain on the
-host compiler.
+CupidC-owned roots to `.cc`. ADR 0126 completes the 19-source fixed-point
+rename and proves the updated plan from the old seed. Ten strict checked-in
+roots remain on the host compiler.
 
 CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
@@ -441,7 +438,8 @@ in-OS CupidC execution at `0x01100000`. The wider USB and dual-NIC gates from
 the established cohort remain part of the runtime contract. A separate smoke
 loads the same external ELF program twice at `0x00F00000`; process cleanup
 releases the first arena lease before the second load. ADR 0124 records
-the renamed graph's exact hashes, byte counts, timing, and runtime log.
+the first renamed graph's exact hashes, byte counts, timing, and runtime log.
+ADR 0126 records the fixed-point naming proof.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,
@@ -454,7 +452,21 @@ evaluates its operand once and discards any represented result.
 
 The hosted path also carries signed and unsigned eight-byte integers through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, and named direct or indirect call arguments. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be loaded, initialized, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte snapshot, so a load is a stable C value rather than a borrowed object address. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. On return, EAX carries the low word and EDX carries the high word. Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, explicit casts to or from represented byte, word, and doubleword integers, and the usual arithmetic conversion from `signed long long` to `unsigned long long`. A wide switch evaluates its condition once, duplicates the private snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and performs one semantic load and store. Wide multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. GNU wide enums promote to their compatible signed or unsigned wide type. The complete unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard those operations. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 
-The hosted path carries `float` and `double` values through objects, initialization, assignment, discard, fixed calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Matching floating conditional arms keep their width; mixed arithmetic and conditional arms use `double`. The four arithmetic compound assignments compute at the common width, convert the stored value back to the left type, and evaluate the lvalue once. Each changed x87 result is stored at its C width before the next Linear IR instruction, so a `float` rounds into a fresh four-byte slot and a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` expression `(e1 - e2) / (e1 + e2)` pins nested `double` arithmetic, while the complete following `float` helper slice pins the new width changes. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots and return either kind in x87 `ST0`; `va_arg(double)` advances by eight bytes. Floating comparisons and truth, integer and floating conversions, a floating controlling expression, increment and decrement, literals, explicit static initializers, `long double`, SIMD, floating atomic access, and over-aligned emission remain open. The decoder-driven oracle checks conversions, operand order, immediate spills, selected IEEE patterns, call alignment, and frame state. It models the emitted subset rather than executing native x87 code.
+The hosted path carries `float` and `double` values through objects,
+initialization, assignment, discard, calls, parameters, results, and returns.
+It supports conversion between the two widths, arithmetic at matching or
+mixed widths, conditional values, compound arithmetic assignment, default
+argument promotion, and `va_arg(double)`. Decimal constants are published as
+exact IEEE bits. Represented integer-to-floating conversions,
+floating-to-signed conversions, floating-to-unsigned byte or word
+conversions, and mixed integer and floating arithmetic use the SSE object
+path. Unsigned four-byte input uses an exact split across the sign boundary.
+The x87 transport model and SSE conversion oracle check rounding, operand
+order, call alignment, and frame state. Floating comparisons and truth,
+hexadecimal and subnormal literals, `long double`, conversion to unsigned
+four-byte integers or `_Bool`, mixed integer and floating conditional arms,
+floating increment and decrement, explicit static initializers, SIMD values,
+floating atomics, and over-aligned emission remain open.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
@@ -502,7 +514,9 @@ and the generated kernel symbol translation described above.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
 
-[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer and the five seed-bound Toolchain exceptions.
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots.
+
+[ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 

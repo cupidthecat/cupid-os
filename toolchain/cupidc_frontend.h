@@ -324,7 +324,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_ATOMIC_STORE,
   CTOOL_C_EXPRESSION_ATOMIC_EXCHANGE,
   CTOOL_C_EXPRESSION_ATOMIC_FETCH_ADD,
-  CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR
+  CTOOL_C_EXPRESSION_ATOMIC_FETCH_OR,
+  CTOOL_C_EXPRESSION_FLOATING_CONSTANT
 } ctool_c_expression_kind_t;
 
 typedef enum {
@@ -440,8 +441,10 @@ typedef struct {
    * constant expression; CONSTANT_CONDITION_NONZERO records its truth value
    * and is valid only together with CONSTANT_CONDITION. */
   ctool_u32 semantic_flags;
-  /* INTEGER_CONSTANT: target-width constant bit pattern; type carries
-   * rank/sign. This includes target-folded non-VLA layout queries.
+  /* INTEGER_CONSTANT and FLOATING_CONSTANT: target-width constant bit
+   * pattern. Integer types carry rank and sign. Floating types select the
+   * IEEE binary32 or binary64 representation.
+   * Integer constants include target-folded non-VLA layout queries.
    * ATOMIC_*: validated GNU memory-order value from zero through five. */
   ctool_u64 integer_bits;
   /* STRING: decoded target bytes including the trailing null byte. */

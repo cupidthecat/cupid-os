@@ -78,10 +78,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         original = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
         mutations = {
             "substituted source": lambda plan: plan["sources"][1].update(
-                {"path": "/toolchain/elf32.c"}
+                {"path": "/toolchain/elf32.cc"}
             ),
             "traversal source": lambda plan: plan["sources"][1].update(
-                {"path": "/toolchain/../toolchain/ctool.c"}
+                {"path": "/toolchain/../toolchain/ctool.cc"}
             ),
             "duplicate source path": lambda plan: plan["sources"][1].update(
                 {"path": plan["sources"][3]["path"]}

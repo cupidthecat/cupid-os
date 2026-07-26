@@ -52,22 +52,22 @@ CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
 CUPIDOBJ ?= $(CUPIDOBJ_BUILD)
 CUPIDLD_BUILD := toolchain/build/cupidld$(HOST_EXE)
 CUPIDLD ?= $(CUPIDLD_BUILD)
-HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.c toolchain/ctool.h \
-	toolchain/ctool_host.c toolchain/ctool_host.h \
-	toolchain/elf32.c toolchain/elf32.h
+HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.cc toolchain/ctool.h \
+	toolchain/ctool_host.cc toolchain/ctool_host.h \
+	toolchain/elf32.cc toolchain/elf32.h
 CUPIDDIS_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
-	toolchain/x86.c toolchain/x86.h \
-	toolchain/cupiddis.c toolchain/cupiddis.h toolchain/cupiddis_main.c \
+	toolchain/x86.cc toolchain/x86.h \
+	toolchain/cupiddis.cc toolchain/cupiddis.h toolchain/cupiddis_main.cc \
 	toolchain/Makefile
 CUPIDASM_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
-	toolchain/x86.c toolchain/x86.h \
-	toolchain/cupidasm.c toolchain/cupidasm.h toolchain/cupidasm_main.c \
+	toolchain/x86.cc toolchain/x86.h \
+	toolchain/cupidasm.cc toolchain/cupidasm.h toolchain/cupidasm_main.cc \
 	toolchain/Makefile
 CUPIDOBJ_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
-	toolchain/cupidobj.c toolchain/cupidobj.h toolchain/cupidobj_main.c \
+	toolchain/cupidobj.cc toolchain/cupidobj.h toolchain/cupidobj_main.cc \
 	toolchain/Makefile
 CUPIDLD_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
-	toolchain/cupidld.c toolchain/cupidld.h toolchain/cupidld_main.c \
+	toolchain/cupidld.cc toolchain/cupidld.h toolchain/cupidld_main.cc \
 	toolchain/Makefile
 .DEFAULT_GOAL := all
 # NASA Power of 10 compliant flags: pedantic, warnings as errors, strict checks
@@ -952,20 +952,20 @@ kernel/gui/gui_themes.o: kernel/gui/gui_themes.cc kernel/core/string.h kernel/co
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o
 
 # CupidC compiler
-toolchain/ctool.o: toolchain/ctool.c toolchain/ctool.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.c --output toolchain/ctool.o
+toolchain/ctool.o: toolchain/ctool.cc toolchain/ctool.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.cc --output toolchain/ctool.o
 
-toolchain/elf32.o: toolchain/elf32.c toolchain/ctool.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.c --output toolchain/elf32.o
+toolchain/elf32.o: toolchain/elf32.cc toolchain/ctool.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.cc --output toolchain/elf32.o
 
-toolchain/x86.o: toolchain/x86.c toolchain/ctool.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.c --output toolchain/x86.o
+toolchain/x86.o: toolchain/x86.cc toolchain/ctool.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.cc --output toolchain/x86.o
 
-toolchain/cupiddis.o: toolchain/cupiddis.c toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.c --output toolchain/cupiddis.o
+toolchain/cupiddis.o: toolchain/cupiddis.cc toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.cc --output toolchain/cupiddis.o
 
-toolchain/cupidasm.o: toolchain/cupidasm.c toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.c --output toolchain/cupidasm.o
+toolchain/cupidasm.o: toolchain/cupidasm.cc toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.cc --output toolchain/cupidasm.o
 
 kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.cc drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o

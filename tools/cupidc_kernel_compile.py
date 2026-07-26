@@ -153,11 +153,11 @@ APPROVED_COMPILER_READY_SOURCES = (
     "kernel/util/calendar.cc",
 )
 APPROVED_TOOLCHAIN_KERNEL_SOURCES = (
-    "toolchain/ctool.c",
-    "toolchain/cupidasm.c",
-    "toolchain/cupiddis.c",
-    "toolchain/elf32.c",
-    "toolchain/x86.c",
+    "toolchain/ctool.cc",
+    "toolchain/cupidasm.cc",
+    "toolchain/cupiddis.cc",
+    "toolchain/elf32.cc",
+    "toolchain/x86.cc",
 )
 APPROVED_SOURCE_DRIVEN_SOURCES = (
     "drivers/serial.cc",

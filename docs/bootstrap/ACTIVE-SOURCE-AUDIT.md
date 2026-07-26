@@ -20,9 +20,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 128 |
+| `c` | 109 |
 | `c_header` | 270 |
-| `cupid_c` | 273 |
+| `cupid_c` | 292 |
 
 ## Source cohorts
 
@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 15 | 110260 |
-| `toolchain_core` | 31 | 63484 |
+| `toolchain_contract` | 15 | 111357 |
+| `toolchain_core` | 31 | 64312 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -99,24 +99,24 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 67904 |
+| `c.control` | 12 | 68273 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3092 |
-| `c.expression` | 2 | 4526 |
+| `c.declarator` | 4 | 3110 |
+| `c.expression` | 2 | 4558 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 640 |
-| `c.output` | 1 | 99 |
+| `c.output` | 1 | 94 |
 | `c.preprocessor` | 18 | 6664 |
-| `c.qualifier` | 2 | 12406 |
-| `c.storage` | 4 | 8180 |
-| `c.type` | 14 | 45141 |
+| `c.qualifier` | 2 | 12462 |
+| `c.storage` | 4 | 8204 |
+| `c.type` | 14 | 45227 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 146 |
-| `cupid_c.storage` | 2 | 31 |
+| `cupid_c.output` | 1 | 151 |
+| `cupid_c.storage` | 2 | 118 |
 | `cupid_c.type` | 12 | 152 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
@@ -151,7 +151,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 275 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 281 |
 
 ## Source-cohort migration order
 

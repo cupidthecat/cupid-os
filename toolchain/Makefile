@@ -37,20 +37,20 @@ CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/stdlib.h \
                               hosted/i386-linux/include/string.h \
                               hosted/i386-linux/include/unistd.h
-CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.c \
+CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               hosted/i386-linux/start.asm \
                               tests/hosted_i386_runtime_contract.c
-CUPIDC_HOSTED_I386_CLOSURE := ctool.c ctool.h ctool_host.c ctool_host.h \
-                              elf32.c elf32.h x86.c x86.h \
-                              cupidc_pp.c cupidc_pp.h \
-                              cupidc_type.c cupidc_type.h \
-                              cupidc_frontend.c cupidc_frontend.h \
-                              cupidc_ir.c cupidc_ir.h \
-                              cupidc_emit.c cupidc_emit.h cupidc_main.c \
-                              cupidasm.c cupidasm.h cupidasm_main.c \
-                              cupiddis.c cupiddis.h cupiddis_main.c \
-                              cupidld.c cupidld.h cupidld_main.c \
-                              cupidobj.c cupidobj.h cupidobj_main.c \
+CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
+                              elf32.cc elf32.h x86.cc x86.h \
+                              cupidc_pp.cc cupidc_pp.h \
+                              cupidc_type.cc cupidc_type.h \
+                              cupidc_frontend.cc cupidc_frontend.h \
+                              cupidc_ir.cc cupidc_ir.h \
+                              cupidc_emit.cc cupidc_emit.h cupidc_main.cc \
+                              cupidasm.cc cupidasm.h cupidasm_main.cc \
+                              cupiddis.cc cupiddis.h cupiddis_main.cc \
+                              cupidld.cc cupidld.h cupidld_main.cc \
+                              cupidobj.cc cupidobj.h cupidobj_main.cc \
                               $(CUPIDC_HOSTED_I386_HEADERS) \
                               $(CUPIDC_HOSTED_I386_RUNTIME)
 CUPIDC_HOSTED_I386_ARTIFACTS := $(BUILD_DIR)/cupidc-cupidasm.elf \
@@ -179,65 +179,65 @@ all: $(HOST_BOOTSTRAP_ARTIFACTS) $(CUPIDC_HOSTED_I386_MANIFEST)
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
 
-$(BUILD_DIR)/ctool.o: ctool.c ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/ctool.o: ctool.cc ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/ctool_host.o: ctool_host.c ctool_host.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/ctool_host.o: ctool_host.cc ctool_host.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_pp.o: cupidc_pp.c cupidc_pp.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidc_pp.o: cupidc_pp.cc cupidc_pp.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_type.o: cupidc_type.c cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidc_type.o: cupidc_type.cc cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_frontend.o: cupidc_frontend.c cupidc_frontend.h \
+$(BUILD_DIR)/cupidc_frontend.o: cupidc_frontend.cc cupidc_frontend.h \
                                 cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_ir.o: cupidc_ir.c cupidc_ir.h cupidc_frontend.h \
+$(BUILD_DIR)/cupidc_ir.o: cupidc_ir.cc cupidc_ir.h cupidc_frontend.h \
                           cupidc_type.h cupidc_pp.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_emit.o: cupidc_emit.c cupidc_emit.h cupidc_frontend.h \
+$(BUILD_DIR)/cupidc_emit.o: cupidc_emit.cc cupidc_emit.h cupidc_frontend.h \
                             cupidc_ir.h cupidc_type.h cupidc_pp.h elf32.h \
                             x86.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_main.o: cupidc_main.c cupidc_emit.h cupidc_ir.h \
+$(BUILD_DIR)/cupidc_main.o: cupidc_main.cc cupidc_emit.h cupidc_ir.h \
                             cupidc_frontend.h cupidc_type.h cupidc_pp.h \
                             ctool_host.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/elf32.o: elf32.c elf32.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/elf32.o: elf32.cc elf32.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/x86.o: x86.c x86.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/x86.o: x86.cc x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupiddis.o: cupiddis.c cupiddis.h elf32.h x86.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupiddis.o: cupiddis.cc cupiddis.h elf32.h x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupiddis_main.o: cupiddis_main.c cupiddis.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupiddis_main.o: cupiddis_main.cc cupiddis.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm.o: cupidasm.c cupidasm.h elf32.h x86.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidasm.o: cupidasm.cc cupidasm.h elf32.h x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm_main.o: cupidasm_main.c cupidasm.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidasm_main.o: cupidasm_main.cc cupidasm.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidobj.o: cupidobj.c cupidobj.h elf32.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidobj.o: cupidobj.cc cupidobj.h elf32.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidobj_main.o: cupidobj_main.c cupidobj.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidobj_main.o: cupidobj_main.cc cupidobj.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidld.o: cupidld.c cupidld.h elf32.h ctool.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidld.o: cupidld.cc cupidld.h elf32.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidld_main.o: cupidld_main.c cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c -c $< -o $@
@@ -436,6 +436,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) floating-transport ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
+	$(CUPIDC_FRONTEND_CONTRACT) floating-scalars ..
 	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) port-io-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) privileged-register-assembly ..
@@ -514,6 +515,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) floating-transport ..
 	$(CUPIDC_IR_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
+	$(CUPIDC_IR_CONTRACT) floating-scalars ..
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
 	$(CUPIDC_IR_CONTRACT) port-io-assembly ..
 	$(CUPIDC_IR_CONTRACT) privileged-register-assembly ..
@@ -560,6 +562,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) floating-transport ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
+	$(CUPIDC_OBJECT_CONTRACT) floating-scalars ..
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) port-io-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) privileged-register-assembly ..

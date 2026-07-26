@@ -106,103 +106,103 @@
       {
         "gnu_extensions": true,
         "name": "runtime",
-        "path": "/toolchain/hosted/i386-linux/runtime.c"
+        "path": "/toolchain/hosted/i386-linux/runtime.cc"
       },
       {
         "gnu_extensions": false,
         "name": "ctool",
-        "path": "/toolchain/ctool.c"
+        "path": "/toolchain/ctool.cc"
       },
       {
         "gnu_extensions": false,
         "name": "ctool_host",
-        "path": "/toolchain/ctool_host.c"
+        "path": "/toolchain/ctool_host.cc"
       },
       {
         "gnu_extensions": false,
         "name": "elf32",
-        "path": "/toolchain/elf32.c"
+        "path": "/toolchain/elf32.cc"
       },
       {
         "gnu_extensions": false,
         "name": "x86",
-        "path": "/toolchain/x86.c"
+        "path": "/toolchain/x86.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidasm",
-        "path": "/toolchain/cupidasm.c"
+        "path": "/toolchain/cupidasm.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidasm_main",
-        "path": "/toolchain/cupidasm_main.c"
+        "path": "/toolchain/cupidasm_main.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupiddis",
-        "path": "/toolchain/cupiddis.c"
+        "path": "/toolchain/cupiddis.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupiddis_main",
-        "path": "/toolchain/cupiddis_main.c"
+        "path": "/toolchain/cupiddis_main.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidobj",
-        "path": "/toolchain/cupidobj.c"
+        "path": "/toolchain/cupidobj.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidobj_main",
-        "path": "/toolchain/cupidobj_main.c"
+        "path": "/toolchain/cupidobj_main.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidld",
-        "path": "/toolchain/cupidld.c"
+        "path": "/toolchain/cupidld.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidld_main",
-        "path": "/toolchain/cupidld_main.c"
+        "path": "/toolchain/cupidld_main.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidc_pp",
-        "path": "/toolchain/cupidc_pp.c"
+        "path": "/toolchain/cupidc_pp.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidc_type",
-        "path": "/toolchain/cupidc_type.c"
+        "path": "/toolchain/cupidc_type.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidc_frontend",
-        "path": "/toolchain/cupidc_frontend.c"
+        "path": "/toolchain/cupidc_frontend.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidc_ir",
-        "path": "/toolchain/cupidc_ir.c"
+        "path": "/toolchain/cupidc_ir.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidc_emit",
-        "path": "/toolchain/cupidc_emit.c"
+        "path": "/toolchain/cupidc_emit.cc"
       },
       {
         "gnu_extensions": false,
         "name": "cupidc_main",
-        "path": "/toolchain/cupidc_main.c"
+        "path": "/toolchain/cupidc_main.cc"
       }
     ],
     "startup": "/toolchain/hosted/i386-linux/start.asm",
     "workers": 2
   },
-  "build_plan_sha256": "7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0",
+  "build_plan_sha256": "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc",
   "provenance": {
     "fixed_point_command": "make bootstrap-from-seed",
     "fixed_point_result": "pass",

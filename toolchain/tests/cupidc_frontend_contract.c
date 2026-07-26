@@ -7348,29 +7348,29 @@ static int validate_toolchain_frontier(const char *host_root) {
     ctool_u32 labels;
   } toolchain_frontier_case_t;
   static const toolchain_frontier_case_t cases[] = {
-      {"/toolchain/ctool.c", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
+      {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
        5981u, 133u, 33u, 0u, 0u},
-      {"/toolchain/cupiddis.c", CTOOL_OK, 0u, 0u, 0u, "", 68u, 1553u,
+      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 68u, 1553u,
        10065u, 154u, 118u, 0u, 0u},
-      {"/toolchain/cupidld.c", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
+      {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
        13347u, 267u, 146u, 0u, 1u},
-      {"/toolchain/cupidobj.c", CTOOL_OK, 0u, 0u, 0u, "", 14u, 329u,
+      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 14u, 329u,
        2201u, 47u, 26u, 0u, 0u},
-      {"/toolchain/cupidc_type.c", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
+      {"/toolchain/cupidc_type.cc", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
-      {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
+      {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 210u, 6331u,
-       57177u, 806u, 293u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 219u, 5778u,
-       49511u, 694u, 350u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 327u,
-       13285u, 87334u, 1953u, 1287u, 0u, 0u},
-      {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 210u, 6356u,
+       57554u, 810u, 295u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 224u, 5920u,
+       50859u, 715u, 359u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 332u,
+       13534u, 89124u, 2000u, 1324u, 0u, 0u},
+      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
-      {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
+      {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
-      {"/toolchain/x86.c", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1683u,
+      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1683u,
        11376u, 173u, 16441u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -7432,16 +7432,16 @@ static int validate_toolchain_frontier(const char *host_root) {
       diagnostic = ctool_job_diagnostic(job, 0u);
       if (test_case->expected_status == CTOOL_OK) {
         int static_string_valid = 1;
-        if (strcmp(test_case->path, "/toolchain/ctool.c") == 0) {
+        if (strcmp(test_case->path, "/toolchain/ctool.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, 111u, "digits", 26u, "/toolchain/ctool.c",
+                  &unit, 111u, "digits", 26u, "/toolchain/ctool.cc",
                   1181u) == 0;
         } else if (strcmp(test_case->path,
-                          "/toolchain/cupiddis.c") == 0) {
+                          "/toolchain/cupiddis.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, 20u, "hex", 8u, "/toolchain/cupiddis.c",
+                  &unit, 20u, "hex", 8u, "/toolchain/cupiddis.cc",
                   322u) == 0;
         }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
@@ -7885,10 +7885,11 @@ static int run_scalar_initializers(const char *host_root) {
          "void bad(void) { int value = { 1, 2 }; }\n",
          CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
         1u, 35u, "scalar initializer list has excess elements"},
-      {{"floating scalar initializer boundary",
-         "void bad(void) { double value = 1.0; }\n",
+      {{"floating boolean initializer boundary",
+         "void bad(void) { _Bool value = 1.0; }\n",
          CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-        1u, 33u, "floating constants are outside this expression slice"}};
+        1u, 32u,
+        "floating assignment conversion is outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -11313,12 +11314,13 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
        3u, 19u,
        "initializer expression is not convertible to block object type"},
       {{"floating expression leaf",
-        "typedef struct { double value; } item_t;\n"
+        "typedef struct { _Bool value; } item_t;\n"
         "void bad(void) {\n"
         "  item_t value = {1.0};\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       3u, 19u, "floating constants are outside this expression slice"},
+       3u, 19u,
+       "floating assignment conversion is outside this body slice"},
       {{"character array string excess",
         "void bad(void) {\n"
         "  char text[2] = \"abc\";\n"
@@ -15231,19 +15233,22 @@ static int run_scalar_returns(const char *host_root) {
       {{"malformed integer literal", "int bad(void) { return 09; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 24u, "integer constant suffix is invalid"},
-      {{"deferred decimal floating literal",
-        "int bad(void) { return 1.0; }\n", CTOOL_ERR_UNSUPPORTED,
+      {{"floating boolean return",
+        "_Bool bad(void) { return 1.0; }\n", CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 24u, "floating constants are outside this expression slice"},
+       1u, 26u,
+       "floating assignment conversion is outside this body slice"},
       {{"deferred hexadecimal floating literal",
         "int bad(void) { return 0x1p0; }\n", CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 24u, "floating constants are outside this expression slice"},
-      {{"deferred floating return conversion",
-        "int bad(float value) { return value; }\n", CTOOL_ERR_UNSUPPORTED,
+       1u, 24u,
+       "hexadecimal floating constants are outside this decimal slice"},
+      {{"floating boolean return conversion",
+        "_Bool bad(float value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 31u,
-       "floating assignment conversions are outside this body slice"},
+       1u, 33u,
+       "floating assignment conversion is outside this body slice"},
       {{"deferred floating logical operand",
         "int bad(float value) { return !value; }\n", CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -16028,10 +16033,12 @@ static int run_pointer_expressions(const char *host_root) {
         "struct value { int member; }; int bad(int value) { return (struct value)value; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "cast destination must have scalar or void type"},
-      {{"floating cast",
-        "int bad(float value) { return (int)value; }\n", CTOOL_ERR_UNSUPPORTED,
+      {{"floating to unsigned 32-bit cast",
+        "unsigned int bad(float value) { return (unsigned int)value; }\n",
+        CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating casts are outside this expression slice"},
+       0u, 0u,
+       "floating to unsigned 32-bit conversion is outside this expression slice"},
       {{"sizeof incomplete expression",
         "struct pending; unsigned int bad(struct pending *value) { return sizeof(*value); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -22134,7 +22141,7 @@ static int compound_literal_active_source_is_unchanged(
   ctool_source_t source;
   const char *found;
   ctool_status_t status;
-  path.text = ctool_string("/toolchain/cupidc_pp.c");
+  path.text = ctool_string("/toolchain/cupidc_pp.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(fixture->job, &path, &source);
   found = status == CTOOL_OK && source.contents.data != NULL
@@ -22142,7 +22149,7 @@ static int compound_literal_active_source_is_unchanged(
               : NULL;
   if (found == NULL || strstr(found + strlen(active), active) != NULL) {
     (void)fprintf(stderr,
-                  "compound-literals: active cupidc_pp.c source differs\n");
+                  "compound-literals: active cupidc_pp.cc source differs\n");
     return 1;
   }
   return 0;
@@ -23127,11 +23134,11 @@ static int run_floating_arithmetic(const char *host_root) {
       "         (double_identity(third) - left);\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"mixed integer and float operands",
-        "float bad(float left, int right) { return left * right; }\n",
+      {{"wide integer and float operands",
+        "float bad(float left, long long right) { return left * right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 48u,
-       "integer and floating arithmetic conversions are outside this expression slice"},
+       1u, 54u,
+       "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
       {{"long double arithmetic",
         "void bad(long double left, long double right) { (void)(left / right); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -23456,43 +23463,43 @@ static int run_floating_conversions(const char *host_root) {
       "float mixed_multiply_assign(float *left, double right) { return *left *= right; }\n"
       "double mixed_divide_assign(double *left, float right) { return *left /= right; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"integer to floating assignment",
-        "double bad(int value) { return value; }\n",
+      {{"wide integer to floating assignment",
+        "double bad(long long value) { return value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "floating assignment conversions are outside this body slice"},
-      {{"floating to integer assignment",
-        "int bad(float value) { return value; }\n",
+       "floating assignment conversion is outside this body slice"},
+      {{"floating to unsigned integer assignment",
+        "unsigned int bad(float value) { return value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "floating assignment conversions are outside this body slice"},
-      {{"integer to floating cast",
-        "double bad(int value) { return (double)value; }\n",
+       "floating to unsigned 32-bit conversion is outside this body slice"},
+      {{"wide integer to floating cast",
+        "double bad(long long value) { return (double)value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating casts are outside this expression slice"},
+       0u, 0u, "floating cast is outside this expression slice"},
       {{"long double conversion",
         "double bad(long double value) { return (double)value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating casts are outside this expression slice"},
+       0u, 0u, "floating cast is outside this expression slice"},
       {{"atomic floating cast",
         "double bad(float value) { return (_Atomic double)value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating casts are outside this expression slice"},
+       0u, 0u, "floating cast is outside this expression slice"},
       {{"atomic floating assignment source",
         "double bad(_Atomic float value) { return value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "floating assignment conversions are outside this body slice"},
+       "floating assignment conversion is outside this body slice"},
       {{"atomic floating assignment target",
         "void bad(float value) { _Atomic double result; result = value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "floating assignment conversions are outside this body slice"},
-      {{"integer and floating arithmetic",
-        "double bad(int left, double right) { return left + right; }\n",
+      {{"wide integer and floating arithmetic",
+        "double bad(long long left, double right) { return left + right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "integer and floating arithmetic conversions are outside this expression slice"},
+       "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
       {{"floating comparison",
         "int bad(float left, double right) { return left < right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -23567,6 +23574,221 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("floating-conversions: ok\n");
+  }
+  return failed;
+}
+
+static int validate_floating_scalars(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 floating_constants[5] = {0u, 0u, 0u, 0u, 0u};
+  ctool_u32 assignment_conversions[2] = {0u, 0u};
+  ctool_u32 casts[2] = {0u, 0u};
+  ctool_u32 usual_integer_to_double = 0u;
+  ctool_u32 index;
+  if (unit == NULL || unit->function_definition_count != 12u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    ctool_c_type_kind_t target_kind =
+        underlying_type_kind(unit, expression->type, NULL);
+    if (expression->kind == CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      if (expression->child_count != 0u ||
+          expression->first_child != CTOOL_C_AST_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE) {
+        return 1;
+      }
+      if (target_kind == CTOOL_C_TYPE_FLOAT &&
+          expression->integer_bits == 0x3f000000u) {
+        floating_constants[0]++;
+      } else if (target_kind == CTOOL_C_TYPE_DOUBLE &&
+                 expression->integer_bits == 0ull) {
+        floating_constants[1]++;
+      } else if (target_kind == CTOOL_C_TYPE_DOUBLE &&
+                 expression->integer_bits ==
+                     0x3fb999999999999aull) {
+        floating_constants[2]++;
+      } else if (target_kind == CTOOL_C_TYPE_DOUBLE &&
+                 expression->integer_bits ==
+                     0x3ff0000000000000ull) {
+        floating_constants[3]++;
+      } else if (target_kind == CTOOL_C_TYPE_DOUBLE &&
+                 expression->integer_bits ==
+                     0x4024000000000000ull) {
+        floating_constants[4]++;
+      } else {
+        return 1;
+      }
+      continue;
+    }
+    if (expression->child_count != 1u ||
+        (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+         expression->kind != CTOOL_C_EXPRESSION_CAST)) {
+      continue;
+    }
+    {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      ctool_c_type_kind_t source_kind =
+          child < unit->expression_count
+              ? underlying_type_kind(
+                    unit, unit->expressions[child].type, NULL)
+              : (ctool_c_type_kind_t)CTOOL_C_TYPE_NONE;
+      ctool_bool source_integer =
+          source_kind == CTOOL_C_TYPE_SIGNED_INT ||
+                  source_kind == CTOOL_C_TYPE_UNSIGNED_INT
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool target_integer =
+          target_kind == CTOOL_C_TYPE_SIGNED_INT ? CTOOL_TRUE
+                                                 : CTOOL_FALSE;
+      ctool_bool source_floating =
+          source_kind == CTOOL_C_TYPE_FLOAT ||
+                  source_kind == CTOOL_C_TYPE_DOUBLE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool target_floating =
+          target_kind == CTOOL_C_TYPE_FLOAT ||
+                  target_kind == CTOOL_C_TYPE_DOUBLE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      if (expression->kind ==
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+          expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+          source_integer == CTOOL_TRUE &&
+          target_kind == CTOOL_C_TYPE_DOUBLE) {
+        assignment_conversions[0]++;
+      } else if (expression->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 expression->conversion ==
+                     CTOOL_C_CONVERSION_ASSIGNMENT &&
+                 source_floating == CTOOL_TRUE &&
+                 target_integer == CTOOL_TRUE) {
+        assignment_conversions[1]++;
+      } else if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+                 expression->conversion == CTOOL_C_CONVERSION_NONE &&
+                 source_integer == CTOOL_TRUE &&
+                 target_floating == CTOOL_TRUE) {
+        casts[0]++;
+      } else if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+                 expression->conversion == CTOOL_C_CONVERSION_NONE &&
+                 source_floating == CTOOL_TRUE &&
+                 target_integer == CTOOL_TRUE) {
+        casts[1]++;
+      } else if (expression->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 expression->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+                 source_integer == CTOOL_TRUE &&
+                 target_kind == CTOOL_C_TYPE_DOUBLE) {
+        usual_integer_to_double++;
+      }
+    }
+  }
+  return floating_constants[0] == 1u &&
+                 floating_constants[1] == 1u &&
+                 floating_constants[2] == 1u &&
+                 floating_constants[3] == 1u &&
+                 floating_constants[4] == 1u &&
+                 assignment_conversions[0] == 2u &&
+                 assignment_conversions[1] == 1u &&
+                 casts[0] == 2u && casts[1] == 1u &&
+                 usual_integer_to_double == 1u
+             ? 0
+             : 1;
+}
+
+static int run_floating_scalars(const char *host_root) {
+  static const char source[] =
+      "float literal_float(void) { return .5f; }\n"
+      "double literal_zero(void) { return 0.0; }\n"
+      "double literal_double(void) { return 0.1; }\n"
+      "double literal_one(void) { return 1.0; }\n"
+      "double literal_ten(void) { return 10.0; }\n"
+      "double assign_from_int(int value) { return value; }\n"
+      "double assign_from_uint(unsigned int value) { return value; }\n"
+      "double cast_from_int(int value) { return (double)value; }\n"
+      "float cast_from_uint(unsigned int value) { return (float)value; }\n"
+      "int assign_from_float(float value) { return value; }\n"
+      "int cast_from_double(double value) { return (int)value; }\n"
+      "double mixed_add(int left, double right) { return left + right; }\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"long double literal",
+       "void bad(void) { (void)1.0L; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"hexadecimal floating literal",
+       "double bad(void) { return 0x1.8p+1; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"excess decimal precision",
+       "double bad(void) { return 1.23456789012345678901; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"floating to unsigned int conversion",
+       "unsigned int bad(double value) { return value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"wide integer to floating conversion",
+       "double bad(long long value) { return value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION}};
+  static const frontend_exact_failure_case_t range_failure_cases[] = {
+      {{"excess decimal scale",
+        "double bad(void) { return 1e4097; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "decimal floating constant exceeds the supported scale"},
+      {{"subnormal decimal result",
+        "float bad(void) { return 1e-45f; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 26u,
+       "decimal floating constant exceeds the supported normal range"},
+      {{"overflowing decimal result",
+        "float bad(void) { return 1e39f; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 26u,
+       "decimal floating constant exceeds the supported normal range"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "floating-scalars", host_root,
+                             4u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/floating-scalars.c", source,
+                          &unit) != 0 ||
+      validate_floating_scalars(&unit) != 0) {
+    (void)fprintf(stderr, "floating-scalars: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    if (expect_frontend_failure(
+            &fixture, &failure_cases[index],
+            "/floating-scalars-failure.c") != 0 ||
+        validate_floating_scalars(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(range_failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &range_failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/floating-scalars-range-failure.c",
+            test_case->line, test_case->column,
+            test_case->message) != 0 ||
+        validate_floating_scalars(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("floating-scalars: ok\n");
   }
   return failed;
 }
@@ -23761,11 +23983,11 @@ static int run_floating_transport(const char *host_root) {
       "  fixed_sink(narrow_copy, wide_copy);\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"float to integer assignment boundary",
-        "void bad(int left, float right) { left = right; }\n",
+      {{"float to boolean assignment boundary",
+        "void bad(_Bool left, float right) { left = right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 42u,
-       "floating assignment conversions are outside this body slice"},
+       1u, 44u,
+       "floating assignment conversion is outside this body slice"},
       {{"long double assignment boundary",
         "void bad(long double left, long double right) { left = right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -23779,11 +24001,11 @@ static int run_floating_transport(const char *host_root) {
       {{"double zero truth boundary",
         "int bad(void) { return !0.0; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 25u, "floating constants are outside this expression slice"},
+       1u, 24u, "floating logical operands are outside this body slice"},
       {{"negative float zero truth boundary",
-        "int bad(void) { if (-0.0f) return 1; return 0; }\n",
+       "int bad(void) { if (-0.0f) return 1; return 0; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 22u, "floating constants are outside this expression slice"}};
+       1u, 21u, "floating controlling expressions are outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t promotion_unit;
@@ -26389,7 +26611,7 @@ int main(int argc, char **argv) {
                    "static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
-                   "floating-conversions|"
+                   "floating-conversions|floating-scalars|"
                    "variadic-callees|"
                    "atomic-builtins|"
                    "inline-assembly|port-io-assembly|"
@@ -26464,6 +26686,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversions(argv[2]);
+  }
+  if (strcmp(argv[1], "floating-scalars") == 0) {
+    return run_floating_scalars(argv[2]);
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

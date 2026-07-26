@@ -1494,12 +1494,12 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "the active memory alignment helper changed", active_align_up,
              NULL) &&
          active_source_contains(
-              job, "/toolchain/cupiddis.c",
+              job, "/toolchain/cupiddis.cc",
               "load active disassembler source",
               "the active signed-bit conversion changed", active_signed_bits,
               NULL) &&
          active_source_contains(
-             job, "/toolchain/cupiddis.c",
+             job, "/toolchain/cupiddis.cc",
              "load active disassembler source",
              "the active fixed-width hexadecimal helper changed",
              active_dis_hex_body, NULL) &&
@@ -1526,66 +1526,66 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
                                 "the active browser declaration loop changed",
                                 active_declaration_for_header, NULL) &&
          active_source_contains(
-             job, "/toolchain/cupidc_ir.c",
+             job, "/toolchain/cupidc_ir.cc",
              "load active CupidC IR source",
              "the active CupidC IR continue changed", active_loop_continue,
              active_loop_continue_crlf) &&
          active_source_contains(
-             job, "/toolchain/cupidc_ir.c",
+             job, "/toolchain/cupidc_ir.cc",
              "load active CupidC IR source",
              "the active CupidC IR break changed", active_loop_break,
              active_loop_break_crlf) &&
          active_source_contains(
-             job, "/toolchain/cupidc_ir.c", "load active CupidC IR source",
+             job, "/toolchain/cupidc_ir.cc", "load active CupidC IR source",
              "the active CupidC IR nested declaration changed",
              active_nested_declaration, active_nested_declaration_crlf) &&
          active_source_contains(
-             job, "/toolchain/cupidld.c", "load active linker source",
+             job, "/toolchain/cupidld.cc", "load active linker source",
              "the active linker goto changed", active_linker_goto,
              active_linker_goto_crlf) &&
          active_source_contains(
-             job, "/toolchain/cupidld.c", "load active linker source",
+             job, "/toolchain/cupidld.cc", "load active linker source",
              "the active linker label changed", active_linker_label,
              active_linker_label_crlf) &&
           active_source_contains(
-              job, "/toolchain/ctool.c", "load active core source",
+              job, "/toolchain/ctool.cc", "load active core source",
               "the active invocation callback changed",
               active_invocation_body_call, NULL) &&
           active_source_contains(
-              job, "/toolchain/ctool.c", "load active core source",
+              job, "/toolchain/ctool.cc", "load active core source",
               "the active wide parameter function changed",
               active_wide_parameter_function, NULL) &&
           active_source_contains(
-              job, "/toolchain/ctool.c", "load active core source",
+              job, "/toolchain/ctool.cc", "load active core source",
               "the active wide put helper changed", active_wide_put_body,
               active_wide_put_body_crlf) &&
           active_source_contains(
-              job, "/toolchain/ctool.c", "load active core source",
+              job, "/toolchain/ctool.cc", "load active core source",
               "the active wide patch helper changed", active_wide_patch_body,
               active_wide_patch_body_crlf) &&
           active_source_contains(
-              job, "/toolchain/cupidasm.c", "load active assembler source",
+              job, "/toolchain/cupidasm.cc", "load active assembler source",
               "the active wide argument call changed",
               active_wide_argument_call, NULL) &&
           active_source_contains(
-              job, "/toolchain/cupidasm.c", "load active assembler source",
+              job, "/toolchain/cupidasm.cc", "load active assembler source",
               "the active wide unary branch changed",
               active_asm_wide_unary_arithmetic_object, NULL) &&
           active_source_contains(
-              job, "/toolchain/cupidc_pp.c",
+              job, "/toolchain/cupidc_pp.cc",
               "load active preprocessor arithmetic source",
               "the active preprocessor magnitude helper changed",
               active_pp_if_signed_magnitude_arithmetic_object, NULL) &&
           active_source_contains(
-             job, "/toolchain/cupidld.c", "load active linker source",
+             job, "/toolchain/cupidld.cc", "load active linker source",
              "the active linker selector callback changed",
              active_linker_selector_call, NULL) &&
          active_source_contains(
-              job, "/toolchain/ctool_host.c", "load active host source",
+              job, "/toolchain/ctool_host.cc", "load active host source",
               "the active host release helper changed", active_host_release,
               NULL) &&
          active_source_contains(
-             job, "/toolchain/cupidc_frontend.c",
+             job, "/toolchain/cupidc_frontend.cc",
              "load active CupidC frontend source",
              "the active integer mask helper changed", active_integer_mask,
              NULL) &&
@@ -11486,7 +11486,7 @@ static int run_aggregate_initializer_object(const char *host_root) {
   (void)memset(&snapshot, 0, sizeof(snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
-          job, "/toolchain/cupidc_frontend.c",
+          job, "/toolchain/cupidc_frontend.cc",
           "load active CupidC frontend source",
           "the active zero-initialized type-node record changed",
           active_zero_record_initializer, NULL) ||
@@ -12311,6 +12311,7 @@ static int validate_narrow_value_object(
 
 typedef struct {
   ctool_u32 registers[8];
+  ctool_u64 xmm_bits[8];
   ctool_u8 memory[NARROW_ORACLE_MEMORY_SIZE];
   long double x87_values[FLOATING_ORACLE_X87_DEPTH];
   ctool_u64 x87_bits[FLOATING_ORACLE_X87_DEPTH];
@@ -15788,7 +15789,7 @@ static int run_compound_literal_object(const char *host_root) {
   (void)memset(&snapshot, 0, sizeof(snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
-          job, "/toolchain/cupidc_pp.c",
+          job, "/toolchain/cupidc_pp.cc",
           "load active CupidC preprocessor source",
           "the active compound-literal call to pp_string_equal changed",
           active_compound_literal_call, NULL) ||
@@ -18772,6 +18773,246 @@ static ctool_u64 floating_oracle_widen_float(ctool_u32 bits) {
          ((ctool_u64)fraction << 29u);
 }
 
+static int floating_sse_read_bits(
+    const narrow_oracle_machine_t *machine,
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_u64 *bits) {
+  ctool_u32 address;
+  ctool_u32 low;
+  ctool_u32 high = 0u;
+  if (machine == NULL || operand == NULL || bits == NULL ||
+      (width_bits != 32u && width_bits != 64u)) {
+    return 0;
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+      operand->as.reg.class_id == CTOOL_X86_REG_XMM &&
+      operand->as.reg.index < 8u) {
+    *bits = machine->xmm_bits[operand->as.reg.index];
+    if (width_bits == 32u) {
+      *bits &= UINT64_C(0xffffffff);
+    }
+    return 1;
+  }
+  if (operand->kind != CTOOL_X86_OPERAND_MEMORY ||
+      operand->width_bits != width_bits ||
+      !narrow_oracle_memory_address(machine, &operand->as.memory, &address) ||
+      !narrow_oracle_read_memory(machine, address, 32u, &low) ||
+      (width_bits == 64u &&
+       !narrow_oracle_read_memory(machine, address + 4u, 32u, &high))) {
+    return 0;
+  }
+  *bits = (ctool_u64)low | ((ctool_u64)high << 32u);
+  return 1;
+}
+
+static int floating_sse_write_bits(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_u64 bits) {
+  ctool_u32 address;
+  if (machine == NULL || operand == NULL ||
+      (width_bits != 32u && width_bits != 64u)) {
+    return 0;
+  }
+  if (operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+      operand->as.reg.class_id == CTOOL_X86_REG_XMM &&
+      operand->as.reg.index < 8u) {
+    if (width_bits == 32u) {
+      machine->xmm_bits[operand->as.reg.index] =
+          (machine->xmm_bits[operand->as.reg.index] &
+           UINT64_C(0xffffffff00000000)) |
+          (bits & UINT64_C(0xffffffff));
+    } else {
+      machine->xmm_bits[operand->as.reg.index] = bits;
+    }
+    return 1;
+  }
+  if (operand->kind != CTOOL_X86_OPERAND_MEMORY ||
+      operand->width_bits != width_bits ||
+      !narrow_oracle_memory_address(machine, &operand->as.memory, &address) ||
+      !narrow_oracle_write_memory(machine, address, 32u,
+                                  (ctool_u32)bits) ||
+      (width_bits == 64u &&
+       !narrow_oracle_write_memory(
+           machine, address + 4u, 32u, (ctool_u32)(bits >> 32u)))) {
+    return 0;
+  }
+  return 1;
+}
+
+static int floating_sse_oracle_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction, ctool_bool *handled) {
+  const ctool_x86_operand_t *left;
+  const ctool_x86_operand_t *right;
+  ctool_u64 left_bits;
+  ctool_u64 right_bits;
+  ctool_u32 integer_bits;
+  ctool_i32 integer_value;
+  if (machine == NULL || instruction == NULL || handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if ((instruction->mnemonic == CTOOL_X86_MN_MOVSS ||
+       instruction->mnemonic == CTOOL_X86_MN_MOVSD) &&
+      instruction->operand_count == 2u) {
+    ctool_u16 width_bits =
+        instruction->mnemonic == CTOOL_X86_MN_MOVSS ? 32u : 64u;
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if ((left->kind != CTOOL_X86_OPERAND_REGISTER ||
+         left->as.reg.class_id != CTOOL_X86_REG_XMM) &&
+        (right->kind != CTOOL_X86_OPERAND_REGISTER ||
+         right->as.reg.class_id != CTOOL_X86_REG_XMM)) {
+      return 1;
+    }
+    if (!floating_sse_read_bits(machine, right, width_bits, &right_bits) ||
+        !floating_sse_write_bits(machine, left, width_bits, right_bits)) {
+      return 0;
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if ((instruction->mnemonic == CTOOL_X86_MN_CVTSI2SS ||
+       instruction->mnemonic == CTOOL_X86_MN_CVTSI2SD) &&
+      instruction->operand_count == 2u) {
+    float narrow_value;
+    double wide_value;
+    ctool_u32 narrow_bits;
+    ctool_u64 wide_bits;
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if (!narrow_oracle_read_operand(machine, right, &integer_bits)) {
+      return 0;
+    }
+    (void)memcpy(&integer_value, &integer_bits, sizeof(integer_value));
+    if (instruction->mnemonic == CTOOL_X86_MN_CVTSI2SS) {
+      narrow_value = (float)integer_value;
+      (void)memcpy(&narrow_bits, &narrow_value, sizeof(narrow_bits));
+      right_bits = narrow_bits;
+      if (!floating_sse_write_bits(machine, left, 32u, right_bits)) {
+        return 0;
+      }
+    } else {
+      wide_value = (double)integer_value;
+      (void)memcpy(&wide_bits, &wide_value, sizeof(wide_bits));
+      if (!floating_sse_write_bits(machine, left, 64u, wide_bits)) {
+        return 0;
+      }
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if ((instruction->mnemonic == CTOOL_X86_MN_CVTTSS2SI ||
+       instruction->mnemonic == CTOOL_X86_MN_CVTTSD2SI) &&
+      instruction->operand_count == 2u) {
+    float narrow_value;
+    double wide_value;
+    ctool_u32 result_bits;
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if (instruction->mnemonic == CTOOL_X86_MN_CVTTSS2SI) {
+      ctool_u32 narrow_bits;
+      if (!floating_sse_read_bits(machine, right, 32u, &right_bits)) {
+        return 0;
+      }
+      narrow_bits = (ctool_u32)right_bits;
+      (void)memcpy(&narrow_value, &narrow_bits, sizeof(narrow_value));
+      integer_value = (ctool_i32)narrow_value;
+    } else {
+      if (!floating_sse_read_bits(machine, right, 64u, &right_bits)) {
+        return 0;
+      }
+      (void)memcpy(&wide_value, &right_bits, sizeof(wide_value));
+      integer_value = (ctool_i32)wide_value;
+    }
+    (void)memcpy(&result_bits, &integer_value, sizeof(result_bits));
+    if (!narrow_oracle_write_operand(machine, left, result_bits)) {
+      return 0;
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if ((instruction->mnemonic == CTOOL_X86_MN_CVTSS2SD ||
+       instruction->mnemonic == CTOOL_X86_MN_CVTSD2SS) &&
+      instruction->operand_count == 2u) {
+    float narrow_value;
+    double wide_value;
+    ctool_u32 narrow_bits;
+    ctool_u64 wide_bits;
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if (instruction->mnemonic == CTOOL_X86_MN_CVTSS2SD) {
+      if (!floating_sse_read_bits(machine, right, 32u, &right_bits)) {
+        return 0;
+      }
+      narrow_bits = (ctool_u32)right_bits;
+      (void)memcpy(&narrow_value, &narrow_bits, sizeof(narrow_value));
+      wide_value = (double)narrow_value;
+      (void)memcpy(&wide_bits, &wide_value, sizeof(wide_bits));
+      if (!floating_sse_write_bits(machine, left, 64u, wide_bits)) {
+        return 0;
+      }
+    } else {
+      if (!floating_sse_read_bits(machine, right, 64u, &right_bits)) {
+        return 0;
+      }
+      (void)memcpy(&wide_value, &right_bits, sizeof(wide_value));
+      narrow_value = (float)wide_value;
+      (void)memcpy(&narrow_bits, &narrow_value, sizeof(narrow_bits));
+      if (!floating_sse_write_bits(machine, left, 32u, narrow_bits)) {
+        return 0;
+      }
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if ((instruction->mnemonic == CTOOL_X86_MN_ADDSS ||
+       instruction->mnemonic == CTOOL_X86_MN_ADDSD) &&
+      instruction->operand_count == 2u) {
+    float left_narrow;
+    float right_narrow;
+    double left_wide;
+    double right_wide;
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if (instruction->mnemonic == CTOOL_X86_MN_ADDSS) {
+      ctool_u32 result_bits;
+      ctool_u32 left_narrow_bits;
+      ctool_u32 right_narrow_bits;
+      if (!floating_sse_read_bits(machine, left, 32u, &left_bits) ||
+          !floating_sse_read_bits(machine, right, 32u, &right_bits)) {
+        return 0;
+      }
+      left_narrow_bits = (ctool_u32)left_bits;
+      right_narrow_bits = (ctool_u32)right_bits;
+      (void)memcpy(&left_narrow, &left_narrow_bits, sizeof(left_narrow));
+      (void)memcpy(&right_narrow, &right_narrow_bits,
+                   sizeof(right_narrow));
+      left_narrow += right_narrow;
+      (void)memcpy(&result_bits, &left_narrow, sizeof(result_bits));
+      if (!floating_sse_write_bits(machine, left, 32u, result_bits)) {
+        return 0;
+      }
+    } else {
+      ctool_u64 result_bits;
+      if (!floating_sse_read_bits(machine, left, 64u, &left_bits) ||
+          !floating_sse_read_bits(machine, right, 64u, &right_bits)) {
+        return 0;
+      }
+      (void)memcpy(&left_wide, &left_bits, sizeof(left_wide));
+      (void)memcpy(&right_wide, &right_bits, sizeof(right_wide));
+      left_wide += right_wide;
+      (void)memcpy(&result_bits, &left_wide, sizeof(result_bits));
+      if (!floating_sse_write_bits(machine, left, 64u, result_bits)) {
+        return 0;
+      }
+    }
+    *handled = CTOOL_TRUE;
+  }
+  return 1;
+}
+
 static int floating_oracle_step(
     narrow_oracle_machine_t *machine,
     const ctool_x86_instruction_t *instruction, ctool_bool *handled) {
@@ -19134,6 +19375,8 @@ static int wide_oracle_execute_arguments(
          !wide_oracle_flag_step(&machine, instruction, &zero_flag,
                                 &carry_flag, &sign_flag, &overflow_flag,
                                 &handled)) ||
+        (handled == CTOOL_FALSE &&
+         !floating_sse_oracle_step(&machine, instruction, &handled)) ||
         (handled == CTOOL_FALSE &&
          !floating_oracle_step(&machine, instruction, &handled)) ||
         (handled == CTOOL_FALSE &&
@@ -21327,17 +21570,17 @@ static int run_wide_condition_object(const char *host_root) {
   (void)memset(&switch_unit, 0, sizeof(switch_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
-          job, "/toolchain/cupidc_pp.c",
+          job, "/toolchain/cupidc_pp.cc",
           "load active preprocessor condition source",
           "the active preprocessor truth helper changed",
           active_pp_if_value_truth_object, NULL) ||
       !active_source_contains(
-          job, "/toolchain/cupidc_pp.c",
+          job, "/toolchain/cupidc_pp.cc",
           "load active preprocessor condition source",
           "the active preprocessor sign helper changed",
           active_pp_if_is_negative_object, NULL) ||
       !active_source_contains(
-          job, "/toolchain/cupidc_pp.c",
+          job, "/toolchain/cupidc_pp.cc",
           "load active preprocessor condition source",
           "the active preprocessor comparison helper changed",
           active_pp_if_signed_less_object, NULL) ||
@@ -21635,7 +21878,7 @@ static int run_wide_division_object(const char *host_root) {
   (void)memset(&unit, 0, sizeof(unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains_joined(
-          job, "/toolchain/cupidc_frontend.c",
+          job, "/toolchain/cupidc_frontend.cc",
           "load active CupidC constant arithmetic source",
           "the active CupidC wide divide/remainder body changed",
           active_cfront_wide_divide_remainder_body_first,
@@ -23831,6 +24074,377 @@ cleanup:
   return 1;
 }
 
+static int validate_floating_scalar_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_u32 signed_negative[] = {0xffffffffu};
+  const ctool_u32 signed_char_minimum[] = {0xffffff80u};
+  const ctool_u32 signed_short_near_minimum[] = {0xffff8001u};
+  const ctool_u32 unsigned_low[] = {0x7fffffffu};
+  const ctool_u32 unsigned_boundary[] = {0x80000000u};
+  const ctool_u32 unsigned_high[] = {0xffffffffu};
+  const ctool_u32 unsigned_char_float[] = {0x437fc000u};
+  const ctool_u32 unsigned_short_double[] = {
+      0x00000000u, 0x40effff8u};
+  const ctool_u32 positive_float[] = {0x422b0000u};
+  const ctool_u32 negative_float[] = {0xc22b0000u};
+  const ctool_u32 positive_double[] = {
+      0x00000000u, 0x40456000u};
+  const ctool_u32 negative_double[] = {
+      0x00000000u, 0xc0456000u};
+  const ctool_u32 lexer_digit[] = {7u};
+  ctool_u32 mnemonic_counts[CTOOL_X86_MN_COUNT];
+  ctool_u32 cursor = 0u;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size == 0u) {
+    return 0;
+  }
+  (void)memset(mnemonic_counts, 0, sizeof(mnemonic_counts));
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + cursor,
+                    text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.instruction.mnemonic <= CTOOL_X86_MN_INVALID ||
+        decoded.instruction.mnemonic >= CTOOL_X86_MN_COUNT) {
+      return 0;
+    }
+    mnemonic_counts[decoded.instruction.mnemonic]++;
+    cursor += decoded.consumed;
+  }
+  if (mnemonic_counts[CTOOL_X86_MN_CVTSI2SS] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_CVTSI2SD] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_CVTTSS2SI] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_CVTTSD2SI] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_ADDSD] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_CVTSD2SS] == 0u) {
+    (void)fprintf(
+        stderr,
+        "floating scalar SSE inventory differs: ss=%u sd=%u "
+        "ttss=%u ttsd=%u addsd=%u sd2ss=%u\n",
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CVTSI2SS],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CVTSI2SD],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CVTTSS2SI],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CVTTSD2SI],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_ADDSD],
+        (unsigned int)mnemonic_counts[CTOOL_X86_MN_CVTSD2SS]);
+    return 0;
+  }
+  return expect_wide_oracle_low_result(
+             job, object, text, "literal_zero_low", NULL, 0u, 0u,
+             "literal 0.0") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "literal_tenth_low", NULL, 0u,
+             0x9999999au, "literal 0.1 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "literal_tenth_high", NULL, 0u,
+             0x3fb99999u, "literal 0.1 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "literal_one_high", NULL, 0u,
+             0x3ff00000u, "literal 1.0") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "literal_ten_high", NULL, 0u,
+             0x40240000u, "literal 10.0") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "signed_double_high",
+             signed_negative, 1u, 0xbff00000u,
+             "signed integer to double") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "signed_char_float_bits",
+             signed_char_minimum, 1u, 0xc3000000u,
+             "signed char to float") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "signed_short_double_high",
+             signed_short_near_minimum, 1u, 0xc0dfffc0u,
+             "signed short to double") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_double_low",
+             unsigned_low, 1u, 0xffc00000u,
+             "uint32 0x7fffffff double low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_double_high",
+             unsigned_low, 1u, 0x41dfffffu,
+             "uint32 0x7fffffff double high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_double_low",
+             unsigned_boundary, 1u, 0x00000000u,
+             "uint32 0x80000000 double low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_double_high",
+             unsigned_boundary, 1u, 0x41e00000u,
+             "uint32 0x80000000 double high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_double_low",
+             unsigned_high, 1u, 0xffe00000u,
+             "uint32 0xffffffff double low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_double_high",
+             unsigned_high, 1u, 0x41efffffu,
+             "uint32 0xffffffff double high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_float_bits",
+             unsigned_low, 1u, 0x4f000000u,
+             "uint32 0x7fffffff float") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_float_bits",
+             unsigned_boundary, 1u, 0x4f000000u,
+             "uint32 0x80000000 float") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "unsigned_float_bits",
+             unsigned_high, 1u, 0x4f800000u,
+             "uint32 0xffffffff float") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_float",
+             positive_float, 1u, 42u,
+             "positive float truncation") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_float",
+             negative_float, 1u, 0xffffffd6u,
+             "negative float truncation") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double",
+             positive_double, 2u, 42u,
+             "positive double truncation") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double",
+             negative_double, 2u, 0xffffffd6u,
+             "negative double truncation") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_unsigned_char",
+             unsigned_char_float, 1u, 255u,
+             "float to unsigned char") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_unsigned_short",
+             unsigned_short_double, 2u, 65535u,
+             "double to unsigned short") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "lexer_number_low",
+             lexer_digit, 1u, 0x66666666u,
+             "production lexer scalar shape");
+}
+
+static int run_floating_scalar_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "typedef long double unsupported_long_double;\n"
+      "typedef union { float value; u32 bits; } float_box;\n"
+      "typedef union { double value; struct { u32 low; u32 high; } words; } double_box;\n"
+      "u32 float_bits(float value) { float_box box; box.value = value; return box.bits; }\n"
+      "float float_from_bits(u32 bits) { float_box box; box.bits = bits; return box.value; }\n"
+      "u32 double_low(double value) { double_box box; box.value = value; return box.words.low; }\n"
+      "u32 double_high(double value) { double_box box; box.value = value; return box.words.high; }\n"
+      "double double_from_words(u32 low, u32 high) { double_box box; box.words.low = low; box.words.high = high; return box.value; }\n"
+      "u32 literal_zero_low(void) { return double_low(0.0); }\n"
+      "u32 literal_tenth_low(void) { return double_low(0.1); }\n"
+      "u32 literal_tenth_high(void) { return double_high(0.1); }\n"
+      "u32 literal_one_high(void) { return double_high(1.0); }\n"
+      "u32 literal_ten_high(void) { return double_high(10.0); }\n"
+      "u32 signed_double_high(int value) { return double_high(value); }\n"
+      "u32 signed_char_float_bits(signed char value) { return float_bits(value); }\n"
+      "u32 signed_short_double_high(signed short value) { return double_high(value); }\n"
+      "u32 unsigned_double_low(u32 value) { return double_low(value); }\n"
+      "u32 unsigned_double_high(u32 value) { return double_high(value); }\n"
+      "u32 unsigned_float_bits(u32 value) { return float_bits((float)value); }\n"
+      "int truncate_float(u32 bits) { return float_from_bits(bits); }\n"
+      "int truncate_double(u32 low, u32 high) { return double_from_words(low, high); }\n"
+      "unsigned char truncate_unsigned_char(u32 bits) { return float_from_bits(bits); }\n"
+      "unsigned short truncate_unsigned_short(u32 low, u32 high) { return double_from_words(low, high); }\n"
+      "u32 lexer_number_low(int digit) { double value = 0.0; value = value * 10.0 + (double)digit; value += 0.1; value *= 1.0; return double_low(value); }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 unsigned_int = CTOOL_C_TYPE_NONE;
+  ctool_u32 signed_int = CTOOL_C_TYPE_NONE;
+  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 long_double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 floating_constant = CTOOL_C_AST_NONE;
+  ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-scalars.c", source,
+                         CTOOL_TRUE, &unit) ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.graph.type_count; index++) {
+    if (unit.graph.types[index].kind ==
+            CTOOL_C_TYPE_UNSIGNED_INT &&
+        unit.graph.types[index].qualifiers == 0u) {
+      unsigned_int = index;
+    } else if (unit.graph.types[index].kind ==
+                   CTOOL_C_TYPE_SIGNED_INT &&
+               unit.graph.types[index].qualifiers == 0u) {
+      signed_int = index;
+    } else if (unit.graph.types[index].kind ==
+                   CTOOL_C_TYPE_DOUBLE &&
+               unit.graph.types[index].qualifiers == 0u) {
+      double_type = index;
+    } else if (unit.graph.types[index].kind ==
+                   CTOOL_C_TYPE_LONG_DOUBLE &&
+               unit.graph.types[index].qualifiers == 0u) {
+      long_double_type = index;
+    }
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression =
+        &unit.expressions[index];
+    ctool_u32 child =
+        expression->child_count == 1u
+            ? unit.expression_children[expression->first_child]
+            : CTOOL_C_AST_NONE;
+    if (unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_FLOATING_CONSTANT &&
+        floating_constant == CTOOL_C_AST_NONE) {
+      floating_constant = index;
+    }
+    if (expression->kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion ==
+            CTOOL_C_CONVERSION_ASSIGNMENT &&
+        expression->type == double_type &&
+        child < unit.expression_count &&
+        unit.expressions[child].type == signed_int) {
+      integer_to_floating = index;
+    }
+  }
+  if (unsigned_int == CTOOL_C_TYPE_NONE ||
+      signed_int == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      floating_constant == CTOOL_C_AST_NONE ||
+      integer_to_floating == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count *
+          sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "floating scalar buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "floating scalar object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating scalar object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "floating scalar objects are not deterministic\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_constant].type = unsigned_int;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating constant with integer type at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_constant].type =
+      long_double_type;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating constant with long double type at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[integer_to_floating].type =
+      long_double_type;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "integer to long double conversion at object boundary")) {
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/floating-scalars.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read floating scalar object") ||
+      !validate_floating_scalar_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-scalars: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_floating_transport_object(const char *host_root) {
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
@@ -24737,28 +25351,28 @@ cleanup:
 static int validate_active_self_host_frontier_objects(
     const char *host_root) {
   static const char *const paths[] = {
-      "/toolchain/ctool.c",          "/toolchain/cupiddis.c",
-      "/toolchain/cupidld.c",        "/toolchain/cupidobj.c",
-      "/toolchain/cupidc_type.c",    "/toolchain/cupidc_pp.c",
-      "/toolchain/cupidc_ir.c",      "/toolchain/cupidc_emit.c",
-      "/toolchain/cupidc_frontend.c", "/toolchain/cupidasm.c",
-      "/toolchain/elf32.c",           "/toolchain/x86.c",
+      "/toolchain/ctool.cc",          "/toolchain/cupiddis.cc",
+      "/toolchain/cupidld.cc",        "/toolchain/cupidobj.cc",
+      "/toolchain/cupidc_type.cc",    "/toolchain/cupidc_pp.cc",
+      "/toolchain/cupidc_ir.cc",      "/toolchain/cupidc_emit.cc",
+      "/toolchain/cupidc_frontend.cc", "/toolchain/cupidasm.cc",
+      "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 210u, 219u, 327u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 210u, 224u, 332u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 402964u, 366820u, 658112u, 139612u, 70368u, 77981u,
+      190304u, 406411u, 377405u, 679950u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 430568u, 395296u, 781868u, 157796u, 79348u, 131640u,
+      226668u, 434156u, 406500u, 805600u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xb2429018u, 0xcbcab4a6u, 0x878e3268u, 0x3f69aac3u,
+      0x263f978bu, 0xeb15e46fu, 0x365ad44cu, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -25077,11 +25691,11 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "strncmp",
       "strlen"};
   static const hosted_adapter_case_t cases[] = {
-      {"/toolchain/ctool_host.c", 11u, 5522u, 6944u, 0x28739c3fu,
+      {"/toolchain/ctool_host.cc", 11u, 5522u, 6944u, 0x28739c3fu,
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
-      {"/toolchain/cupidasm_main.c", 13u, 9455u, 12384u, 0x561bbc22u,
+      {"/toolchain/cupidasm_main.cc", 13u, 9455u, 12384u, 0x561bbc22u,
        cupidasm_undefined, 31u, 56u, 88u, 72u, 16u},
-      {"/toolchain/cupiddis_main.c", 13u, 13816u, 17420u, 0xe33c130cu,
+      {"/toolchain/cupiddis_main.cc", 13u, 13816u, 17420u, 0xe33c130cu,
        cupiddis_undefined, 31u, 67u, 106u, 74u, 32u}};
   ctool_u32 index;
   for (index = 0u; index <
@@ -25226,7 +25840,7 @@ static int run_self_host_hosted_profile_errors(const char *host_root) {
   if (status != CTOOL_OK) {
     return 1;
   }
-  path.text = ctool_string("/toolchain/ctool_host.c");
+  path.text = ctool_string("/toolchain/ctool_host.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   init_hosted_i386_profile(&profile);
@@ -25241,7 +25855,7 @@ static int run_self_host_hosted_profile_errors(const char *host_root) {
       tape.token_count != 0u || ctool_job_diagnostic_count(job) != 1u ||
       diagnostic == NULL ||
       diagnostic->code != CTOOL_C_PP_DIAG_INCLUDE_NOT_FOUND ||
-      string_equal(diagnostic->path, "/toolchain/ctool_host.c") == 0 ||
+      string_equal(diagnostic->path, "/toolchain/ctool_host.cc") == 0 ||
       diagnostic->line != 3u || diagnostic->column != 1u ||
       arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) == 0) {
     (void)fprintf(stderr, "hosted profile missing-root failure differs\n");
@@ -25608,47 +26222,47 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/hosted/i386-linux/start.asm",
        "/toolchain/hosted/i386-linux/start.o",
        HOST_TOOL_SOURCE_ASSEMBLY, CTOOL_FALSE},
-      {"/toolchain/hosted/i386-linux/runtime.c",
+      {"/toolchain/hosted/i386-linux/runtime.cc",
        "/toolchain/hosted/i386-linux/runtime.o", HOST_TOOL_SOURCE_C,
        CTOOL_TRUE},
-      {"/toolchain/ctool.c", "/toolchain/ctool.o", HOST_TOOL_SOURCE_C,
+      {"/toolchain/ctool.cc", "/toolchain/ctool.o", HOST_TOOL_SOURCE_C,
        CTOOL_FALSE},
-      {"/toolchain/ctool_host.c", "/toolchain/ctool_host.o",
+      {"/toolchain/ctool_host.cc", "/toolchain/ctool_host.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/elf32.c", "/toolchain/elf32.o", HOST_TOOL_SOURCE_C,
+      {"/toolchain/elf32.cc", "/toolchain/elf32.o", HOST_TOOL_SOURCE_C,
        CTOOL_FALSE},
-      {"/toolchain/x86.c", "/toolchain/x86.o", HOST_TOOL_SOURCE_C,
+      {"/toolchain/x86.cc", "/toolchain/x86.o", HOST_TOOL_SOURCE_C,
        CTOOL_FALSE},
-      {"/toolchain/cupidasm.c", "/toolchain/cupidasm.o",
+      {"/toolchain/cupidasm.cc", "/toolchain/cupidasm.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidasm_main.c", "/toolchain/cupidasm_main.o",
+      {"/toolchain/cupidasm_main.cc", "/toolchain/cupidasm_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupiddis.c", "/toolchain/cupiddis.o",
+      {"/toolchain/cupiddis.cc", "/toolchain/cupiddis.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupiddis_main.c", "/toolchain/cupiddis_main.o",
+      {"/toolchain/cupiddis_main.cc", "/toolchain/cupiddis_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidobj.c", "/toolchain/cupidobj.o",
+      {"/toolchain/cupidobj.cc", "/toolchain/cupidobj.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidobj_main.c", "/toolchain/cupidobj_main.o",
+      {"/toolchain/cupidobj_main.cc", "/toolchain/cupidobj_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidld.c", "/toolchain/cupidld.o",
+      {"/toolchain/cupidld.cc", "/toolchain/cupidld.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidld_main.c", "/toolchain/cupidld_main.o",
+      {"/toolchain/cupidld_main.cc", "/toolchain/cupidld_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/tests/hosted_i386_runtime_contract.c",
        "/toolchain/tests/hosted_i386_runtime_contract.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidc_pp.c", "/toolchain/cupidc_pp.o",
+      {"/toolchain/cupidc_pp.cc", "/toolchain/cupidc_pp.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidc_type.c", "/toolchain/cupidc_type.o",
+      {"/toolchain/cupidc_type.cc", "/toolchain/cupidc_type.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidc_frontend.c", "/toolchain/cupidc_frontend.o",
+      {"/toolchain/cupidc_frontend.cc", "/toolchain/cupidc_frontend.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidc_ir.c", "/toolchain/cupidc_ir.o",
+      {"/toolchain/cupidc_ir.cc", "/toolchain/cupidc_ir.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidc_emit.c", "/toolchain/cupidc_emit.o",
+      {"/toolchain/cupidc_emit.cc", "/toolchain/cupidc_emit.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
-      {"/toolchain/cupidc_main.c", "/toolchain/cupidc_main.o",
+      {"/toolchain/cupidc_main.cc", "/toolchain/cupidc_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -25987,7 +26601,7 @@ static int run_self_host_link_ctool_host(const char *host_root,
     goto cleanup;
   }
 
-  host_path.text = ctool_string("/toolchain/ctool_host.c");
+  host_path.text = ctool_string("/toolchain/ctool_host.cc");
   (void)memset(&host_source, 0, sizeof(host_source));
   status = ctool_job_load_source(job, &host_path, &host_source);
   init_hosted_i386_profile(&profile);
@@ -32251,6 +32865,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversion_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-scalars") == 0) {
+    return run_floating_scalar_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "wide-returns") == 0) {
     if (run_wide_multiplication_object(argv[2]) != 0) {
       return 1;
@@ -32312,6 +32929,7 @@ int main(int argc, char **argv) {
                 "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
                 "floating-arithmetic|floating-conversions|"
+                "floating-scalars|"
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations|"
                 "self-host-frontier|self-host-hosted-adapters|"

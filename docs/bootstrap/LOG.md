@@ -10473,3 +10473,92 @@ changes no generated source byte, object byte, linked symbol address, or
 ownership count. Issue #28 remains open for ten strict checked-in roots and
 the other core and driver cohorts. Issue #32 remains open for its remaining
 normal-build and fixed-point safety work.
+
+## 2026-07-26: Decimal floating scalars and fixed-point source names
+
+The ten remaining strict roots were compiled against compiler head before
+choosing this slice. `kernel/lang/cupidc_lex.c` stopped only at decimal
+floating constants, which made that gap both source-driven and narrow enough
+to prove through the public frontend, IR, and object interfaces.
+
+### Decimal constants and conversions
+
+The frontend now converts decimal `float` and `double` constants to exact
+IEEE binary32 or binary64 bits with bounded integer arithmetic. It rounds to
+nearest with ties to even and does not call a host floating library. The IR
+and SSE emitter now cover represented integer-to-floating conversions,
+floating-to-signed conversions, floating-to-unsigned byte or word
+conversions, and mixed represented integer and floating addition,
+subtraction, multiplication, and division.
+
+Unsigned four-byte input cannot use a signed `CVTSI2SD` directly. The emitter
+splits the value into its upper 31 bits and low bit, converts both pieces,
+doubles the upper result, and adds the low bit. Boundary tests pin
+`0x7fffffff`, `0x80000000`, and `0xffffffff`.
+
+Frontend, IR, and object contracts cover exact literal bits, signed and
+unsigned narrow values, supported conversion directions, mixed arithmetic,
+rollback, and recovery. Useful negatives reject hexadecimal, subnormal,
+excess-scale, and out-of-range constants. Frozen IR and object tests also
+reject `long double` metadata. Hexadecimal and subnormal literals,
+`long double`, conversion to unsigned four-byte integers or `_Bool`,
+floating comparisons and truth, mixed integer and floating conditional arms,
+and floating increment and decrement remain open. Matching or mixed-width
+floating conditional arms and the four arithmetic compound assignments keep
+their established x87 path.
+
+Compiler head now compiles `kernel/lang/cupidc_lex.c` under the complete
+`KERNEL_I386` profile. Production ownership waits for a seed that carries
+this capability.
+
+### Fixed-point naming
+
+All 19 C sources in the i386 Linux fixed point now use `.cc`. Native GCC or
+Clang rules select C explicitly with `-x c`, so the filename change does not
+select C++ by accident. The checked build plan uses the same paths and has
+SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The five existing seed images remain unchanged in this step.
+
+The old seed built the renamed plan through stage two and stage three. All 19
+C objects, the startup object, and all five stage-two and stage-three tool
+images matched byte for byte. The stages agreed on five help paths, ten
+successful operations, and six failure cases. Four old seed images already
+matched stage two. CupidC differed because compiler head now contains the
+floating work above. The candidate stage-three CupidC image is 2,080,288
+bytes with SHA-256
+`e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`.
+
+The active audit initially treated recursive Make invocations as source
+delivery transforms. Recursive Make is orchestration; the supplemental child
+graph owns the actual compiles. A second audit exposed native `.cc` rules
+without an explicit language mode, and a third counted only `.c` files in
+the hosted closure. The audit now rejects missing or wrong `-x c`, classifies
+the child graph, and counts both C and Cupid C inputs.
+
+The regenerated audit records 698 active inputs, 253 feature IDs, 500
+transforms, and 42 accounted unreachable files. Its language split is 27
+assembly files, 109 C files, 270 headers, and 292 Cupid C files. Ownership
+remains 151 transforms for CupidC, 146 for the host C compiler, and 163 for
+Python. The host compiler still produces 94 normal root objects, and ten
+strict checked-in roots remain.
+
+Historical ADRs and earlier log entries keep the paths and counts they
+measured. The Linux and Windows platform baseline JSON files also remain
+unchanged. Their canonical tool captures a committed revision in isolated
+worktrees, so path-editing those records would fabricate evidence. They can
+be recaptured from this committed revision in a later measured step.
+
+### Verification
+
+- The complete Toolchain suite passes from a fresh alternate build directory.
+- `make bootstrap-audit` and `make verify-bootstrap-seed` pass.
+- `make bootstrap-from-seed
+  BOOTSTRAP_SEED_OUTPUT=build/bootstrap/strict-frontier-naming` passes with
+  stage two equal to stage three.
+- Focused build-graph tests cover recursive orchestration and missing or
+  incorrect native language modes.
+- The frontend, IR, and object floating-scalar contracts pass, including the
+  self-host frontier and the production lexer profile.
+
+ADRs 0125 and 0126 record the capability and naming boundaries.
