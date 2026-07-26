@@ -10,8 +10,9 @@ Hosted CupidC carries `float` and `double` values through object access, automat
 
 The self-host source frontier first closed five requirements from unchanged Toolchain code. Supported structure snapshots retain nested union bytes, and a scalar member can be loaded from a returned structure snapshot. A direct four-byte literal zero can form a represented null function pointer. An object pointer can convert to a signed or unsigned eight-byte integer with a zero high word, and conversion back keeps the low word. Compatible static character and void pointers accept an ordinary string literal through parentheses and macro expansion. At that boundary, top-level union values, aggregate members from structure rvalues, nonzero function-pointer casts, function-pointer and wide-integer conversions, and arithmetic or explicit casts on static string addresses remained open. ADR 0081 records that earlier language boundary.
 
-Compiler head now keeps represented function-pointer bits through a cast to
-another function-pointer type or to and from a represented 32-bit integer.
+The refreshed checked seed keeps represented function-pointer bits through a
+cast to another function-pointer type or to and from a represented 32-bit
+integer.
 Object-pointer interchange and narrower or wider integer forms still fail
 with a feature diagnostic. ADR 0113 records the current boundary.
 
@@ -31,7 +32,7 @@ The i386 Linux adapter objects are `ctool_host.c` at 11 functions, 5,522 text by
 
 The `ctool_host.c` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 1,950,556 bytes. The repository keeps those exact stage-three images as its checked i386 Linux seed. CupidC has SHA-256 `f4d49d8b870868ccd57aed94eaf7565404ceb10732c79c868e65f9beca5371c8`; the other four images remain byte-identical to the first seed. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The manifest names source revision `10d2412ece22968e03dbe22b048c3d92f210f2ba` and the stage-two checked-seed producer trio. The harness also pins the exact 19-source mapping, freezes the verified manifest and binary bytes for the run, and watches a 40-input source snapshot that includes `link.ld`. The seed producer trio compiles the source union and assembles and links stage two. Stage-two CupidC, CupidASM, and CupidLD repeat that work for stage three. The 19 C object pairs, startup objects, and all five tool images match byte for byte. The stages also agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. `make verify-bootstrap-seed` checks the inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and production C ownership remain open.
+The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,000,636 bytes. The repository keeps those exact stage-three images as its checked i386 Linux seed. CupidC has SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`; the other four images remain byte-identical to the first seed. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The manifest names source revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af` and the stage-two checked-seed producer trio. The harness also pins the exact 19-source mapping, freezes the verified manifest and binary bytes for the run, and watches a 40-input source snapshot that includes `link.ld`. The seed producer trio compiles the source union and assembles and links stage two. Stage-two CupidC, CupidASM, and CupidLD repeat that work for stage three. The 19 C object pairs, startup objects, and all five tool images match byte for byte. The stages also agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. `make verify-bootstrap-seed` checks the inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and production C ownership remain open.
 
 The normal root build gives checked-seed CupidC ownership of 116 C sources.
 The established 40-source kernel and driver cohort stays intact. The next
@@ -45,8 +46,8 @@ only a validated i386 ELF32 object. A valid data-only object no longer needs a
 `.text` section, but its section and symbol ranges must still pass the shared
 validator. The production frontier watches 116 approved sources and 288
 headers or includes. That 404-file snapshot has SHA-256
-`bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`.
-It compiles all 116 approved sources twice and requires 2,267,588
+`8cd59650372a13303c33b2621e67f929d4c0b1a7bff1a134b68bee18c50cd269`.
+It compiles all 116 approved sources twice and requires 2,268,616
 byte-identical object bytes. Every Make recipe names its recursive header
 closure and the common checked controls. Forced rebuilds poison the host
 compiler. The manifest records the fixed profile and checked-seed provenance

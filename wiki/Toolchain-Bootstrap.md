@@ -60,11 +60,11 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 
 The checked seed includes the active CSPRNG assembly, operand-free
 function assembly, per-CPU pointer output, integer atomics through fetch-or, and
-width-aware port I/O. Its stage-three CupidC image is 1,950,556 bytes with
+width-aware port I/O. Its stage-three CupidC image is 2,000,636 bytes with
 SHA-256
-`f4d49d8b870868ccd57aed94eaf7565404ceb10732c79c868e65f9beca5371c8`.
+`2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`.
 It came from stage three of the checked bootstrap at revision
-`10d2412ece22968e03dbe22b048c3d92f210f2ba`, not from the native compiler
+`d2e0f8b876d96b9268666e16c26a9e16ab5249af`, not from the native compiler
 candidate. With host compiler and linker commands poisoned, all five seed
 images match stage two. All 19 stage-two C objects, startup, and five images
 then match stage three, and both stages pass all 21 tool behavior cases.
@@ -107,9 +107,9 @@ The normal image has a 116-source checked CupidC production boundary. It
 keeps the established 40 kernel and driver sources, adds 71 unchanged kernel
 and driver sources, and adds the shared `ctool.c`, `cupidasm.c`,
 `cupiddis.c`, `elf32.c`, and `x86.c` implementations. The strict frontier
-compiles each approved source twice and accepts 2,267,588 byte-identical i386
+compiles each approved source twice and accepts 2,268,616 byte-identical i386
 ELF32 bytes. It freezes 404 inputs with SHA-256
-`bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`.
+`8cd59650372a13303c33b2621e67f929d4c0b1a7bff1a134b68bee18c50cd269`.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe. Each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
@@ -131,14 +131,14 @@ one event. The checks cover hello's numeric writes, ls reading the shell root,
 cat reading a fixed FAT fixture, and a PID-matched exit from each program.
 Kernel and JIT printing remain on their existing path.
 
-Compiler head now emits weak symbols and arbitrary compatible named sections,
+The refreshed checked seed emits weak symbols and arbitrary compatible named sections,
 records `unused` declarations, preserves typed static null pointers, treats
 known-true loops as non-fallthrough, and lowers comma expressions in source
 order. It also keeps all target bits through represented function-pointer
 casts and supports bounded output-only register and EFLAGS snapshots. Twenty
 of the 38 strict roots left after the 116-source handoff compile with these
-changes. They remain outside the production cohort until the seed, frontier,
-image, and runtime checks are refreshed.
+changes. They remain outside the production cohort until the frontier, image,
+and runtime checks pass.
 
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and

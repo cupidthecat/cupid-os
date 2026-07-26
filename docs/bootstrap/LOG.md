@@ -9344,3 +9344,100 @@ No design question was needed. Active source requirements, the loader
 contract, and the existing fixed memory map determined this increment.
 ADR 0112 records the generated and user handoff. ADR 0113 records the
 compiler-head capabilities and the deferred seed boundary.
+
+## 2026-07-25: refresh the checked seed for the source-driven frontier
+
+Commit `d2e0f8b876d96b9268666e16c26a9e16ab5249af` fixed the compiler source
+for the next seed. The prior checked seed verified before the transition.
+The bootstrap then ran with `CC` and `LD` set to commands that do not exist.
+It rebuilt 19 C objects, startup, and all five static tools through stages two
+and three without a host compiler or linker.
+
+The transition watched 40 inputs with SHA-256
+`7bee858042b883aac9d07ab4e2b6ba5b44075cdca308566a7317c0e00766ef1f`.
+All 19 C object pairs, the startup pair, and five tool pairs matched. Both
+stages passed five help cases, ten successful operations, and six useful
+failures. CupidASM, CupidDis, CupidLD, and CupidObj still matched their old
+seed files; CupidC changed as expected and matched between stages. The
+14,860-byte report has SHA-256
+`4291fb0441a4f6011be382243481a0ed7d8eb317567a98565f7c33bd26927730`.
+The transition took 477 seconds.
+
+All five stage-three files were promoted. Four remained byte-identical:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0` |
+| CupidDis | 366,968 | `67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 2,000,636 | `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac` |
+
+The build-plan SHA-256 remains
+`7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0`.
+The refreshed 5,421-byte manifest has SHA-256
+`4021d9f46807decc522725ab0d94c36ff2202f8706cf610a02571973d14455f3`.
+
+A second poisoned-host bootstrap started from the promoted seed. All five
+checked images matched stage two, and every stage-two object and image
+matched stage three. The same 21 behavior cases passed over the unchanged
+40-input snapshot. The 14,859-byte report has SHA-256
+`397333debb6ea2bb3cd85330d0b511b62fe2f05e79053393f45384cb64b45147`.
+The reproof took 480.9 seconds.
+
+The regenerated graph remains at 698 active sources, 253 feature IDs, and
+500 transforms. Its active-source digest is
+`630319a4b5dde5a519c0a0e4da7ee89ff489b2b7aa6224ddad64fa958588de23`.
+The refreshed audit JSON has SHA-256
+`d8cae3d58df169fa81c6889de28b0e0ef33f74a6efd27b835439b8f7b16af01d`.
+
+This increment changes the bootstrap root but does not move a normal kernel
+object. The checked seed now carries weak symbols, named sections, unused
+declarations, typed static nulls, known-true loop reachability, comma
+expressions, represented function-pointer casts, and output-only register
+snapshots. The normal production cohort remains at 116 sources until the
+separate frontier, poisoned-host recipe, image, and runtime gates pass. ADR
+0114 records the promotion and trust boundary.
+
+The complete 14-test seed module passed in 491.102 seconds. It includes
+manifest rejection cases, immutable-input checks, the transition rule, and a
+fresh poisoned-host fixed point. `make verify-bootstrap-seed` also passed.
+The regenerated audit check passed in 46.3 seconds.
+
+The checked-seed kernel frontier ran by itself after the promotion. It
+compiled all 116 approved sources twice in 735.580 seconds and emitted
+2,268,616 byte-identical i386 ELF32 bytes. Its 404-input snapshot has
+SHA-256
+`8cd59650372a13303c33b2621e67f929d4c0b1a7bff1a134b68bee18c50cd269`.
+The isolated 733.2-second replay wrote a 72,433-byte manifest with SHA-256
+`b49ba83f5c711724a47708a73e48763d86f1ba60a21c498d7e52fb6c91fd5a32`.
+The earlier byte total and snapshot lock predated the expanded syscall
+source. The new 12,572-byte syscall object has SHA-256
+`c2e30823de92cdd54dd849763dc37d81fdd72e64326cef807bf825725096a5aa`.
+All current production objects matched a native compiler-head diagnostic
+run before the checked-seed proof.
+
+The generated and user frontiers then ran in sequence. The generated path
+reproduced its three sources and objects over 194 inputs with SHA-256
+`69fa9875a02707fdce735ac213cdfa9d490fe8925a9bafee95473aef999c4a39`.
+The user path reproduced all three objects and executables over 16 inputs
+with SHA-256
+`4c7361aa214de8000874c19277e65469cd75ee60c1ef3561b2fd5a1c60a06499`.
+Every output hash stayed unchanged. Each input closure includes the seed, so
+its refresh changed both aggregate input hashes.
+
+An attempted overlapping run exposed an orchestration boundary. The
+generated build creates private compiler-input directories below
+`kernel/util`. Their temporary headers correctly caused the kernel
+frontier's source-drift guard to stop. Running the kernel, generated, and
+user gates one after another removed that overlap and all three passed.
+
+Standards review found a second evidence problem before commit. The first
+kernel snapshot included unrelated, unstaged line-ending changes in
+`drivers/keyboard.h` and `drivers/rtc.c`. Those files were never part of the
+patch, but both belong to the frontier's watched set. The accepted run used
+`git checkout-index` to materialize the exact staged tree in an isolated
+directory. This kept the user files untouched and made the published
+snapshot reproducible from a clean checkout. Seed verification and the
+active-build audit check also passed inside that isolated tree; the audit
+check took 44.6 seconds.
