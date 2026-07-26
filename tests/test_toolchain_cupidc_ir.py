@@ -122,6 +122,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "register-snapshot-assembly: ok\n")
 
+    def test_call_next_assembly_preserves_output_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "call-next-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "call-next-assembly: ok\n")
+
     def test_atomic_builtins_lower_to_typed_transactional_ir(self):
         result = subprocess.run(
             [str(self.contract_path), "atomic-builtins", str(REPO_ROOT)],

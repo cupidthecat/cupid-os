@@ -597,6 +597,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "register-snapshot-assembly: ok\n")
 
+    def test_call_next_assembly_emits_exact_i386_state_read(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "call-next-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "call-next-assembly: ok\n")
+
     def test_port_io_assembly_emits_exact_i386_and_preserves_callee_registers(
         self,
     ):

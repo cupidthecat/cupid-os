@@ -7360,12 +7360,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 204u, 6224u,
-       55970u, 793u, 288u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 209u, 5660u,
-       48481u, 679u, 344u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 322u,
-       13160u, 86286u, 1933u, 1282u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 207u, 6275u,
+       56528u, 800u, 291u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 209u, 5675u,
+       48586u, 681u, 346u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 324u,
+       13197u, 86703u, 1938u, 1284u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -25161,6 +25161,168 @@ cleanup:
   return failed;
 }
 
+static int validate_call_next_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_assembly_t *assembly;
+  const ctool_c_assembly_operand_t *operand;
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 1u ||
+      unit->assembly_count != 1u ||
+      unit->assembly_operand_count != 1u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  assembly = &unit->assemblies[0];
+  operand = &unit->assembly_operands[0];
+  if (string_equal(
+          assembly->template_text,
+          "call 1f\n1: popl %0") == 0 ||
+      assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->first_operand != 0u ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 0u ||
+      string_equal(operand->constraint, "=r") == 0 ||
+      operand->expression >= unit->expression_count ||
+      unit->expressions[operand->expression].type != operand->type ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->type >= unit->layout.type_count ||
+      unit->layout.types[operand->type].is_integer == CTOOL_FALSE ||
+      unit->layout.types[operand->type].size != 4u ||
+      dual_location_matches(
+          &assembly->location, &assembly->physical_location,
+          "/call-next-assembly.c", 4u) == 0 ||
+      dual_location_matches(
+          &operand->location, &operand->physical_location,
+          "/call-next-assembly.c", 4u) == 0) {
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == 1u ? 0 : 1;
+}
+
+static int run_call_next_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned u32;\n"
+      "u32 capture_eip(void) {\n"
+      "  u32 value;\n"
+      "  __asm__ volatile(\"call 1f\\n1: popl %0\" : \"=r\"(value));\n"
+      "  return value;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"fixed call-next output",
+        "void bad(void) { unsigned value; "
+        "asm volatile(\"call 1f\\n1: popl %0\" : \"=a\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU call-next assembly requires one volatile =r 32-bit integer "
+       "output"},
+      {{"pointer call-next output",
+        "void bad(void) { void *value; "
+        "asm volatile(\"call 1f\\n1: popl %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU call-next assembly requires one volatile =r 32-bit integer "
+       "output"},
+      {{"nonvolatile call-next output",
+        "void bad(void) { unsigned value; "
+        "asm(\"call 1f\\n1: popl %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU call-next assembly requires one volatile =r 32-bit integer "
+       "output"},
+      {{"call-next matching input",
+        "void bad(unsigned input) { unsigned value; "
+        "asm volatile(\"call 1f\\n1: popl %0\" : \"=r\"(value) : "
+        "\"0\"(input)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU call-next assembly requires one volatile =r 32-bit integer "
+       "output"},
+      {{"call-next memory clobber",
+        "void bad(void) { unsigned value; "
+        "asm volatile(\"call 1f\\n1: popl %0\" : \"=r\"(value) : : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU call-next assembly requires one volatile =r 32-bit integer "
+       "output"},
+      {{"different call-next labels",
+        "void bad(void) { unsigned value; "
+        "asm volatile(\"call 2f\\n2: popl %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly call template is outside this slice"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"call-next assembly without GNU extensions",
+       "void bad(void) { unsigned value; "
+       "__asm__(\"call 1f\\n1: popl %0\" : \"=r\"(value)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      0u, 0u, "GNU inline assembly requires GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "call-next-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/call-next-assembly.c", source, &unit) != 0 ||
+      validate_call_next_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "call-next-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/call-next-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_call_next_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/call-next-assembly-disabled.c",
+          disabled_gnu_case.line, disabled_gnu_case.column,
+          disabled_gnu_case.message) != 0 ||
+      validate_call_next_assembly_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("call-next-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_pointer_output_assembly(const char *host_root) {
   static const char source[] =
       "struct cpu_state { unsigned id; };\n"
@@ -25812,7 +25974,8 @@ int main(int argc, char **argv) {
                    "atomic-builtins|"
                    "inline-assembly|port-io-assembly|"
                    "privileged-register-assembly|"
-                   "register-snapshot-assembly|pointer-output-assembly|"
+                   "register-snapshot-assembly|call-next-assembly|"
+                   "pointer-output-assembly|"
                    "operand-free-assembly|"
                    "block-bindings|"
                    "block-functions|"
@@ -25897,6 +26060,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "call-next-assembly") == 0) {
+    return run_call_next_assembly(argv[2]);
   }
   if (strcmp(argv[1], "pointer-output-assembly") == 0) {
     return run_pointer_output_assembly(argv[2]);

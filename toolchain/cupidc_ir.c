@@ -353,6 +353,100 @@ static ctool_bool cir_matching_assembly_constraint(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cir_assembly_template_starts_call(
+    ctool_string_t template_text) {
+  ctool_u32 cursor = 0u;
+  if (template_text.data == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  while (cursor < template_text.size &&
+         (template_text.data[cursor] == ' ' ||
+          template_text.data[cursor] == '\t' ||
+          template_text.data[cursor] == '\r' ||
+          template_text.data[cursor] == '\n')) {
+    cursor++;
+  }
+  return template_text.size - cursor >= 4u &&
+                 template_text.data[cursor] == 'c' &&
+                 template_text.data[cursor + 1u] == 'a' &&
+                 template_text.data[cursor + 2u] == 'l' &&
+                 template_text.data[cursor + 3u] == 'l' &&
+                 (template_text.size - cursor == 4u ||
+                  template_text.data[cursor + 4u] == ' ' ||
+                  template_text.data[cursor + 4u] == '\t' ||
+                  template_text.data[cursor + 4u] == '\r' ||
+                  template_text.data[cursor + 4u] == '\n')
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_call_next_output_type_is_valid(
+    const cir_context_t *context, ctool_u32 type) {
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  const ctool_c_type_node_t *node;
+  if (type >= context->unit->graph.type_count ||
+      type >= context->unit->layout.type_count) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->is_integer == CTOOL_FALSE ||
+      layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE ||
+      layout->size != 4u) {
+    return CTOOL_FALSE;
+  }
+  for (;;) {
+    if (type >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+    node = &context->unit->graph.types[type];
+    qualifiers |= node->qualifiers;
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      break;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+  }
+  return (qualifiers &
+          (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_call_next_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_expression_t *expression;
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 0u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  if (operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      cir_string_equal(
+          operand->constraint, ctool_string("=r")) == CTOOL_FALSE ||
+      cir_call_next_output_type_is_valid(
+          context, operand->type) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  expression = &context->unit->expressions[operand->expression];
+  return expression->type == operand->type ? CTOOL_TRUE
+                                            : CTOOL_FALSE;
+}
+
 static ctool_status_t cir_validate_assembly_slices(
     cir_context_t *context) {
   ctool_u32 operand_cursor = 0u;
@@ -439,6 +533,15 @@ static ctool_status_t cir_validate_assembly_slices(
       } else {
         matched_outputs |= 1u << matching_output;
       }
+    }
+    if (cir_assembly_template_starts_call(
+            assembly->template_text) == CTOOL_TRUE &&
+        (cir_string_equal(
+             assembly->template_text,
+             ctool_string("call 1f\n1: popl %0")) == CTOOL_FALSE ||
+         cir_call_next_assembly_metadata_is_valid(
+             context, assembly) == CTOOL_FALSE)) {
+      return cir_invalid_unit(context, &assembly->location);
     }
     operand_cursor += operand_count;
   }

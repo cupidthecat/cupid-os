@@ -441,6 +441,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) privileged-register-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) atomic-builtins ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-output-assembly ..
+	$(CUPIDC_FRONTEND_CONTRACT) call-next-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-bindings ..
 	$(CUPIDC_FRONTEND_CONTRACT) block-typedefs ..
@@ -515,6 +516,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) privileged-register-assembly ..
 	$(CUPIDC_IR_CONTRACT) atomic-builtins ..
 	$(CUPIDC_IR_CONTRACT) pointer-output-assembly ..
+	$(CUPIDC_IR_CONTRACT) call-next-assembly ..
 	$(CUPIDC_IR_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_IR_CONTRACT) narrow-values ..
 	$(CUPIDC_IR_CONTRACT) void-casts ..
@@ -557,6 +559,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) privileged-register-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) atomic-builtins ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-output-assembly ..
+	$(CUPIDC_OBJECT_CONTRACT) call-next-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..

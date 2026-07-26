@@ -566,6 +566,16 @@ attribute does not change current object bytes because every represented
 definition is already emitted. The generated kernel-symbol source passes
 deterministic compiler-head emission, but the checked seed and normal build
 still use the earlier compiler boundary.
+
+Compiler head also accepts the exact volatile
+call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.c
+and kernel/lang/cupidc.c. It takes one modifiable four-byte integer =r
+output. Cupid's x86 model emits a zero-displacement CALL followed by POP r32,
+which captures the address of the pop and restores ESP without a relocation.
+Both unchanged roots compile reproducibly as validated i386 ELF32 objects
+under the complete kernel profile. They remain host-built .c sources because
+the checked seed predates this capability. Other call templates and general
+inline-assembly labels remain unsupported.
 >endtree
 
 >h2 C Compatibility Notes

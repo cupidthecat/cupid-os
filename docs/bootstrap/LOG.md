@@ -9734,3 +9734,143 @@ assembly, and broader GNU assembly remain open. A later transfer must refresh
 and verify the checked seed, move the production frontier and Make recipes,
 rename the roots to `.cc`, build the full image, and run the relevant boot
 and runtime gates. ADR 0117 records this boundary.
+## 2026-07-26: emit the stack-trace call-next state read
+
+CupidC compiler head now accepts the exact GNU assembly statement shared by
+the stack-trace helpers in `kernel/lang/as.c` and
+`kernel/lang/cupidc.c`:
+
+```c
+__asm__ volatile("call 1f\n1: popl %0" : "=r"(eip));
+```
+
+The frontend requires one volatile `=r` output backed by a modifiable,
+non-atomic, complete 32-bit integer object. It rejects inputs, clobbers,
+pointer or fixed-register outputs, changed labels, and other templates that
+start with a call. GNU-disabled input retains its existing direct diagnostic.
+Each failure leaves the previous public translation unit intact, and a later
+parse in the same job succeeds.
+
+Linear IR evaluates the output address once before one `ASSEMBLY`
+instruction. Its live fixture has the exact sequence `LOCAL_ADDRESS`,
+`ASSEMBLY`, `LOCAL_ADDRESS`, `LOAD`, and `RETURN_VALUE`, with an abstract
+stack depth of one. A second helper places the same assembly in unreachable
+code. It publishes only `RETURN_VOID`, but its frozen flags, template,
+constraint, and output type are still validated. Invalid live and dead
+records do not change the input unit, and repeated lowering is identical.
+
+The i386 emitter uses the shared x86 model to write
+`E8 00 00 00 00 58` at the assembly site. The zero call displacement targets
+the following pop instruction, so the pop captures its own address and
+restores ESP. The ordinary output path stores that address through the saved
+destination and restores EBX. The focused 54-byte function has no relocation.
+A decoder-driven state oracle checks the captured relocated address, caller
+return slot, stack and frame pointers, and EBX, ESI, and EDI. Repeated object
+emission is byte-identical.
+
+The object failure checks cover both layers of output rollback. A mutated
+template emits an initial NOP before reaching unsupported text; the public
+object operation still leaves its output empty. A 64-byte output limit fails
+the valid unit the same way. The next operation in the same job reproduces
+the original object.
+
+### Test-driven evidence
+
+The frontend test first failed because the existing generic assembly path
+accepted a fixed `=a` output. The new exact-form validation made the focused
+frontend test pass.
+
+The Linear IR test then failed because the existing whole-unit validator
+accepted forged nonvolatile call-next metadata. Adding strict live and
+unreachable metadata checks made the IR test pass.
+
+The object test initially stopped at the existing unsupported-template
+diagnostic. Emitting the call and pop through the shared x86 model made its
+byte and state-oracle checks pass. The three public Python wrapper tests then
+passed together:
+
+```text
+python -m unittest \
+  tests.test_toolchain_cupidc_frontend.ToolchainCupidCFrontendContractTests.test_call_next_assembly_preserves_exact_public_metadata \
+  tests.test_toolchain_cupidc_ir.ToolchainCupidCIRContractTests.test_call_next_assembly_preserves_output_order \
+  tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_call_next_assembly_emits_exact_i386_state_read
+Ran 3 tests in 30.686s
+OK
+```
+
+The first complete Toolchain run exposed only the expected source-inventory
+and self-host object locks. They were refreshed from the new compiler
+sources. The frontend tuples are now:
+
+- `cupidc_ir.c`: 206 definitions, 6,267 statements, 56,388 expressions,
+  798 block bindings, and 291 initializers
+- `cupidc_emit.c`: 204 definitions, 5,566 statements, 47,547 expressions,
+  669 block bindings, and 344 initializers
+- `cupidc_frontend.c`: 324 definitions, 13,164 statements, 86,428
+  expressions, 1,929 block bindings, and 1,281 initializers
+
+The corresponding self-host objects are:
+
+- `cupidc_ir.c`: 397,266 text bytes, 424,204 object bytes, fingerprint
+  `F0390943`
+- `cupidc_emit.c`: 351,265 text bytes, 377,384 object bytes, fingerprint
+  `1D726BCC`
+- `cupidc_frontend.c`: 650,504 text bytes, 772,028 object bytes,
+  fingerprint `E0EAD824`
+
+The focused self-host selector passed after those measured locks changed.
+The complete command below then passed every Toolchain contract:
+
+```text
+make -C toolchain BUILD_DIR=build-callnext-full test
+```
+
+### Unchanged production-source probes
+
+A fresh native compiler-head executable compiled both roots with the complete
+`KERNEL_I386` definitions and include roots. Cupid's shared validator accepted
+each result as an i386 relocatable ELF object:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/lang/as.c` | 148,056 | `f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c` |
+| `kernel/lang/cupidc.c` | 288,168 | `b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e` |
+
+A second compile produced the same bytes for both roots. The first comparison
+command used a PowerShell option unavailable on this host and produced no
+comparison result. SHA-256 comparison of the already completed objects
+supplied the accepted reproducibility check.
+
+No general inline-assembly label parser was added. Other call templates,
+alternate labels, arbitrary control transfer, inputs, clobbers, pointer
+outputs, and fixed-register outputs remain outside this slice. No source was
+rewritten to avoid the compiler requirement, and no host assembler handles
+the template.
+
+This increment changes compiler head and its contracts only. The checked seed
+predates call-next support, so the normal build still assigns both production
+roots to the host compiler. They remain `.c` files until a checked-seed
+refresh and production ownership transfer pass. No image, boot path, runtime
+artifact, host-dependency count, or production ownership count changes. A
+QEMU run would not test a changed normal artifact, so none is claimed. ADR
+0118 records the boundary. The broader GNU assembly and self-hosting issues
+remain open.
+
+### Combined compiler check
+
+The privileged-register and call-next changes were then applied to the same
+compiler tree. All six focused frontend, Linear IR, and object selectors
+passed together. The combined source inventory and object locks are:
+
+| Source | Functions | Statements | Expressions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.c` | 207 | 6,275 | 56,528 | 397,930 | 424,952 | `684F7E46` |
+| `toolchain/cupidc_emit.c` | 209 | 5,675 | 48,586 | 359,452 | 386,692 | `D32C6D8D` |
+| `toolchain/cupidc_frontend.c` | 324 | 13,197 | 86,703 | 653,199 | 775,272 | `04F81171` |
+
+The frontend counts also retain 800, 681, and 1,938 block bindings and 291,
+346, and 1,284 initializers for the three sources in table order. The
+`aggregate-values` source-frontier selector and the complete object
+self-host-frontier selector pass with these measured values. The earlier
+tables remain the evidence for each isolated tracer-bullet run; this table
+records the active combined locks.

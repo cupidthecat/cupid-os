@@ -109,6 +109,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_register_snapshot_assembly_preserves_exact_public_metadata(self):
         self.run_contract("register-snapshot-assembly")
 
+    def test_call_next_assembly_preserves_exact_public_metadata(self):
+        self.run_contract("call-next-assembly")
+
     def test_port_io_assembly_keeps_widths_registers_and_memory_clobber(self):
         self.run_contract("port-io-assembly")
 

@@ -151,6 +151,19 @@ remain. Compiler head now represents the `used` attribute on generated
 The generated root stays hosted until a refreshed checked seed and the
 production build gates carry that capability.
 
+Compiler head also emits the exact volatile
+`call 1f\n1: popl %0` address capture used by the stack-trace helpers in
+`kernel/lang/as.c` and `kernel/lang/cupidc.c`. The instruction pair is a
+zero-displacement `CALL` followed by `POP r32`, with no relocation. Both
+unchanged roots compile twice to matching validated i386 ELF32 objects under
+the complete kernel profile. The `as.c` object is 148,056 bytes with SHA-256
+`f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c`.
+The `cupidc.c` object is 288,168 bytes with SHA-256
+`b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e`.
+They remain host-owned `.c` sources until a refreshed checked seed and the
+production handoff carry this capability. Other call templates and general
+inline-assembly labels remain unsupported.
+
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
 user executables have no unsupported instruction fallback. The remaining gap

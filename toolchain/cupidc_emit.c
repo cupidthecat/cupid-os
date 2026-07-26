@@ -6308,6 +6308,33 @@ static ctool_status_t cemit_emit_assembly_template(
   ctool_bool emitted_instruction = CTOOL_FALSE;
   ctool_bool has_pointer_output = CTOOL_FALSE;
   ctool_status_t status = CTOOL_OK;
+  if (cemit_string_equals_literal(
+          assembly->template_text,
+          "call 1f\n1: popl %0") == CTOOL_TRUE) {
+    ctool_u32 patch_offset = 0u;
+    ctool_u32 after_call = 0u;
+    if (cemit_assembly_snapshot_output_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+          "GNU inline assembly template is outside this i386 emission "
+          "slice");
+    }
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_CALL, &patch_offset, &after_call);
+    if (status == CTOOL_OK &&
+        (patch_offset > 0xfffffffbu ||
+         after_call != patch_offset + 4u)) {
+      status = CTOOL_ERR_INTERNAL;
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32,
+          registers[0], 32u);
+    }
+    return status;
+  }
   if (cemit_assembly_register_snapshot_template(
           assembly->template_text,
           &snapshot_source_register) == CTOOL_TRUE) {

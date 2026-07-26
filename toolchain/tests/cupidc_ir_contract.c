@@ -29233,6 +29233,218 @@ cleanup:
   return 1;
 }
 
+static const char call_next_assembly_source[] =
+    "typedef unsigned u32;\n"
+    "u32 capture_eip(void) {\n"
+    "  u32 value;\n"
+    "  __asm__ volatile(\"call 1f\\n1: popl %0\" : \"=r\"(value));\n"
+    "  return value;\n"
+    "}\n"
+    "void dead_call_next(void) {\n"
+    "  u32 value;\n"
+    "  return;\n"
+    "  __asm__ volatile(\"call 1f\\n1: popl %0\" : \"=r\"(value));\n"
+    "}\n";
+
+static int call_next_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_ir_instruction_kind_t live_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_ASSEMBLY,
+      CTOOL_C_IR_INSTRUCTION_LOCAL_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  const ctool_c_ir_function_t *live;
+  const ctool_c_ir_function_t *dead;
+  ctool_u32 index;
+
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 2u ||
+      unit->assembly_operand_count != 2u ||
+      unit->assemblies == NULL ||
+      unit->assembly_operands == NULL ||
+      ir->function_count != 2u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(
+        stderr, "call-next-assembly: top-level IR shape differs\n");
+    return 0;
+  }
+  live = &ir->functions[0];
+  dead = &ir->functions[1];
+  if (live->first_instruction != 0u ||
+      live->instruction_count !=
+          (ctool_u32)(sizeof(live_kinds) / sizeof(live_kinds[0])) ||
+      live->maximum_stack_depth != 1u ||
+      dead->first_instruction != live->instruction_count ||
+      dead->instruction_count != 1u ||
+      dead->maximum_stack_depth != 0u ||
+      ir->instruction_count != live->instruction_count + 1u ||
+      ir->instructions[dead->first_instruction].kind !=
+          CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)fprintf(
+        stderr, "call-next-assembly: function bounds differ\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(live_kinds) / sizeof(live_kinds[0]));
+       index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[live->first_instruction + index];
+    if (instruction->kind != live_kinds[index]) {
+      (void)fprintf(
+          stderr,
+          "call-next-assembly: live instruction %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  if (!inline_assembly_instruction_matches(
+          &ir->instructions[live->first_instruction + 1u], 0u,
+          "/call-next-assembly.c")) {
+    (void)fprintf(
+        stderr, "call-next-assembly: assembly metadata differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_call_next_assembly(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[2];
+  ctool_c_assembly_operand_t operands[2];
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/call-next-assembly.c",
+          call_next_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "call-next assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !call_next_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK, "repeat call-next assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !call_next_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr, "call-next-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_count !=
+          (ctool_u32)(sizeof(assemblies) / sizeof(assemblies[0])) ||
+      unit.assembly_operand_count !=
+          (ctool_u32)(sizeof(operands) / sizeof(operands[0]))) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  invalid_unit.assembly_operands = operands;
+
+  assemblies[0].flags = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "nonvolatile call-next assembly")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].template_text =
+      ctool_string("call 2f\n2: popl %0");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "different call-next labels")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  operands[0].constraint = ctool_string("=a");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fixed call-next output")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  assemblies[1].flags = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unreachable nonvolatile call-next assembly")) {
+    goto cleanup;
+  }
+  assemblies[1] = unit.assemblies[1];
+
+  operands[1].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unreachable call-next output with an unavailable type")) {
+    goto cleanup;
+  }
+  operands[1] = unit.assembly_operands[1];
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(
+          status, CTOOL_OK, "call-next assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count + 5u ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !call_next_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "call-next-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("call-next-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static const char pointer_output_assembly_source[] =
     "struct cpu_state { unsigned id; };\n"
     "struct cpu_state **next_cpu_slot(void);\n"
@@ -30793,6 +31005,9 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "call-next-assembly") == 0) {
+    return run_call_next_assembly(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtins(argv[2]);
   }
@@ -30829,6 +31044,7 @@ int main(int argc, char **argv) {
                 "inline-assembly|port-io-assembly|atomic-builtins|"
                 "privileged-register-assembly|"
                 "register-snapshot-assembly|"
+                "call-next-assembly|"
                 "pointer-output-assembly|"
                 "operand-free-assembly "
                 "HOST_ROOT\n");

@@ -12409,6 +12409,85 @@ static ctool_status_t cfront_parse_assembly_input(
                             : cfront_storage_failure(context, status);
 }
 
+static ctool_bool cfront_assembly_template_starts_call(
+    ctool_string_t template_text) {
+  ctool_u32 cursor = 0u;
+  if (template_text.data == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  while (cursor < template_text.size &&
+         (template_text.data[cursor] == ' ' ||
+          template_text.data[cursor] == '\t' ||
+          template_text.data[cursor] == '\r' ||
+          template_text.data[cursor] == '\n')) {
+    cursor++;
+  }
+  return cursor <= template_text.size &&
+                 template_text.size - cursor >= 4u &&
+                 template_text.data[cursor] == 'c' &&
+                 template_text.data[cursor + 1u] == 'a' &&
+                 template_text.data[cursor + 2u] == 'l' &&
+                 template_text.data[cursor + 3u] == 'l' &&
+                 (template_text.size - cursor == 4u ||
+                  template_text.data[cursor + 4u] == ' ' ||
+                  template_text.data[cursor + 4u] == '\t' ||
+                  template_text.data[cursor + 4u] == '\r' ||
+                  template_text.data[cursor + 4u] == '\n')
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_validate_call_next_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t operand;
+  cfront_integer_type_t integer;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_status_t status;
+  if (cfront_assembly_template_starts_call(
+          assembly->template_text) == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (cfront_string_literal(
+          assembly->template_text,
+          "call 1f\n1: popl %0") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword, "GNU inline assembly call template is outside this slice");
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 0u ||
+      assembly->first_operand >= context->assembly_operands.count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU call-next assembly requires one volatile =r 32-bit integer "
+        "output");
+  }
+  status = cfront_vector_get(
+      &context->assembly_operands, assembly->first_operand, &operand);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(
+        context, operand.type, &integer, &is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return ctool_job_diagnostic_count(context->job) == 0u
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  if (cfront_string_literal(
+          operand.constraint, "=r") == CTOOL_FALSE ||
+      is_integer == CTOOL_FALSE || integer.width != 32u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU call-next assembly requires one volatile =r 32-bit integer "
+        "output");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_parse_gnu_assembly_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *keyword = cfront_advance(context);
@@ -12564,6 +12643,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_call_next_assembly(
+        context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
     status = cfront_vector_append(&context->assemblies, &assembly,

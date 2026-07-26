@@ -127,6 +127,16 @@ shape. Current object bytes remain unchanged because every represented
 definition is already emitted. The checked seed predates this capability, so
 the generated symbol root has not changed owner.
 
+Compiler head now emits the exact volatile
+`call 1f\n1: popl %0` state read used by the stack-trace helpers in unchanged
+`kernel/lang/as.c` and `kernel/lang/cupidc.c`. Frontend and Linear IR
+contracts pin its one four-byte integer `=r` output. The shared x86 path emits
+a zero-displacement call and immediate pop without a relocation, and a
+decoder-driven state oracle checks the captured address and balanced stack.
+Both roots compile reproducibly under the complete kernel profile. The
+checked seed predates this capability, so neither root changes owner or
+suffix. ADR 0118 records the boundary.
+
 | Source or artifact cohort | Current owner/path | Fixed-point owner/path | Status and next proof |
 | --- | --- | --- | --- |
 | `boot/boot.asm` | CupidASM flat binary | CupidASM flat binary | Production-owned: hosted CupidASM emits the exact 2,560 bytes, SHA-256 `9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc`, byte-identical to the optional NASM oracle; clean-build and boot smokes pass |
