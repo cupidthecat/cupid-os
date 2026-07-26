@@ -121,6 +121,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_fxsave_assembly_keeps_its_independent_pointer_input(self):
         self.run_contract("fxsave-assembly")
 
+    def test_legacy_port_constraints_keep_the_dx_fallback(self):
+        self.run_contract("legacy-port-assembly")
+
     def test_operand_free_inline_assembly_retains_basic_and_extended_forms(self):
         self.run_contract("operand-free-assembly")
 

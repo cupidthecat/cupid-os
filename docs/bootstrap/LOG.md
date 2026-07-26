@@ -9981,31 +9981,32 @@ changed, so no boot result is claimed. A seed refresh, production handoff,
 source rename, image build, and runtime proof remain separate work. ADR 0119
 records the decision.
 
-### Combined privileged, call-next, and FXSAVE check
+### Combined privileged, call-next, FXSAVE, and Nd check
 
-The three assembly slices were then applied to one compiler tree. Their
+The four assembly slices were then applied to one compiler tree. Their
 frontend rules share the independent `r` constraint without weakening the
 exact templates. Privileged forms admit represented four-byte integers or
 data pointers. FXSAVE narrows the same constraint to an object or `void`
-pointer and reports that requirement at the frontend. Linear IR also rejects
-an exact FXSAVE record whose frozen memory-clobber flag is missing.
+pointer and reports that requirement at the frontend. `Nd` selects EDX for
+the unchanged byte port templates. Linear IR also rejects an exact FXSAVE
+record whose frozen memory-clobber flag is missing.
 
-All nine focused frontend, Linear IR, and object selectors pass together. The
+All twelve focused frontend, Linear IR, and object selectors pass together. The
 active source inventory and deterministic object locks are:
 
 | Source | Functions | Statements | Expressions | Bindings | Initializers | Text bytes | Object bytes | Text fingerprint |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| `toolchain/cupidc_ir.c` | 208 | 6,286 | 56,731 | 801 | 291 | 399,464 | 426,668 | `4F8615BB` |
-| `toolchain/cupidc_emit.c` | 213 | 5,705 | 48,910 | 684 | 347 | 362,053 | 389,752 | `DA5FC029` |
-| `toolchain/cupidc_frontend.c` | 325 | 13,233 | 86,974 | 1,946 | 1,284 | 654,874 | 777,560 | `C7570BC3` |
+| `toolchain/cupidc_ir.c` | 208 | 6,286 | 56,771 | 801 | 291 | 399,813 | 427,016 | `DC811030` |
+| `toolchain/cupidc_emit.c` | 214 | 5,713 | 48,950 | 684 | 347 | 362,350 | 390,184 | `E679AAC1` |
+| `toolchain/cupidc_frontend.c` | 325 | 13,233 | 86,985 | 1,946 | 1,284 | 655,025 | 777,756 | `2B6F821D` |
 
 The `aggregate-values` source-frontier selector and the complete object
 self-host-frontier selector pass with these measured values. Earlier tables
-record isolated and two-slice runs; this table is the active three-slice
-lock. The public modules now contain 68 frontend tests, 56 Linear IR tests,
-and 68 object tests.
+record isolated and smaller combined runs; this table is the active
+four-slice lock. The public modules now contain 69 frontend tests, 57 Linear
+IR tests, and 69 object tests.
 
-The rebuilt compiler then compiled all six roots unlocked by these three
+The rebuilt compiler then compiled all seven roots unlocked by these four
 slices twice under the complete `KERNEL_I386` profile:
 
 | Source | Object bytes | SHA-256 |
@@ -10013,6 +10014,7 @@ slices twice under the complete `KERNEL_I386` profile:
 | `kernel/cpu/idt.c` | 8,756 | `0ad16fd3250bc09ced7c928cb287123db245980de73c15f0249db71a2f2f6ea3` |
 | `kernel/mm/paging.c` | 2,336 | `fc9b757a35cf474f90436333ba732be252253feeea531cad851215e17f793e2d` |
 | `kernel/smp/lapic.c` | 4,184 | `6ce344d265ad3fb6b221a9159d860954c5f5512a7eac526838e69bc181a4c045` |
+| `kernel/cpu/pic.c` | 2,408 | `c1855a19e0cd285953996344493dcefe916f06d89fed706219718920b4d2ea5d` |
 | `kernel/core/process.c` | 30,216 | `81ef6d428528b6fcc98826cda634abe5d9d0c00b8aa59cb374d7c1186b0320c5` |
 | `kernel/lang/as.c` | 148,056 | `f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c` |
 | `kernel/lang/cupidc.c` | 288,168 | `b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e` |
@@ -10023,3 +10025,41 @@ argument and stopped after producing its first object. Correcting the
 read-only probe to the current one-argument interface yielded the accepted
 result above. No compiler or source change followed from that harness error.
 The complete Toolchain target passes from the same tree.
+
+## 2026-07-26: use DX for the GNU Nd port alternative
+
+The remaining host-built 8259 PIC root uses the GNU `Nd` constraint for its
+port operand. CupidC now retains that exact spelling and selects its valid
+`d` alternative. The frontend reserves EDX and applies the represented
+fixed-input integer rules. Linear IR validates the same frozen metadata.
+
+The i386 emitter accepts only the active `outb %0, %1` and `inb %1, %0`
+templates at this boundary. Both require a volatile statement, a 16-bit port
+in DX, and the matching 8-bit accumulator operand. They emit `EE` and `EC`
+through Cupid's x86 model. Choosing DX is valid for constants and runtime
+ports. The optional immediate branch remains an optimization.
+
+The focused contracts first failed at each missing seam. The frontend
+rejected `Nd`, IR rejected the frozen input record, and object emission
+rejected the two templates. The completed tests also cover reversed
+constraints, pointers, unsupported widths, duplicate EDX use, forged
+matching metadata, changed operand types, partial templates, unexpected
+clobbers, deterministic repeats, rollback, and recovery.
+
+The compiler-source changes moved the exact self-host inventory and object
+locks. The updated values come from deterministic compiler-head parses and
+objects. No semantic limit was relaxed.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused wrappers | The new frontend, Linear IR, and object selectors and the three existing port selectors pass, six tests in 34.220 seconds |
+| Linear IR | The two-function fixture has 13 instructions and fingerprint `c5fd6ded012c701a` |
+| Deterministic object | Both runs produce the same 436-byte ELF32 object with 76 text bytes, three symbols, no relocations, and text fingerprint `690d98c5` |
+| Unchanged PIC root | The complete `KERNEL_I386` profile emits a 2,408-byte object with SHA-256 `c1855a19e0cd285953996344493dcefe916f06d89fed706219718920b4d2ea5d` |
+| Complete toolchain target | Every toolchain contract passes after the source inventory and self-host object locks were refreshed |
+
+This is compiler-head evidence. The checked seed, `pic.c` name, Make recipe,
+normal image, and runtime ownership have not moved. ADR 0120 records the
+decision.

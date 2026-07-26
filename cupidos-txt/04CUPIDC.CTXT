@@ -223,6 +223,12 @@ uses it in the 136-source CupidC cohort. It emits unchanged kernel/smp/acpi.c
 and kernel/smp/mp_tables.c with the checked seed. Their 5,708-byte and
 4,156-byte objects are deterministic and validated. Exact recursive header
 closures and poisoned host recipes protect each transferred build rule.
+
+Compiler head also retains the exact Nd port constraint used by the 8259 PIC.
+It selects the DX alternative and emits the unchanged 8-bit IN and OUT
+templates through the shared x86 model. The complete kernel/cpu/pic.c source
+produces a deterministic ELF32 object under the kernel profile. The checked
+seed and normal PIC recipe still use the earlier compiler boundary.
 >endtree
 
 >h2 Self-Hosting Compiler Path

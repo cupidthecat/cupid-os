@@ -316,17 +316,19 @@ static ctool_u32 cir_fixed_output_assembly_register(
 
 static ctool_u32 cir_fixed_input_assembly_register(
     ctool_string_t constraint) {
-  if (constraint.size != 1u ||
-      constraint.data == (const char *)0) {
+  if (constraint.data == (const char *)0) {
     return 0u;
   }
-  if (constraint.data[0] == 'a') {
+  if (constraint.size == 1u && constraint.data[0] == 'a') {
     return CTOOL_C_ASSEMBLY_FIXED_A;
   }
-  if (constraint.data[0] == 'c') {
+  if (constraint.size == 1u && constraint.data[0] == 'c') {
     return CTOOL_C_ASSEMBLY_FIXED_C;
   }
-  return constraint.data[0] == 'd'
+  return (constraint.size == 1u && constraint.data[0] == 'd') ||
+                 (constraint.size == 2u &&
+                  constraint.data[0] == 'N' &&
+                  constraint.data[1] == 'd')
              ? CTOOL_C_ASSEMBLY_FIXED_D
              : 0u;
 }

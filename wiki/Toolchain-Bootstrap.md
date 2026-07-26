@@ -173,6 +173,12 @@ They remain host-owned `.c` sources until a refreshed checked seed and the
 production handoff carry this capability. Other call templates and general
 inline-assembly labels remain unsupported.
 
+Compiler head now also accepts the GNU `Nd` port alternative in
+`kernel/cpu/pic.c`. It selects the valid DX branch and emits both unchanged
+8-bit PIC templates through Cupid's x86 model. The root passes the complete
+kernel compiler profile, but it remains host-owned until the checked seed and
+normal build move together.
+
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
 user executables have no unsupported instruction fallback. The remaining gap

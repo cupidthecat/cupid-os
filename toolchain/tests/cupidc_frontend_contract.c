@@ -7361,11 +7361,11 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 208u, 6286u,
-       56731u, 801u, 291u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 213u, 5705u,
-       48910u, 684u, 347u, 0u, 0u},
+       56771u, 801u, 291u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 214u, 5713u,
+       48950u, 684u, 347u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 325u,
-       13233u, 86974u, 1946u, 1284u, 0u, 0u},
+       13233u, 86985u, 1946u, 1284u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -25120,6 +25120,134 @@ cleanup:
   return failed;
 }
 
+static int validate_legacy_port_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "outb %0, %1", "inb %1, %0"};
+  static const ctool_u32 first_operands[] = {0u, 2u};
+  static const ctool_u32 output_counts[] = {0u, 1u};
+  static const ctool_u32 input_counts[] = {2u, 1u};
+  static const char *const constraints[] = {
+      "a", "Nd", "=a", "Nd"};
+  static const ctool_u32 expected_sizes[] = {1u, 2u, 1u, 2u};
+  ctool_u32 index;
+
+  if (unit == NULL ||
+      unit->function_definition_count != ARRAY_COUNT(templates) ||
+      unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != first_operands[index] ||
+        assembly->output_count != output_counts[index] ||
+        assembly->input_count != input_counts[index]) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->assembly_operand_count; index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->expression >= unit->expression_count ||
+        operand->type >= unit->layout.type_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        unit->layout.types[operand->type].size != expected_sizes[index] ||
+        operand->matching_output != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_legacy_port_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char port_u8;\n"
+      "typedef unsigned short port_u16;\n"
+      "void legacy_outb(port_u16 port, port_u8 value) {\n"
+      "  __asm__ volatile(\"outb %0, %1\" : : "
+      "\"a\"(value), \"Nd\"(port));\n"
+      "}\n"
+      "port_u8 legacy_inb(port_u16 port) {\n"
+      "  port_u8 value;\n"
+      "  __asm__ volatile(\"inb %1, %0\" : "
+      "\"=a\"(value) : \"Nd\"(port));\n"
+      "  return value;\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"reversed legacy port constraint",
+        "void bad(unsigned short port) { "
+        "asm volatile(\"outb %0, %1\" : : \"a\"(1), \"dN\"(port)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly input requires one matching output digit"},
+      {{"pointer legacy port input",
+        "void bad(void *port) { "
+        "asm volatile(\"outb %0, %1\" : : \"a\"(1), \"Nd\"(port)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly fixed-register input requires an integer"},
+      {{"wide legacy port input",
+        "void bad(unsigned long long port) { "
+        "asm volatile(\"outb %0, %1\" : : \"a\"(1), \"Nd\"(port)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly fixed-register input requires an "
+       "8-, 16-, or 32-bit integer"},
+      {{"duplicate legacy port register",
+        "void bad(unsigned short first, unsigned short second) { "
+        "asm volatile(\"nop\" : : \"Nd\"(first), \"d\"(second)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot assign one fixed register twice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "legacy-port-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/legacy-port-assembly.c", source, &unit) != 0 ||
+      validate_legacy_port_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "legacy-port-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/legacy-port-assembly-failure.c",
+            test_case->line, test_case->column,
+            test_case->message) != 0 ||
+        validate_legacy_port_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("legacy-port-assembly: ok");
+  }
+  return failed;
+}
+
 static int validate_register_snapshot_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
@@ -26109,7 +26237,8 @@ int main(int argc, char **argv) {
                    "variadic-callees|"
                    "atomic-builtins|"
                    "inline-assembly|port-io-assembly|"
-                   "privileged-register-assembly|"
+                   "privileged-register-assembly|fxsave-assembly|"
+                   "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
                    "pointer-output-assembly|"
                    "operand-free-assembly|"
@@ -26196,6 +26325,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "fxsave-assembly") == 0) {
     return run_fxsave_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "legacy-port-assembly") == 0) {
+    return run_legacy_port_assembly(argv[2]);
   }
   if (strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);

@@ -146,6 +146,12 @@ Both roots compile reproducibly under the complete kernel profile. The
 checked seed predates this capability, so neither root changes owner or
 suffix. ADR 0118 records the boundary.
 
+Compiler head also retains the 8259 PIC's exact GNU `Nd` port constraint. It
+selects the DX alternative and emits the active `inb` and `outb` templates
+through the shared x86 model. The unchanged root compiles under the complete
+kernel profile. The checked seed still predates this slice, so `pic.c`
+remains in the host-owned strict cohort.
+
 | Source or artifact cohort | Current owner/path | Fixed-point owner/path | Status and next proof |
 | --- | --- | --- | --- |
 | `boot/boot.asm` | CupidASM flat binary | CupidASM flat binary | Production-owned: hosted CupidASM emits the exact 2,560 bytes, SHA-256 `9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc`, byte-identical to the optional NASM oracle; clean-build and boot smokes pass |

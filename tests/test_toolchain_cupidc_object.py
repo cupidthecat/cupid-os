@@ -657,6 +657,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "fxsave-assembly: ok\n")
 
+    def test_legacy_port_constraints_emit_through_dx(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "legacy-port-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "legacy-port-assembly: ok\n")
+
     def test_atomic_builtins_emit_width_correct_i386_instructions(self):
         result = subprocess.run(
             [str(self.contract_path), "atomic-builtins", str(REPO_ROOT)],

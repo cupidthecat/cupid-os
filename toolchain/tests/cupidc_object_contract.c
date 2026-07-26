@@ -24745,20 +24745,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 208u, 213u, 325u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 208u, 214u, 325u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 399464u, 362053u, 654874u, 139612u, 70368u, 77981u,
+      190304u, 399813u, 362350u, 655025u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 426668u, 389752u, 777560u, 157796u, 79348u, 131640u,
+      226668u, 427016u, 390184u, 777756u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x4f8615bbu, 0xda5fc029u, 0xc7570bc3u, 0x3f69aac3u,
+      0xdc811030u, 0xe679aac1u, 0x2b6f821du, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -29295,6 +29295,217 @@ cleanup:
   return 1;
 }
 
+static int validate_legacy_port_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 inb_bytes[] = {0xecu};
+  static const ctool_u8 outb_bytes[] = {0xeeu};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u) {
+    (void)fprintf(stderr, "legacy port object container differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "legacy_outb"),
+          CTOOL_X86_MN_OUT, 8u, outb_bytes,
+          (ctool_u32)sizeof(outb_bytes))) {
+    (void)fprintf(stderr, "legacy_outb object differs\n");
+    return 0;
+  }
+  if (!validate_port_io_scalar_function(
+          job, text, find_symbol(object, "legacy_inb"),
+          CTOOL_X86_MN_IN, 8u, inb_bytes,
+          (ctool_u32)sizeof(inb_bytes))) {
+    (void)fprintf(stderr, "legacy_inb object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_legacy_port_assembly_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char port_u8;\n"
+      "typedef unsigned short port_u16;\n"
+      "void legacy_outb(port_u16 port, port_u8 value) {\n"
+      "  __asm__ volatile(\"outb %0, %1\" : : "
+      "\"a\"(value), \"Nd\"(port));\n"
+      "}\n"
+      "port_u8 legacy_inb(port_u16 port) {\n"
+      "  port_u8 value;\n"
+      "  __asm__ volatile(\"inb %1, %0\" : "
+      "\"=a\"(value) : \"Nd\"(port));\n"
+      "  return value;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[2];
+  ctool_c_assembly_operand_t mutant_operands[4];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/legacy-port-assembly-object.c",
+          source, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 4u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(
+        stderr, "legacy port assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "legacy port assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first legacy port assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat legacy port assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "legacy port assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/legacy-port-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK, "read legacy port assembly object") ||
+      !validate_legacy_port_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 436u ||
+      find_section(&object, ".text")->contents.size != 76u ||
+      object.section_count != 5u || object.symbol_count != 3u ||
+      object.relocation_count != 0u ||
+      structure_text_fingerprint(
+          find_section(&object, ".text")->contents) != 0x690d98c5u) {
+    (void)fprintf(
+        stderr,
+        "legacy-port-assembly: object metrics differ: object=%u "
+        "text=%u sections=%u symbols=%u relocations=%u "
+        "fingerprint=%08x\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count,
+        (unsigned int)structure_text_fingerprint(
+            find_section(&object, ".text")->contents));
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string("outb %0, %1; nop");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "legacy port partial template failure") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[1].constraint = ctool_string("dN");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "reversed legacy port constraint") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[1] = unit.assembly_operands[1];
+
+  mutant_assemblies[1].flags |=
+      CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "legacy port unexpected memory clobber") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[1] = unit.assemblies[1];
+
+  mutant_operands[3].type = unit.assembly_operands[2].type;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "legacy port operand type mismatch") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "legacy port assembly recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("legacy-port-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_pointer_output_assembly_object(
     const char *host_root) {
   static const char source[] =
@@ -31678,6 +31889,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "fxsave-assembly") == 0) {
     return run_fxsave_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
+    return run_legacy_port_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtin_object(argv[2]);
   }
@@ -31778,7 +31992,8 @@ int main(int argc, char **argv) {
                 "narrow-mutations|"
                 "narrow-values|"
                 "void-casts|inline-assembly|port-io-assembly|"
-                "privileged-register-assembly|"
+                "privileged-register-assembly|fxsave-assembly|"
+                "legacy-port-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"

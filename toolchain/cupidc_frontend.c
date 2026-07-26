@@ -12217,7 +12217,8 @@ static ctool_bool cfront_independent_assembly_input(
     *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_A;
   } else if (cfront_string_literal(constraint, "c") == CTOOL_TRUE) {
     *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_C;
-  } else if (cfront_string_literal(constraint, "d") == CTOOL_TRUE) {
+  } else if (cfront_string_literal(constraint, "d") == CTOOL_TRUE ||
+             cfront_string_literal(constraint, "Nd") == CTOOL_TRUE) {
     *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_D;
   } else if (cfront_string_literal(constraint, "r") == CTOOL_TRUE) {
     *fixed_register_out = 0u;

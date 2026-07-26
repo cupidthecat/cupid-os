@@ -342,6 +342,12 @@ continue to emit 5,708-byte and 4,156-byte objects that pass the shared
 validator. The runtime contract passes on four vCPUs with both
 supported NIC paths.
 
+Compiler head also accepts the GNU `Nd` alternative in the 8259 PIC helpers.
+It selects DX for the port and emits the exact `outb %0, %1` and
+`inb %1, %0` forms. This keeps the unchanged source contract and produces a
+deterministic object for `kernel/cpu/pic.c`. The checked seed and production
+recipe have not moved to this capability yet.
+
 A block type name or record member can reuse a visible enum tag or define a new one.
 
 ### Global Variables

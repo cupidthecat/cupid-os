@@ -5585,7 +5585,15 @@ static cemit_port_io_kind_t cemit_port_io_template_kind(
     return CEMIT_PORT_IO_INB;
   }
   if (cemit_string_equals_literal(
+          template_text, "inb %1, %0") == CTOOL_TRUE) {
+    return CEMIT_PORT_IO_INB;
+  }
+  if (cemit_string_equals_literal(
           template_text, "out %%al, %%dx") == CTOOL_TRUE) {
+    return CEMIT_PORT_IO_OUTB;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "outb %0, %1") == CTOOL_TRUE) {
     return CEMIT_PORT_IO_OUTB;
   }
   if (cemit_string_equals_literal(
@@ -5759,6 +5767,19 @@ static ctool_bool cemit_port_io_operand_matches(
              : layout->is_integer;
 }
 
+static ctool_bool cemit_port_io_port_operand_matches(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  return cemit_port_io_operand_matches(
+             context, operand, "d", 2u,
+             CTOOL_FALSE, CTOOL_FALSE) == CTOOL_TRUE ||
+                 cemit_port_io_operand_matches(
+                     context, operand, "Nd", 2u,
+                     CTOOL_FALSE, CTOOL_FALSE) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_port_io_metadata_is_valid(
     const cemit_context_t *context,
     const ctool_c_assembly_t *assembly,
@@ -5796,9 +5817,8 @@ static ctool_bool cemit_port_io_metadata_is_valid(
                    cemit_port_io_operand_matches(
                        context, &operands[1], "+c", 4u,
                        CTOOL_FALSE, CTOOL_TRUE) == CTOOL_TRUE &&
-                   cemit_port_io_operand_matches(
-                       context, &operands[2], "d", 2u,
-                       CTOOL_FALSE, CTOOL_FALSE) == CTOOL_TRUE
+                   cemit_port_io_port_operand_matches(
+                       context, &operands[2]) == CTOOL_TRUE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
@@ -5825,18 +5845,16 @@ static ctool_bool cemit_port_io_metadata_is_valid(
     return cemit_port_io_operand_matches(
                context, &operands[0], "=a", width,
                CTOOL_FALSE, CTOOL_TRUE) == CTOOL_TRUE &&
-                   cemit_port_io_operand_matches(
-                       context, &operands[1], "d", 2u,
-                       CTOOL_FALSE, CTOOL_FALSE) == CTOOL_TRUE
+                   cemit_port_io_port_operand_matches(
+                       context, &operands[1]) == CTOOL_TRUE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
   return cemit_port_io_operand_matches(
              context, &operands[0], "a", width,
              CTOOL_FALSE, CTOOL_FALSE) == CTOOL_TRUE &&
-                 cemit_port_io_operand_matches(
-                     context, &operands[1], "d", 2u,
-                     CTOOL_FALSE, CTOOL_FALSE) == CTOOL_TRUE
+                 cemit_port_io_port_operand_matches(
+                     context, &operands[1]) == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
