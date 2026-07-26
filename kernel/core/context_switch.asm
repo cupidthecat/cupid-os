@@ -7,7 +7,7 @@
 ; the SSE/x87 state (via FXSAVE) into the old PCB, then loads the new
 ; PCB's ESP + SSE/x87 state and returns through context_switch_resume.
 ;
-; Bakes the following PCB offsets (C-side _Static_asserts in process.c
+; Bakes the following PCB offsets (C-side _Static_asserts in process.cc
 ; lock these):
 ; PCB_ESP_OFFSET      = 32   (offsetof(process_t, context.esp))
 ; PCB_EIP_OFFSET      = 40   (offsetof(process_t, context.eip))

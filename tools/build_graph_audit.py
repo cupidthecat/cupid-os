@@ -64,7 +64,7 @@ EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 # project-specific audit decisions explicit and validate the target against the
 # active graph before reporting one.
 KNOWN_SOURCE_RELATIONS = {
-    "bin/cupidc.c": ("historical_copy_of", "kernel/lang/cupidc.c"),
+    "bin/cupidc.c": ("historical_copy_of", "kernel/lang/cupidc.cc"),
     "bin/cupidc_lex.c": ("historical_copy_of", "kernel/lang/cupidc_lex.c"),
     "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.cc"),
     "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.cc"),
@@ -72,7 +72,7 @@ KNOWN_SOURCE_RELATIONS = {
     "bin/kernel.c": ("historical_copy_of", "kernel/core/kernel.c"),
     "bin/terminal_app.c": ("historical_copy_of", "kernel/gui/terminal_app.c"),
     "demos/paint.cc": ("superseded_by", "bin/paint.cc"),
-    "kernel/core/scheduler.c": ("superseded_by", "kernel/core/process.c"),
+    "kernel/core/scheduler.c": ("superseded_by", "kernel/core/process.cc"),
     "kernel/core/scheduler.h": ("superseded_by", "kernel/core/process.h"),
     "kernel/gui/notepad.c": ("superseded_by", "bin/notepad.cc"),
     "kernel/gui/terminal_ansi.c": ("superseded_by", "kernel/gui/ansi.c"),
@@ -277,7 +277,7 @@ _C_PP_HOSTED_I386_GNU_CASES = (
     "/toolchain/hosted/i386-linux/runtime.c",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
-    "/kernel/cpu/ksyms_data.c",
+    "/kernel/cpu/ksyms_data.cc",
     "/kernel/util/bin_programs_gen.cc",
     "/kernel/util/demos_programs_gen.cc",
     "/kernel/util/docs_programs_gen.cc",
@@ -1367,7 +1367,7 @@ def _source_digest(path: Path) -> str:
 
 def _source_cohort(path: str, language: str | None, generated: bool) -> str:
     if generated:
-        if path == "kernel/cpu/ksyms_data.c":
+        if path == "kernel/cpu/ksyms_data.cc":
             return "generated_symbol_table"
         return "generated_install_table"
     if path.startswith("user/examples/"):
@@ -1418,7 +1418,7 @@ def _source_cohort(path: str, language: str | None, generated: bool) -> str:
     if path.startswith("kernel/lang/") and basename.startswith("cupidc"):
         return "cupidc"
     if path.startswith("kernel/lang/") and (
-        basename == "as.c" or basename == "as.h" or basename.startswith("as_")
+        basename in {"as.c", "as.cc", "as.h"} or basename.startswith("as_")
     ):
         return "cupidasm"
     if path.startswith("kernel/lang/") and basename in {"dis.c", "dis.h"}:

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 SMP Tier 2
-Verified against source on: 2026-07-24
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -23,7 +23,7 @@ CupidOS P5 Tier 2 SMP supports up to 32 logical CPUs with:
   - IPI vectors: 0xF0 reschedule, 0xF1 cross-CPU call, 0xFE panic
 Core files:
   kernel/smp/percpu.h + percpu.c per-CPU data, GS-base init
-  kernel/smp/lapic.h  + lapic.c  Local APIC driver
+  kernel/smp/lapic.h  + lapic.cc Local APIC driver
   kernel/smp/ioapic.h + ioapic.c IOAPIC driver
   kernel/smp/smp.h    + smp.c    AP trampoline, bringup, IPI wrappers
   kernel/smp/bkl.h    + bkl.cc   big kernel lock (ticket spinlock)
@@ -516,6 +516,10 @@ all four online, initializes e1000, passes all 62 crypto checks, and reaches
 the desktop, terminal, and CupidC command without a panic. It also rejects
 known SMP, storage, crypto, exception, corruption, and illegal-instruction
 failures.
+
+The normal LAPIC recipe compiles kernel/smp/lapic.cc with the checked CupidC
+seed. Its checked wrapper validates the ELF32 object and blocks host compiler
+fallback.
 >endtree
 
 >h2 Source File Index
@@ -523,7 +527,7 @@ failures.
   kernel/smp/percpu.h   per_cpu_t struct, this_cpu() macro
   kernel/smp/percpu.c   BSP + AP per-CPU init, GDT slot allocation
   kernel/smp/lapic.h    LAPIC register offsets, API declarations
-  kernel/smp/lapic.c    MMIO map, software enable, PIT calibration, IPI send
+  kernel/smp/lapic.cc   MMIO map, software enable, PIT calibration, IPI send
   kernel/smp/ioapic.h   IOAPIC register layout, API
   kernel/smp/ioapic.c   Redirection table init, GSI routing, ISA remap
   kernel/smp/smp.h      cpu_table_t, AP trampoline API

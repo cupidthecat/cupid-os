@@ -1,5 +1,5 @@
 /**
- * cupidc.c - CupidC compiler driver for CupidOS
+ * cupidc.cc - CupidC compiler driver for Cupid OS
  *
  * Provides the main entry points for JIT and AOT compilation:
  *   - cupidc_jit(): Compile and execute a .cc file immediately

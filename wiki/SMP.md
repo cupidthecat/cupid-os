@@ -24,7 +24,7 @@ Core files:
 
 ```
 kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
-kernel/smp/lapic.h  / lapic.c        Local APIC driver
+kernel/smp/lapic.h  / lapic.cc       Local APIC driver
 kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
 kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
 kernel/smp/bkl.h    / bkl.cc         big kernel lock (ticket spinlock)
@@ -491,11 +491,12 @@ me: 0
 
 ### Checked-seed ownership and smoke
 
-The normal build compiles `kernel/smp/acpi.c` and
-`kernel/smp/mp_tables.c` with checked-seed CupidC. The wrapper freezes and
-verifies the seed, uses the fixed kernel profile, validates each i386 ELF32
-object, and only then replaces the production output. A forced build with an
-invalid host compiler proves that neither recipe falls back to Clang or GCC.
+The normal build compiles `kernel/smp/acpi.c`,
+`kernel/smp/mp_tables.c`, and `kernel/smp/lapic.cc` with checked-seed
+CupidC. The wrapper freezes and verifies the seed, uses the fixed kernel
+profile, validates each i386 ELF32 object, and only then replaces the
+production output. A forced build with an invalid host compiler proves that
+none of these recipes falls back to Clang or GCC.
 
 The strong QEMU gate uses four vCPUs, the `max` CPU, and e1000. It requires
 MP fallback discovery, a four-CPU ACPI MADT, CPUs 1 through 3 online, and the
@@ -560,7 +561,7 @@ Fine-grained locking would be required to remove this serialization.
 | `kernel/smp/percpu.h` | `per_cpu_t` struct definition, `this_cpu()` macro |
 | `kernel/smp/percpu.c` | BSP + AP per-CPU init, GDT slot allocation |
 | `kernel/smp/lapic.h` | LAPIC register offsets, API declarations |
-| `kernel/smp/lapic.c` | MMIO map, software enable, PIT calibration, IPI send |
+| `kernel/smp/lapic.cc` | MMIO map, software enable, PIT calibration, IPI send |
 | `kernel/smp/ioapic.h` | IOAPIC register layout, API |
 | `kernel/smp/ioapic.c` | Redirection table init, GSI routing, ISA remap |
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 Networking Tier 4
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -681,9 +681,10 @@ Example ifconfig output:
 >h2 CupidC Bindings
 >tree open CupidC Bindings
 
-All networking functions are registered in kernel/lang/cupidc.c, mirrored
-into CupidASM (kernel/lang/as.c) and the ELF syscall table v3
+All networking functions are registered in kernel/lang/cupidc.cc, mirrored
+into CupidASM (kernel/lang/as.cc) and the ELF syscall table v3
 (kernel/core/syscall.h) so any of the three runtimes can use them.
+The checked CupidC seed owns both normal language-runtime objects.
 
 BSD socket API:
   socket       -> socket_create    (1 arg)   2=TCP, 1=UDP

@@ -9628,7 +9628,7 @@ and deterministic objects.
 | Real generated source | Two compiler-head builds produced the same 101,808-byte validated ELF32 object |
 | Complete toolchain target | The exact staged source tree passed every toolchain contract in 48.5 seconds |
 
-This is a compiler-head capability. The checked seed still comes from
+The compiler head now has this capability. The checked seed still comes from
 revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af` and does not contain
 `used`. The normal Make graph therefore keeps the generated symbol source on
 GCC or Clang. A seed refresh, production recipe transfer, full image build,
@@ -10191,3 +10191,92 @@ This commit changes the bootstrap root, not normal-build ownership. The
 pending strict roots and generated symbol source remain host-built until
 their closed production transfer, image build, and runtime gates pass. ADR
 0122 records the promotion and trust boundary.
+
+## 2026-07-26: transfer the GNU assembly frontier to CupidC
+
+The eight strict roots unlocked by ADRs 0116 through 0121 now use `.cc`
+names and checked CupidC recipes in the normal build:
+
+- `kernel/core/panic.cc` and `kernel/core/process.cc`
+- `kernel/cpu/idt.cc` and `kernel/cpu/pic.cc`
+- `kernel/lang/as.cc` and `kernel/lang/cupidc.cc`
+- `kernel/mm/paging.cc`
+- `kernel/smp/lapic.cc`
+
+Each recipe declares the exact recursive header closure accepted by
+`tools/cupidc_kernel_compile.py`. The wrapper freezes and verifies the checked
+seed, validates i386 `ET_REL`, and replaces the requested object only after
+every check passes. Make prerequisites and the frontier snapshot guard the
+checked-in source closures. Positive and negative tests cover each new
+closure, an unapproved source, missing and changed inputs, compiler drift,
+timeout selection, and atomic publication.
+
+The strict checked-in frontier now contains 144 roots. Two complete passes
+emit 3,514,456 byte-identical bytes from a 432-input snapshot with SHA-256
+`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
+The transferred object sizes and hashes are recorded in ADR 0123.
+
+The generated symbol root now follows the same checked path. Hostbuild and
+the legacy shell oracle both write `kernel/cpu/ksyms_data.cc` as
+little-endian `unsigned int` words, with an exact logical byte count. Tests
+pin full words, one-to-three-byte tails, the final zero padding, rendered
+source, and the declared logical length.
+
+The first normal image attempt exposed a useful performance boundary. The
+638,361-byte byte-per-initializer translation exceeded the wrapper's
+180-second limit. A direct checked compile completed in 1,041.3 seconds, so
+raising the limit would have hidden an unnecessarily expensive source form.
+The packed generator emits 345,405 source bytes with SHA-256
+`7d3c81da65335df7214bd8be0629194938cb3bcf87c16b54950d49b726132efd`.
+Two checked compiles completed in about 65.6 seconds and produced the same
+104,600-byte object with SHA-256
+`475335be28078c794f423bc4d0bb00cf0474289f23bacbc1f7314d29e5b4abd5`.
+The `.ksyms` section contains 104,185 logical bytes and three trailing zero
+bytes needed to complete its final word. A generated-only 600-second timeout
+keeps the path bounded on slower machines.
+
+The first 144-root frontier run also exceeded its old 1,200-second test
+limit. The compiler kept making progress and reported no diagnostic. Raising
+that whole-frontier harness bound to 2,160 seconds allowed the 1,238.7-second
+run to finish. Per-source production limits remain unchanged.
+
+The final proof repeated all 30 frontier checks after the source and
+documentation contracts settled. It completed in 1,356.040 seconds against
+the `76706790` snapshot with both object passes identical.
+
+### Image and runtime evidence
+
+The normal image completed both CupidLD passes, generated symbols through
+CupidDis and host orchestration, compiled the generated translation through
+CupidC, and converted the final ELF through CupidObj in 258.2 seconds.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 7,949,776 | `e2438e7a2c7988d9537a4a4e16a05db15865e2f42aed583b4da462398062788b` |
+| `kernel/kernel.elf` | 8,056,272 | `5b13f5e02bd6cc394b575783ebaa432a291472cac1acd212c4632c6dfa3c1722` |
+| `kernel/kernel.bin` | 7,861,556 | `6c4085b62ca8e28099b1621d5f0ed75fc4301461cef3996e591a103229514f6a` |
+| `cupidos.img` | 209,715,200 | `fffb2e8615ea20a8948a9dd7e1cd1d6fd6ccb88931d9a6b02d244223e6649ba6` |
+
+CupidDis reports 4,069 text symbols in both kernel passes and no address
+difference for any shared symbol. The four-vCPU QEMU gate starts all
+processors, passes the SMP runtime checks, reaches the desktop and terminal,
+and executes `/bin/ls.cc` through CupidC in 60.4 seconds. Its 58,789-byte
+serial log has SHA-256
+`637002626058492b8de1d2bfb34c154f32f2d4d687211b36bafebd2be8cfc1ce`.
+
+The regenerated audit passes with 698 active sources, 253 feature IDs, 500
+transforms, and 42 accounted unreachable files. CupidC owns 151 transforms,
+the host C compiler owns 146, and Python owns 163 across the root and
+supplemental graphs. The host compiler now produces 94 normal root objects.
+The active-source digest is
+`81aad9a2de145b0400cd77277db0500f9ba2b6deaba6450820a2cad3aad0418e`.
+
+The final focused regression pass ran 210 wrapper, audit, process, keyboard,
+hostbuild, and frontend tests in 505.700 seconds. The complete native
+toolchain suite, all 22 CupidASM demos, the checked five-tool seed, and the
+checked build graph also passed.
+
+This transfer moves nine normal objects away from the host compiler without
+removing a symbol or weakening a source. Ten strict checked-in roots, Doom,
+vendored code, native hosted tools and contracts, Python orchestration, and
+the Windows WSL bridge remain. ADR 0123 records the production boundary.

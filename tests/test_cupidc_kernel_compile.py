@@ -156,8 +156,12 @@ SOURCE_DRIVEN_SOURCES = (
     "drivers/serial.cc",
     "drivers/timer.cc",
     "kernel/core/app_launch.cc",
+    "kernel/core/panic.cc",
+    "kernel/core/process.cc",
+    "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
+    "kernel/cpu/pic.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
     "kernel/fs/loopdev.cc",
@@ -165,15 +169,28 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/gfx/gfx2d.cc",
     "kernel/gfx/png.cc",
     "kernel/gui/ed.cc",
+    "kernel/lang/as.cc",
+    "kernel/lang/cupidc.cc",
     "kernel/lang/cupidc_parse.cc",
     "kernel/lang/cupidc_string.cc",
     "kernel/lang/ssh_io.cc",
     "kernel/mm/memory.cc",
+    "kernel/mm/paging.cc",
     "kernel/network/sshd.cc",
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
+    "kernel/smp/lapic.cc",
     "kernel/tls/tls_ca_bundle.cc",
 )
+GENERATED_KERNEL_SOURCES = (
+    "kernel/cpu/ksyms_data.cc",
+)
+GENERATED_KERNEL_INPUT_CLOSURES = {
+    "kernel/cpu/ksyms_data.cc": (
+        "kernel/cpu/ksyms.h",
+        "kernel/core/types.h",
+    ),
+}
 NEW_PRODUCTION_SOURCES = (
     COMPILER_READY_SOURCES + TOOLCHAIN_KERNEL_SOURCES
 )
@@ -705,12 +722,23 @@ class FakeExecutor:
         self.events = events if events is not None else []
         self.calls = []
 
+    def compiler_root_for(self, path):
+        return str(path)
+
     def run(self, executable, arguments, timeout):
         self.events.append("run")
         self.calls.append((executable, tuple(arguments), timeout))
         if self.payload is not None:
             logical_output = arguments[arguments.index("-o") + 1]
-            destination = self.root / logical_output.lstrip("/")
+            requested_root = Path(
+                arguments[arguments.index("--root") + 1]
+            )
+            compiler_root = (
+                requested_root
+                if requested_root.is_dir()
+                else self.root
+            )
+            destination = compiler_root / logical_output.lstrip("/")
             destination.write_bytes(self.payload)
         return self.result
 
@@ -740,11 +768,23 @@ class KernelCompileCommandTests(unittest.TestCase):
             SOURCE_DRIVEN_SOURCES,
         )
         self.assertEqual(
+            kernel_compile.APPROVED_GENERATED_KERNEL_SOURCES,
+            GENERATED_KERNEL_SOURCES,
+        )
+        self.assertEqual(
+            kernel_compile.GENERATED_KERNEL_INPUT_CLOSURES,
+            GENERATED_KERNEL_INPUT_CLOSURES,
+        )
+        self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
             KERNEL_SOURCES,
         )
-        self.assertEqual(len(KERNEL_SOURCES), 136)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 136)
+        self.assertEqual(
+            kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
+            tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
+        )
+        self.assertEqual(len(KERNEL_SOURCES), 144)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 144)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -862,7 +902,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
         }
         expected = {
             (source, str(Path(source).with_suffix(".o")).replace("\\", "/"))
-            for source in KERNEL_SOURCES
+            for source in KERNEL_SOURCES + GENERATED_KERNEL_SOURCES
         }
         self.assertEqual(actual, expected)
 
@@ -991,7 +1031,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             recursive_includes("kernel/usb/usb.c"),
         )
 
-        for source in KERNEL_SOURCES:
+        for source in KERNEL_SOURCES + GENERATED_KERNEL_SOURCES:
             output = str(Path(source).with_suffix(".o")).replace("\\", "/")
             host_rule = re.compile(
                 rf"^{re.escape(output)}: [^\n]*"
@@ -1231,6 +1271,10 @@ class KernelCompileOperationTests(unittest.TestCase):
 
         self.assertEqual(events, ["freeze", "run"])
         self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        self.assertEqual(
+            executor.calls[0][2],
+            kernel_compile.DEFAULT_TIMEOUT_SECONDS,
+        )
         self.assertNotEqual(executor.calls[0][0], seed)
         self.assertEqual(executor.calls[0][0].name, "cupidc.elf")
         arguments = executor.calls[0][1]
@@ -1271,6 +1315,140 @@ class KernelCompileOperationTests(unittest.TestCase):
                     executor=executor,
                 )
         self.assertEqual(executor.calls, [])
+
+    def test_generated_kernel_symbol_inputs_are_compiled_from_one_frozen_closure(
+        self,
+    ):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name).resolve()
+        source = root / "kernel" / "cpu" / "ksyms_data.cc"
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            '#include "ksyms.h"\nconst int generated_symbol = 1;\n',
+            encoding="utf-8",
+        )
+        header = source.parent / "ksyms.h"
+        header.write_text('#include "types.h"\n', encoding="utf-8")
+        types = root / "kernel" / "core" / "types.h"
+        types.parent.mkdir(parents=True)
+        types.write_text("typedef unsigned int uint32_t;\n", encoding="utf-8")
+        seed = root / "seed" / "cupidc.elf"
+        seed.parent.mkdir()
+        seed.write_bytes(b"seed")
+        manifest = seed.parent / "manifest.json"
+        manifest.write_text("{}\n", encoding="utf-8")
+        output = source.parent / "ksyms_data.o"
+        captured = {}
+
+        class ClosureExecutor(FakeExecutor):
+            def run(self, executable, arguments, timeout):
+                compiler_root = Path(
+                    arguments[arguments.index("--root") + 1]
+                )
+                for relative in (
+                    "kernel/cpu/ksyms_data.cc",
+                    "kernel/cpu/ksyms.h",
+                    "kernel/core/types.h",
+                ):
+                    captured[relative] = (
+                        compiler_root / relative
+                    ).read_bytes()
+                return super().run(executable, arguments, timeout)
+
+        executor = ClosureExecutor(root, payload=_data_only_elf32_object())
+
+        with mock.patch.object(
+            kernel_compile,
+            "freeze_seed_inputs",
+            side_effect=lambda _manifest, snapshot: mock.Mock(
+                tools={"cupidc": shutil.copyfile(seed, snapshot / seed.name)}
+            ),
+        ):
+            kernel_compile.compile_kernel_source(
+                root,
+                source,
+                output,
+                manifest=manifest,
+                executor=executor,
+            )
+
+        self.assertEqual(
+            captured,
+            {
+                "kernel/cpu/ksyms_data.cc": source.read_bytes(),
+                "kernel/cpu/ksyms.h": header.read_bytes(),
+                "kernel/core/types.h": types.read_bytes(),
+            },
+        )
+        self.assertEqual(output.read_bytes(), _data_only_elf32_object())
+        self.assertEqual(
+            executor.calls[0][2],
+            kernel_compile.GENERATED_KERNEL_TIMEOUT_SECONDS,
+        )
+        compiler_root = Path(
+            executor.calls[0][1][
+                executor.calls[0][1].index("--root") + 1
+            ]
+        )
+        self.assertNotEqual(compiler_root, root)
+
+    def test_generated_kernel_symbol_drift_preserves_the_existing_object(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name).resolve()
+        source = root / "kernel" / "cpu" / "ksyms_data.cc"
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            '#include "ksyms.h"\nconst int generated_symbol = 1;\n',
+            encoding="utf-8",
+        )
+        header = source.parent / "ksyms.h"
+        header.write_text('#include "types.h"\n', encoding="utf-8")
+        types = root / "kernel" / "core" / "types.h"
+        types.parent.mkdir(parents=True)
+        types.write_text("typedef unsigned int uint32_t;\n", encoding="utf-8")
+        seed = root / "seed" / "cupidc.elf"
+        seed.parent.mkdir()
+        seed.write_bytes(b"seed")
+        manifest = seed.parent / "manifest.json"
+        manifest.write_text("{}\n", encoding="utf-8")
+        output = source.parent / "ksyms_data.o"
+        output.write_bytes(b"existing object")
+
+        class DriftingExecutor(FakeExecutor):
+            def run(self, executable, arguments, timeout):
+                header.write_text(
+                    '#include "types.h"\nint changed;\n',
+                    encoding="utf-8",
+                )
+                return super().run(executable, arguments, timeout)
+
+        executor = DriftingExecutor(
+            root,
+            payload=_data_only_elf32_object(),
+        )
+        with mock.patch.object(
+            kernel_compile,
+            "freeze_seed_inputs",
+            side_effect=lambda _manifest, snapshot: mock.Mock(
+                tools={"cupidc": shutil.copyfile(seed, snapshot / seed.name)}
+            ),
+        ):
+            with self.assertRaisesRegex(
+                kernel_compile.KernelCompileError,
+                "generated kernel inputs changed while compiling "
+                "kernel/cpu/ksyms_data.cc",
+            ):
+                kernel_compile.compile_kernel_source(
+                    root,
+                    source,
+                    output,
+                    manifest=manifest,
+                    executor=executor,
+                )
+
+        self.assertEqual(output.read_bytes(), b"existing object")
 
     def test_output_outside_root_is_rejected(self):
         temporary, root, source, _seed, manifest, _output = self._root_fixture()

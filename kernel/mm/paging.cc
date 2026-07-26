@@ -1,3 +1,4 @@
+/* CupidC-owned paging implementation. */
 #include "memory.h"
 #include "types.h"
 

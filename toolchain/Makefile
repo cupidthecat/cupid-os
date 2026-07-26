@@ -27,7 +27,7 @@ CUPIDC_IR_CONTRACT := $(BUILD_DIR)/cupidc-ir-contract$(EXE)
 CUPIDC_OBJECT_CONTRACT := $(BUILD_DIR)/cupidc-object-contract$(EXE)
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
-CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
+CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
                               ../kernel/util/bin_programs_gen.cc \
                               ../kernel/util/demos_programs_gen.cc \
                               ../kernel/util/docs_programs_gen.cc

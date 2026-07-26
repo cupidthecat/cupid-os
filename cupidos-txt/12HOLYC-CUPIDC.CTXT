@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,7 +16,8 @@ Verified against source on: 2026-05-15
 >h2 Purpose
 >tree open Purpose
 This page documents the HolyC-inspired features implemented in CupidC
-(kernel/lang/cupidc.c and related files) and records their behavior.
+(kernel/lang/cupidc.cc and related files) and records their behavior. The
+normal build compiles cupidc.cc with the checked CupidC seed.
 
 Try a quick REPL expression:
 [Evaluate 42](repl:U32 answer = 42; answer;)

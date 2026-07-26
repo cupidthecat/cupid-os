@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Shell Guide
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -47,7 +47,8 @@ If a CupidC expression returns a value, the next prompt first prints timing and 
 If braces are still open, the shell switches to the continuation prompt:
   ..>
 
-kernel/lang/shell.c and kernel/lang/cupidc.c implement this flow. The shell
+kernel/lang/shell.c and kernel/lang/cupidc.cc implement this flow. The normal
+build compiles cupidc.cc with the checked CupidC seed. The shell
 stages multi-line input until brace depth returns to zero, then calls
 repl_eval().
 

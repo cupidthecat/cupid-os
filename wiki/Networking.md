@@ -868,9 +868,9 @@ $ resolve example.com
 
 ## CupidC Bindings
 
-All networking functions are registered in `kernel/lang/cupidc.c` so they can be
-called from CupidC programs and scripts with no additional setup. The same
-list is mirrored into CupidASM (`kernel/lang/as.c`) and the ELF syscall table
+All networking functions are registered in `kernel/lang/cupidc.cc` so they can
+be called from CupidC programs and scripts with no additional setup. The same
+list is mirrored into CupidASM (`kernel/lang/as.cc`) and the ELF syscall table
 (`kernel/core/syscall.h`, version 3) so any of the three runtimes can use them.
 
 ### BSD socket API

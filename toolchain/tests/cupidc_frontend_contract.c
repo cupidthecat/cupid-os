@@ -3461,7 +3461,7 @@ static int run_used_attributes(const char *host_root) {
   fixture.parse_request.gnu_extensions = CTOOL_TRUE;
   if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
                            forced_includes) != 0 ||
-      parse_valid_fixture(&fixture, "/kernel/cpu/ksyms_data.c",
+      parse_valid_fixture(&fixture, "/kernel/cpu/ksyms_data.cc",
                           generated_source, &unit) != 0) {
     goto cleanup;
   }
@@ -3928,8 +3928,8 @@ static int run_static_asserts(const char *host_root) {
     }
   }
   active_process_assertions = build_active_assertion_fixture(
-      &fixture, "/kernel/core/process.c",
-      "#include \"process.h\"\n#line 39 \"/kernel/core/process.c\"\n",
+      &fixture, "/kernel/core/process.cc",
+      "#include \"process.h\"\n#line 39 \"/kernel/core/process.cc\"\n",
       "_Static_assert(__alignof__(((process_t *)0)->fp_state)",
       "(PCB_FP_STATE_OFFSET=80)\");", 6u);
   active_syscall_assertions = build_active_assertion_fixture(
@@ -5014,9 +5014,9 @@ static int block_function_active_source_is_unchanged(
       {"/kernel/core/kernel.c", "    extern void usb_hub_init(void);", 1u},
       {"/kernel/core/kernel.c", "    extern void usb_msc_init(void);", 1u},
       {"/kernel/core/kernel.c", "    extern void ac97_start(void);", 1u},
-      {"/kernel/core/process.c",
+      {"/kernel/core/process.cc",
        "    extern void kernel_check_reschedule(void);", 1u},
-      {"/kernel/core/process.c",
+      {"/kernel/core/process.cc",
        "    extern void kernel_clear_reschedule(void);", 1u},
       {"/kernel/doom/doom_libc_stubs.c",
        "    extern void serial_write_string(const char *s);", 1u},

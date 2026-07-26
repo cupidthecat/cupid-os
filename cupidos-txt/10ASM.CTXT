@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-07-25
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -24,8 +24,8 @@ Source architecture:
   fixed-image semantics
 - toolchain/x86.c: shared instruction encoding
 - toolchain/elf32.c: shared relocatable-object output
-- kernel/lang/as.c: 631 runtime definitions, VFS, fixed placement, and JIT/AOT
-  execution policy
+- kernel/lang/as.cc: 631 runtime definitions, VFS, fixed placement, and JIT/AOT
+  execution policy; the checked CupidC seed owns its normal object
 - kernel/lang/as_elf.c and .h: checked fixed-image to sectionless ET_EXEC bridge
 - toolchain/cupidasm_main.c: hosted cupidasm command adapter
 
@@ -123,7 +123,7 @@ byte-identical stage-three startup. The complete seed build also compares all
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static
 Linux tools through WSL. Native contract runners, hosted development commands,
-and 103 normal Cupid OS root objects still use a host compiler.
+and 94 normal Cupid OS root objects still use a host compiler.
 
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.
@@ -206,7 +206,7 @@ code/data image, zeroes each full memory region including BSS, and runs main
 or _start immediately.
 
 JIT mode registers 631 case-insensitive constants and absolute kernel symbols
-so asm programs can call into the OS directly. Examples from kernel/lang/as.c:
+so asm programs can call into the OS directly. Examples from kernel/lang/as.cc:
 - print, println (console output)
 - vfs_open, vfs_read, vfs_write, vfs_close, vfs_seek, vfs_stat, vfs_readdir
 - vfs_mkdir, vfs_unlink, vfs_rename, vfs_copy_file, vfs_read_all, vfs_write_all

@@ -1,3 +1,4 @@
+/* CupidC-owned panic implementation. */
 #include "panic.h"
 #include "kernel.h"
 #include "string.h"

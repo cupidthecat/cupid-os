@@ -20,9 +20,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 248 |
+| `c` | 239 |
 | `c_header` | 270 |
-| `cupid_c` | 153 |
+| `cupid_c` | 162 |
 
 ## Source cohorts
 
@@ -42,21 +42,21 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |
 | `kernel_audio` | 14 | 4542 |
-| `kernel_core` | 16 | 4024 |
-| `kernel_cpu` | 18 | 3274 |
+| `kernel_core` | 16 | 4025 |
+| `kernel_cpu` | 18 | 3276 |
 | `kernel_crypto` | 40 | 5149 |
 | `kernel_fs` | 26 | 6283 |
 | `kernel_gfx` | 28 | 12182 |
 | `kernel_gui` | 28 | 11971 |
 | `kernel_lang` | 20 | 10542 |
-| `kernel_mm` | 7 | 1301 |
+| `kernel_mm` | 7 | 1302 |
 | `kernel_network` | 20 | 3629 |
-| `kernel_smp` | 14 | 1161 |
+| `kernel_smp` | 14 | 1162 |
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 15 | 105903 |
-| `toolchain_core` | 31 | 62306 |
+| `toolchain_contract` | 15 | 110260 |
+| `toolchain_core` | 31 | 63484 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -76,12 +76,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 142 |
+| `cupid_c_compiler` | 151 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 155 |
-| `host_python` | 154 |
+| `host_c_compiler` | 146 |
+| `host_python` | 163 |
 | `make` | 4 |
 
 ## Feature inventory
@@ -99,23 +99,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 66943 |
+| `c.control` | 12 | 67904 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3006 |
-| `c.expression` | 2 | 4407 |
+| `c.declarator` | 4 | 3092 |
+| `c.expression` | 2 | 4526 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 640 |
-| `c.output` | 1 | 219 |
-| `c.preprocessor` | 18 | 6660 |
-| `c.qualifier` | 2 | 12115 |
-| `c.storage` | 4 | 8015 |
-| `c.type` | 14 | 44753 |
+| `c.output` | 1 | 210 |
+| `c.preprocessor` | 18 | 6664 |
+| `c.qualifier` | 2 | 12406 |
+| `c.storage` | 4 | 8180 |
+| `c.type` | 14 | 45141 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 26 |
+| `cupid_c.output` | 1 | 35 |
 | `cupid_c.storage` | 2 | 17 |
 | `cupid_c.type` | 12 | 152 |
 
@@ -151,7 +151,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 155 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 164 |
 
 ## Source-cohort migration order
 
@@ -182,7 +182,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/browser/gen_css_properties.h` | `c_header` | `not_reached` | 1302 | not reachable from the supported Make target or include closure |
 | `bin/browser/gen_media_features.h` | `c_header` | `not_reached` | 50 | not reachable from the supported Make target or include closure |
 | `bin/build.cup` | `cupid_script` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
-| `bin/cupidc.c` | `c` | `historical_copy` | 1955 | historical_copy_of: `kernel/lang/cupidc.c` |
+| `bin/cupidc.c` | `c` | `historical_copy` | 1955 | historical_copy_of: `kernel/lang/cupidc.cc` |
 | `bin/cupidc_lex.c` | `c` | `historical_copy` | 647 | historical_copy_of: `kernel/lang/cupidc_lex.c` |
 | `bin/cupidc_parse.c` | `c` | `historical_copy` | 4111 | historical_copy_of: `kernel/lang/cupidc_parse.cc` |
 | `bin/fat16.c` | `c` | `historical_copy` | 1468 | historical_copy_of: `kernel/fs/fat16.cc` |
@@ -192,7 +192,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 6744 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.c` |
 | `demos/paint.cc` | `cupid_c` | `superseded` | 622 | superseded_by: `bin/paint.cc` |
-| `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.c` |
+| `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.cc` |
 | `kernel/core/scheduler.h` | `c_header` | `superseded` | 42 | superseded_by: `kernel/core/process.h` |
 | `kernel/cpu/simd_intrin.h` | `c_header` | `not_reached` | 71 | not reachable from the supported Make target or include closure |
 | `kernel/doom/src/d_textur.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |

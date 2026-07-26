@@ -187,8 +187,8 @@ used by larger examples and demos:
 - wide type spellings: `long`, `short`, `signed`, `unsigned`, `long long`
 - attributes: the private in-OS compiler accepts compatibility spellings; the
   shared bootstrap compiler gives `weak`, `section`, `unused`, and `used`
-  canonical declaration meaning, while the current checked seed carries the
-  first three into production
+  canonical declaration meaning, and the current checked seed carries all
+  four into production
 - labels and `goto` for simple local control-flow cases
 
 Most of these are compatibility front-end features, not a promise of
@@ -207,36 +207,35 @@ to another function-pointer type or to and from a represented 32-bit integer
 without changing the target bits. Exact output-only GNU assembly can snapshot
 a general register, ESP, EBP, `4(%ebp)`, or EFLAGS into one four-byte object.
 These forms have positive and negative frontend, IR, and deterministic ELF32
-contracts. The 20 source-driven roots carried by this seed now belong to the
-production cohort.
+contracts. The original 20 source-driven roots carried by this seed remain in
+production, and eight more strict roots now use the same checked path.
 
 Compiler head also accepts GNU `used` and `__used__` on file-scope objects
 and functions. Compatible redeclarations merge the flag, and the Linear IR
 and object boundaries reject invalid frozen metadata. Current ELF32 bytes do
 not change because every represented definition is already emitted. The
 generated kernel-symbol source passes deterministic compiler-head emission,
-and the checked seed now carries the capability. The normal recipe remains
-host-compiled pending production transfer.
+and the checked seed now carries the capability. The normal recipe compiles
+`kernel/cpu/ksyms_data.cc` through the checked production wrapper.
 
 Compiler head also accepts the exact volatile
 `call 1f\n1: popl %0` form used by the stack-trace helpers in
-`kernel/lang/as.c` and `kernel/lang/cupidc.c`. It requires one modifiable
+`kernel/lang/as.cc` and `kernel/lang/cupidc.cc`. It requires one modifiable
 four-byte integer `=r` output. The shared x86 model emits a
 zero-displacement `CALL` followed by `POP r32`, which captures the address of
 the pop while restoring ESP. Both unchanged roots compile reproducibly as
-validated i386 ELF32 objects under the full kernel profile. `as.c` produces
-148,056 bytes, and `cupidc.c` produces 288,168 bytes. They remain host-built
-`.c` sources pending production transfer. Other call templates and general
-inline-assembly labels remain unsupported.
+validated i386 ELF32 objects under the full kernel profile. `as.cc` produces
+148,056 bytes, and `cupidc.cc` produces 288,180 bytes. Their normal recipes
+now use the checked seed. Other call templates and general inline-assembly
+labels remain unsupported.
 
 Compiler head also handles the two exact FXSAVE statements in unchanged
-`kernel/core/process.c`. The volatile `fxsave (%0)` form accepts one
+`kernel/core/process.cc`. The volatile `fxsave (%0)` form accepts one
 four-byte object or `void` pointer `r` input and one `memory` clobber. Linear
 IR evaluates the pointer once, and the shared x86 model emits `0F AE 00` at
 `[EAX]`. The complete source compiles twice to the same validated
 30,216-byte ELF32 object, with one FXSAVE in each process-creation path. The
-checked seed carries this addition, but the normal build still uses the host
-compiler for `process.c`.
+normal build now compiles `process.cc` with the checked seed.
 
 The shared path also carries signed and unsigned eight-byte integer values. Full-width constants, matching conditional arms, fixed direct and indirect call results, object loads, declared parameters, and named call arguments use one Linear IR handle backed by a private eight-byte frame snapshot. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. The return boundary places the low word in EAX and the high word in EDX. Addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths use the same snapshot path. A wide switch evaluates its condition once, duplicates the snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and keeps one semantic load and store. Multiplication combines the full low-word product with the low halves of both cross-word products. Division and remainder use a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. The usual arithmetic rules can convert `signed long long` to `unsigned long long`, and GNU wide enums promote to their compatible signed or unsigned wide type. Exact source guards cover `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, and X25519 `fe_carry`; focused fixtures lower and emit the required operation shapes. The unchanged `cfront_constant_apply_binary` body guards signed and unsigned quotient and remainder. CupidASM's number parser and unary expression branch guard the arithmetic, while X25519's `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 
@@ -264,7 +263,7 @@ The repository runtime supplies the checked file, heap, memory, string, `errno`,
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Both forms accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,042,976-byte stage-three output from revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`, with SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 103 normal Cupid OS root objects still come from a host compiler.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,042,976-byte stage-three output from revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`, with SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 94 normal Cupid OS root objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -288,7 +287,35 @@ Block-scope compound literals use one persistent unnamed automatic object per so
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, floating literals, integer and floating conversions, floating comparisons and truth, floating update, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-The checked CupidC seed owns 142 C transforms across the supported builds. Its 136-object normal cohort contains the established 116 sources and 20 source-driven roots now named `.cc`. Three generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc` examples account for the other six transforms. The strict kernel frontier compiles every approved source twice to 3,020,108 byte-identical i386 ELF32 bytes. It freezes a 424-input snapshot with SHA-256 `24fcfba4f006dad77a742e02b31edd889d3a62010adb352d6f57965377557cd1`. Forced poisoned-host builds cover every production wrapper recipe, and each recipe declares its exact recursive header closure. A valid data-only object may omit `.text` while its remaining sections and symbols still receive bounds checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX. The four-vCPU GUI contract reaches SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC execution at `0x01100000`. A separate gate loads and reaps the same external program twice at `0x00F00000`. The host compiler still builds 155 C transforms and 103 root objects. Host Python owns 154 transforms. The private in-kernel CupidC compiler still handles embedded runtime compilation.
+Across the root and supplemental builds, the checked CupidC seed owns 151 C
+transforms. Its normal cohort has 145 transforms: 144 checked-in sources plus
+the generated `kernel/cpu/ksyms_data.cc` source. The established 116 sources
+and 28 source-driven `.cc` roots make up the checked-in cohort. The latest
+transfer covers `kernel/core/panic.cc`, `kernel/core/process.cc`,
+`kernel/cpu/idt.cc`, `kernel/cpu/pic.cc`, `kernel/lang/as.cc`,
+`kernel/lang/cupidc.cc`, `kernel/mm/paging.cc`, and
+`kernel/smp/lapic.cc`. Ten strict checked-in roots remain host-owned. Three
+generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
+programs account for the other six CupidC transforms.
+
+The strict kernel frontier compiles all 144 approved checked-in sources twice
+to 3,514,456 byte-identical i386 ELF32 bytes. It freezes 432 inputs with
+snapshot SHA-256
+`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
+The generated symbol source stores a logical 104,185-byte blob as
+little-endian `unsigned int` words with three trailing pad bytes. The final
+kernel consumes 4,069 text symbols with no address drift.
+
+Forced poisoned-host builds cover every production wrapper recipe, and each
+recipe declares its exact recursive header closure. A valid data-only object
+may omit `.text` while its remaining sections and symbols still receive bounds
+checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through
+Cupid's x86 model while preserving EBX. The four-vCPU GUI contract reaches
+SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
+execution at `0x01100000`. A separate gate loads and reaps the same external
+program twice at `0x00F00000`. The host C compiler owns 146 transforms and 94
+root objects. Host Python owns 163 transforms. The private in-kernel CupidC
+compiler still handles embedded runtime compilation.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects rather than only the earlier hybrid image.
 
@@ -298,16 +325,16 @@ evaluates the output destination once, and emits the absolute GS load as
 `65 A1 00 00 00 00`.
 
 Compiler head also accepts independent `r` and `c` inputs for the exact
-privileged statements in `kernel/cpu/idt.c`, `kernel/mm/paging.c`, and
-`kernel/smp/lapic.c`. A four-byte integer or data pointer may use `r`; a
+privileged statements in `kernel/cpu/idt.cc`, `kernel/mm/paging.cc`, and
+`kernel/smp/lapic.cc`. A four-byte integer or data pointer may use `r`; a
 four-byte integer may use `c` and arrives in ECX. The i386 emitter handles
 CR0, CR2, CR3, and CR4 moves and RDMSR directly. Its exact seven-function
 object has 199 text bytes, eight symbols, five sections, no relocations, and
 no EBX traffic. The decoder checks the privileged bytes without executing
 them. All three unchanged roots compile twice to deterministic validated
-objects. The checked seed carries these forms, but the roots remain
-host-owned `.c` files. WRMSR, unsupported control-register directions, fixed
-EBX and `q` inputs, arbitrary templates, and general clobbers remain open.
+objects, and their normal recipes use the checked seed. WRMSR, unsupported
+control-register directions, fixed EBX and `q` inputs, arbitrary templates,
+and general clobbers remain open.
 
 Compiler head accepts one memory output for three machine-state
 snapshots. Exact volatile `fnstsw %0` and `fnstcw %0` statements write a
@@ -316,9 +343,9 @@ modifiable 16-bit integer through `=m`; `stmxcsr %0` writes a modifiable
 the direct memory instruction through Cupid's x86 encoder without an output
 staging slot. Other `=m` templates remain unsupported. The separate exact
 call-next support also handles the later local-label statement in unchanged
-`kernel/core/panic.c`. Two full kernel-profile compiles produce the same
+`kernel/core/panic.cc`. Two full kernel-profile compiles produce the same
 validated 10,212-byte ELF32 object. The checked seed carries this capability;
-the normal build does not use it yet.
+the normal build now uses it for the panic root.
 
 Compiler head also represents `__atomic_load_n`, `__atomic_store_n`,
 `__atomic_exchange_n`, `__atomic_fetch_add`, and `__atomic_fetch_or` on
@@ -348,8 +375,9 @@ shared x86 model. This brings the active non-Doom header gate to 154/154 at
 compiler head.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 136-source CupidC cohort, whose deterministic frontier has
-3,020,108 object bytes. `kernel/smp/acpi.c` and `kernel/smp/mp_tables.c`
+uses it in the 144-source checked-in CupidC cohort, whose deterministic
+frontier has 3,514,456 object bytes. `kernel/smp/acpi.c` and
+`kernel/smp/mp_tables.c`
 continue to emit 5,708-byte and 4,156-byte objects that pass the shared
 validator. The runtime contract passes on four vCPUs with both
 supported NIC paths.
@@ -357,8 +385,8 @@ supported NIC paths.
 Compiler head also accepts the GNU `Nd` alternative in the 8259 PIC helpers.
 It selects DX for the port and emits the exact `outb %0, %1` and
 `inb %1, %0` forms. This keeps the unchanged source contract and produces a
-deterministic object for `kernel/cpu/pic.c`. The checked seed and production
-recipe have not moved to this capability yet.
+deterministic object for `kernel/cpu/pic.cc`. The production recipe now uses
+this checked-seed capability.
 
 A block type name or record member can reuse a visible enum tag or define a new one.
 
@@ -1135,7 +1163,7 @@ Source (.cc)
          │ raw bytes
          ▼
 ┌─────────────────┐
-│  JIT: Execute    │  cupidc.c - copy to memory, jump to main()
+│  JIT: Execute    │  cupidc.cc - copy to memory, jump to main()
 │  AOT: Write ELF  │  cupidc_elf.c - emit ELF32 binary to disk
 └─────────────────┘
 ```
@@ -1145,7 +1173,7 @@ Source (.cc)
 | File | Lines | Role |
 |------|-------|------|
 | `cupidc.h` | 459 | Tokens, types, limits, compiler state, and public API |
-| `cupidc.c` | 3,959 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
+| `cupidc.cc` | 3,963 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
 | `cupidc_lex.c` | 833 | Lexer for keywords, literals, operators, and delimiters |
 | `cupidc_parse.cc` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
 | `cupidc_elf.c` | 147 | Fixed-address ELF32 executable writer for AOT mode |

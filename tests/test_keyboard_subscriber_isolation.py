@@ -41,7 +41,7 @@ class KeyboardSubscriberIsolationTests(unittest.TestCase):
         self.assertNotIn("keyboard_test_sub_inject", program)
         self.assertIn("if (sc != 0x2Au) return;", driver)
 
-        adapter = (ROOT / "kernel" / "lang" / "cupidc.c").read_text(
+        adapter = (ROOT / "kernel" / "lang" / "cupidc.cc").read_text(
             encoding="utf-8"
         )
         self.assertNotIn('BIND("keyboard_test_sub_inject"', adapter)

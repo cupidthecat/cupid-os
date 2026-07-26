@@ -163,8 +163,12 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "drivers/serial.cc",
     "drivers/timer.cc",
     "kernel/core/app_launch.cc",
+    "kernel/core/panic.cc",
+    "kernel/core/process.cc",
+    "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
+    "kernel/cpu/pic.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
     "kernel/fs/loopdev.cc",
@@ -172,15 +176,28 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "kernel/gfx/gfx2d.cc",
     "kernel/gfx/png.cc",
     "kernel/gui/ed.cc",
+    "kernel/lang/as.cc",
+    "kernel/lang/cupidc.cc",
     "kernel/lang/cupidc_parse.cc",
     "kernel/lang/cupidc_string.cc",
     "kernel/lang/ssh_io.cc",
     "kernel/mm/memory.cc",
+    "kernel/mm/paging.cc",
     "kernel/network/sshd.cc",
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
+    "kernel/smp/lapic.cc",
     "kernel/tls/tls_ca_bundle.cc",
 )
+APPROVED_GENERATED_KERNEL_SOURCES = (
+    "kernel/cpu/ksyms_data.cc",
+)
+GENERATED_KERNEL_INPUT_CLOSURES = {
+    "kernel/cpu/ksyms_data.cc": (
+        "kernel/cpu/ksyms.h",
+        "kernel/core/types.h",
+    ),
+}
 APPROVED_KERNEL_SOURCES = tuple(
     sorted(
         APPROVED_CRYPTO_SOURCES
@@ -191,6 +208,9 @@ APPROVED_KERNEL_SOURCES = tuple(
         + APPROVED_TOOLCHAIN_KERNEL_SOURCES
         + APPROVED_SOURCE_DRIVEN_SOURCES
     )
+)
+APPROVED_KERNEL_COMPILE_SOURCES = tuple(
+    sorted(APPROVED_KERNEL_SOURCES + APPROVED_GENERATED_KERNEL_SOURCES)
 )
 
 KERNEL_I386_ARGUMENTS = (
@@ -249,6 +269,7 @@ KERNEL_I386_ARGUMENTS = (
 )
 
 DEFAULT_TIMEOUT_SECONDS = 180
+GENERATED_KERNEL_TIMEOUT_SECONDS = 600
 
 
 class KernelCompileError(RuntimeError):
@@ -664,7 +685,7 @@ def _source_path(root: Path, source: Path) -> tuple[Path, str]:
             f"source must resolve inside repository root: {source}"
         ) from error
     relative_name = relative.as_posix()
-    if relative_name not in APPROVED_KERNEL_SOURCES:
+    if relative_name not in APPROVED_KERNEL_COMPILE_SOURCES:
         raise KernelCompileError(
             "source is outside the approved CupidC kernel cohort: "
             f"{relative_name}"
@@ -697,6 +718,67 @@ def _output_path(root: Path, output: Path) -> tuple[Path, str]:
     return resolved, "/" + relative.as_posix()
 
 
+def _generated_input_paths(
+    root: Path,
+    source_name: str,
+) -> tuple[Path, ...]:
+    closure = GENERATED_KERNEL_INPUT_CLOSURES.get(source_name)
+    if closure is None:
+        return ()
+    paths = []
+    for relative_name in (source_name, *closure):
+        path = root / relative_name
+        if path.is_symlink():
+            raise KernelCompileError(
+                f"generated kernel input may not be a symlink: {relative_name}"
+            )
+        try:
+            resolved = path.resolve(strict=True)
+            resolved.relative_to(root)
+        except (OSError, ValueError) as error:
+            raise KernelCompileError(
+                f"generated kernel input is unavailable: {relative_name}"
+            ) from error
+        if not resolved.is_file():
+            raise KernelCompileError(
+                f"generated kernel input is not a file: {relative_name}"
+            )
+        paths.append(resolved)
+    return tuple(paths)
+
+
+def _capture_generated_inputs(
+    paths: Sequence[Path],
+) -> dict[Path, bytes]:
+    captured = {}
+    for path in paths:
+        try:
+            captured[path] = path.read_bytes()
+        except OSError as error:
+            raise KernelCompileError(
+                f"cannot read generated kernel input {path}: {error}"
+            ) from error
+    return captured
+
+
+def _write_generated_inputs(
+    root: Path,
+    frozen_root: Path,
+    captured: dict[Path, bytes],
+) -> None:
+    for path, payload in captured.items():
+        target = frozen_root / path.relative_to(root)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+
+
+def _compiler_root_for(executor: SeedExecutor, path: Path) -> str:
+    mapper = getattr(executor, "compiler_root_for", None)
+    if callable(mapper):
+        return str(mapper(path))
+    return str(path.resolve())
+
+
 def compile_kernel_source(
     root: Path,
     source: Path,
@@ -704,7 +786,7 @@ def compile_kernel_source(
     *,
     manifest: Path | None = None,
     executor: SeedExecutor | None = None,
-    timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    timeout: int | None = None,
 ) -> None:
     """Compile one approved source and atomically publish a checked object."""
     root = _root_path(root)
@@ -712,9 +794,18 @@ def compile_kernel_source(
     output, _logical_output = _output_path(root, output)
     if source == output:
         raise KernelCompileError("output may not replace an approved source")
+    source_name = logical_source.lstrip("/")
+    if timeout is None:
+        timeout = (
+            GENERATED_KERNEL_TIMEOUT_SECONDS
+            if source_name in APPROVED_GENERATED_KERNEL_SOURCES
+            else DEFAULT_TIMEOUT_SECONDS
+        )
     if timeout <= 0:
         raise KernelCompileError("compiler timeout must be positive")
 
+    generated_paths = _generated_input_paths(root, source_name)
+    captured_inputs = _capture_generated_inputs(generated_paths)
     manifest_path = (
         manifest.resolve()
         if manifest is not None
@@ -747,14 +838,32 @@ def compile_kernel_source(
                 prefix=f".{output.name}.cupidc-",
                 dir=output.parent,
             ) as temporary:
-                temporary_output = Path(temporary) / output.name
-                logical_temporary = (
-                    "/" + temporary_output.relative_to(root).as_posix()
-                )
+                temporary_root = Path(temporary)
+                if captured_inputs:
+                    _write_generated_inputs(
+                        root,
+                        temporary_root,
+                        captured_inputs,
+                    )
+                    temporary_output = (
+                        temporary_root / ".output" / output.name
+                    )
+                    temporary_output.parent.mkdir()
+                    logical_temporary = f"/.output/{output.name}"
+                    compiler_root = _compiler_root_for(
+                        active_executor,
+                        temporary_root,
+                    )
+                else:
+                    temporary_output = temporary_root / output.name
+                    logical_temporary = (
+                        "/" + temporary_output.relative_to(root).as_posix()
+                    )
+                    compiler_root = active_executor.compiler_root
                 arguments = build_compile_arguments(
                     logical_source,
                     logical_temporary,
-                    active_executor.compiler_root,
+                    compiler_root,
                 )
                 try:
                     result = active_executor.run(seed, arguments, timeout)
@@ -792,6 +901,15 @@ def compile_kernel_source(
                         f"emitted object is invalid for "
                         f"{logical_source.lstrip('/')}: {error}"
                     ) from error
+                if (
+                    captured_inputs
+                    and _capture_generated_inputs(generated_paths)
+                    != captured_inputs
+                ):
+                    raise KernelCompileError(
+                        f"generated kernel inputs changed while compiling "
+                        f"{source_name}"
+                    )
                 os.replace(temporary_output, output)
     except OSError as error:
         raise KernelCompileError(
@@ -812,7 +930,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout",
         type=int,
-        default=DEFAULT_TIMEOUT_SECONDS,
+        help=(
+            "compiler time limit in seconds; defaults to 180 for checked-in "
+            "sources and 600 for generated kernel symbols"
+        ),
     )
     return parser
 

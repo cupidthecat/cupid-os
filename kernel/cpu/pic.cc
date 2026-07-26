@@ -1,5 +1,5 @@
 /*
- * PIC (Programmable Interrupt Controller) Driver Implementation
+ * PIC (Programmable Interrupt Controller) driver implementation
  *
  * This file implements the PIC driver functionality:
  * - Initializes both master (PIC1) and slave (PIC2) controllers

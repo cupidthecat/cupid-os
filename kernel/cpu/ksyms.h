@@ -1,10 +1,11 @@
 /*
  * ksyms - kernel function symbol table for backtrace decoding.
  *
- * The blob is built post-link by tools/mksyms.sh from kernel.elf and
- * placed in the .ksyms section by ksyms_data.o.  Format documented at
- * the top of mksyms.sh.  Lookup tolerates a missing/corrupt blob and
- * returns NULL - callers then fall back to printing raw addresses.
+ * The production blob is generated after the pass-one link by
+ * tools/hostbuild.py mksyms from kernel/kernel.elf.pass1, then placed in
+ * the .ksyms section by ksyms_data.o. The legacy tools/mksyms.sh oracle
+ * documents the shared format. Lookup tolerates a missing or corrupt blob
+ * and returns NULL, so callers can fall back to printing raw addresses.
 */
 #ifndef KSYMS_H
 #define KSYMS_H

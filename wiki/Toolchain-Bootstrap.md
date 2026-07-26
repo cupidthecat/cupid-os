@@ -50,8 +50,8 @@ executables are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean checkout.
 It does not complete the normal OS build migration. Native contract runners,
-hosted development commands, and the remaining normal C objects still use a
-host C compiler.
+hosted development commands, and 94 normal C root objects still use a host C
+compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
 `9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc`.
@@ -83,23 +83,22 @@ Compiler head also handles the exact per-CPU pointer output
 and IR preserve its pointer type and evaluate the destination once. The x86
 model emits `65 A1 00 00 00 00`.
 
-Compiler head now handles the independent `r` and `c` inputs used by
-unchanged `idt.c`, `paging.c`, and `lapic.c`. Exact CR0, CR2, CR3, and CR4
-moves and RDMSR emit directly into deterministic i386 ELF32 objects. The
-three double-compiled objects are 8,756, 2,336, and 4,184 bytes and pass the
-shared validator. Focused frontend, Linear IR, object, and decoder contracts
-cover the supported forms and their failures without executing privileged
-instructions. The checked seed carries this compiler work, while production
-ownership remains unchanged.
+Compiler head handles the independent `r` and `c` inputs used by
+`kernel/cpu/idt.cc`, `kernel/mm/paging.cc`, and `kernel/smp/lapic.cc`.
+Exact CR0, CR2, CR3, and CR4 moves and RDMSR emit directly into deterministic
+i386 ELF32 objects. The three double-compiled objects are 8,756, 2,336, and
+4,184 bytes and pass the shared validator. Focused frontend, Linear IR,
+object, and decoder contracts cover the supported forms and their failures
+without executing privileged instructions. The normal recipes now compile
+all three roots with the checked seed.
 
-Compiler head now handles the exact volatile `fxsave (%0)` form used twice in
-unchanged `kernel/core/process.c`. Its independent `r` input must be a
+Compiler head handles the exact volatile `fxsave (%0)` form used twice in
+`kernel/core/process.cc`. Its independent `r` input must be a
 four-byte object or `void` pointer, and the statement must retain its
 `memory` clobber. The emitter places the pointer in EAX and asks the shared
 x86 model for `0F AE 00`. Two full-profile compiles produce the same
 validated 30,216-byte object, with FXSAVE at text offsets `0x1967` and
-`0x4d7c`. The checked seed carries this compiler capability, but production
-ownership has not moved.
+`0x4d7c`. The normal recipe now compiles this root with the checked seed.
 
 The checked compiler's atomic slice handles integer load, store, exchange,
 and fetch-add builtins with constant orders. Its i386 path selects ordinary
@@ -123,12 +122,16 @@ count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
-The normal image has a 136-source checked CupidC production boundary. It
-keeps the established 116-source cohort and adds 20 source-driven roots now
-named `.cc`. The strict frontier compiles each approved source twice and
-accepts 3,020,108 byte-identical i386 ELF32 bytes. It freezes 424 inputs with
-SHA-256
-`24fcfba4f006dad77a742e02b31edd889d3a62010adb352d6f57965377557cd1`.
+The normal image has 145 checked CupidC C transforms: 144 checked-in sources
+and the generated `kernel/cpu/ksyms_data.cc` source. The checked-in cohort
+keeps the established 116 sources and adds 28 source-driven roots named
+`.cc`. The latest eight are `kernel/core/panic.cc`,
+`kernel/core/process.cc`, `kernel/cpu/idt.cc`, `kernel/cpu/pic.cc`,
+`kernel/lang/as.cc`, `kernel/lang/cupidc.cc`, `kernel/mm/paging.cc`, and
+`kernel/smp/lapic.cc`. Ten strict checked-in roots remain host-owned. The
+strict frontier compiles each of its 144 approved sources twice and accepts
+3,514,456 byte-identical i386 ELF32 bytes. It freezes 432 inputs with SHA-256
+`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe. Each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
@@ -150,46 +153,43 @@ one event. The checks cover hello's numeric writes, ls reading the shell root,
 cat reading a fixed FAT fixture, and a PID-matched exit from each program.
 Kernel and JIT printing remain on their existing path.
 
-The refreshed checked seed emits weak symbols and arbitrary compatible named sections,
-records `unused` declarations, preserves typed static null pointers, treats
-known-true loops as non-fallthrough, and lowers comma expressions in source
-order. It also keeps all target bits through represented function-pointer
-casts and supports bounded output-only register and EFLAGS snapshots. Twenty
-of the 38 strict roots left after the 116-source handoff now belong to the
-production cohort and use `.cc` names. Eighteen strict checked-in roots
-remain. Compiler head now represents the `used` attribute on generated
-`kernel/cpu/ksyms_data.c` and emits the current source deterministically.
-The generated root stays hosted until a refreshed checked seed and the
-production build gates carry that capability.
+The refreshed checked seed emits weak symbols and arbitrary compatible named
+sections, records `unused` and `used` declarations, preserves typed static
+null pointers, treats known-true loops as non-fallthrough, and lowers comma
+expressions in source order. It also keeps all target bits through represented
+function-pointer casts and supports bounded output-only register and EFLAGS
+snapshots. The checked production wrapper now compiles the generated
+`kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
+`unsigned int` words and records the logical 104,185-byte blob length
+separately. The word array ends with three zero pad bytes. The final kernel
+consumes 4,069 text symbols and shows no address drift from the pass-one
+kernel.
 
 Compiler head also emits the exact volatile
 `call 1f\n1: popl %0` address capture used by the stack-trace helpers in
-`kernel/lang/as.c` and `kernel/lang/cupidc.c`. The instruction pair is a
+`kernel/lang/as.cc` and `kernel/lang/cupidc.cc`. The instruction pair is a
 zero-displacement `CALL` followed by `POP r32`, with no relocation. Both
-unchanged roots compile twice to matching validated i386 ELF32 objects under
-the complete kernel profile. The `as.c` object is 148,056 bytes with SHA-256
-`f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c`.
-The `cupidc.c` object is 288,168 bytes with SHA-256
-`b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e`.
-They remain host-owned `.c` sources until the production handoff uses this
-checked-seed capability. Other call templates and general inline-assembly
-labels remain unsupported.
+roots compile twice to matching validated i386 ELF32 objects under the
+complete kernel profile. The `as.cc` object is 148,056 bytes with SHA-256
+`f05ffb741a81403f3bfb86358b3f96011b2ddef65c87e291f582c1d77b0cedfd`.
+The `cupidc.cc` object is 288,180 bytes with SHA-256
+`4e8501e628a770b346bbe16e23d9549c4320f1f01f0ddcb9309b907a8c898046`.
+Their normal recipes now use this checked-seed capability. Other call
+templates and general inline-assembly labels remain unsupported.
 
 Compiler head now also accepts the GNU `Nd` port alternative in
-`kernel/cpu/pic.c`. It selects the valid DX branch and emits both unchanged
-8-bit PIC templates through Cupid's x86 model. The root passes the complete
-kernel compiler profile, but it remains host-owned until the normal build
-moves.
+`kernel/cpu/pic.cc`. It selects the valid DX branch and emits both unchanged
+8-bit PIC templates through Cupid's x86 model. The normal recipe compiles the
+root with the checked seed.
 
 Compiler head emits the three machine-state memory outputs in
-`kernel/core/panic.c`. The exact volatile `fnstsw %0` and `fnstcw %0` forms
+`kernel/core/panic.cc`. The exact volatile `fnstsw %0` and `fnstcw %0` forms
 require a 16-bit `=m` destination, and `stmxcsr %0` requires a 32-bit
 destination. Linear IR evaluates each lvalue once, and the i386 emitter writes
 through that address with the shared x86 model. The exact call-next support
 above also handles the later local-label statement in the unchanged panic
 source. Two full kernel-profile compiles produce the same validated
-10,212-byte ELF32 object. The checked seed carries the capability, but this
-does not change the 136-source production boundary.
+10,212-byte ELF32 object. The normal recipe now uses the checked seed.
 
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
@@ -209,6 +209,8 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-The current audit assigns 142 transforms to CupidC, 155 C transforms to the
-host compiler, and 154 transforms to host Python. The host compiler still
-produces 103 root objects.
+Across the root and supplemental builds, the current audit assigns 151
+transforms to CupidC, 146 to the host C compiler, and 163 to host Python.
+CupidC's total is the 145 normal transforms plus three generated installation
+tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The host compiler
+still produces 94 root objects.

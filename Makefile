@@ -292,15 +292,18 @@ SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) -msse2 -O2
 kernel/cpu/simd.o: kernel/cpu/simd.c kernel/cpu/simd.h
 	$(CC) $(SIMD_CFLAGS) kernel/cpu/simd.c -o kernel/cpu/simd.o
 
-kernel/cpu/idt.o: kernel/cpu/idt.c kernel/cpu/idt.h kernel/cpu/isr.h kernel/core/kernel.h
-	$(CC) $(CFLAGS) kernel/cpu/idt.c -o kernel/cpu/idt.o
+kernel/cpu/idt.o: kernel/cpu/idt.cc drivers/serial.h kernel/core/kernel.h \
+	kernel/core/panic.h kernel/core/types.h kernel/cpu/idt.h kernel/cpu/isr.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o
 
 # Compile assembly files
 kernel/cpu/isr.o: kernel/cpu/isr.asm $(CUPIDASM)
 	$(CUPIDASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o
 
-kernel/cpu/pic.o: kernel/cpu/pic.c kernel/cpu/pic.h
-	$(CC) $(CFLAGS) -c kernel/cpu/pic.c -o kernel/cpu/pic.o
+kernel/cpu/pic.o: kernel/cpu/pic.cc kernel/core/kernel.h kernel/core/types.h \
+	kernel/cpu/isr.h kernel/cpu/pic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/pic.cc --output kernel/cpu/pic.o
 
 kernel/cpu/irq.o: kernel/cpu/irq.cc kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/cpu/pic.h kernel/smp/bkl.h kernel/smp/ioapic.h kernel/smp/lapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/irq.cc --output kernel/cpu/irq.o
@@ -393,8 +396,10 @@ kernel/smp/percpu.o: kernel/smp/percpu.c kernel/smp/percpu.h kernel/core/process
 	$(CC) $(CFLAGS) kernel/smp/percpu.c -o kernel/smp/percpu.o
 
 # Local APIC BSP init + timer calibration (P5 SMP)
-kernel/smp/lapic.o: kernel/smp/lapic.c kernel/smp/lapic.h kernel/core/ports.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/smp/lapic.c -o kernel/smp/lapic.o
+kernel/smp/lapic.o: kernel/smp/lapic.cc drivers/serial.h kernel/core/ports.h \
+	kernel/core/types.h kernel/mm/memory.h kernel/smp/lapic.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/lapic.cc --output kernel/smp/lapic.o
 
 # IOAPIC redirection table + 8259 mask (P5 SMP)
 kernel/smp/ioapic.o: kernel/smp/ioapic.c drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/smp/ioapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -680,7 +685,7 @@ KERNEL_OBJS += $(DOOM_SRC_OBJS)
 # boundary that is not itself a final link input.
 BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS) \
 	$(BOOTLOADER) kernel/smp_trampoline.bin \
-	kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.c kernel/cpu/ksyms_data.o \
+	kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.cc kernel/cpu/ksyms_data.o \
 	kernel/kernel.elf $(KERNEL) $(OS_IMAGE)
 
 # A build tree may contain artifacts whose mtimes match source checkout mtimes
@@ -690,8 +695,9 @@ BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS) \
 $(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 
 # Add new rule for paging.o
-kernel/mm/paging.o: kernel/mm/paging.c kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/mm/paging.c -o kernel/mm/paging.o
+kernel/mm/paging.o: kernel/mm/paging.cc kernel/core/types.h kernel/mm/memory.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/paging.cc --output kernel/mm/paging.o
 
 # Add new rule for blockdev.o
 kernel/fs/blockdev.o: kernel/fs/blockdev.c kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -716,8 +722,11 @@ drivers/serial.o: drivers/serial.cc drivers/serial.h drivers/timer.h kernel/core
 	$(CUPIDC_KERNEL_COMPILE) --source drivers/serial.cc --output drivers/serial.o
 
 # Panic handler
-kernel/core/panic.o: kernel/core/panic.c kernel/core/panic.h
-	$(CC) $(CFLAGS) kernel/core/panic.c -o kernel/core/panic.o
+kernel/core/panic.o: kernel/core/panic.cc drivers/serial.h drivers/timer.h \
+	kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h \
+	kernel/core/types.h kernel/cpu/fpu.h kernel/cpu/isr.h kernel/cpu/ksyms.h \
+	kernel/cpu/math.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/panic.cc --output kernel/core/panic.o
 
 # Ed line editor
 kernel/gui/ed.o: kernel/gui/ed.cc drivers/keyboard.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/gui/ed.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -773,9 +782,14 @@ kernel/gui/terminal_app.o: kernel/gui/terminal_app.c drivers/keyboard.h drivers/
 kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.c drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gui/ctxt_image_worker.h kernel/mm/memory.h kernel/network/dns.h kernel/network/socket.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.c --output kernel/gui/ctxt_image_worker.o
 
-# Process management and round-robin scheduler (process.c)
-kernel/core/process.o: kernel/core/process.c kernel/core/process.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/core/process.c -o kernel/core/process.o
+# Process management and round-robin scheduler.
+kernel/core/process.o: kernel/core/process.cc drivers/serial.h \
+	kernel/core/debug.h kernel/core/kernel.h kernel/core/process.h \
+	kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h \
+	kernel/cpu/simd.h kernel/gui/gui.h kernel/lang/shell.h \
+	kernel/mm/memory.h kernel/smp/bkl.h kernel/smp/percpu.h kernel/smp/smp.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o
 
 # Context switch (assembly)
 kernel/core/context_switch.o: kernel/core/context_switch.asm $(CUPIDASM)
@@ -956,8 +970,33 @@ toolchain/cupidasm.o: toolchain/cupidasm.c toolchain/ctool.h toolchain/cupidasm.
 kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.c --output kernel/lang/ctool_kernel.o
 
-kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
-	$(CC) $(CFLAGS) kernel/lang/cupidc.c -o kernel/lang/cupidc.o
+kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
+	drivers/mouse.h drivers/pci.h drivers/pit.h drivers/rtc.h \
+	drivers/serial.h drivers/speaker.h drivers/timer.h drivers/vga.h \
+	kernel/audio/ac97.h kernel/audio/midiopl.h kernel/audio/mixer.h \
+	kernel/audio/opl_smoke.h kernel/core/kernel.h kernel/core/panic.h \
+	kernel/core/ports.h kernel/core/process.h kernel/core/string.h \
+	kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/libm.h \
+	kernel/cpu/math.h kernel/crypto/chacha20.h kernel/crypto/csprng.h \
+	kernel/crypto/ed25519.h kernel/crypto/hmac.h kernel/crypto/poly1305.h \
+	kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/sha512.h \
+	kernel/crypto/x25519.h kernel/doom/dglibc.h kernel/fs/blockcache.h \
+	kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/vfs.h \
+	kernel/fs/vfs_helpers.h kernel/gfx/bmp.h kernel/gfx/deflate.h \
+	kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h \
+	kernel/gfx/gfx2d_icons.h kernel/gfx/gfx2d_transform.h \
+	kernel/gfx/graphics.h kernel/gfx/jpeg.h kernel/gfx/png.h \
+	kernel/gui/ansi.h kernel/gui/clipboard.h kernel/gui/ctxt_image_worker.h \
+	kernel/gui/desktop.h kernel/gui/ed.h kernel/gui/gui.h \
+	kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h \
+	kernel/lang/shell.h kernel/lang/ssh_io.h kernel/mm/memory.h \
+	kernel/mm/swap.h kernel/network/arp.h kernel/network/dhcp.h \
+	kernel/network/dns.h kernel/network/icmp.h kernel/network/ip.h \
+	kernel/network/net_if.h kernel/network/socket.h kernel/network/udp.h \
+	kernel/smp/bkl.h kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
+	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o
 
 kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc_string.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o
@@ -975,8 +1014,32 @@ kernel/lang/ssh_io.o: kernel/lang/ssh_io.cc drivers/keyboard.h drivers/serial.h 
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o
 
 # CupidASM assembler
-kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/lang/as_elf.h kernel/lang/ctool_kernel.h kernel/lang/shell.h toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h
-	$(CC) $(CFLAGS) kernel/lang/as.c -o kernel/lang/as.o
+kernel/lang/as.o: kernel/lang/as.cc drivers/ata.h drivers/keyboard.h \
+	drivers/mouse.h drivers/pci.h drivers/pit.h drivers/rtc.h \
+	drivers/serial.h drivers/speaker.h drivers/timer.h drivers/vga.h \
+	kernel/audio/ac97.h kernel/audio/midiopl.h kernel/audio/mixer.h \
+	kernel/audio/opl_smoke.h kernel/core/kernel.h kernel/core/panic.h \
+	kernel/core/ports.h kernel/core/process.h kernel/core/string.h \
+	kernel/core/syscall.h kernel/core/types.h kernel/cpu/irq.h \
+	kernel/cpu/isr.h kernel/cpu/libm.h kernel/cpu/math.h \
+	kernel/doom/dglibc.h kernel/fs/blockcache.h kernel/fs/blockdev.h \
+	kernel/fs/fat16.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h \
+	kernel/gfx/bmp.h kernel/gfx/deflate.h kernel/gfx/fontsys.h \
+	kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d_icons.h \
+	kernel/gfx/gfx2d_transform.h kernel/gfx/graphics.h kernel/gfx/jpeg.h \
+	kernel/gfx/png.h kernel/gui/ansi.h kernel/gui/clipboard.h \
+	kernel/gui/desktop.h kernel/gui/ed.h kernel/gui/gui.h \
+	kernel/gui/notepad.h kernel/lang/as.h kernel/lang/as_elf.h \
+	kernel/lang/ctool_kernel.h kernel/lang/cupidc.h kernel/lang/dis.h \
+	kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h kernel/mm/swap.h \
+	kernel/network/arp.h kernel/network/dhcp.h kernel/network/dns.h \
+	kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h \
+	kernel/network/socket.h kernel/network/udp.h kernel/smp/bkl.h \
+	kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
+	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
+	toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h \
+	toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as.cc --output kernel/lang/as.o
 
 kernel/lang/as_elf.o: kernel/lang/as_elf.c kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.c --output kernel/lang/as_elf.o
@@ -1179,22 +1242,23 @@ god/%.o: god/%.DD $(CUPIDOBJ) Makefile
 #   Pass 1: link all KERNEL_OBJS into kernel.elf.pass1.  ksyms.o ships a
 #           weak empty .ksyms blob, so this link succeeds with no symbol
 #           data.
-#   mksyms: read kernel.elf.pass1's symbol table, generate
-#           kernel/cpu/ksyms_data.c with the populated blob.
-#   Pass 2: link kernel.elf again with ksyms_data.o added — the strong
-#           ksym_blob symbol overrides the weak one from ksyms.o.  The
+#   mksyms: read kernel.elf.pass1's symbol table, then generate
+#           kernel/cpu/ksyms_data.cc with the populated blob.
+#   Pass 2: link kernel.elf again with ksyms_data.o added. The strong
+#           ksym_blob symbol overrides the weak one from ksyms.o. The
 #           .ksyms section is placed after .data in link.ld so code
-#           addresses don't shift between passes; only .bss start
+#           addresses do not shift between passes; only .bss start
 #           moves, which is fine.
 #   CupidObj flattens kernel.elf into the raw binary the bootloader expects.
 kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS)
 
-kernel/cpu/ksyms_data.c: kernel/kernel.elf.pass1 tools/hostbuild.py $(CUPIDDIS)
+kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 tools/hostbuild.py Makefile $(CUPIDDIS)
 	$(PYTHON) tools/hostbuild.py mksyms --nm $(CUPIDDIS) $< $@
 
-kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.c kernel/cpu/ksyms.h
-	$(CC) $(CFLAGS) kernel/cpu/ksyms_data.c -o kernel/cpu/ksyms_data.o
+kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.cc kernel/cpu/ksyms.h \
+	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o
 
 kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld $(CUPIDLD)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
@@ -1351,7 +1415,7 @@ stage-wads: $(OS_IMAGE)
 	$(PYTHON) tools/hostbuild.py stage-wads --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(WAD_SRCS)
 
 clean:
-	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "toolchain/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/util/bin_programs_gen.cc" "kernel/util/docs_programs_gen.cc" "kernel/util/demos_programs_gen.cc" "kernel/cpu/ksyms_data.c" "$(USER_CUPIDC_RUNTIME_FIXTURE)" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
+	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "toolchain/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/util/bin_programs_gen.cc" "kernel/util/docs_programs_gen.cc" "kernel/util/demos_programs_gen.cc" "kernel/cpu/ksyms_data.c" "kernel/cpu/ksyms_data.cc" "$(USER_CUPIDC_RUNTIME_FIXTURE)" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
 
 clean-image:
 	$(PYTHON) tools/hostbuild.py clean $(OS_IMAGE)

@@ -1,3 +1,4 @@
+/* CupidC-owned local APIC implementation. */
 #include "lapic.h"
 #include "ports.h"
 #include "memory.h"

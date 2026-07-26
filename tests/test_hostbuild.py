@@ -7,6 +7,8 @@ from unittest import mock
 
 from tools import hostbuild
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 class HostBuildImageTests(unittest.TestCase):
     def test_image_create_stages_file_and_preserves_existing_fat(self):
@@ -129,6 +131,52 @@ class HostBuildSymbolTests(unittest.TestCase):
         strings = blob[string_off:]
         self.assertIn(b"first\x00", strings)
         self.assertIn(b"second\x00", strings)
+
+    def test_ksyms_words_preserve_little_endian_bytes_and_padding(self):
+        cases = (
+            (b"\x01\x02\x03\x04\x05", b"\0\0\0"),
+            (b"\x01\x02\x03\x04\x05\x06", b"\0\0"),
+            (b"\x01\x02\x03\x04\x05\x06\x07", b"\0"),
+        )
+
+        for blob, padding in cases:
+            with self.subTest(blob_size=len(blob)):
+                words = hostbuild._pack_ksyms_words(blob)
+                encoded = b"".join(
+                    struct.pack("<I", word) for word in words
+                )
+                self.assertEqual(encoded[: len(blob)], blob)
+                self.assertEqual(encoded[len(blob) :], padding)
+
+    def test_ksyms_source_uses_words_and_keeps_the_exact_blob_size(self):
+        symbols = [(0x1000, "first"), (0x2000, "second")]
+        blob = hostbuild.build_ksyms_blob(symbols)
+
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "ksyms_data.cc"
+            with mock.patch.object(
+                hostbuild,
+                "_symbols_from_nm",
+                return_value=symbols,
+            ):
+                hostbuild.write_ksyms_source("unused-nm", Path("unused"), output)
+            source = output.read_text(encoding="utf-8")
+
+        self.assertIn("const unsigned int\n", source)
+        self.assertNotIn("const unsigned char\n", source)
+        for word in hostbuild._pack_ksyms_words(blob):
+            self.assertIn(f"0x{word:08x}u,", source)
+        self.assertIn(
+            f"const unsigned int ksym_blob_size = {len(blob)}u;",
+            source,
+        )
+
+        consumer = (
+            REPO_ROOT / "kernel" / "cpu" / "ksyms.cc"
+        ).read_text(encoding="utf-8")
+        self.assertIn("extern const unsigned int ksym_blob[];", consumer)
+        self.assertIn("const unsigned int ksym_blob[4]", consumer)
+        self.assertNotIn("extern const unsigned char ksym_blob[];", consumer)
 
 
 class HostBuildAssetTests(unittest.TestCase):

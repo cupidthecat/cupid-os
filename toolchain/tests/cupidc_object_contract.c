@@ -29231,7 +29231,7 @@ static int run_state_memory_assembly_object(const char *host_root) {
   (void)memset(&snapshot, 0, sizeof(snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
-          job, "/kernel/core/panic.c",
+          job, "/kernel/core/panic.cc",
           "load active machine-state snapshot source",
           "the active machine-state snapshots changed",
           active_source, active_source_crlf) ||
@@ -31759,7 +31759,7 @@ static int validate_generated_used_object(const char *host_root) {
   if (!check_status(status, CTOOL_OK, "generated symbol job setup")) {
     return 0;
   }
-  path.text = ctool_string("/kernel/cpu/ksyms_data.c");
+  path.text = ctool_string("/kernel/cpu/ksyms_data.cc");
   (void)memset(&source, 0, sizeof(source));
   source.path = path;
   source.contents =

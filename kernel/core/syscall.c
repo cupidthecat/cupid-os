@@ -132,7 +132,7 @@ static int syscall_exec(const char *path, const char *name) {
   return exec(path, name);
 }
 
-/* Phase 4 wrappers (parity with cupidc.c) */
+/* Phase 4 wrappers (parity with cupidc.cc) */
 static uint32_t sc_net_get_ip(void) {
   net_if_t *n = net_if_primary();
   return n ? n->ipv4_addr : 0u;
@@ -218,7 +218,7 @@ static uint32_t sc_pci_bar(int idx, int bar) {
 static cupid_syscall_table_t syscall_table;
 
 /* Static asserts: AOT asm programs hard-code these offsets via SYS_*
- * equ constants in as.c. If anyone reorders cupid_syscall_table_t these
+ * equ constants in as.cc. If anyone reorders cupid_syscall_table_t these
  * fail at compile time so we never silently ship a mismatched layout.*/
 #define SC_OFF(field) __builtin_offsetof(cupid_syscall_table_t, field)
 _Static_assert(SC_OFF(print)               ==   8, "SYS_PRINT offset drift");

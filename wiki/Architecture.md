@@ -143,12 +143,12 @@ core     → (nothing)
 | Component | Files | Purpose |
 |-----------|-------|---------|
 | Kernel entry | `kernel.c/h` | VGA, init sequence, main print functions |
-| IDT | `idt.c/h` | Interrupt descriptor table setup |
+| IDT | `idt.cc/h` | Interrupt descriptor table setup |
 | ISR/IRQ | `isr.asm`, `irq.cc/h` | Interrupt/exception dispatching |
-| PIC | `pic.c/h` | Programmable interrupt controller |
-| Memory | `memory.cc/h`, `paging.c` | PMM, heap, paging, canaries, leak detection |
+| PIC | `pic.cc/h` | Programmable interrupt controller |
+| Memory | `memory.cc/h`, `paging.cc` | PMM, heap, paging, canaries, leak detection |
 | VFS | `vfs.c/h` | Virtual filesystem, mount table, path resolution |
-| Panic | `panic.c/h`, `assert.h` | Crash handler, assertions |
+| Panic | `panic.cc/h`, `assert.h` | Crash handler, assertions |
 | Strings | `string.c/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
 | Math | `math.c/h` | 64-bit division, `itoa`, hex printing |
 
@@ -178,7 +178,7 @@ core     → (nothing)
 | FAT16 | `fat16.cc/h`, `blockdev.c/h`, `blockcache.c/h` | FAT16 driver with block cache |
 | In-Memory FS | `fs.c/h` | Legacy read-only system file table |
 | Exec | `exec.c/h` | CUPD program loader |
-| Process Mgr | `process.c/h`, `context_switch.asm` | Scheduler, context switching |
+| Process Mgr | `process.cc/h`, `context_switch.asm` | Scheduler, context switching |
 | GUI | `gui.c/h`, `desktop.c/h`, `graphics.c/h`, `font_8x8.c/h` | Window manager, desktop |
 | Terminal | `terminal_app.c/h` | GUI terminal application |
 | Notepad | `notepad.c/h` | Text editor application (VFS file dialog) |

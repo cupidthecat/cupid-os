@@ -29,6 +29,8 @@ KERNEL_INCLUDES = [
     "toolchain",
 ]
 STRICT_FLAGS = [
+    "-x",
+    "c",
     "-std=gnu11",
     "-m32",
     "-ffreestanding",
@@ -176,7 +178,7 @@ class KernelElfLoaderContractTests(KernelContractCase):
 
 
 class KernelProcessImageContractTests(KernelContractCase):
-    production_source = Path("kernel/core/process.c")
+    production_source = Path("kernel/core/process.cc")
     contract_source = Path("tests/kernel_process_contract.c")
     extra_includes = ["tests/kernel_contract_support"]
 

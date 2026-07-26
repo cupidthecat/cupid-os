@@ -1,5 +1,5 @@
 /*
- * Interrupt Descriptor Table (IDT) Implementation
+ * Interrupt Descriptor Table (IDT) implementation
  *
  * This file implements the IDT setup and management for the kernel:
  * - Defines the IDT structure and pointer

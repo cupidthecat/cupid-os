@@ -1946,12 +1946,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 .PHONY: all
                 all: kernel/lang/cupidc.o
 
-                kernel/lang/cupidc.o: kernel/lang/cupidc.c
+                kernel/lang/cupidc.o: kernel/lang/cupidc.cc
                 \t$(CC) -c $< -o $@
                 """,
             )
             _write(
-                root / "kernel" / "lang" / "cupidc.c",
+                root / "kernel" / "lang" / "cupidc.cc",
                 "int current_compiler(void) { return 2; }\n",
             )
             _write(
@@ -1984,7 +1984,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 [
                     {
                         "kind": "historical_copy_of",
-                        "path": "kernel/lang/cupidc.c",
+                        "path": "kernel/lang/cupidc.cc",
                         "evidence": "audited project source relationship",
                     }
                 ],
@@ -2895,7 +2895,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             generated,
             [
-                ("KERNEL_I386", "/kernel/cpu/ksyms_data.c"),
+                ("KERNEL_I386", "/kernel/cpu/ksyms_data.cc"),
                 ("KERNEL_I386", "/kernel/util/bin_programs_gen.cc"),
                 ("KERNEL_I386", "/kernel/util/demos_programs_gen.cc"),
                 ("KERNEL_I386", "/kernel/util/docs_programs_gen.cc"),
@@ -3874,7 +3874,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4365, 168),
+                "c.expression.sizeof": (4484, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -3888,7 +3888,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 )
             self.assertEqual(
                 features["c.extension.gnu_alignof"]["files"],
-                ["kernel/core/process.c"],
+                ["kernel/core/process.cc"],
             )
             self.assertEqual(
                 features["c.extension.gnu_alignof"]["examples"][0]["line"],
@@ -3899,7 +3899,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for transform in audit_payload["build"]["transforms"]
             }
             symbol_transform = root_transform_by_output[
-                "kernel/cpu/ksyms_data.c"
+                "kernel/cpu/ksyms_data.cc"
             ]
             self.assertEqual(
                 symbol_transform["tools"],
@@ -4217,9 +4217,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 142,
-                    "host_c_compiler": 155,
-                    "host_python": 154,
+                    "cupid_c_compiler": 151,
+                    "host_c_compiler": 146,
+                    "host_python": 163,
                 },
             )
 
@@ -4244,6 +4244,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             source_by_path = {
                 source["path"]: source for source in audit_payload["sources"]
             }
+            self.assertEqual(
+                source_by_path["kernel/lang/as.cc"]["cohort"],
+                "cupidasm",
+            )
             for source_path in cupidc_kernel_sources:
                 with self.subTest(cupidc_owned_source=source_path):
                     self.assertEqual(
@@ -4383,6 +4387,85 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(stale.returncode, 1)
             self.assertIn(manifest.name, stale.stderr)
+
+    def test_generated_kernel_symbols_use_the_checked_cupidc_graph(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            transforms = {
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
+            }
+            generated = transforms["kernel/cpu/ksyms_data.cc"]
+            self.assertEqual(
+                generated["tools"],
+                ["cupid_disassembler", "host_python"],
+            )
+            self.assertEqual(generated["operation"], "generate_c_source")
+            self.assertEqual(
+                set(generated["inputs"]),
+                {
+                    "kernel/kernel.elf.pass1",
+                    "tools/hostbuild.py",
+                    "Makefile",
+                    "toolchain/build/cupiddis"
+                    + (".exe" if sys.platform == "win32" else ""),
+                },
+            )
+
+            compiled = transforms["kernel/cpu/ksyms_data.o"]
+            self.assertEqual(
+                compiled["tools"],
+                ["cupid_c_compiler", "host_python"],
+            )
+            self.assertEqual(
+                compiled["operation"],
+                "compile_c_to_elf32_object",
+            )
+            self.assertEqual(
+                set(compiled["inputs"]),
+                {
+                    "kernel/cpu/ksyms_data.cc",
+                    "kernel/cpu/ksyms.h",
+                    "kernel/core/types.h",
+                    "Makefile",
+                    "tools/cupidc_kernel_compile.py",
+                    "tools/kernel_cupidc_frontier.py",
+                    "tools/bootstrap_toolchain.py",
+                    "bootstrap/seeds/i386-linux/manifest.json",
+                    "bootstrap/seeds/i386-linux/cupidasm.elf",
+                    "bootstrap/seeds/i386-linux/cupidc.elf",
+                    "bootstrap/seeds/i386-linux/cupiddis.elf",
+                    "bootstrap/seeds/i386-linux/cupidld.elf",
+                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                },
+            )
+            sources = {
+                entry["path"]: entry for entry in audit["sources"]
+            }
+            self.assertEqual(
+                sources["kernel/cpu/ksyms_data.cc"]["language"],
+                "cupid_c",
+            )
+            self.assertEqual(
+                sources["kernel/cpu/ksyms_data.cc"]["origin"],
+                "generated",
+            )
+            self.assertNotIn("kernel/cpu/ksyms_data.c", transforms)
 
     def test_make_include_extraction_keeps_assignment_adjacent_first_root(self):
         with tempfile.TemporaryDirectory() as td:

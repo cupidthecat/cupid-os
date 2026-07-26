@@ -1,9 +1,10 @@
 /*
  * ksyms - kernel function symbol table for backtrace decoding.
  *
- * The blob lives in section .ksyms, contributed by ksyms_data.o (built
- * from a generated C file in two passes - first link extracts symbols,
- * second link embeds them).  See tools/mksyms.sh.
+ * The blob lives in section .ksyms and comes from ksyms_data.o. The normal
+ * two-pass build runs tools/hostbuild.py mksyms on kernel/kernel.elf.pass1,
+ * then compiles and embeds the generated translation. The legacy
+ * tools/mksyms.sh oracle documents the shared blob format.
  *
  * If the blob is absent or has bad magic, all lookups return NULL and
  * callers fall back to printing raw addresses.  This keeps panics
@@ -14,16 +15,16 @@
 
 #define KSYM_MAGIC 0x4D59534BU /* 'KSYM' little-endian */
 
-/* Defined either by the generated ksyms_data.c (real blob) or below as
+/* Defined either by the generated ksyms_data.cc (real blob) or below as
  * a weak fallback so an un-extracted build still links.*/
-extern const unsigned char ksym_blob[];
+extern const unsigned int ksym_blob[];
 extern const unsigned int  ksym_blob_size;
 
 /* Weak fallbacks: a 16-byte zero header so the blob is "present but
  * empty".  ksym_lookup() detects bad magic and returns NULL.  These
  * symbols are overridden by ksyms_data.o once the second-pass link
  * runs.*/
-const unsigned char ksym_blob[16] __attribute__((weak,
+const unsigned int ksym_blob[4] __attribute__((weak,
     section(".ksyms"), aligned(4))) = {0};
 const unsigned int ksym_blob_size __attribute__((weak)) = 0;
 

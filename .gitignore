@@ -34,6 +34,7 @@ __pycache__/
 
 # Generated build intermediates
 /kernel/cpu/ksyms_data.c
+/kernel/cpu/ksyms_data.cc
 /kernel/util/bin_programs_gen.c
 /kernel/util/docs_programs_gen.c
 /kernel/util/demos_programs_gen.c
@@ -44,6 +45,7 @@ __pycache__/
 # Runtime, test, and baseline output
 /build/
 /toolchain/build/
+/toolchain/build-*/
 /user/build/
 /debug.log
 /tests/*.log

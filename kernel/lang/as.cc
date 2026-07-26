@@ -1,5 +1,5 @@
 /**
- * as.c - CupidASM kernel policy adapter for CupidOS
+ * as.cc - CupidASM kernel policy adapter for Cupid OS
  *
  * Provides the main entry points for JIT and AOT assembly:
  *   - as_jit(): Assemble and execute a .asm file immediately

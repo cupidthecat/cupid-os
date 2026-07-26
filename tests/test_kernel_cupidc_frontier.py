@@ -156,8 +156,12 @@ SOURCE_DRIVEN_SOURCES = [
     "drivers/serial.cc",
     "drivers/timer.cc",
     "kernel/core/app_launch.cc",
+    "kernel/core/panic.cc",
+    "kernel/core/process.cc",
+    "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
+    "kernel/cpu/pic.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
     "kernel/fs/loopdev.cc",
@@ -165,13 +169,17 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/gfx/gfx2d.cc",
     "kernel/gfx/png.cc",
     "kernel/gui/ed.cc",
+    "kernel/lang/as.cc",
+    "kernel/lang/cupidc.cc",
     "kernel/lang/cupidc_parse.cc",
     "kernel/lang/cupidc_string.cc",
     "kernel/lang/ssh_io.cc",
     "kernel/mm/memory.cc",
+    "kernel/mm/paging.cc",
     "kernel/network/sshd.cc",
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
+    "kernel/smp/lapic.cc",
     "kernel/tls/tls_ca_bundle.cc",
 ]
 KERNEL_SOURCES = sorted(
@@ -183,6 +191,7 @@ KERNEL_SOURCES = sorted(
     + TOOLCHAIN_KERNEL_SOURCES
     + SOURCE_DRIVEN_SOURCES
 )
+FRONTIER_TIMEOUT_SECONDS = max(1200, 15 * len(KERNEL_SOURCES))
 
 BOUNDARY_DIAGNOSTICS = {}
 
@@ -537,7 +546,8 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (136 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok "
+                f"({len(KERNEL_SOURCES)} sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -827,7 +837,8 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (136 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok "
+                f"({len(KERNEL_SOURCES)} sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -858,10 +869,13 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(list((output / "negative").iterdir()), [])
-            self.assertEqual(manifest["input_snapshot"]["count"], 136)
+            self.assertEqual(
+                manifest["input_snapshot"]["count"],
+                len(KERNEL_SOURCES),
+            )
             self.assertEqual(
                 len(manifest["input_snapshot"]["files"]),
-                136,
+                len(KERNEL_SOURCES),
             )
             self.assertEqual(
                 len(manifest["input_snapshot"]["sha256"]),
@@ -1699,13 +1713,14 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 cwd=REPO_ROOT,
                 text=True,
                 capture_output=True,
-                timeout=1200,
+                timeout=FRONTIER_TIMEOUT_SECONDS,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (136 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok "
+                f"({len(KERNEL_SOURCES)} sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
@@ -1717,7 +1732,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3020108,
+                3514456,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1864,6 +1879,21 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "242aa3d0d14d70f6096fd64d3cff4a52"
                     "a148b3caa660190c1024da0b0f6b1e9f",
                 ),
+                "kernel/core/panic.cc": (
+                    10212,
+                    "84daa51a65d6970ae7a7918b05fe64b7"
+                    "676c39d3309264375e349cf0ae20d428",
+                ),
+                "kernel/core/process.cc": (
+                    30216,
+                    "819e6e712cdb08d3b1b112fcc42122a1"
+                    "aa5802b19c0cac8c1a3edbc0bca620d4",
+                ),
+                "kernel/cpu/idt.cc": (
+                    8756,
+                    "0ad16fd3250bc09ced7c928cb287123db"
+                    "245980de73c15f0249db71a2f2f6ea3",
+                ),
                 "kernel/cpu/irq.cc": (
                     4308,
                     "96356f3cfa63bbef6acf5a352e0ce89e"
@@ -1873,6 +1903,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     2620,
                     "5d64f392df38b6730ff30c3099c3bdfd"
                     "96bcc84d90740e20fd263c1ad7c94389",
+                ),
+                "kernel/cpu/pic.cc": (
+                    2408,
+                    "c1855a19e0cd285953996344493dcefe9"
+                    "16f06d89fed706219718920b4d2ea5d",
                 ),
                 "kernel/fs/fat16.cc": (
                     52084,
@@ -1909,6 +1944,16 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "7bc80e9e9371d8827ce71502df104d67"
                     "9e47b20300c1a45969845aefdaabedf6",
                 ),
+                "kernel/lang/as.cc": (
+                    148056,
+                    "f05ffb741a81403f3bfb86358b3f9601"
+                    "1b2ddef65c87e291f582c1d77b0cedfd",
+                ),
+                "kernel/lang/cupidc.cc": (
+                    288180,
+                    "4e8501e628a770b346bbe16e23d9549c"
+                    "4320f1f01f0ddcb9309b907a8c898046",
+                ),
                 "kernel/lang/cupidc_parse.cc": (
                     290084,
                     "f5856f1ae536c7be8daadf913bd54a94"
@@ -1929,6 +1974,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "7e0dc352c315dba8250bf7ae9b126c27"
                     "2e0b98f2cf0bf7429a6d7675d82636c1",
                 ),
+                "kernel/mm/paging.cc": (
+                    2336,
+                    "fc9b757a35cf474f90436333ba732be2"
+                    "52253feeea531cad851215e17f793e2d",
+                ),
                 "kernel/network/sshd.cc": (
                     48936,
                     "319919ad47d1346aa2a2450f75dd4092"
@@ -1944,6 +1994,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "254793a6970f466cf4b3d55a98e907d1"
                     "a68649a9b6dc736edadc5697bd316fd3",
                 ),
+                "kernel/smp/lapic.cc": (
+                    4184,
+                    "6ce344d265ad3fb6b221a9159d860954"
+                    "c5f5512a7eac526838e69bc181a4c045",
+                ),
                 "kernel/tls/tls_ca_bundle.cc": (
                     388,
                     "f94fe7c44ba8fbb94df7ef97f8e37c6d"
@@ -1957,11 +2012,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 424)
+            self.assertEqual(manifest["input_snapshot"]["count"], 432)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "24fcfba4f006dad77a742e02b31edd88"
-                "9d3a62010adb352d6f57965377557cd1",
+                "7670679039ca8f2b9b7816a68cb9b391"
+                "d8a2e65f6b03a7a043d35005b75283bf",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],
