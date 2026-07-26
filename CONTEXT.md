@@ -173,7 +173,7 @@ A GNU-mode CupidC statement whose immutable frontend record owns a decoded templ
 _Avoid_: general GNU assembly support, host-assembler escape
 
 **Represented GNU entity attribute**:
-A GNU-mode `weak`, `section`, or `unused` fact attached to the canonical file-scope object or function after compatible redeclarations merge. `weak` selects ELF weak binding. `section` owns one decoded nonreserved ELF section name and directs compatible object or function definitions there. `unused` records source intent without changing generated instructions or data. Invalid placement, conflicting section names, malformed arguments, and GNU-disabled use fail transactionally.
+A GNU-mode `weak`, `section`, `unused`, or `used` fact attached to the canonical file-scope object or function after compatible redeclarations merge. `weak` selects ELF weak binding. `section` owns one decoded nonreserved ELF section name and directs compatible object or function definitions there. `unused` records that a declaration may lack an ordinary use. `used` records that a definition must remain in object output. Every represented definition currently reaches ELF32 output, so `used` changes metadata rather than bytes. Invalid placement, conflicting section names, malformed arguments, forged frozen metadata, and GNU-disabled use fail transactionally. The checked seed predates `used`.
 _Avoid_: skipped attribute text, every GNU attribute, hardcoded active section names
 
 **Represented GNU integer atomic**:

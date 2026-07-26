@@ -572,6 +572,10 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
         (candidate->attributes & CTOOL_C_DECL_ATTR_UNUSED) != 0u
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool used =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_USED) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool weak =
         (candidate->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u
             ? CTOOL_TRUE
@@ -600,6 +604,13 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
          (candidate->kind != CTOOL_C_BINDING_OBJECT &&
           candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
         (unused == CTOOL_TRUE &&
+         candidate->file_scope_visible == CTOOL_FALSE) ||
+        (used == CTOOL_TRUE &&
+         candidate->type >= unit->graph.type_count) ||
+        (used == CTOOL_TRUE &&
+         (candidate->kind != CTOOL_C_BINDING_OBJECT &&
+          candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
+        (used == CTOOL_TRUE &&
          candidate->file_scope_visible == CTOOL_FALSE)) {
       return cir_invalid_unit(context, &candidate->location);
     }

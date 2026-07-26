@@ -3238,12 +3238,6 @@ static int run_unused_attributes(const char *host_root) {
        "void bad(void) { extern void helper(void) "
        "__attribute__((unused)); }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-      {"used remains unsupported",
-       "int bad __attribute__((used));\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
-      {"unused does not enable used",
-       "int bad __attribute__((unused, used));\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
       {"noinline remains unsupported",
        "int bad(void) __attribute__((noinline));\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
@@ -3338,6 +3332,164 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("unused-attributes: ok\n");
+  }
+  return failed;
+}
+
+static int run_used_attributes(const char *host_root) {
+  static const char source[] =
+      "__attribute__((used))\n"
+      "static int kept_value = 1;\n"
+      "static int kept_function(void) __attribute__((__used__));\n"
+      "static int kept_function(void) { return kept_value; }\n"
+      "extern int late_used;\n"
+      "extern int late_used __attribute__((used));\n"
+      "extern int early_used __attribute__((used));\n"
+      "extern int early_used;\n"
+      "static __attribute__((used)) int middle_used;\n"
+      "__attribute__((used, __used__))\n"
+      "static int repeated_used(void) { return 2; }\n"
+      "static int definition_used(void) __attribute__((used)) "
+      "{ return 3; }\n"
+      "static int combined_value __attribute__((unused, used)) = 4;\n"
+      "int ordinary_value;\n";
+  static const char generated_source[] =
+      "/* Exact declaration shape emitted by tools/hostbuild.py mksyms. */\n"
+      "const unsigned char\n"
+      "__attribute__((section(\".ksyms\"), used, aligned(4)))\n"
+      "ksym_blob[] = {\n"
+      "  0x4b, 0x53, 0x59, 0x4d,\n"
+      "};\n"
+      "const unsigned int ksym_blob_size = sizeof(ksym_blob);\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"used argument",
+       "int bad __attribute__((used(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unterminated used argument",
+       "int bad __attribute__((used(\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"used typedef",
+       "typedef int bad_t __attribute__((used));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"used record",
+       "struct bad { int value; } __attribute__((used));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"used member",
+       "struct bad { int value __attribute__((used)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"used parameter specifier",
+       "void bad(int __attribute__((used)) value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"used parameter declarator",
+       "void bad(int value __attribute__((used)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"used block object",
+       "void bad(void) { int value __attribute__((used)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"used block function",
+       "void bad(void) { extern void helper(void) "
+       "__attribute__((used)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled used attribute",
+      "int disabled __attribute__((used));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const char *const used_names[] = {
+      "kept_value", "kept_function", "late_used", "early_used",
+      "middle_used", "repeated_used", "definition_used"};
+  frontend_fixture_t fixture;
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_translation_unit_t unit;
+  const ctool_c_binding_t *binding;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "used-attributes", host_root,
+                             256u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/used-attributes.c", source, &unit) !=
+          0 ||
+      unit.binding_count != 9u || unit.object_definition_count != 4u ||
+      unit.function_definition_count != 3u) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(used_names); index++) {
+    binding = find_binding(&unit, used_names[index]);
+    if (binding == NULL ||
+        (binding->kind != CTOOL_C_BINDING_OBJECT &&
+         binding->kind != CTOOL_C_BINDING_FUNCTION) ||
+        binding->attributes != CTOOL_C_DECL_ATTR_USED ||
+        binding->section_name.size != 0u) {
+      (void)fprintf(stderr,
+                    "used-attributes: canonical entity metadata differs\n");
+      goto cleanup;
+    }
+  }
+  binding = find_binding(&unit, "combined_value");
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+      binding->attributes !=
+          (CTOOL_C_DECL_ATTR_UNUSED | CTOOL_C_DECL_ATTR_USED)) {
+    (void)fprintf(stderr,
+                  "used-attributes: combined entity metadata differs\n");
+    goto cleanup;
+  }
+  binding = find_binding(&unit, "ordinary_value");
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+      binding->attributes != 0u || binding->section_name.size != 0u) {
+    (void)fprintf(stderr,
+                  "used-attributes: ordinary entity metadata differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    if (expect_frontend_failure(&fixture, &failure_cases[index],
+                                "/used-attributes-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(&fixture, &disabled_case,
+                              "/used-attributes-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0 ||
+      parse_valid_fixture(&fixture, "/kernel/cpu/ksyms_data.c",
+                          generated_source, &unit) != 0) {
+    goto cleanup;
+  }
+  binding = find_binding(&unit, "ksym_blob");
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+      binding->attributes !=
+          (CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_USED) ||
+      !string_equal(binding->section_name, ".ksyms") ||
+      binding->minimum_alignment != 4u) {
+    (void)fprintf(stderr,
+                  "used-attributes: generated symbol blob metadata differs\n");
+    goto cleanup;
+  }
+  binding = find_binding(&unit, "ksym_blob_size");
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+      binding->attributes != 0u) {
+    (void)fprintf(stderr,
+                  "used-attributes: generated size metadata differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("used-attributes: ok\n");
   }
   return failed;
 }
@@ -5543,7 +5695,7 @@ static int run_block_typedefs(const char *host_root) {
   int failed = 1;
 
   if (begin_frontend_fixture(&fixture, "block-typedefs", host_root,
-                             8u * 1024u * 1024u) != 0) {
+                             16u * 1024u * 1024u) != 0) {
     return 1;
   }
   if (parse_valid_fixture(&fixture, "/block-typedefs.c", source, &unit) != 0 ||
@@ -7208,12 +7360,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 203u, 6215u,
-       55760u, 790u, 287u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 204u, 5550u,
-       47370u, 666u, 341u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 203u, 6216u,
+       55830u, 791u, 288u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 204u, 5551u,
+       47442u, 667u, 342u, 0u, 0u},
       {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 322u,
-       13098u, 85809u, 1924u, 1279u, 0u, 0u},
+       13127u, 86011u, 1924u, 1279u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -25474,7 +25626,7 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|weak-attributes|"
-                   "section-attributes|unused-attributes|"
+                   "section-attributes|unused-attributes|used-attributes|"
                    "static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
@@ -25525,6 +25677,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "unused-attributes") == 0) {
     return run_unused_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "used-attributes") == 0) {
+    return run_used_attributes(argv[2]);
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);

@@ -30110,6 +30110,137 @@ cleanup:
   return 1;
 }
 
+static int run_used_attributes(const char *host_root) {
+  static const char source[] =
+      "typedef int scalar_t;\n"
+      "static int kept_value __attribute__((used)) = 3;\n"
+      "static int kept_helper(void) __attribute__((__used__));\n"
+      "static int kept_helper(void) { return kept_value; }\n"
+      "int ordinary_helper(void) { return 0; }\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_ir_unit_t ir;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_u32 scalar;
+  ctool_u32 kept_value;
+  ctool_u32 kept_helper;
+  ctool_u32 ordinary_helper;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/used-attributes-ir.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  scalar = find_binding(&unit, "scalar_t");
+  kept_value = find_binding(&unit, "kept_value");
+  kept_helper = find_binding(&unit, "kept_helper");
+  ordinary_helper = find_binding(&unit, "ordinary_helper");
+  if (scalar >= unit.binding_count || kept_value >= unit.binding_count ||
+      kept_helper >= unit.binding_count ||
+      ordinary_helper >= unit.binding_count ||
+      unit.bindings[kept_value].attributes != CTOOL_C_DECL_ATTR_USED ||
+      unit.bindings[kept_helper].attributes != CTOOL_C_DECL_ATTR_USED ||
+      unit.bindings[ordinary_helper].attributes != 0u) {
+    (void)fprintf(stderr, "used attribute IR fixture metadata differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "used attribute lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint || ir.function_count != 2u ||
+      ir.functions == NULL) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < ir.function_count; index++) {
+    if (ir.functions[index].section_name.size != 0u) {
+      (void)fprintf(stderr,
+                    "used attribute changed function IR metadata\n");
+      goto cleanup;
+    }
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[ordinary_helper].attributes |= CTOOL_C_DECL_ATTR_USED;
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &mutant, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "valid public used metadata lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_USED;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "used attribute on a public typedef")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[kept_helper].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "used entity with an invalid public type")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[kept_helper].file_scope_visible = CTOOL_FALSE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "used entity hidden from file scope")) {
+    goto cleanup;
+  }
+  if (!expect_ir_success_preserves_unit(
+          job, &unit, "used attribute same-job recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("used-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_weak_attributes(const char *host_root) {
   static const char source[] =
       "extern int unused_weak __attribute__((weak));\n"
@@ -30242,6 +30373,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "unused-attributes") == 0) {
     return run_unused_attributes(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "used-attributes") == 0) {
+    return run_used_attributes(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "weak-attributes") == 0) {
     return run_weak_attributes(argv[2]);
@@ -30386,7 +30520,8 @@ int main(int argc, char **argv) {
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
                 "switch-control|constant-true-loops|comma-expressions|"
-                "section-attributes|unused-attributes|weak-attributes|"
+                "section-attributes|unused-attributes|used-attributes|"
+                "weak-attributes|"
                 "switch-nesting|"
                 "integer-compounds|integer-compound-conversions|"
                 "integer-update-conversions|narrow-mutations|"

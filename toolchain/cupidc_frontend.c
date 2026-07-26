@@ -121,6 +121,8 @@ typedef struct {
   const ctool_c_pp_token_t *section_token;
   ctool_bool unused;
   const ctool_c_pp_token_t *unused_token;
+  ctool_bool used;
+  const ctool_c_pp_token_t *used_token;
 } cfront_attributes_t;
 
 typedef struct {
@@ -4058,7 +4060,8 @@ static ctool_bool cfront_attributes_any(
                  attributes->noreturn == CTOOL_TRUE ||
                  attributes->weak == CTOOL_TRUE ||
                  attributes->has_section == CTOOL_TRUE ||
-                 attributes->unused == CTOOL_TRUE
+                 attributes->unused == CTOOL_TRUE ||
+                 attributes->used == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -4079,6 +4082,9 @@ static const ctool_c_pp_token_t *cfront_first_attribute_token(
   }
   if (attributes->unused_token != (const ctool_c_pp_token_t *)0) {
     return attributes->unused_token;
+  }
+  if (attributes->used_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->used_token;
   }
   return attributes->section_token;
 }
@@ -4108,6 +4114,12 @@ static ctool_status_t cfront_validate_record_attributes(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
         attributes->unused_token,
         "unused attribute cannot apply to a record type");
+  }
+  if (attributes->used == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->used_token,
+        "used attribute cannot apply to a record type");
   }
   return CTOOL_OK;
 }
@@ -4362,6 +4374,23 @@ static ctool_status_t cfront_parse_attributes(
                 context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
                 cfront_peek(context),
                 "unused attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "used") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__used__") == CTOOL_TRUE) {
+        attributes->used = CTOOL_TRUE;
+        if (attributes->used_token == (const ctool_c_pp_token_t *)0) {
+          attributes->used_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "used attribute does not accept arguments");
           }
           (void)cfront_advance(context);
         }
@@ -6117,6 +6146,12 @@ static ctool_status_t cfront_parse_member_declaration(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
           declarator_attributes.unused_token,
           "unused attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.used == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.used_token,
+          "used attribute cannot apply to a record member");
     }
     status = cfront_build_declarator(
         context, root, specifiers.type, &type, &name, &location,
@@ -16212,6 +16247,16 @@ static ctool_status_t cfront_parse_external_declaration(
             "unused attribute requires a file-scope object or function");
       }
       binding_semantics.attributes |= CTOOL_C_DECL_ATTR_UNUSED;
+    }
+    if (declarator_attributes.used == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_OBJECT &&
+          kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.used_token,
+            "used attribute requires a file-scope object or function");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_USED;
     }
     status = cfront_validate_function_specifier_context(
         context, &specifiers,

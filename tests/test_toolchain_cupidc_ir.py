@@ -74,6 +74,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "unused-attributes: ok\n")
 
+    def test_used_attributes_validate_without_changing_function_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "used-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "used-attributes: ok\n")
+
     def test_weak_attributes_require_external_object_or_function_bindings(self):
         result = subprocess.run(
             [str(self.contract_path), "weak-attributes", str(REPO_ROOT)],

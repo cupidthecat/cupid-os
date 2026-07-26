@@ -9570,3 +9570,66 @@ execution in 53.658 seconds. Its 53,819-byte serial log has SHA-256
 ADR 0115 records the ownership decision, exact frontier, remaining host
 boundary, and runtime proof. TempleOS remained read-only and outside every
 metric.
+
+## 2026-07-26: retain GNU used entities at compiler head
+
+CupidC now accepts `used` and `__used__` on GNU-mode file-scope object and
+function declarations. Compatible redeclarations merge the flag into the
+canonical binding. Repeated spellings are harmless, and `used` may appear
+with `unused`.
+
+The frontend rejects arguments and placements on records, members, typedefs,
+parameters, block objects, and block function declarations. GNU-disabled
+source keeps its existing unsupported-attribute diagnostic. Linear IR and
+object emission validate that a frozen `used` binding has a valid type, names
+an object or function, and remains visible at file scope. Forged metadata
+fails without changing the input or publishing partial output, and the same
+job can process the original unit afterward.
+
+The attribute changes canonical metadata, not current object bytes. CupidC
+already emits every represented file-scope definition, including
+unreferenced local objects and functions. The object contract compares an
+attributed fixture with the same source without attributes and requires
+identical ELF32 bytes. It also confirms that both local definitions remain in
+the symbol table.
+
+The generated kernel-symbol declaration is the active source requirement. A
+hermetic fixture keeps the exact
+`section(".ksyms"), used, aligned(4)` shape without depending on an ignored
+build artifact. Its deterministic data-only object has an allocated
+four-byte-aligned `.ksyms` section, matching blob and size symbols, no
+relocations, and no required `.text` section.
+
+An earlier test revision read the ignored generated file directly. That made
+a clean contract depend on local build state, so it was not kept. The
+hermetic declaration fixture now supplies the permanent contract. A separate
+compiler-head probe still compiled the real current
+`kernel/cpu/ksyms_data.c` twice under the complete `KERNEL_I386` profile.
+Both 101,808-byte ELF32 objects have SHA-256
+`802b604aa24261b48251a537c011e7d81839fab67fbe3c7491e7991ad4797ae3`.
+The generated source was 621,273 bytes.
+
+The added contract cases first exhausted the frontend block-typedef fixture's
+eight-MiB arena. The fixture now reserves sixteen MiB, which keeps its original
+semantic boundary while allowing the larger shared frontend. The complete
+toolchain run then found stale active-source inventory and exact self-host
+object locks. Those values were refreshed from the staged compiler sources
+and deterministic objects.
+
+### Focused evidence
+
+| Gate | Result |
+| --- | --- |
+| Strict host builds | Fresh Clang builds of the frontend, Linear IR, and object contract binaries passed |
+| Frontend selector | `used-attributes` passed with both spellings, redeclaration merging, combined metadata, invalid arguments and placements, GNU-disabled input, and recovery |
+| Linear IR selector | `used-attributes` passed with unchanged function IR, frozen-metadata failures, rollback, and same-job recovery |
+| Object selector | `used-attributes` passed with byte-identical attributed and plain output, retained local definitions, the hermetic generated declaration, frozen-metadata failures, deterministic output, rollback, and recovery |
+| Public wrappers | The frontend, Linear IR, and object Python wrapper tests passed |
+| Real generated source | Two compiler-head builds produced the same 101,808-byte validated ELF32 object |
+| Complete toolchain target | The exact staged source tree passed every toolchain contract in 48.5 seconds |
+
+This is a compiler-head capability. The checked seed still comes from
+revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af` and does not contain
+`used`. The normal Make graph therefore keeps the generated symbol source on
+GCC or Clang. A seed refresh, production recipe transfer, full image build,
+and runtime proof remain separate work. ADR 0116 records the decision.

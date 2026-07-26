@@ -186,8 +186,9 @@ used by larger examples and demos:
 - storage/qualifier spellings: `extern`, `inline`, `register`, `restrict`, `const`, `volatile`
 - wide type spellings: `long`, `short`, `signed`, `unsigned`, `long long`
 - attributes: the private in-OS compiler accepts compatibility spellings; the
-  shared bootstrap compiler gives `weak`, `section`, and `unused` their
-  declaration and ELF meaning
+  shared bootstrap compiler gives `weak`, `section`, `unused`, and `used`
+  canonical declaration meaning, while the current checked seed carries the
+  first three into production
 - labels and `goto` for simple local control-flow cases
 
 Most of these are compatibility front-end features, not a promise of
@@ -206,8 +207,15 @@ to another function-pointer type or to and from a represented 32-bit integer
 without changing the target bits. Exact output-only GNU assembly can snapshot
 a general register, ESP, EBP, `4(%ebp)`, or EFLAGS into one four-byte object.
 These forms have positive and negative frontend, IR, and deterministic ELF32
-contracts. The 20 newly passing roots remain outside production ownership
-until their image and runtime gates pass.
+contracts. The 20 source-driven roots carried by this seed now belong to the
+production cohort.
+
+Compiler head also accepts GNU `used` and `__used__` on file-scope objects
+and functions. Compatible redeclarations merge the flag, and the Linear IR
+and object boundaries reject invalid frozen metadata. Current ELF32 bytes do
+not change because every represented definition is already emitted. The
+generated kernel-symbol source passes deterministic compiler-head emission,
+but the checked seed and normal recipe still predate this capability.
 
 The shared path also carries signed and unsigned eight-byte integer values. Full-width constants, matching conditional arms, fixed direct and indirect call results, object loads, declared parameters, and named call arguments use one Linear IR handle backed by a private eight-byte frame snapshot. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. The return boundary places the low word in EAX and the high word in EDX. Addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths use the same snapshot path. A wide switch evaluates its condition once, duplicates the snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and keeps one semantic load and store. Multiplication combines the full low-word product with the low halves of both cross-word products. Division and remainder use a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. The usual arithmetic rules can convert `signed long long` to `unsigned long long`, and GNU wide enums promote to their compatible signed or unsigned wide type. Exact source guards cover `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, and X25519 `fe_carry`; focused fixtures lower and emit the required operation shapes. The unchanged `cfront_constant_apply_binary` body guards signed and unsigned quotient and remainder. CupidASM's number parser and unary expression branch guard the arithmetic, while X25519's `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 

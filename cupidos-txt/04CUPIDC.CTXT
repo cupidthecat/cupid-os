@@ -545,6 +545,14 @@ non-fallthrough, and supports represented function-pointer casts that keep all
 32 target bits. Exact output-only GNU assembly can snapshot general registers,
 ESP, EBP, the caller return slot, or EFLAGS. These additions are part of the
 normal production path after the frontier, image, and runtime proofs passed.
+
+Compiler head also accepts used and __used__ on file-scope objects and
+functions. Compatible redeclarations merge the flag into one canonical
+entity. Linear IR and object emission validate the frozen metadata. The
+attribute does not change current object bytes because every represented
+definition is already emitted. The generated kernel-symbol source passes
+deterministic compiler-head emission, but the checked seed and normal build
+still use the earlier compiler boundary.
 >endtree
 
 >h2 C Compatibility Notes
@@ -554,7 +562,8 @@ CupidC remains a small in-OS compiler, not hosted GCC C.
 Accepted for source compatibility:
   long, short, signed, unsigned, long long
   extern, inline, register, restrict
-  private compatibility attributes; shared weak, section, and unused semantics
+  private compatibility attributes; shared weak, section, unused, and
+  compiler-head used semantics
   labels and goto
   constant integer expressions in enum/array bounds
 

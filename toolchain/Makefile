@@ -427,6 +427,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) attributes ..
 	$(CUPIDC_FRONTEND_CONTRACT) section-attributes ..
 	$(CUPIDC_FRONTEND_CONTRACT) unused-attributes ..
+	$(CUPIDC_FRONTEND_CONTRACT) used-attributes ..
 	$(CUPIDC_FRONTEND_CONTRACT) static-asserts ..
 	$(CUPIDC_FRONTEND_CONTRACT) function-bodies ..
 	$(CUPIDC_FRONTEND_CONTRACT) old-style-empty-functions ..
@@ -478,6 +479,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) active-leaf ..
 	$(CUPIDC_IR_CONTRACT) section-attributes ..
 	$(CUPIDC_IR_CONTRACT) unused-attributes ..
+	$(CUPIDC_IR_CONTRACT) used-attributes ..
 	$(CUPIDC_IR_CONTRACT) integer-updates ..
 	$(CUPIDC_IR_CONTRACT) integer-compounds ..
 	$(CUPIDC_IR_CONTRACT) integer-compound-conversions ..
@@ -522,6 +524,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
 	$(CUPIDC_OBJECT_CONTRACT) section-attributes ..
 	$(CUPIDC_OBJECT_CONTRACT) unused-attributes ..
+	$(CUPIDC_OBJECT_CONTRACT) used-attributes ..
 	$(CUPIDC_OBJECT_CONTRACT) integer-mutation ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-values ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-comparisons ..

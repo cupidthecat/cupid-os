@@ -73,6 +73,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_gnu_unused_attributes_mark_canonical_entities(self):
         self.run_contract("unused-attributes")
 
+    def test_gnu_used_attributes_retain_file_scope_definitions(self):
+        self.run_contract("used-attributes")
+
     def test_static_asserts_use_target_sizeof_and_integer_relations(self):
         self.run_contract("static-asserts")
 

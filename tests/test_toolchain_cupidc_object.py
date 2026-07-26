@@ -329,6 +329,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "unused-attributes: ok\n")
 
+    def test_used_attributes_retain_local_elf_definitions(self):
+        result = subprocess.run(
+            [str(self.contract_path), "used-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "used-attributes: ok\n")
+
     def test_static_typed_null_pointer_uses_zero_storage(self):
         result = subprocess.run(
             [str(self.contract_path), "static-typed-null", str(REPO_ROOT)],

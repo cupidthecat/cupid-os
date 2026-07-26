@@ -70,6 +70,17 @@ general-register and EFLAGS snapshots, and canonical `weak`, named `section`,
 and `unused` metadata. ADR 0115 moves the 20 passing roots into production and
 renames them to `.cc`. Eighteen strict checked-in roots remain host-owned.
 
+Compiler head now accepts GNU `used` and `__used__` on canonical file-scope
+objects and functions. The Linear IR and object boundaries validate the
+frozen flag, and the focused object proof reproduces the generated
+`section(".ksyms"), used, aligned(4)` declaration. The current generated
+`kernel/cpu/ksyms_data.c` compiles twice to the same 101,808-byte object with
+SHA-256
+`802b604aa24261b48251a537c011e7d81839fab67fbe3c7491e7991ad4797ae3`.
+This removes a compiler-head language blocker but retires no host dependency.
+The checked seed predates the capability, so GCC or Clang still compiles that
+generated root in the normal build. ADR 0116 records the boundary.
+
 Value-preserving bit-field assignment changes compiler capability without moving another output. Four focused functions cover unsigned, signed, full-width, pointer-derived, and indexed stores. The execution oracle checks the stored value, neighboring bits, arguments, and stack state. GCC or Clang still builds the shared frontend, Linear IR, emitter, and contracts. The proof adds no transform beyond the 136-object production cohort and retires no executable, linker, assembler, or object-tool dependency.
 
 Eight-byte integer values cross the shared path through full-width constants, matching conditional results, fixed direct and indirect call results, object access, initialization, plain and chained assignment, declared parameters, named arguments, ellipsis and unprototyped call arguments, variadic reads, discard, returns, arithmetic, unary operations, shifts, bitwise operations, comparisons, logical operations, conditions, switch dispatch, and conversion to or from represented integer widths. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements use private eight-byte frame snapshots. The i386 emitter restores the low word to EAX and the high word to EDX on return. Calls publish packed post-conversion actual types in emitted instruction order, which gives an open-position wide integer two adjacent stack words and advances a wide variadic cursor by eight bytes. The CupidC-built socket and TCP objects now use this production path. The deterministic result, object, parameter, operation, and call-position contracts remain host-built.

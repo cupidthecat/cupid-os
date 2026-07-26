@@ -24749,16 +24749,16 @@ static int validate_active_self_host_frontier_objects(
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 392641u, 349802u, 645191u, 139612u, 70368u, 77981u,
+      190304u, 393225u, 350412u, 647357u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 419272u, 375736u, 765588u, 157796u, 79348u, 131640u,
+      226668u, 419856u, 376348u, 768316u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xb66f2486u, 0xd2d68b59u, 0x675c3720u, 0x3f69aac3u,
+      0xe746968bu, 0xb9dbfe42u, 0xe5269844u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -30090,6 +30090,398 @@ cleanup:
   return 1;
 }
 
+static int validate_generated_used_object(const char *host_root) {
+  static const char generated_source[] =
+      "/* Exact declaration shape emitted by tools/hostbuild.py mksyms. */\n"
+      "const unsigned char\n"
+      "__attribute__((section(\".ksyms\"), used, aligned(4)))\n"
+      "ksym_blob[] = {\n"
+      "  0x4b, 0x53, 0x59, 0x4d,\n"
+      "};\n"
+      "const unsigned int ksym_blob_size = sizeof(ksym_blob);\n";
+  ctool_host_adapter_t adapter;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_c_pp_include_root_t include_root;
+  ctool_c_pp_request_t pp_request;
+  ctool_c_pp_result_t tape;
+  ctool_c_parse_request_t parse_request;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *ksyms;
+  const ctool_elf32_section_t *rodata;
+  const ctool_elf32_symbol_t *blob_symbol;
+  const ctool_elf32_symbol_t *size_symbol;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 blob_binding = CTOOL_C_AST_NONE;
+  ctool_u32 size_binding = CTOOL_C_AST_NONE;
+  ctool_u32 encoded_size;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+
+  limits.arena_bytes = 256u * 1024u * 1024u;
+  status = ctool_host_adapter_init(&adapter, host_root);
+  if (!check_status(status, CTOOL_OK, "generated symbol host setup")) {
+    return 0;
+  }
+  config = ctool_host_job_config(&adapter, limits);
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "generated symbol job setup")) {
+    return 0;
+  }
+  path.text = ctool_string("/kernel/cpu/ksyms_data.c");
+  (void)memset(&source, 0, sizeof(source));
+  source.path = path;
+  source.contents =
+      ctool_bytes(generated_source,
+                  (ctool_u32)(sizeof(generated_source) - 1u));
+  (void)memset(&include_root, 0, sizeof(include_root));
+  include_root.directory.text = ctool_string("/kernel/core");
+  include_root.forms =
+      CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;
+  (void)memset(&pp_request, 0, sizeof(pp_request));
+  pp_request.mode = CTOOL_C_PP_MODE_C11;
+  pp_request.gnu_extensions = CTOOL_TRUE;
+  pp_request.hosted_environment = CTOOL_FALSE;
+  pp_request.include_roots = &include_root;
+  pp_request.include_root_count = 1u;
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&tape, 0xa5, sizeof(tape));
+  status = ctool_c_preprocess(job, &source, &pp_request, &tape);
+  if (!check_status(status, CTOOL_OK, "preprocess generated symbol source") ||
+      tape.tokens == NULL || tape.token_count == 0u ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memset(&parse_request, 0, sizeof(parse_request));
+  parse_request.mode = CTOOL_C_PP_MODE_C11;
+  parse_request.gnu_extensions = CTOOL_TRUE;
+  (void)memset(&unit, 0xa5, sizeof(unit));
+  status = ctool_c_parse(job, &tape, &parse_request, &unit);
+  if (!check_status(status, CTOOL_OK, "parse generated symbol source") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "ksym_blob") != 0) {
+      blob_binding = index;
+    } else if (string_equal(unit.bindings[index].name,
+                            "ksym_blob_size") != 0) {
+      size_binding = index;
+    }
+  }
+  if (blob_binding >= unit.binding_count ||
+      size_binding >= unit.binding_count ||
+      unit.bindings[blob_binding].kind != CTOOL_C_BINDING_OBJECT ||
+      unit.bindings[blob_binding].attributes !=
+          (CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_USED) ||
+      string_equal(unit.bindings[blob_binding].section_name, ".ksyms") == 0 ||
+      unit.bindings[blob_binding].minimum_alignment != 4u ||
+      unit.bindings[size_binding].kind != CTOOL_C_BINDING_OBJECT ||
+      unit.bindings[size_binding].attributes != 0u) {
+    (void)fprintf(stderr,
+                  "generated symbol source metadata differs\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 4096u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 4096u, config.limits.output_bytes, &second);
+  }
+  if (!check_status(status, CTOOL_OK, "generated symbol object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first generated symbol object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat generated symbol object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size == 0u || first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "generated symbol object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/kernel/cpu/ksyms_data.o");
+  object_source.contents = first_bytes;
+  (void)memset(&object, 0, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  ksyms = status == CTOOL_OK ? find_section(&object, ".ksyms") : NULL;
+  rodata = status == CTOOL_OK ? find_section(&object, ".rodata") : NULL;
+  blob_symbol =
+      status == CTOOL_OK ? find_symbol(&object, "ksym_blob") : NULL;
+  size_symbol =
+      status == CTOOL_OK ? find_symbol(&object, "ksym_blob_size") : NULL;
+  if (!check_status(status, CTOOL_OK, "read generated symbol object") ||
+      object.file_type != CTOOL_ELF32_ET_REL || ksyms == NULL ||
+      rodata == NULL || blob_symbol == NULL || size_symbol == NULL ||
+      find_section(&object, ".text") != NULL ||
+      object.relocation_count != 0u ||
+      ksyms->type != CTOOL_ELF32_SHT_PROGBITS ||
+      ksyms->flags != CTOOL_ELF32_SHF_ALLOC || ksyms->alignment != 4u ||
+      ksyms->size == 0u || ksyms->contents.size != ksyms->size ||
+      blob_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      blob_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      blob_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      blob_symbol->section_file_index != ksyms->file_index ||
+      blob_symbol->value != 0u || blob_symbol->size != ksyms->size ||
+      size_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      size_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      size_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      size_symbol->section_file_index != rodata->file_index ||
+      size_symbol->size != 4u ||
+      size_symbol->value > rodata->contents.size ||
+      rodata->contents.size - size_symbol->value < 4u) {
+    (void)fprintf(stderr,
+                  "generated symbol ELF structure differs\n");
+    goto cleanup;
+  }
+  encoded_size =
+      (ctool_u32)rodata->contents.data[size_symbol->value] |
+      ((ctool_u32)rodata->contents.data[size_symbol->value + 1u] << 8u) |
+      ((ctool_u32)rodata->contents.data[size_symbol->value + 2u] << 16u) |
+      ((ctool_u32)rodata->contents.data[size_symbol->value + 3u] << 24u);
+  if (encoded_size != ksyms->size) {
+    (void)fprintf(stderr,
+                  "generated symbol size object does not match its blob\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  return passed;
+}
+
+static int run_used_attributes_object(const char *host_root) {
+  static const char attributed_source[] =
+      "typedef int scalar_t;\n"
+      "static int kept_value __attribute__((used)) = 3;\n"
+      "static int kept_helper(void) __attribute__((__used__));\n"
+      "static int kept_helper(void) { return kept_value; }\n"
+      "int ordinary_helper(void) { return 0; }\n";
+  static const char plain_source[] =
+      "typedef int scalar_t;\n"
+      "static int kept_value = 3;\n"
+      "static int kept_helper(void);\n"
+      "static int kept_helper(void) { return kept_value; }\n"
+      "int ordinary_helper(void) { return 0; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *plain = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t plain_unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_symbol_t *kept_value_symbol;
+  const ctool_elf32_symbol_t *kept_helper_symbol;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t plain_bytes;
+  ctool_u32 scalar = CTOOL_C_AST_NONE;
+  ctool_u32 kept_value = CTOOL_C_AST_NONE;
+  ctool_u32 kept_helper = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/used-attributes-object.c",
+                         attributed_source, CTOOL_TRUE, &unit) ||
+      !parse_source_mode(job, "/plain-used-object.c", plain_source,
+                         CTOOL_TRUE, &plain_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "scalar_t") != 0) {
+      scalar = index;
+    } else if (string_equal(unit.bindings[index].name, "kept_value") != 0) {
+      kept_value = index;
+    } else if (string_equal(unit.bindings[index].name, "kept_helper") != 0) {
+      kept_helper = index;
+    }
+  }
+  if (scalar >= unit.binding_count || kept_value >= unit.binding_count ||
+      kept_helper >= unit.binding_count ||
+      unit.bindings[kept_value].attributes != CTOOL_C_DECL_ATTR_USED ||
+      unit.bindings[kept_helper].attributes != CTOOL_C_DECL_ATTR_USED) {
+    (void)fprintf(stderr, "used attribute object fixture metadata differs\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &plain);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "used attribute object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first used attribute object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat used attribute object") ||
+      !expect_object_success_preserves_unit(
+          job, &plain_unit, plain, "plain used comparison object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  plain_bytes = ctool_buffer_view(plain);
+  if (first_bytes.size != second_bytes.size ||
+      first_bytes.size != plain_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      memcmp(first_bytes.data, plain_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "used attribute changed or destabilized object code\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/used-attributes-object.o");
+  object_source.contents = first_bytes;
+  (void)memset(&object, 0, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  kept_value_symbol =
+      status == CTOOL_OK ? find_symbol(&object, "kept_value") : NULL;
+  kept_helper_symbol =
+      status == CTOOL_OK ? find_symbol(&object, "kept_helper") : NULL;
+  if (!check_status(status, CTOOL_OK, "read used attribute object") ||
+      kept_value_symbol == NULL || kept_helper_symbol == NULL ||
+      kept_value_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      kept_value_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      kept_value_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      kept_helper_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      kept_helper_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      kept_helper_symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION) {
+    (void)fprintf(stderr,
+                  "used attribute did not retain local ELF definitions\n");
+    goto cleanup;
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_USED;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "public used attribute on a typedef")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[kept_helper].type = unit.graph.type_count;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "public used entity with an invalid type")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[kept_helper].file_scope_visible = CTOOL_FALSE;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "public used entity hidden from file scope")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "used attribute same-job recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "used attribute object recovery differs\n");
+    goto cleanup;
+  }
+  if (!validate_generated_used_object(host_root)) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(bindings);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (plain != NULL) {
+    ctool_buffer_close(plain);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("used-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "weak-symbols") == 0) {
     return run_weak_symbols(argv[2]);
@@ -30099,6 +30491,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "unused-attributes") == 0) {
     return run_unused_attributes_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "used-attributes") == 0) {
+    return run_used_attributes_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "static-typed-null") == 0) {
     return run_static_typed_null(argv[2]);

@@ -137,8 +137,10 @@ order. It also keeps all target bits through represented function-pointer
 casts and supports bounded output-only register and EFLAGS snapshots. Twenty
 of the 38 strict roots left after the 116-source handoff now belong to the
 production cohort and use `.cc` names. Eighteen strict checked-in roots
-remain. Generated `kernel/cpu/ksyms_data.c` stays hosted until CupidC
-represents its `used` attribute.
+remain. Compiler head now represents the `used` attribute on generated
+`kernel/cpu/ksyms_data.c` and emits the current source deterministically.
+The generated root stays hosted until a refreshed checked seed and the
+production build gates carry that capability.
 
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and

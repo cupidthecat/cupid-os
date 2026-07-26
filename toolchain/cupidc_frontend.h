@@ -39,9 +39,13 @@ typedef enum {
 #define CTOOL_C_DECL_ATTR_WEAK 0x00000002u
 #define CTOOL_C_DECL_ATTR_SECTION 0x00000004u
 #define CTOOL_C_DECL_ATTR_UNUSED 0x00000008u
+/* USED records that a represented file-scope definition must reach object
+ * output even when no expression in the translation unit refers to it. */
+#define CTOOL_C_DECL_ATTR_USED 0x00000010u
 #define CTOOL_C_DECL_ATTR_ALL                                                \
   (CTOOL_C_DECL_ATTR_NORETURN | CTOOL_C_DECL_ATTR_WEAK |                     \
-   CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_UNUSED)
+   CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_UNUSED |                    \
+   CTOOL_C_DECL_ATTR_USED)
 
 #define CTOOL_C_FUNCTION_DECL_INLINE 0x00000001u
 #define CTOOL_C_FUNCTION_DECL_ALL CTOOL_C_FUNCTION_DECL_INLINE
@@ -584,10 +588,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
  * arrays, prototypes, compatible file-scope redeclarations, composite array
  * and function types, C linkage, layout, and normalized GNU packed, aligned,
- * and noreturn attributes at their contracted placements. Other attributes
- * fail closed instead of being skipped. Type compatibility uses checked
- * iterative graph walks; the public nesting limit applies to recursive source
- * syntax, not derived-type graph depth. File- and record-scope C11 static
+ * noreturn, weak, section, unused, and used attributes at their contracted
+ * placements. Other attributes fail closed instead of being skipped. Type
+ * compatibility uses checked iterative graph walks; the public nesting limit
+ * applies to recursive source syntax, not derived-type graph depth. File- and
+ * record-scope C11 static
  * assertions validate the shared integer-constant grammar, including target
  * relational/equality conversions, target `sizeof` type/expression queries,
  * standard/GNU alignment queries, and GNU `__builtin_offsetof` member paths

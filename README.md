@@ -320,6 +320,15 @@ or EFLAGS into one four-byte destination. The files were renamed to `.cc`
 with the ownership transfer. Eighteen strict checked-in roots remain on the
 host compiler.
 
+Compiler head now accepts GNU `used` and `__used__` on file-scope objects and
+functions. Redeclarations merge the flag into one canonical entity, and the
+Linear IR and object boundaries validate it before use. The attribute does
+not change current ELF32 bytes because CupidC already emits every represented
+definition. The generated `kernel/cpu/ksyms_data.c` source compiles twice to
+the same 101,808-byte object under the complete kernel profile. The checked
+seed still predates this capability, so the normal symbol-generation path
+remains host-compiled.
+
 Function-body GNU assembly may have no operands. Basic statements and
 extended statements with an empty output list are implicitly volatile. Exact
 sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit through
