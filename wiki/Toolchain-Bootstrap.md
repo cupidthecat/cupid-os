@@ -81,6 +81,15 @@ Compiler head also handles the exact per-CPU pointer output
 and IR preserve its pointer type and evaluate the destination once. The x86
 model emits `65 A1 00 00 00 00`.
 
+Compiler head now handles the independent `r` and `c` inputs used by
+unchanged `idt.c`, `paging.c`, and `lapic.c`. Exact CR0, CR2, CR3, and CR4
+moves and RDMSR emit directly into deterministic i386 ELF32 objects. The
+three double-compiled objects are 8,756, 2,336, and 4,184 bytes and pass the
+shared validator. Focused frontend, Linear IR, object, and decoder contracts
+cover the supported forms and their failures without executing privileged
+instructions. The checked seed predates this compiler work, so production
+ownership remains unchanged.
+
 The checked compiler's atomic slice handles integer load, store, exchange,
 and fetch-add builtins with constant orders. Its i386 path selects ordinary
 loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings

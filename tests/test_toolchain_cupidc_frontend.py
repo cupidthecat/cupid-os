@@ -112,6 +112,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_port_io_assembly_keeps_widths_registers_and_memory_clobber(self):
         self.run_contract("port-io-assembly")
 
+    def test_privileged_register_assembly_preserves_inputs_and_outputs(self):
+        self.run_contract("privileged-register-assembly")
+
     def test_operand_free_inline_assembly_retains_basic_and_extended_forms(self):
         self.run_contract("operand-free-assembly")
 

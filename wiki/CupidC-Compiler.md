@@ -276,6 +276,18 @@ as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,
 evaluates the output destination once, and emits the absolute GS load as
 `65 A1 00 00 00 00`.
 
+Compiler head also accepts independent `r` and `c` inputs for the exact
+privileged statements in `kernel/cpu/idt.c`, `kernel/mm/paging.c`, and
+`kernel/smp/lapic.c`. A four-byte integer or data pointer may use `r`; a
+four-byte integer may use `c` and arrives in ECX. The i386 emitter handles
+CR0, CR2, CR3, and CR4 moves and RDMSR directly. Its exact seven-function
+object has 199 text bytes, eight symbols, five sections, no relocations, and
+no EBX traffic. The decoder checks the privileged bytes without executing
+them. All three unchanged roots compile twice to deterministic validated
+objects. The checked seed does not yet carry these forms, so the roots remain
+host-owned `.c` files. WRMSR, unsupported control-register directions, fixed
+EBX and `q` inputs, arbitrary templates, and general clobbers remain open.
+
 Compiler head also represents `__atomic_load_n`, `__atomic_store_n`,
 `__atomic_exchange_n`, `__atomic_fetch_add`, and `__atomic_fetch_or` on
 one-, two-, and four-byte integer objects. Constant memory orders stay in the

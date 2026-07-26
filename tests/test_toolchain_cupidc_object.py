@@ -613,6 +613,22 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "port-io-assembly: ok\n")
 
+    def test_privileged_register_assembly_emits_exact_i386(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "privileged-register-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "privileged-register-assembly: ok\n"
+        )
+
     def test_atomic_builtins_emit_width_correct_i386_instructions(self):
         result = subprocess.run(
             [str(self.contract_path), "atomic-builtins", str(REPO_ROOT)],

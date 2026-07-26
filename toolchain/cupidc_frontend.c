@@ -12198,7 +12198,7 @@ static ctool_status_t cfront_matching_assembly_output(
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        "GNU inline assembly input requires a matching output number");
+        "GNU inline assembly input constraint is outside this slice");
   }
   value = (ctool_u32)(constraint.data[0] - '0');
   if (value >= output_count) {
@@ -12211,12 +12211,16 @@ static ctool_status_t cfront_matching_assembly_output(
   return CTOOL_OK;
 }
 
-static ctool_bool cfront_fixed_assembly_input(
+static ctool_bool cfront_independent_assembly_input(
     ctool_string_t constraint, ctool_u32 *fixed_register_out) {
   if (cfront_string_literal(constraint, "a") == CTOOL_TRUE) {
     *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_A;
+  } else if (cfront_string_literal(constraint, "c") == CTOOL_TRUE) {
+    *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_C;
   } else if (cfront_string_literal(constraint, "d") == CTOOL_TRUE) {
     *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_D;
+  } else if (cfront_string_literal(constraint, "r") == CTOOL_TRUE) {
+    *fixed_register_out = 0u;
   } else {
     *fixed_register_out = 0u;
     return CTOOL_FALSE;
@@ -12234,11 +12238,20 @@ static ctool_status_t cfront_parse_assembly_input(
   cfront_expression_value_t value;
   cfront_integer_type_t input_integer;
   cfront_integer_type_t output_integer;
+  ctool_c_type_node_t input_node;
+  ctool_c_type_node_t input_referent;
   ctool_c_type_node_t output_node;
   ctool_bool input_is_integer = CTOOL_FALSE;
+  ctool_bool input_is_pointer = CTOOL_FALSE;
+  ctool_bool input_is_data_pointer = CTOOL_FALSE;
   ctool_bool output_is_integer = CTOOL_FALSE;
+  ctool_bool independent = CTOOL_FALSE;
   ctool_bool matching = CTOOL_FALSE;
   ctool_u32 fixed_register = 0u;
+  ctool_u32 input_base;
+  ctool_u32 input_qualifiers;
+  ctool_u32 referent_base;
+  ctool_u32 referent_qualifiers;
   ctool_u32 output_base;
   ctool_u32 output_qualifiers;
   ctool_status_t status;
@@ -12262,14 +12275,16 @@ static ctool_status_t cfront_parse_assembly_input(
       "GNU inline assembly input requires a string constraint",
       &operand.constraint);
   if (status == CTOOL_OK &&
-      cfront_fixed_assembly_input(
+      cfront_independent_assembly_input(
           operand.constraint, &fixed_register) == CTOOL_TRUE) {
-    if ((*fixed_registers_io & fixed_register) != 0u) {
+    independent = CTOOL_TRUE;
+    if (fixed_register != 0u &&
+        (*fixed_registers_io & fixed_register) != 0u) {
       status = cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
           constraint_token,
           "GNU inline assembly cannot assign one fixed register twice");
-    } else {
+    } else if (fixed_register != 0u) {
       *fixed_registers_io |= fixed_register;
     }
   } else if (status == CTOOL_OK) {
@@ -12293,6 +12308,21 @@ static ctool_status_t cfront_parse_assembly_input(
   }
   if (status == CTOOL_OK) {
     status = cfront_apply_default_conversion(context, &value);
+  }
+  if (status == CTOOL_OK && independent == CTOOL_TRUE) {
+    status = cfront_underlying_type(
+        context, value.type, &input_base, &input_qualifiers, &input_node);
+  }
+  if (status == CTOOL_OK && independent == CTOOL_TRUE &&
+      input_node.kind == CTOOL_C_TYPE_POINTER) {
+    input_is_pointer = CTOOL_TRUE;
+    status = cfront_underlying_type(
+        context, input_node.referenced_type, &referent_base,
+        &referent_qualifiers, &input_referent);
+    if (status == CTOOL_OK &&
+        input_referent.kind != CTOOL_C_TYPE_FUNCTION) {
+      input_is_data_pointer = CTOOL_TRUE;
+    }
   }
   if (status == CTOOL_OK && matching == CTOOL_TRUE) {
     status = cfront_vector_get(
@@ -12325,11 +12355,39 @@ static ctool_status_t cfront_parse_assembly_input(
                ? cfront_storage_failure(context, status)
                : status;
   }
-  if (input_is_integer == CTOOL_FALSE ||
-      (matching == CTOOL_TRUE &&
+  if (independent == CTOOL_TRUE &&
+      cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
+      !((input_is_integer == CTOOL_TRUE &&
+         input_integer.width == 32u) ||
+        input_is_data_pointer == CTOOL_TRUE)) {
+    return cfront_emit_failure(
+        context,
+        input_is_pointer == CTOOL_TRUE
+            ? CTOOL_ERR_UNSUPPORTED
+            : CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
+        "GNU inline assembly r input requires a represented 32-bit integer "
+        "or data pointer");
+  }
+  if (independent == CTOOL_TRUE &&
+      cfront_string_literal(operand.constraint, "c") == CTOOL_TRUE &&
+      (input_is_integer == CTOOL_FALSE ||
+       input_integer.width != 32u)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly c input requires a represented 32-bit integer");
+  }
+  if ((input_is_integer == CTOOL_FALSE &&
+       !(independent == CTOOL_TRUE &&
+         cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
+         input_is_data_pointer == CTOOL_TRUE)) ||
+      (independent == CTOOL_FALSE && matching == CTOOL_TRUE &&
        (output_is_integer == CTOOL_FALSE ||
         input_integer.width != output_integer.width)) ||
-      (matching == CTOOL_FALSE &&
+      (independent == CTOOL_TRUE &&
+       cfront_string_literal(operand.constraint, "r") == CTOOL_FALSE &&
+       cfront_string_literal(operand.constraint, "c") == CTOOL_FALSE &&
        input_is_integer == CTOOL_TRUE &&
        input_integer.width != 8u && input_integer.width != 16u &&
        input_integer.width != 32u)) {

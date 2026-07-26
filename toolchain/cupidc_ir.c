@@ -320,9 +320,24 @@ static ctool_u32 cir_fixed_input_assembly_register(
   if (constraint.data[0] == 'a') {
     return CTOOL_C_ASSEMBLY_FIXED_A;
   }
+  if (constraint.data[0] == 'c') {
+    return CTOOL_C_ASSEMBLY_FIXED_C;
+  }
   return constraint.data[0] == 'd'
              ? CTOOL_C_ASSEMBLY_FIXED_D
              : 0u;
+}
+
+static ctool_bool cir_independent_assembly_constraint(
+    ctool_string_t constraint, ctool_u32 *fixed_register_out) {
+  *fixed_register_out =
+      cir_fixed_input_assembly_register(constraint);
+  return *fixed_register_out != 0u ||
+                 (constraint.size == 1u &&
+                  constraint.data != (const char *)0 &&
+                  constraint.data[0] == 'r')
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
 }
 
 static ctool_bool cir_matching_assembly_constraint(
@@ -400,23 +415,26 @@ static ctool_status_t cir_validate_assembly_slices(
           &context->unit
                ->assembly_operands[operand_cursor + operand_offset];
       ctool_u32 matching_output;
-      ctool_u32 fixed_input_register =
-          cir_fixed_input_assembly_register(operand->constraint);
+      ctool_u32 fixed_input_register;
+      ctool_bool independent =
+          cir_independent_assembly_constraint(
+              operand->constraint, &fixed_input_register);
       ctool_bool matching = cir_matching_assembly_constraint(
           operand->constraint, &matching_output);
       if (operand->expression >= context->unit->expression_count ||
           operand->type >= context->unit->graph.type_count ||
-          (fixed_input_register == 0u && matching == CTOOL_FALSE) ||
-          (fixed_input_register != 0u &&
+          (independent == CTOOL_FALSE && matching == CTOOL_FALSE) ||
+          (independent == CTOOL_TRUE &&
            (operand->matching_output != CTOOL_C_AST_NONE ||
-            (fixed_registers & fixed_input_register) != 0u)) ||
+            (fixed_input_register != 0u &&
+             (fixed_registers & fixed_input_register) != 0u))) ||
           (matching == CTOOL_TRUE &&
            (operand->matching_output != matching_output ||
             matching_output >= assembly->output_count ||
             (matched_outputs & (1u << matching_output)) != 0u))) {
         return cir_invalid_unit(context, &operand->location);
       }
-      if (fixed_input_register != 0u) {
+      if (independent == CTOOL_TRUE) {
         fixed_registers |= fixed_input_register;
       } else {
         matched_outputs |= 1u << matching_output;
@@ -7786,20 +7804,32 @@ static ctool_status_t cir_lower_assembly_statement(
       }
     } else {
       const ctool_c_assembly_operand_t *output;
-      ctool_u32 fixed_input_register =
-          cir_fixed_input_assembly_register(operand->constraint);
+      ctool_u32 fixed_input_register;
+      ctool_bool independent =
+          cir_independent_assembly_constraint(
+              operand->constraint, &fixed_input_register);
       ctool_u32 input_size;
       if (entry->kind != CIR_STACK_VALUE ||
-          cir_type_is_represented_integer(context, operand->type) ==
-              CTOOL_FALSE ||
           operand->type >= context->unit->layout.type_count) {
         return cir_invalid_unit(context, &operand->location);
       }
       input_size = context->unit->layout.types[operand->type].size;
-      if (fixed_input_register != 0u) {
+      if (independent == CTOOL_TRUE) {
         if (operand->matching_output != CTOOL_C_AST_NONE ||
-            (input_size != 1u && input_size != 2u &&
-             input_size != 4u)) {
+            (operand->constraint.data[0] == 'r'
+                 ? input_size != 4u ||
+                       (cir_type_is_represented_integer(
+                            context, operand->type) == CTOOL_FALSE &&
+                        cir_type_is_i32_pointer(
+                            context, operand->type) == CTOOL_FALSE)
+                 : operand->constraint.data[0] == 'c'
+                       ? input_size != 4u ||
+                             cir_type_is_represented_integer(
+                                 context, operand->type) == CTOOL_FALSE
+                       : (input_size != 1u && input_size != 2u &&
+                          input_size != 4u) ||
+                             cir_type_is_represented_integer(
+                                 context, operand->type) == CTOOL_FALSE)) {
           return cir_invalid_unit(context, &operand->location);
         }
         continue;

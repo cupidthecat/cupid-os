@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-25
+Verified against source on: 2026-07-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -171,6 +171,19 @@ Compiler head also represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
 pointer type, evaluates the destination once, and emits the absolute GS load
 as 65 A1 00 00 00 00.
+
+Compiler head accepts independent r and c inputs for the privileged assembly
+in kernel/cpu/idt.c, kernel/mm/paging.c, and kernel/smp/lapic.c. A represented
+four-byte integer or data pointer can use r. A represented four-byte integer
+can use c and arrives in ECX. The i386 emitter writes exact CR0, CR2, CR3,
+and CR4 moves and RDMSR into ELF32 objects without a host assembler.
+
+The unchanged roots compile twice to byte-identical validated objects. Their
+sizes are 8,756 bytes for idt.c, 2,336 bytes for paging.c, and 4,184 bytes for
+lapic.c. The checked seed predates these forms, so the normal build still
+uses the host compiler for all three .c files. WRMSR, unsupported
+control-register directions, fixed EBX and q inputs, arbitrary templates,
+and general clobbers remain open.
 
 Compiler head handles integer atomic load, store, exchange, fetch-add, and
 fetch-or builtins for one-, two-, and four-byte objects. It checks constant

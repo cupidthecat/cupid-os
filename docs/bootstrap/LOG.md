@@ -9633,3 +9633,104 @@ revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af` and does not contain
 `used`. The normal Make graph therefore keeps the generated symbol source on
 GCC or Clang. A seed refresh, production recipe transfer, full image build,
 and runtime proof remain separate work. ADR 0116 records the decision.
+
+## 2026-07-26: emit control-register and RDMSR assembly
+
+Three remaining strict roots use a narrow privileged assembly boundary.
+`kernel/cpu/idt.c` reads CR2. `kernel/mm/paging.c` reads and writes CR0 and
+writes CR3. `kernel/smp/lapic.c` reads an MSR through EDX:EAX after putting
+its selector in ECX. The same exact family includes the CR4 reads and writes
+used by the separate floating-point and SIMD roots. The source already
+describes the required ABI and ordering, so this increment extends CupidC
+instead of replacing the helpers.
+
+### Language and target boundary
+
+GNU function assembly now accepts an independent `r` input when its value is
+a represented four-byte integer or data pointer. An independent `c` input
+accepts a represented four-byte integer and reserves ECX. Function pointers,
+other widths, fixed EBX, `q`, and fixed-register collisions receive focused
+diagnostics.
+
+The exact target templates are CR0, CR2, and CR4 reads; CR0, CR3, and CR4
+writes; and RDMSR with `=a`, `=d`, and `c`. Control-register writes may carry
+one `memory` clobber. Other clobbers and unsupported register directions
+remain errors.
+
+Linear IR preserves each operand's type and value category. It evaluates
+output addresses before input values, once each and in source order. The
+emitter recognizes these templates before the port-I/O path, then emits the
+privileged bytes directly. Reads hold the control-register value in ECX
+before storing it. Writes use EAX for their input. RDMSR uses ECX for the
+selector and stores EDX and EAX through the two output addresses. No form
+needs a private assembly frame or EBX.
+
+The first emitter draft left the new independent inputs behind the existing
+port-I/O classifier. That path interprets any independent input as a port, so
+it could not preserve the control-register or RDMSR contract. Exact
+privileged template classification now runs first. General assembly remains
+outside the compiler.
+
+### Test-driven contracts
+
+The frontend selector first failed on the new `r` input, then passed after
+the parser and type checks were added. The Linear IR selector next failed on
+the frozen unit, then passed after lowering and whole-unit validation were
+added. The object selector initially stopped on the unsupported template,
+then passed after direct i386 emission was implemented.
+
+The public `privileged-register-assembly` source contains seven functions,
+seven statements, and nine operands. Frontend negatives cover narrow and
+wide `r`, function-pointer `r`, pointer and narrow `c`, fixed EBX, `q`, a
+duplicate ECX assignment, and recovery. The Linear IR proof fixes 38
+instructions, zero argument types, and fingerprint `F63E63A7447F31C2`. It
+checks the output-address and input-value evaluation sequence as well as
+forged constraints, types, categories, collisions, rollback, and recovery.
+
+The deterministic ELF32 proof has 680 object bytes, 199 text bytes, five
+sections, eight symbols including the null symbol, no relocations, and text
+fingerprint `A3095253`. Shared decoding finds all seven exact privileged
+instruction sequences and the surrounding loads and stores. It rejects any
+EBX use. These instructions are decoded, not executed.
+
+The full Toolchain run found intentional self-source locks changed by the new
+frontend, IR, emitter, and tests. The settled locks are:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.c` | 204 | 394,051 | 420,768 | `0EF8FA9D` |
+| `toolchain/cupidc_emit.c` | 209 | 358,599 | 385,656 | `E6012EC1` |
+| `toolchain/cupidc_frontend.c` | 322 | 650,052 | 771,552 | `A4FB8317` |
+
+The active self-source inventory now records 6,224 IR statements and 55,970
+IR expressions, 5,660 emitter statements and 48,481 emitter expressions, and
+13,160 frontend statements and 86,286 frontend expressions. The complete
+hosted Toolchain contract passes with every old and new selector. The settled
+replay completed in 22.4 seconds.
+
+### Strict-root probes
+
+Compiler head compiled each unchanged root twice with the complete
+`KERNEL_I386` arguments and repository root mapping. The shared ELF32
+validator accepted every result, and each pair matched byte for byte:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/idt.c` | 8,756 | `0ad16fd3250bc09ced7c928cb287123db245980de73c15f0249db71a2f2f6ea3` |
+| `kernel/mm/paging.c` | 2,336 | `fc9b757a35cf474f90436333ba732be252253feeea531cad851215e17f793e2d` |
+| `kernel/smp/lapic.c` | 4,184 | `6ce344d265ad3fb6b221a9159d860954c5f5512a7eac526838e69bc181a4c045` |
+
+### Ownership boundary
+
+This increment changes compiler head only. The checked seed predates the new
+constraints and templates. The normal build still compiles all three roots
+with GCC or Clang, the production cohort stays at 136 sources, and the files
+keep their `.c` names. No seed was refreshed, no Make rule changed owner, and
+no image or runtime claim was made.
+
+WRMSR, CR1, CR2 writes, arbitrary control-register templates, general
+clobbers, fixed EBX and `q` inputs, blank compiler barriers, file-scope
+assembly, and broader GNU assembly remain open. A later transfer must refresh
+and verify the checked seed, move the production frontier and Make recipes,
+rename the roots to `.cc`, build the full image, and run the relevant boot
+and runtime gates. ADR 0117 records this boundary.

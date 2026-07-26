@@ -81,6 +81,16 @@ This removes a compiler-head language blocker but retires no host dependency.
 The checked seed predates the capability, so GCC or Clang still compiles that
 generated root in the normal build. ADR 0116 records the boundary.
 
+Compiler head now accepts the independent `r` and `c` inputs used by exact
+control-register moves and RDMSR. It compiles unchanged `kernel/cpu/idt.c`,
+`kernel/mm/paging.c`, and `kernel/smp/lapic.c` twice to byte-identical
+validated objects of 8,756, 2,336, and 4,184 bytes. The emitter writes the
+privileged i386 instructions directly and does not invoke a host assembler.
+This proof retires no normal-build dependency. The checked seed predates the
+new forms, so GCC or Clang still owns all three roots and their `.c` names.
+Seed refresh, production transfer, image linkage, and runtime evidence remain
+open. ADR 0117 records the capability and its unsupported forms.
+
 Value-preserving bit-field assignment changes compiler capability without moving another output. Four focused functions cover unsigned, signed, full-width, pointer-derived, and indexed stores. The execution oracle checks the stored value, neighboring bits, arguments, and stack state. GCC or Clang still builds the shared frontend, Linear IR, emitter, and contracts. The proof adds no transform beyond the 136-object production cohort and retires no executable, linker, assembler, or object-tool dependency.
 
 Eight-byte integer values cross the shared path through full-width constants, matching conditional results, fixed direct and indirect call results, object access, initialization, plain and chained assignment, declared parameters, named arguments, ellipsis and unprototyped call arguments, variadic reads, discard, returns, arithmetic, unary operations, shifts, bitwise operations, comparisons, logical operations, conditions, switch dispatch, and conversion to or from represented integer widths. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements use private eight-byte frame snapshots. The i386 emitter restores the low word to EAX and the high word to EDX on return. Calls publish packed post-conversion actual types in emitted instruction order, which gives an open-position wide integer two adjacent stack words and advances a wide variadic cursor by eight bytes. The CupidC-built socket and TCP objects now use this production path. The deterministic result, object, parameter, operation, and call-position contracts remain host-built.

@@ -24745,20 +24745,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 203u, 204u, 322u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 204u, 209u, 322u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 393225u, 350412u, 647357u, 139612u, 70368u, 77981u,
+      190304u, 394051u, 358599u, 650052u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 419856u, 376348u, 768316u, 157796u, 79348u, 131640u,
+      226668u, 420768u, 385656u, 771552u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xe746968bu, 0xb9dbfe42u, 0xe5269844u, 0x3f69aac3u,
+      0x0ef8fa9du, 0xe6012ec1u, 0xa4fb8317u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -27731,6 +27731,524 @@ cleanup:
   return 1;
 }
 
+typedef struct {
+  ctool_x86_instruction_t instruction;
+  ctool_u32 offset;
+  ctool_u32 size;
+} privileged_decoded_instruction_t;
+
+static int privileged_register_operand_matches(
+    const ctool_x86_operand_t *operand,
+    ctool_x86_reg_class_t class_id, ctool_u8 index) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 (operand->width_bits == 0u ||
+                  operand->width_bits == 32u) &&
+                 operand->as.reg.class_id == class_id &&
+                 operand->as.reg.index == index
+             ? 1
+             : 0;
+}
+
+static int privileged_memory_operand_uses(
+    const ctool_x86_operand_t *operand, ctool_u8 base) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->width_bits == 32u &&
+                 operand->as.memory.base.class_id ==
+                     CTOOL_X86_REG_GPR32 &&
+                 operand->as.memory.base.index == base &&
+                 operand->as.memory.index.class_id ==
+                     CTOOL_X86_REG_NONE &&
+                 operand->as.memory.displacement.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.memory.displacement.bits == 0u &&
+                 operand->as.memory.displacement.addend == 0
+             ? 1
+             : 0;
+}
+
+static int privileged_instruction_uses_ebx(
+    const ctool_x86_instruction_t *instruction) {
+  ctool_u32 operand_index;
+  for (operand_index = 0u;
+       operand_index < instruction->operand_count; operand_index++) {
+    const ctool_x86_operand_t *operand =
+        &instruction->operands[operand_index];
+    if ((operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+         (operand->as.reg.class_id == CTOOL_X86_REG_GPR8 ||
+          operand->as.reg.class_id == CTOOL_X86_REG_GPR16 ||
+          operand->as.reg.class_id == CTOOL_X86_REG_GPR32) &&
+         operand->as.reg.index == 3u) ||
+        (operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+         ((operand->as.memory.base.class_id ==
+               CTOOL_X86_REG_GPR32 &&
+           operand->as.memory.base.index == 3u) ||
+          (operand->as.memory.index.class_id ==
+               CTOOL_X86_REG_GPR32 &&
+           operand->as.memory.index.index == 3u)))) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int decode_privileged_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    privileged_decoded_instruction_t decoded[128],
+    ctool_u32 *count_out) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 count = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size && count < 128u) {
+    ctool_x86_decoded_t instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&instruction, 0xa5, sizeof(instruction));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &instruction);
+    if (status != CTOOL_OK ||
+        instruction.kind != CTOOL_X86_DECODE_KNOWN ||
+        instruction.consumed == 0u ||
+        privileged_instruction_uses_ebx(
+            &instruction.instruction)) {
+      return 0;
+    }
+    decoded[count].instruction = instruction.instruction;
+    decoded[count].offset = cursor;
+    decoded[count].size = instruction.consumed;
+    cursor += instruction.consumed;
+    count++;
+  }
+  if (cursor != symbol->size || count == 0u || count == 128u) {
+    return 0;
+  }
+  *count_out = count;
+  return 1;
+}
+
+static int validate_control_register_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u8 control_register,
+    int read, const ctool_u8 *target_bytes,
+    ctool_u32 target_size) {
+  privileged_decoded_instruction_t decoded[128];
+  ctool_u32 decoded_count = 0u;
+  ctool_u32 target = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  if (!decode_privileged_function(
+          job, text, symbol, decoded, &decoded_count)) {
+    return 0;
+  }
+  for (index = 0u; index < decoded_count; index++) {
+    const ctool_x86_instruction_t *instruction =
+        &decoded[index].instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+        instruction->operand_count == 2u &&
+        ((instruction->operands[0].kind ==
+              CTOOL_X86_OPERAND_REGISTER &&
+          instruction->operands[0].as.reg.class_id ==
+              CTOOL_X86_REG_CONTROL) ||
+         (instruction->operands[1].kind ==
+              CTOOL_X86_OPERAND_REGISTER &&
+          instruction->operands[1].as.reg.class_id ==
+              CTOOL_X86_REG_CONTROL))) {
+      if (target != CTOOL_C_AST_NONE ||
+          decoded[index].size != target_size ||
+          memcmp(text->contents.data + symbol->value +
+                     decoded[index].offset,
+                 target_bytes, (size_t)target_size) != 0) {
+        return 0;
+      }
+      target = index;
+    }
+  }
+  if (target == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  if (read != 0) {
+    return target + 2u < decoded_count &&
+                   privileged_register_operand_matches(
+                       &decoded[target].instruction.operands[0],
+                       CTOOL_X86_REG_GPR32, 1u) &&
+                   privileged_register_operand_matches(
+                       &decoded[target].instruction.operands[1],
+                       CTOOL_X86_REG_CONTROL, control_register) &&
+                   decoded[target + 1u].instruction.mnemonic ==
+                       CTOOL_X86_MN_POP &&
+                   privileged_register_operand_matches(
+                       &decoded[target + 1u].instruction.operands[0],
+                       CTOOL_X86_REG_GPR32, 0u) &&
+                   decoded[target + 2u].instruction.mnemonic ==
+                       CTOOL_X86_MN_MOV &&
+                   privileged_memory_operand_uses(
+                       &decoded[target + 2u].instruction.operands[0],
+                       0u) &&
+                   privileged_register_operand_matches(
+                       &decoded[target + 2u].instruction.operands[1],
+                       CTOOL_X86_REG_GPR32, 1u)
+               ? 1
+               : 0;
+  }
+  return target != 0u &&
+                 decoded[target - 1u].instruction.mnemonic ==
+                     CTOOL_X86_MN_POP &&
+                 privileged_register_operand_matches(
+                     &decoded[target - 1u].instruction.operands[0],
+                     CTOOL_X86_REG_GPR32, 0u) &&
+                 privileged_register_operand_matches(
+                     &decoded[target].instruction.operands[0],
+                     CTOOL_X86_REG_CONTROL, control_register) &&
+                 privileged_register_operand_matches(
+                     &decoded[target].instruction.operands[1],
+                     CTOOL_X86_REG_GPR32, 0u)
+             ? 1
+             : 0;
+}
+
+static int validate_rdmsr_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u8 target_bytes[] = {0x0fu, 0x32u};
+  privileged_decoded_instruction_t decoded[128];
+  ctool_u32 decoded_count = 0u;
+  ctool_u32 target = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  if (!decode_privileged_function(
+          job, text, symbol, decoded, &decoded_count)) {
+    return 0;
+  }
+  for (index = 0u; index < decoded_count; index++) {
+    if (decoded[index].instruction.mnemonic == CTOOL_X86_MN_RDMSR) {
+      if (target != CTOOL_C_AST_NONE ||
+          decoded[index].instruction.operand_count != 0u ||
+          decoded[index].size != (ctool_u32)sizeof(target_bytes) ||
+          memcmp(text->contents.data + symbol->value +
+                     decoded[index].offset,
+                 target_bytes, sizeof(target_bytes)) != 0) {
+        return 0;
+      }
+      target = index;
+    }
+  }
+  return target != CTOOL_C_AST_NONE && target != 0u &&
+                 target + 4u < decoded_count &&
+                 decoded[target - 1u].instruction.mnemonic ==
+                     CTOOL_X86_MN_POP &&
+                 privileged_register_operand_matches(
+                     &decoded[target - 1u].instruction.operands[0],
+                     CTOOL_X86_REG_GPR32, 1u) &&
+                 decoded[target + 1u].instruction.mnemonic ==
+                     CTOOL_X86_MN_POP &&
+                 privileged_register_operand_matches(
+                     &decoded[target + 1u].instruction.operands[0],
+                     CTOOL_X86_REG_GPR32, 1u) &&
+                 decoded[target + 2u].instruction.mnemonic ==
+                     CTOOL_X86_MN_MOV &&
+                 privileged_memory_operand_uses(
+                     &decoded[target + 2u].instruction.operands[0],
+                     1u) &&
+                 privileged_register_operand_matches(
+                     &decoded[target + 2u].instruction.operands[1],
+                     CTOOL_X86_REG_GPR32, 2u) &&
+                 decoded[target + 3u].instruction.mnemonic ==
+                     CTOOL_X86_MN_POP &&
+                 privileged_register_operand_matches(
+                     &decoded[target + 3u].instruction.operands[0],
+                     CTOOL_X86_REG_GPR32, 1u) &&
+                 decoded[target + 4u].instruction.mnemonic ==
+                     CTOOL_X86_MN_MOV &&
+                 privileged_memory_operand_uses(
+                     &decoded[target + 4u].instruction.operands[0],
+                     1u) &&
+                 privileged_register_operand_matches(
+                     &decoded[target + 4u].instruction.operands[1],
+                     CTOOL_X86_REG_GPR32, 0u)
+             ? 1
+             : 0;
+}
+
+static int validate_privileged_register_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 read_cr0[] = {0x0fu, 0x20u, 0xc1u};
+  static const ctool_u8 read_cr2[] = {0x0fu, 0x20u, 0xd1u};
+  static const ctool_u8 read_cr4[] = {0x0fu, 0x20u, 0xe1u};
+  static const ctool_u8 write_cr0[] = {0x0fu, 0x22u, 0xc0u};
+  static const ctool_u8 write_cr3[] = {0x0fu, 0x22u, 0xd8u};
+  static const ctool_u8 write_cr4[] = {0x0fu, 0x22u, 0xe0u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "privileged assembly object container differs\n");
+    return 0;
+  }
+#define VALIDATE_CONTROL_SYMBOL(name, control, is_read, bytes)             \
+  do {                                                                     \
+    if (!validate_control_register_function(                               \
+            job, text, find_symbol(object, name), control, is_read, bytes, \
+            (ctool_u32)sizeof(bytes))) {                                   \
+      (void)fprintf(stderr, "%s privileged decode differs\n", name);       \
+      return 0;                                                            \
+    }                                                                      \
+  } while (0)
+  VALIDATE_CONTROL_SYMBOL("read_cr0", 0u, 1, read_cr0);
+  VALIDATE_CONTROL_SYMBOL("read_cr2", 2u, 1, read_cr2);
+  VALIDATE_CONTROL_SYMBOL("read_cr4", 4u, 1, read_cr4);
+  VALIDATE_CONTROL_SYMBOL("write_cr0", 0u, 0, write_cr0);
+  VALIDATE_CONTROL_SYMBOL("write_cr3", 3u, 0, write_cr3);
+  VALIDATE_CONTROL_SYMBOL("write_cr4", 4u, 0, write_cr4);
+#undef VALIDATE_CONTROL_SYMBOL
+  if (!validate_rdmsr_function(
+          job, text, find_symbol(object, "read_msr"))) {
+    (void)fprintf(stderr, "read_msr privileged decode differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_privileged_register_assembly_object(
+    const char *host_root) {
+  static const char source[] =
+      "typedef unsigned u32;\n"
+      "u32 read_cr0(void) { u32 value; __asm__ volatile(\"mov %%cr0, %0\" : \"=r\"(value)); return value; }\n"
+      "u32 read_cr2(void) { u32 value; __asm__ volatile(\"mov %%cr2, %0\" : \"=r\"(value)); return value; }\n"
+      "u32 read_cr4(void) { u32 value; __asm__ volatile(\"mov %%cr4, %0\" : \"=r\"(value)); return value; }\n"
+      "void write_cr0(u32 value) { __asm__ volatile(\"mov %0, %%cr0\" : : \"r\"(value)); }\n"
+      "void write_cr3(const u32 *value) { __asm__ volatile(\"mov %0, %%cr3\" : : \"r\"(value)); }\n"
+      "void write_cr4(u32 value) { __asm__ volatile(\"mov %0, %%cr4\" : : \"r\"(value) : \"memory\"); }\n"
+      "u32 read_msr(u32 msr) { u32 lo, hi; __asm__ volatile(\"rdmsr\" : \"=a\"(lo), \"=d\"(hi) : \"c\"(msr)); return lo ^ hi; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[7];
+  ctool_c_assembly_operand_t mutant_operands[9];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/privileged-register-assembly-object.c",
+          source, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 7u ||
+      unit.assembly_count != 7u ||
+      unit.assembly_operand_count != 9u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(
+        stderr,
+        "privileged register assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(
+          status, CTOOL_OK,
+          "privileged register assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first,
+          "first privileged register assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second,
+          "repeat privileged register assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr,
+        "privileged register assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/privileged-register-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK,
+          "read privileged register assembly object") ||
+      !validate_privileged_register_assembly_object(job, &object)) {
+    (void)fprintf(
+        stderr,
+        "privileged register assembly object validation failed\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 680u ||
+      find_section(&object, ".text")->contents.size != 199u ||
+      object.section_count != 5u || object.symbol_count != 8u ||
+      object.relocation_count != 0u ||
+      structure_text_fingerprint(
+          find_section(&object, ".text")->contents) != 0xa3095253u) {
+    (void)fprintf(
+        stderr,
+        "privileged-register-assembly: object metrics differ: "
+        "object=%u text=%u sections=%u symbols=%u relocations=%u "
+        "fingerprint=%08x\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count,
+        (unsigned int)structure_text_fingerprint(
+            find_section(&object, ".text")->contents));
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies,
+      sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands,
+      sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string("mov %%cr1, %0");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "reserved control register read") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[3].template_text =
+      ctool_string("mov %0, %%cr2");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "unsupported control register write") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[3] = unit.assemblies[3];
+
+  mutant_assemblies[0].flags |=
+      CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "control register read memory clobber") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[8].constraint = ctool_string("r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "RDMSR wrong input register") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[8] = unit.assembly_operands[8];
+
+  mutant_operands[6].constraint = ctool_string("=d");
+  mutant_operands[7].constraint = ctool_string("=a");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU inline assembly template is outside this i386 emission slice",
+          "RDMSR swapped outputs") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[6] = unit.assembly_operands[6];
+  mutant_operands[7] = unit.assembly_operands[7];
+
+  mutant_operands[3].constraint = ctool_string("q");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unsupported byte register input") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[3] = unit.assembly_operands[3];
+
+  mutant_operands[8].expression =
+      unit.assembly_operands[4].expression;
+  mutant_operands[8].type = unit.assembly_operands[4].type;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "pointer ECX input metadata") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure,
+          "privileged register assembly recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("privileged-register-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int port_io_register_matches(
     const ctool_x86_operand_t *operand, ctool_u16 width_bits,
     ctool_u8 index) {
@@ -28466,12 +28984,12 @@ static int run_port_io_assembly_object(const char *host_root) {
     goto cleanup;
   }
 
-  mutant_operands[1].constraint = ctool_string("c");
+  mutant_operands[1].constraint = ctool_string("q");
   if (!expect_object_failure(
           job, &mutant, failure, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "unsupported independent ECX input") ||
+          "unsupported independent byte register input") ||
       ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
     goto cleanup;
   }
@@ -30567,6 +31085,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "port-io-assembly") == 0) {
     return run_port_io_assembly_object(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "privileged-register-assembly") == 0) {
+    return run_privileged_register_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtin_object(argv[2]);
   }
@@ -30664,6 +31186,7 @@ int main(int argc, char **argv) {
                 "narrow-mutations|"
                 "narrow-values|"
                 "void-casts|inline-assembly|port-io-assembly|"
+                "privileged-register-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"
                 "pointer-output-assembly|"

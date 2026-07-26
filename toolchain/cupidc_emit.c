@@ -2475,6 +2475,22 @@ static ctool_status_t cemit_x86_load_register_at_register(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_store_register_at_register(
+    cemit_context_t *context, ctool_u8 address_register,
+    ctool_u8 source_register) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_MOV, 32u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, address_register),
+      0, 0u);
+  instruction.operands[1] = cemit_x86_register_operand(
+      CTOOL_X86_REG_GPR32, source_register);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_binary_register_at_register(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u8 destination_register, ctool_u8 address_register,
@@ -5304,6 +5320,240 @@ static ctool_bool cemit_assembly_output_fixed_register(
 }
 
 typedef enum {
+  CEMIT_PRIVILEGED_ASSEMBLY_NONE = 0,
+  CEMIT_PRIVILEGED_ASSEMBLY_READ_CR0,
+  CEMIT_PRIVILEGED_ASSEMBLY_READ_CR2,
+  CEMIT_PRIVILEGED_ASSEMBLY_READ_CR4,
+  CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR0,
+  CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR3,
+  CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR4,
+  CEMIT_PRIVILEGED_ASSEMBLY_RDMSR
+} cemit_privileged_assembly_kind_t;
+
+static cemit_privileged_assembly_kind_t
+cemit_privileged_assembly_template_kind(
+    ctool_string_t template_text) {
+  if (cemit_string_equals_literal(
+          template_text, "mov %%cr0, %0") == CTOOL_TRUE) {
+    return CEMIT_PRIVILEGED_ASSEMBLY_READ_CR0;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "mov %%cr2, %0") == CTOOL_TRUE) {
+    return CEMIT_PRIVILEGED_ASSEMBLY_READ_CR2;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "mov %%cr4, %0") == CTOOL_TRUE) {
+    return CEMIT_PRIVILEGED_ASSEMBLY_READ_CR4;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "mov %0, %%cr0") == CTOOL_TRUE) {
+    return CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR0;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "mov %0, %%cr3") == CTOOL_TRUE) {
+    return CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR3;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "mov %0, %%cr4") == CTOOL_TRUE) {
+    return CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR4;
+  }
+  return cemit_string_equals_literal(
+             template_text, "rdmsr") == CTOOL_TRUE
+             ? CEMIT_PRIVILEGED_ASSEMBLY_RDMSR
+             : CEMIT_PRIVILEGED_ASSEMBLY_NONE;
+}
+
+static ctool_bool cemit_privileged_assembly_operand_matches(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand,
+    const char *constraint, ctool_bool output,
+    ctool_bool allow_pointer) {
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_type_node_t *node;
+  ctool_u32 qualifiers;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->type >= context->unit->layout.type_count ||
+      cemit_string_equals_literal(
+          operand->constraint, constraint) == CTOOL_FALSE ||
+      cemit_underlying_type(
+          context, operand->type, &qualifiers, &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)node;
+  layout = &context->unit->layout.types[operand->type];
+  if (layout->size != 4u || layout->is_object == CTOOL_FALSE ||
+      layout->is_complete_object == CTOOL_FALSE ||
+      (output == CTOOL_TRUE &&
+       (qualifiers &
+        (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) != 0u)) {
+    return CTOOL_FALSE;
+  }
+  return layout->is_integer == CTOOL_TRUE ||
+                 (allow_pointer == CTOOL_TRUE &&
+                  cemit_ir_type_is_i32_pointer(
+                      context, operand->type) == CTOOL_TRUE)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_privileged_assembly_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    cemit_privileged_assembly_kind_t kind) {
+  const ctool_c_assembly_operand_t *operands;
+  ctool_bool read;
+  ctool_bool write;
+  if (kind == CEMIT_PRIVILEGED_ASSEMBLY_NONE ||
+      (assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u ||
+      assembly->first_operand >
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operands =
+      &context->unit->assembly_operands[assembly->first_operand];
+  read = kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR0 ||
+                 kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR2 ||
+                 kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR4
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+  write = kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR0 ||
+                  kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR3 ||
+                  kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR4
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+  if (read == CTOOL_TRUE) {
+    return assembly->flags == CTOOL_C_ASSEMBLY_VOLATILE &&
+                   assembly->output_count == 1u &&
+                   assembly->input_count == 0u &&
+                   assembly->first_operand <
+                       context->unit->assembly_operand_count &&
+                   cemit_privileged_assembly_operand_matches(
+                       context, &operands[0], "=r", CTOOL_TRUE,
+                       CTOOL_FALSE) == CTOOL_TRUE
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (write == CTOOL_TRUE) {
+    return (assembly->flags == CTOOL_C_ASSEMBLY_VOLATILE ||
+            assembly->flags ==
+                (CTOOL_C_ASSEMBLY_VOLATILE |
+                 CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) &&
+                   assembly->output_count == 0u &&
+                   assembly->input_count == 1u &&
+                   assembly->first_operand <
+                       context->unit->assembly_operand_count &&
+                   cemit_privileged_assembly_operand_matches(
+                       context, &operands[0], "r", CTOOL_FALSE,
+                       CTOOL_TRUE) == CTOOL_TRUE
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  return context->unit->assembly_operand_count >= 3u &&
+                 assembly->flags == CTOOL_C_ASSEMBLY_VOLATILE &&
+                 assembly->output_count == 2u &&
+                 assembly->input_count == 1u &&
+                 assembly->first_operand <=
+                     context->unit->assembly_operand_count - 3u &&
+                 cemit_privileged_assembly_operand_matches(
+                     context, &operands[0], "=a", CTOOL_TRUE,
+                     CTOOL_FALSE) == CTOOL_TRUE &&
+                 cemit_privileged_assembly_operand_matches(
+                     context, &operands[1], "=d", CTOOL_TRUE,
+                     CTOOL_FALSE) == CTOOL_TRUE &&
+                 cemit_privileged_assembly_operand_matches(
+                     context, &operands[2], "c", CTOOL_FALSE,
+                     CTOOL_FALSE) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_privileged_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    cemit_privileged_assembly_kind_t kind) {
+  ctool_u8 control_register;
+  ctool_bool read;
+  ctool_bool write;
+  ctool_status_t status;
+  if (cemit_privileged_assembly_metadata_is_valid(
+          context, assembly, kind) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  read = kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR0 ||
+                 kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR2 ||
+                 kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR4
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+  write = kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR0 ||
+                  kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR3 ||
+                  kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR4
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+  if (read == CTOOL_TRUE || write == CTOOL_TRUE) {
+    control_register =
+        kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR0 ||
+                kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR0
+            ? 0u
+            : kind == CEMIT_PRIVILEGED_ASSEMBLY_READ_CR2
+                  ? 2u
+                  : kind == CEMIT_PRIVILEGED_ASSEMBLY_WRITE_CR3
+                        ? 3u
+                        : 4u;
+    if (read == CTOOL_TRUE) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 1u,
+          CTOOL_X86_REG_CONTROL, control_register, 32u);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_store_register_at_register(
+            context, 0u, 1u);
+      }
+      return status;
+    }
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_CONTROL,
+          control_register, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_RDMSR);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_register_at_register(
+        context, 1u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_register_at_register(
+        context, 1u, 0u);
+  }
+  return status;
+}
+
+typedef enum {
   CEMIT_PORT_IO_NONE = 0,
   CEMIT_PORT_IO_INB,
   CEMIT_PORT_IO_OUTB,
@@ -6310,6 +6560,15 @@ static ctool_status_t cemit_emit_assembly(
     return CTOOL_ERR_INTERNAL;
   }
   operand_count = assembly->output_count + assembly->input_count;
+  {
+    cemit_privileged_assembly_kind_t privileged_kind =
+        cemit_privileged_assembly_template_kind(
+            assembly->template_text);
+    if (privileged_kind != CEMIT_PRIVILEGED_ASSEMBLY_NONE) {
+      return cemit_emit_privileged_assembly(
+          context, assembly, privileged_kind);
+    }
+  }
   if (cemit_assembly_uses_port_io_path(
           context, assembly) == CTOOL_TRUE) {
     return cemit_emit_port_io_assembly(
@@ -8989,6 +9248,11 @@ static ctool_status_t cemit_prepare_local_offsets(
         if (assembly->output_count > 4u ||
             assembly->output_count > 0x3fffffffu) {
           return CTOOL_ERR_INTERNAL;
+        }
+        if (cemit_privileged_assembly_template_kind(
+                assembly->template_text) !=
+            CEMIT_PRIVILEGED_ASSEMBLY_NONE) {
+          continue;
         }
         if (cemit_assembly_uses_port_io_path(
                 context, assembly) == CTOOL_TRUE) {
