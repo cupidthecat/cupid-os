@@ -54,6 +54,36 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "active-leaf: ok\n")
 
+    def test_section_attributes_publish_owned_validated_function_metadata(self):
+        result = subprocess.run(
+            [str(self.contract_path), "section-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "section-attributes: ok\n")
+
+    def test_unused_attributes_validate_without_changing_function_ir(self):
+        result = subprocess.run(
+            [str(self.contract_path), "unused-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "unused-attributes: ok\n")
+
+    def test_weak_attributes_require_external_object_or_function_bindings(self):
+        result = subprocess.run(
+            [str(self.contract_path), "weak-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "weak-attributes: ok\n")
+
     def test_pointer_output_assembly_evaluates_its_destination_once(self):
         result = subprocess.run(
             [
@@ -67,6 +97,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
+
+    def test_register_snapshot_assembly_preserves_output_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "register-snapshot-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "register-snapshot-assembly: ok\n")
 
     def test_atomic_builtins_lower_to_typed_transactional_ir(self):
         result = subprocess.run(
@@ -145,6 +189,26 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "switch-control: ok\n")
+
+    def test_constant_true_loops_do_not_fall_through_nonvoid_functions(self):
+        result = subprocess.run(
+            [str(self.contract_path), "constant-true-loops", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "constant-true-loops: ok\n")
+
+    def test_comma_expressions_lower_left_to_right_and_discard_intermediates(self):
+        result = subprocess.run(
+            [str(self.contract_path), "comma-expressions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "comma-expressions: ok\n")
 
     def test_nested_switches_keep_labels_and_reachability_isolated(self):
         result = subprocess.run(
@@ -311,6 +375,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "function-pointers: ok\n")
+
+    def test_function_pointer_casts_keep_exact_i386_ir_types(self):
+        result = subprocess.run(
+            [str(self.contract_path), "function-pointer-casts", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "function-pointer-casts: ok\n")
 
     def test_fixed_automatic_objects_use_target_sized_local_storage(self):
         result = subprocess.run(

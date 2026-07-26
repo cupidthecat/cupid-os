@@ -302,6 +302,13 @@ class SeedExecutor:
             )
         return result.stdout.strip()
 
+    def compiler_root_for(self, path: Path) -> str:
+        """Return a CupidC root path for an arbitrary captured source tree."""
+        resolved = path.resolve()
+        if self.uses_wsl:
+            return self._wsl_path(resolved)
+        return str(resolved)
+
     def run(
         self,
         executable: Path,

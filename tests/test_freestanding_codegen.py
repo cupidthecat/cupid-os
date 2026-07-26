@@ -107,13 +107,23 @@ class FreestandingCodeGenerationPolicyTests(unittest.TestCase):
         cases = [
             (REPO_ROOT, "kernel/core/kernel.o", "kernel/core/kernel.c"),
             (REPO_ROOT, "kernel/doom/src/am_map.o", "kernel/doom/src/am_map.c"),
-            (REPO_ROOT / "user", "build/hello.o", "examples/hello.c"),
         ]
         for make_root, target, source in cases:
             with self.subTest(make_root=make_root.name, target=target):
                 arguments = _make_compile_command(make_root, target, source)
                 self.assertIn("-fno-asynchronous-unwind-tables", arguments)
                 self.assertIn("-fno-unwind-tables", arguments)
+
+    def test_user_objects_use_the_checked_cupidc_profile(self):
+        arguments = _make_compile_command(
+            REPO_ROOT / "user",
+            "build/hello.o",
+            "examples/hello.cc",
+        )
+        self.assertIn("../tools/cupidc_production_compile.py", arguments)
+        self.assertIn("--cohort", arguments)
+        self.assertIn("user", arguments)
+        self.assertNotIn("-fno-asynchronous-unwind-tables", arguments)
 
 
 if __name__ == "__main__":

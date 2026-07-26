@@ -115,7 +115,7 @@ records the features exercised by each file.
 | `11CTXT.CTXT`           |   *   |      *      |    *    |    *    |      *       |
 | `12HOLYC-CUPIDC.CTXT`   |   *   |      *      |         |         |      *       |
 
-The Makefile and `kernel/util/docs_programs_gen.c` install the top-level
+The Makefile and `kernel/util/docs_programs_gen.cc` install the top-level
 `image.bmp` file as `/docs/image.bmp` at boot. The filesystem and embedding
 manuals use the same asset, covering both document rendering and boot-time
 asset installation.

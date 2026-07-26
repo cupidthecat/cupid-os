@@ -115,6 +115,38 @@ production wrapper recipe. Each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
 and symbols pass validation.
 
+The checked seed also compiles three generated installation tables and the
+three example external ELF programs. All six use `.cc` source names. The
+generated tables keep the kernel profile, while `hello.cc`, `ls.cc`, and
+`cat.cc` use the closed user profile and checked CupidLD link. Both wrappers
+freeze their source and control inputs, validate every ELF result, and replace
+an artifact only after the operation succeeds. Deterministic frontiers and
+poisoned-host builds protect both paths.
+
+The external-program runtime gate boots the checked hello, ls, and cat
+executables separately through the ordinary loader. Serial events carry the
+running PID. Print events record a byte count and FNV-1a fingerprint instead
+of caller text, which keeps newline and marker-shaped file contents inside
+one event. The checks cover hello's numeric writes, ls reading the shell root,
+cat reading a fixed FAT fixture, and a PID-matched exit from each program.
+Kernel and JIT printing remain on their existing path.
+
+Compiler head now emits weak symbols and arbitrary compatible named sections,
+records `unused` declarations, preserves typed static null pointers, treats
+known-true loops as non-fallthrough, and lowers comma expressions in source
+order. It also keeps all target bits through represented function-pointer
+casts and supports bounded output-only register and EFLAGS snapshots. Twenty
+of the 38 strict roots left after the 116-source handoff compile with these
+changes. They remain outside the production cohort until the seed, frontier,
+image, and runtime checks are refreshed.
+
+CupidDis accepts every one of the 428 active i386 ELF objects, including all
+current symbols and relocations. Cupid-built objects, checked tool images, and
+user executables have no unsupported instruction fallback. The remaining gap
+is concentrated in host-built kernel and Doom objects. Padding NOPs,
+packed-integer SSE2, and immediate three-operand `IMUL` account for 4,008 of
+the 4,164 missing instruction starts. Those groups set the next decoder work.
+
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 traffic,
 passes all 62 crypto checks, opens the desktop and terminal, and completes
 embedded CupidC execution at `0x01100000`. The established e1000 and RTL8139
@@ -126,6 +158,6 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-The current audit assigns 116 transforms to CupidC, 181 C transforms to the
-host compiler, 125 transforms to host Python, and 129 root or user objects to
-host-built C.
+The current audit assigns 122 transforms to CupidC, 175 C transforms to the
+host compiler, and 134 transforms to host Python. The host compiler still
+produces 123 root objects.

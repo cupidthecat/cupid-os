@@ -8,8 +8,8 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 698
 - Unreachable source-like files: 42
-- Reachable output transforms: 501
-- Distinct feature requirements: 252
+- Reachable output transforms: 500
+- Distinct feature requirements: 253
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
 
@@ -20,9 +20,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 274 |
+| `c` | 268 |
 | `c_header` | 270 |
-| `cupid_c` | 127 |
+| `cupid_c` | 133 |
 
 ## Source cohorts
 
@@ -42,7 +42,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |
 | `kernel_audio` | 14 | 4542 |
-| `kernel_core` | 16 | 3981 |
+| `kernel_core` | 16 | 4024 |
 | `kernel_cpu` | 18 | 3274 |
 | `kernel_crypto` | 40 | 5149 |
 | `kernel_fs` | 26 | 6283 |
@@ -55,11 +55,11 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 15 | 102095 |
-| `toolchain_core` | 31 | 61055 |
+| `toolchain_contract` | 15 | 105880 |
+| `toolchain_core` | 31 | 62377 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
-| `user_program` | 3 | 154 |
+| `user_program` | 3 | 139 |
 | `user_runtime_interface` | 1 | 357 |
 | `vendored_doom` | 183 | 65784 |
 
@@ -68,7 +68,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
 | `.` | `all` | 439 | 20 |
-| `user` | `all` | 8 | 1 |
+| `user` | `all` | 7 | 0 |
 | `toolchain` | `all` | 54 | 2 |
 
 ## Current output ownership
@@ -76,13 +76,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 116 |
+| `cupid_c_compiler` | 122 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 181 |
-| `host_python` | 125 |
-| `make` | 5 |
+| `host_c_compiler` | 175 |
+| `host_python` | 134 |
+| `make` | 4 |
 
 ## Feature inventory
 
@@ -99,22 +99,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 66028 |
+| `c.control` | 12 | 66970 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 2943 |
-| `c.expression` | 2 | 4294 |
+| `c.declarator` | 4 | 3007 |
+| `c.expression` | 2 | 4408 |
 | `c.extension` | 18 | 387 |
-| `c.initializer` | 1 | 638 |
-| `c.output` | 1 | 245 |
-| `c.preprocessor` | 18 | 6649 |
-| `c.qualifier` | 2 | 11866 |
-| `c.storage` | 4 | 7888 |
-| `c.type` | 14 | 44382 |
+| `c.initializer` | 1 | 640 |
+| `c.output` | 1 | 239 |
+| `c.preprocessor` | 18 | 6660 |
+| `c.qualifier` | 2 | 12116 |
+| `c.storage` | 4 | 8018 |
+| `c.type` | 14 | 44754 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
+| `cupid_c.output` | 1 | 6 |
 | `cupid_c.storage` | 2 | 2 |
 | `cupid_c.type` | 12 | 152 |
 
@@ -150,7 +151,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 129 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 135 |
 
 ## Source-cohort migration order
 
@@ -160,7 +161,7 @@ It is also a declared Make prerequisite.
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 276 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 190 | Preserve upstream behavior under a deliberate compatibility mode. |
-| 5 | `user_programs` | 4 | Migrate the remaining separate host-C compilation path to CupidC and stage its CupidLD outputs deliberately. |
+| 5 | `user_programs` | 4 | Keep the checked CupidC and CupidLD user build reproducible, then stage its validated executables deliberately. |
 | 6 | `embedded_cupid_sources` | 151 | Keep runtime CupidC/CupidASM regression corpora active through the host migration. |
 
 ## Unreachable source classification

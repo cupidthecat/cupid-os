@@ -23,16 +23,29 @@
 #define CEMIT_WIDE_DIVIDE_STACK_SIZE 40u
 
 typedef struct {
+  ctool_string_t name;
+  ctool_u32 flags;
+  ctool_u32 alignment;
+  ctool_buffer_t *contents;
+} cemit_named_section_t;
+
+typedef struct {
   ctool_job_t *job;
   const ctool_c_translation_unit_t *unit;
   ctool_c_ir_unit_t ir;
   ctool_arena_t *arena;
   ctool_buffer_t *text;
+  ctool_buffer_t *active_text;
   ctool_buffer_t *rodata;
   ctool_buffer_t *data;
   ctool_buffer_t *object_output;
   ctool_u32 bss_size;
+  ctool_u32 active_text_section;
   ctool_u32 section_alignment[CEMIT_SECTION_COUNT];
+  cemit_named_section_t *named_sections;
+  ctool_u32 named_section_count;
+  ctool_u32 named_section_capacity;
+  ctool_u32 *binding_sections;
   ctool_elf32_symbol_spec_t *symbols;
   ctool_u32 symbol_count;
   ctool_u32 symbol_capacity;
@@ -87,6 +100,22 @@ static ctool_bool cemit_multiply_overflows(ctool_u32 left,
 static ctool_bool cemit_power_of_two(ctool_u32 value) {
   return value != 0u && (value & (value - 1u)) == 0u ? CTOOL_TRUE
                                                      : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_strings_equal(ctool_string_t left,
+                                      ctool_string_t right) {
+  ctool_u32 index;
+  if (left.size != right.size ||
+      (left.size != 0u &&
+       (left.data == (const char *)0 || right.data == (const char *)0))) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < left.size; index++) {
+    if (left.data[index] != right.data[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
 }
 
 static ctool_status_t cemit_align_value(ctool_u32 value,
@@ -393,8 +422,41 @@ static ctool_bool cemit_type_is_const(const cemit_context_t *context,
   return CTOOL_FALSE;
 }
 
+static ctool_bool cemit_section_name_is_valid(ctool_string_t name) {
+  static const char relocation_prefix[] = ".rel.";
+  ctool_u32 index;
+  ctool_bool relocation_name = CTOOL_TRUE;
+  if (name.data == (const char *)0 || name.size == 0u ||
+      cemit_strings_equal(name, ctool_string(".symtab")) == CTOOL_TRUE ||
+      cemit_strings_equal(name, ctool_string(".strtab")) == CTOOL_TRUE ||
+      cemit_strings_equal(name, ctool_string(".shstrtab")) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  if (name.size < (ctool_u32)sizeof(relocation_prefix) - 1u) {
+    relocation_name = CTOOL_FALSE;
+  } else {
+    for (index = 0u;
+         index < (ctool_u32)sizeof(relocation_prefix) - 1u; index++) {
+      if (name.data[index] != relocation_prefix[index]) {
+        relocation_name = CTOOL_FALSE;
+        break;
+      }
+    }
+  }
+  if (relocation_name == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < name.size; index++) {
+    if (name.data[index] == '\0') {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
   const ctool_c_translation_unit_t *unit = context->unit;
+  ctool_u32 binding;
   if ((unit->graph.type_count != 0u &&
        unit->graph.types == (const ctool_c_type_node_t *)0) ||
       (unit->graph.member_count != 0u &&
@@ -429,6 +491,48 @@ static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
            (const ctool_c_function_definition_t *)0)) {
     return cemit_invalid_unit(context,
                               (const ctool_c_pp_location_t *)0);
+  }
+  for (binding = 0u; binding < unit->binding_count; binding++) {
+    const ctool_c_binding_t *candidate = &unit->bindings[binding];
+    ctool_bool has_section =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool unused =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_UNUSED) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool weak =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if ((candidate->attributes & ~CTOOL_C_DECL_ATTR_ALL) != 0u ||
+        (weak == CTOOL_TRUE &&
+         (candidate->kind != CTOOL_C_BINDING_OBJECT &&
+          candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
+        (weak == CTOOL_TRUE &&
+         candidate->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
+        (has_section == CTOOL_FALSE &&
+         candidate->section_name.size != 0u) ||
+        (has_section == CTOOL_TRUE &&
+         candidate->type >= unit->graph.type_count) ||
+        (has_section == CTOOL_TRUE &&
+         (candidate->kind != CTOOL_C_BINDING_OBJECT &&
+          candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
+        (has_section == CTOOL_TRUE &&
+         candidate->file_scope_visible == CTOOL_FALSE) ||
+        (has_section == CTOOL_TRUE &&
+         cemit_section_name_is_valid(candidate->section_name) ==
+             CTOOL_FALSE) ||
+        (unused == CTOOL_TRUE &&
+         candidate->type >= unit->graph.type_count) ||
+        (unused == CTOOL_TRUE &&
+         (candidate->kind != CTOOL_C_BINDING_OBJECT &&
+          candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
+        (unused == CTOOL_TRUE &&
+         candidate->file_scope_visible == CTOOL_FALSE)) {
+      return cemit_invalid_unit(context, &candidate->location);
+    }
   }
   return CTOOL_OK;
 }
@@ -504,7 +608,12 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
       return cemit_invalid_unit(context, &definition->location);
     }
     binding = &context->unit->bindings[definition->binding];
-    if (binding->kind != CTOOL_C_BINDING_FUNCTION) {
+    if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
+        cemit_strings_equal(
+            function->section_name,
+            (binding->attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u
+                ? binding->section_name
+                : ctool_string("")) == CTOOL_FALSE) {
       return cemit_invalid_unit(context, &definition->location);
     }
     context->binding_function_definitions[definition->binding] = index;
@@ -838,6 +947,11 @@ static ctool_status_t cemit_ensure_binding_symbol(
        binding->kind != CTOOL_C_BINDING_FUNCTION) ||
       (binding->linkage != CTOOL_C_LINKAGE_INTERNAL &&
        binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
+      (binding->attributes & ~CTOOL_C_DECL_ATTR_ALL) != 0u ||
+      ((binding->attributes & CTOOL_C_DECL_ATTR_NORETURN) != 0u &&
+       binding->kind != CTOOL_C_BINDING_FUNCTION) ||
+      ((binding->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u &&
+       binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
       binding->name.data == (const char *)0 || binding->name.size == 0u) {
     return cemit_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
@@ -850,9 +964,12 @@ static ctool_status_t cemit_ensure_binding_symbol(
   symbol_index = context->symbol_count++;
   symbol = &context->symbols[symbol_index];
   symbol->name = binding->name;
-  symbol->binding = binding->linkage == CTOOL_C_LINKAGE_INTERNAL
-                        ? CTOOL_ELF32_BIND_LOCAL
-                        : CTOOL_ELF32_BIND_GLOBAL;
+  symbol->binding =
+      binding->linkage == CTOOL_C_LINKAGE_INTERNAL
+          ? CTOOL_ELF32_BIND_LOCAL
+          : (binding->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u
+                ? CTOOL_ELF32_BIND_WEAK
+                : CTOOL_ELF32_BIND_GLOBAL;
   symbol->type = binding->kind == CTOOL_C_BINDING_FUNCTION
                      ? CTOOL_ELF32_SYMBOL_FUNCTION
                      : CTOOL_ELF32_SYMBOL_OBJECT;
@@ -956,8 +1073,170 @@ static ctool_buffer_t *cemit_section_buffer(cemit_context_t *context,
   if (section == CEMIT_SECTION_RODATA) {
     return context->rodata;
   }
-  return section == CEMIT_SECTION_DATA ? context->data
-                                       : (ctool_buffer_t *)0;
+  if (section == CEMIT_SECTION_DATA) {
+    return context->data;
+  }
+  return section >= CEMIT_SECTION_COUNT &&
+                 section - CEMIT_SECTION_COUNT <
+                     context->named_section_count
+             ? context
+                   ->named_sections[section - CEMIT_SECTION_COUNT]
+                   .contents
+             : (ctool_buffer_t *)0;
+}
+
+static ctool_u32 cemit_section_flags(const cemit_context_t *context,
+                                     ctool_u32 section) {
+  if (section == CEMIT_SECTION_TEXT) {
+    return CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  }
+  if (section == CEMIT_SECTION_RODATA) {
+    return CTOOL_ELF32_SHF_ALLOC;
+  }
+  if (section == CEMIT_SECTION_DATA || section == CEMIT_SECTION_BSS) {
+    return CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+  }
+  return section >= CEMIT_SECTION_COUNT &&
+                 section - CEMIT_SECTION_COUNT <
+                     context->named_section_count
+             ? context
+                   ->named_sections[section - CEMIT_SECTION_COUNT]
+                   .flags
+             : 0u;
+}
+
+static ctool_string_t cemit_section_name(
+    const cemit_context_t *context, ctool_u32 section) {
+  if (section == CEMIT_SECTION_TEXT) {
+    return ctool_string(".text");
+  }
+  if (section == CEMIT_SECTION_RODATA) {
+    return ctool_string(".rodata");
+  }
+  if (section == CEMIT_SECTION_DATA) {
+    return ctool_string(".data");
+  }
+  if (section == CEMIT_SECTION_BSS) {
+    return ctool_string(".bss");
+  }
+  return section >= CEMIT_SECTION_COUNT &&
+                 section - CEMIT_SECTION_COUNT <
+                     context->named_section_count
+             ? context
+                   ->named_sections[section - CEMIT_SECTION_COUNT]
+                   .name
+             : ctool_string("");
+}
+
+static ctool_u32 cemit_section_alignment(
+    const cemit_context_t *context, ctool_u32 section) {
+  if (section < CEMIT_SECTION_COUNT) {
+    return context->section_alignment[section];
+  }
+  return section - CEMIT_SECTION_COUNT < context->named_section_count
+             ? context
+                   ->named_sections[section - CEMIT_SECTION_COUNT]
+                   .alignment
+             : 0u;
+}
+
+static ctool_status_t cemit_raise_section_alignment(
+    cemit_context_t *context, ctool_u32 section, ctool_u32 alignment) {
+  if (section < CEMIT_SECTION_COUNT) {
+    if (context->section_alignment[section] < alignment) {
+      context->section_alignment[section] = alignment;
+    }
+    return CTOOL_OK;
+  }
+  if (section - CEMIT_SECTION_COUNT >= context->named_section_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (context->named_sections[section - CEMIT_SECTION_COUNT].alignment <
+      alignment) {
+    context->named_sections[section - CEMIT_SECTION_COUNT].alignment =
+        alignment;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cemit_get_named_section(
+    cemit_context_t *context, ctool_string_t name, ctool_u32 flags,
+    const ctool_c_pp_location_t *location, ctool_u32 *section_out) {
+  const ctool_limits_t *limits = ctool_job_limits(context->job);
+  ctool_u32 initial_capacity =
+      limits->output_bytes < 256u ? limits->output_bytes : 256u;
+  ctool_u32 section;
+  ctool_status_t status;
+  for (section = 0u; section < CEMIT_SECTION_COUNT; section++) {
+    if (cemit_strings_equal(name, cemit_section_name(context, section)) ==
+        CTOOL_TRUE) {
+      if (section == CEMIT_SECTION_BSS ||
+          cemit_section_flags(context, section) != flags) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SECTION, location,
+            "ELF section name is reused with incompatible flags");
+      }
+      *section_out = section;
+      return CTOOL_OK;
+    }
+  }
+  for (section = 0u; section < context->named_section_count; section++) {
+    cemit_named_section_t *candidate =
+        &context->named_sections[section];
+    if (cemit_strings_equal(name, candidate->name) == CTOOL_TRUE) {
+      if (candidate->flags != flags) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SECTION, location,
+            "ELF section name is reused with incompatible flags");
+      }
+      *section_out = CEMIT_SECTION_COUNT + section;
+      return CTOOL_OK;
+    }
+  }
+  if (context->named_section_count >= context->named_section_capacity) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  section = context->named_section_count;
+  status = ctool_job_open_buffer(
+      context->job, initial_capacity, limits->output_bytes,
+      &context->named_sections[section].contents);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  context->named_sections[section].name = name;
+  context->named_sections[section].flags = flags;
+  context->named_sections[section].alignment = 0u;
+  context->named_section_count++;
+  *section_out = CEMIT_SECTION_COUNT + section;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cemit_index_named_sections(
+    cemit_context_t *context) {
+  ctool_u32 binding;
+  for (binding = 0u; binding < context->unit->binding_count; binding++) {
+    const ctool_c_binding_t *candidate =
+        &context->unit->bindings[binding];
+    ctool_u32 flags;
+    ctool_status_t status;
+    context->binding_sections[binding] = CTOOL_C_AST_NONE;
+    if ((candidate->attributes & CTOOL_C_DECL_ATTR_SECTION) == 0u) {
+      continue;
+    }
+    flags = candidate->kind == CTOOL_C_BINDING_FUNCTION
+                ? CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR
+                : cemit_type_is_const(context, candidate->type) ==
+                          CTOOL_TRUE
+                      ? CTOOL_ELF32_SHF_ALLOC
+                      : CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+    status = cemit_get_named_section(
+        context, candidate->section_name, flags, &candidate->location,
+        &context->binding_sections[binding]);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  return CTOOL_OK;
 }
 
 static ctool_status_t cemit_align_buffer(cemit_context_t *context,
@@ -976,7 +1255,10 @@ static ctool_status_t cemit_align_buffer(cemit_context_t *context,
     return status;
   }
   return ctool_buffer_fill(buffer,
-                           section == CEMIT_SECTION_TEXT ? 0x90u : 0u,
+                           (cemit_section_flags(context, section) &
+                            CTOOL_ELF32_SHF_EXECINSTR) != 0u
+                               ? 0x90u
+                               : 0u,
                            aligned - size);
 }
 
@@ -1261,7 +1543,7 @@ static ctool_status_t cemit_encode_initializer(
 
 static ctool_status_t cemit_place_static_object(
     cemit_context_t *context, ctool_u32 type, ctool_u32 initializer_index,
-    ctool_u32 alignment, ctool_u32 symbol_index,
+    ctool_u32 alignment, ctool_u32 symbol_index, ctool_u32 section_override,
     const ctool_c_pp_location_t *location) {
   const ctool_c_type_layout_t *layout;
   const ctool_c_initializer_t *initializer;
@@ -1290,7 +1572,9 @@ static ctool_status_t cemit_place_static_object(
       symbol->section != CTOOL_ELF32_NO_SECTION) {
     return cemit_invalid_unit(context, location);
   }
-  if (cemit_type_is_const(context, type) == CTOOL_TRUE) {
+  if (section_override != CTOOL_C_AST_NONE) {
+    section = section_override;
+  } else if (cemit_type_is_const(context, type) == CTOOL_TRUE) {
     section = CEMIT_SECTION_RODATA;
   } else if (context->initializer_is_zero[initializer_index] ==
              CTOOL_TRUE) {
@@ -1320,8 +1604,9 @@ static ctool_status_t cemit_place_static_object(
       return status;
     }
   }
-  if (context->section_alignment[section] < alignment) {
-    context->section_alignment[section] = alignment;
+  status = cemit_raise_section_alignment(context, section, alignment);
+  if (status != CTOOL_OK) {
+    return status;
   }
   symbol->placement = CTOOL_ELF32_SYMBOL_DEFINED;
   symbol->section = section;
@@ -1364,7 +1649,8 @@ static ctool_status_t cemit_place_definition(
   }
   return cemit_place_static_object(
       context, definition->declared_type, definition->initializer, alignment,
-      symbol_index, &definition->location);
+      symbol_index, context->binding_sections[definition->binding],
+      &definition->location);
 }
 
 static ctool_status_t cemit_place_block_static(
@@ -1392,7 +1678,7 @@ static ctool_status_t cemit_place_block_static(
   return cemit_place_static_object(
       context, binding->type, binding->initializer,
       context->unit->layout.types[binding->type].alignment, symbol_index,
-      &binding->location);
+      CTOOL_C_AST_NONE, &binding->location);
 }
 
 static ctool_x86_reg_t cemit_x86_register(
@@ -1467,7 +1753,7 @@ static ctool_status_t cemit_x86_encode(
     cemit_context_t *context, const ctool_x86_instruction_t *instruction,
     ctool_x86_encoding_t *encoding_out, ctool_u32 *offset_out) {
   ctool_x86_encoding_t encoding;
-  ctool_u32 offset = ctool_buffer_view(context->text).size;
+  ctool_u32 offset = ctool_buffer_view(context->active_text).size;
   ctool_status_t status = ctool_x86_encode(
       context->job, CTOOL_X86_MODE_32, instruction, CTOOL_X86_FORM_AUTO,
       &encoding);
@@ -1475,7 +1761,7 @@ static ctool_status_t cemit_x86_encode(
     return status;
   }
   status = ctool_buffer_append(
-      context->text, ctool_bytes(encoding.bytes, encoding.size));
+      context->active_text, ctool_bytes(encoding.bytes, encoding.size));
   if (status != CTOOL_OK) {
     return status;
   }
@@ -1932,7 +2218,7 @@ static ctool_status_t cemit_emit_atomic_fetch_or(
   if (status == CTOOL_OK) {
     status = cemit_x86_load_atomic_eax_at_edx(context, type);
   }
-  repeat_target = ctool_buffer_view(context->text).size;
+  repeat_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_x86_two_registers(
         context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 3u,
@@ -1952,7 +2238,7 @@ static ctool_status_t cemit_emit_atomic_fetch_or(
   }
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, repeat_patch, repeat_after, repeat_target);
+        context->active_text, repeat_patch, repeat_after, repeat_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
@@ -2738,7 +3024,7 @@ static ctool_status_t cemit_x86_push_wide_divide_remainder_snapshot(
     status = cemit_x86_move_register_constant(context, 1u, 64u);
   }
 
-  repeat_target = ctool_buffer_view(context->text).size;
+  repeat_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_x86_load_stack(
         context, 0u, CEMIT_WIDE_QUOTIENT_LOW_STACK);
@@ -2848,14 +3134,16 @@ static ctool_status_t cemit_x86_push_wide_divide_remainder_snapshot(
         context, CTOOL_X86_MN_JB, &low_less_patch, &low_less_after);
   }
 
-  subtract_target = ctool_buffer_view(context->text).size;
+  subtract_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, overflow_patch, overflow_after, subtract_target);
+        context->active_text, overflow_patch, overflow_after,
+        subtract_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, greater_patch, greater_after, subtract_target);
+        context->active_text, greater_patch, greater_after,
+        subtract_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_load_stack(
@@ -2896,15 +3184,15 @@ static ctool_status_t cemit_x86_push_wide_divide_remainder_snapshot(
         context, CEMIT_WIDE_QUOTIENT_LOW_STACK, 0u);
   }
 
-  continue_target = ctool_buffer_view(context->text).size;
+  continue_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, high_less_patch, high_less_after,
+        context->active_text, high_less_patch, high_less_after,
         continue_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, low_less_patch, low_less_after,
+        context->active_text, low_less_patch, low_less_after,
         continue_target);
   }
   if (status == CTOOL_OK) {
@@ -2917,7 +3205,7 @@ static ctool_status_t cemit_x86_push_wide_divide_remainder_snapshot(
   }
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, repeat_patch, repeat_after, repeat_target);
+        context->active_text, repeat_patch, repeat_after, repeat_target);
   }
 
   if (status == CTOOL_OK) {
@@ -3053,7 +3341,7 @@ static ctool_status_t cemit_x86_push_wide_shift_snapshot(
     status = cemit_x86_branch(
         context, CTOOL_X86_MN_JE, &done_patch, &done_after);
   }
-  repeat_target = ctool_buffer_view(context->text).size;
+  repeat_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK && shift_left == CTOOL_TRUE) {
     status = cemit_x86_shift_register(
         context, CTOOL_X86_MN_SHL, 0u, 1u);
@@ -3082,12 +3370,12 @@ static ctool_status_t cemit_x86_push_wide_shift_snapshot(
   }
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, repeat_patch, repeat_after, repeat_target);
+        context->active_text, repeat_patch, repeat_after, repeat_target);
   }
-  done_target = ctool_buffer_view(context->text).size;
+  done_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, done_patch, done_after, done_target);
+        context->active_text, done_patch, done_after, done_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_push_wide_register_snapshot(
@@ -3349,7 +3637,7 @@ static ctool_status_t cemit_x86_call_symbol(
   }
   relocation_offset = offset + encoding.fields[0].byte_offset;
   return cemit_add_relocation(
-      context, CEMIT_SECTION_TEXT, relocation_offset, symbol,
+      context, context->active_text_section, relocation_offset, symbol,
       CTOOL_ELF32_R_386_PC32, encoding.fields[0].encoded_addend);
 }
 
@@ -3395,7 +3683,7 @@ static ctool_status_t cemit_x86_push_symbol(
     return CTOOL_ERR_INTERNAL;
   }
   relocation_offset = offset + encoding.fields[0].byte_offset;
-  return cemit_add_relocation(context, CEMIT_SECTION_TEXT,
+  return cemit_add_relocation(context, context->active_text_section,
                               relocation_offset, symbol,
                               CTOOL_ELF32_R_386_32, 0);
 }
@@ -3517,6 +3805,24 @@ static ctool_bool cemit_ir_type_is_i32_function_pointer(
                  context->unit->layout.types[type].is_complete_object ==
                      CTOOL_TRUE &&
                  context->unit->layout.types[type].size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ir_function_pointer_cast_is_valid(
+    const cemit_context_t *context, ctool_u32 source_type,
+    ctool_u32 target_type) {
+  ctool_bool source_is_function_pointer =
+      cemit_ir_type_is_i32_function_pointer(context, source_type);
+  ctool_bool target_is_function_pointer =
+      cemit_ir_type_is_i32_function_pointer(context, target_type);
+  return (source_is_function_pointer == CTOOL_TRUE &&
+          (target_is_function_pointer == CTOOL_TRUE ||
+           cemit_ir_type_is_i32_integer(context, target_type) ==
+               CTOOL_TRUE)) ||
+                 (target_is_function_pointer == CTOOL_TRUE &&
+                  cemit_ir_type_is_i32_integer(context, source_type) ==
+                      CTOOL_TRUE)
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -4098,10 +4404,10 @@ static ctool_status_t cemit_x86_push_wide_comparison(
     status = cemit_x86_branch(
         context, CTOOL_X86_MN_JMP, &done_patch, &done_after);
   }
-  equal_target = ctool_buffer_view(context->text).size;
+  equal_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, equal_patch, equal_after, equal_target);
+        context->active_text, equal_patch, equal_after, equal_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_load_register_at_register(context, 2u, 0u, 0u);
@@ -4120,10 +4426,10 @@ static ctool_status_t cemit_x86_push_wide_comparison(
         context, CTOOL_X86_MN_MOVZX, CTOOL_X86_REG_GPR32, 2u,
         CTOOL_X86_REG_GPR8, 2u, 32u);
   }
-  done_target = ctool_buffer_view(context->text).size;
+  done_target = ctool_buffer_view(context->active_text).size;
   if (status == CTOOL_OK) {
     status = cemit_patch_branch(
-        context->text, done_patch, done_after, done_target);
+        context->active_text, done_patch, done_after, done_target);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
@@ -5591,14 +5897,242 @@ static ctool_bool cemit_assembly_take_operand(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cemit_assembly_take_gpr32(
+    ctool_string_t text, ctool_u32 *cursor,
+    ctool_u8 *register_out) {
+  if (cemit_assembly_take_literal(
+          text, cursor, "%%eax") == CTOOL_TRUE) {
+    *register_out = 0u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%ecx") == CTOOL_TRUE) {
+    *register_out = 1u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%edx") == CTOOL_TRUE) {
+    *register_out = 2u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%ebx") == CTOOL_TRUE) {
+    *register_out = 3u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%esp") == CTOOL_TRUE) {
+    *register_out = 4u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%ebp") == CTOOL_TRUE) {
+    *register_out = 5u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%esi") == CTOOL_TRUE) {
+    *register_out = 6u;
+  } else if (cemit_assembly_take_literal(
+                 text, cursor, "%%edi") == CTOOL_TRUE) {
+    *register_out = 7u;
+  } else {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cemit_assembly_register_snapshot_template(
+    ctool_string_t text, ctool_u8 *source_register_out) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 operand = CTOOL_C_AST_NONE;
+  cemit_assembly_skip_space(text, &cursor);
+  if (cemit_assembly_take_word(text, &cursor, "mov") == CTOOL_FALSE &&
+      cemit_assembly_take_word(text, &cursor, "movl") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  if (cemit_assembly_take_gpr32(
+          text, &cursor, source_register_out) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  if (cursor >= text.size || text.data[cursor] != ',') {
+    return CTOOL_FALSE;
+  }
+  cursor++;
+  if (cemit_assembly_take_operand(
+          text, &cursor, &operand) == CTOOL_FALSE ||
+      operand != 0u) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  return cursor == text.size ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_assembly_return_slot_snapshot_template(
+    ctool_string_t text) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 operand = CTOOL_C_AST_NONE;
+  cemit_assembly_skip_space(text, &cursor);
+  if (cemit_assembly_take_word(
+          text, &cursor, "movl") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  if (cemit_assembly_take_literal(
+          text, &cursor, "4(%%ebp)") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  if (cursor >= text.size || text.data[cursor] != ',') {
+    return CTOOL_FALSE;
+  }
+  cursor++;
+  if (cemit_assembly_take_operand(
+          text, &cursor, &operand) == CTOOL_FALSE ||
+      operand != 0u) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  return cursor == text.size ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_assembly_flags_snapshot_template(
+    ctool_string_t text, ctool_bool *disable_interrupts_out) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 separator_start;
+  ctool_u32 operand = CTOOL_C_AST_NONE;
+  ctool_bool saw_line_break = CTOOL_FALSE;
+  cemit_assembly_skip_space(text, &cursor);
+  if (cemit_assembly_take_word(
+          text, &cursor, "pushf") == CTOOL_FALSE &&
+      cemit_assembly_take_word(
+          text, &cursor, "pushfl") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  separator_start = cursor;
+  while (cursor < text.size &&
+         (text.data[cursor] == ' ' || text.data[cursor] == '\t' ||
+          text.data[cursor] == '\r' || text.data[cursor] == '\n')) {
+    if (text.data[cursor] == '\r' || text.data[cursor] == '\n') {
+      saw_line_break = CTOOL_TRUE;
+    }
+    cursor++;
+  }
+  if (cursor < text.size && text.data[cursor] == ';') {
+    cursor++;
+    cemit_assembly_skip_space(text, &cursor);
+  } else if (saw_line_break == CTOOL_FALSE) {
+    cursor = separator_start;
+    return CTOOL_FALSE;
+  }
+  if (cemit_assembly_take_word(
+          text, &cursor, "pop") == CTOOL_FALSE &&
+      cemit_assembly_take_word(
+          text, &cursor, "popl") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (cemit_assembly_take_operand(
+          text, &cursor, &operand) == CTOOL_FALSE ||
+      operand != 0u) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  if (cursor == text.size) {
+    *disable_interrupts_out = CTOOL_FALSE;
+    return CTOOL_TRUE;
+  }
+  if (text.data[cursor] != ';') {
+    return CTOOL_FALSE;
+  }
+  cursor++;
+  cemit_assembly_skip_space(text, &cursor);
+  if (cemit_assembly_take_word(
+          text, &cursor, "cli") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  cemit_assembly_skip_space(text, &cursor);
+  if (cursor != text.size) {
+    return CTOOL_FALSE;
+  }
+  *disable_interrupts_out = CTOOL_TRUE;
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cemit_assembly_snapshot_output_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand =
+      assembly->output_count == 1u &&
+              context->unit->assembly_operands !=
+                  (const ctool_c_assembly_operand_t *)0
+          ? &context->unit->assembly_operands[assembly->first_operand]
+          : (const ctool_c_assembly_operand_t *)0;
+  return assembly->flags == CTOOL_C_ASSEMBLY_VOLATILE &&
+                 assembly->output_count == 1u &&
+                 assembly->input_count == 0u &&
+                 operand != (const ctool_c_assembly_operand_t *)0 &&
+                 cemit_string_equals_literal(
+                     operand->constraint, "=r") == CTOOL_TRUE &&
+                 cemit_ir_type_is_i32_integer(
+                     context, operand->type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cemit_emit_assembly_template(
     cemit_context_t *context, const ctool_c_assembly_t *assembly,
     const ctool_u8 registers[4]) {
   ctool_u32 cursor = 0u;
   ctool_u32 output;
+  ctool_u8 snapshot_source_register = 0u;
+  ctool_bool snapshot_disables_interrupts = CTOOL_FALSE;
   ctool_bool emitted_instruction = CTOOL_FALSE;
   ctool_bool has_pointer_output = CTOOL_FALSE;
   ctool_status_t status = CTOOL_OK;
+  if (cemit_assembly_register_snapshot_template(
+          assembly->template_text,
+          &snapshot_source_register) == CTOOL_TRUE) {
+    if (cemit_assembly_snapshot_output_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+          "GNU inline assembly template is outside this i386 emission "
+          "slice");
+    }
+    return cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32,
+        registers[0], CTOOL_X86_REG_GPR32,
+        snapshot_source_register, 32u);
+  }
+  if (cemit_assembly_return_slot_snapshot_template(
+          assembly->template_text) == CTOOL_TRUE) {
+    if (cemit_assembly_snapshot_output_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+          "GNU inline assembly template is outside this i386 emission "
+          "slice");
+    }
+    return cemit_x86_load_register_at_register(
+        context, registers[0], 5u, 4u);
+  }
+  if (cemit_assembly_flags_snapshot_template(
+          assembly->template_text,
+          &snapshot_disables_interrupts) == CTOOL_TRUE) {
+    if (cemit_assembly_snapshot_output_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+          "GNU inline assembly template is outside this i386 emission "
+          "slice");
+    }
+    status = cemit_x86_no_operand(
+        context, CTOOL_X86_MN_PUSHF);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32,
+          registers[0], 32u);
+    }
+    if (status == CTOOL_OK &&
+        snapshot_disables_interrupts == CTOOL_TRUE) {
+      status = cemit_x86_no_operand(
+          context, CTOOL_X86_MN_CLI);
+    }
+    return status;
+  }
   for (output = 0u; output < assembly->output_count; output++) {
     const ctool_c_assembly_operand_t *operand =
         &context->unit->assembly_operands[
@@ -7111,11 +7645,19 @@ static ctool_status_t cemit_emit_ir_instruction(
                     context, ir_instruction->type) == CTOOL_FALSE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool function_pointer_conversion =
+        ir_instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+                cemit_ir_function_pointer_cast_is_valid(
+                    context, ir_instruction->input_type,
+                    ir_instruction->type) == CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if ((integer_conversion == CTOOL_FALSE &&
          floating_conversion == CTOOL_FALSE &&
          pointer_conversion == CTOOL_FALSE &&
          null_conversion == CTOOL_FALSE &&
-         explicit_scalar_conversion == CTOOL_FALSE) ||
+         explicit_scalar_conversion == CTOOL_FALSE &&
+         function_pointer_conversion == CTOOL_FALSE) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
@@ -8562,6 +9104,10 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
   ctool_u32 alignment = binding->minimum_alignment == 0u
                             ? 1u
                             : binding->minimum_alignment;
+  ctool_u32 section = context->binding_sections[definition->binding] ==
+                              CTOOL_C_AST_NONE
+                          ? CEMIT_SECTION_TEXT
+                          : context->binding_sections[definition->binding];
   ctool_u32 function_start;
   ctool_u32 function_size;
   ctool_u32 frame_size;
@@ -8579,7 +9125,14 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
       function->first_instruction > context->ir.instruction_count ||
       function->instruction_count >
           context->ir.instruction_count - function->first_instruction ||
-      function->instruction_count == 0xffffffffu) {
+      function->instruction_count == 0xffffffffu ||
+      cemit_strings_equal(
+          function->section_name,
+          (binding->attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u
+              ? binding->section_name
+              : ctool_string("")) == CTOOL_FALSE ||
+      (cemit_section_flags(context, section) &
+       CTOOL_ELF32_SHF_EXECINSTR) == 0u) {
     return cemit_invalid_unit(context, &definition->location);
   }
   status = cemit_prepare_local_offsets(context, function, &frame_size);
@@ -8588,12 +9141,17 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
         context, function, &stack_depths);
   }
   if (status == CTOOL_OK) {
-    status = cemit_align_buffer(context, CEMIT_SECTION_TEXT, alignment);
+    status = cemit_align_buffer(context, section, alignment);
   }
   if (status != CTOOL_OK) {
     return status;
   }
-  function_start = ctool_buffer_view(context->text).size;
+  context->active_text = cemit_section_buffer(context, section);
+  context->active_text_section = section;
+  if (context->active_text == (ctool_buffer_t *)0) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  function_start = ctool_buffer_view(context->active_text).size;
   status = cemit_alloc_array(
       context, function->instruction_count + 1u,
       (ctool_u32)sizeof(ctool_u32), (void **)&instruction_offsets);
@@ -8630,7 +9188,7 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction =
         &context->ir.instructions[function->first_instruction + index];
     instruction_offsets[index] =
-        ctool_buffer_view(context->text).size - function_start;
+        ctool_buffer_view(context->active_text).size - function_start;
     status = cemit_emit_ir_instruction(
         context, instruction, function_type, context->block_binding_offsets,
         index,
@@ -8643,7 +9201,7 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
     return status;
   }
   instruction_offsets[function->instruction_count] =
-      ctool_buffer_view(context->text).size - function_start;
+      ctool_buffer_view(context->active_text).size - function_start;
   for (index = 0u; index < function->instruction_count; index++) {
     const ctool_c_ir_instruction_t *instruction =
         &context->ir.instructions[function->first_instruction + index];
@@ -8655,19 +9213,22 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
         return CTOOL_ERR_INTERNAL;
       }
       target = function_start + instruction_offsets[instruction->reference];
-      status = cemit_patch_branch(context->text, branch_patches[index],
+      status = cemit_patch_branch(context->active_text,
+                                  branch_patches[index],
                                   branch_afters[index], target);
       if (status != CTOOL_OK) {
         return status;
       }
     }
   }
-  function_size = ctool_buffer_view(context->text).size - function_start;
+  function_size =
+      ctool_buffer_view(context->active_text).size - function_start;
   if (function_size == 0u) {
     return CTOOL_ERR_INTERNAL;
   }
-  if (context->section_alignment[CEMIT_SECTION_TEXT] < alignment) {
-    context->section_alignment[CEMIT_SECTION_TEXT] = alignment;
+  status = cemit_raise_section_alignment(context, section, alignment);
+  if (status != CTOOL_OK) {
+    return status;
   }
   status = cemit_ensure_binding_symbol(context, definition->binding,
                                        &symbol_index);
@@ -8675,7 +9236,7 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
     return status;
   }
   context->symbols[symbol_index].placement = CTOOL_ELF32_SYMBOL_DEFINED;
-  context->symbols[symbol_index].section = CEMIT_SECTION_TEXT;
+  context->symbols[symbol_index].section = section;
   context->symbols[symbol_index].value = function_start;
   context->symbols[symbol_index].size = function_size;
   context->symbols[symbol_index].alignment = 0u;
@@ -8685,11 +9246,19 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
 static ctool_status_t cemit_build_sections(
     cemit_context_t *context, ctool_elf32_section_spec_t *sections,
     ctool_u32 *section_count_out) {
-  ctool_u32 section_map[CEMIT_SECTION_COUNT];
+  ctool_u32 logical_count =
+      CEMIT_SECTION_COUNT + context->named_section_count;
+  ctool_u32 *section_map = (ctool_u32 *)0;
   ctool_u32 section_count = 0u;
   ctool_u32 logical;
   ctool_u32 index;
-  for (logical = 0u; logical < CEMIT_SECTION_COUNT; logical++) {
+  ctool_status_t status = cemit_alloc_array(
+      context, logical_count, (ctool_u32)sizeof(*section_map),
+      (void **)&section_map);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  for (logical = 0u; logical < logical_count; logical++) {
     ctool_u32 size = logical == CEMIT_SECTION_BSS
                          ? context->bss_size
                          : ctool_buffer_view(
@@ -8699,24 +9268,12 @@ static ctool_status_t cemit_build_sections(
     if (size != 0u) {
       ctool_elf32_section_spec_t *section = &sections[section_count];
       section_map[logical] = section_count++;
-      section->name = logical == CEMIT_SECTION_TEXT
-                          ? ctool_string(".text")
-                          : logical == CEMIT_SECTION_RODATA
-                                ? ctool_string(".rodata")
-                                : logical == CEMIT_SECTION_DATA
-                                      ? ctool_string(".data")
-                                      : ctool_string(".bss");
+      section->name = cemit_section_name(context, logical);
       section->type = logical == CEMIT_SECTION_BSS
                           ? CTOOL_ELF32_SHT_NOBITS
                           : CTOOL_ELF32_SHT_PROGBITS;
-      section->flags = logical == CEMIT_SECTION_TEXT
-                           ? CTOOL_ELF32_SHF_ALLOC |
-                                 CTOOL_ELF32_SHF_EXECINSTR
-                           : logical == CEMIT_SECTION_RODATA
-                                 ? CTOOL_ELF32_SHF_ALLOC
-                                 : CTOOL_ELF32_SHF_ALLOC |
-                                       CTOOL_ELF32_SHF_WRITE;
-      section->alignment = context->section_alignment[logical];
+      section->flags = cemit_section_flags(context, logical);
+      section->alignment = cemit_section_alignment(context, logical);
       section->entry_size = 0u;
       section->size = size;
       section->contents = logical == CEMIT_SECTION_BSS
@@ -8728,7 +9285,7 @@ static ctool_status_t cemit_build_sections(
   for (index = 0u; index < context->symbol_count; index++) {
     ctool_elf32_symbol_spec_t *symbol = &context->symbols[index];
     if (symbol->placement == CTOOL_ELF32_SYMBOL_DEFINED) {
-      if (symbol->section >= CEMIT_SECTION_COUNT ||
+      if (symbol->section >= logical_count ||
           section_map[symbol->section] == CTOOL_ELF32_NO_SECTION) {
         return CTOOL_ERR_INTERNAL;
       }
@@ -8743,7 +9300,7 @@ static ctool_status_t cemit_build_sections(
   for (index = 0u; index < context->relocation_count; index++) {
     ctool_elf32_relocation_spec_t *relocation =
         &context->relocations[index];
-    if (relocation->target_section >= CEMIT_SECTION_COUNT ||
+    if (relocation->target_section >= logical_count ||
         section_map[relocation->target_section] ==
             CTOOL_ELF32_NO_SECTION) {
       return CTOOL_ERR_INTERNAL;
@@ -8775,6 +9332,10 @@ static ctool_status_t cemit_open_buffers(cemit_context_t *context) {
                                    limits->output_bytes,
                                    &context->object_output);
   }
+  if (status == CTOOL_OK) {
+    context->active_text = context->text;
+    context->active_text_section = CEMIT_SECTION_TEXT;
+  }
   return status;
 }
 
@@ -8783,7 +9344,7 @@ ctool_status_t ctool_c_emit_object(
     ctool_buffer_t *output) {
   cemit_context_t context;
   ctool_arena_mark_t mark;
-  ctool_elf32_section_spec_t sections[CEMIT_SECTION_COUNT];
+  ctool_elf32_section_spec_t *sections = (ctool_elf32_section_spec_t *)0;
   ctool_elf32_object_spec_t object;
   ctool_u32 text_relocation_count = 0u;
   ctool_u32 block_static_count = 0u;
@@ -8799,7 +9360,6 @@ ctool_status_t ctool_c_emit_object(
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
   cemit_zero(&context, (ctool_u32)sizeof(context));
-  cemit_zero(sections, (ctool_u32)sizeof(sections));
   cemit_zero(&object, (ctool_u32)sizeof(object));
   context.job = job;
   context.unit = unit;
@@ -8807,6 +9367,15 @@ ctool_status_t ctool_c_emit_object(
   mark = ctool_arena_mark(context.arena);
   diagnostic_count = ctool_job_diagnostic_count(job);
   status = cemit_validate_unit_shape(&context);
+  if (status == CTOOL_OK &&
+      unit->binding_count > 0xffffffffu - CEMIT_SECTION_COUNT) {
+    status = CTOOL_ERR_OVERFLOW;
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        &context, CEMIT_SECTION_COUNT + unit->binding_count,
+        (ctool_u32)sizeof(*sections), (void **)&sections);
+  }
   if (status == CTOOL_OK) {
     status = ctool_c_lower_ir(job, unit, &context.ir);
   }
@@ -8898,6 +9467,19 @@ ctool_status_t ctool_c_emit_object(
                                (void **)&context.binding_needed);
   }
   if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        &context, unit->binding_count,
+        (ctool_u32)sizeof(*context.binding_sections),
+        (void **)&context.binding_sections);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        &context, unit->binding_count,
+        (ctool_u32)sizeof(*context.named_sections),
+        (void **)&context.named_sections);
+    context.named_section_capacity = unit->binding_count;
+  }
+  if (status == CTOOL_OK) {
     status = cemit_alloc_array(&context, unit->initializer_count,
                                (ctool_u32)sizeof(ctool_bool),
                                (void **)&context.initializer_is_zero);
@@ -8942,6 +9524,9 @@ ctool_status_t ctool_c_emit_object(
   }
   if (status == CTOOL_OK) {
     status = cemit_open_buffers(&context);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_index_named_sections(&context);
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->object_definition_count;
@@ -8991,6 +9576,9 @@ ctool_status_t ctool_c_emit_object(
           (const ctool_c_pp_location_t *)0,
           "CupidC object emission failed before writing an object");
     }
+  }
+  for (index = 0u; index < context.named_section_count; index++) {
+    ctool_buffer_close(context.named_sections[index].contents);
   }
   ctool_buffer_close(context.object_output);
   ctool_buffer_close(context.data);

@@ -78,6 +78,7 @@ class MemoryLayoutContractTests(unittest.TestCase):
         user_makefile = (REPO_ROOT / "user/Makefile").read_text(
             encoding="utf-8"
         )
+        logical_user_makefile = user_makefile.replace("\\\n", " ")
 
         self.assertIn("ASSERT(_kernel_end <= 0xD00000,", linker)
         self.assertRegex(boot, r"(?m)^\s*mov esp, 0xF00000\s+;")
@@ -88,8 +89,13 @@ class MemoryLayoutContractTests(unittest.TestCase):
         self.assertIn("#define CC_AOT_DATA_BASE 0x01200000u", cupidc)
         self.assertIn("USER_TEXT_ADDRESS ?= 0x00F00000", user_makefile)
         self.assertRegex(
-            user_makefile,
-            r"(?m)^\$\(BUILD\)/%: \$\(BUILD\)/%\.o \$\(CUPIDLD\) Makefile$",
+            logical_user_makefile,
+            r"(?m)^\$\(BUILD\)/%: \$\(BUILD\)/%\.o "
+            r"\$\(CUPIDLD_USER_LINK_INPUTS\) Makefile$",
+        )
+        self.assertIn(
+            "$(CUPIDLD_USER_LINK) --input user/$< --output user/$@",
+            logical_user_makefile,
         )
         for target in (
             "kernel/core/kernel.o",
@@ -118,7 +124,8 @@ class MemoryLayoutContractTests(unittest.TestCase):
                 self.assertEqual(ident[:6], b"\x7fELF\x01\x01")
                 self.assertEqual(file_type, 2)
                 self.assertEqual(machine, 3)
-                self.assertEqual(entry, 0x00F00000)
+                self.assertGreaterEqual(entry, 0x00F00000)
+                self.assertLess(entry, 0x01100000)
 
                 entry_is_executable = False
                 load_count = 0

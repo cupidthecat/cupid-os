@@ -28,9 +28,9 @@ CUPIDC_OBJECT_CONTRACT := $(BUILD_DIR)/cupidc-object-contract$(EXE)
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.c \
-                              ../kernel/util/bin_programs_gen.c \
-                              ../kernel/util/demos_programs_gen.c \
-                              ../kernel/util/docs_programs_gen.c
+                              ../kernel/util/bin_programs_gen.cc \
+                              ../kernel/util/demos_programs_gen.cc \
+                              ../kernel/util/docs_programs_gen.cc
 CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/errno.h \
                               hosted/i386-linux/include/stdio.h \
@@ -425,6 +425,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) fat16 ..
 	$(CUPIDC_FRONTEND_CONTRACT) redeclarations ..
 	$(CUPIDC_FRONTEND_CONTRACT) attributes ..
+	$(CUPIDC_FRONTEND_CONTRACT) section-attributes ..
+	$(CUPIDC_FRONTEND_CONTRACT) unused-attributes ..
 	$(CUPIDC_FRONTEND_CONTRACT) static-asserts ..
 	$(CUPIDC_FRONTEND_CONTRACT) function-bodies ..
 	$(CUPIDC_FRONTEND_CONTRACT) old-style-empty-functions ..
@@ -460,6 +462,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) switch-statements ..
 	$(CUPIDC_FRONTEND_CONTRACT) labels-and-goto ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-expressions ..
+	$(CUPIDC_FRONTEND_CONTRACT) function-pointer-casts ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-comparisons ..
 	$(CUPIDC_FRONTEND_CONTRACT) scalar-updates ..
@@ -473,6 +476,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) depth-constant ..
 	$(CUPIDC_FRONTEND_CONTRACT) depth-record ..
 	$(CUPIDC_IR_CONTRACT) active-leaf ..
+	$(CUPIDC_IR_CONTRACT) section-attributes ..
+	$(CUPIDC_IR_CONTRACT) unused-attributes ..
 	$(CUPIDC_IR_CONTRACT) integer-updates ..
 	$(CUPIDC_IR_CONTRACT) integer-compounds ..
 	$(CUPIDC_IR_CONTRACT) integer-compound-conversions ..
@@ -485,6 +490,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) pointer-conditions ..
 	$(CUPIDC_IR_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) function-pointers ..
+	$(CUPIDC_IR_CONTRACT) function-pointer-casts ..
 	$(CUPIDC_IR_CONTRACT) automatic-objects ..
 	$(CUPIDC_IR_CONTRACT) block-externs ..
 	$(CUPIDC_IR_CONTRACT) block-functions ..
@@ -514,12 +520,15 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) wide-mutations ..
 	$(CUPIDC_IR_CONTRACT) self-host-frontier ..
 	$(CUPIDC_OBJECT_CONTRACT) static-data ..
+	$(CUPIDC_OBJECT_CONTRACT) section-attributes ..
+	$(CUPIDC_OBJECT_CONTRACT) unused-attributes ..
 	$(CUPIDC_OBJECT_CONTRACT) integer-mutation ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-values ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-comparisons ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-conditions ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) function-pointers ..
+	$(CUPIDC_OBJECT_CONTRACT) function-pointer-casts ..
 	$(CUPIDC_OBJECT_CONTRACT) automatic-objects ..
 	$(CUPIDC_OBJECT_CONTRACT) block-externs ..
 	$(CUPIDC_OBJECT_CONTRACT) block-functions ..

@@ -2865,7 +2865,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
             ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.c"),
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
-            ("USER_I386", "/user/examples/hello.c"),
+            ("USER_I386", "/user/examples/hello.cc"),
             ("CUPID_RUNTIME", "/bin/browser.cc"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/ctool.c"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_emit.c"),
@@ -2896,9 +2896,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             generated,
             [
                 ("KERNEL_I386", "/kernel/cpu/ksyms_data.c"),
-                ("KERNEL_I386", "/kernel/util/bin_programs_gen.c"),
-                ("KERNEL_I386", "/kernel/util/demos_programs_gen.c"),
-                ("KERNEL_I386", "/kernel/util/docs_programs_gen.c"),
+                ("KERNEL_I386", "/kernel/util/bin_programs_gen.cc"),
+                ("KERNEL_I386", "/kernel/util/demos_programs_gen.cc"),
+                ("KERNEL_I386", "/kernel/util/docs_programs_gen.cc"),
             ],
         )
 
@@ -3864,8 +3864,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 audit_payload["summary"],
                 {
                     "active_sources": 698,
-                    "features": 252,
-                    "transforms": 501,
+                    "features": 253,
+                    "transforms": 500,
                     "unreachable_sources": 42,
                 },
             )
@@ -3874,7 +3874,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4254, 168),
+                "c.expression.sizeof": (4355, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4217,9 +4217,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 116,
-                    "host_c_compiler": 181,
-                    "host_python": 125,
+                    "cupid_c_compiler": 122,
+                    "host_c_compiler": 175,
+                    "host_python": 134,
                 },
             )
 
@@ -4229,6 +4229,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 if cohort["id"] == "toolchain_sources"
             )
             self.assertEqual(toolchain_cohort["source_count"], 69)
+            user_program_cohort = next(
+                cohort
+                for cohort in audit_payload["roadmap"]["source_cohort_order"]
+                if cohort["id"] == "user_programs"
+            )
+            self.assertEqual(user_program_cohort["source_count"], 4)
+            self.assertEqual(
+                user_program_cohort["rationale"],
+                "Keep the checked CupidC and CupidLD user build reproducible, "
+                "then stage its validated executables deliberately.",
+            )
 
             source_by_path = {
                 source["path"]: source for source in audit_payload["sources"]

@@ -299,6 +299,46 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "static-data: ok\n")
 
+    def test_weak_definitions_emit_weak_elf_symbols(self):
+        result = subprocess.run(
+            [str(self.contract_path), "weak-symbols", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "weak-symbols: ok\n")
+
+    def test_section_attributes_emit_named_elf32_sections_and_relocations(self):
+        result = subprocess.run(
+            [str(self.contract_path), "section-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "section-attributes: ok\n")
+
+    def test_unused_attributes_do_not_change_object_code(self):
+        result = subprocess.run(
+            [str(self.contract_path), "unused-attributes", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "unused-attributes: ok\n")
+
+    def test_static_typed_null_pointer_uses_zero_storage(self):
+        result = subprocess.run(
+            [str(self.contract_path), "static-typed-null", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "static-typed-null: ok\n")
+
     def test_direct_goto_emits_resolved_intra_function_branches(self):
         result = subprocess.run(
             [str(self.contract_path), "direct-goto", str(REPO_ROOT)],
@@ -378,6 +418,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "function-pointers: ok\n")
+
+    def test_function_pointer_casts_emit_deterministic_i386_objects(self):
+        result = subprocess.run(
+            [str(self.contract_path), "function-pointer-casts", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "function-pointer-casts: ok\n")
 
     def test_fixed_automatic_objects_use_target_sized_i386_frames(self):
         result = subprocess.run(
@@ -522,6 +572,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
+
+    def test_register_snapshot_assembly_emits_exact_i386_state_reads(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "register-snapshot-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "register-snapshot-assembly: ok\n")
 
     def test_port_io_assembly_emits_exact_i386_and_preserves_callee_registers(
         self,

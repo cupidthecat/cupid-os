@@ -37,6 +37,9 @@ __pycache__/
 /kernel/util/bin_programs_gen.c
 /kernel/util/docs_programs_gen.c
 /kernel/util/demos_programs_gen.c
+/kernel/util/bin_programs_gen.cc
+/kernel/util/docs_programs_gen.cc
+/kernel/util/demos_programs_gen.cc
 
 # Runtime, test, and baseline output
 /build/

@@ -135,6 +135,9 @@ typedef struct {
 typedef struct {
   ctool_u32 binding;
   ctool_u32 declared_type;
+  /* Decoded section override copied from the canonical function binding.
+   * An ordinary function owns an empty string. */
+  ctool_string_t section_name;
   ctool_u32 first_instruction;
   ctool_u32 instruction_count;
   ctool_u32 maximum_stack_depth;

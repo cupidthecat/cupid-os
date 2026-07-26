@@ -1,6 +1,9 @@
 # ELF Programs
 
-CupidOS loads and runs static **ELF32 i386** executables. The hosted examples are compiled to relocatable objects by GCC or Clang and linked by CupidLD. Programs run as ring-0 kernel threads and receive a **syscall table**, a struct of function pointers passed to `_start()`.
+CupidOS loads and runs static **ELF32 i386** executables. The checked CupidC
+seed compiles the three repository examples, and the checked CupidLD seed
+links them. Programs run as ring-0 kernel threads and receive a **syscall
+table**, a struct of function pointers passed to `_start()`.
 
 ---
 
@@ -8,11 +11,11 @@ CupidOS loads and runs static **ELF32 i386** executables. The hosted examples ar
 
 ### 1. Write a Program
 
-Create a `.c` file that includes `cupid.h` and implements `_start()`:
+Create a `.cc` file that includes `cupid.h` and implements `_start()`:
 
 ```c
-/* user/examples/hello.c */
-#include "cupid.h"
+/* user/examples/hello.cc */
+#include "../cupid.h"
 
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);
@@ -32,30 +35,29 @@ void _start(cupid_syscall_table_t *sys) {
 # From the cupid-os root directory:
 make -C user
 
-# Or compile manually:
-gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
-    -Iuser -c user/examples/hello.c -o hello.o
-cupidld -m elf_i386 --text-address 0x00F00000 --entry _start \
-    -o hello hello.o
+# Verify the deterministic object and executable frontier:
+make test-user-cupidc-frontier
 ```
 
 ### 3. Deploy to Disk
 
-Copy the binary onto the FAT16 disk image:
+Build the image and stage the checked executables at the FAT16 root:
 
 ```bash
 # Build a fresh, never-booted image
 make clean-image
-make
-
-# Stage programs at FAT root before first boot; homefs imports them into /home
-python tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 \
-    user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
+make sync-user
 ```
 
 After an image has booted and created `HOMEFS.SYS`, newly staged FAT-root files
 appear under `/disk` and are not automatically re-imported. Run them there or
 copy them into `/home` from inside Cupid OS.
+
+The checked build is deliberately closed over `hello.cc`, `ls.cc`, and
+`cat.cc`. Adding another build-time ELF program means adding it to the
+`user/Makefile` program list and the production allowlist, then extending the
+frontier tests. This keeps a changed source or tool from bypassing the checked
+seed and ELF validators.
 
 ### 4. Run in CupidOS
 
@@ -177,9 +179,11 @@ make -C user clean    # Clean build artifacts
 ```
 
 To add a new program:
-1. Create `user/examples/yourprog.c`
+
+1. Create `user/examples/yourprog.cc`
 2. Add `yourprog` to the `PROGRAMS` list in `user/Makefile`
-3. Run `make -C user`
+3. Add its path to the production source allowlist and frontier contract
+4. Run `make test-user-cupidc-frontier`
 
 ### Program Structure
 
@@ -191,7 +195,7 @@ Every ELF program must:
 4. **Terminate cleanly** - either call `exit()` explicitly or return from `_start()`
 
 ```c
-#include "cupid.h"
+#include "../cupid.h"
 
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);       // Required: save syscall table
@@ -441,10 +445,10 @@ typedef struct {
 
 ## Example Programs
 
-### hello.c - Hello World
+### hello.cc: Hello world
 
 ```c
-#include "cupid.h"
+#include "../cupid.h"
 
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);
@@ -464,10 +468,10 @@ void _start(cupid_syscall_table_t *sys) {
 }
 ```
 
-### ls.c - Directory Listing
+### ls.cc: Directory listing
 
 ```c
-#include "cupid.h"
+#include "../cupid.h"
 
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);
@@ -505,15 +509,15 @@ void _start(cupid_syscall_table_t *sys) {
 }
 ```
 
-### cat.c - Display File Contents
+### cat.cc: Display file contents
 
 ```c
-#include "cupid.h"
+#include "../cupid.h"
 
 void _start(cupid_syscall_table_t *sys) {
     cupid_init(sys);
 
-    const char *path = "/home/readme.txt";
+    const char *path = "/disk/catfix.txt";
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) {

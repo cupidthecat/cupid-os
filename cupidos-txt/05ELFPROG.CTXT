@@ -15,7 +15,8 @@ Verified against source on: 2026-07-25
 
 >h2 Overview
 >tree open Overview
-The hosted-C/CupidLD ELF path is separate from the CupidC source JIT.
+The checked CupidC and CupidLD ELF path is separate from the CupidC source
+JIT.
 
 kernel/lang/exec.c currently supports:
 - ELF32 executables
@@ -64,9 +65,9 @@ If the binary violates those rules, exec rejects it.
 >h2 Build Flow
 >tree open Build Flow
 The user-space examples live under:
-- user/examples/hello.c
-- user/examples/ls.c
-- user/examples/cat.c
+- user/examples/hello.cc
+- user/examples/ls.cc
+- user/examples/cat.cc
 
 Build them with:
   make -C user
@@ -74,10 +75,14 @@ Build them with:
 The current user/Makefile writes outputs to:
   user/build/
 
-To import them into /home, stage them at FAT root after `make clean-image &&
-make` but before that fresh image's first boot. Once HOMEFS.SYS exists, later
-host-staged FAT files appear under /disk and must be run there or copied into
-/home from the guest.
+The build freezes and runs the checked CupidC and CupidLD seeds, validates the
+object and executable, and publishes only complete files. Use
+`make test-user-cupidc-frontier` to repeat the deterministic build check.
+
+Run `make sync-user` to build the image and stage the examples at FAT root.
+A fresh image imports them into /home on first boot. Once HOMEFS.SYS exists,
+later host-staged FAT files appear under /disk and must be run there or copied
+into /home from the guest.
 >endtree
 
 >h2 Running ELF Programs
@@ -123,15 +128,21 @@ run in one shared ring-0 address space.
 >button ps | shell:ps
 >endtree
 
->h2 Manual Compile Reference
->tree open Manual Compile Reference
-Example object build:
-  gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 -Iuser \
-      -c user/examples/hello.c -o hello.o
+>h2 Checked Build Reference
+>tree open Checked Build Reference
+The production path accepts the three tracked example sources and their exact
+header closure. It uses the USER_I386 profile, then links with entry symbol
+_start at the fixed external base. Source, header, seed, or control-file drift
+stops publication.
 
-Example link:
-cupidld -m elf_i386 --text-address 0x00F00000 --entry _start \
-        -o hello hello.o
+Build and check all three examples:
+  make test-user-cupidc-frontier
+
+Stage them into the active image:
+  make sync-user
+
+Run the complete guest check:
+  make test-user-cupidc-runtime
 
 The 0x00F00000 base matters: the kernel and fixed stack occupy the lower
 range, and the external arena ends where CupidC begins at 0x01100000. The
@@ -140,15 +151,23 @@ overlap.
 
 Programs linked at an earlier fixed base must be rebuilt.
 
-The runtime gate starts the same external program twice at 0x00F00000. The
-first process exits and releases the arena before the second process claims it
-and loads at the same address.
+The runtime gate boots and executes hello, ls, and cat separately. It checks
+hello's greeting and numeric output, confirms that ls reads the shell's root
+directory, and gives cat a fixed /disk/catfix.txt fixture. That fixture
+contains text shaped like a serial marker. External print calls record only
+their PID, byte count, and FNV-1a fingerprint, so file contents cannot forge
+a passing event. Every run must finish with an exit marker and process exit
+for the PID that the loader assigned.
+
+A separate lease gate starts the same external program twice at 0x00F00000.
+The first process exits and releases the arena before the second process
+claims it and loads at the same address.
 >endtree
 
 >h2 When To Use ELF Instead Of CupidC
 >tree open When To Use ELF Instead Of CupidC
 Choose ELF when you want:
-- explicit external toolchain control
+- a checked, reproducible external build
 - direct syscall-table style programming
 - fixed binary artifacts on disk
 - loader/disassembly testing through exec and exec -d

@@ -30,8 +30,12 @@ SOURCE_SUFFIXES = {
 TOOL_MARKERS = (
     ("$(CUPIDDIS)", "cupid_disassembler"),
     ("$(CUPIDASM)", "cupid_assembler"),
+    ("$(CUPIDLD_USER_LINK)", "cupid_linker"),
+    ("$(CUPIDLD_USER_LINK)", "host_python"),
     ("$(CUPIDLD)", "cupid_linker"),
     ("$(CUPIDOBJ)", "cupid_object"),
+    ("$(CUPIDC_PRODUCTION_COMPILE)", "cupid_c_compiler"),
+    ("$(CUPIDC_PRODUCTION_COMPILE)", "host_python"),
     ("$(CUPIDC_KERNEL_COMPILE)", "cupid_c_compiler"),
     ("$(CUPIDC_KERNEL_COMPILE)", "host_python"),
     ("$(CC)", "host_c_compiler"),
@@ -47,6 +51,11 @@ CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/kernel_cupidc_frontier.py",
     "tools/bootstrap_toolchain.py",
     "bootstrap/seeds/i386-linux/manifest.json",
+)
+CUPIDC_PRODUCTION_CONTROL_FILES = (
+    "tools/cupidc_production_compile.py",
+    "tools/cupidc_production_frontier.py",
+    "tools/cupidld_user_link.py",
 )
 EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 
@@ -269,9 +278,9 @@ _C_PP_HOSTED_I386_GNU_CASES = (
 )
 _C_PP_GENERATED_KERNEL_CASES = (
     "/kernel/cpu/ksyms_data.c",
-    "/kernel/util/bin_programs_gen.c",
-    "/kernel/util/demos_programs_gen.c",
-    "/kernel/util/docs_programs_gen.c",
+    "/kernel/util/bin_programs_gen.cc",
+    "/kernel/util/demos_programs_gen.cc",
+    "/kernel/util/docs_programs_gen.cc",
 )
 _C_PP_NON_ROOT_HEADERS = (
     "/bin/fat16.h",
@@ -876,6 +885,124 @@ def _validate_cupidc_kernel_compile_make_binding(
         )
 
 
+def _python_make_tokens(value: str, label: str) -> list[str]:
+    try:
+        tokens = shlex.split(value)
+    except ValueError as error:
+        raise AuditError(f"{label} cannot be tokenized: {error}") from error
+    if len(tokens) != 1:
+        raise AuditError(
+            f"{label} must contain only a Python launcher: {tokens!r}"
+        )
+    executable = Path(tokens[0].replace("\\", "/")).name.lower()
+    if executable.endswith(".exe"):
+        executable = executable[:-4]
+    if re.fullmatch(
+        r"(?:py|python(?:[0-9]+(?:\.[0-9]+)*)?)", executable
+    ) is None:
+        raise AuditError(f"{label} is not a Python launcher: {tokens[0]!r}")
+    return tokens
+
+
+def _validate_cupidc_production_make_bindings(
+    root: Path,
+    make: str,
+    models: list[BuildModel],
+) -> None:
+    for model in models:
+        recipe_text = "\n".join(
+            line
+            for transform in model.transforms
+            for line in transform.get("recipe", [])
+            if isinstance(line, str)
+        )
+        uses_compile = "$(CUPIDC_PRODUCTION_COMPILE)" in recipe_text
+        uses_link = "$(CUPIDLD_USER_LINK)" in recipe_text
+        if not uses_compile and not uses_link:
+            continue
+        make_root = root if model.directory == "." else root / model.directory
+        variables = ["PYTHON"]
+        if uses_compile:
+            variables.append("CUPIDC_PRODUCTION_COMPILE")
+        if uses_link:
+            variables.append("CUPIDLD_USER_LINK")
+        values = _read_evaluated_make_variables(
+            make_root, make, tuple(variables)
+        )
+        python_tokens = _python_make_tokens(
+            values["PYTHON"],
+            f"CupidC production PYTHON binding in {model.directory}",
+        )
+        if model.directory == ".":
+            expected_compile = [
+                python_tokens[0],
+                "tools/cupidc_production_compile.py",
+                "--root",
+                ".",
+                "--cohort",
+                "generated-install",
+            ]
+            if uses_link:
+                raise AuditError(
+                    "checked user linker may not run from the root build"
+                )
+        elif model.directory == "user":
+            expected_compile = [
+                python_tokens[0],
+                "../tools/cupidc_production_compile.py",
+                "--root",
+                "..",
+                "--cohort",
+                "user",
+            ]
+        else:
+            raise AuditError(
+                "CupidC production wrapper is bound in an unsupported "
+                f"Make root: {model.directory}"
+            )
+        if uses_compile:
+            try:
+                actual_compile = shlex.split(
+                    values["CUPIDC_PRODUCTION_COMPILE"]
+                )
+            except ValueError as error:
+                raise AuditError(
+                    "CupidC production wrapper binding cannot be tokenized: "
+                    f"{error}"
+                ) from error
+            if actual_compile != expected_compile:
+                raise AuditError(
+                    "CupidC production wrapper binding differs from the "
+                    f"checked command in {model.directory}: "
+                    f"expected={expected_compile!r}, "
+                    f"actual={actual_compile!r}"
+                )
+        if uses_link:
+            if model.directory != "user":
+                raise AuditError(
+                    "checked user linker is outside the user build"
+                )
+            expected_link = [
+                python_tokens[0],
+                "../tools/cupidld_user_link.py",
+                "--root",
+                "..",
+            ]
+            try:
+                actual_link = shlex.split(values["CUPIDLD_USER_LINK"])
+            except ValueError as error:
+                raise AuditError(
+                    "CupidLD user wrapper binding cannot be tokenized: "
+                    f"{error}"
+                ) from error
+            if actual_link != expected_link:
+                raise AuditError(
+                    "CupidLD user wrapper binding differs from the checked "
+                    f"command: expected={expected_link!r}, "
+                    f"actual={actual_link!r}"
+                )
+
+
 def _make_preprocessor_flags(
     expanded: str, variable: str
 ) -> tuple[list[str], list[str], dict[str, str], set[str]]:
@@ -1333,7 +1460,11 @@ def _roadmap(
             "elf32_relocatable_interchange",
             "Emit and consume deterministic ELF32 relocatable objects",
             ("generated_install_table", "generated_symbol_table"),
-            ("c.output.elf32_relocatable", "asm.output.elf32_relocatable"),
+            (
+                "c.output.elf32_relocatable",
+                "cupid_c.output.elf32_relocatable",
+                "asm.output.elf32_relocatable",
+            ),
             "Every compiled C unit and two kernel assembly units cross the ELF32 ET_REL seam.",
         ),
         (
@@ -1481,7 +1612,7 @@ def _roadmap(
         (
             "user_programs",
             ("user_program", "user_runtime_interface"),
-            "Migrate the remaining separate host-C compilation path to CupidC and stage its CupidLD outputs deliberately.",
+            "Keep the checked CupidC and CupidLD user build reproducible, then stage its validated executables deliberately.",
         ),
         (
             "embedded_cupid_sources",
@@ -1609,6 +1740,30 @@ def _provenance(
             if not path.is_file():
                 raise AuditError(
                     "CupidC ownership control file is missing: "
+                    f"{relative}"
+                )
+            control_files.append(
+                {
+                    "path": relative,
+                    "sha256": _source_digest(path),
+                }
+            )
+    if any(
+        any(
+            marker in "\n".join(transform.get("recipe", []))
+            for marker in (
+                "$(CUPIDC_PRODUCTION_COMPILE)",
+                "$(CUPIDLD_USER_LINK)",
+            )
+        )
+        for model in models
+        for transform in model.transforms
+    ):
+        for relative in CUPIDC_PRODUCTION_CONTROL_FILES:
+            path = root / relative
+            if not path.is_file():
+                raise AuditError(
+                    "CupidC production ownership control file is missing: "
                     f"{relative}"
                 )
             control_files.append(
@@ -3301,6 +3456,11 @@ def _scan_build_features(
             feature_id = None
             if language == "c" and operation == "compile_c_to_elf32_object":
                 feature_id = "c.output.elf32_relocatable"
+            elif (
+                language == "cupid_c"
+                and operation == "compile_c_to_elf32_object"
+            ):
+                feature_id = "cupid_c.output.elf32_relocatable"
             elif language == "assembly" and operation == "assemble_flat_binary":
                 feature_id = "asm.output.flat_binary"
             elif language == "assembly" and operation == "assemble_elf32_relocatable":
@@ -3347,6 +3507,7 @@ def build_audit(
         make,
         root_model.transforms,
     )
+    _validate_cupidc_production_make_bindings(root, make, models)
 
     direct_sources = set().union(*(model.direct_sources for model in models))
     generated_sources = set().union(*(model.generated_sources for model in models))
@@ -3750,12 +3911,17 @@ def _c_preprocessor_one_c_root(transform: dict[str, object]) -> str:
         raise AuditError(
             f"CupidC active preprocessing inputs are absent for {output}"
         )
-    roots = [path for path in inputs if _language(path) == "c"]
+    roots = [
+        path
+        for path in inputs
+        if _language(path) in {"c", "cupid_c"}
+    ]
     if len(roots) != 1:
         rendered = ", ".join(roots) if roots else "<none>"
         raise AuditError(
-            f"CupidC active preprocessing expected exactly one C "
-            f"translation-unit root for {output}; found {len(roots)}: {rendered}"
+            f"CupidC active preprocessing expected exactly one "
+            f"C translation-unit root for {output}; "
+            f"found {len(roots)}: {rendered}"
         )
     return roots[0]
 
@@ -3766,38 +3932,83 @@ def _c_preprocessor_profile_for_c_transform(
     output = str(transform.get("output", "<unknown>"))
     recipe_tokens = _c_preprocessor_compile_recipe_tokens(transform)
     if transform.get("tools") == ["cupid_c_compiler", "host_python"]:
-        if directory != ".":
-            raise AuditError(
-                "CupidC kernel compile wrapper is outside the root build "
-                f"for {output}: {directory!r}"
-            )
         markers = _c_preprocessor_recipe_markers(
-            transform, {"CUPIDC_KERNEL_COMPILE"}
+            transform,
+            {"CUPIDC_KERNEL_COMPILE", "CUPIDC_PRODUCTION_COMPILE"},
         )
-        expected_markers = collections.Counter(
-            {"CUPIDC_KERNEL_COMPILE": 1}
-        )
+        root = _c_preprocessor_one_c_root(transform)
+        if "CUPIDC_PRODUCTION_COMPILE" in markers:
+            expected_markers = collections.Counter(
+                {"CUPIDC_PRODUCTION_COMPILE": 1}
+            )
+            if directory == ".":
+                if root not in {
+                    "kernel/util/bin_programs_gen.cc",
+                    "kernel/util/demos_programs_gen.cc",
+                    "kernel/util/docs_programs_gen.cc",
+                }:
+                    raise AuditError(
+                        "CupidC generated-install wrapper found an "
+                        f"unapproved root: {root}"
+                    )
+                source_argument = "$<"
+                output_argument = "$@"
+                profile = "KERNEL_I386"
+            elif directory == "user":
+                if root not in {
+                    "user/examples/cat.cc",
+                    "user/examples/hello.cc",
+                    "user/examples/ls.cc",
+                }:
+                    raise AuditError(
+                        "CupidC user wrapper found an unapproved root: "
+                        f"{root}"
+                    )
+                source_argument = "user/$<"
+                output_argument = "user/$@"
+                profile = "USER_I386"
+            else:
+                raise AuditError(
+                    "CupidC production wrapper is outside an approved "
+                    f"build root for {output}: {directory!r}"
+                )
+            expected_tokens = [
+                "$(CUPIDC_PRODUCTION_COMPILE)",
+                "--source",
+                source_argument,
+                "--output",
+                output_argument,
+            ]
+        else:
+            expected_markers = collections.Counter(
+                {"CUPIDC_KERNEL_COMPILE": 1}
+            )
+            if directory != ".":
+                raise AuditError(
+                    "CupidC kernel compile wrapper is outside the root "
+                    f"build for {output}: {directory!r}"
+                )
+            expected_tokens = [
+                "$(CUPIDC_KERNEL_COMPILE)",
+                "--source",
+                root,
+                "--output",
+                output,
+            ]
+            profile = "KERNEL_I386"
         if markers != expected_markers:
             raise AuditError(
-                "CupidC kernel compile wrapper markers differ for "
+                "CupidC compile wrapper markers differ for "
                 f"{output}: expected={dict(expected_markers)!r}, "
                 f"actual={dict(sorted(markers.items()))!r}"
             )
-        root = _c_preprocessor_one_c_root(transform)
-        expected_tokens = [
-            "$(CUPIDC_KERNEL_COMPILE)",
-            "--source",
-            root,
-            "--output",
-            output,
-        ]
         if recipe_tokens != expected_tokens:
             raise AuditError(
-                "CupidC kernel compile wrapper arguments differ for "
+                "CupidC compile wrapper arguments differ for "
                 f"{output}: expected={expected_tokens!r}, "
                 f"actual={recipe_tokens!r}"
             )
-        return "KERNEL_I386"
+        return profile
     if directory == ".":
         markers = _c_preprocessor_recipe_markers(
             transform,
@@ -4495,6 +4706,43 @@ def _cupid_toolchain_fixed_point_contract(
     }
 
 
+def _c_preprocessor_user_wrapper_flags(root: Path) -> str:
+    wrapper = root / "tools" / "cupidc_production_compile.py"
+    try:
+        module = ast.parse(wrapper.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as error:
+        raise AuditError(
+            f"CupidC user profile wrapper is unavailable: {error}"
+        ) from error
+    value = None
+    for statement in module.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and any(
+                isinstance(target, ast.Name)
+                and target.id == "USER_I386_ARGUMENTS"
+                for target in statement.targets
+            )
+        ):
+            try:
+                value = ast.literal_eval(statement.value)
+            except (ValueError, TypeError) as error:
+                raise AuditError(
+                    "CupidC USER_I386_ARGUMENTS is not a literal tuple"
+                ) from error
+            break
+    expected = ("--freestanding", "-I", "/user")
+    if value != expected:
+        raise AuditError(
+            "CupidC user wrapper profile differs from the checked contract: "
+            f"expected={expected!r}, actual={value!r}"
+        )
+    # CupidC targets i386 directly. Feed that implicit target into the common
+    # profile validator beside the wrapper's explicit freestanding and include
+    # settings.
+    return "-m32 -ffreestanding -I /user"
+
+
 def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
     include_rows, macro_rows, forced_rows = (
         _c_preprocessor_profile_configuration()
@@ -4511,9 +4759,20 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
         make,
         ("CFLAGS", "SIMD_CFLAGS", "CFLAGS_DOOM", "CFLAGS_DOOM_TREE", "OPT"),
     )
-    user_values = _read_evaluated_make_variables(
-        root / "user", make, ("CFLAGS",)
-    )
+    user_wrapper = root / "tools" / "cupidc_production_compile.py"
+    if user_wrapper.is_file():
+        user_variable = "USER_I386_ARGUMENTS"
+        user_flags = _c_preprocessor_user_wrapper_flags(root)
+    else:
+        # Some focused audit fixtures model the former user Make profile and
+        # intentionally omit the production wrapper. Keep those fixtures useful
+        # for profile-drift diagnostics while requiring the wrapper in the real
+        # production binding validator.
+        user_variable = "CFLAGS"
+        user_values = _read_evaluated_make_variables(
+            root / "user", make, ("CFLAGS",)
+        )
+        user_flags = user_values["CFLAGS"]
     toolchain_values = _read_evaluated_make_variables(
         root / "toolchain", make, ("CPPFLAGS", "CFLAGS")
     )
@@ -4535,7 +4794,12 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
             "CFLAGS_DOOM_TREE",
             root_values["CFLAGS_DOOM_TREE"],
         ),
-        ("USER_I386", "user", "CFLAGS", user_values["CFLAGS"]),
+        (
+            "USER_I386",
+            "user",
+            user_variable,
+            user_flags,
+        ),
         (
             "HOSTED_TOOLCHAIN_64",
             "toolchain",
@@ -4829,13 +5093,13 @@ def _c_preprocessor_active_cases_manifest(
                 if (
                     tools == ["cupid_c_compiler", "host_python"]
                     and (
-                        directory != "."
+                        directory not in {".", "user"}
                         or operation != "compile_c_to_elf32_object"
                     )
                 ):
                     raise AuditError(
-                        "CupidC kernel compile transform differs from its "
-                        f"freestanding root-build contract for "
+                        "CupidC checked compile transform differs from its "
+                        f"freestanding build contract for "
                         f"{transform.get('output')}: "
                         f"directory={directory!r}, operation={operation!r}"
                     )
@@ -4912,7 +5176,7 @@ def _c_preprocessor_active_cases_manifest(
                 delivered_inputs
                 and directory == "."
                 and operation == "generate_c_source"
-                and transform.get("output") == "kernel/util/bin_programs_gen.c"
+                and transform.get("output") == "kernel/util/bin_programs_gen.cc"
                 and tools == ["host_python"]
             ):
                 # This generator embeds the delivered Cupid sources; their

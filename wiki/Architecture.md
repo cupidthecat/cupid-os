@@ -112,7 +112,7 @@ kernel/
 │               ACPI, AP trampoline
 ├── tls/        TLS 1.2 / 1.3 record + handshake + CA bundle
 ├── usb/        USB core, UHCI, EHCI, HID, hub, MSC
-└── util/       calendar, generated *_programs_gen.c
+└── util/       calendar, generated *_programs_gen.cc
 
 drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000

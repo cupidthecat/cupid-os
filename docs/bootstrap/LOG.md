@@ -9105,3 +9105,207 @@ memory-map decisions.
 
 No design question was needed. The unchanged source, checked-seed result,
 linker headroom, and existing fixed-region sizes determined the safe boundary.
+
+## 2026-07-25: Check generated tables, user ELFs, and the next compiler frontier
+
+This increment removed six more host C translations without changing their
+source behavior. It also added the compiler-head support exposed by the next
+38 strict kernel roots. The checked seed has not moved yet, so the new
+compiler features and the production ownership handoff remain separate proof
+boundaries.
+
+### Compiler-head capabilities
+
+CupidC now carries canonical `weak`, `section("name")`, and `unused`
+attributes through the frontend, Linear IR, and ELF32 writer. Weak definitions
+use `STB_WEAK`. Named sections are created from source metadata and retain
+their alignment, symbols, and relocations. `unused` records declaration intent
+without changing the emitted object. Unsupported `used`, `noinline`,
+`target`, and `naked` attributes still fail with a focused diagnostic.
+
+Typed static null pointers, function-pointer and represented 32-bit integer
+casts, the comma operator, and known-true loop reachability now keep their C
+semantics through lowering and i386 emission. Exact output-only GNU assembly
+snapshots cover the general registers, EBP, ESP, the caller return slot, and
+EFLAGS. The accepted EFLAGS template may end in `cli`; wider inline assembly
+is still outside this capability.
+
+Positive and negative contracts cover parsing, canonical redeclarations,
+invalid attribute subjects and names, forged public records, rollback,
+same-job recovery, pointer-width restrictions, comma precedence, loop exits,
+and exact object bytes. The full hosted Toolchain suite passes across the
+frontend, IR, object writer, static tools, CupidASM, CupidDis, CupidLD, and
+CupidObj.
+
+Review exposed two reachability gaps. The first implementation recognized
+literal `1` but not an equivalent integer constant expression such as
+`1 + 0`. It also counted a `break` inside `if (0)` as a live loop exit.
+Frontend truth metadata now drives both lowering and label discovery. Dead
+branches stay dead unless a reachable label enters them. The same review
+found that forged public weak metadata could reach IR or emission without an
+external object or function. Both boundaries now reject that state and
+recover cleanly.
+
+A fresh compiler-head probe compiled 20 of the 38 previously blocked strict
+roots twice. Both runs produced 751,472 byte-identical bytes and valid i386
+ELF32 relocatables. The compiler executable had SHA-256
+`9ee75ff20cf603e934d2f4190861577c8b2a71ce546501b3986fad0d803ff904`.
+The roots cover serial and timer state, application launch, IRQ and symbol
+metadata, FAT16, ISO9660, loop devices, deflate, 2D graphics, PNG, the line
+editor, CupidC parsing and strings, SSH I/O, memory, SSHD, UDP, the big kernel
+lock, and the TLS CA bundle.
+
+The remaining 18 strict roots stop at real source requirements: call-next and
+control-register assembly, RDMSR and port I/O templates, floating constants
+and conversions, static floating initialization, and later unsupported IR
+forms. `kernel/cpu/ksyms_data.c` remains host-built because its generated
+declaration uses the still-unsupported `used` attribute.
+
+### Generated and user production paths
+
+`bin_programs_gen.cc`, `docs_programs_gen.cc`, and
+`demos_programs_gen.cc` now compile with the checked CupidC seed. Their
+wrapper admits only those three names, freezes the source and header closure
+with the complete seed, validates the temporary relocatable, repeats the
+input snapshot, and publishes with an atomic replacement.
+
+The separate user build now owns `hello.cc`, `ls.cc`, and `cat.cc` with
+checked CupidC. Checked CupidLD fixes `_start` and `0x00F00000`, validates the
+result against the external loader's program-header contract, and publishes
+only after the object remains unchanged. The original `.c` files were renamed
+only after these recipes and frontiers established Cupid ownership.
+
+The generated frontier tracks 194 inputs with aggregate SHA-256
+`94b2464d70077fe01d82c494b24df37b1bc1a39068fac460d7836c04aae752f6`.
+It reproduced all three generated sources and objects twice. The user frontier
+tracks 16 inputs with aggregate SHA-256
+`9b45457c324f8c09456fc0eb8c134f48e5c4febdaaa0321043eec3a774e58f6e`.
+It reproduced all three objects and executables twice and matched every
+installed build artifact.
+
+| User artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `hello.o` | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` |
+| `hello` | 13,992 | `dbef548d246e12a0933b95ec8349a97f542bd8cbecc253efc514b1483fcc9e0f` |
+| `ls.o` | 7,084 | `fe38b3e4fb38b25de29a8ae1bcff29e3f71989feba76cedefe57bc64eadb30f3` |
+| `ls` | 18,112 | `0e9da33927f611442feeff8abd7147829ef9f49e3abec0aeddb59fb8b496c635` |
+| `cat.o` | 6,292 | `d529cb42bd81bd7884f3311db4b0f3b9f92ee68520242da20e972e0896b80879` |
+| `cat` | 13,992 | `fc21f3a989a4535f8e2b4753f170f16682ef31ebc31e856919de238c45a2c789` |
+
+External `print` calls now write one PID-bound serial marker with the byte
+count and FNV-1a fingerprint. Kernel and JIT callers retain the direct path.
+Three separate boots exercised the installed user programs:
+
+| Program | Required guest evidence | Serial log |
+| --- | --- | --- |
+| `hello` | PID 4 loaded at `0x00F00000`, the 27-byte greeting fingerprint, PID and uptime integers, and a PID 4 exit | 22,182 bytes; SHA-256 `71cba310ef8818f0c3b66912b774a2cc2b3fc7e81b5a8fc5355da78ffe2da8f4` |
+| `ls` | PID 4 loaded at `0x00F00000`; fingerprints for `bin`, `home`, `disk`, `docs`, and `demos`; and a PID 4 exit | 23,025 bytes; SHA-256 `d738646ea02388bec71e0216530f0b4ae8de85bc2298b577300eca94450fb558` |
+| `cat` | PID 4 loaded at `0x00F00000`, one 62-byte print with fingerprint `c12ed628`, no PID 999 event, and a PID 4 exit | 21,600 bytes; SHA-256 `5da6ba25e0d5407ad9246843dd2599b203c2176321e99bdc5dfa5638368ae67f` |
+
+### Corrections and rejected approaches
+
+An early wrapper revision required the literal `user/build/` output
+directory. That broke the documented `BUILD` override and both isolated
+frontier runs. The accepted rule keeps the approved object and executable in
+the same directory below `user/`, while the source and program-name
+allowlists retain authority.
+
+Review found that before-and-after hashes alone did not prove which bytes a
+tool read. A file could change and return to its original contents while the
+tool was running. The compiler now captures the source and header closure
+once and reads only a private copy. The linker validates and links the same
+captured object. Tests change and restore the live paths during both
+operations, then prove that the private payload stayed fixed. The frontiers
+also compare their replayed objects with the installed objects instead of
+checking only repeat output.
+
+The first serial wrapper copied caller text into the log, so newline and
+marker-shaped data could create extra apparent events. It also exercised only
+hello. The accepted marker binds each print, integer, and exit call to the
+running PID. Print data is represented by its byte count and FNV-1a
+fingerprint. Separate boots now cover hello, ls, and cat.
+
+The first ls pattern expected `/dev` in the root directory, but the live VFS
+walk returns `bin`, `home`, `disk`, `docs`, and `demos`. The failed gate
+recorded the correct program exit and every returned name before the pattern
+was corrected. The first cat fixture used a long FAT filename that Cupid's
+reader did not resolve. The 8.3-safe `/catfix.txt` path reached the same
+marker-shaped contents and completed the intended check.
+
+The first combined audit run found stale summary locks after the new
+generated and user transforms changed feature and ownership accounting. A
+later run found the old `sizeof` occurrence count and the old ownership
+triple. Those locks now use measured values. Audit diagnostics also say
+"C translation-unit root" so malformed recipes cannot be confused with
+another input kind.
+
+One frontier investigation appeared to report nondeterminism because it
+combined byte comparison with stale exact metrics. The repeated object bytes
+matched. Separating those conditions exposed the stale lock instead of
+mislabeling a deterministic compiler result.
+
+An immediate second `make all` was started as a no-change check. The root
+Makefile deliberately attaches `FORCE` to every kernel object, so the command
+began another complete rebuild instead of becoming a no-op. The command
+harness stopped it after five minutes, before either link pass. The completed
+image and its hashes were unchanged. This is the build's stale-object defense,
+not evidence of an unstable dependency.
+
+The migration-order text still described user programs as host-C work after
+the handoff. The generator now records checked CupidC and CupidLD ownership,
+and a contract pins that wording.
+
+### Build, audit, and disassembler evidence
+
+| Gate | Result |
+| --- | --- |
+| Hosted Toolchain on Windows Clang | Complete suite passed |
+| Fresh isolated Toolchain on Linux GCC | Complete suite passed in 136.4 seconds |
+| Fresh isolated Toolchain on Linux Clang | Complete suite passed in 142.2 seconds |
+| Production wrappers and runtime contracts | 33 tests passed in 43.527 seconds |
+| Checked active-build audit | Reproduced exactly in 52.142 seconds |
+| Guest user programs | Three separate boots passed |
+
+The complete image build passed with `_loaded_end = 0x007FB2E3` and
+`_kernel_end = 0x00C20A70`. This leaves 914,832 bytes below the kernel stack.
+The final `kernel.elf` is 7,511,856 bytes with SHA-256
+`886304f79ba86d66ceb38f00ba8fac0c1a5d5e22c49883662dfe04f7ccb796dd`.
+The flat `kernel.bin` is 7,320,291 bytes with SHA-256
+`e37f46fa8b43b9afa6326f2e9e60b3bd759690400f3e43caefb2672b5ec8452b`.
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 500
+transforms, 432 declared artifacts, and 425 linked objects. CupidC owns 122
+transforms, host C owns 175, host Python owns 134, CupidASM owns four,
+CupidDis owns one, CupidLD owns five, and CupidObj owns 182. The active-source
+digest is
+`b4f4628377bb8162df6ecfc036ec76e5e553e874200f57c6b0b87e5e3728db1c`.
+The audit JSON has SHA-256
+`9e62ec3c2acc715c2d641d48293919bd2f912fa4736ec33a7b75369250c211a1`.
+
+A read-only CupidDis audit accepted all 428 active i386 ELF32 relocatable
+objects, 41,977 relocations, and 15,182 symbols. All CupidC-owned objects,
+checked tool images, user objects and executables, ISR code, and context
+switch code decode without a true `db` fallback. The remaining host-object
+gap contains 4,164 logical instructions. Compiler padding NOPs, packed SSE2,
+and three-operand immediate IMUL account for most of it. Those measured forms
+set the next disassembler order without weakening the input binaries.
+
+### Remaining host boundary
+
+The checked seed still represents the compiler before this increment.
+Promoting it requires a committed compiler revision, a poisoned-host
+transition, promotion of all five stage-three tools, updated pins and
+manifest, and a second poisoned-host fixed-point reproof. Only then can the 20
+new strict roots move into normal production ownership.
+
+Host C still owns 175 transforms, including the other strict kernel roots,
+Doom and vendored C, generated symbol data, and hosted bootstrap commands.
+Python still owns generators, checked wrappers, audit work, and image
+assembly. Windows still uses WSL to execute the static i386 seed. CupidASM
+owns the four normal assembly transforms, with NASM retained only as an
+optional parity oracle. TempleOS remained read-only and outside every metric.
+
+No design question was needed. Active source requirements, the loader
+contract, and the existing fixed memory map determined this increment.
+ADR 0112 records the generated and user handoff. ADR 0113 records the
+compiler-head capabilities and the deferred seed boundary.

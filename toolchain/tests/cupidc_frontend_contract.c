@@ -2912,6 +2912,413 @@ cleanup:
   return failed;
 }
 
+static int run_weak_attributes(const char *host_root) {
+  static const char source[] =
+      "extern int weak_object;\n"
+      "int weak_object __attribute__((weak)) = 7;\n"
+      "void weak_function(void);\n"
+      "__attribute__((__weak__)) void weak_function(void) {}\n"
+      "extern int weak_import __attribute__((__weak__));\n"
+      "int ordinary_object;\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"weak argument",
+       "extern int bad __attribute__((weak(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"weak typedef",
+       "typedef int bad_t __attribute__((weak));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"weak internal object",
+       "static int bad __attribute__((weak));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"weak record",
+       "struct bad_record { int value; } __attribute__((weak));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"weak member",
+       "struct bad_member { int value __attribute__((weak)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled weak attribute",
+      "extern int disabled __attribute__((weak));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  const ctool_c_binding_t *weak_object;
+  const ctool_c_binding_t *weak_function;
+  const ctool_c_binding_t *weak_import;
+  const ctool_c_binding_t *ordinary_object;
+  ctool_u32 failure_index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "weak-attributes", host_root,
+                             2u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/weak-attributes.c", source, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  weak_object = find_binding(&unit, "weak_object");
+  weak_function = find_binding(&unit, "weak_function");
+  weak_import = find_binding(&unit, "weak_import");
+  ordinary_object = find_binding(&unit, "ordinary_object");
+  if (unit.binding_count != 4u || unit.object_definition_count != 2u ||
+      unit.function_definition_count != 1u || weak_object == NULL ||
+      weak_object->kind != CTOOL_C_BINDING_OBJECT ||
+      weak_object->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      weak_object->attributes != CTOOL_C_DECL_ATTR_WEAK ||
+      weak_function == NULL ||
+      weak_function->kind != CTOOL_C_BINDING_FUNCTION ||
+      weak_function->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      weak_function->attributes != CTOOL_C_DECL_ATTR_WEAK ||
+      weak_import == NULL ||
+      weak_import->kind != CTOOL_C_BINDING_OBJECT ||
+      weak_import->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      weak_import->attributes != CTOOL_C_DECL_ATTR_WEAK ||
+      ordinary_object == NULL ||
+      ordinary_object->kind != CTOOL_C_BINDING_OBJECT ||
+      ordinary_object->attributes != 0u) {
+    (void)fprintf(stderr,
+                  "weak-attributes: linked entity semantics differ\n");
+    goto cleanup;
+  }
+  for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
+       failure_index++) {
+    if (expect_frontend_failure(&fixture, &failure_cases[failure_index],
+                                "/weak-attributes-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(&fixture, &disabled_case,
+                              "/weak-attributes-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("weak-attributes: ok\n");
+  }
+  return failed;
+}
+
+static int run_section_attributes(const char *host_root) {
+  static const char source[] =
+      "extern int boot_count;\n"
+      "int boot_count __attribute__((section(\".boot.data\"))) = 7;\n"
+      "static const int boot_limit "
+      "__attribute__((__section__(\".boot.rodata\"))) = 9;\n"
+      "void boot_entry(void) "
+      "__attribute__((section(\".text.start\")));\n"
+      "__attribute__((section(\".text.start\"))) "
+      "void boot_entry(void) {}\n"
+      "extern int late_section;\n"
+      "extern int late_section "
+      "__attribute__((section(\".late.data\")));\n"
+      "int ordinary_section;\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"missing section arguments",
+       "int bad __attribute__((section));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"missing section name",
+       "int bad __attribute__((section()));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"non-string section name",
+       "int bad __attribute__((section(7)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"empty section name",
+       "int bad __attribute__((section(\"\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"symbol table section name",
+       "int bad __attribute__((section(\".symtab\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"string table section name",
+       "int bad __attribute__((section(\".strtab\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section-name table section name",
+       "int bad __attribute__((section(\".shstrtab\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"relocation section name",
+       "int bad __attribute__((section(\".rel.bad\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"embedded null section name",
+       "int bad __attribute__((section(\".bad\\0name\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"extra section argument",
+       "int bad __attribute__((section(\".one\", \".two\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"conflicting object sections",
+       "extern int bad __attribute__((section(\".one\"))); "
+       "extern int bad __attribute__((section(\".two\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"conflicting function sections",
+       "void bad(void) __attribute__((section(\".one\"))); "
+       "void bad(void) __attribute__((section(\".two\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section typedef",
+       "typedef int bad_t __attribute__((section(\".bad\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section record",
+       "struct bad { int value; } __attribute__((section(\".bad\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section member",
+       "struct bad { int value __attribute__((section(\".bad\"))); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section parameter specifier",
+       "void bad(int __attribute__((section(\".bad\"))) value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section parameter declarator",
+       "void bad(int value __attribute__((section(\".bad\"))));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"section block object",
+       "void bad(void) { int value "
+       "__attribute__((section(\".bad\"))); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"section block function",
+       "void bad(void) { extern void helper(void) "
+       "__attribute__((section(\".bad\"))); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled section attribute",
+      "int disabled __attribute__((section(\".disabled\")));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  const ctool_c_binding_t *boot_count;
+  const ctool_c_binding_t *boot_limit;
+  const ctool_c_binding_t *boot_entry;
+  const ctool_c_binding_t *late_section;
+  const ctool_c_binding_t *ordinary_section;
+  ctool_u32 failure_index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "section-attributes", host_root,
+                             2u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/section-attributes.c", source, &unit) !=
+      0) {
+    goto cleanup;
+  }
+  boot_count = find_binding(&unit, "boot_count");
+  boot_limit = find_binding(&unit, "boot_limit");
+  boot_entry = find_binding(&unit, "boot_entry");
+  late_section = find_binding(&unit, "late_section");
+  ordinary_section = find_binding(&unit, "ordinary_section");
+  if (unit.binding_count != 5u || unit.object_definition_count != 3u ||
+      unit.function_definition_count != 1u || boot_count == NULL ||
+      boot_count->kind != CTOOL_C_BINDING_OBJECT ||
+      boot_count->attributes != CTOOL_C_DECL_ATTR_SECTION ||
+      !string_equal(boot_count->section_name, ".boot.data") ||
+      boot_limit == NULL ||
+      boot_limit->kind != CTOOL_C_BINDING_OBJECT ||
+      boot_limit->attributes != CTOOL_C_DECL_ATTR_SECTION ||
+      !string_equal(boot_limit->section_name, ".boot.rodata") ||
+      boot_entry == NULL ||
+      boot_entry->kind != CTOOL_C_BINDING_FUNCTION ||
+      boot_entry->attributes != CTOOL_C_DECL_ATTR_SECTION ||
+      !string_equal(boot_entry->section_name, ".text.start") ||
+      late_section == NULL ||
+      late_section->attributes != CTOOL_C_DECL_ATTR_SECTION ||
+      !string_equal(late_section->section_name, ".late.data") ||
+      ordinary_section == NULL || ordinary_section->attributes != 0u ||
+      ordinary_section->section_name.size != 0u ||
+      ordinary_section->section_name.data == NULL) {
+    (void)fprintf(stderr,
+                  "section-attributes: canonical metadata differs\n");
+    goto cleanup;
+  }
+  for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
+       failure_index++) {
+    if (expect_frontend_failure(&fixture, &failure_cases[failure_index],
+                                "/section-attributes-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(&fixture, &disabled_case,
+                              "/section-attributes-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("section-attributes: ok\n");
+  }
+  return failed;
+}
+
+static int run_unused_attributes(const char *host_root) {
+  static const char source[] =
+      "__attribute__((unused))\n"
+      "static void emit_movups_local_xmm(void) {}\n"
+      "__attribute__((unused))\n"
+      "static int cc_last_xmm = 0;\n"
+      "__attribute__((unused, __unused__))\n"
+      "static int cc_xmm_alloc(void) { return 0; }\n"
+      "__attribute__((__unused__))\n"
+      "static void cc_xmm_free(int value) { (void)value; }\n"
+      "extern int late_unused;\n"
+      "extern int late_unused __attribute__((unused));\n"
+      "extern int early_unused __attribute__((unused));\n"
+      "extern int early_unused;\n"
+      "static int suffix_function(void) __attribute__((unused));\n"
+      "static int suffix_function(void) { return 1; }\n"
+      "static int late_function(void);\n"
+      "static int late_function(void) __attribute__((unused)) "
+      "{ return 2; }\n"
+      "static __attribute__((unused)) int middle_unused;\n"
+      "int ordinary_unused;\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"unused argument",
+       "int bad __attribute__((unused(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unterminated unused argument",
+       "int bad __attribute__((unused(\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused typedef",
+       "typedef int bad_t __attribute__((unused));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused record",
+       "struct bad { int value; } __attribute__((unused));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused member",
+       "struct bad { int value __attribute__((unused)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused parameter specifier",
+       "void bad(int __attribute__((unused)) value);\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused parameter declarator",
+       "void bad(int value __attribute__((unused)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused block object",
+       "void bad(void) { int value __attribute__((unused)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"unused block function",
+       "void bad(void) { extern void helper(void) "
+       "__attribute__((unused)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"used remains unsupported",
+       "int bad __attribute__((used));\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"unused does not enable used",
+       "int bad __attribute__((unused, used));\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noinline remains unsupported",
+       "int bad(void) __attribute__((noinline));\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled unused attribute",
+      "int disabled __attribute__((unused));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const char *const attributed_names[] = {
+      "emit_movups_local_xmm", "cc_last_xmm", "cc_xmm_alloc",
+      "cc_xmm_free", "late_unused", "early_unused", "suffix_function",
+      "late_function", "middle_unused"};
+  static const char *const active_names[] = {
+      "emit_movups_local_xmm", "cc_last_xmm", "cc_xmm_alloc",
+      "cc_xmm_free"};
+  frontend_fixture_t fixture;
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_translation_unit_t unit;
+  const ctool_c_binding_t *ordinary;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "unused-attributes", host_root,
+                             128u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/unused-attributes.c", source, &unit) !=
+      0 ||
+      unit.binding_count != 10u || unit.object_definition_count != 3u ||
+      unit.function_definition_count != 5u) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(attributed_names); index++) {
+    const ctool_c_binding_t *binding =
+        find_binding(&unit, attributed_names[index]);
+    if (binding == NULL ||
+        (binding->kind != CTOOL_C_BINDING_OBJECT &&
+         binding->kind != CTOOL_C_BINDING_FUNCTION) ||
+        binding->attributes != CTOOL_C_DECL_ATTR_UNUSED ||
+        binding->section_name.size != 0u) {
+      (void)fprintf(stderr,
+                    "unused-attributes: canonical entity metadata differs\n");
+      goto cleanup;
+    }
+  }
+  ordinary = find_binding(&unit, "ordinary_unused");
+  if (ordinary == NULL || ordinary->kind != CTOOL_C_BINDING_OBJECT ||
+      ordinary->attributes != 0u || ordinary->section_name.size != 0u) {
+    (void)fprintf(stderr,
+                  "unused-attributes: ordinary entity metadata differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    if (expect_frontend_failure(&fixture, &failure_cases[index],
+                                "/unused-attributes-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(&fixture, &disabled_case,
+                              "/unused-attributes-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0 ||
+      parse_loaded_fixture(&fixture, "/kernel/lang/cupidc_parse.c",
+                           "cc_xmm_reset", 0u, &unit) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(active_names); index++) {
+    const ctool_c_binding_t *binding = find_binding(&unit, active_names[index]);
+    if (binding == NULL ||
+        (binding->kind != CTOOL_C_BINDING_OBJECT &&
+         binding->kind != CTOOL_C_BINDING_FUNCTION) ||
+        binding->attributes != CTOOL_C_DECL_ATTR_UNUSED) {
+      (void)fprintf(stderr,
+                    "unused-attributes: active site metadata differs\n");
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("unused-attributes: ok\n");
+  }
+  return failed;
+}
+
 static ctool_bool frontend_find_source_text(ctool_bytes_t source,
                                             const char *text,
                                             ctool_u32 first,
@@ -6778,12 +7185,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 200u, 6056u,
-       54288u, 756u, 262u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 191u, 5229u,
-       44981u, 634u, 315u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 318u,
-       12865u, 84249u, 1909u, 1273u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 204u, 6243u,
+       55889u, 793u, 289u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 205u, 5578u,
+       47499u, 669u, 343u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 321u,
+       13100u, 85828u, 1924u, 1279u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -7438,6 +7845,9 @@ static int run_static_initializers(const char *host_root) {
       "  static int *void_cast = (void *)(1 - 1);\n"
       "  static int *qualified_void_cast = (void * const)0;\n"
       "  static callback_t *function = (void *)0;\n"
+      "  static int *typed_object = (int *)0;\n"
+      "  static callback_t *typed_function = (callback_t *)0;\n"
+      "  static void *typed_void_target = (int *)0;\n"
       "  static int *braced = {{0},};\n"
       "  static int *array[2] = {0, (void *)0};\n"
       "  static holder_t holder = {0, (void *)0};\n"
@@ -7642,9 +8052,15 @@ static int run_static_initializers(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 25u,
        "static pointer initializer requires a null pointer constant"},
-      {{"typed static address constant boundary",
+      {{"incompatible typed zero pointer",
         "void bad(void) {\n"
-        "  static int *pointer = (int *)0;\n"
+        "  static char *pointer = (int *)0;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       2u, 26u, "static pointer initializer has incompatible type"},
+      {{"nonzero typed static address",
+        "void bad(void) {\n"
+        "  static int *pointer = (int *)1;\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 25u,
@@ -11504,14 +11920,7 @@ static int run_for_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
        2u, 20u, "break statement requires a semicolon"},
-      {{"comma initializer boundary",
-        "void bad(void) {\n"
-        "  int index;\n"
-        "  for (index = 0, index = 1; index < 2; index++) { }\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       3u, 17u,
-       "expression operator is outside this function-body slice"}};
+      };
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t storage_unit;
@@ -11704,13 +12113,6 @@ static int run_if_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        3u, 8u, "declaration is not a statement; use a compound statement"},
-      {{"comma controlling boundary",
-        "void bad(int value) {\n"
-        "  if (value, value) ;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 12u,
-       "expression operator is outside this function-body slice"},
       {{"unmatched else",
         "void bad(int value) {\n"
         "  else value = 1;\n"
@@ -12065,13 +12467,14 @@ static int validate_static_pointer_initializer_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const scalar_names[] = {
       "literal", "arithmetic", "unsigned_wrap", "logical", "conditional",
-      "void_cast", "qualified_void_cast", "function", "braced"};
+      "void_cast", "qualified_void_cast", "function", "typed_object",
+      "typed_function", "typed_void_target", "braced"};
   const ctool_c_block_binding_t *binding;
   const ctool_c_initializer_t *root;
   const ctool_c_initializer_t *child;
   const ctool_c_type_node_t *type;
   ctool_u32 index;
-  if (unit->block_binding_count != 13u || unit->initializer_count != 17u ||
+  if (unit->block_binding_count != 16u || unit->initializer_count != 20u ||
       unit->initializer_element_count != 4u ||
       unit->function_definition_count != 1u || unit->expression_count != 0u ||
       unit->expression_child_count != 0u) {
@@ -12888,12 +13291,6 @@ static int run_do_statements(const char *host_root) {
         "void bad(void) { do ; while (1)", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
        0u, 0u, "do statement requires a semicolon"},
-      {{"comma do condition",
-        "void bad(int value) {\n"
-        "  do ; while (value, 1);\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 20u, "expression operator is outside this function-body slice"},
       {{"do body scope expires before condition",
         "void bad(void) {\n"
         "  do { int local; } while (local);\n"
@@ -15549,6 +15946,97 @@ cleanup:
   return failed;
 }
 
+static int validate_function_pointer_cast_frontend(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const function_names[] = {
+      "change_signature", "entry_bits", "restore_entry"};
+  ctool_u32 index;
+  if (unit->function_definition_count != ARRAY_COUNT(function_names)) {
+    (void)fprintf(stderr,
+                  "function-pointer-casts: function inventory differs\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(function_names); index++) {
+    ctool_u32 root = pointer_return_root(unit, function_names[index]);
+    const ctool_c_expression_t *cast =
+        root < unit->expression_count ? &unit->expressions[root] : NULL;
+    ctool_u32 child =
+        cast == NULL ? CTOOL_C_AST_NONE : expression_child(unit, cast, 0u);
+    const ctool_c_expression_t *source =
+        child < unit->expression_count ? &unit->expressions[child] : NULL;
+    const ctool_c_type_layout_t *source_layout =
+        source == NULL ? NULL : type_layout(unit, source->type);
+    const ctool_c_type_layout_t *target_layout =
+        cast == NULL ? NULL : type_layout(unit, cast->type);
+    int source_is_function_pointer =
+        source == NULL ? 0 : function_from_pointer(unit, source->type) != NULL;
+    int target_is_function_pointer =
+        cast == NULL ? 0 : function_from_pointer(unit, cast->type) != NULL;
+    int source_is_i32_integer =
+        source_layout != NULL && source_layout->is_integer == CTOOL_TRUE &&
+        source_layout->size == 4u;
+    int target_is_i32_integer =
+        target_layout != NULL && target_layout->is_integer == CTOOL_TRUE &&
+        target_layout->size == 4u;
+    if (cast == NULL || cast->kind != CTOOL_C_EXPRESSION_CAST ||
+        cast->child_count != 1u ||
+        cast->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        cast->conversion != CTOOL_C_CONVERSION_NONE ||
+        cast->computation_type != CTOOL_C_TYPE_NONE ||
+        cast->reference != CTOOL_C_AST_NONE || source == NULL ||
+        child >= root ||
+        (index == 0u &&
+         (!source_is_function_pointer || !target_is_function_pointer)) ||
+        (index == 1u &&
+         (!source_is_function_pointer || !target_is_i32_integer)) ||
+        (index == 2u &&
+         (!source_is_i32_integer || !target_is_function_pointer))) {
+      (void)fprintf(stderr,
+                    "function-pointer-casts: cast %u differs\n",
+                    (unsigned int)index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_function_pointer_cast_frontend(const char *host_root) {
+  static const char source[] =
+      "typedef void (*entry_t)(void);\n"
+      "typedef void (*argument_entry_t)(unsigned);\n"
+      "extern void entry(unsigned);\n"
+      "entry_t change_signature(argument_entry_t value) {\n"
+      "  return (entry_t)value;\n"
+      "}\n"
+      "unsigned entry_bits(void) { return (unsigned)entry; }\n"
+      "argument_entry_t restore_entry(unsigned value) {\n"
+      "  return (argument_entry_t)value;\n"
+      "}\n";
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "function-pointer-casts", host_root,
+                             2u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/function-pointer-casts.c", source,
+                          &unit) != 0 ||
+      validate_function_pointer_cast_frontend(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("function-pointer-casts: ok\n");
+  }
+  return failed;
+}
+
 static int validate_pointer_arithmetic_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const subscript_names[] = {
@@ -18105,8 +18593,10 @@ static char *build_composite_limit_source(ctool_u32 padding_count,
   source[0] = '\0';
   for (index = 0u; index < padding_count; index++) {
     char line[64];
-    int written = snprintf(line, sizeof(line), "const int pad%03u;\n",
-                           (unsigned int)index);
+    int written = snprintf(line, sizeof(line),
+                           "const int pad%03u[%u];\n",
+                           (unsigned int)index,
+                           (unsigned int)index + 1u);
     if (written <= 0 || (size_t)written >= sizeof(line) ||
         append_scale_text(source, capacity, &used, line) != 0) {
       free(source);
@@ -18220,8 +18710,13 @@ static int validate_composite_storage_limit(frontend_fixture_t *fixture,
       anchor_binding == NULL || anchor_unit.binding_count != 1u ||
       anchor_binding->kind != CTOOL_C_BINDING_TYPEDEF) {
     (void)fprintf(stderr,
-                  "boundaries: composite storage rollback differs: %s\n",
-                  ctool_status_name(status));
+                  "boundaries: composite storage rollback differs: "
+                  "status=%s diagnostics=%u code=0x%08x line=%u column=%u\n",
+                  ctool_status_name(status),
+                  ctool_job_diagnostic_count(job),
+                  diagnostic != NULL ? diagnostic->code : 0u,
+                  diagnostic != NULL ? diagnostic->line : 0u,
+                  diagnostic != NULL ? diagnostic->column : 0u);
     goto cleanup;
   }
   failed = 0;
@@ -20377,16 +20872,6 @@ static int run_conditional_expressions(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 38u,
        "floating controlling expressions are outside this body slice"},
-      {{"conditional comma boundary",
-        "int bad(int condition, int left, int right) { return condition ? (left, right) : right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 71u,
-       "expression operator is outside this function-body slice"},
-      {{"conditional middle comma boundary",
-        "int bad(int condition, int left, int right) { return condition ? left, right : right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 70u,
-       "expression operator is outside this function-body slice"},
       {{"conditional result is not an lvalue",
         "int *bad(int condition, int left, int right) { return &(condition ? left : right); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -24147,6 +24632,183 @@ cleanup:
   return failed;
 }
 
+static int validate_register_snapshot_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "movl %%eax, %0",
+      "movl %%ebx, %0",
+      "movl %%ecx, %0",
+      "movl %%edx, %0",
+      "movl %%esi, %0",
+      "movl %%edi, %0",
+      "movl %%ebp, %0",
+      "movl %%esp, %0",
+      "mov %%esp, %0",
+      "movl 4(%%ebp), %0",
+      "pushf; pop %0; cli",
+      "pushfl\n\tpopl %0\n\t"};
+  static const ctool_u32 lines[] = {
+      7u, 8u, 9u, 10u, 11u, 12u, 13u, 14u, 18u, 21u, 24u, 28u};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 5u ||
+      unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != ARRAY_COUNT(templates) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != index ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 0u ||
+        string_equal(operand->constraint, "=r") == 0 ||
+        operand->expression >= unit->expression_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->layout.types[operand->type].is_integer == CTOOL_FALSE ||
+        unit->layout.types[operand->type].size != 4u ||
+        dual_location_matches(&assembly->location,
+                              &assembly->physical_location,
+                              "/register-snapshot-assembly.c",
+                              lines[index]) == 0 ||
+        dual_location_matches(&operand->location,
+                              &operand->physical_location,
+                              "/register-snapshot-assembly.c",
+                              lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == unit->assembly_count ? 0 : 1;
+}
+
+static int run_register_snapshot_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned u32;\n"
+      "u32 *next_slot(void);\n"
+      "u32 next_index(void);\n"
+      "u32 slots[4];\n"
+      "void snapshot_gprs(void) {\n"
+      "  u32 value;\n"
+      "  __asm__ volatile(\"movl %%eax, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%ebx, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%ecx, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%edx, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%esi, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%edi, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%ebp, %0\" : \"=r\"(value));\n"
+      "  __asm__ volatile(\"movl %%esp, %0\" : \"=r\"(value));\n"
+      "}\n"
+      "void snapshot_esp_alias(void) {\n"
+      "  u32 value;\n"
+      "  __asm__ volatile(\"mov %%esp, %0\" : \"=r\"(value));\n"
+      "}\n"
+      "void snapshot_return_slot(void) {\n"
+      "  __asm__ volatile(\"movl 4(%%ebp), %0\" : "
+      "\"=r\"(*next_slot()));\n"
+      "}\n"
+      "void snapshot_flags(void) {\n"
+      "  __asm__ volatile(\"pushf; pop %0; cli\" : "
+      "\"=r\"(slots[next_index()]));\n"
+      "}\n"
+      "void snapshot_flags_long(void) {\n"
+      "  u32 value;\n"
+      "  __asm__ __volatile__(\"pushfl\\n\\tpopl %0\\n\\t\" : "
+      "\"=r\"(value));\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"narrow snapshot output",
+        "void bad(void) { unsigned short value; "
+        "asm volatile(\"mov %%esp, %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"const snapshot output",
+        "void bad(void) { const unsigned value = 0; "
+        "asm volatile(\"mov %%esp, %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output requires a modifiable integer lvalue"},
+      {{"atomic snapshot output",
+        "void bad(void) { _Atomic unsigned value; "
+        "asm volatile(\"mov %%esp, %0\" : \"=r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"register snapshot assembly without GNU extensions",
+       "void bad(void) { unsigned value; "
+       "__asm__(\"mov %%esp, %0\" : \"=r\"(value)); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      0u, 0u, "GNU inline assembly requires GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "register-snapshot-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/register-snapshot-assembly.c", source, &unit) != 0 ||
+      validate_register_snapshot_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "register-snapshot-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/register-snapshot-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_register_snapshot_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/register-snapshot-assembly-disabled.c",
+          disabled_gnu_case.line, disabled_gnu_case.column,
+          disabled_gnu_case.message) != 0 ||
+      validate_register_snapshot_assembly_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("register-snapshot-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_pointer_output_assembly(const char *host_root) {
   static const char source[] =
       "struct cpu_state { unsigned id; };\n"
@@ -24615,6 +25277,172 @@ cleanup:
   return failed;
 }
 
+static int validate_comma_expression_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_statement_t *statement;
+  const ctool_c_expression_t *expression;
+  ctool_u32 left;
+  ctool_u32 middle;
+  ctool_u32 comma_count = 0u;
+  ctool_u32 nested_comma_count = 0u;
+  ctool_u32 two_argument_call_count = 0u;
+  ctool_u32 index;
+
+  for (index = 0u; index < unit->expression_count; index++) {
+    expression = &unit->expressions[index];
+    if (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_COMMA) {
+      ctool_u32 right = expression_child(unit, expression, 1u);
+      left = expression_child(unit, expression, 0u);
+      if (expression->kind != CTOOL_C_EXPRESSION_BINARY ||
+          expression->child_count != 2u ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE ||
+          expression->semantic_flags != 0u ||
+          left >= unit->expression_count ||
+          right >= unit->expression_count ||
+          unit->expressions[right].type != expression->type) {
+        (void)fprintf(stderr,
+                      "comma-expressions: comma node differs\n");
+        return 1;
+      }
+      if (unit->expressions[left].operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_COMMA) {
+        nested_comma_count++;
+      }
+      comma_count++;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_CALL &&
+        expression->child_count == 3u) {
+      two_argument_call_count++;
+      if (unit->expressions[expression_child(unit, expression, 1u)]
+                  .operation == CTOOL_C_EXPRESSION_OPERATOR_COMMA ||
+          unit->expressions[expression_child(unit, expression, 2u)]
+                  .operation == CTOOL_C_EXPRESSION_OPERATOR_COMMA) {
+        (void)fprintf(stderr,
+                      "comma-expressions: call separators became operators\n");
+        return 1;
+      }
+    }
+  }
+  if (comma_count != 10u || nested_comma_count != 1u ||
+      two_argument_call_count != 1u) {
+    (void)fprintf(stderr,
+                  "comma-expressions: expression inventory differs\n");
+    return 1;
+  }
+
+  statement = find_single_return_statement(unit, "sequence");
+  expression =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  if (expression == NULL ||
+      expression->operation != CTOOL_C_EXPRESSION_OPERATOR_COMMA) {
+    (void)fprintf(stderr,
+                  "comma-expressions: return expression differs\n");
+    return 1;
+  }
+
+  statement = find_single_return_statement(unit, "conditional_sequence");
+  expression =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  middle =
+      expression == NULL
+          ? CTOOL_C_AST_NONE
+          : expression_child(unit, expression, 1u);
+  if (expression == NULL ||
+      expression->kind != CTOOL_C_EXPRESSION_CONDITIONAL ||
+      middle >= unit->expression_count ||
+      unit->expressions[middle].operation !=
+          CTOOL_C_EXPRESSION_OPERATOR_COMMA) {
+    (void)fprintf(stderr,
+                  "comma-expressions: conditional middle differs\n");
+    return 1;
+  }
+
+  statement = find_single_return_statement(unit, "arguments");
+  expression =
+      statement == NULL || statement->expression >= unit->expression_count
+          ? NULL
+          : &unit->expressions[statement->expression];
+  if (expression == NULL || expression->kind != CTOOL_C_EXPRESSION_CALL ||
+      expression->child_count != 3u) {
+    (void)fprintf(stderr,
+                  "comma-expressions: argument grammar boundary differs\n");
+    return 1;
+  }
+  return 0;
+}
+
+static int run_comma_expressions(const char *host_root) {
+  static const char source[] =
+      "extern int first(void);\n"
+      "extern int second(void);\n"
+      "extern int pair(int, int);\n"
+      "int sequence(int *left, int *right) {\n"
+      "  for (; *left < 4; (*left)++, (*right)++) {}\n"
+      "  return first(), second();\n"
+      "}\n"
+      "int conditional_sequence(int flag) {\n"
+      "  return flag ? first(), second() : 0;\n"
+      "}\n"
+      "int nested(void) { return (first(), second(), 7); }\n"
+      "int arguments(void) { return pair(first(), second()); }\n"
+      "int initializers(void) {\n"
+      "  int values[2] = {first(), second()};\n"
+      "  return values[0];\n"
+      "}\n"
+      "void controls(int flag) {\n"
+      "  for (first(), second(); 0;) {}\n"
+      "  if (first(), flag) {}\n"
+      "  while (first(), 0) {}\n"
+      "  do {} while (first(), 0);\n"
+      "  switch (first(), flag) { default: break; }\n"
+      "}\n";
+  static const frontend_failure_case_t failures[] = {
+      {"leading comma",
+       "int bad(void) { return (, 1); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"trailing comma",
+       "int bad(void) { return (1,); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"missing for-iteration operand",
+       "void bad(void) { for (;; 1,) {} }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "comma-expressions", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/comma-expressions.c", source, &unit) ==
+          0 &&
+      validate_comma_expression_unit(&unit) == 0) {
+    failed = 0;
+  }
+  for (index = 0u; failed == 0 && index < ARRAY_COUNT(failures); index++) {
+    if (expect_frontend_failure(
+            &fixture, &failures[index],
+            "/comma-expression-failure.c") != 0 ||
+        validate_comma_expression_unit(&unit) != 0) {
+      failed = 1;
+    }
+  }
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("comma-expressions: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -24622,13 +25450,16 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     (void)fprintf(stderr,
                   "usage: cupidc-frontend-contract "
-                   "fat16|redeclarations|attributes|static-asserts|"
+                   "fat16|redeclarations|attributes|weak-attributes|"
+                   "section-attributes|unused-attributes|"
+                   "static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-conversions|"
                    "variadic-callees|"
                    "atomic-builtins|"
-                   "inline-assembly|port-io-assembly|pointer-output-assembly|"
+                   "inline-assembly|port-io-assembly|"
+                   "register-snapshot-assembly|pointer-output-assembly|"
                    "operand-free-assembly|"
                    "block-bindings|"
                    "block-functions|"
@@ -24640,10 +25471,11 @@ int main(int argc, char **argv) {
                    "designated-initializers|file-scope-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "compound-literals|"
-                   "for-statements|"
+                   "for-statements|comma-expressions|"
                    "if-statements|while-statements|do-statements|"
                    "switch-statements|labels-and-goto|"
-                   "pointer-expressions|pointer-arithmetic|pointer-comparisons|"
+                   "pointer-expressions|function-pointer-casts|"
+                   "pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
                   "boundaries|"
@@ -24661,6 +25493,15 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "attributes") == 0) {
     return run_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "weak-attributes") == 0) {
+    return run_weak_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "section-attributes") == 0) {
+    return run_section_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "unused-attributes") == 0) {
+    return run_unused_attributes(argv[2]);
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);
@@ -24694,6 +25535,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "port-io-assembly") == 0) {
     return run_port_io_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "register-snapshot-assembly") == 0) {
+    return run_register_snapshot_assembly(argv[2]);
   }
   if (strcmp(argv[1], "pointer-output-assembly") == 0) {
     return run_pointer_output_assembly(argv[2]);
@@ -24752,6 +25596,9 @@ int main(int argc, char **argv) {
   if (strcmp(argv[1], "for-statements") == 0) {
     return run_for_statements(argv[2]);
   }
+  if (strcmp(argv[1], "comma-expressions") == 0) {
+    return run_comma_expressions(argv[2]);
+  }
   if (strcmp(argv[1], "if-statements") == 0) {
     return run_if_statements(argv[2]);
   }
@@ -24769,6 +25616,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "pointer-expressions") == 0) {
     return run_pointer_expressions(argv[2]);
+  }
+  if (strcmp(argv[1], "function-pointer-casts") == 0) {
+    return run_function_pointer_cast_frontend(argv[2]);
   }
   if (strcmp(argv[1], "pointer-arithmetic") == 0) {
     return run_pointer_arithmetic(argv[2]);

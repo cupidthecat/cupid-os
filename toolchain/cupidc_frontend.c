@@ -114,12 +114,21 @@ typedef struct {
   const ctool_c_pp_token_t *alignment_token;
   ctool_bool noreturn;
   const ctool_c_pp_token_t *noreturn_token;
+  ctool_bool weak;
+  const ctool_c_pp_token_t *weak_token;
+  ctool_bool has_section;
+  ctool_string_t section_name;
+  const ctool_c_pp_token_t *section_token;
+  ctool_bool unused;
+  const ctool_c_pp_token_t *unused_token;
 } cfront_attributes_t;
 
 typedef struct {
   ctool_u32 attributes;
   ctool_u32 function_declaration_flags;
   ctool_u32 minimum_alignment;
+  ctool_string_t section_name;
+  const ctool_c_pp_token_t *section_token;
 } cfront_binding_semantics_t;
 
 typedef struct {
@@ -161,6 +170,10 @@ typedef struct {
   ctool_bool integer_constant_value_valid;
   cfront_integer_t integer_constant_value;
   ctool_bool void_cast_null_pointer_constant;
+  /* A zero integer cast to a non-atomic pointer is not a C null pointer
+   * constant. Static initialization still needs its all-zero object
+   * representation after ordinary pointer compatibility is checked. */
+  ctool_bool pointer_cast_zero;
   /* Private parse-time form for a linkable address constant. It is kept out
    * of the public expression tape and consumed by static initialization. */
   ctool_bool static_address_known;
@@ -2674,6 +2687,15 @@ static ctool_status_t cfront_append_binding(
             CTOOL_TRUE) {
       ctool_bool compatible = CTOOL_FALSE;
       ctool_status_t status;
+      if ((existing.attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u &&
+          (semantics.attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u &&
+          cfront_string_equal(existing.section_name,
+                              semantics.section_name) == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            semantics.section_token,
+            "compatible declarations name different ELF sections");
+      }
       if (kind == CTOOL_C_BINDING_TYPEDEF) {
         status = cfront_types_same(context, existing.type, type,
                                    &compatible);
@@ -2705,6 +2727,8 @@ static ctool_status_t cfront_append_binding(
               (semantics.function_declaration_flags &
                ~existing.function_declaration_flags) != 0u ||
               semantics.minimum_alignment > existing.minimum_alignment ||
+              (((semantics.attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u) &&
+               ((existing.attributes & CTOOL_C_DECL_ATTR_SECTION) == 0u)) ||
               (publishes_file_name == CTOOL_TRUE &&
                existing.file_scope_visible == CTOOL_FALSE))) {
           ctool_c_binding_t replacement = existing;
@@ -2723,6 +2747,10 @@ static ctool_status_t cfront_append_binding(
             replacement.file_scope_visible = CTOOL_TRUE;
           }
           replacement.attributes |= semantics.attributes;
+          if ((semantics.attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u &&
+              (existing.attributes & CTOOL_C_DECL_ATTR_SECTION) == 0u) {
+            replacement.section_name = semantics.section_name;
+          }
           replacement.function_declaration_flags |=
               semantics.function_declaration_flags;
           if (semantics.minimum_alignment > replacement.minimum_alignment) {
@@ -2761,6 +2789,10 @@ static ctool_status_t cfront_append_binding(
   binding.linkage = cfront_binding_linkage(kind, storage);
   binding.file_scope_visible = publishes_file_name;
   binding.attributes = semantics.attributes;
+  binding.section_name =
+      (semantics.attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u
+          ? semantics.section_name
+          : ctool_string("");
   binding.function_declaration_flags = semantics.function_declaration_flags;
   binding.minimum_alignment = semantics.minimum_alignment;
   binding.type = type;
@@ -4006,6 +4038,10 @@ static ctool_status_t cfront_validate_completed_record(
     cfront_context_t *context, ctool_c_record_kind_t record_kind,
     ctool_u32 first_member, ctool_u32 member_count,
     const ctool_c_pp_token_t *diagnostic_token);
+static ctool_bool cfront_ordinary_narrow_string_token(
+    const ctool_c_pp_token_t *token);
+static ctool_status_t cfront_decode_body_string(
+    cfront_context_t *context, ctool_bytes_t *owned_out);
 
 static ctool_bool cfront_starts_attribute(
     const cfront_context_t *context) {
@@ -4019,7 +4055,10 @@ static ctool_bool cfront_attributes_any(
     const cfront_attributes_t *attributes) {
   return attributes->packed == CTOOL_TRUE ||
                  attributes->has_alignment == CTOOL_TRUE ||
-                 attributes->noreturn == CTOOL_TRUE
+                 attributes->noreturn == CTOOL_TRUE ||
+                 attributes->weak == CTOOL_TRUE ||
+                 attributes->has_section == CTOOL_TRUE ||
+                 attributes->unused == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -4032,7 +4071,16 @@ static const ctool_c_pp_token_t *cfront_first_attribute_token(
   if (attributes->alignment_token != (const ctool_c_pp_token_t *)0) {
     return attributes->alignment_token;
   }
-  return attributes->noreturn_token;
+  if (attributes->noreturn_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->noreturn_token;
+  }
+  if (attributes->weak_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->weak_token;
+  }
+  if (attributes->unused_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->unused_token;
+  }
+  return attributes->section_token;
 }
 
 static ctool_status_t cfront_attribute_expected(
@@ -4043,6 +4091,109 @@ static ctool_status_t cfront_attribute_expected(
         cfront_peek(context), message);
   }
   (void)cfront_advance(context);
+  return CTOOL_OK;
+}
+
+static ctool_bool cfront_section_name_forbidden(ctool_string_t name) {
+  static const char relocation_prefix[] = ".rel.";
+  ctool_u32 index;
+  ctool_bool relocation_name = CTOOL_TRUE;
+  if (name.size == 0u ||
+      cfront_string_equal(name, ctool_string(".symtab")) == CTOOL_TRUE ||
+      cfront_string_equal(name, ctool_string(".strtab")) == CTOOL_TRUE ||
+      cfront_string_equal(name, ctool_string(".shstrtab")) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (name.size < (ctool_u32)sizeof(relocation_prefix) - 1u) {
+    relocation_name = CTOOL_FALSE;
+  } else {
+    for (index = 0u;
+         index < (ctool_u32)sizeof(relocation_prefix) - 1u; index++) {
+      if (name.data[index] != relocation_prefix[index]) {
+        relocation_name = CTOOL_FALSE;
+        break;
+      }
+    }
+  }
+  if (relocation_name == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  for (index = 0u; index < name.size; index++) {
+    if (name.data[index] == '\0') {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_parse_section_attribute(
+    cfront_context_t *context, cfront_attributes_t *attributes,
+    const ctool_c_pp_token_t *name) {
+  const ctool_c_pp_token_t *argument;
+  ctool_bytes_t decoded = {0};
+  ctool_string_t section_name;
+  ctool_u32 cursor;
+  ctool_status_t status;
+  (void)cfront_advance(context);
+  if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, name,
+        "section attribute requires one string-literal argument");
+  }
+  (void)cfront_advance(context);
+  argument = cfront_peek(context);
+  if (cfront_ordinary_narrow_string_token(argument) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, argument,
+        "section attribute requires an ordinary narrow string literal");
+  }
+  cursor = context->position;
+  while (cursor < context->tape->token_count &&
+         context->tape->tokens[cursor].kind == CTOOL_C_PP_TOKEN_STRING) {
+    if (cfront_ordinary_narrow_string_token(
+            &context->tape->tokens[cursor]) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          &context->tape->tokens[cursor],
+          "section attribute requires ordinary narrow string literals");
+    }
+    cursor++;
+  }
+  status = cfront_decode_body_string(context, &decoded);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (decoded.size == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, argument,
+        "decoded section name is unavailable");
+  }
+  section_name.data = (const char *)decoded.data;
+  section_name.size = decoded.size - 1u;
+  if (cfront_section_name_forbidden(section_name) == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, argument,
+        "section attribute names an empty or reserved ELF section");
+  }
+  if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        cfront_peek(context),
+        "section attribute accepts exactly one string-literal argument");
+  }
+  (void)cfront_advance(context);
+  if (attributes->has_section == CTOOL_TRUE &&
+      cfront_string_equal(attributes->section_name, section_name) ==
+          CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, argument,
+        "one declaration cannot name two different ELF sections");
+  }
+  attributes->has_section = CTOOL_TRUE;
+  attributes->section_name = section_name;
+  if (attributes->section_token == (const ctool_c_pp_token_t *)0) {
+    attributes->section_token = name;
+  }
   return CTOOL_OK;
 }
 
@@ -4141,6 +4292,47 @@ static ctool_status_t cfront_parse_attributes(
                 context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
                 cfront_peek(context),
                 "noreturn attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "weak") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__weak__") == CTOOL_TRUE) {
+        attributes->weak = CTOOL_TRUE;
+        if (attributes->weak_token == (const ctool_c_pp_token_t *)0) {
+          attributes->weak_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "weak attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "section") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__section__") == CTOOL_TRUE) {
+        status =
+            cfront_parse_section_attribute(context, attributes, name);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+      } else if (cfront_token_is(name, "unused") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__unused__") == CTOOL_TRUE) {
+        attributes->unused = CTOOL_TRUE;
+        if (attributes->unused_token == (const ctool_c_pp_token_t *)0) {
+          attributes->unused_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "unused attribute does not accept arguments");
           }
           (void)cfront_advance(context);
         }
@@ -4461,6 +4653,24 @@ static ctool_status_t cfront_record_type_body(
         record_attributes.noreturn_token,
         "noreturn attribute cannot apply to a record type");
   }
+  if (record_attributes.weak == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        record_attributes.weak_token,
+        "weak attribute cannot apply to a record type");
+  }
+  if (record_attributes.has_section == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        record_attributes.section_token,
+        "section attribute cannot apply to a record type");
+  }
+  if (record_attributes.unused == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        record_attributes.unused_token,
+        "unused attribute cannot apply to a record type");
+  }
   if (cfront_peek_is(context, "{") == CTOOL_FALSE) {
     if (name.size == 0u) {
       return cfront_emit_failure(
@@ -4544,6 +4754,24 @@ static ctool_status_t cfront_record_type_body(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
           record_attributes.noreturn_token,
           "noreturn attribute cannot apply to a record type");
+    }
+    if (record_attributes.weak == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          record_attributes.weak_token,
+          "weak attribute cannot apply to a record type");
+    }
+    if (record_attributes.has_section == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          record_attributes.section_token,
+          "section attribute cannot apply to a record type");
+    }
+    if (record_attributes.unused == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          record_attributes.unused_token,
+          "unused attribute cannot apply to a record type");
     }
     first_member = context->members.count;
     while (member_head != CFRONT_NONE) {
@@ -5883,6 +6111,24 @@ static ctool_status_t cfront_parse_member_declaration(
           declarator_attributes.noreturn_token,
           "noreturn attribute cannot apply to a record member");
     }
+    if (declarator_attributes.weak == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.weak_token,
+          "weak attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.has_section == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.section_token,
+          "section attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.unused == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.unused_token,
+          "unused attribute cannot apply to a record member");
+    }
     status = cfront_build_declarator(
         context, root, specifiers.type, &type, &name, &location,
         &physical_location);
@@ -6890,6 +7136,7 @@ static void cfront_constant_value_clear(cfront_expression_value_t *value) {
   value->integer_constant_value.bits = 0ull;
   value->integer_constant_value.kind = CFRONT_INTEGER_SIGNED_32;
   value->void_cast_null_pointer_constant = CTOOL_FALSE;
+  value->pointer_cast_zero = CTOOL_FALSE;
   cfront_static_address_clear(value);
 }
 
@@ -7519,13 +7766,6 @@ static ctool_status_t cfront_parse_body_primary(
     }
     (void)cfront_advance(context);
     parenthesized = cfront_parse_body_expression(context, value_out);
-    if (parenthesized == CTOOL_OK &&
-        cfront_peek_is(context, ",") == CTOOL_TRUE) {
-      parenthesized = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          cfront_peek(context),
-          "expression operator is outside this function-body slice");
-    }
     if (parenthesized == CTOOL_OK) {
       parenthesized = cfront_expected(context, ")");
     }
@@ -9540,7 +9780,7 @@ static ctool_status_t cfront_parse_body_postfix(
       cfront_expression_value_t argument;
       ctool_u32 parameter_type;
       cfront_zero(&argument, (ctool_u32)sizeof(argument));
-      status = cfront_parse_body_expression(context, &argument);
+      status = cfront_parse_body_assignment(context, &argument);
       if (status == CTOOL_OK && function.has_prototype == CTOOL_TRUE &&
           argument_count < function.parameter_count) {
         status = cfront_vector_get(
@@ -9887,6 +10127,13 @@ static ctool_status_t cfront_apply_cast(
              constant_operand.integer_constant_value_valid == CTOOL_TRUE &&
              constant_operand.integer_constant_value.bits == 0ull) {
     operand->void_cast_null_pointer_constant = CTOOL_TRUE;
+  } else if (status == CTOOL_OK && target.kind == CTOOL_C_TYPE_POINTER &&
+             ((target_qualifiers | target.qualifiers) &
+              CTOOL_C_QUAL_ATOMIC) == 0u &&
+             constant_operand.integer_constant_expression == CTOOL_TRUE &&
+             constant_operand.integer_constant_value_valid == CTOOL_TRUE &&
+             constant_operand.integer_constant_value.bits == 0ull) {
+    operand->pointer_cast_zero = CTOOL_TRUE;
   }
   return status;
 }
@@ -11508,13 +11755,7 @@ static ctool_status_t cfront_parse_body_conditional(
                                                 value_out);
     }
     if (status == CTOOL_OK) {
-      status = cfront_parse_body_assignment(context, &when_nonzero);
-    }
-    if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
-      status = cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          cfront_peek(context),
-          "expression operator is outside this function-body slice");
+      status = cfront_parse_body_expression(context, &when_nonzero);
     }
     if (status == CTOOL_OK) {
       status = cfront_expected(context, ":");
@@ -11605,7 +11846,32 @@ static ctool_status_t cfront_parse_body_assignment(
 
 static ctool_status_t cfront_parse_body_expression(
     cfront_context_t *context, cfront_expression_value_t *value_out) {
-  return cfront_parse_body_assignment(context, value_out);
+  ctool_status_t status =
+      cfront_parse_body_assignment(context, value_out);
+  while (status == CTOOL_OK &&
+         cfront_peek_is(context, ",") == CTOOL_TRUE) {
+    const ctool_c_pp_token_t *operator_token = cfront_advance(context);
+    cfront_expression_value_t right;
+    cfront_zero(&right, (ctool_u32)sizeof(right));
+    status = cfront_enter_syntax(context, operator_token);
+    if (status == CTOOL_OK) {
+      status = cfront_apply_default_conversion(context, value_out);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_parse_body_assignment(context, &right);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_apply_default_conversion(context, &right);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_append_binary_expression(
+          context, operator_token, CTOOL_C_EXPRESSION_BINARY,
+          CTOOL_C_EXPRESSION_OPERATOR_COMMA, right.type,
+          CTOOL_C_TYPE_NONE, value_out, &right);
+    }
+    cfront_leave_syntax(context);
+  }
+  return status;
 }
 
 static ctool_bool cfront_body_statement_keyword(
@@ -12405,7 +12671,7 @@ static ctool_status_t cfront_parse_block_initializer(
   }
   cfront_zero(&value, (ctool_u32)sizeof(value));
   value_token = cfront_peek(context);
-  status = cfront_parse_body_expression(context, &value);
+  status = cfront_parse_body_assignment(context, &value);
   if (status == CTOOL_OK) {
     status = cfront_publish_block_expression_initializer(
         context, *object_type_io, value_token, &value, initializer_out);
@@ -13233,7 +13499,7 @@ static ctool_status_t cfront_parse_aggregate_initializer(
                    cfront_peek_is(context, "{") == CTOOL_FALSE &&
                    (value_token == (const ctool_c_pp_token_t *)0 ||
                     value_token->kind != CTOOL_C_PP_TOKEN_STRING)) {
-          status = cfront_parse_body_expression(context, &clause_value);
+          status = cfront_parse_body_assignment(context, &clause_value);
           if (status == CTOOL_OK) {
             clause_prepared = CTOOL_TRUE;
           }
@@ -13536,6 +13802,19 @@ static ctool_status_t cfront_parse_static_initializer(
                                 *object_type_io, value_token);
         status = cfront_append_initializer(context, &initializer,
                                            initializer_out);
+      } else if (status == CTOOL_OK &&
+                 pointer_value.pointer_cast_zero == CTOOL_TRUE) {
+        ctool_c_initializer_t initializer;
+        status = cfront_apply_assignment_conversion(
+            context, *object_type_io, value_token,
+            "static pointer initializer has incompatible type",
+            &pointer_value);
+        if (status == CTOOL_OK) {
+          cfront_initializer_init(&initializer, CTOOL_C_INITIALIZER_ZERO,
+                                  *object_type_io, value_token);
+          status = cfront_append_initializer(context, &initializer,
+                                             initializer_out);
+        }
       } else if (status == CTOOL_OK) {
         status = cfront_integer_type(context, pointer_value.type,
                                      &source_integer,
@@ -14269,6 +14548,37 @@ static ctool_status_t cfront_require_controlling_value(
       "controlling expression requires scalar type");
 }
 
+static ctool_status_t cfront_publish_constant_condition(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    const cfront_expression_value_t *value) {
+  ctool_c_expression_t expression;
+  ctool_status_t status;
+  if (value->integer_constant_expression == CTOOL_FALSE ||
+      value->integer_constant_value_valid == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (value->expression >= context->expressions.count ||
+      cfront_vector_get(&context->expressions, value->expression,
+                        &expression) != CTOOL_OK ||
+      (expression.semantic_flags &
+       (CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION |
+        CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION_NONZERO)) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "controlling-expression constant metadata is invalid");
+  }
+  expression.semantic_flags |=
+      CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION;
+  if (value->integer_constant_value.bits != 0ull) {
+    expression.semantic_flags |=
+        CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION_NONZERO;
+  }
+  status = cfront_vector_replace(context, &context->expressions,
+                                 value->expression, &expression);
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
 static ctool_status_t cfront_require_expression_terminator(
     cfront_context_t *context, const char *terminator,
     const char *missing_message) {
@@ -14925,6 +15235,10 @@ static ctool_status_t cfront_parse_for_statement(
                                                 &value);
     }
     if (status == CTOOL_OK) {
+      status = cfront_publish_constant_condition(context, condition_token,
+                                                 &value);
+    }
+    if (status == CTOOL_OK) {
       condition = value.expression;
       status = cfront_expected(context, ";");
     }
@@ -15018,6 +15332,10 @@ static ctool_status_t cfront_parse_if_statement(
                                                 &value);
     }
     if (status == CTOOL_OK) {
+      status = cfront_publish_constant_condition(context, condition_token,
+                                                 &value);
+    }
+    if (status == CTOOL_OK) {
       condition = value.expression;
       status = cfront_expected(context, ")");
     }
@@ -15101,6 +15419,10 @@ static ctool_status_t cfront_parse_while_statement(
     if (status == CTOOL_OK) {
       status = cfront_require_controlling_value(context, condition_token,
                                                 &value);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_publish_constant_condition(context, condition_token,
+                                                 &value);
     }
     if (status == CTOOL_OK) {
       condition = value.expression;
@@ -15207,6 +15529,10 @@ static ctool_status_t cfront_parse_do_statement(
     if (status == CTOOL_OK) {
       status = cfront_require_controlling_value(context, condition_token,
                                                 &value);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_publish_constant_condition(context, condition_token,
+                                                 &value);
     }
     if (status == CTOOL_OK) {
       condition = value.expression;
@@ -15866,6 +16192,38 @@ static ctool_status_t cfront_parse_external_declaration(
       }
       binding_semantics.attributes |= CTOOL_C_DECL_ATTR_NORETURN;
     }
+    if (declarator_attributes.weak == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_OBJECT &&
+          kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.weak_token,
+            "weak attribute requires an externally linked object or function");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_WEAK;
+    }
+    if (declarator_attributes.has_section == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_OBJECT &&
+          kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.section_token,
+            "section attribute requires a file-scope object or function");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_SECTION;
+      binding_semantics.section_name = declarator_attributes.section_name;
+      binding_semantics.section_token = declarator_attributes.section_token;
+    }
+    if (declarator_attributes.unused == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_OBJECT &&
+          kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.unused_token,
+            "unused attribute requires a file-scope object or function");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_UNUSED;
+    }
     status = cfront_validate_function_specifier_context(
         context, &specifiers,
         kind == CTOOL_C_BINDING_FUNCTION ? CTOOL_TRUE : CTOOL_FALSE,
@@ -15881,6 +16239,22 @@ static ctool_status_t cfront_parse_external_declaration(
         CTOOL_FALSE, &binding_index);
     if (status != CTOOL_OK) {
       return status;
+    }
+    if (declarator_attributes.weak == CTOOL_TRUE) {
+      ctool_c_binding_t canonical_binding;
+      status = cfront_binding_get(context, binding_index,
+                                  &canonical_binding);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            name_token, "weak declaration binding is unavailable");
+      }
+      if (canonical_binding.linkage != CTOOL_C_LINKAGE_EXTERNAL) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.weak_token,
+            "weak attribute requires an externally linked object or function");
+      }
     }
     if (kind == CTOOL_C_BINDING_OBJECT &&
         has_initializer == CTOOL_FALSE &&
@@ -18392,8 +18766,11 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     case CTOOL_C_EXPRESSION_BINARY:
       if (expression->child_count != 2u ||
           expression->reference != CTOOL_C_AST_NONE ||
-          expression->operation < CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY ||
-          expression->operation > CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR ||
+          ((expression->operation <
+                CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY ||
+            expression->operation >
+                CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR) &&
+           expression->operation != CTOOL_C_EXPRESSION_OPERATOR_COMMA) ||
           expression->conversion != CTOOL_C_CONVERSION_NONE ||
           expression->computation_type != CTOOL_C_TYPE_NONE) {
         return cfront_emit_failure(

@@ -17,10 +17,10 @@
  *
  * ── Compiling ────────────────────────────────────────────────────
  *
- *   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
- *       -I/path/to/cupid-os/user -c hello.c -o hello.o
- *   cupidld -m elf_i386 --text-address 0x00F00000 --entry _start \
- *       -o hello hello.o
+ *   make -C user
+ *
+ * The production build freezes and runs the checked CupidC and CupidLD seeds.
+ * Its source allowlist and ELF checks prevent an undeclared fallback.
  *
  * ── Running in CupidOS ──────────────────────────────────────────
  *

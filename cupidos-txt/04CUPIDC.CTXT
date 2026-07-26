@@ -98,7 +98,7 @@ Supported core features include:
 - reg / noreg / extern / inline / register / restrict hints
 - typedef and enum support
 - enum and array bounds can use constant integer expressions
-- __attribute__((...)) is accepted and skipped on declarations
+- the private compiler accepts __attribute__((...)) compatibility spellings
 - basic inline asm blocks
 - arithmetic and logical operators
 - #pragma once
@@ -390,8 +390,8 @@ operations, and six failure cases pass at both stages.
 make verify-bootstrap-seed checks the seed without executing it.
 make bootstrap-from-seed writes both stages and a report under
 build/bootstrap/checked-seed. Linux runs the static tools directly. Windows
-uses WSL. Native contract runners, hosted development commands, and most
-normal Cupid OS C objects still use a host compiler.
+uses WSL. Native contract runners, hosted development commands, and the
+remaining normal Cupid OS C objects still use a host compiler.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before
@@ -527,12 +527,22 @@ parameter types, aggregate variadic reads, wide strings, literal pooling, and
 block-static addresses in other
 block-static initializers remain unfinished in the shared path.
 
-The shared path builds 116 normal Cupid OS objects. It owns the established
-40-source kernel and driver group, 71 additional kernel and driver sources,
-and five shared toolchain implementations. The host compiler owns 181 C
-transforms and 129 root or user objects. Host Python owns 125 transforms.
-The private in-kernel CupidC compiler still handles embedded runtime
-compilation.
+The shared path builds 116 normal kernel and toolchain objects. It owns the
+established 40-source kernel and driver group, 71 additional kernel and driver
+sources, and five shared toolchain implementations. The checked seed also
+compiles the three generated installation tables and the three example ELF
+programs. Checked CupidLD links those example programs. The host compiler
+still owns the remaining C transforms, while the private in-kernel CupidC
+compiler handles embedded runtime compilation.
+
+At compiler head, the shared path gives weak, section, and unused attributes
+their declaration and ELF meaning. It also preserves typed static null
+pointers, evaluates comma expressions from left to right, recognizes
+known-true loops as non-fallthrough, and supports represented function-pointer
+casts that keep all 32 target bits. Exact output-only GNU assembly can snapshot
+general registers, ESP, EBP, the caller return slot, or EFLAGS. These additions
+join the checked production path after the next seed refresh and runtime
+proof.
 >endtree
 
 >h2 C Compatibility Notes
@@ -542,7 +552,7 @@ CupidC remains a small in-OS compiler, not hosted GCC C.
 Accepted for source compatibility:
   long, short, signed, unsigned, long long
   extern, inline, register, restrict
-  __attribute__((...))
+  private compatibility attributes; shared weak, section, and unused semantics
   labels and goto
   constant integer expressions in enum/array bounds
 
@@ -759,7 +769,7 @@ Use CupidC when:
 - You want direct access to many kernel helper bindings.
 
 Use ELF C (see 05ELFPROG.CTXT) when:
-- You want external GCC-based build flow.
+- You want a checked external CupidC and CupidLD build.
 - You want a stable syscall-table ABI style entrypoint.
 >endtree
 

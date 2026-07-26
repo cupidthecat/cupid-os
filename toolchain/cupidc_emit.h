@@ -11,7 +11,8 @@ typedef enum {
   CTOOL_C_EMIT_DIAG_SYMBOL = 0x0c000005u,
   CTOOL_C_EMIT_DIAG_RELOCATION = 0x0c000006u,
   CTOOL_C_EMIT_DIAG_LIMIT = 0x0c000007u,
-  CTOOL_C_EMIT_DIAG_INTERNAL = 0x0c000008u
+  CTOOL_C_EMIT_DIAG_INTERNAL = 0x0c000008u,
+  CTOOL_C_EMIT_DIAG_SECTION = 0x0c000009u
 } ctool_c_emit_diag_code_t;
 
 ctool_status_t ctool_c_emit_object(

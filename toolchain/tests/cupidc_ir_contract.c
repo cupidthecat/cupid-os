@@ -101,7 +101,7 @@ static const char active_conditional_child_access[] =
     "                                  index, &children[index]);\n";
 
 static const char active_section_map[] =
-    "  ctool_u32 section_map[CEMIT_SECTION_COUNT];\n";
+    "  ctool_u32 *section_map = (ctool_u32 *)0;\n";
 
 static const char active_section_map_use[] =
     "    section_map[logical] = CTOOL_ELF32_NO_SECTION;\n";
@@ -1374,28 +1374,37 @@ static const char function_pointer_qualification_source[] =
     "typedef int (*promoted_parameter_callback_t)(int, double);\n"
     "typedef int (*promoted_char_callback_t)(char);\n";
 
-static const char *const function_pointer_cast_sources[] = {
-    "typedef int (*callback_t)(int);\n"
-    "callback_t from_integer(unsigned value) { return (callback_t)value; }\n",
-    "typedef int (*callback_t)(int);\n"
-    "unsigned to_integer(callback_t value) { return (unsigned)value; }\n",
+static const char function_pointer_cast_source[] =
+    "typedef void (*entry_t)(void);\n"
+    "typedef void (*argument_entry_t)(unsigned);\n"
+    "extern void entry(unsigned);\n"
+    "entry_t change_signature(argument_entry_t value) {\n"
+    "  return (entry_t)value;\n"
+    "}\n"
+    "unsigned entry_bits(void) { return (unsigned)entry; }\n"
+    "argument_entry_t restore_entry(unsigned value) {\n"
+    "  return (argument_entry_t)value;\n"
+    "}\n";
+
+static const char *const unsupported_function_pointer_cast_sources[] = {
     "typedef int (*callback_t)(int);\n"
     "callback_t from_object(void *value) { return (callback_t)value; }\n",
     "typedef int (*callback_t)(int);\n"
     "void *to_object(callback_t value) { return (void *)value; }\n",
     "typedef int (*callback_t)(int);\n"
-    "typedef int (*other_t)(void);\n"
-    "other_t change_signature(callback_t value) { return (other_t)value; }\n",
+    "callback_t from_narrow(unsigned char value) {\n"
+    "  return (callback_t)value;\n"
+    "}\n",
     "typedef int (*callback_t)(int);\n"
-    "callback_t keep_signature(callback_t value) { return (callback_t)value; }\n"};
+    "unsigned long long to_wide(callback_t value) {\n"
+    "  return (unsigned long long)value;\n"
+    "}\n"};
 
-static const char *const function_pointer_cast_paths[] = {
-    "/function-pointer-cast-from-integer.c",
-    "/function-pointer-cast-to-integer.c",
+static const char *const unsupported_function_pointer_cast_paths[] = {
     "/function-pointer-cast-from-object.c",
     "/function-pointer-cast-to-object.c",
-    "/function-pointer-cast-signature.c",
-    "/function-pointer-cast-compatible.c"};
+    "/function-pointer-cast-from-narrow.c",
+    "/function-pointer-cast-to-wide.c"};
 
 static const char active_simd_cpuid_return[] =
     "    return ((before ^ after) & (1u << 21)) != 0u;";
@@ -10287,6 +10296,250 @@ cleanup:
   return 1;
 }
 
+static int validate_constant_true_loop_ir(
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 function_index;
+  if (ir->function_count != 9u || ir->functions == NULL ||
+      ir->instructions == NULL || ir->instruction_count == 0u) {
+    (void)fprintf(stderr, "constant true loop IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < ir->function_count;
+       function_index++) {
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *zero;
+    const ctool_c_ir_instruction_t *terminal;
+    ctool_bool backward_jump = CTOOL_FALSE;
+    ctool_u32 instruction_index;
+    if (function->instruction_count < 4u ||
+        function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction) {
+      (void)fprintf(stderr,
+                    "constant true loop function range differs\n");
+      return 0;
+    }
+    zero = &ir->instructions[function->first_instruction +
+                             function->instruction_count - 2u];
+    terminal = &ir->instructions[function->first_instruction +
+                                 function->instruction_count - 1u];
+    if (zero->kind != CTOOL_C_IR_INSTRUCTION_INTEGER ||
+        zero->integer_bits != 0ull ||
+        terminal->kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE) {
+      (void)fprintf(stderr,
+                    "constant true loop unreachable exit differs\n");
+      return 0;
+    }
+    for (instruction_index = 0u;
+         instruction_index < function->instruction_count;
+         instruction_index++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[function->first_instruction +
+                            instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_JUMP &&
+          instruction->reference < instruction_index) {
+        backward_jump = CTOOL_TRUE;
+      }
+    }
+    if (backward_jump == CTOOL_FALSE) {
+      (void)fprintf(stderr,
+                    "constant true loop lost its backward edge\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_constant_true_loops(const char *host_root) {
+  static const char source[] =
+      "typedef enum { false = 0, true = 1 } bool;\n"
+      "int integer_while(void) { while (1) {} }\n"
+      "int enumerator_while(void) { while (true) {} }\n"
+      "int integer_do(void) { do {} while (1); }\n"
+      "int integer_for(void) { for (; 1;) {} }\n"
+      "int additive_while(void) { while (1 + 0) {} }\n"
+      "int cast_do(void) { do {} while ((int)1); }\n"
+      "int conditional_for(void) { for (; 0 ? 0 : 2;) {} }\n"
+      "int dead_if_break(void) { while (1) { if (1 - 1) break; } }\n"
+      "int dead_else_break(void) {\n"
+      "  while (1) { if (1 + 0) {} else break; }\n"
+      "}\n";
+  static const char false_source[] =
+      "int false_loop(void) { while (0) {} }\n";
+  static const char enum_false_source[] =
+      "typedef enum { false = 0 } bool;\n"
+      "int enum_false_loop(void) { while (false) {} }\n";
+  static const char break_source[] =
+      "int break_loop(void) { while (1) { break; } }\n";
+  static const char runtime_source[] =
+      "int runtime_loop(int value) { while (value) {} }\n";
+  static const char label_break_source[] =
+      "int label_break_loop(void) {\n"
+      "  goto inside;\n"
+      "  while (1) { if (0) { inside: break; } }\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t false_unit;
+  ctool_c_translation_unit_t enum_false_unit;
+  ctool_c_translation_unit_t break_unit;
+  ctool_c_translation_unit_t runtime_unit;
+  ctool_c_translation_unit_t label_break_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_u32 constant_condition_expression = CTOOL_C_AST_NONE;
+  ctool_u32 expression_index;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&false_unit, 0, sizeof(false_unit));
+  (void)memset(&enum_false_unit, 0, sizeof(enum_false_unit));
+  (void)memset(&break_unit, 0, sizeof(break_unit));
+  (void)memset(&runtime_unit, 0, sizeof(runtime_unit));
+  (void)memset(&label_break_unit, 0, sizeof(label_break_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/constant-true-loops.c", source, &unit) ||
+      !parse_source(job, "/constant-false-loop.c", false_source,
+                    &false_unit) ||
+      !parse_source(job, "/enum-false-loop.c", enum_false_source,
+                    &enum_false_unit) ||
+      !parse_source(job, "/constant-true-break.c", break_source,
+                    &break_unit) ||
+      !parse_source(job, "/runtime-loop.c", runtime_source,
+                    &runtime_unit) ||
+      !parse_source(job, "/constant-false-label-break.c",
+                    label_break_source, &label_break_unit)) {
+    (void)fprintf(stderr, "constant true loop setup failed\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  unit_hash = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "constant true loop lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_constant_true_loop_ir(&ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = ir_instruction_fingerprint(&ir);
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat constant true loop lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      repeat_ir.function_count != ir.function_count ||
+      repeat_ir.instruction_count != ir.instruction_count ||
+      ir_instruction_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_constant_true_loop_ir(&repeat_ir)) {
+    (void)fprintf(stderr,
+                  "constant true loop lowering is not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_ir_failure_preserves_unit(
+          job, &false_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "constant false nonvoid loop") ||
+      !expect_ir_failure_preserves_unit(
+          job, &enum_false_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "enumerator false nonvoid loop") ||
+      !expect_ir_failure_preserves_unit(
+          job, &break_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "constant true loop with reachable break") ||
+      !expect_ir_failure_preserves_unit(
+          job, &runtime_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "runtime nonvoid loop") ||
+      !expect_ir_failure_preserves_unit(
+          job, &label_break_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "CupidC IR lowering does not yet support this statement",
+          "constant false branch reached through a label")) {
+    goto cleanup;
+  }
+  if (unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  for (expression_index = 0u; expression_index < unit.expression_count;
+       expression_index++) {
+    if ((invalid_expressions[expression_index].semantic_flags &
+         CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION) != 0u) {
+      constant_condition_expression = expression_index;
+      break;
+    }
+  }
+  if (constant_condition_expression == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr,
+                  "constant condition metadata was not published\n");
+    goto cleanup;
+  }
+  invalid_expressions[constant_condition_expression].semantic_flags &=
+      ~(CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION |
+        CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION_NONZERO);
+  invalid_expressions[constant_condition_expression].semantic_flags |=
+      CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION_NONZERO;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "constant condition truth without proof")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "constant condition same-job recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_instruction_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_constant_true_loop_ir(&repeat_ir)) {
+    (void)fprintf(stderr,
+                  "constant condition lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("constant-true-loops: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_forward_goto(const char *host_root) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -15832,7 +16085,6 @@ static int run_function_pointers(const char *host_root) {
   ctool_c_translation_unit_t value_unit;
   ctool_c_translation_unit_t wide_unit;
   ctool_c_translation_unit_t atomic_unit;
-  ctool_c_translation_unit_t cast_unit;
   ctool_c_translation_unit_t qualification_unit;
   ctool_c_translation_unit_t malformed_qualification_unit;
   ctool_c_translation_unit_t invalid_unit;
@@ -15859,7 +16111,6 @@ static int run_function_pointers(const char *host_root) {
   (void)memset(&value_unit, 0, sizeof(value_unit));
   (void)memset(&wide_unit, 0, sizeof(wide_unit));
   (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
-  (void)memset(&cast_unit, 0, sizeof(cast_unit));
   (void)memset(&qualification_unit, 0, sizeof(qualification_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/function-pointer-call.c",
@@ -15969,21 +16220,6 @@ static int run_function_pointers(const char *host_root) {
           "CupidC IR lowering does not yet support this value type",
           "atomic function pointer load")) {
     goto cleanup;
-  }
-  for (index = 0u;
-       index < (ctool_u32)(sizeof(function_pointer_cast_sources) /
-                           sizeof(function_pointer_cast_sources[0]));
-       index++) {
-    (void)memset(&cast_unit, 0, sizeof(cast_unit));
-    if (!parse_source(job, function_pointer_cast_paths[index],
-                      function_pointer_cast_sources[index], &cast_unit) ||
-        !expect_ir_failure_preserves_unit(
-            job, &cast_unit, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-            "CupidC IR lowering does not yet support this conversion",
-            "explicit function pointer cast")) {
-      goto cleanup;
-    }
   }
   if (!parse_source(job, "/function-pointer-qualification.c",
                     function_pointer_qualification_source,
@@ -16107,6 +16343,196 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("function-pointers: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_function_pointer_cast_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  static const char *const function_names[] = {
+      "change_signature", "entry_bits", "restore_entry"};
+  static const ctool_u32 first_instructions[] = {0u, 4u, 8u};
+  ctool_u32 entry_binding = find_binding(unit, "entry");
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 3u || ir->function_count != 3u ||
+      ir->functions == NULL || ir->instruction_count != 12u ||
+      ir->instructions == NULL || entry_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "function pointer cast IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->function_count; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_type_node_t *function_type;
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    ctool_u32 binding = find_binding(unit, function_names[index]);
+    if (definition->declared_type >= unit->graph.type_count) {
+      return 0;
+    }
+    function_type = &unit->graph.types[definition->declared_type];
+    if (binding == CTOOL_C_AST_NONE || definition->binding != binding ||
+        function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+        function->binding != binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != first_instructions[index] ||
+        function->instruction_count != 4u ||
+        function->maximum_stack_depth != 1u) {
+      (void)fprintf(stderr, "function pointer cast function %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  {
+    const ctool_c_type_node_t *signature_type =
+        &unit->graph.types[unit->function_definitions[0].declared_type];
+    const ctool_c_type_node_t *bits_type =
+        &unit->graph.types[unit->function_definitions[1].declared_type];
+    const ctool_c_type_node_t *restore_type =
+        &unit->graph.types[unit->function_definitions[2].declared_type];
+    ctool_u32 signature_parameter = signature_type->first_parameter;
+    ctool_u32 restore_parameter = restore_type->first_parameter;
+    ctool_u32 signature_source;
+    ctool_u32 signature_result = signature_type->referenced_type;
+    ctool_u32 integer_type = bits_type->referenced_type;
+    ctool_u32 restore_result = restore_type->referenced_type;
+    ctool_u32 entry_type = unit->bindings[entry_binding].type;
+    ctool_u32 entry_pointer_type;
+    if (signature_type->parameter_count != 1u ||
+        signature_parameter >= unit->parameter_count ||
+        bits_type->parameter_count != 0u ||
+        restore_type->parameter_count != 1u ||
+        restore_parameter >= unit->parameter_count) {
+      (void)fprintf(stderr, "function pointer cast type record differs\n");
+      return 0;
+    }
+    signature_source = unit->parameters[signature_parameter].type;
+    entry_pointer_type = ir->instructions[5].type;
+    if (ir->instructions[0].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        ir->instructions[0].type != signature_source ||
+        ir->instructions[0].reference != signature_parameter ||
+        ir->instructions[1].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        ir->instructions[1].type != signature_source ||
+        ir->instructions[1].input_type != signature_source ||
+        ir->instructions[1].conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        ir->instructions[2].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+        ir->instructions[2].type != signature_result ||
+        ir->instructions[2].input_type != signature_source ||
+        ir->instructions[2].conversion != CTOOL_C_CONVERSION_NONE ||
+        ir->instructions[3].kind !=
+            CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        ir->instructions[3].type != signature_result ||
+        ir->instructions[3].input_type != signature_result ||
+        ir->instructions[4].kind !=
+            CTOOL_C_IR_INSTRUCTION_FUNCTION_ADDRESS ||
+        ir->instructions[4].type != entry_type ||
+        ir->instructions[4].reference != entry_binding ||
+        ir->instructions[5].kind !=
+            CTOOL_C_IR_INSTRUCTION_FUNCTION_TO_POINTER ||
+        ir->instructions[5].input_type != entry_type ||
+        ir->instructions[5].conversion !=
+            CTOOL_C_CONVERSION_FUNCTION_TO_POINTER ||
+        ir->instructions[6].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+        ir->instructions[6].type != integer_type ||
+        ir->instructions[6].input_type != entry_pointer_type ||
+        ir->instructions[6].conversion != CTOOL_C_CONVERSION_NONE ||
+        ir->instructions[7].kind !=
+            CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        ir->instructions[7].type != integer_type ||
+        ir->instructions[7].input_type != integer_type ||
+        ir->instructions[8].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        ir->instructions[8].type != integer_type ||
+        ir->instructions[8].reference != restore_parameter ||
+        ir->instructions[9].kind != CTOOL_C_IR_INSTRUCTION_LOAD ||
+        ir->instructions[9].type != integer_type ||
+        ir->instructions[9].input_type != integer_type ||
+        ir->instructions[9].conversion !=
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+        ir->instructions[10].kind != CTOOL_C_IR_INSTRUCTION_CONVERT ||
+        ir->instructions[10].type != restore_result ||
+        ir->instructions[10].input_type != integer_type ||
+        ir->instructions[10].conversion != CTOOL_C_CONVERSION_NONE ||
+        ir->instructions[11].kind !=
+            CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        ir->instructions[11].type != restore_result ||
+        ir->instructions[11].input_type != restore_result) {
+      (void)fprintf(stderr, "function pointer cast IR instructions differ\n");
+      return 0;
+    }
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    if (!string_equal(ir->instructions[index].location.path,
+                      "/function-pointer-casts.c") ||
+        !string_equal(ir->instructions[index].physical_location.path,
+                      "/function-pointer-casts.c") ||
+        ir->instructions[index].location.line == 0u ||
+        ir->instructions[index].physical_location.line == 0u) {
+      (void)fprintf(stderr, "function pointer cast IR location differs\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_function_pointer_casts(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t rejected_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_u64 fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/function-pointer-casts.c",
+                    function_pointer_cast_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "function pointer cast lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_function_pointer_cast_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u;
+       index <
+       (ctool_u32)(sizeof(unsupported_function_pointer_cast_sources) /
+                   sizeof(unsupported_function_pointer_cast_sources[0]));
+       index++) {
+    (void)memset(&rejected_unit, 0, sizeof(rejected_unit));
+    if (!parse_source(job, unsupported_function_pointer_cast_paths[index],
+                      unsupported_function_pointer_cast_sources[index],
+                      &rejected_unit) ||
+        !expect_ir_failure_preserves_unit(
+            job, &rejected_unit, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+            "CupidC IR lowering does not yet support this conversion",
+            "unsupported function pointer cast")) {
+      goto cleanup;
+    }
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("function-pointer-casts: ok");
     return 0;
   }
   return 1;
@@ -27291,18 +27717,12 @@ static int run_self_host_frontier(const char *host_root) {
   }
   if (!parse_source(job, "/nonzero-callback.c", nonzero_callback,
                     &negative) ||
-      !expect_ir_failure_preserves_unit(
-          job, &negative, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "nonzero function pointer cast") ||
+      !expect_ir_success_preserves_unit(
+          job, &negative, "nonzero function pointer cast") ||
       !parse_source(job, "/computed-zero-callback.c",
                     computed_zero_callback, &negative) ||
-      !expect_ir_failure_preserves_unit(
-          job, &negative, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "computed zero function pointer cast") ||
+      !expect_ir_success_preserves_unit(
+          job, &negative, "computed zero function pointer cast") ||
       !parse_source(job, "/function-pointer-wide.c",
                     function_pointer_wide, &negative) ||
       !expect_ir_failure_preserves_unit(
@@ -28260,6 +28680,276 @@ cleanup:
   return 1;
 }
 
+static const char register_snapshot_assembly_source[] =
+    "typedef unsigned u32;\n"
+    "u32 *next_slot(void);\n"
+    "u32 next_index(void);\n"
+    "u32 slots[4];\n"
+    "void snapshot_local(void) {\n"
+    "  u32 value;\n"
+    "  __asm__ volatile(\"movl %%ebx, %0\" : \"=r\"(value));\n"
+    "}\n"
+    "void snapshot_indirect(void) {\n"
+    "  __asm__ volatile(\"mov %%esp, %0\" : \"=r\"(*next_slot()));\n"
+    "}\n"
+    "void snapshot_indexed(void) {\n"
+    "  __asm__ volatile(\"pushf; pop %0; cli\" : "
+    "\"=r\"(slots[next_index()]));\n"
+    "}\n"
+    "void snapshot_in_order(void) {\n"
+    "  u32 first;\n"
+    "  u32 second;\n"
+    "  __asm__ volatile(\"movl %%eax, %0\" : \"=r\"(first));\n"
+    "  __asm__ volatile(\"pushfl\\n\\tpopl %0\\n\\t\" : "
+    "\"=r\"(second));\n"
+    "}\n"
+    "void dead_snapshot(void) {\n"
+    "  u32 value;\n"
+    "  return;\n"
+    "  __asm__ volatile(\"movl 4(%%ebp), %0\" : \"=r\"(value));\n"
+    "}\n";
+
+static int register_snapshot_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u32 expected_first_references[] = {
+      0u, 1u, 2u, 3u, 5u};
+  static const ctool_u32 expected_assembly_counts[] = {
+      1u, 1u, 1u, 2u, 0u};
+  static const ctool_u32 expected_call_counts[] = {
+      0u, 1u, 1u, 0u, 0u};
+  static const ctool_u32 expected_depths[] = {
+      1u, 1u, 2u, 1u, 0u};
+  ctool_u32 function_index;
+
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 6u ||
+      unit->assembly_operand_count != 6u ||
+      unit->assemblies == NULL ||
+      unit->assembly_operands == NULL ||
+      unit->layout.types == NULL ||
+      ir->function_count !=
+          (ctool_u32)(sizeof(expected_assembly_counts) /
+                      sizeof(expected_assembly_counts[0])) ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(
+        stderr, "register-snapshot-assembly: top-level IR shape differs\n");
+    return 0;
+  }
+  for (function_index = 0u;
+       function_index < ir->function_count; function_index++) {
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 expected_reference =
+        expected_first_references[function_index];
+    ctool_u32 assembly_count = 0u;
+    ctool_u32 call_count = 0u;
+    ctool_u32 assembly_instruction = CTOOL_C_AST_NONE;
+    ctool_u32 offset;
+    if (function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->maximum_stack_depth !=
+            expected_depths[function_index]) {
+      (void)fprintf(
+          stderr,
+          "register-snapshot-assembly: function %u bounds differ "
+          "(first %u, count %u, depth %u)\n",
+          (unsigned int)function_index,
+          (unsigned int)function->first_instruction,
+          (unsigned int)function->instruction_count,
+          (unsigned int)function->maximum_stack_depth);
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      ctool_u32 instruction_index =
+          function->first_instruction + offset;
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+        call_count++;
+      }
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+        if (expected_reference + assembly_count >=
+                unit->assembly_count ||
+            !inline_assembly_instruction_matches(
+                instruction, expected_reference + assembly_count,
+                "/register-snapshot-assembly.c")) {
+          (void)fprintf(
+              stderr,
+              "register-snapshot-assembly: function %u assembly order "
+              "differs\n",
+              (unsigned int)function_index);
+          return 0;
+        }
+        assembly_instruction = instruction_index;
+        assembly_count++;
+      }
+    }
+    if (assembly_count != expected_assembly_counts[function_index] ||
+        call_count != expected_call_counts[function_index] ||
+        (assembly_count != 0u &&
+         assembly_instruction == function->first_instruction)) {
+      (void)fprintf(
+          stderr,
+          "register-snapshot-assembly: function %u evaluation differs "
+          "(assembly %u, calls %u)\n",
+          (unsigned int)function_index,
+          (unsigned int)assembly_count,
+          (unsigned int)call_count);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_register_snapshot_assembly(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[6];
+  ctool_c_assembly_operand_t operands[6];
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/register-snapshot-assembly.c",
+          register_snapshot_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "register snapshot assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !register_snapshot_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat register snapshot assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !register_snapshot_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr,
+        "register-snapshot-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_count !=
+          (ctool_u32)(sizeof(assemblies) / sizeof(assemblies[0])) ||
+      unit.assembly_operand_count !=
+          (ctool_u32)(sizeof(operands) / sizeof(operands[0]))) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  invalid_unit.assembly_operands = operands;
+
+  assemblies[0].flags |= 0x80000000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "register snapshot assembly unknown flag")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[1].first_operand = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "overlapping register snapshot operand slice")) {
+    goto cleanup;
+  }
+  assemblies[1] = unit.assemblies[1];
+
+  operands[2].constraint = ctool_string("=qm");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide byte-register snapshot output")) {
+    goto cleanup;
+  }
+  operands[2] = unit.assembly_operands[2];
+
+  operands[3].matching_output = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "register snapshot output marked as an input")) {
+    goto cleanup;
+  }
+  operands[3] = unit.assembly_operands[3];
+
+  operands[4].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "register snapshot output with an unavailable type")) {
+    goto cleanup;
+  }
+  operands[4] = unit.assembly_operands[4];
+
+  operands[5].constraint = ctool_string("+r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unreachable register snapshot constraint mutation")) {
+    goto cleanup;
+  }
+  operands[5] = unit.assembly_operands[5];
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "register snapshot assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count + 6u ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !register_snapshot_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "register-snapshot-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("register-snapshot-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static const char pointer_output_assembly_source[] =
     "struct cpu_state { unsigned id; };\n"
     "struct cpu_state **next_cpu_slot(void);\n"
@@ -28961,6 +29651,570 @@ cleanup:
   return 1;
 }
 
+static int validate_comma_expression_ir(const ctool_c_ir_unit_t *ir) {
+  ctool_u32 call_count = 0u;
+  ctool_u32 discard_count = 0u;
+  ctool_u32 index;
+  if (ir->function_count != 2u || ir->functions == NULL ||
+      ir->instruction_count == 0u || ir->instructions == NULL) {
+    (void)fprintf(stderr, "comma expression IR inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (string_equal(instruction->location.path,
+                     "/comma-expressions.c") == 0 ||
+        string_equal(instruction->physical_location.path,
+                     "/comma-expressions.c") == 0) {
+      (void)fprintf(stderr, "comma expression IR location differs\n");
+      return 0;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      if (call_count == 0u &&
+          (index + 1u >= ir->instruction_count ||
+           ir->instructions[index + 1u].kind !=
+               CTOOL_C_IR_INSTRUCTION_DISCARD)) {
+        (void)fprintf(stderr,
+                      "comma expression left call was not discarded\n");
+        return 0;
+      }
+      call_count++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_DISCARD) {
+      discard_count++;
+    }
+  }
+  if (call_count != 2u || discard_count != 4u) {
+    (void)fprintf(stderr,
+                  "comma expression IR sequencing differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_comma_expressions(const char *host_root) {
+  static const char source[] =
+      "extern int first(void);\n"
+      "extern int second(void);\n"
+      "int chain(int value) {\n"
+      "  return (first(), value++, second());\n"
+      "}\n"
+      "void iteration(int *left, int *right) {\n"
+      "  for (; *left < 2; (*left)++, (*right)++) {}\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_u32 comma_index = CTOOL_C_AST_NONE;
+  ctool_u32 diagnostic_count;
+  ctool_u32 index;
+  ctool_u64 unit_hash;
+  ctool_u64 ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/comma-expressions.c", source, &unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].operation ==
+        CTOOL_C_EXPRESSION_OPERATOR_COMMA) {
+      comma_index = index;
+      break;
+    }
+  }
+  if (comma_index == CTOOL_C_AST_NONE ||
+      (unit.expression_count != 0u &&
+       sizeof(*invalid_expressions) >
+           SIZE_MAX / (size_t)unit.expression_count)) {
+    (void)fprintf(stderr, "comma expression frontend inventory differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  unit_hash = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "comma expression lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_comma_expression_ir(&ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = ir_instruction_fingerprint(&ir);
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat comma expression lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      repeat_ir.function_count != ir.function_count ||
+      repeat_ir.instruction_count != ir.instruction_count ||
+      ir_instruction_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_comma_expression_ir(&repeat_ir)) {
+    (void)fprintf(stderr,
+                  "comma expression lowering is not deterministic\n");
+    goto cleanup;
+  }
+
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[comma_index].reference = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "comma expression with a reference")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[comma_index].computation_type =
+      invalid_expressions[comma_index].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "comma expression with a computation type")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[comma_index].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "comma expression with an invalid result type")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[comma_index].child_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "comma expression with one child")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("comma-expressions: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_section_attributes(const char *host_root) {
+  static const char source[] =
+      "typedef int scalar_t;\n"
+      "int boot_value __attribute__((section(\".boot.data\"))) = 1;\n"
+      "int boot_entry(void) "
+      "__attribute__((section(\".text.start\")));\n"
+      "int boot_entry(void) { return boot_value; }\n"
+      "int ordinary_entry(void) { return 0; }\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_binding_t *invalid_bindings = NULL;
+  ctool_u32 boot_value;
+  ctool_u32 boot_entry;
+  ctool_u32 ordinary_entry;
+  ctool_u32 scalar;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/section-attributes-ir.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  boot_value = find_binding(&unit, "boot_value");
+  boot_entry = find_binding(&unit, "boot_entry");
+  ordinary_entry = find_binding(&unit, "ordinary_entry");
+  scalar = find_binding(&unit, "scalar_t");
+  if (boot_value >= unit.binding_count || boot_entry >= unit.binding_count ||
+      ordinary_entry >= unit.binding_count || scalar >= unit.binding_count) {
+    (void)fprintf(stderr,
+                  "section attribute IR fixture inventory differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "section attribute lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint || ir.function_count != 2u ||
+      ir.functions == NULL) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < ir.function_count; index++) {
+    const ctool_c_ir_function_t *function = &ir.functions[index];
+    if (function->binding == boot_entry) {
+      if (!string_equal(function->section_name, ".text.start") ||
+          function->section_name.data ==
+              unit.bindings[boot_entry].section_name.data) {
+        (void)fprintf(stderr,
+                      "section attribute IR ownership differs\n");
+        goto cleanup;
+      }
+    } else if (function->binding == ordinary_entry) {
+      if (function->section_name.size != 0u) {
+        (void)fprintf(stderr,
+                      "ordinary function gained section metadata\n");
+        goto cleanup;
+      }
+    } else {
+      (void)fprintf(stderr,
+                    "section attribute IR function identity differs\n");
+      goto cleanup;
+    }
+  }
+
+  if (unit.binding_count != 0u &&
+      sizeof(*invalid_bindings) >
+          SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  invalid_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*invalid_bindings));
+  if (invalid_bindings == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.bindings = invalid_bindings;
+
+#define RESET_SECTION_BINDINGS()                                              \
+  (void)memcpy(invalid_bindings, unit.bindings,                               \
+               (size_t)unit.binding_count * sizeof(*invalid_bindings))
+#define EXPECT_INVALID_SECTION(CONTEXT)                                       \
+  if (!expect_ir_failure_preserves_unit(                                      \
+          job, &invalid_unit, CTOOL_ERR_INPUT,                                \
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message, CONTEXT)) {           \
+    goto cleanup;                                                             \
+  }
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[boot_entry].attributes &= ~CTOOL_C_DECL_ATTR_SECTION;
+  EXPECT_INVALID_SECTION("section name without its attribute bit");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[boot_entry].section_name = ctool_string("");
+  EXPECT_INVALID_SECTION("section attribute without a name");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[ordinary_entry].section_name =
+      ctool_string(".unexpected");
+  EXPECT_INVALID_SECTION("ordinary binding with a section name");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_SECTION;
+  invalid_bindings[scalar].section_name = ctool_string(".bad.typedef");
+  EXPECT_INVALID_SECTION("section attribute on a typedef");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[boot_value].section_name = ctool_string(".symtab");
+  EXPECT_INVALID_SECTION("reserved public section name");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[boot_entry].section_name = ctool_string(".rel.bad");
+  EXPECT_INVALID_SECTION("relocation-like public section name");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[boot_entry].file_scope_visible = CTOOL_FALSE;
+  EXPECT_INVALID_SECTION("section binding hidden from file scope");
+
+  RESET_SECTION_BINDINGS();
+  invalid_bindings[ordinary_entry].attributes |= 0x80000000u;
+  EXPECT_INVALID_SECTION("unknown declaration attribute bit");
+
+#undef EXPECT_INVALID_SECTION
+#undef RESET_SECTION_BINDINGS
+  passed = 1;
+
+cleanup:
+  free(invalid_bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("section-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_unused_attributes(const char *host_root) {
+  static const char source[] =
+      "typedef int scalar_t;\n"
+      "static int quiet_value __attribute__((unused)) = 3;\n"
+      "static int quiet_helper(void) __attribute__((unused));\n"
+      "static int quiet_helper(void) { return quiet_value; }\n"
+      "int ordinary_helper(void) { return 0; }\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_ir_unit_t ir;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_u32 scalar;
+  ctool_u32 quiet_value;
+  ctool_u32 quiet_helper;
+  ctool_u32 ordinary_helper;
+  ctool_u32 index;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/unused-attributes-ir.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  scalar = find_binding(&unit, "scalar_t");
+  quiet_value = find_binding(&unit, "quiet_value");
+  quiet_helper = find_binding(&unit, "quiet_helper");
+  ordinary_helper = find_binding(&unit, "ordinary_helper");
+  if (scalar >= unit.binding_count || quiet_value >= unit.binding_count ||
+      quiet_helper >= unit.binding_count ||
+      ordinary_helper >= unit.binding_count ||
+      unit.bindings[quiet_value].attributes != CTOOL_C_DECL_ATTR_UNUSED ||
+      unit.bindings[quiet_helper].attributes != CTOOL_C_DECL_ATTR_UNUSED ||
+      unit.bindings[ordinary_helper].attributes != 0u) {
+    (void)fprintf(stderr,
+                  "unused attribute IR fixture metadata differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "unused attribute lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint || ir.function_count != 2u ||
+      ir.functions == NULL) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < ir.function_count; index++) {
+    if (ir.functions[index].section_name.size != 0u) {
+      (void)fprintf(stderr,
+                    "unused attribute changed function IR metadata\n");
+      goto cleanup;
+    }
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[ordinary_helper].attributes |= CTOOL_C_DECL_ATTR_UNUSED;
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &mutant, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "valid public unused metadata lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_UNUSED;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "unused attribute on a public typedef")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[quiet_helper].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "unused entity with an invalid public type")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[quiet_helper].file_scope_visible = CTOOL_FALSE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "unused entity hidden from file scope")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("unused-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_weak_attributes(const char *host_root) {
+  static const char source[] =
+      "extern int unused_weak __attribute__((weak));\n"
+      "extern int used_weak __attribute__((weak));\n"
+      "int read_weak(void) { return used_weak; }\n"
+      "int ordinary(void) { return 0; }\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_u32 unused_weak;
+  ctool_u32 used_weak;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  uint64_t ir_fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/weak-attributes-ir.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unused_weak = find_binding(&unit, "unused_weak");
+  used_weak = find_binding(&unit, "used_weak");
+  if (unused_weak >= unit.binding_count ||
+      used_weak >= unit.binding_count ||
+      unit.bindings[unused_weak].attributes != CTOOL_C_DECL_ATTR_WEAK ||
+      unit.bindings[used_weak].attributes != CTOOL_C_DECL_ATTR_WEAK ||
+      unit.bindings[unused_weak].linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      unit.bindings[used_weak].linkage != CTOOL_C_LINKAGE_EXTERNAL) {
+    (void)fprintf(stderr, "weak attribute IR fixture metadata differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "weak attribute lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint || ir.function_count != 2u) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_fingerprint = ir_instruction_fingerprint(&ir);
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[unused_weak].linkage = CTOOL_C_LINKAGE_INTERNAL;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "unused internal weak object")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[unused_weak].kind = CTOOL_C_BINDING_TYPEDEF;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "weak attribute on a public typedef")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "weak attribute IR recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      ir_instruction_fingerprint(&recovered_ir) != ir_fingerprint) {
+    (void)fprintf(stderr, "weak attribute IR lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("weak-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -28976,6 +30230,21 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "switch-control") == 0) {
     return run_switch_control(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "constant-true-loops") == 0) {
+    return run_constant_true_loops(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "comma-expressions") == 0) {
+    return run_comma_expressions(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "section-attributes") == 0) {
+    return run_section_attributes(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "unused-attributes") == 0) {
+    return run_unused_attributes(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "weak-attributes") == 0) {
+    return run_weak_attributes(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "switch-nesting") == 0) {
     return run_switch_nesting(argv[2]);
@@ -29017,6 +30286,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "function-pointers") == 0) {
     return run_function_pointers(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "function-pointer-casts") == 0) {
+    return run_function_pointer_casts(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_objects(argv[2]);
@@ -29096,6 +30368,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "port-io-assembly") == 0) {
     return run_port_io_assembly(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "register-snapshot-assembly") == 0) {
+    return run_register_snapshot_assembly(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtins(argv[2]);
   }
@@ -29109,12 +30385,15 @@ int main(int argc, char **argv) {
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
-                "switch-control|switch-nesting|integer-updates|"
+                "switch-control|constant-true-loops|comma-expressions|"
+                "section-attributes|unused-attributes|weak-attributes|"
+                "switch-nesting|"
                 "integer-compounds|integer-compound-conversions|"
                 "integer-update-conversions|narrow-mutations|"
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
-                "pointer-arithmetic|function-pointers|automatic-objects|"
+                "pointer-arithmetic|function-pointers|"
+                "function-pointer-casts|automatic-objects|"
                 "block-externs|block-functions|block-typedefs|"
                 "aggregate-initializers|"
                 "compound-literals|"
@@ -29126,6 +30405,7 @@ int main(int argc, char **argv) {
                 "narrow-values|void-casts|wide-returns|wide-conditions|"
                 "wide-objects|wide-mutations|self-host-frontier|"
                 "inline-assembly|port-io-assembly|atomic-builtins|"
+                "register-snapshot-assembly|"
                 "pointer-output-assembly|"
                 "operand-free-assembly "
                 "HOST_ROOT\n");

@@ -5415,9 +5415,9 @@ static int active_rows_match(const active_row_t *left,
 
 static int validate_active_manifest(const char *mode) {
   static const char *const generated_paths[] = {
-      "/kernel/cpu/ksyms_data.c", "/kernel/util/bin_programs_gen.c",
-      "/kernel/util/demos_programs_gen.c",
-      "/kernel/util/docs_programs_gen.c"};
+      "/kernel/cpu/ksyms_data.c", "/kernel/util/bin_programs_gen.cc",
+      "/kernel/util/demos_programs_gen.cc",
+      "/kernel/util/docs_programs_gen.cc"};
   ctool_u32 kind_counts[ACTIVE_ROW_DEFERRED_HOSTED + 1u];
   ctool_u32 profile_case_counts[
       sizeof(active_expected_profiles) / sizeof(active_expected_profiles[0])];

@@ -277,7 +277,7 @@ The program loader (`kernel/lang/exec.c/h`) loads and runs executables from the 
 
 | Format | Magic Bytes | Description |
 |--------|-------------|-------------|
-| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Static i386 ELF executables, currently compiled with GCC/Clang and linked with CupidLD |
+| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Static i386 ELF executables; the repository examples compile with the checked CupidC seed and link with the checked CupidLD seed |
 | **CUPD** | `43 55 50 44` (`CUPD`) | CupidOS flat binary format (legacy) |
 
 ### Format Detection

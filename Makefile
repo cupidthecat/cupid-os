@@ -29,6 +29,21 @@ CUPIDC_KERNEL_COMPILE_INPUTS := Makefile tools/cupidc_kernel_compile.py \
 	bootstrap/seeds/i386-linux/cupiddis.elf \
 	bootstrap/seeds/i386-linux/cupidld.elf \
 	bootstrap/seeds/i386-linux/cupidobj.elf
+CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
+	tools/cupidc_production_compile.py --root . --cohort generated-install
+CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
+	tools/cupidc_production_compile.py \
+	tools/cupidc_kernel_compile.py \
+	tools/bootstrap_toolchain.py \
+	bootstrap/seeds/i386-linux/manifest.json \
+	bootstrap/seeds/i386-linux/cupidasm.elf \
+	bootstrap/seeds/i386-linux/cupidc.elf \
+	bootstrap/seeds/i386-linux/cupiddis.elf \
+	bootstrap/seeds/i386-linux/cupidld.elf \
+	bootstrap/seeds/i386-linux/cupidobj.elf
+CUPIDC_PRODUCTION_FRONTIER_INPUTS := \
+	tools/cupidc_production_frontier.py tools/hostbuild.py \
+	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
 CUPIDDIS_BUILD := toolchain/build/cupiddis$(HOST_EXE)
 CUPIDDIS ?= $(CUPIDDIS_BUILD)
 CUPIDASM_BUILD := toolchain/build/cupidasm$(HOST_EXE)
@@ -996,7 +1011,7 @@ BOOTSTRAP_WINDOWS_BASELINE ?= docs/bootstrap/baselines/windows-amd64.json
 BOOTSTRAP_LINUX_BASELINE ?= docs/bootstrap/baselines/linux-x86_64.json
 BOOTSTRAP_HOST_COMPARISON ?= docs/bootstrap/baselines/windows-linux.json
 
-test:
+test: test-generated-cupidc-frontier test-user-cupidc-frontier
 	$(PYTHON) -m unittest discover -s tests -p "test_*.py"
 	$(PYTHON) tools/build_graph_audit.py --root . $(BOOTSTRAP_AUDIT_BUILDS) \
 	  --output docs/bootstrap/audits/active-build.json \
@@ -1075,28 +1090,43 @@ $(CUPIDLD_BUILD): $(CUPIDLD_SOURCES) | $(CUPIDOBJ_BUILD)
 $(CUPIDDIS_BUILD): $(CUPIDDIS_SOURCES) | $(CUPIDLD_BUILD)
 	$(MAKE) -C toolchain $(patsubst toolchain/%,%,$@)
 
-# Auto-generate bin_programs_gen.c from all bin/*.cc files
+# Generate bin_programs_gen.cc from every active bin/*.cc file.
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
-kernel/util/bin_programs_gen.c: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) $(BROWSER_SUB_SRCS) Makefile
+kernel/util/bin_programs_gen.cc: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) \
+	$(BROWSER_SUB_SRCS) tools/hostbuild.py Makefile
 	$(PYTHON) tools/hostbuild.py gen-bin-programs --out $@ --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS)
 
-kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.c
-	$(CC) $(CFLAGS) kernel/util/bin_programs_gen.c -o kernel/util/bin_programs_gen.o
+kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.cc \
+	drivers/serial.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h \
+	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
+	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
 
-# Auto-generate docs_programs_gen.c from cupidos-txt/*.CTXT files
-kernel/util/docs_programs_gen.c: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) $(HOME_ASSET_SRCS) Makefile
+# Generate docs_programs_gen.cc from the manuals and seeded home assets.
+kernel/util/docs_programs_gen.cc: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) \
+	$(HOME_ASSET_SRCS) tools/hostbuild.py Makefile
 	$(PYTHON) tools/hostbuild.py gen-docs-programs --out $@ --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS)
 
-kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.c
-	$(CC) $(CFLAGS) kernel/util/docs_programs_gen.c -o kernel/util/docs_programs_gen.o
+kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.cc \
+	drivers/serial.h kernel/core/types.h kernel/fs/homefs.h \
+	kernel/fs/ramfs.h kernel/fs/vfs.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS)
+	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
 
-# Auto-generate demos_programs_gen.c from demos/*.asm files
-kernel/util/demos_programs_gen.c: $(DEMO_ASM_SRCS) Makefile
+# Generate demos_programs_gen.cc from the active CupidASM demos.
+kernel/util/demos_programs_gen.cc: $(DEMO_ASM_SRCS) tools/hostbuild.py Makefile
 	$(PYTHON) tools/hostbuild.py gen-demos-programs --out $@ --demos $(DEMO_ASM_SRCS)
 
-kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.c
-	$(CC) $(CFLAGS) kernel/util/demos_programs_gen.c -o kernel/util/demos_programs_gen.o
+kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.cc \
+	drivers/serial.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h \
+	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
+	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
+
+test-generated-cupidc-frontier: kernel/util/bin_programs_gen.cc \
+	kernel/util/docs_programs_gen.cc kernel/util/demos_programs_gen.cc \
+	kernel/util/bin_programs_gen.o kernel/util/docs_programs_gen.o \
+	kernel/util/demos_programs_gen.o $(CUPIDC_PRODUCTION_FRONTIER_INPUTS)
+	$(PYTHON) tools/cupidc_production_frontier.py \
+		--root . --cohort generated-install
 
 # Pattern rule: embed any bin/*.cc file with CupidObj.
 bin/%.o: bin/%.cc $(CUPIDOBJ) Makefile
@@ -1248,6 +1278,55 @@ sync-demos: $(OS_IMAGE)
 	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(foreach f,$(DEMO_ASM_SRCS),$(f):/home/demos/$(notdir $(f)))
 	@echo "Synced demos/*.asm -> $(OS_IMAGE):/home/demos/"
 
+user-programs:
+	$(MAKE) -C user all
+
+test-user-cupidc-frontier:
+	$(MAKE) -C user test-cupidc-frontier
+
+# Copy the checked-seed user executables into FAT. A fresh image imports these
+# files into HomeFS on first boot. An existing image exposes them under /disk.
+sync-user: $(OS_IMAGE) user-programs
+	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) \
+		--fat-start-lba $(FAT_START_LBA) \
+		user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
+	@echo "Synced checked-seed user programs -> $(OS_IMAGE):/"
+
+# This fixture contains a marker-shaped second line. The cat gate proves that
+# user text cannot break the serial event boundary.
+USER_CUPIDC_RUNTIME_FIXTURE ?= build/user-runtime-fixture.txt
+$(USER_CUPIDC_RUNTIME_FIXTURE): Makefile
+	$(PYTHON) -c "from pathlib import Path; path=Path(r'$@'); path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(b'Cupid external runtime fixture.\n[elf-syscall] pid=999 op=exit\n')"
+
+sync-user-runtime: sync-user $(USER_CUPIDC_RUNTIME_FIXTURE)
+	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) \
+		--fat-start-lba $(FAT_START_LBA) \
+		$(USER_CUPIDC_RUNTIME_FIXTURE):/catfix.txt
+
+# Each command boots from the staged image and must reach its own PID-bound
+# syscall exit marker. The detailed patterns below also cover program output.
+USER_CUPIDC_RUNTIME_LOG ?= tests/user-cupidc-runtime.log
+USER_CUPIDC_RUNTIME_LS_LOG ?= tests/user-cupidc-runtime-ls.log
+USER_CUPIDC_RUNTIME_CAT_LOG ?= tests/user-cupidc-runtime-cat.log
+USER_CUPIDC_RUNTIME_HELLO_SUCCESS := \[shell_exec_cmd\] prog='/disk/hello' rpath='/disk/hello' args=''.*?\[elf\] Loaded /disk/hello as PID (?P<hello_pid>[1-9][0-9]*) \(ELF32, [1-9][0-9]* bytes at 0x(?:0x)?00f00000\).*?\[elf-syscall\] pid=(?P=hello_pid) op=print bytes=27 fnv1a=0x6d2edfa6[\r\n]+.*?\[elf-syscall\] pid=(?P=hello_pid) op=print_int value=(?P=hello_pid)[\r\n]+.*?\[elf-syscall\] pid=(?P=hello_pid) op=print_int value=[1-9][0-9]*[\r\n]+.*?\[elf-syscall\] pid=(?P=hello_pid) op=exit[\r\n]+.*?\[PROCESS\] PID (?P=hello_pid) .*/disk/hello.* exiting
+USER_CUPIDC_RUNTIME_LS_SUCCESS := \[shell_exec_cmd\] prog='/disk/ls' rpath='/disk/ls' args=''.*?\[elf\] Loaded /disk/ls as PID (?P<ls_pid>[1-9][0-9]*) \(ELF32, [1-9][0-9]* bytes at 0x(?:0x)?00f00000\)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=3 fnv1a=0x5acad8be[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=4 fnv1a=0xd2c8c28e[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=5 fnv1a=0xbd9adb9f[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=4 fnv1a=0x456040a4[\r\n]+)(?=.*?\[elf-syscall\] pid=(?P=ls_pid) op=print bytes=4 fnv1a=0x28eb34d2[\r\n]+).*?\[elf-syscall\] pid=(?P=ls_pid) op=exit[\r\n]+.*?\[PROCESS\] PID (?P=ls_pid) .*/disk/ls.* exiting
+USER_CUPIDC_RUNTIME_CAT_SUCCESS := \A(?!.*\[elf-syscall\] pid=999 op=exit[\r\n]+).*?\[shell_exec_cmd\] prog='/disk/cat' rpath='/disk/cat' args=''.*?\[elf\] Loaded /disk/cat as PID (?P<cat_pid>[1-9][0-9]*) \(ELF32, [1-9][0-9]* bytes at 0x(?:0x)?00f00000\).*?\[elf-syscall\] pid=(?P=cat_pid) op=print bytes=62 fnv1a=0xc12ed628[\r\n]+.*?\[elf-syscall\] pid=(?P=cat_pid) op=exit[\r\n]+.*?\[PROCESS\] PID (?P=cat_pid) .*/disk/cat.* exiting
+USER_CUPIDC_RUNTIME_SUCCESS := $(USER_CUPIDC_RUNTIME_HELLO_SUCCESS)
+
+test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
+	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \
+		--image $(OS_IMAGE) --log $(USER_CUPIDC_RUNTIME_LOG) \
+		--command "exec /disk/hello" --repeat 1 --key-pause 0.60 \
+		--success-pattern "$(USER_CUPIDC_RUNTIME_HELLO_SUCCESS)" --timeout 90
+	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \
+		--image $(OS_IMAGE) --log $(USER_CUPIDC_RUNTIME_LS_LOG) \
+		--command "exec /disk/ls" --repeat 1 --key-pause 0.60 \
+		--success-pattern "$(USER_CUPIDC_RUNTIME_LS_SUCCESS)" --timeout 90
+	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \
+		--image $(OS_IMAGE) --log $(USER_CUPIDC_RUNTIME_CAT_LOG) \
+		--command "exec /disk/cat" --repeat 1 --key-pause 0.60 \
+		--success-pattern "$(USER_CUPIDC_RUNTIME_CAT_SUCCESS)" --timeout 90
+
 # Test-only ISO - built from test_iso/fixtures/, mounted via
 # `mount /disk/hello.iso /iso` in the shell for feature17.
 TEST_ISO_FIXTURES := $(wildcard test_iso/fixtures/* test_iso/fixtures/sub/*)
@@ -1268,7 +1347,7 @@ stage-wads: $(OS_IMAGE)
 	$(PYTHON) tools/hostbuild.py stage-wads --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) $(WAD_SRCS)
 
 clean:
-	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "toolchain/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/cpu/ksyms_data.c" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
+	$(PYTHON) tools/hostbuild.py clean $(BOOTLOADER) $(KERNEL) "kernel/*.o" "kernel/audio/*.o" "kernel/core/*.o" "kernel/cpu/*.o" "kernel/crypto/*.o" "kernel/doom/*.o" "kernel/doom/src/*.o" "kernel/fs/*.o" "kernel/gfx/*.o" "kernel/gui/*.o" "kernel/lang/*.o" "kernel/mm/*.o" "kernel/network/*.o" "kernel/smp/*.o" "kernel/tls/*.o" "kernel/usb/*.o" "kernel/util/*.o" "toolchain/*.o" "drivers/*.o" "filesystem/*.o" "bin/*.o" "bin/browser/*.o" "cupidos-txt/*.o" "demos/*.o" "god/*.o" "system/fonts/*.ttf.o" "*.bmp.o" "*.png.o" "*.jpg.o" "*.jpeg.o" "kernel/kernel.elf" "kernel/kernel.elf.pass1" "kernel/kernel.bin" "kernel/smp_trampoline.bin" "kernel/util/bin_programs_gen.c" "kernel/util/docs_programs_gen.c" "kernel/util/demos_programs_gen.c" "kernel/util/bin_programs_gen.cc" "kernel/util/docs_programs_gen.cc" "kernel/util/demos_programs_gen.cc" "kernel/cpu/ksyms_data.c" "$(USER_CUPIDC_RUNTIME_FIXTURE)" "debug.log" "tests/*.log" "tests/__pycache__" "tools/__pycache__"
 
 clean-image:
 	$(PYTHON) tools/hostbuild.py clean $(OS_IMAGE)
@@ -1276,4 +1355,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier test-generated-cupidc-frontier test-user-cupidc-frontier test-user-cupidc-runtime verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-user sync-user-runtime user-programs sync-iso stage-wads clean clean-image distclean

@@ -198,7 +198,10 @@ CupidASM assembles every active OS assembly input, while CupidLD and CupidObj
 perform every OS/user ELF link and object/binary transform. CupidObj uses a
 canonical text wrapper for embedded source and manuals, so CRLF and LF
 checkouts produce the same objects. Its binary wrapper remains byte-exact. The
-GCC driver still links the temporary hosted Cupid tools:
+checked CupidC seed now compiles the three generated installation tables and
+the three example ELF programs. The checked CupidLD seed links those example
+programs. GCC still builds the remaining host-owned C objects and links the
+temporary hosted Cupid tools:
 
 ```bash
 sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
@@ -289,6 +292,30 @@ frontier compiles all 116 sources twice to 2,267,588 byte-identical bytes. It
 freezes a 404-input snapshot with SHA-256
 `bba3c57ce5617d7afb70fb1c32b721b213aea86a54d4f905bb270c211c321c03`.
 
+The generated ramfs, homefs, and demo installation tables are emitted as
+`.cc` sources and compiled by the checked CupidC seed. The separate `user/`
+build also uses checked CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then
+uses checked CupidLD to place each executable in the fixed external arena.
+Both paths freeze their complete source and control inputs, validate the
+resulting ELF files, and publish only complete artifacts. Poisoned-host tests
+prove that neither path can fall back to GCC or Clang.
+
+The external-program gate boots `hello`, `ls`, and `cat` separately. Serial
+events bind each syscall to the loaded PID and record printable content by
+byte count and FNV-1a fingerprint instead of copying caller text into the log.
+The checks cover numeric output, root-directory reads, a fixed FAT fixture,
+and a matching process exit for every program.
+
+Compiler head now carries another source-driven group without changing the
+active source. It emits weak ELF symbols and named sections, records `unused`
+declarations, preserves typed static null pointers, recognizes known-true
+loops as non-fallthrough, lowers comma expressions in source order, and keeps
+all 32 bits through represented function-pointer casts. Exact output-only
+assembly forms snapshot general registers, ESP, EBP, the caller return slot,
+or EFLAGS into one four-byte destination. Twenty of the 38 strict roots left
+after the 116-source handoff compile at compiler head. Production ownership
+waits for a refreshed checked seed and the complete image and runtime gates.
+
 Function-body GNU assembly may have no operands. Basic statements and
 extended statements with an empty output list are implicitly volatile. Exact
 sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit through
@@ -335,9 +362,12 @@ ownership path. Each transferred Make recipe carries its exact recursive
 header closure.
 
 Separate poisoned-host checks cover all 116 recipes. The check fails if a
-CupidC-owned object reaches Clang or GCC. The current audit assigns 116
-transforms to CupidC, 181 C transforms to the host compiler, and 125
-transforms to host Python. The four-vCPU GUI contract reaches SMP startup,
+CupidC-owned object reaches Clang or GCC. Across the three supported build
+roots, the current audit assigns 122 transforms to CupidC, 175 C transforms
+to the host compiler, and 134 transforms to host Python. The 122 CupidC
+transforms are the 116-object normal cohort, three generated installation
+tables, and three example programs. The host compiler still produces 123 root
+objects. The four-vCPU GUI contract reaches SMP startup,
 RDRAND and all 62 crypto checks, the desktop, terminal, e1000 network, and
 in-OS CupidC execution at `0x01100000`. The wider USB and dual-NIC gates from
 the established cohort remain part of the runtime contract. A separate smoke
@@ -361,7 +391,7 @@ Plain assignment, all ten compound assignments, and prefix or postfix increment 
 
 The hosted path also carries complete fixed-size structures with alignment up to four bytes when their inline object graph has no volatile or atomic subobject. A structure lvalue conversion copies the target bytes into private frame storage, so assignment chains, conditional values, expression initialization, casts to `void`, and returns keep value semantics instead of aliasing the source object. Direct and indirect calls pass structure arguments inline in four-byte-rounded stack areas. A structure result uses a hidden pointer at `[EBP+8]`; explicit parameters start at `[EBP+12]`, and the callee returns the pointer in EAX with `RET 4`.
 
-The shared value path copies nested union storage inside a supported structure and reads a scalar member directly from a returned structure snapshot. A direct four-byte integer literal zero may be cast to a represented function pointer. Explicit conversions between an object pointer and a signed or unsigned eight-byte integer use the wide snapshot path: widening writes a zero high word, and narrowing keeps the low word. Function-pointer and wide-integer conversions, top-level union parameters or results, and aggregate members selected from structure rvalues remain outside this boundary. Static compatible character and void pointers also accept an ordinary string literal hidden behind parentheses or a macro. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
+The shared value path copies nested union storage inside a supported structure and reads a scalar member directly from a returned structure snapshot. A direct four-byte integer literal zero may be cast to a represented function pointer. Represented function pointers may also cast to another function-pointer type or to and from a represented 32-bit integer without changing target bits. Explicit conversions between an object pointer and a signed or unsigned eight-byte integer use the wide snapshot path: widening writes a zero high word, and narrowing keeps the low word. Object-pointer and function-pointer interchange, function-pointer and wide-integer conversions, top-level union parameters or results, and aggregate members selected from structure rvalues remain outside this boundary. Static compatible character and void pointers also accept an ordinary string literal hidden behind parentheses or a macro. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
 
 The exact hosted gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. CupidC emits deterministic i386 ELF32 objects for those files and `kernel/lang/as_elf.c`, then reads every object through the Cupid ELF32 reader and compares a second emission byte for byte. The static-tool audit also preprocesses every C source in the complete hosted i386 closure under its target profile: 19 strict C11 units and the GNU-enabled runtime. These profiles use repository headers, an explicit four-byte pointer fact, and no host system headers.
 
@@ -395,7 +425,7 @@ above.
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
 
-[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof, [ADR 0107](docs/adr/0107-cupidc-gnu-atomic-fetch-or.md) records compiler-head fetch-or, [ADR 0108](docs/adr/0108-refresh-seed-for-atomic-fetch-or.md) records its checked-seed promotion, [ADR 0110](docs/adr/0110-cupidc-production-cutover.md) records the 40-source production cutover, and [ADR 0111](docs/adr/0111-expand-cupidc-production-ownership.md) records the 116-source expansion and memory map.
+[ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof, [ADR 0107](docs/adr/0107-cupidc-gnu-atomic-fetch-or.md) records compiler-head fetch-or, [ADR 0108](docs/adr/0108-refresh-seed-for-atomic-fetch-or.md) records its checked-seed promotion, [ADR 0110](docs/adr/0110-cupidc-production-cutover.md) records the 40-source production cutover, [ADR 0111](docs/adr/0111-expand-cupidc-production-ownership.md) records the 116-source expansion and memory map, [ADR 0112](docs/adr/0112-check-generated-and-user-cupidc-builds.md) records the generated and external-program handoff, and [ADR 0113](docs/adr/0113-expand-the-source-driven-cupidc-frontier.md) records the next compiler-head frontier.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 
@@ -466,7 +496,7 @@ cupid-os/
                            per-CPU, ACPI, AP trampoline
     tls/                   TLS 1.2/1.3 record + handshake + CA
     usb/                   USB core, UHCI, EHCI, HID, hub, MSC
-    util/                  calendar, generated *_programs_gen.c
+    util/                  calendar, generated *_programs_gen.cc
   drivers/               hardware drivers: ATA, keyboard, mouse,
                          PIT, RTC, serial, speaker, timer, VGA,
                          PCI, RTL8139, E1000
@@ -709,7 +739,10 @@ hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_featur
 
 ## User programs (user/)
 
-The `user/` directory has example ELF32 programs (`hello.c`, `cat.c`, and `ls.c`). Its `cupid.h` header defines the syscall-table ABI for programs compiled to ELF and loaded by the kernel.
+The `user/` directory has three example ELF32 programs: `hello.cc`, `cat.cc`,
+and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. `make -C user`
+compiles the sources with the checked CupidC seed and links them with the
+checked CupidLD seed.
 
 External executables must be linked for the current
 `0x00F00000..0x01100000` arena. Binaries linked at an earlier fixed base must
@@ -767,8 +800,8 @@ Changes made in the 2026-02-16 optimization pass:
 
 ## Adding to the kernel
 
-1. Add .c/.h files to kernel/ or drivers/
-2. Add the .c file to the object list in the Makefile
+1. Add the source and header files to `kernel/` or `drivers/`
+2. Add the source file to the object list in the Makefile
 3. Run `make`
 
 New CupidC programs go in bin/ and are automatically embedded in RamFS at build time. New assembly demos go in demos/. CupidObj stores these text files with LF line endings even when a checkout uses CRLF. CupidScript files use the .cup extension and can be placed anywhere on the VFS.

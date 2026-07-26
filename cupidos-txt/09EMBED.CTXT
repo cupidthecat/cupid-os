@@ -44,12 +44,12 @@ runnable CupidC, action links, trees, and inline BMP, PNG, or JPEG widgets.
 >tree open Makefile Auto-Discovery
 The Makefile auto-discovers and embeds these source sets:
 
-  bin/*.cc     -> kernel/util/bin_programs_gen.c  -> /bin/*.cc in ramfs
-  bin/*.h      -> kernel/util/bin_programs_gen.c  -> /bin/*.h in ramfs
-  bin/browser/*.cc -> kernel/util/bin_programs_gen.c -> /bin/browser/*.cc
-  cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.c -> /docs/*.ctxt
-  *.bmp/*.png/*.jpg/*.jpeg -> kernel/util/docs_programs_gen.c -> /home/<same name>
-  demos/*.asm  -> kernel/util/demos_programs_gen.c -> /demos/*.asm in ramfs
+  bin/*.cc     -> kernel/util/bin_programs_gen.cc  -> /bin/*.cc in ramfs
+  bin/*.h      -> kernel/util/bin_programs_gen.cc  -> /bin/*.h in ramfs
+  bin/browser/*.cc -> kernel/util/bin_programs_gen.cc -> /bin/browser/*.cc
+  cupidos-txt/*.CTXT -> kernel/util/docs_programs_gen.cc -> /docs/*.ctxt
+  *.bmp/*.png/*.jpg/*.jpeg -> kernel/util/docs_programs_gen.cc -> /home/<same name>
+  demos/*.asm  -> kernel/util/demos_programs_gen.cc -> /demos/*.asm in ramfs
   god/*.DD     -> wrapped by CupidObj         -> /god/*.DD in image
 
 CupidObj uses its text wrapper for every source set above. CRLF pairs become
@@ -66,12 +66,12 @@ Makefile variable definitions:
   GOD_DD_SRCS   := $(wildcard god/*.DD)
 
 The next build finds new .CTXT files in cupidos-txt/ through
-docs_programs_gen.c. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
+docs_programs_gen.cc. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
 files, which the boot path installs under /home with their original names.
 JPEG files are normalized to baseline JPEG while embedding so progressive
 source files still load in the current in-kernel decoder.
 
-bin_programs_gen.c likewise finds new .cc files under bin/.
+bin_programs_gen.cc likewise finds new .cc files under bin/.
 
 The god/*.DD files are wrapped by CupidObj pattern rules; they are available at
 runtime under /god/ for godspeak, oracle, and bible commands.
@@ -142,9 +142,9 @@ Pattern is already implemented for:
 - /god/*.DD word lists (via CupidObj)
 
 Build-time generators:
-- kernel/util/bin_programs_gen.c
-- kernel/util/docs_programs_gen.c
-- kernel/util/demos_programs_gen.c
+- kernel/util/bin_programs_gen.cc
+- kernel/util/docs_programs_gen.cc
+- kernel/util/demos_programs_gen.cc
 
 Tradeoff:
 - Avoids hardcoded strings in kernel/fs/fs.c

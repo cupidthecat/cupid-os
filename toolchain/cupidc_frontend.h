@@ -36,7 +36,12 @@ typedef enum {
 } ctool_c_linkage_t;
 
 #define CTOOL_C_DECL_ATTR_NORETURN 0x00000001u
-#define CTOOL_C_DECL_ATTR_ALL CTOOL_C_DECL_ATTR_NORETURN
+#define CTOOL_C_DECL_ATTR_WEAK 0x00000002u
+#define CTOOL_C_DECL_ATTR_SECTION 0x00000004u
+#define CTOOL_C_DECL_ATTR_UNUSED 0x00000008u
+#define CTOOL_C_DECL_ATTR_ALL                                                \
+  (CTOOL_C_DECL_ATTR_NORETURN | CTOOL_C_DECL_ATTR_WEAK |                     \
+   CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_UNUSED)
 
 #define CTOOL_C_FUNCTION_DECL_INLINE 0x00000001u
 #define CTOOL_C_FUNCTION_DECL_ALL CTOOL_C_FUNCTION_DECL_INLINE
@@ -54,9 +59,12 @@ typedef struct {
   /* False means the linked entity was introduced by a block declaration and
    * has no ordinary name at file scope. */
   ctool_bool file_scope_visible;
-  /* Semantically retained declaration attributes. Noreturn belongs to the
-   * canonical function entity and merges across compatible declarations. */
+  /* Semantically retained declaration attributes belong to the canonical
+   * entity and merge across compatible declarations. */
   ctool_u32 attributes;
+  /* SECTION entities own the decoded ELF section name. Other bindings use
+   * an empty string. */
+  ctool_string_t section_name;
   /* OR-summary of standard function-declaration specifiers seen across
    * compatible declarations. Definition-local inline/storage spelling must
    * be retained separately when function definitions are represented. */
@@ -351,7 +359,8 @@ typedef enum {
   CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT,
   CTOOL_C_EXPRESSION_OPERATOR_PREFIX_DECREMENT,
   CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT,
-  CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT
+  CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT,
+  CTOOL_C_EXPRESSION_OPERATOR_COMMA
 } ctool_c_expression_operator_t;
 
 typedef enum {
@@ -373,8 +382,12 @@ typedef enum {
 } ctool_c_conversion_kind_t;
 
 #define CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT 0x00000001u
+#define CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION 0x00000002u
+#define CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION_NONZERO 0x00000004u
 #define CTOOL_C_EXPRESSION_SEMANTIC_ALL \
-  CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT
+  (CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT | \
+   CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION | \
+   CTOOL_C_EXPRESSION_SEMANTIC_CONSTANT_CONDITION_NONZERO)
 
 typedef struct {
   ctool_c_expression_kind_t kind;
@@ -405,7 +418,8 @@ typedef struct {
   ctool_u32 child_count;
   /* IMPLICIT_CONVERSION: exact semantic conversion applied to one child. */
   ctool_c_conversion_kind_t conversion;
-  /* UNARY/BINARY/ASSIGNMENT/UPDATE: represented source operator. */
+  /* UNARY/BINARY/ASSIGNMENT/UPDATE: represented source operator. BINARY
+   * includes the sequencing comma operator. */
   ctool_c_expression_operator_t operation;
   /* ASSIGNMENT/UPDATE: arithmetic computation type; plain `=` uses result
    * type. Other expression kinds use CTOOL_C_TYPE_NONE. */
@@ -413,7 +427,10 @@ typedef struct {
   /* Frontend facts needed by later validation. NULL_POINTER_CONSTANT is
    * present only on an implicit null-pointer conversion whose child was
    * proved to be an integer constant expression with value zero or such an
-   * expression explicitly cast to void pointer. */
+   * expression explicitly cast to void pointer. CONSTANT_CONDITION is
+   * present on a converted controlling expression proved to be an integer
+   * constant expression; CONSTANT_CONDITION_NONZERO records its truth value
+   * and is valid only together with CONSTANT_CONDITION. */
   ctool_u32 semantic_flags;
   /* INTEGER_CONSTANT: target-width constant bit pattern; type carries
    * rank/sign. This includes target-folded non-VLA layout queries.

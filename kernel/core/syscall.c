@@ -37,6 +37,44 @@
 
 /* Wrappers for functions that need adaptation */
 
+/*
+ * The serial marker records an exact print event without copying caller text
+ * into the log. Newlines and marker-shaped text only affect the byte count and
+ * hash, so one user call always produces one serial line.
+ */
+static uint32_t syscall_print_fingerprint(const char *str, uint32_t *length) {
+  uint32_t hash = 2166136261u;
+  uint32_t count = 0u;
+
+  if (str) {
+    while (str[count]) {
+      hash ^= (uint32_t)(uint8_t)str[count];
+      hash *= 16777619u;
+      count++;
+    }
+  }
+
+  *length = count;
+  return hash;
+}
+
+static void syscall_print(const char *str) {
+  uint32_t length;
+  uint32_t hash = syscall_print_fingerprint(str, &length);
+  uint32_t pid = process_get_current_pid();
+
+  serial_printf("[elf-syscall] pid=%u op=print bytes=%u fnv1a=0x%08x\n",
+                pid, length, hash);
+  print(str);
+}
+
+static void syscall_print_int(uint32_t num) {
+  uint32_t pid = process_get_current_pid();
+
+  serial_printf("[elf-syscall] pid=%u op=print_int value=%u\n", pid, num);
+  print_int(num);
+}
+
 /**
  * Wrapper for kmalloc - strips the debug file/line tracking since
  * user programs don't have kernel source paths.
@@ -48,7 +86,12 @@ static void *syscall_malloc(size_t size) {
 /**
  * Wrapper for process_exit - matches the void(*)(void) signature.
 */
-static void syscall_exit(void) { process_exit(); }
+static void syscall_exit(void) {
+  uint32_t pid = process_get_current_pid();
+
+  serial_printf("[elf-syscall] pid=%u op=exit\n", pid);
+  process_exit();
+}
 
 /**
  * Wrapper for process_yield.
@@ -200,9 +243,9 @@ void syscall_init(void) {
   syscall_table.table_size = (uint32_t)sizeof(cupid_syscall_table_t);
 
   /* Console output */
-  syscall_table.print = print;
+  syscall_table.print = syscall_print;
   syscall_table.putchar = putchar;
-  syscall_table.print_int = print_int;
+  syscall_table.print_int = syscall_print_int;
   syscall_table.print_hex = print_hex;
   syscall_table.clear_screen = clear_screen;
 

@@ -40,6 +40,10 @@ void main() {
 
 Place the file in the source tree's `bin/` directory. The Makefile discovers `bin/*.cc`, embeds each file in the kernel image through CupidObj, and generates the installation code. CupidObj converts CRLF pairs to LF during this text wrap, so the installed source is the same on Windows and Linux. After boot, the example appears at `/bin/hello.cc` and runs under the command `hello`.
 
+The generated ramfs installation table is itself a `.cc` translation unit.
+The checked CupidC seed compiles it before the kernel link. The generated
+homefs and CupidASM demo tables follow the same path.
+
 To add a new build-time program:
 
 1. Create `bin/<name>.cc`
@@ -958,4 +962,4 @@ See also: [Ed Editor](Ed-Editor)
 - [CupidC Compiler](CupidC-Compiler) - full language reference and compiler internals
 - [Shell Commands](Shell-Commands) - all built-in commands
 - [Filesystem](Filesystem) - VFS, ramfs, FAT16, and directory structure
-- [ELF Programs](ELF-Programs) - compiling hosted C to ELF32 objects with GCC/Clang and linking with CupidLD
+- [ELF Programs](ELF-Programs) - building static ELF32 programs with the checked CupidC and CupidLD seeds
