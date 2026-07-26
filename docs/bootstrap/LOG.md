@@ -9874,3 +9874,152 @@ The frontend counts also retain 800, 681, and 1,938 block bindings and 291,
 self-host-frontier selector pass with these measured values. The earlier
 tables remain the evidence for each isolated tracer-bullet run; this table
 records the active combined locks.
+
+## 2026-07-26: emit the active FXSAVE pointer input at compiler head
+
+`kernel/core/process.c` contains two unchanged statements with the same GNU
+assembly shape:
+
+```c
+__asm__ volatile("fxsave (%0)" : : "r"(p->fp_state) : "memory");
+```
+
+The process type and source already require a 512-byte state area aligned to
+at least 16 bytes. Compiler head could parse the template and memory clobber,
+but an independent `r` input was not represented. The first frontend test
+therefore failed with the older matching-output diagnostic before the
+implementation began.
+
+### Frontend and Linear IR
+
+The frontend now accepts an independent `r` input when default conversion
+produces a four-byte object or `void` pointer. It keeps the pointer type,
+expression, source locations, exact constraint, and no-match sentinel in the
+public operand record. An integer or function pointer receives a direct
+pointer-input diagnostic. Other independent `r` values remain outside this
+slice.
+
+The public frontend fixture uses the active array-member decay shape from
+`p->fp_state`. It checks the volatile and memory flags and the complete
+operand record. Negative cases cover an integer, a function pointer, and a
+`cc` clobber. Each failure leaves the job able to parse the original unit
+again.
+
+Linear IR accepts that pointer as one value consumed by `ASSEMBLY`. Its
+whole-unit checks require the exact `r` constraint, no numeric tie, and a
+four-byte pointer layout. Reachable and unreachable statements use the same
+checks. The fixture includes a parameter pointer, a `next_state()` call that
+must run once, and an unreachable FXSAVE. It checks stack depths of one, one,
+and zero, source-order instructions, immutable input, deterministic repeat
+lowering, malformed matching metadata, an unsupported constraint, a forged
+unreachable type, an eight-byte target layout, rollback, and recovery. The
+initial IR test failed at the public-unit validator before this path was
+added.
+
+### Deterministic i386 emission
+
+The emitter recognizes only `fxsave (%0)` with one pointer input, no outputs,
+the volatile flag, and the `memory` clobber. It pops the evaluated pointer
+into EAX and passes a memory operand to Cupid's shared x86 model. No temporary
+frame slot, relocation, host assembler, or private byte encoder is used.
+
+The first emitter test reached the generic operand-bearing route and returned
+the unsupported-template diagnostic. The exact FXSAVE dispatch now occurs
+before that route. The valid two-function fixture uses both
+`unsigned char *` and `void *`. Each 20-byte function has these exact bytes:
+
+```
+55 89 E5 8D 85 08 00 00 00 50 58 8B 00 50 58 0F AE 00 C9 C3
+```
+
+The shared decoder finds one FXSAVE per function with EAX as its 32-bit base,
+no index, no segment override, and zero displacement. The complete
+396-byte ELF32 object has 40 bytes of `.text`, five sections, three symbols,
+and no relocations. Repeated emission is byte-identical.
+
+Negative object cases cover a displacement, `%1`, FXRSTOR, leading or
+trailing instructions, trailing whitespace, a missing memory clobber, and a
+forged fixed-register constraint. Failed output is rolled back, the frozen
+unit remains unchanged, and the same job emits the original object afterward.
+The instruction is not executed by the hosted test. Decoder proof avoids a
+stateful native FXSAVE operation while checking the selected encoding.
+
+### Active-source and repository evidence
+
+The native compiler was rebuilt from the changed sources and run twice over
+the complete unchanged `kernel/core/process.c` with the exact
+`KERNEL_I386` argument vector. Both outputs pass the shared relocatable
+validator. They are byte-identical 30,216-byte i386 ELF32 objects with
+SHA-256
+`81ef6d428528b6fcc98826cda634abe5d9d0c00b8aa59cb374d7c1186b0320c5`.
+Disassembly finds exactly two `0F AE 00` instructions, at `.text` offsets
+`0x1967` and `0x4d7c`. No later compiler blocker appears in the translation
+unit.
+
+The first complete Toolchain run found the expected stale source and object
+frontier locks. The source inventory now records 204 functions in
+`cupidc_ir.c`, 208 in `cupidc_emit.c`, and 322 in
+`cupidc_frontend.c`. Their deterministic self-host text sizes are 394,182,
+353,003, and 648,221 bytes. Their object sizes are 420,916, 379,396, and
+769,340 bytes, with text fingerprints `7A546E56`, `E8FBF875`, and
+`593BB0D7`. The locks were updated from the emitted objects, then the complete
+target passed.
+
+| Gate | Result |
+| --- | --- |
+| Frontend public selector | One FXSAVE test passed in 7.759 seconds |
+| Linear IR public selector | One FXSAVE test passed in 9.231 seconds |
+| Object public selector | One FXSAVE test passed in 15.787 seconds |
+| Complete native Toolchain target | Passed in 22.032 seconds |
+| Full `process.c` compiler-head probe | Two matching validated objects, with exactly two decoded FXSAVE instructions |
+
+This step changes compiler head only. The checked seed predates the
+independent pointer input, and the normal Make graph still compiles
+`process.c` with GCC or Clang. The source keeps its `.c` name until production
+ownership moves. No kernel object, image, ABI boundary, or runtime path
+changed, so no boot result is claimed. A seed refresh, production handoff,
+source rename, image build, and runtime proof remain separate work. ADR 0119
+records the decision.
+
+### Combined privileged, call-next, and FXSAVE check
+
+The three assembly slices were then applied to one compiler tree. Their
+frontend rules share the independent `r` constraint without weakening the
+exact templates. Privileged forms admit represented four-byte integers or
+data pointers. FXSAVE narrows the same constraint to an object or `void`
+pointer and reports that requirement at the frontend. Linear IR also rejects
+an exact FXSAVE record whose frozen memory-clobber flag is missing.
+
+All nine focused frontend, Linear IR, and object selectors pass together. The
+active source inventory and deterministic object locks are:
+
+| Source | Functions | Statements | Expressions | Bindings | Initializers | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.c` | 208 | 6,286 | 56,731 | 801 | 291 | 399,464 | 426,668 | `4F8615BB` |
+| `toolchain/cupidc_emit.c` | 213 | 5,705 | 48,910 | 684 | 347 | 362,053 | 389,752 | `DA5FC029` |
+| `toolchain/cupidc_frontend.c` | 325 | 13,233 | 86,974 | 1,946 | 1,284 | 654,874 | 777,560 | `C7570BC3` |
+
+The `aggregate-values` source-frontier selector and the complete object
+self-host-frontier selector pass with these measured values. Earlier tables
+record isolated and two-slice runs; this table is the active three-slice
+lock. The public modules now contain 68 frontend tests, 56 Linear IR tests,
+and 68 object tests.
+
+The rebuilt compiler then compiled all six roots unlocked by these three
+slices twice under the complete `KERNEL_I386` profile:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/idt.c` | 8,756 | `0ad16fd3250bc09ced7c928cb287123db245980de73c15f0249db71a2f2f6ea3` |
+| `kernel/mm/paging.c` | 2,336 | `fc9b757a35cf474f90436333ba732be252253feeea531cad851215e17f793e2d` |
+| `kernel/smp/lapic.c` | 4,184 | `6ce344d265ad3fb6b221a9159d860954c5f5512a7eac526838e69bc181a4c045` |
+| `kernel/core/process.c` | 30,216 | `81ef6d428528b6fcc98826cda634abe5d9d0c00b8aa59cb374d7c1186b0320c5` |
+| `kernel/lang/as.c` | 148,056 | `f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c` |
+| `kernel/lang/cupidc.c` | 288,168 | `b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e` |
+
+Each pair is byte-identical and passes the shared i386 relocatable validator.
+The first combined probe called that validator with an obsolete second path
+argument and stopped after producing its first object. Correcting the
+read-only probe to the current one-argument interface yielded the accepted
+result above. No compiler or source change followed from that harness error.
+The complete Toolchain target passes from the same tree.

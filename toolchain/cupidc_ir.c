@@ -261,6 +261,9 @@ static ctool_status_t cir_invalid_unit(
       "CupidC IR lowering received an invalid translation unit");
 }
 
+static ctool_bool cir_type_is_i32_pointer(
+    const cir_context_t *context, ctool_u32 type);
+
 static ctool_bool cir_output_assembly_constraint_is_valid(
     ctool_string_t constraint) {
   if (constraint.data == (const char *)0) {
@@ -447,6 +450,38 @@ static ctool_bool cir_call_next_assembly_metadata_is_valid(
                                             : CTOOL_FALSE;
 }
 
+static ctool_bool cir_fxsave_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  return cir_string_equal(
+             operand->constraint, ctool_string("r")) == CTOOL_TRUE &&
+                 operand->matching_output == CTOOL_C_AST_NONE &&
+                 operand->expression <
+                     context->unit->expression_count &&
+                 context->unit->expressions !=
+                     (const ctool_c_expression_t *)0 &&
+                 context->unit->expressions[operand->expression].type ==
+                     operand->type &&
+                 cir_type_is_i32_pointer(
+                     context, operand->type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cir_validate_assembly_slices(
     cir_context_t *context) {
   ctool_u32 operand_cursor = 0u;
@@ -530,7 +565,7 @@ static ctool_status_t cir_validate_assembly_slices(
       }
       if (independent == CTOOL_TRUE) {
         fixed_registers |= fixed_input_register;
-      } else {
+      } else if (matching == CTOOL_TRUE) {
         matched_outputs |= 1u << matching_output;
       }
     }
@@ -541,6 +576,13 @@ static ctool_status_t cir_validate_assembly_slices(
              ctool_string("call 1f\n1: popl %0")) == CTOOL_FALSE ||
          cir_call_next_assembly_metadata_is_valid(
              context, assembly) == CTOOL_FALSE)) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_string_equal(
+            assembly->template_text,
+            ctool_string("fxsave (%0)")) == CTOOL_TRUE &&
+        cir_fxsave_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
     operand_cursor += operand_count;

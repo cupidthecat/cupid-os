@@ -7360,12 +7360,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 207u, 6275u,
-       56528u, 800u, 291u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 209u, 5675u,
-       48586u, 681u, 346u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 324u,
-       13197u, 86703u, 1938u, 1284u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 208u, 6286u,
+       56731u, 801u, 291u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 213u, 5705u,
+       48910u, 684u, 347u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 325u,
+       13233u, 86974u, 1946u, 1284u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -24874,6 +24874,142 @@ static int validate_port_io_assembly_unit(
   return assembly_statement_count == unit->assembly_count ? 0 : 1;
 }
 
+static int validate_fxsave_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_assembly_t *assembly;
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_type_node_t *pointer;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 1u ||
+      unit->assembly_count != 1u ||
+      unit->assembly_operand_count != 1u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  assembly = &unit->assemblies[0];
+  operand = &unit->assembly_operands[0];
+  if (operand->type >= unit->graph.type_count ||
+      operand->type >= unit->layout.type_count) {
+    return 1;
+  }
+  pointer = &unit->graph.types[operand->type];
+  layout = &unit->layout.types[operand->type];
+  if (string_equal(assembly->template_text, "fxsave (%0)") == 0 ||
+      assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      assembly->first_operand != 0u ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      string_equal(operand->constraint, "r") == 0 ||
+      operand->expression >= unit->expression_count ||
+      unit->expressions[operand->expression].type != operand->type ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      pointer->kind != CTOOL_C_TYPE_POINTER ||
+      pointer->referenced_type >= unit->layout.type_count ||
+      unit->layout.types[pointer->referenced_type].is_object != CTOOL_TRUE ||
+      layout->is_object != CTOOL_TRUE ||
+      layout->is_complete_object != CTOOL_TRUE ||
+      layout->size != 4u ||
+      dual_location_matches(
+          &assembly->location, &assembly->physical_location,
+          "/fxsave-assembly.c", 4u) == 0 ||
+      dual_location_matches(
+          &operand->location, &operand->physical_location,
+          "/fxsave-assembly.c", 4u) == 0) {
+    return 1;
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == 1u ? 0 : 1;
+}
+
+static int run_fxsave_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char u8;\n"
+      "typedef struct { u8 fp_state[512]; } process_t;\n"
+      "void snapshot(process_t *p) {\n"
+      "  __asm__ volatile(\"fxsave (%0)\" : : \"r\"(p->fp_state) : "
+      "\"memory\");\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"integer FXSAVE input",
+        "void bad(unsigned state) { "
+        "__asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly r input requires an object or void pointer"},
+      {{"function-pointer FXSAVE input",
+        "typedef void (*handler_t)(void); "
+        "void bad(handler_t state) { "
+        "__asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly r input requires an object or void pointer"},
+      {{"unsupported FXSAVE clobber",
+        "void bad(void *state) { "
+        "__asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : "
+        "\"cc\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly clobber is outside this slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "fxsave-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/fxsave-assembly.c", source, &unit) != 0 ||
+      validate_fxsave_assembly_unit(&unit) != 0) {
+    (void)fprintf(stderr, "fxsave-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/fxsave-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_fxsave_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("fxsave-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_port_io_assembly(const char *host_root) {
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"narrow read-write counter",
@@ -26057,6 +26193,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "privileged-register-assembly") == 0) {
     return run_privileged_register_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "fxsave-assembly") == 0) {
+    return run_fxsave_assembly(argv[2]);
   }
   if (strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);

@@ -12229,7 +12229,8 @@ static ctool_bool cfront_independent_assembly_input(
 }
 
 static ctool_status_t cfront_parse_assembly_input(
-    cfront_context_t *context, ctool_u32 first_operand,
+    cfront_context_t *context, ctool_string_t template_text,
+    ctool_u32 first_operand,
     ctool_u32 output_count, ctool_u32 *matched_outputs_io,
     ctool_u32 *fixed_registers_io) {
   const ctool_c_pp_token_t *constraint_token = cfront_peek(context);
@@ -12362,12 +12363,18 @@ static ctool_status_t cfront_parse_assembly_input(
         input_is_data_pointer == CTOOL_TRUE)) {
     return cfront_emit_failure(
         context,
-        input_is_pointer == CTOOL_TRUE
-            ? CTOOL_ERR_UNSUPPORTED
-            : CTOOL_ERR_INPUT,
+        cfront_string_literal(
+            template_text, "fxsave (%0)") == CTOOL_TRUE
+            ? CTOOL_ERR_INPUT
+            : input_is_pointer == CTOOL_TRUE
+                  ? CTOOL_ERR_UNSUPPORTED
+                  : CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
-        "GNU inline assembly r input requires a represented 32-bit integer "
-        "or data pointer");
+        cfront_string_literal(
+            template_text, "fxsave (%0)") == CTOOL_TRUE
+            ? "GNU inline assembly r input requires an object or void pointer"
+            : "GNU inline assembly r input requires a represented 32-bit "
+              "integer or data pointer");
   }
   if (independent == CTOOL_TRUE &&
       cfront_string_literal(operand.constraint, "c") == CTOOL_TRUE &&
@@ -12435,6 +12442,66 @@ static ctool_bool cfront_assembly_template_starts_call(
                   template_text.data[cursor + 4u] == '\n')
              ? CTOOL_TRUE
              : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_validate_fxsave_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t operand;
+  ctool_c_type_node_t pointer;
+  ctool_c_type_node_t referent;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 referent_base;
+  ctool_u32 referent_qualifiers;
+  ctool_status_t status;
+  if (cfront_string_literal(
+          assembly->template_text, "fxsave (%0)") == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >= context->assembly_operands.count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU FXSAVE assembly requires one volatile r pointer input and "
+        "one memory clobber");
+  }
+  status = cfront_vector_get(
+      &context->assembly_operands, assembly->first_operand, &operand);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, operand.type, &pointer_base, &pointer_qualifiers, &pointer);
+  }
+  if (status == CTOOL_OK &&
+      pointer.kind == CTOOL_C_TYPE_POINTER) {
+    status = cfront_underlying_type(
+        context, pointer.referenced_type, &referent_base,
+        &referent_qualifiers, &referent);
+  }
+  if (status != CTOOL_OK) {
+    return ctool_job_diagnostic_count(context->job) == 0u
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  (void)pointer_base;
+  (void)pointer_qualifiers;
+  (void)referent_base;
+  (void)referent_qualifiers;
+  if (cfront_string_literal(
+          operand.constraint, "r") == CTOOL_FALSE ||
+      pointer.kind != CTOOL_C_TYPE_POINTER ||
+      referent.kind == CTOOL_C_TYPE_FUNCTION) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU inline assembly r input requires an object or void pointer");
+  }
+  return CTOOL_OK;
 }
 
 static ctool_status_t cfront_validate_call_next_assembly(
@@ -12584,7 +12651,8 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
            cfront_peek_is(context, ":") == CTOOL_FALSE &&
            cfront_peek_is(context, ")") == CTOOL_FALSE) {
       status = cfront_parse_assembly_input(
-          context, assembly.first_operand, assembly.output_count,
+          context, assembly.template_text, assembly.first_operand,
+          assembly.output_count,
           &matched_outputs, &fixed_registers);
       if (status == CTOOL_OK) {
         assembly.input_count++;
@@ -12643,6 +12711,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_fxsave_assembly(
+        context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_call_next_assembly(

@@ -90,6 +90,15 @@ cover the supported forms and their failures without executing privileged
 instructions. The checked seed predates this compiler work, so production
 ownership remains unchanged.
 
+Compiler head now handles the exact volatile `fxsave (%0)` form used twice in
+unchanged `kernel/core/process.c`. Its independent `r` input must be a
+four-byte object or `void` pointer, and the statement must retain its
+`memory` clobber. The emitter places the pointer in EAX and asks the shared
+x86 model for `0F AE 00`. Two full-profile compiles produce the same
+validated 30,216-byte object, with FXSAVE at text offsets `0x1967` and
+`0x4d7c`. The checked seed predates this compiler-head capability, so
+production ownership has not moved.
+
 The checked compiler's atomic slice handles integer load, store, exchange,
 and fetch-add builtins with constant orders. Its i386 path selects ordinary
 loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings

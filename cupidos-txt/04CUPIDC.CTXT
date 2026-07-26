@@ -185,6 +185,15 @@ uses the host compiler for all three .c files. WRMSR, unsupported
 control-register directions, fixed EBX and q inputs, arbitrary templates,
 and general clobbers remain open.
 
+Compiler head also represents the exact volatile fxsave (%0) form used twice
+in kernel/core/process.c. Its independent r input must be a four-byte object
+or void pointer, and the statement retains its memory clobber. Linear IR
+evaluates the pointer once. The shared x86 model emits 0F AE 00 at the address
+in EAX without a temporary frame slot. Two complete KERNEL_I386 compiles
+produce the same validated 30,216-byte object, with FXSAVE at text offsets
+0x1967 and 0x4d7c. The checked seed predates this support, so process.c
+remains host-built.
+
 Compiler head handles integer atomic load, store, exchange, fetch-add, and
 fetch-or builtins for one-, two-, and four-byte objects. It checks constant
 memory orders and emits ordinary loads and release stores, memory XCHG, LOCK

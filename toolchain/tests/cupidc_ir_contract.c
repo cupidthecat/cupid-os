@@ -28963,6 +28963,231 @@ cleanup:
   return 1;
 }
 
+static const char fxsave_assembly_source[] =
+    "typedef unsigned char u8;\n"
+    "u8 *next_state(void);\n"
+    "void save_parameter(u8 *state) {\n"
+    "  __asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : \"memory\");\n"
+    "}\n"
+    "void save_call(void) {\n"
+    "  __asm__ volatile(\"fxsave (%0)\" : : \"r\"(next_state()) : "
+    "\"memory\");\n"
+    "}\n"
+    "void dead_save(u8 *state) {\n"
+    "  return;\n"
+    "  __asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : \"memory\");\n"
+    "}\n";
+
+static int fxsave_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u32 expected_depths[] = {1u, 1u, 0u};
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 3u ||
+      unit->assembly_operand_count != 3u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL ||
+      ir->function_count != 3u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (function_index = 0u; function_index < 3u; function_index++) {
+    const ctool_c_assembly_t *assembly =
+        &unit->assemblies[function_index];
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[function_index];
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 assembly_instruction = CTOOL_C_AST_NONE;
+    ctool_u32 assembly_count = 0u;
+    ctool_u32 call_count = 0u;
+    ctool_u32 offset;
+    if (string_equal(assembly->template_text, "fxsave (%0)") == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_VOLATILE |
+             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+        assembly->first_operand != function_index ||
+        assembly->output_count != 0u ||
+        assembly->input_count != 1u ||
+        string_equal(operand->constraint, "r") == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        operand->type >= unit->layout.type_count ||
+        unit->layout.types[operand->type].size != 4u ||
+        unit->layout.types[operand->type].is_integer != CTOOL_FALSE ||
+        function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->maximum_stack_depth != expected_depths[function_index]) {
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      ctool_u32 instruction_index =
+          function->first_instruction + offset;
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+        call_count++;
+      }
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+        if (!inline_assembly_instruction_matches(
+                instruction, function_index, "/fxsave-assembly.c")) {
+          return 0;
+        }
+        assembly_instruction = instruction_index;
+        assembly_count++;
+      }
+    }
+    if ((function_index == 0u &&
+         (assembly_count != 1u || call_count != 0u ||
+          assembly_instruction < function->first_instruction + 2u ||
+          ir->instructions[assembly_instruction - 2u].kind !=
+              CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_LOAD)) ||
+        (function_index == 1u &&
+         (assembly_count != 1u || call_count != 1u ||
+          assembly_instruction == function->first_instruction ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_CALL_DIRECT)) ||
+        (function_index == 2u &&
+         (assembly_count != 0u || call_count != 0u))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_fxsave_assembly(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_operand_t operands[3];
+  ctool_c_type_layout_t *layouts = NULL;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/fxsave-assembly.c", fxsave_assembly_source,
+          CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "FXSAVE assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !fxsave_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat FXSAVE assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !fxsave_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(stderr, "fxsave-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_operand_count != 3u ||
+      unit.layout.types == NULL ||
+      sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
+    goto cleanup;
+  }
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assembly_operands = operands;
+
+  operands[0].matching_output = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "FXSAVE input with matching output")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[0].constraint = ctool_string("b");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unsupported independent FXSAVE register")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[2].type =
+      unit.graph.types[unit.assembly_operands[2].type].referenced_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unreachable FXSAVE pointer type mismatch")) {
+    goto cleanup;
+  }
+  operands[2] = unit.assembly_operands[2];
+
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  if (layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  layouts[unit.assembly_operands[0].type].size = 8u;
+  invalid_unit = unit;
+  invalid_unit.layout.types = layouts;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide FXSAVE target pointer")) {
+    goto cleanup;
+  }
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "FXSAVE assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !fxsave_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(stderr, "fxsave-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("fxsave-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static const char register_snapshot_assembly_source[] =
     "typedef unsigned u32;\n"
     "u32 *next_slot(void);\n"
@@ -30996,6 +31221,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "port-io-assembly") == 0) {
     return run_port_io_assembly(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "fxsave-assembly") == 0) {
+    return run_fxsave_assembly(argv[2]);
   }
   if (argc == 3 &&
       strcmp(argv[1], "privileged-register-assembly") == 0) {

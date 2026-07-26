@@ -1783,6 +1783,19 @@ static ctool_status_t cemit_x86_x87_memory(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_fxsave_memory(
+    cemit_context_t *context, ctool_u8 base_register) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_FXSAVE, 32u);
+  instruction.operand_count = 1u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, base_register),
+      0, 0u);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_repeat_string(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u16 operand_bits) {
@@ -5649,6 +5662,71 @@ static ctool_bool cemit_assembly_uses_port_io_path(
   return CTOOL_FALSE;
 }
 
+static ctool_bool cemit_assembly_uses_fxsave_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_string_equals_literal(
+                     assembly->template_text, "fxsave (%0)") ==
+                     CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_fxsave_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  return cemit_string_equals_literal(
+             operand->constraint, "r") == CTOOL_TRUE &&
+                 operand->matching_output == CTOOL_C_AST_NONE &&
+                 operand->expression <
+                     context->unit->expression_count &&
+                 context->unit->expressions !=
+                     (const ctool_c_expression_t *)0 &&
+                 context->unit->expressions[operand->expression].type ==
+                     operand->type &&
+                 cemit_ir_type_is_i32_pointer(
+                     context, operand->type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_fxsave_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  ctool_status_t status;
+  if (temporary_offset != 0u ||
+      cemit_fxsave_metadata_is_valid(
+          context, assembly) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+        &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_fxsave_memory(context, 0u);
+  }
+  return status;
+}
+
 static ctool_bool cemit_port_io_operand_matches(
     const cemit_context_t *context,
     const ctool_c_assembly_operand_t *operand,
@@ -6595,6 +6673,10 @@ static ctool_status_t cemit_emit_assembly(
       return cemit_emit_privileged_assembly(
           context, assembly, privileged_kind);
     }
+  }
+  if (cemit_assembly_uses_fxsave_path(assembly) == CTOOL_TRUE) {
+    return cemit_emit_fxsave_assembly(
+        context, assembly, temporary_offset);
   }
   if (cemit_assembly_uses_port_io_path(
           context, assembly) == CTOOL_TRUE) {
@@ -9279,6 +9361,10 @@ static ctool_status_t cemit_prepare_local_offsets(
         if (cemit_privileged_assembly_template_kind(
                 assembly->template_text) !=
             CEMIT_PRIVILEGED_ASSEMBLY_NONE) {
+          continue;
+        }
+        if (cemit_assembly_uses_fxsave_path(
+                assembly) == CTOOL_TRUE) {
           continue;
         }
         if (cemit_assembly_uses_port_io_path(

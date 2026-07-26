@@ -118,6 +118,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_privileged_register_assembly_preserves_inputs_and_outputs(self):
         self.run_contract("privileged-register-assembly")
 
+    def test_fxsave_assembly_keeps_its_independent_pointer_input(self):
+        self.run_contract("fxsave-assembly")
+
     def test_operand_free_inline_assembly_retains_basic_and_extended_forms(self):
         self.run_contract("operand-free-assembly")
 

@@ -439,6 +439,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) port-io-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) privileged-register-assembly ..
+	$(CUPIDC_FRONTEND_CONTRACT) fxsave-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) atomic-builtins ..
 	$(CUPIDC_FRONTEND_CONTRACT) pointer-output-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) call-next-assembly ..
@@ -514,6 +515,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
 	$(CUPIDC_IR_CONTRACT) port-io-assembly ..
 	$(CUPIDC_IR_CONTRACT) privileged-register-assembly ..
+	$(CUPIDC_IR_CONTRACT) fxsave-assembly ..
 	$(CUPIDC_IR_CONTRACT) atomic-builtins ..
 	$(CUPIDC_IR_CONTRACT) pointer-output-assembly ..
 	$(CUPIDC_IR_CONTRACT) call-next-assembly ..
@@ -557,6 +559,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) port-io-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) privileged-register-assembly ..
+	$(CUPIDC_OBJECT_CONTRACT) fxsave-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) atomic-builtins ..
 	$(CUPIDC_OBJECT_CONTRACT) pointer-output-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) call-next-assembly ..

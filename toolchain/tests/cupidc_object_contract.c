@@ -24745,20 +24745,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 207u, 209u, 324u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 208u, 213u, 325u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 397930u, 359452u, 653199u, 139612u, 70368u, 77981u,
+      190304u, 399464u, 362053u, 654874u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 424952u, 386692u, 775272u, 157796u, 79348u, 131640u,
+      226668u, 426668u, 389752u, 777560u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x684f7e46u, 0xd32c6d8du, 0x04f81171u, 0x3f69aac3u,
+      0x4f8615bbu, 0xda5fc029u, 0xc7570bc3u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -28793,6 +28793,271 @@ static int validate_port_io_assembly_object(
   return 1;
 }
 
+static int validate_fxsave_assembly_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x0fu, 0xaeu, 0x00u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 fxsave_bytes[] = {
+      0x0fu, 0xaeu, 0x00u};
+  ctool_u32 cursor = 0u;
+  ctool_u32 fxsave_count = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != (ctool_u32)sizeof(function_bytes) ||
+      memcmp(text->contents.data + symbol->value, function_bytes,
+             sizeof(function_bytes)) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_FXSAVE) {
+      const ctool_x86_operand_t *operand;
+      const ctool_x86_memory_t *memory;
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_MEMORY ||
+          decoded.consumed != (ctool_u32)sizeof(fxsave_bytes) ||
+          memcmp(remaining.data, fxsave_bytes,
+                 sizeof(fxsave_bytes)) != 0) {
+        return 0;
+      }
+      operand = &decoded.instruction.operands[0];
+      memory = &operand->as.memory;
+      if (memory->address_bits != 32u ||
+          memory->segment.class_id != CTOOL_X86_REG_NONE ||
+          memory->base.class_id != CTOOL_X86_REG_GPR32 ||
+          memory->base.index != 0u ||
+          memory->index.class_id != CTOOL_X86_REG_NONE ||
+          memory->scale != 1u ||
+          memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+          memory->displacement.bits != 0u) {
+        return 0;
+      }
+      fxsave_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && fxsave_count == 1u ? 1 : 0;
+}
+
+static int validate_fxsave_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !validate_fxsave_assembly_function(
+          job, text, find_symbol(object, "save_bytes")) ||
+      !validate_fxsave_assembly_function(
+          job, text, find_symbol(object, "save_void"))) {
+    (void)fprintf(stderr, "FXSAVE assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_fxsave_assembly_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned char u8;\n"
+      "void save_bytes(u8 *state) {\n"
+      "  __asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : "
+      "\"memory\");\n"
+      "}\n"
+      "void save_void(void *state) {\n"
+      "  __asm__ volatile(\"fxsave (%0)\" : : \"r\"(state) : "
+      "\"memory\");\n"
+      "}\n";
+  static const char *const invalid_templates[] = {
+      "fxsave 4(%0)",
+      "fxsave (%1)",
+      "fxrstor (%0)",
+      "fxsave (%0); nop",
+      "nop; fxsave (%0)",
+      "fxsave (%0) "};
+  static const char *const invalid_contexts[] = {
+      "FXSAVE nonzero displacement",
+      "FXSAVE unavailable operand",
+      "FXRSTOR in the FXSAVE path",
+      "FXSAVE trailing instruction",
+      "FXSAVE leading instruction",
+      "FXSAVE trailing whitespace"};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[2];
+  ctool_c_assembly_operand_t mutant_operands[2];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/fxsave-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 2u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "FXSAVE assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "FXSAVE assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first FXSAVE assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat FXSAVE assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "FXSAVE assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/fxsave-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read FXSAVE assembly object") ||
+      !validate_fxsave_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 396u ||
+      find_section(&object, ".text")->contents.size != 40u ||
+      object.section_count != 5u || object.symbol_count != 3u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "fxsave-assembly: object metrics differ: object=%u text=%u "
+        "sections=%u symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(invalid_templates) /
+                           sizeof(invalid_templates[0]));
+       index++) {
+    mutant_assemblies[0].template_text =
+        ctool_string(invalid_templates[index]);
+    if (!expect_object_failure(
+            job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+            "GNU inline assembly template is outside this i386 emission "
+            "slice",
+            invalid_contexts[index]) ||
+        unit_snapshot_matches(&snapshot, &unit) == 0 ||
+        ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+      goto cleanup;
+    }
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &=
+      ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "FXSAVE missing memory clobber") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[0].constraint = ctool_string("d");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "FXSAVE forged fixed-register input") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "FXSAVE assembly recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("fxsave-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_port_io_assembly_object(const char *host_root) {
   static const char source[] =
       "typedef unsigned char port_u8;\n"
@@ -31409,6 +31674,9 @@ int main(int argc, char **argv) {
   if (argc == 3 &&
       strcmp(argv[1], "privileged-register-assembly") == 0) {
     return run_privileged_register_assembly_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "fxsave-assembly") == 0) {
+    return run_fxsave_assembly_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtin_object(argv[2]);
