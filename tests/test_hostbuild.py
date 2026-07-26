@@ -1,3 +1,5 @@
+import contextlib
+import io
 import struct
 import subprocess
 import tempfile
@@ -86,6 +88,333 @@ class HostBuildImageTests(unittest.TestCase):
 
 
 class HostBuildSymbolTests(unittest.TestCase):
+    def test_mksyms_uses_one_frozen_reader_and_elf_snapshot(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            calls = []
+
+            def run(command, **kwargs):
+                calls.append((command, kwargs))
+                self.assertNotEqual(Path(command[0]), reader)
+                self.assertNotEqual(Path(command[-1]), elf)
+                self.assertEqual(Path(command[0]).read_bytes(), reader.read_bytes())
+                self.assertEqual(Path(command[-1]).read_bytes(), elf.read_bytes())
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    "00001000 T first\n00002000 T second\n",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                side_effect=run,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertEqual(len(calls), 1)
+            source = output.read_text(encoding="utf-8")
+            self.assertIn("const unsigned int", source)
+            self.assertIn("const unsigned int ksym_blob_size = 45u;", source)
+
+    def test_mksyms_keeps_same_basename_inputs_in_distinct_snapshots(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "reader" / "shared.exe"
+            elf = root / "input" / "shared.exe"
+            output = root / "ksyms_data.cc"
+            reader.parent.mkdir()
+            elf.parent.mkdir()
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+
+            def run(command, **_kwargs):
+                frozen_reader = Path(command[0])
+                frozen_elf = Path(command[-1])
+                self.assertNotEqual(frozen_reader, frozen_elf)
+                self.assertEqual(frozen_reader.read_bytes(), reader.read_bytes())
+                self.assertEqual(frozen_elf.read_bytes(), elf.read_bytes())
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    "00001000 T first\n",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                side_effect=run,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertTrue(output.is_file())
+
+    def test_mksyms_rejects_malformed_symbol_output_without_replacing_source(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            completed = subprocess.CompletedProcess(
+                [str(reader), "-n", str(elf)],
+                0,
+                "not-an-address T broken\n",
+                "",
+            )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                return_value=completed,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_a_defined_symbol_without_an_address(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            completed = subprocess.CompletedProcess(
+                [str(reader), "-n", str(elf)],
+                0,
+                "T missing_address\n00001000 T valid\n",
+                "",
+            )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                return_value=completed,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_an_address_outside_i386(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            completed = subprocess.CompletedProcess(
+                [str(reader), "-n", str(elf)],
+                0,
+                "100000000 T too_wide\n",
+                "",
+            )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                return_value=completed,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_an_empty_text_symbol_set(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            completed = subprocess.CompletedProcess(
+                [str(reader), "-n", str(elf)],
+                0,
+                "00002000 D data_only\n",
+                "",
+            )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                return_value=completed,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_maps_reader_failure_and_preserves_the_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            failure = subprocess.CalledProcessError(
+                7,
+                [str(reader), "-n", str(elf)],
+                stderr="invalid ELF",
+            )
+            diagnostic = io.StringIO()
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                side_effect=failure,
+            ), contextlib.redirect_stderr(diagnostic):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "symbol reader failed with status 7: invalid ELF",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_live_input_drift_without_replacing_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+
+            def run(command, **_kwargs):
+                elf.write_bytes(b"changed pass-one ELF")
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    "00001000 T first\n",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                side_effect=run,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_reader_drift_without_replacing_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+
+            def run(command, **_kwargs):
+                reader.write_bytes(b"changed CupidDis")
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    "00001000 T first\n",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.hostbuild.subprocess.run",
+                side_effect=run,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--nm",
+                        str(reader),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
     def test_symbol_reader_preserves_configured_command_arguments(self):
         reader = ("custom-nm", "--target=i386")
         elf = Path("kernel.elf")
@@ -153,13 +482,18 @@ class HostBuildSymbolTests(unittest.TestCase):
         blob = hostbuild.build_ksyms_blob(symbols)
 
         with tempfile.TemporaryDirectory() as td:
-            output = Path(td) / "ksyms_data.cc"
+            root = Path(td)
+            reader = root / "cupiddis.exe"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            reader.write_bytes(b"checked CupidDis")
+            elf.write_bytes(b"pass-one ELF")
             with mock.patch.object(
                 hostbuild,
                 "_symbols_from_nm",
                 return_value=symbols,
             ):
-                hostbuild.write_ksyms_source("unused-nm", Path("unused"), output)
+                hostbuild.write_ksyms_source(str(reader), elf, output)
             source = output.read_text(encoding="utf-8")
 
         self.assertIn("const unsigned int\n", source)

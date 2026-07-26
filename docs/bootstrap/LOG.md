@@ -10402,3 +10402,74 @@ This change removes no behavior and claims no new transform. Ten strict
 checked-in roots, Doom and vendored C, native hosted tools, Python
 orchestration, the Windows WSL bridge, and the five shared-root seed refresh
 remain. ADR 0124 records the naming boundary and its exact proof.
+
+## 2026-07-26: close the generated kernel-symbol publication gap
+
+ADR 0123 transferred `kernel/cpu/ksyms_data.cc` and its normal object to
+CupidC. The object wrapper already froze the generated source and its two
+headers, validated the data-only i386 relocatable, checked live input drift,
+and published atomically. The source generator still ran CupidDis against the
+live pass-one kernel and wrote the installed `.cc` file directly. A malformed
+but successful symbol view could silently produce a smaller table, and an
+interrupted write could damage the previous source.
+
+The `hostbuild.py mksyms` command now captures the pass-one kernel and
+CupidDis bytes once. It writes each input to a separate private path, runs the
+private CupidDis copy against the private kernel copy, and checks the live
+bytes again before publication. Fixed `input`, `tool`, and `output`
+directories prevent distinct inputs with the same basename from colliding.
+The reader keeps its executable suffix so the private copy runs on Windows.
+
+Every nonempty output row must have one type field, one name, and an i386
+address. Undefined rows retain their two-field form. The generator rejects a
+malformed row, a defined symbol without an address, an address outside
+32 bits, and a view with no text symbols. It renders the packed word source
+in memory, writes it under the private output directory, and uses
+`os.replace` only after all checks pass. A reader failure, invalid output,
+pass-one drift, reader drift, or publication error leaves the installed
+source untouched.
+
+### Red and review history
+
+- The first public command tests were red because malformed addresses were
+  ignored, live inputs reached the reader, and the installed source was
+  overwritten.
+- The first strict parser still accepted a two-field `T name` row as though
+  it were undefined. A second red test fixed the distinction between
+  undefined `U`, `u`, `v`, or `w` rows and defined symbols.
+- Review found that input files with the same basename selected the same
+  private path. The regression was red before separate input and tool
+  directories fixed the collision.
+- Empty text-symbol output and live CupidDis drift have separate preservation
+  contracts. They close different failure paths from malformed reader text
+  and pass-one kernel drift.
+
+This work follows ADR 0123's existing transactional publication decision, so
+it does not add a new ownership or architecture decision.
+
+### Verification
+
+| Command or check | Result | Evidence |
+| --- | --- | --- |
+| `python -m unittest tests.test_hostbuild.HostBuildSymbolTests` | PASS | Thirteen public and format tests cover frozen inputs, same-basename isolation, packed output, malformed rows, missing or oversized addresses, empty text-symbol output, reader failure, pass-one drift, reader drift, and configured command arguments. |
+| `python -m unittest tests.test_hostbuild` | PASS | The complete host-build helper module passes. |
+| Generated-symbol build-graph audit | PASS | The transform still names the pass-one kernel, `tools/hostbuild.py`, Makefile, and CupidDis. The object transform still names the generated source, exact two-header closure, wrapper controls, manifest, and all five seed images. |
+| Real CupidDis fixture | PASS | Native CupidDis read the checked CupidC seed through the frozen command path and produced a 38,596-byte logical blob in a 128,132-byte `.cc` source. |
+| `make all` | PASS | The complete image build finished in 873.1 seconds. It generated the 104,185-byte logical blob, compiled `ksyms_data.cc` with checked CupidC, completed both CupidLD passes, flattened with CupidObj, and staged the 200 MiB image. |
+
+The normal build reproduced every recorded artifact:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/ksyms_data.cc` | 345,405 | `7d3c81da65335df7214bd8be0629194938cb3bcf87c16b54950d49b726132efd` |
+| `kernel/cpu/ksyms_data.o` | 104,600 | `475335be28078c794f423bc4d0bb00cf0474289f23bacbc1f7314d29e5b4abd5` |
+| `kernel/kernel.elf.pass1` | 7,953,872 | `ded23a6f0f30fab668d179d50b7510e7acf2cbfe879b45f944eef04026af4ec6` |
+| `kernel/kernel.elf` | 8,056,272 | `9d8c9c1af22a7a3c6cbb629a92c82aa63729bca9c379597feb32a3b5dcefd6f4` |
+| `kernel/kernel.bin` | 7,862,352 | `1ffb43764bc224dc48a523e47c5e2425d14fa2e965a1801b419578c651fb27a6` |
+| `cupidos.img` | 209,715,200 | `b3d903f79f39c44a4c4d5a64533e08214cd9a0c0ffde1038a717293688c8a7df` |
+
+CupidDis reports 4,342 text symbols from both kernel passes. The hardening
+changes no generated source byte, object byte, linked symbol address, or
+ownership count. Issue #28 remains open for ten strict checked-in roots and
+the other core and driver cohorts. Issue #32 remains open for its remaining
+normal-build and fixed-point safety work.

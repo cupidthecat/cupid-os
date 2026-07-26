@@ -163,7 +163,11 @@ function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
 `unsigned int` words and records the logical 104,185-byte blob length
-separately. The word array ends with three zero pad bytes. The final kernel
+separately. It runs private snapshots of the pass-one kernel and CupidDis,
+rejects malformed symbol rows, an empty text-symbol set, and live input
+drift, then replaces the `.cc` source atomically. The checked compiler
+wrapper freezes that source and its header closure before it publishes the
+object. The word array ends with three zero pad bytes. The final kernel
 consumes 4,342 text symbols and shows no address drift from the pass-one
 kernel.
 

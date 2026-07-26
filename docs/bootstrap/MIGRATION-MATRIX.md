@@ -38,7 +38,11 @@ point and native-host contracts are refreshed. The generated
 `kernel/cpu/ksyms_data.cc` root makes 140 normal `.cc` translations. ADR 0115
 added the first 20 source-driven roots, ADR 0123 added eight more and the
 generated symbol object, and ADR 0124 renames the other 111 exclusively
-CupidC-owned roots.
+CupidC-owned roots. The normal symbol generator runs frozen copies of the
+pass-one kernel and CupidDis, validates the reader output, checks the live
+inputs for drift, and publishes the `.cc` source atomically. The checked
+compiler wrapper separately freezes the generated source and its exact
+two-header closure before object validation and publication.
 
 The checked-in frontier must repeat all 144 compiles. Strict syntax,
 recursive Make dependencies, poisoned-host recipes, focused tests, the normal

@@ -89,6 +89,9 @@ compile time from 1,041 seconds to about 66 seconds. Two compiles produce the
 same 104,600-byte object with
 SHA-256
 `475335be28078c794f423bc4d0bb00cf0474289f23bacbc1f7314d29e5b4abd5`.
+Python still serializes the blob, but it runs a frozen CupidDis image against
+a frozen pass-one kernel. It rejects malformed output, an empty text-symbol
+set, i386 address overflow, and live input drift before atomic publication.
 This retires the generated root's GCC or Clang dependency. ADR 0116 records
 the language boundary, and ADR 0123 records the production transfer.
 

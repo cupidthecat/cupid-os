@@ -58,8 +58,11 @@ The pass-one kernel feeds CupidDis symbol output into
 `kernel/cpu/ksyms_data.cc`. The generator stores the byte-exact symbol blob
 as little-endian i386 words, then records its logical length separately. This
 cuts the current generated source from 638,361 bytes to 345,405 bytes and its
-checked compile from 1,041 seconds to about 66 seconds. The wrapper freezes
-the source and its complete header closure, gives this generated root a
+checked compile from 1,041 seconds to about 66 seconds. Generation uses
+private byte snapshots of the pass-one kernel and CupidDis. It rejects
+malformed rows, missing text symbols, i386 address overflow, and live input
+drift before it atomically replaces the source. The compiler wrapper freezes
+that source and its complete header closure, gives this generated root a
 separate 600-second ceiling, validates the relocatable object, rejects input
 drift, and publishes atomically.
 
