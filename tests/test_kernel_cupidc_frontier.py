@@ -152,6 +152,28 @@ TOOLCHAIN_KERNEL_SOURCES = [
     "toolchain/elf32.c",
     "toolchain/x86.c",
 ]
+SOURCE_DRIVEN_SOURCES = [
+    "drivers/serial.cc",
+    "drivers/timer.cc",
+    "kernel/core/app_launch.cc",
+    "kernel/cpu/irq.cc",
+    "kernel/cpu/ksyms.cc",
+    "kernel/fs/fat16.cc",
+    "kernel/fs/iso9660.cc",
+    "kernel/fs/loopdev.cc",
+    "kernel/gfx/deflate.cc",
+    "kernel/gfx/gfx2d.cc",
+    "kernel/gfx/png.cc",
+    "kernel/gui/ed.cc",
+    "kernel/lang/cupidc_parse.cc",
+    "kernel/lang/cupidc_string.cc",
+    "kernel/lang/ssh_io.cc",
+    "kernel/mm/memory.cc",
+    "kernel/network/sshd.cc",
+    "kernel/network/udp.cc",
+    "kernel/smp/bkl.cc",
+    "kernel/tls/tls_ca_bundle.cc",
+]
 KERNEL_SOURCES = sorted(
     CRYPTO_SOURCES
     + SMP_SOURCES
@@ -159,6 +181,7 @@ KERNEL_SOURCES = sorted(
     + PORT_IO_SOURCES
     + COMPILER_READY_SOURCES
     + TOOLCHAIN_KERNEL_SOURCES
+    + SOURCE_DRIVEN_SOURCES
 )
 
 BOUNDARY_DIAGNOSTICS = {}
@@ -514,7 +537,7 @@ class DefaultSeedExecutionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (116 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (136 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
             manifest = json.loads(
@@ -804,7 +827,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (116 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (136 sources, 0 boundaries)\n",
             )
             self.assertEqual(result.stderr, "")
 
@@ -835,10 +858,10 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(list((output / "negative").iterdir()), [])
-            self.assertEqual(manifest["input_snapshot"]["count"], 116)
+            self.assertEqual(manifest["input_snapshot"]["count"], 136)
             self.assertEqual(
                 len(manifest["input_snapshot"]["files"]),
-                116,
+                136,
             )
             self.assertEqual(
                 len(manifest["input_snapshot"]["sha256"]),
@@ -1682,7 +1705,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
-                "kernel CupidC frontier: ok (116 sources, 0 boundaries)\n",
+                "kernel CupidC frontier: ok (136 sources, 0 boundaries)\n",
             )
             manifest = json.loads(
                 (output / "manifest.json").read_text(encoding="utf-8")
@@ -1694,7 +1717,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                2268616,
+                3020108,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1825,11 +1848,120 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 port_io_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 404)
+            source_driven_object_records = {
+                "drivers/serial.cc": (
+                    20776,
+                    "7b049fdc9ef79fee075e5903fa9846635"
+                    "6d089135665591249194b5b81690bbd",
+                ),
+                "drivers/timer.cc": (
+                    6404,
+                    "af2c13c68060bfa71a2e001722837ba1"
+                    "64c803de8864acfa6d468d7cedc2e3da",
+                ),
+                "kernel/core/app_launch.cc": (
+                    5488,
+                    "242aa3d0d14d70f6096fd64d3cff4a52"
+                    "a148b3caa660190c1024da0b0f6b1e9f",
+                ),
+                "kernel/cpu/irq.cc": (
+                    4308,
+                    "96356f3cfa63bbef6acf5a352e0ce89e"
+                    "d0f9b6a92174b66206f0eef7ae684ade",
+                ),
+                "kernel/cpu/ksyms.cc": (
+                    2620,
+                    "5d64f392df38b6730ff30c3099c3bdfd"
+                    "96bcc84d90740e20fd263c1ad7c94389",
+                ),
+                "kernel/fs/fat16.cc": (
+                    52084,
+                    "bee3f404245e61d92e8d6de500d0d1ef"
+                    "0b94a488b18dc7fba5b9b40ee21448c8",
+                ),
+                "kernel/fs/iso9660.cc": (
+                    13444,
+                    "e55e4612db707b47b5312685bffa4ac4"
+                    "573b96f905c7887957551bf7495b679e",
+                ),
+                "kernel/fs/loopdev.cc": (
+                    3456,
+                    "cc53a4983a96d3b4a65931beec83c092"
+                    "66fe46e596f6b84f14a0205a40d3809d",
+                ),
+                "kernel/gfx/deflate.cc": (
+                    10640,
+                    "74d24784f3ea32e0523de68b3c6fc0d3"
+                    "bd63e80df05402d7b6fa4a85f891fee8",
+                ),
+                "kernel/gfx/gfx2d.cc": (
+                    169580,
+                    "b7f700414da5687ca40935a1d1ebf01e"
+                    "acfad0237e555800ad9a1fbe392fbcb6",
+                ),
+                "kernel/gfx/png.cc": (
+                    24128,
+                    "1823778061d7eb76c9f6ef03aadd7862"
+                    "d4207a08fa5ab8731e58a84cd0dd84be",
+                ),
+                "kernel/gui/ed.cc": (
+                    54992,
+                    "7bc80e9e9371d8827ce71502df104d67"
+                    "9e47b20300c1a45969845aefdaabedf6",
+                ),
+                "kernel/lang/cupidc_parse.cc": (
+                    290084,
+                    "f5856f1ae536c7be8daadf913bd54a94"
+                    "9dd2b976e62fe1779e8e832453210375",
+                ),
+                "kernel/lang/cupidc_string.cc": (
+                    7332,
+                    "24533c70791b3c9b8f1f0d47bc5c7639"
+                    "af67e300c59eac4abbe1c9fa747598f2",
+                ),
+                "kernel/lang/ssh_io.cc": (
+                    12152,
+                    "f1bd3163beed6a1dca210ca228a12e1a"
+                    "f37223487f22ab2154701263654b464d",
+                ),
+                "kernel/mm/memory.cc": (
+                    18364,
+                    "7e0dc352c315dba8250bf7ae9b126c27"
+                    "2e0b98f2cf0bf7429a6d7675d82636c1",
+                ),
+                "kernel/network/sshd.cc": (
+                    48936,
+                    "319919ad47d1346aa2a2450f75dd4092"
+                    "f25165b4cfe569408442a4ad981509d3",
+                ),
+                "kernel/network/udp.cc": (
+                    3188,
+                    "9ec0a805ed7bdc271a49dce88f335aa1"
+                    "80588b910da075ef4cf8cf95d1efa726",
+                ),
+                "kernel/smp/bkl.cc": (
+                    3128,
+                    "254793a6970f466cf4b3d55a98e907d1"
+                    "a68649a9b6dc736edadc5697bd316fd3",
+                ),
+                "kernel/tls/tls_ca_bundle.cc": (
+                    388,
+                    "f94fe7c44ba8fbb94df7ef97f8e37c6d"
+                    "db0155eba143c07d154803a2c9171ec2",
+                ),
+            }
+            self.assertEqual(
+                {
+                    source: object_records[source]
+                    for source in SOURCE_DRIVEN_SOURCES
+                },
+                source_driven_object_records,
+            )
+            self.assertEqual(manifest["input_snapshot"]["count"], 424)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "8cd59650372a13303c33b2621e67f929"
-                "d4c0b1a7bff1a134b68bee18c50cd269",
+                "24fcfba4f006dad77a742e02b31edd88"
+                "9d3a62010adb352d6f57965377557cd1",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

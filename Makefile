@@ -302,13 +302,13 @@ kernel/cpu/isr.o: kernel/cpu/isr.asm $(CUPIDASM)
 kernel/cpu/pic.o: kernel/cpu/pic.c kernel/cpu/pic.h
 	$(CC) $(CFLAGS) -c kernel/cpu/pic.c -o kernel/cpu/pic.o
 
-kernel/cpu/irq.o: kernel/cpu/irq.c kernel/cpu/isr.h kernel/cpu/pic.h
-	$(CC) $(CFLAGS) kernel/cpu/irq.c -o kernel/cpu/irq.o
+kernel/cpu/irq.o: kernel/cpu/irq.cc kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/cpu/pic.h kernel/smp/bkl.h kernel/smp/ioapic.h kernel/smp/lapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/irq.cc --output kernel/cpu/irq.o
 
 # Symbol-table runtime + (weak) blob fallback. The strong blob lives in
 # the auto-generated kernel/cpu/ksyms_data.o; see the kernel link rule.
-kernel/cpu/ksyms.o: kernel/cpu/ksyms.c kernel/cpu/ksyms.h
-	$(CC) $(CFLAGS) kernel/cpu/ksyms.c -o kernel/cpu/ksyms.o
+kernel/cpu/ksyms.o: kernel/cpu/ksyms.cc kernel/core/types.h kernel/cpu/ksyms.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms.cc --output kernel/cpu/ksyms.o
 
 # PS/2 keyboard driver
 drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h drivers/rtc.h \
@@ -319,8 +319,8 @@ drivers/keyboard.o: drivers/keyboard.c drivers/keyboard.h drivers/rtc.h \
 	$(CUPIDC_KERNEL_COMPILE) --source drivers/keyboard.c --output drivers/keyboard.o
 
 # Add new rule for timer.o
-drivers/timer.o: drivers/timer.c drivers/timer.h
-	$(CC) $(CFLAGS) drivers/timer.c -o drivers/timer.o
+drivers/timer.o: drivers/timer.cc drivers/keyboard.h drivers/timer.h kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/timer.cc --output drivers/timer.o
 
 # Add a rule to compile math.c
 kernel/cpu/math.o: kernel/cpu/math.c kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/math.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -373,8 +373,8 @@ kernel/fs/fs.o: kernel/fs/fs.c kernel/core/string.h kernel/core/types.h kernel/f
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fs.c --output kernel/fs/fs.o
 
 # Add new rule for memory.o
-kernel/mm/memory.o: kernel/mm/memory.c kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/mm/memory.c -o kernel/mm/memory.o
+kernel/mm/memory.o: kernel/mm/memory.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/mm/memory.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/memory.cc --output kernel/mm/memory.o
 
 # PCI configuration space layer
 drivers/pci.o: drivers/pci.c drivers/pci.h drivers/serial.h \
@@ -401,8 +401,8 @@ kernel/smp/ioapic.o: kernel/smp/ioapic.c drivers/serial.h kernel/core/types.h ke
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/ioapic.c --output kernel/smp/ioapic.o
 
 # Big Kernel Lock: recursive ticket spinlock, IRQ-save (P5 T7)
-kernel/smp/bkl.o: kernel/smp/bkl.c kernel/smp/bkl.h kernel/smp/percpu.h
-	$(CC) $(CFLAGS) kernel/smp/bkl.c -o kernel/smp/bkl.o
+kernel/smp/bkl.o: kernel/smp/bkl.cc kernel/core/process.h kernel/core/types.h kernel/smp/bkl.h kernel/smp/percpu.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/bkl.cc --output kernel/smp/bkl.o
 
 # MP tables discovery (P5 SMP)
 kernel/smp/mp_tables.o: kernel/smp/mp_tables.c kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -434,8 +434,8 @@ kernel/network/icmp.o: kernel/network/icmp.c drivers/timer.h kernel/core/kernel.
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/icmp.c --output kernel/network/icmp.o
 
 # UDP: send + recv + pseudo-header checksum (P6 T9)
-kernel/network/udp.o: kernel/network/udp.c kernel/network/udp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/dhcp.h
-	$(CC) $(CFLAGS) kernel/network/udp.c -o kernel/network/udp.o
+kernel/network/udp.o: kernel/network/udp.cc drivers/serial.h kernel/core/types.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/udp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/udp.cc --output kernel/network/udp.o
 
 # Socket table + BSD UDP API (P6 T10)
 kernel/network/socket.o: kernel/network/socket.c drivers/rtc.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/sha256.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/mm/memory.h kernel/network/socket.h kernel/network/tcp.h kernel/network/udp.h kernel/smp/bkl.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -453,8 +453,8 @@ kernel/network/dhcp.o: kernel/network/dhcp.c drivers/serial.h drivers/timer.h ke
 kernel/network/dns.o: kernel/network/dns.c drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dns.h kernel/network/net_if.h kernel/network/socket.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dns.c --output kernel/network/dns.o
 
-kernel/network/sshd.o: kernel/network/sshd.c kernel/network/sshd.h kernel/network/socket.h kernel/core/process.h kernel/lang/shell.h kernel/fs/vfs.h kernel/crypto/x25519.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/p256.h kernel/crypto/ecdsa.h
-	$(CC) $(CFLAGS) kernel/network/sshd.c -o kernel/network/sshd.o
+kernel/network/sshd.o: kernel/network/sshd.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/chacha20.h kernel/crypto/csprng.h kernel/crypto/ecdsa.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/poly1305.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/fs/vfs.h kernel/lang/shell.h kernel/mm/memory.h kernel/network/socket.h kernel/network/sshd.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/sshd.cc --output kernel/network/sshd.o
 
 # RTL8139 NIC driver: PCI probe, reset, RX/TX buffers, MAC read (P6 T3)
 drivers/rtl8139.o: drivers/rtl8139.c drivers/pci.h drivers/serial.h \
@@ -529,8 +529,8 @@ kernel/crypto/x509.o: kernel/crypto/x509.c kernel/crypto/x509.h kernel/crypto/as
 kernel/crypto/x509_chain.o: kernel/crypto/x509_chain.c kernel/crypto/x509_chain.h kernel/crypto/x509.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/rsa.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509_chain.c --output kernel/crypto/x509_chain.o
 
-kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.c kernel/crypto/x509_chain.h kernel/core/types.h
-	$(CC) $(CFLAGS) -Os kernel/tls/tls_ca_bundle.c -o kernel/tls/tls_ca_bundle.o
+kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.cc kernel/core/types.h kernel/crypto/x509.h kernel/crypto/x509_chain.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle.cc --output kernel/tls/tls_ca_bundle.o
 
 kernel/tls/tls_record.o: kernel/tls/tls_record.c kernel/core/types.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/chacha20poly1305.h kernel/crypto/ct.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_record.c --output kernel/tls/tls_record.o
@@ -702,8 +702,8 @@ kernel/fs/blockcache.o: kernel/fs/blockcache.c kernel/core/debug.h kernel/core/k
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.c --output kernel/fs/blockcache.o
 
 # Add new rule for fat16.o
-kernel/fs/fat16.o: kernel/fs/fat16.c kernel/fs/fat16.h
-	$(CC) $(CFLAGS) kernel/fs/fat16.c -o kernel/fs/fat16.o
+kernel/fs/fat16.o: kernel/fs/fat16.cc drivers/serial.h kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16.cc --output kernel/fs/fat16.o
 
 # RTC (Real-Time Clock) driver
 drivers/rtc.o: drivers/rtc.c drivers/rtc.h drivers/serial.h \
@@ -712,16 +712,16 @@ drivers/rtc.o: drivers/rtc.c drivers/rtc.h drivers/serial.h \
 	$(CUPIDC_KERNEL_COMPILE) --source drivers/rtc.c --output drivers/rtc.o
 
 # Serial port driver
-drivers/serial.o: drivers/serial.c drivers/serial.h
-	$(CC) $(CFLAGS) drivers/serial.c -o drivers/serial.o
+drivers/serial.o: drivers/serial.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/ports.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source drivers/serial.cc --output drivers/serial.o
 
 # Panic handler
 kernel/core/panic.o: kernel/core/panic.c kernel/core/panic.h
 	$(CC) $(CFLAGS) kernel/core/panic.c -o kernel/core/panic.o
 
 # Ed line editor
-kernel/gui/ed.o: kernel/gui/ed.c kernel/gui/ed.h
-	$(CC) $(CFLAGS) kernel/gui/ed.c -o kernel/gui/ed.o
+kernel/gui/ed.o: kernel/gui/ed.cc drivers/keyboard.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/gui/ed.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ed.cc --output kernel/gui/ed.o
 
 # VGA graphics mode driver (no -O2: physical address reads trigger array-bounds)
 drivers/vga.o: drivers/vga.c drivers/timer.h drivers/vga.h \
@@ -757,8 +757,8 @@ kernel/util/calendar.o: kernel/util/calendar.c drivers/rtc.h kernel/core/string.
 kernel/gui/desktop.o: kernel/gui/desktop.c drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.c --output kernel/gui/desktop.o
 
-kernel/core/app_launch.o: kernel/core/app_launch.c kernel/core/app_launch.h kernel/lang/cupidc.h kernel/core/process.h kernel/lang/shell.h kernel/gui/terminal_app.h kernel/gui/ctxt_image_worker.h
-	$(CC) $(CFLAGS) kernel/core/app_launch.c -o kernel/core/app_launch.o
+kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/gui/ctxt_image_worker.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/app_launch.cc --output kernel/core/app_launch.o
 
 # Terminal application
 kernel/gui/ansi.o: kernel/gui/ansi.c kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -843,12 +843,12 @@ kernel/fs/homefs.o: kernel/fs/homefs.c drivers/serial.h kernel/core/string.h ker
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.c --output kernel/fs/homefs.o
 
 # File-backed loop block device (for ISO9660 mounting)
-kernel/fs/loopdev.o: kernel/fs/loopdev.c kernel/fs/loopdev.h kernel/fs/blockdev.h kernel/fs/vfs.h kernel/mm/memory.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/fs/loopdev.c -o kernel/fs/loopdev.o
+kernel/fs/loopdev.o: kernel/fs/loopdev.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/loopdev.cc --output kernel/fs/loopdev.o
 
 # ISO9660 / ECMA-119 + Rock Ridge parser
-kernel/fs/iso9660.o: kernel/fs/iso9660.c kernel/fs/iso9660.h kernel/fs/blockdev.h kernel/fs/vfs.h kernel/core/string.h drivers/serial.h
-	$(CC) $(CFLAGS) $(OPT) kernel/fs/iso9660.c -o kernel/fs/iso9660.o
+kernel/fs/iso9660.o: kernel/fs/iso9660.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/vfs.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660.cc --output kernel/fs/iso9660.o
 
 kernel/fs/iso9660_vfs.o: kernel/fs/iso9660_vfs.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/iso9660_vfs.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660_vfs.c --output kernel/fs/iso9660_vfs.o
@@ -880,11 +880,11 @@ kernel/core/syscall.o: kernel/core/syscall.c drivers/ata.h drivers/pci.h \
 kernel/gfx/bmp.o: kernel/gfx/bmp.c drivers/serial.h drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/bmp.c --output kernel/gfx/bmp.o
 
-kernel/gfx/png.o: kernel/gfx/png.c kernel/gfx/png.h kernel/gfx/deflate.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/png.c -o kernel/gfx/png.o
+kernel/gfx/png.o: kernel/gfx/png.cc kernel/core/types.h kernel/gfx/png.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/png.cc --output kernel/gfx/png.o
 
-kernel/gfx/deflate.o: kernel/gfx/deflate.c kernel/gfx/deflate.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/deflate.c -o kernel/gfx/deflate.o
+kernel/gfx/deflate.o: kernel/gfx/deflate.cc kernel/core/types.h kernel/gfx/deflate.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o
 
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
@@ -904,8 +904,8 @@ kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.c kernel/core/string.h kernel/cor
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.c --output kernel/fs/vfs_helpers.o
 
 # 2D graphics library (includes file dialog)
-kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.c kernel/gfx/gfx2d.h kernel/gfx/font_8x8.h drivers/vga.h kernel/fs/vfs.h kernel/gui/ui.h kernel/core/process.h drivers/keyboard.h drivers/mouse.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/gfx2d.c -o kernel/gfx/gfx2d.o
+kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/ui.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o
 
 # gfx2d subsystems
 kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.c drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/bmp.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/jpeg.h kernel/gfx/png.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -959,20 +959,20 @@ kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.c drivers/serial.h kernel/c
 kernel/lang/cupidc.o: kernel/lang/cupidc.c kernel/lang/cupidc.h kernel/lang/cupidc_string.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h kernel/gfx/gfx2d_icons.h kernel/gui/ctxt_image_worker.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc.c -o kernel/lang/cupidc.o
 
-kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.c kernel/lang/cupidc_string.h kernel/core/types.h
-	$(CC) $(CFLAGS) kernel/lang/cupidc_string.c -o kernel/lang/cupidc_string.o
+kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc_string.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o
 
 kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.c kernel/lang/cupidc.h
 	$(CC) $(CFLAGS) kernel/lang/cupidc_lex.c -o kernel/lang/cupidc_lex.o
 
-kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.c kernel/lang/cupidc.h
-	$(CC) $(CFLAGS) kernel/lang/cupidc_parse.c -o kernel/lang/cupidc_parse.o
+kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/cupidc.h kernel/lang/dis.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o
 
 kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.c drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.c --output kernel/lang/cupidc_elf.o
 
-kernel/lang/ssh_io.o: kernel/lang/ssh_io.c kernel/lang/ssh_io.h kernel/lang/shell.h drivers/keyboard.h kernel/core/process.h kernel/core/kernel.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/core/types.h
-	$(CC) $(CFLAGS) kernel/lang/ssh_io.c -o kernel/lang/ssh_io.o
+kernel/lang/ssh_io.o: kernel/lang/ssh_io.cc drivers/keyboard.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/shell.h kernel/lang/ssh_io.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o
 
 # CupidASM assembler
 kernel/lang/as.o: kernel/lang/as.c kernel/lang/as.h kernel/lang/as_elf.h kernel/lang/ctool_kernel.h kernel/lang/shell.h toolchain/cupidasm.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/mm/memory.h kernel/lang/exec.h

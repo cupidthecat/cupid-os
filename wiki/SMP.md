@@ -27,7 +27,7 @@ kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
 kernel/smp/lapic.h  / lapic.c        Local APIC driver
 kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
 kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
-kernel/smp/bkl.h    / bkl.c          big kernel lock (ticket spinlock)
+kernel/smp/bkl.h    / bkl.cc         big kernel lock (ticket spinlock)
 kernel/smp/mp_tables.h / .c      MP table discovery
 kernel/smp/acpi.h / acpi.c       ACPI MADT fallback
 kernel/lang/shell.c              `smp` shell command
@@ -566,7 +566,7 @@ Fine-grained locking would be required to remove this serialization.
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
 | `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
 | `kernel/smp/bkl.h` | `bkl_lock` / `bkl_unlock` and target-stack handoff declarations |
-| `kernel/smp/bkl.c` | Ticket spinlock implementation |
+| `kernel/smp/bkl.cc` | Ticket spinlock implementation |
 | `kernel/smp/mp_tables.h` | MP table parser API |
 | `kernel/smp/mp_tables.c` | `_MP_` scan and CPU/IOAPIC discovery |
 | `kernel/smp/acpi.h` / `kernel/smp/acpi.c` | ACPI RSDP/RSDT/XSDT/MADT fallback |

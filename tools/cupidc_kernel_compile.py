@@ -159,6 +159,28 @@ APPROVED_TOOLCHAIN_KERNEL_SOURCES = (
     "toolchain/elf32.c",
     "toolchain/x86.c",
 )
+APPROVED_SOURCE_DRIVEN_SOURCES = (
+    "drivers/serial.cc",
+    "drivers/timer.cc",
+    "kernel/core/app_launch.cc",
+    "kernel/cpu/irq.cc",
+    "kernel/cpu/ksyms.cc",
+    "kernel/fs/fat16.cc",
+    "kernel/fs/iso9660.cc",
+    "kernel/fs/loopdev.cc",
+    "kernel/gfx/deflate.cc",
+    "kernel/gfx/gfx2d.cc",
+    "kernel/gfx/png.cc",
+    "kernel/gui/ed.cc",
+    "kernel/lang/cupidc_parse.cc",
+    "kernel/lang/cupidc_string.cc",
+    "kernel/lang/ssh_io.cc",
+    "kernel/mm/memory.cc",
+    "kernel/network/sshd.cc",
+    "kernel/network/udp.cc",
+    "kernel/smp/bkl.cc",
+    "kernel/tls/tls_ca_bundle.cc",
+)
 APPROVED_KERNEL_SOURCES = tuple(
     sorted(
         APPROVED_CRYPTO_SOURCES
@@ -167,6 +189,7 @@ APPROVED_KERNEL_SOURCES = tuple(
         + APPROVED_PORT_IO_SOURCES
         + APPROVED_COMPILER_READY_SOURCES
         + APPROVED_TOOLCHAIN_KERNEL_SOURCES
+        + APPROVED_SOURCE_DRIVEN_SOURCES
     )
 )
 

@@ -144,9 +144,9 @@ core     → (nothing)
 |-----------|-------|---------|
 | Kernel entry | `kernel.c/h` | VGA, init sequence, main print functions |
 | IDT | `idt.c/h` | Interrupt descriptor table setup |
-| ISR/IRQ | `isr.asm`, `irq.c/h` | Interrupt/exception dispatching |
+| ISR/IRQ | `isr.asm`, `irq.cc/h` | Interrupt/exception dispatching |
 | PIC | `pic.c/h` | Programmable interrupt controller |
-| Memory | `memory.c/h`, `paging.c` | PMM, heap, paging, canaries, leak detection |
+| Memory | `memory.cc/h`, `paging.c` | PMM, heap, paging, canaries, leak detection |
 | VFS | `vfs.c/h` | Virtual filesystem, mount table, path resolution |
 | Panic | `panic.c/h`, `assert.h` | Crash handler, assertions |
 | Strings | `string.c/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
@@ -157,10 +157,10 @@ core     → (nothing)
 |--------|-------|-----|---------|
 | Keyboard | `keyboard.c/h` | IRQ1 | PS/2 input with modifiers |
 | Mouse | `mouse.c/h` | IRQ12 | PS/2 mouse with cursor |
-| Timer | `timer.c/h`, `pit.c/h` | IRQ0 | 200Hz PIT, uptime, sleep |
+| Timer | `timer.cc/h`, `pit.c/h` | IRQ0 | 200Hz PIT, uptime, sleep |
 | VGA | `vga.c/h` | - | VBE 640x480 32bpp, double buffering |
 | ATA | `ata.c/h` | - | PIO disk read/write |
-| Serial | `serial.c/h` | - | COM1 logging |
+| Serial | `serial.cc/h` | - | COM1 logging |
 | Speaker | `speaker.c/h` | - | PC speaker tones |
 | RTC | `rtc.c/h` | - | CMOS real-time clock |
 
@@ -169,13 +169,13 @@ core     → (nothing)
 |-----------|-------|---------|
 | Shell | `shell.c/h` | interactive shell with CWD, REPL fallback, completion, pipes/redirects |
 | CupidScript | `cupidscript*.c/h` | Bash-like scripting language |
-| Ed Editor | `ed.c/h` | Unix ed(1) line editor |
+| Ed Editor | `ed.cc/h` | Unix ed(1) line editor |
 | VFS | `vfs.c/h` | Virtual File System with mount table and path resolution |
 | RamFS | `ramfs.c/h` | In-memory filesystem (root, /bin, /tmp) |
 | DevFS | `devfs.c/h` | Device filesystem (/dev/null, zero, random, serial) |
 | FAT16 VFS | `fat16_vfs.c/h` | FAT16 VFS wrapper for /disk |
 | homefs | `homefs.c/h` | persistent `/home` image stored in `/disk/HOMEFS.SYS` |
-| FAT16 | `fat16.c/h`, `blockdev.c/h`, `blockcache.c/h` | FAT16 driver with block cache |
+| FAT16 | `fat16.cc/h`, `blockdev.c/h`, `blockcache.c/h` | FAT16 driver with block cache |
 | In-Memory FS | `fs.c/h` | Legacy read-only system file table |
 | Exec | `exec.c/h` | CUPD program loader |
 | Process Mgr | `process.c/h`, `context_switch.asm` | Scheduler, context switching |

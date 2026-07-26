@@ -66,8 +66,8 @@ EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 KNOWN_SOURCE_RELATIONS = {
     "bin/cupidc.c": ("historical_copy_of", "kernel/lang/cupidc.c"),
     "bin/cupidc_lex.c": ("historical_copy_of", "kernel/lang/cupidc_lex.c"),
-    "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.c"),
-    "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.c"),
+    "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.cc"),
+    "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.cc"),
     "bin/fat16_vfs.c": ("historical_copy_of", "kernel/fs/fat16_vfs.c"),
     "bin/kernel.c": ("historical_copy_of", "kernel/core/kernel.c"),
     "bin/terminal_app.c": ("historical_copy_of", "kernel/gui/terminal_app.c"),

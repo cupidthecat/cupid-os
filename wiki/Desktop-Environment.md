@@ -186,7 +186,7 @@ by `usb_hid.c`'s `hid_is_extended[]` table - see [USB](USB)).
 ### Remote Terminal Support
 
 The GUI terminal is also the interactive frontend for `ssh` and `telnet`.
-Those clients use `kernel/lang/ssh_io.c` to route bytes, hidden password
+Those clients use `kernel/lang/ssh_io.cc` to route bytes, hidden password
 input, window size, and special keys through the same focused Terminal window.
 
 Supported remote-terminal behavior includes:

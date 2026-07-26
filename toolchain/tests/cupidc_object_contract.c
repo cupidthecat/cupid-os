@@ -1490,7 +1490,7 @@ static int active_source_contains_joined(
 
 static int active_object_sources_are_unchanged(ctool_job_t *job) {
   return active_source_contains(
-             job, "/kernel/mm/memory.c", "load active memory source",
+             job, "/kernel/mm/memory.cc", "load active memory source",
              "the active memory alignment helper changed", active_align_up,
              NULL) &&
          active_source_contains(
@@ -11550,7 +11550,7 @@ static int run_aggregate_initializer_object(const char *host_root) {
   }
   if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
       !active_source_contains(
-          job, "/drivers/serial.c", "load active serial source",
+          job, "/drivers/serial.cc", "load active serial source",
           "the active automatic hexadecimal string changed",
           active_serial_hex_initializer, NULL) ||
       !parse_source(job, "/aggregate-string-leaf.c", string_source,

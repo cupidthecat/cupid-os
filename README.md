@@ -63,7 +63,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
-- `bin/ssh.cc` is an SSH-2 client with Curve25519 key exchange, ChaCha20-Poly1305 transport, Ed25519, RSA-SHA2, and ECDSA-P256 host-key verification, password and keyboard-interactive authentication, PTY shells, and remote execution. `bin/telnet.cc` handles IAC negotiation, TTYPE, NAWS, Ctrl-] commands, and CRLF-safe interactive sessions. `kernel/lang/ssh_io.c` connects both clients to the GUI terminal and handles hidden passwords, VT/xterm keys, resize events, and ANSI output.
+- `bin/ssh.cc` is an SSH-2 client with Curve25519 key exchange, ChaCha20-Poly1305 transport, Ed25519, RSA-SHA2, and ECDSA-P256 host-key verification, password and keyboard-interactive authentication, PTY shells, and remote execution. `bin/telnet.cc` handles IAC negotiation, TTYPE, NAWS, Ctrl-] commands, and CRLF-safe interactive sessions. `kernel/lang/ssh_io.cc` connects both clients to the GUI terminal and handles hidden passwords, VT/xterm keys, resize events, and ANSI output.
 - `bin/browser.cc` drives a browser assembled from `bin/browser/{css,dom,font_face,image,input,js_dom,js_interp,js_lex,js_parse,layout,main,nav,net,paint,parser,render_tree,style,url,url_hash,util,woff,woff2}.cc`. It has an HTML5 tokenizer and tree builder, a CSS lexer with user-agent and author cascades, specificity, variables, `calc`, external stylesheets, `@font-face`, WOFF1 support, WOFF2 fallback handling, a render-tree builder, block and inline formatting, clipping, rounded corners, box shadows, and a painter that walks the render tree. The UI supports HTTP and HTTPS, Ctrl-L for the address bar, Backspace history, link navigation, GET forms, checkboxes, text inputs, and `about:dump`.
 - `kernel/gfx/fontsys.c` registers the bundled Liberation fonts, rasterizes UTF-8 text, stores the default in `/etc/font.conf`, exposes CupidC bindings, and supplies text to the browser and `fontswitch`.
 - `kernel/audio/ac97.c` drives the PCI AC97 codec with a 32-entry BDL ring and IOC refills. `kernel/audio/mixer.c` provides 16 signed 16-bit slots for PCM and streamed sources. The repository also carries the LGPL-2.1 Nuked-OPL3 emulator, the GPL-2 chocolate-doom MUS-to-MIDI converter, and an 18-voice dispatcher in `kernel/audio/midiopl.c`. The dispatcher loads GENMIDI patches and handles the percussion bank, two-voice patches, pan, sustain, master-volume re-leveling, and single-pass resampling. `audiotest all` runs the sine, sweep, pan, OPL, and AC97-routed OPL checks.
@@ -278,19 +278,20 @@ teardown exchanges without `pexpect` or Scapy.
 
 ### Self-hosting compiler status
 
-The normal image build uses the checked CupidC seed for 116 C objects. The
-cohort keeps the established 40 kernel and driver sources, adds 71 unchanged
-sources across the kernel, and adds the shared `ctool.c`, `cupidasm.c`,
-`cupiddis.c`, `elf32.c`, and `x86.c` implementations. Typed null conversion,
+The normal image build uses the checked CupidC seed for 136 objects. The
+cohort keeps the established 40 kernel and driver sources, 71 later kernel
+and driver sources, and the shared `ctool.c`, `cupidasm.c`, `cupiddis.c`,
+`elf32.c`, and `x86.c` implementations. Twenty more source-driven roots use
+`.cc` after moving from the host compiler to CupidC. Typed null conversion,
 external-array address decay, GNU assembly operands, the per-CPU GS load,
-port I/O, integer atomics, and the wider shared C path cover these sources.
+port I/O, integer atomics, and the wider shared C path cover this cohort.
 The CSPRNG emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model
 while preserving EBX. Every object is validated as an i386 ELF32 relocatable
 before publication. A valid data-only object may omit `.text`; its remaining
 sections and symbols still receive the full bounds checks. The strict kernel
-frontier compiles all 116 sources twice to 2,268,616 byte-identical bytes. It
-freezes a 404-input snapshot with SHA-256
-`8cd59650372a13303c33b2621e67f929d4c0b1a7bff1a134b68bee18c50cd269`.
+frontier compiles all 136 sources twice to 3,020,108 byte-identical bytes. It
+freezes a 424-input snapshot with SHA-256
+`24fcfba4f006dad77a742e02b31edd889d3a62010adb352d6f57965377557cd1`.
 
 The generated ramfs, homefs, and demo installation tables are emitted as
 `.cc` sources and compiled by the checked CupidC seed. The separate `user/`
@@ -309,16 +310,15 @@ copy, the cat gate copies a fixed FAT fixture over `/home/readme.txt`,
 preserving the program's normal path and the selected image. Every program
 must produce a matching process exit.
 
-The refreshed checked seed carries another source-driven group without
-changing the active source. It emits weak ELF symbols and named sections,
-records `unused`
+The refreshed checked seed now owns the 20 source-driven roots in the normal
+build. It emits weak ELF symbols and named sections, records `unused`
 declarations, preserves typed static null pointers, recognizes known-true
 loops as non-fallthrough, lowers comma expressions in source order, and keeps
 all 32 bits through represented function-pointer casts. Exact output-only
 assembly forms snapshot general registers, ESP, EBP, the caller return slot,
-or EFLAGS into one four-byte destination. Twenty of the 38 strict roots left
-after the 116-source handoff compile with the refreshed checked seed.
-Production ownership waits for the normal frontier, image, and runtime gates.
+or EFLAGS into one four-byte destination. The files were renamed to `.cc`
+with the ownership transfer. Eighteen strict checked-in roots remain on the
+host compiler.
 
 Function-body GNU assembly may have no operands. Basic statements and
 extended statements with an empty output list are implicitly volatile. Exact
@@ -365,12 +365,12 @@ wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
 ownership path. Each transferred Make recipe carries its exact recursive
 header closure.
 
-Separate poisoned-host checks cover all 116 recipes. The check fails if a
+Separate poisoned-host checks cover all 136 recipes. The check fails if a
 CupidC-owned object reaches Clang or GCC. Across the three supported build
-roots, the current audit assigns 122 transforms to CupidC, 175 C transforms
-to the host compiler, and 134 transforms to host Python. The 122 CupidC
-transforms are the 116-object normal cohort, three generated installation
-tables, and three example programs. The host compiler still produces 123 root
+roots, the current audit assigns 142 transforms to CupidC, 155 C transforms
+to the host compiler, and 154 transforms to host Python. The 142 CupidC
+transforms are the 136-object normal cohort, three generated installation
+tables, and three example programs. The host compiler still produces 103 root
 objects. The four-vCPU GUI contract reaches SMP startup,
 RDRAND and all 62 crypto checks, the desktop, terminal, e1000 network, and
 in-OS CupidC execution at `0x01100000`. The wider USB and dual-NIC gates from
@@ -403,7 +403,7 @@ CupidC emits the repository's i386 Linux runtime and five command closures: Cupi
 
 The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Both options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file.
 
-The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,000,636-byte stage-three image with SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`. It carries the source-driven frontier from revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af`, including weak symbols, named sections, unused declarations, typed static nulls, known-true loop reachability, comma expressions, represented function-pointer casts, and output-only register snapshots. The harness pins the build plan independently, freezes the verified manifest and binaries, and captures 40 live inputs, including `link.ld`. Seed CupidC, CupidASM, and CupidLD build stage two, then the stage-two producer trio repeats the work for stage three. The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and most normal Cupid OS C objects. Native Windows tooling and the remaining production handoff stay open.
+The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,000,636-byte stage-three image with SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`. It carries the source-driven frontier from revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af`, including weak symbols, named sections, unused declarations, typed static nulls, known-true loop reachability, comma expressions, represented function-pointer casts, and output-only register snapshots. The harness pins the build plan independently, freezes the verified manifest and binaries, and captures 40 live inputs, including `link.ld`. Seed CupidC, CupidASM, and CupidLD build stage two, then the stage-two producer trio repeats the work for stage three. The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and 103 normal Cupid OS root objects. Native Windows tooling and the remaining production handoff stay open.
 
 Hosted i386 object emission places ESP on a sixteen-byte boundary immediately before every `CALL`. The emitter derives padding from the function frame, the live Linear IR stack depth, and any outgoing target-sized argument area. Direct and indirect calls use the same rule for prototyped, variadic, unprototyped, nested, structure, and wide cases, with zero, four, eight, or twelve bytes of padding as needed.
 
@@ -424,12 +424,14 @@ Block-scope compound literals use the shared initializer walker and one persiste
 Runtime narrow string expressions now receive deterministic local `.rodata` symbols and `R_386_32` relocations, so pointer initialization, arguments, indexing, and returns use normal array decay. File-scope and other static-duration compound literals, variable-length literals, and the named-aggregate backward-jump alias case remain open under issue #25. Top-level union and Cupid class values, aggregate members selected from structure rvalues, explicit bit-field initializer leaves, volatile or atomic aggregate access, over-aligned structures, Boolean mutation, and broader floating computation or conversion remain open. Block-static addresses in other block-static initializers, arithmetic or explicit casts on static string addresses, wide strings, literal pooling, atomic and aggregate variadic values, and production integration also remain open. A copied structure may contain union, wide, or floating members because this path moves its complete target representation. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md), [ADR 0049](docs/adr/0049-cupidc-structure-values-and-cdecl-abi.md), [ADR 0050](docs/adr/0050-cupidc-sixteen-byte-call-alignment.md), [ADR 0051](docs/adr/0051-cupidc-block-scope-static-object-emission.md), [ADR 0052](docs/adr/0052-cupidc-block-scope-compound-literals.md), [ADR 0053](docs/adr/0053-cupidc-runtime-narrow-strings.md), [ADR 0054](docs/adr/0054-cupidc-scalar-variadic-calls.md), [ADR 0055](docs/adr/0055-cupidc-scalar-variadic-callees.md), [ADR 0056](docs/adr/0056-cupidc-empty-identifier-list-functions.md), [ADR 0057](docs/adr/0057-cupidc-block-scope-record-tags.md), [ADR 0058](docs/adr/0058-cupidc-block-scope-extern-objects.md), [ADR 0059](docs/adr/0059-cupidc-block-scope-typedefs.md), [ADR 0060](docs/adr/0060-cupidc-block-scope-function-declarations.md), [ADR 0061](docs/adr/0061-cupidc-block-scope-enums.md), [ADR 0062](docs/adr/0062-cupidc-nested-block-enum-definitions.md), [ADR 0063](docs/adr/0063-cupidc-bit-field-assignments.md), [ADR 0064](docs/adr/0064-cupidc-bit-field-mutation.md), [ADR 0065](docs/adr/0065-cupidc-wide-integer-returns.md), [ADR 0066](docs/adr/0066-cupidc-wide-integer-object-values.md), [ADR 0067](docs/adr/0067-cupidc-wide-integer-parameters-and-arguments.md), [ADR 0068](docs/adr/0068-cupidc-wide-integer-shifts-and-conversions.md), [ADR 0069](docs/adr/0069-cupidc-wide-integer-comparisons-and-conditions.md), [ADR 0070](docs/adr/0070-cupidc-wide-integer-addition-subtraction-and-unary.md), [ADR 0071](docs/adr/0071-cupidc-wide-integer-switch-dispatch.md), [ADR 0072](docs/adr/0072-cupidc-wide-integer-multiplication.md), [ADR 0073](docs/adr/0073-cupidc-wide-integer-division-and-remainder.md), [ADR 0074](docs/adr/0074-cupidc-wide-integer-mutation.md), [ADR 0075](docs/adr/0075-cupidc-wide-integer-variadics.md), [ADR 0076](docs/adr/0076-cupidc-floating-scalar-transport.md), [ADR 0077](docs/adr/0077-cupidc-float-default-argument-promotion.md), and [ADR 0078](docs/adr/0078-private-cupidc-tagged-control-frames.md).
 
 Here, production integration means the remaining host-owned graph. The
-checked-seed path already owns the 116-source production cohort described
+checked-seed path already owns the 136-source production cohort described
 above.
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
 
 [ADR 0081](docs/adr/0081-cupidc-self-host-source-frontier.md) records the hermetic Toolchain source and object frontier. [ADR 0082](docs/adr/0082-cupidc-i386-linux-host-abi.md) records the checked adapter declarations. [ADR 0085](docs/adr/0085-static-i386-host-adapter-link-tracer.md) records the earlier static link tracer. [ADR 0086](docs/adr/0086-cupid-built-i386-linux-tools.md) records the repository runtime and the first four static Linux commands. [ADR 0087](docs/adr/0087-cupidc-immediate-pointer-qualification.md) records the nested pointer qualification boundary. [ADR 0088](docs/adr/0088-cupid-built-cupidc-driver.md) records the compiler driver and first generation check. [ADR 0089](docs/adr/0089-cupidc-i386-compiler-fixed-point.md) records the complete i386 Linux compiler fixed point. [ADR 0090](docs/adr/0090-static-i386-toolchain-fixed-point.md) records the five-tool fixed point and its producer lineage. [ADR 0092](docs/adr/0092-checked-i386-linux-bootstrap-seed.md) records the first checked seed, verification boundary, and source-drift guard. [ADR 0097](docs/adr/0097-refresh-the-checked-i386-linux-seed.md) records the first stage-three seed refresh. [ADR 0102](docs/adr/0102-refresh-seed-for-smp-compiler-support.md) records the SMP compiler seed, [ADR 0106](docs/adr/0106-refresh-seed-for-port-io-compiler-support.md) records the port-I/O compiler seed and poisoned-host reproof, [ADR 0107](docs/adr/0107-cupidc-gnu-atomic-fetch-or.md) records compiler-head fetch-or, [ADR 0108](docs/adr/0108-refresh-seed-for-atomic-fetch-or.md) records its checked-seed promotion, [ADR 0110](docs/adr/0110-cupidc-production-cutover.md) records the 40-source production cutover, [ADR 0111](docs/adr/0111-expand-cupidc-production-ownership.md) records the 116-source expansion and memory map, [ADR 0112](docs/adr/0112-check-generated-and-user-cupidc-builds.md) records the generated and external-program handoff, [ADR 0113](docs/adr/0113-expand-the-source-driven-cupidc-frontier.md) records the source-driven compiler frontier, and [ADR 0114](docs/adr/0114-refresh-seed-for-the-source-driven-frontier.md) records its checked-seed promotion.
+
+[ADR 0115](docs/adr/0115-transfer-the-source-driven-roots-to-cupidc.md) records the 20-root `.cc` ownership transfer.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 
@@ -554,7 +556,7 @@ LBA 16384+  FAT16 partition (mounted as /disk)
 |------|-------------|
 | `kernel.c/.h` | kmain() entry, initializes IDT/GDT/PIC/PIT/keyboard/mouse/VBE, starts desktop |
 | `idt.c/.h` | IDT setup, 256 gate descriptors |
-| `irq.c/.h` | IRQ dispatch, handler registration |
+| `irq.cc/.h` | IRQ dispatch, handler registration |
 | `pic.c/.h` | 8259 PIC init, IRQ masking, EOI |
 | `panic.c/.h` | Kernel panic with register dump and stack trace |
 | `ports.h` | inb/outb/inw/outw port I/O macros |
@@ -564,7 +566,7 @@ LBA 16384+  FAT16 partition (mounted as /disk)
 
 | File | What it does |
 |------|-------------|
-| `memory.c/.h` | Physical memory manager, bitmap allocator over 512MB, kernel heap |
+| `memory.cc/.h` | Physical memory manager, bitmap allocator over 512MB, kernel heap |
 | `paging.c` | Page tables, identity-mapped address space |
 
 The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at `0x00D00000..0x00F00000`.
@@ -586,7 +588,7 @@ The preemptive scheduler supports up to 32 threads. IRQ0 runs at 200 Hz and prov
 | `vfs_helpers.c/.h` | read_all(), write_all(), read_text(), write_text() |
 | `ramfs.c/.h` | In-memory root filesystem, populated at boot with programs/docs/demos |
 | `devfs.c/.h` | /dev entries: null, zero, console, serial, random |
-| `fat16.c/.h` | FAT16: MBR parsing, cluster chains, file read/write/create |
+| `fat16.cc/.h` | FAT16: MBR parsing, cluster chains, file read/write/create |
 | `fat16_vfs.c/.h` | FAT16 to VFS adapter |
 | `homefs.c/.h` | Persistent logical filesystem for /home, serialized to HOMEFS.SYS |
 | `blockdev.c/.h` | Block device abstraction |
@@ -608,7 +610,7 @@ Filesystem layout at runtime:
 | File | What it does |
 |------|-------------|
 | `graphics.c/.h` | Pixel, line, rect primitives with clipping |
-| `gfx2d.c/.h` | Gradients (H/V/radial), shadows, dither, alpha blending, file dialogs |
+| `gfx2d.cc/.h` | Gradients (H/V/radial), shadows, dither, alpha blending, file dialogs |
 | `gfx2d_effects.c/.h` | Blur, sharpen, sepia, noise, color manipulation |
 | `gfx2d_icons.c/.h` | Desktop icon registration, hit-testing, drag and drop |
 | `gfx2d_assets.c/.h` | Texture loading and caching |
@@ -645,11 +647,11 @@ Themes include Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, T
 | `terminal_ansi.c/.h` | ANSI escape sequence parser: colors, cursor positioning, screen clear |
 | `calendar.c/.h` | Date/time math, RTC integration, taskbar clock, calendar popup |
 | `clipboard.c/.h` | System clipboard, shared across Notepad and Terminal |
-| `ed.c/.h` | Original line editor in C, superseded by ed.cc |
+| `ed.cc/.h` | Kernel line editor, separate from the `bin/ed.cc` program |
 
 ### Compilers and languages
 
-CupidC (`cupidc*.c`) is a compiler for a HolyC-inspired C dialect:
+CupidC (`kernel/lang/cupidc*`) is a compiler for a HolyC-inspired C dialect:
 
 - Single-pass recursive descent compiler
 - JIT mode: compile and run .cc files in memory immediately
@@ -703,11 +705,11 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 | `keyboard.c/.h` | PS/2 keyboard on IRQ1, scancode to ASCII, modifiers, key repeat, circular buffer |
 | `mouse.c/.h` | PS/2 mouse on IRQ12, 3-byte packet parsing, scroll wheel, cursor |
 | `pit.c/.h` | 8254 PIT channel 0 at 200Hz, channel 2 for speaker |
-| `timer.c/.h` | Tick counter, sleep(), multi-channel timer callbacks |
+| `timer.cc/.h` | Tick counter, sleep(), multi-channel timer callbacks |
 | `speaker.c/.h` | PC speaker beep via port 0x61 |
 | `ata.c/.h` | ATA/IDE PIO, 28-bit LBA, IDENTIFY, read/write on primary channel |
 | `rtc.c/.h` | Real-time clock from CMOS, BCD to binary, NMI masking |
-| `serial.c/.h` | COM1 at 115200 baud, used for kernel debug output |
+| `serial.cc/.h` | COM1 at 115200 baud, used for kernel debug output |
 
 ---
 

@@ -133,8 +133,8 @@ cupid-os/
 │   ├── mouse.c/h              # PS/2 mouse (IRQ12)
 │   ├── vga.c/h                # VBE 640x480 32bpp
 │   ├── ata.c/h                # ATA/IDE disk
-│   ├── serial.c/h             # COM1 serial port
-│   ├── timer.c/h + pit.c/h    # PIT timer
+│   ├── serial.cc/h            # COM1 serial port
+│   ├── timer.cc/h + pit.c/h   # PIT timer
 │   ├── rtl8139.c/h            # Realtek NIC
 │   ├── e1000.c/h              # Intel NIC
 │   └── speaker.c/h            # PC speaker

@@ -20,7 +20,7 @@ cupid-os uses a Linux-style **Virtual File System (VFS)** to expose one file API
 │ (ramfs.c)  │ (devfs.c)  │   (fat16_vfs.c)        │
 │            │            ├────────────────────────┤
 │ /          │ /dev       │   FAT16 Driver         │
-│ /bin       │            │   (fat16.c)            │
+│ /bin       │            │   (fat16.cc)           │
 │ /tmp       │            ├────────────────────────┤
 │            │            │   Block Cache (LRU)    │
 │            │            │   (blockcache.c)       │
@@ -299,7 +299,7 @@ exec("/home/hello", "hello")
 
 ### ELF32 Programs (Primary Format)
 
-ELF is the primary binary format. The hosted examples are compiled to relocatable objects with GCC or Clang, linked with CupidLD, and receive a **syscall table** pointer as their first argument. See [ELF Programs](ELF-Programs) for compilation instructions, the API reference, and examples.
+ELF is the primary binary format. Checked CupidC compiles the hosted examples to relocatable objects, CupidLD links them, and each program receives a **syscall table** pointer as its first argument. See [ELF Programs](ELF-Programs) for compilation instructions, the API reference, and examples.
 
 **Quick example:**
 

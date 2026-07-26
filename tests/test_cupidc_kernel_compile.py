@@ -152,6 +152,28 @@ TOOLCHAIN_KERNEL_SOURCES = (
     "toolchain/elf32.c",
     "toolchain/x86.c",
 )
+SOURCE_DRIVEN_SOURCES = (
+    "drivers/serial.cc",
+    "drivers/timer.cc",
+    "kernel/core/app_launch.cc",
+    "kernel/cpu/irq.cc",
+    "kernel/cpu/ksyms.cc",
+    "kernel/fs/fat16.cc",
+    "kernel/fs/iso9660.cc",
+    "kernel/fs/loopdev.cc",
+    "kernel/gfx/deflate.cc",
+    "kernel/gfx/gfx2d.cc",
+    "kernel/gfx/png.cc",
+    "kernel/gui/ed.cc",
+    "kernel/lang/cupidc_parse.cc",
+    "kernel/lang/cupidc_string.cc",
+    "kernel/lang/ssh_io.cc",
+    "kernel/mm/memory.cc",
+    "kernel/network/sshd.cc",
+    "kernel/network/udp.cc",
+    "kernel/smp/bkl.cc",
+    "kernel/tls/tls_ca_bundle.cc",
+)
 NEW_PRODUCTION_SOURCES = (
     COMPILER_READY_SOURCES + TOOLCHAIN_KERNEL_SOURCES
 )
@@ -163,6 +185,7 @@ KERNEL_SOURCES = tuple(
         + PORT_IO_SOURCES
         + COMPILER_READY_SOURCES
         + TOOLCHAIN_KERNEL_SOURCES
+        + SOURCE_DRIVEN_SOURCES
     )
 )
 
@@ -713,11 +736,15 @@ class KernelCompileCommandTests(unittest.TestCase):
             TOOLCHAIN_KERNEL_SOURCES,
         )
         self.assertEqual(
+            kernel_compile.APPROVED_SOURCE_DRIVEN_SOURCES,
+            SOURCE_DRIVEN_SOURCES,
+        )
+        self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
             KERNEL_SOURCES,
         )
-        self.assertEqual(len(KERNEL_SOURCES), 116)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 116)
+        self.assertEqual(len(KERNEL_SOURCES), 136)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 136)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -884,7 +911,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
         )
 
         for source, headers in OPERAND_FREE_DEPENDENCIES.items():
-            output = source.removesuffix(".c") + ".o"
+            output = Path(source).with_suffix(".o").as_posix()
             match = re.search(
                 rf"^{re.escape(output)}: ([^\n]+)$",
                 makefile,
@@ -901,7 +928,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             )
 
         for source, headers in PORT_IO_DEPENDENCIES.items():
-            output = source.removesuffix(".c") + ".o"
+            output = Path(source).with_suffix(".o").as_posix()
             match = re.search(
                 rf"^{re.escape(output)}: ([^\n]+)$",
                 logical_makefile,
@@ -943,8 +970,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
                     pending.extend(entry["includes"])
             return closure
 
-        for source in NEW_PRODUCTION_SOURCES:
-            output = source.removesuffix(".c") + ".o"
+        for source in NEW_PRODUCTION_SOURCES + SOURCE_DRIVEN_SOURCES:
+            output = Path(source).with_suffix(".o").as_posix()
             match = re.search(
                 rf"^{re.escape(output)}: ([^\n]+)$",
                 logical_makefile,
@@ -975,7 +1002,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
 
     def test_new_production_targets_do_not_expand_to_the_host_compiler(self):
         targets = [
-            source.removesuffix(".c") + ".o"
+            Path(source).with_suffix(".o").as_posix()
             for source in NEW_PRODUCTION_SOURCES
         ]
         result = subprocess.run(
@@ -1008,6 +1035,54 @@ class KernelCompileMakefileTests(unittest.TestCase):
             result.stdout + result.stderr,
         )
 
+    def test_source_driven_targets_do_not_expand_to_host_tools(self):
+        poison = "__host_tool_must_not_run__"
+        targets = [
+            Path(source).with_suffix(".o").as_posix()
+            for source in SOURCE_DRIVEN_SOURCES
+        ]
+        result = subprocess.run(
+            [
+                "make",
+                "-B",
+                "-n",
+                *[
+                    f"{variable}={poison}"
+                    for variable in (
+                        "CC",
+                        "CXX",
+                        "CPP",
+                        "HOSTCC",
+                        "HOSTCXX",
+                        "ASM",
+                        "LD",
+                        "AR",
+                        "NM",
+                        "OBJCOPY",
+                    )
+                ],
+                *targets,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [
+            line
+            for line in result.stdout.splitlines()
+            if "tools/cupidc_kernel_compile.py" in line
+        ]
+        self.assertEqual(len(commands), len(SOURCE_DRIVEN_SOURCES))
+        for source in SOURCE_DRIVEN_SOURCES:
+            self.assertEqual(
+                sum(f"--source {source}" in command for command in commands),
+                1,
+                source,
+            )
+        self.assertNotIn(poison, result.stdout + result.stderr)
+
     def test_smp_targets_do_not_expand_to_the_host_compiler(self):
         result = subprocess.run(
             [
@@ -1039,7 +1114,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
 
     def test_operand_free_targets_do_not_expand_to_the_host_compiler(self):
         targets = [
-            source.removesuffix(".c") + ".o"
+            Path(source).with_suffix(".o").as_posix()
             for source in OPERAND_FREE_SOURCES
         ]
         result = subprocess.run(
@@ -1074,7 +1149,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
 
     def test_port_io_targets_do_not_expand_to_the_host_compiler(self):
         targets = [
-            source.removesuffix(".c") + ".o"
+            Path(source).with_suffix(".o").as_posix()
             for source in PORT_IO_SOURCES
         ]
         result = subprocess.run(
@@ -1171,14 +1246,14 @@ class KernelCompileOperationTests(unittest.TestCase):
         executor = FakeExecutor(root)
 
         for relative in (
-            "drivers/serial.c",
+            "kernel/core/panic.c",
             "kernel/audio/nuked_opl3.c",
             "kernel/core/string.c",
             "kernel/crypto/new_cipher.c",
-            "kernel/gfx/png.c",
-            "kernel/gui/ed.c",
+            "kernel/gfx/jpeg.c",
+            "kernel/gui/terminal_ansi.c",
             "kernel/lang/as.c",
-            "kernel/network/udp.c",
+            "kernel/mm/paging.c",
             "kernel/smp/percpu.c",
         ):
             source = root / relative
@@ -1458,7 +1533,12 @@ class KernelCompileCliTests(unittest.TestCase):
             dir=REPO_ROOT,
         ) as temporary:
             for source in PORT_IO_SOURCES:
-                output_name = source.removesuffix(".c").replace("/", "-") + ".o"
+                output_name = (
+                    Path(source)
+                    .with_suffix(".o")
+                    .as_posix()
+                    .replace("/", "-")
+                )
                 output = Path(temporary) / output_name
                 status = kernel_compile.main(
                     [

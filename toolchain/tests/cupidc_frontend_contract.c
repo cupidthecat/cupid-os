@@ -3315,7 +3315,7 @@ static int run_unused_attributes(const char *host_root) {
   fixture.parse_request.gnu_extensions = CTOOL_TRUE;
   if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
                            forced_includes) != 0 ||
-      parse_loaded_fixture(&fixture, "/kernel/lang/cupidc_parse.c",
+      parse_loaded_fixture(&fixture, "/kernel/lang/cupidc_parse.cc",
                            "cc_xmm_reset", 0u, &unit) != 0) {
     goto cleanup;
   }

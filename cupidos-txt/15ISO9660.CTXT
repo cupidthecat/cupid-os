@@ -76,14 +76,14 @@ Stack layers (top to bottom):
   shell `mount`
     vfs_mount
       iso9660_vfs  (adapter, 4-slot pool)
-        iso9660.c  (PVD / dir records / SUSP)
-          loopdev.c  (file-backed block_device_t)
+        iso9660.cc  (PVD / dir records / SUSP)
+          loopdev.cc  (file-backed block_device_t)
             blockcache  (existing LRU sector cache)
               vfs_read on the .iso file
 
 Source files:
-  kernel/iso9660.h + iso9660.c   PVD parser, directory walker, SUSP/RR
-  kernel/fs/loopdev.c            file-backed block device adapter
+  kernel/iso9660.h + iso9660.cc   PVD parser, directory walker, SUSP/RR
+  kernel/fs/loopdev.cc           file-backed block device adapter
   kernel/iso9660_vfs.c           VFS mount/open/read/readdir adapter
 >endtree
 

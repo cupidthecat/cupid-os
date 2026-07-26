@@ -2314,7 +2314,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active AES word rotation changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/mm/memory.c");
+  path.text = ctool_string("/kernel/mm/memory.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active memory source") ||
@@ -2454,7 +2454,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active bool or timer type changed\n");
     return 0;
   }
-  path.text = ctool_string("/drivers/timer.c");
+  path.text = ctool_string("/drivers/timer.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active timer source") ||

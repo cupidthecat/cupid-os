@@ -485,8 +485,8 @@ MBR parsing (sector 0):
 >box
 USB mass-storage automount is not implemented.
 
-fat16.c is a single-instance driver hardcoded to ATA. Mounting a second
-FAT16 volume requires per-instance state refactoring throughout fat16.c.
+fat16.cc is a single-instance driver hardcoded to ATA. Mounting a second
+FAT16 volume requires per-instance state refactoring throughout fat16.cc.
 
 USB mass storage currently exposes a raw block device only.
 MBR partitions are detected and logged at enumeration time.

@@ -723,7 +723,7 @@ FAT16 partition types detected: `0x04`, `0x06`, `0x0E`.
 > USB mass-storage devices register as raw block devices such as `usb0`, and
 > MBR partitions are detected and logged. Direct block reads and writes work,
 > but FAT16 filesystem operations on USB drives do not. The FAT16 VFS
-> implementation in `kernel/fs/fat16.c` is a single instance tied to the ATA
+> implementation in `kernel/fs/fat16.cc` is a single instance tied to the ATA
 > block device. Supporting a second volume requires moving its state into a
 > heap-allocated instance passed through each VFS call, then connecting
 > `usb_msc_probe()` to `fat16_mount()`.

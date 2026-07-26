@@ -20,9 +20,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 268 |
+| `c` | 248 |
 | `c_header` | 270 |
-| `cupid_c` | 133 |
+| `cupid_c` | 153 |
 
 ## Source cohorts
 
@@ -76,12 +76,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 122 |
+| `cupid_c_compiler` | 142 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 175 |
-| `host_python` | 134 |
+| `host_c_compiler` | 155 |
+| `host_python` | 154 |
 | `make` | 4 |
 
 ## Feature inventory
@@ -105,7 +105,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 4407 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 640 |
-| `c.output` | 1 | 239 |
+| `c.output` | 1 | 219 |
 | `c.preprocessor` | 18 | 6660 |
 | `c.qualifier` | 2 | 12115 |
 | `c.storage` | 4 | 8015 |
@@ -115,8 +115,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 6 |
-| `cupid_c.storage` | 2 | 2 |
+| `cupid_c.output` | 1 | 26 |
+| `cupid_c.storage` | 2 | 17 |
 | `cupid_c.type` | 12 | 152 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
@@ -151,7 +151,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 135 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 155 |
 
 ## Source-cohort migration order
 
@@ -184,8 +184,8 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/build.cup` | `cupid_script` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
 | `bin/cupidc.c` | `c` | `historical_copy` | 1955 | historical_copy_of: `kernel/lang/cupidc.c` |
 | `bin/cupidc_lex.c` | `c` | `historical_copy` | 647 | historical_copy_of: `kernel/lang/cupidc_lex.c` |
-| `bin/cupidc_parse.c` | `c` | `historical_copy` | 4111 | historical_copy_of: `kernel/lang/cupidc_parse.c` |
-| `bin/fat16.c` | `c` | `historical_copy` | 1468 | historical_copy_of: `kernel/fs/fat16.c` |
+| `bin/cupidc_parse.c` | `c` | `historical_copy` | 4111 | historical_copy_of: `kernel/lang/cupidc_parse.cc` |
+| `bin/fat16.c` | `c` | `historical_copy` | 1468 | historical_copy_of: `kernel/fs/fat16.cc` |
 | `bin/fat16_vfs.c` | `c` | `historical_copy` | 423 | historical_copy_of: `kernel/fs/fat16_vfs.c` |
 | `bin/kernel.c` | `c` | `historical_copy` | 719 | historical_copy_of: `kernel/core/kernel.c` |
 | `bin/old_cc2.cc` | `cupid_c` | `explicitly_excluded` | 2 | listed in a Make filter-out expression |

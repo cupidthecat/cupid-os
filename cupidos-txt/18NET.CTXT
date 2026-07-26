@@ -33,7 +33,7 @@ Kernel network files:
   kernel/network/arp.h    / arp.c     ARP cache, blocking resolve
   kernel/network/ip.h     / ip.c      IPv4 parse, route, dispatch
   kernel/network/icmp.h   / icmp.c    ICMP echo reply
-  kernel/network/udp.h    / udp.c     UDP send/recv
+  kernel/network/udp.h    / udp.cc    UDP send/recv
   kernel/network/tcp.h    / tcp.c     RFC 793 subset state machine
   kernel/network/socket.h / socket.c  32-slot BSD socket table + API
   kernel/network/dhcp.h   / dhcp.c    DHCP + static fallback
@@ -54,7 +54,7 @@ Layer diagram (app at top, silicon at bottom):
     dns_resolve(name) -> ipv4
   kernel/network/socket.c: 32-slot socket_t table
     type, state, tx_buf/rx_buf, TCP state machine
-  kernel/network/{tcp,udp,icmp}.c
+  kernel/network/tcp.c, kernel/network/udp.cc, kernel/network/icmp.c
     TCP state machine     UDP datagram     ICMP echo reply
   kernel/network/ip.c: IPv4 send + dispatch
     ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send
@@ -947,7 +947,7 @@ These constraints define the Tier 4 scope.
   kernel/network/icmp.h      ICMP header struct, icmp_input declaration
   kernel/network/icmp.c      Echo request -> echo reply
   kernel/network/udp.h       UDP header struct, udp_send_raw, udp_input
-  kernel/network/udp.c       UDP send + receive + pseudo-header checksum
+  kernel/network/udp.cc      UDP send + receive + pseudo-header checksum
   kernel/network/tcp.h       tcp_hdr_t, flag macros, TCP_MSS, TCP_RTO_MS, API
   kernel/network/tcp.c       RFC 793 state machine, tcp_tick, ~1200 LOC
   kernel/network/socket.h    socket_t, error codes, tcp_state_t, BSD API declarations
@@ -967,8 +967,8 @@ These constraints define the Tier 4 scope.
   bin/ssh.cc                    SSH-2 client
   bin/telnet.cc                 Telnet client
   bin/browser.cc + browser/*.cc HTTP/HTTPS browser stack
-  kernel/network/sshd.c         SSH server
-  kernel/lang/ssh_io.c          Terminal bridge for SSH/Telnet clients
+  kernel/network/sshd.cc        SSH server
+  kernel/lang/ssh_io.cc         Terminal bridge for SSH/Telnet clients
   tools/net_test.py             standard-library headless QEMU driver,
                                 host socket, captures tests/<nic>.pcap
   tools/net_pcap.py             standard-library wire-format verifier

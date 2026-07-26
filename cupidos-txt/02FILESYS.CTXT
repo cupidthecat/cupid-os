@@ -108,7 +108,7 @@ diagnostics.
 >h2 ISO9660 Loop-Mount
 >tree open ISO9660 Loop-Mount
 ISO 9660 images (.iso) can be mounted read-only at arbitrary mount points
-via the loop device adapter (kernel/fs/loopdev.c + kernel/fs/iso9660_vfs.c).
+via the loop device adapter (kernel/fs/loopdev.cc + kernel/fs/iso9660_vfs.c).
 
 Example:
   mount /disk/hello.iso /iso

@@ -9441,3 +9441,132 @@ directory. This kept the user files untouched and made the published
 snapshot reproducible from a clean checkout. Seed verification and the
 active-build audit check also passed inside that isolated tree; the audit
 check took 44.6 seconds.
+
+## 2026-07-25: transfer 20 source-driven roots to CupidC
+
+The normal Make graph now compiles 20 more production roots with the checked
+CupidC seed. Each source was renamed from `.c` to `.cc` in the same transfer:
+
+- `drivers/serial.cc` and `drivers/timer.cc`
+- `kernel/core/app_launch.cc`
+- `kernel/cpu/irq.cc` and `kernel/cpu/ksyms.cc`
+- `kernel/fs/fat16.cc`, `kernel/fs/iso9660.cc`, and `kernel/fs/loopdev.cc`
+- `kernel/gfx/deflate.cc`, `kernel/gfx/gfx2d.cc`, and `kernel/gfx/png.cc`
+- `kernel/gui/ed.cc`
+- `kernel/lang/cupidc_parse.cc`, `kernel/lang/cupidc_string.cc`, and
+  `kernel/lang/ssh_io.cc`
+- `kernel/mm/memory.cc`
+- `kernel/network/sshd.cc` and `kernel/network/udp.cc`
+- `kernel/smp/bkl.cc`
+- `kernel/tls/tls_ca_bundle.cc`
+
+Every target names its recursive header closure and the shared checked-seed
+controls. The wrapper has an explicit allowlist for the new paths. Object
+derivation now uses the source suffix rather than assuming that every
+production input ends in `.c`.
+
+The generated `kernel/cpu/ksyms_data.c` did not move. It requires the
+unrepresented `used` attribute, so treating it as CupidC-owned would hide a
+real compiler gap. Eighteen strict checked-in roots remain on the host
+compiler.
+
+### Ownership and frontier evidence
+
+The production cohort grew from 116 to 136 roots. Its strict frontier watches
+424 inputs with SHA-256
+`24fcfba4f006dad77a742e02b31edd889d3a62010adb352d6f57965377557cd1`.
+Two complete runs emitted 3,020,108 byte-identical i386 ELF32 bytes. The
+79,499-byte manifest has SHA-256
+`6f3a32807e2c8756b8a38041ed3b9c95a9b8778ba6f1fb490f461431f3d0b40c`.
+Tests pin the size and hash of each transferred object.
+
+An actual forced Make run set `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`,
+`ASM`, `LD`, `AR`, `NM`, and `OBJCOPY` to failing commands. All 20 objects
+were produced through the checked wrapper, with one CupidC invocation per
+root and no poisoned command invocation.
+
+The regenerated active graph contains 698 sources, 253 feature IDs, 500
+transforms, and 42 accounted unreachable files. The language split is 248 C
+files, 270 C headers, 153 Cupid C files, and 27 assembly files. CupidC owns
+142 transforms, host C owns 155, host Python owns 154, CupidASM owns four,
+CupidDis owns one, CupidLD owns five, and CupidObj owns 182. The host compiler
+produces 103 root objects. The active-source digest is
+`58abaec6b74a7f548c8013199c7228f2a5bd5aa7cd78dc31d9e8d248e5d4d117`.
+The 1,502,923-byte audit JSON has SHA-256
+`81b7359bc3d360997e3807f56dca4cef628f1612e9970b9fa9677fe355c26e64`.
+The 14,851-byte summary has SHA-256
+`cc0994b0fa4c27f006f92d2b4a5ac616005aaebf25fedc5f8a14d8e162974a68`.
+
+The first complete audit test run found a stale occurrence lock. Renaming and
+transferring the roots changed the measured `sizeof` count from 4,355 to
+4,365. The generated audit was correct, while the test still expected the
+old value. The lock was updated from the measured graph, its focused
+regression passed, and the complete 55-test audit module then passed in
+386.449 seconds.
+
+The full frontend contract then found five more stale inventory locks. The
+generated graph measures 3,557 `for`, 2,614 `while`, 31,060 `if`, 4,119
+`else`, and 1,902 `goto` occurrences. The tests and the human summary now use
+those measured values.
+
+The first generated-install proof predated the final CupidOS text edits.
+Spec review found that its input closure did not match the staged
+`04CUPIDC.CTXT`. A fresh exact-index tree regenerated all three installation
+tables and objects before running the frontier. That replay is the accepted
+generated-install method.
+
+The same review found two mixed-extension UDP path shorthands and several
+outdated statements that the host compiler built most normal C objects.
+Correcting `18NET.CTXT` and `10ASM.CTXT` changed the generated frontier input
+closure again. The final exact-index replay below includes those corrections.
+
+The image and QEMU evidence use that same tree. After measurement, only this
+log and ADR 0115 changed to record the new hashes. An independent comparison
+of all 1,076 tracked index entries confirmed that every code, Make, test,
+README, wiki, and CupidOS text blob in the build tree matches the staged
+index. The two evidence files do not enter the build or image closure.
+
+### Build and runtime evidence
+
+| Gate | Result |
+| --- | --- |
+| Checked wrapper module | 23 tests passed in 78.625 seconds |
+| Actual poisoned-host transfer | All 20 roots built through CupidC in 122.7 seconds |
+| Production frontier unit contracts | 29 tests passed in 172.926 seconds |
+| Hosted frontend contracts | 64 tests passed in 9.381 seconds |
+| Complete Toolchain contract target | Passed; zero-status replay completed in 19.3 seconds |
+| Production frontier | One real 136-root test passed in 975.342 seconds with zero boundaries |
+| Active-build audit | Generated and checked from the exact index in 45.9 seconds |
+| Active-build audit tests | 55 tests passed in 386.449 seconds |
+| Complete image | Both CupidLD passes and CupidObj completed in 164.490 seconds |
+| User frontier | All three objects and executables reproduced |
+| Generated-install frontier | All three generated sources and objects reproduced |
+| Four-vCPU runtime | SMP, e1000, crypto, desktop, terminal, and CupidC checks passed |
+
+The final 7,870,352-byte `kernel.elf` has SHA-256
+`e077b5d9ef0af3de57e9f114fbd217547efc598add3afdf3a753141fb9e99845`.
+The 7,676,026-byte `kernel.bin` has SHA-256
+`a45689fa7303ce950f5436f15a5126e906fc97a6c6c303286d70371cddb18275`.
+The 209,715,200-byte image has SHA-256
+`a8b60721aee8092fcd17d3ab9431ef336952e2d3a9aa9b13a7356799ae70909d`.
+
+The user frontier's 16-input snapshot has SHA-256
+`eb801b5466c3a6b96b31c61561e1e14db0fa7fc6ede3a159b3d6fa50e0b2eaef`.
+The generated-install frontier's 194-input snapshot has SHA-256
+`5986165c00cdc96dde11cd2271a56495e088401ffd8d0dd8c7e0d979390f1cc7`.
+The final CupidOS text changes produce a 9,794-byte
+`docs_programs_gen.cc` with SHA-256
+`cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc`.
+Its 11,032-byte object has SHA-256
+`20530c6683aeae586c7ce060c22e795efe2a6c2362a1a0c7fdc58c61d74a6073`.
+The bin and demo source and object records stayed unchanged.
+
+The private-image QEMU run used the `max` CPU model, e1000, and four virtual
+CPUs. All four reached online state. The run passed 62 crypto, ASN.1, and
+X.509 checks, reached the desktop and terminal, and completed CupidC
+execution in 53.658 seconds. Its 53,819-byte serial log has SHA-256
+`fec0d4636944ab68f2e74d4bb32b43a4d89344d5fb348892314350b05d66148c`.
+
+ADR 0115 records the ownership decision, exact frontier, remaining host
+boundary, and runtime proof. TempleOS remained read-only and outside every
+metric.

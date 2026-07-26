@@ -27,7 +27,7 @@ Implementation:
 - terminal app reads those buffers for redraw
 - shell switches into GUI output mode when Terminal launches
 - shell wrap width tracks terminal window width
-- SSH/Telnet clients use kernel/lang/ssh_io.c to bridge bytes, hidden
+- SSH/Telnet clients use kernel/lang/ssh_io.cc to bridge bytes, hidden
   password input, VT/xterm keys, and terminal geometry
 >endtree
 

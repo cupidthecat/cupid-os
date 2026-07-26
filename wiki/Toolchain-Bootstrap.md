@@ -103,13 +103,12 @@ count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
-The normal image has a 116-source checked CupidC production boundary. It
-keeps the established 40 kernel and driver sources, adds 71 unchanged kernel
-and driver sources, and adds the shared `ctool.c`, `cupidasm.c`,
-`cupiddis.c`, `elf32.c`, and `x86.c` implementations. The strict frontier
-compiles each approved source twice and accepts 2,268,616 byte-identical i386
-ELF32 bytes. It freezes 404 inputs with SHA-256
-`8cd59650372a13303c33b2621e67f929d4c0b1a7bff1a134b68bee18c50cd269`.
+The normal image has a 136-source checked CupidC production boundary. It
+keeps the established 116-source cohort and adds 20 source-driven roots now
+named `.cc`. The strict frontier compiles each approved source twice and
+accepts 3,020,108 byte-identical i386 ELF32 bytes. It freezes 424 inputs with
+SHA-256
+`24fcfba4f006dad77a742e02b31edd889d3a62010adb352d6f57965377557cd1`.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe. Each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
@@ -136,9 +135,10 @@ records `unused` declarations, preserves typed static null pointers, treats
 known-true loops as non-fallthrough, and lowers comma expressions in source
 order. It also keeps all target bits through represented function-pointer
 casts and supports bounded output-only register and EFLAGS snapshots. Twenty
-of the 38 strict roots left after the 116-source handoff compile with these
-changes. They remain outside the production cohort until the frontier, image,
-and runtime checks pass.
+of the 38 strict roots left after the 116-source handoff now belong to the
+production cohort and use `.cc` names. Eighteen strict checked-in roots
+remain. Generated `kernel/cpu/ksyms_data.c` stays hosted until CupidC
+represents its `used` attribute.
 
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
@@ -158,6 +158,6 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-The current audit assigns 122 transforms to CupidC, 175 C transforms to the
-host compiler, and 134 transforms to host Python. The host compiler still
-produces 123 root objects.
+The current audit assigns 142 transforms to CupidC, 155 C transforms to the
+host compiler, and 154 transforms to host Python. The host compiler still
+produces 103 root objects.

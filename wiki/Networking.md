@@ -41,7 +41,7 @@ kernel/network/net_if.h / net_if.c     NIC vtable, RX ring, registration, net_in
 kernel/network/arp.h    / arp.c        16-entry LRU ARP cache, blocking resolve
 kernel/network/ip.h     / ip.c         IPv4 parse, route, send, protocol dispatch
 kernel/network/icmp.h   / icmp.c       ICMP echo reply
-kernel/network/udp.h    / udp.c        UDP send/recv, pseudo-header checksum
+kernel/network/udp.h    / udp.cc       UDP send/recv, pseudo-header checksum
 kernel/network/tcp.h    / tcp.c        RFC 793 subset state machine (~1200 LOC)
 kernel/network/socket.h / socket.c     32-slot BSD socket table + API
 kernel/network/dhcp.h   / dhcp.c       DHCP four-way handshake + static fallback
@@ -67,7 +67,7 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 ┌──────────▼── kernel/network/socket.c - 32-slot table ─────────────────┐
 │  socket_t { type, state, tx_buf/rx_buf, TCP state machine }   │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/{tcp,udp,icmp}.c ─────────────────────────┐
+┌──────▼── kernel/network/tcp.c, udp.cc, and icmp.c ───────────┐
 │  TCP state machine      UDP datagram       ICMP echo reply    │
 └──────────┬────────────────────────────────────────────────────┘
 ┌──────────▼── kernel/network/ip.c - IPv4 send + dispatch ──────────────┐
@@ -453,7 +453,7 @@ round-trip-time display; RTT measurement is approximate.
 
 ---
 
-## UDP (kernel/network/udp.c)
+## UDP (kernel/network/udp.cc)
 
 ### Header
 
@@ -1200,7 +1200,7 @@ manual inspection if anything looks odd.
 | `kernel/network/icmp.h` | ICMP header struct, `icmp_input` declaration |
 | `kernel/network/icmp.c` | Echo request -> echo reply |
 | `kernel/network/udp.h` | UDP header struct, `udp_send_raw`, `udp_input` |
-| `kernel/network/udp.c` | UDP send + receive + pseudo-header checksum |
+| `kernel/network/udp.cc` | UDP send + receive + pseudo-header checksum |
 | `kernel/network/tcp.h` | `tcp_hdr_t`, flag macros, `TCP_MSS`, `TCP_RTO_MS`, API |
 | `kernel/network/tcp.c` | RFC 793 state machine, `tcp_tick`, ~1200 LOC |
 | `kernel/network/socket.h` | `socket_t`, error codes, `tcp_state_t`, BSD API declarations |
@@ -1221,5 +1221,5 @@ manual inspection if anything looks odd.
 | `bin/browser.cc`, `bin/browser/*.cc` | Graphical HTTP/HTTPS browser stack |
 | `bin/ssh.cc` | SSH-2 client |
 | `bin/telnet.cc` | Telnet client |
-| `kernel/network/sshd.c` | SSH server |
-| `kernel/lang/ssh_io.c` | GUI terminal byte I/O, hidden input, VT/xterm key translation |
+| `kernel/network/sshd.cc` | SSH server |
+| `kernel/lang/ssh_io.cc` | GUI terminal byte I/O, hidden input, VT/xterm key translation |

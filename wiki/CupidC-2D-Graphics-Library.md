@@ -6,7 +6,7 @@
 
 ## Overview
 
-The library lives in `kernel/gfx/gfx2d.c`, and `cupidc.c` registers its bindings. CupidC programs call `gfx2d_*` functions directly without imports.
+The library lives in `kernel/gfx/gfx2d.cc`, and `cupidc.c` registers its bindings. CupidC programs call `gfx2d_*` functions directly without imports.
 
 **Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
@@ -474,14 +474,14 @@ void draw_window(int x, int y, int w, int h, char *title) {
 | File | Purpose |
 |------|---------|
 | `kernel/gfx/gfx2d.h` | Public API header (including file dialogs) |
-| `kernel/gfx/gfx2d.c` | Library implementation (including file dialog UI + event loop) |
+| `kernel/gfx/gfx2d.cc` | Library implementation (including file dialog UI + event loop) |
 | `kernel/gfx/bmp.h` | BMP encoding/decoding API header |
 | `kernel/gfx/bmp.c` | BMP format implementation |
 | `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
 | `kernel/fs/vfs_helpers.c` | VFS helpers implementation |
 | `cupidc.c` | Binding registration (~100 entries) |
 | `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
-| `cupidc_parse.c` | Type parsing for new keywords |
+| `cupidc_parse.cc` | Type parsing for new keywords |
 
 ---
 

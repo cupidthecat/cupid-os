@@ -656,7 +656,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(len(attribute_files), 30)
         for name in ("aligned", "section", "weak"):
             self.assertIn(
-                "kernel/cpu/ksyms.c",
+                "kernel/cpu/ksyms.cc",
                 features[f"c.extension.attribute.{name}"]["files"],
             )
 
@@ -3874,7 +3874,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4355, 168),
+                "c.expression.sizeof": (4365, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4171,7 +4171,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap/seeds/i386-linux/cupidobj.elf",
             )
             for source_path, headers in port_io_header_closures.items():
-                output_path = source_path.removesuffix(".c") + ".o"
+                output_path = Path(source_path).with_suffix(".o").as_posix()
                 with self.subTest(port_io_closure=source_path):
                     self.assertEqual(
                         root_transform_by_output[output_path]["inputs"],
@@ -4183,7 +4183,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *port_io_header_closures,
             )
             for source_path in cupidc_kernel_sources:
-                output_path = source_path.removesuffix(".c") + ".o"
+                output_path = Path(source_path).with_suffix(".o").as_posix()
                 with self.subTest(cupidc_kernel_source=source_path):
                     transform = root_transform_by_output[output_path]
                     self.assertEqual(
@@ -4217,9 +4217,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 122,
-                    "host_c_compiler": 175,
-                    "host_python": 134,
+                    "cupid_c_compiler": 142,
+                    "host_c_compiler": 155,
+                    "host_python": 154,
                 },
             )
 

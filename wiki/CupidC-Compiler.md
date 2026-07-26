@@ -235,7 +235,7 @@ The repository runtime supplies the checked file, heap, memory, string, `errno`,
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Both forms accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,000,636-byte stage-three output from revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af`, with SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and most normal Cupid OS C objects still come from a host compiler.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,000,636-byte stage-three output from revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af`, with SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`. Checked CupidC, CupidASM, and CupidLD build stage two from one source snapshot, then the stage-two producer trio builds stage three. Every seed image matches stage two, and every C object, startup object, and linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matches stage three. Both stages also agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 103 normal Cupid OS root objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -259,7 +259,7 @@ Block-scope compound literals use one persistent unnamed automatic object per so
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported. Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, floating literals, integer and floating conversions, floating comparisons and truth, floating update, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-The checked CupidC seed owns 122 C transforms across the supported builds. Its 116-object normal cohort keeps the established 40 kernel and driver sources, adds 71 unchanged sources across the kernel, and adds the shared `ctool.c`, `cupidasm.c`, `cupiddis.c`, `elf32.c`, and `x86.c` implementations. Three generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc` examples account for the other six transforms. The strict kernel frontier compiles every approved source twice to 2,268,616 byte-identical i386 ELF32 bytes. It freezes a 404-input snapshot with SHA-256 `8cd59650372a13303c33b2621e67f929d4c0b1a7bff1a134b68bee18c50cd269`. Forced poisoned-host builds cover every production wrapper recipe, and each recipe declares its exact recursive header closure. A valid data-only object may omit `.text` while its remaining sections and symbols still receive bounds checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX. The four-vCPU GUI contract reaches SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC execution at `0x01100000`. A separate gate loads and reaps the same external program twice at `0x00F00000`. The host compiler still builds 175 C transforms and 123 root objects. Host Python owns 134 transforms. The private in-kernel CupidC compiler still handles embedded runtime compilation.
+The checked CupidC seed owns 142 C transforms across the supported builds. Its 136-object normal cohort contains the established 116 sources and 20 source-driven roots now named `.cc`. Three generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc` examples account for the other six transforms. The strict kernel frontier compiles every approved source twice to 3,020,108 byte-identical i386 ELF32 bytes. It freezes a 424-input snapshot with SHA-256 `24fcfba4f006dad77a742e02b31edd889d3a62010adb352d6f57965377557cd1`. Forced poisoned-host builds cover every production wrapper recipe, and each recipe declares its exact recursive header closure. A valid data-only object may omit `.text` while its remaining sections and symbols still receive bounds checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model while preserving EBX. The four-vCPU GUI contract reaches SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC execution at `0x01100000`. A separate gate loads and reaps the same external program twice at `0x00F00000`. The host compiler still builds 155 C transforms and 103 root objects. Host Python owns 154 transforms. The private in-kernel CupidC compiler still handles embedded runtime compilation.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects rather than only the earlier hybrid image.
 
@@ -296,8 +296,8 @@ shared x86 model. This brings the active non-Doom header gate to 154/154 at
 compiler head.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 116-source CupidC cohort, whose deterministic frontier has
-2,268,616 object bytes. `kernel/smp/acpi.c` and `kernel/smp/mp_tables.c`
+uses it in the 136-source CupidC cohort, whose deterministic frontier has
+3,020,108 object bytes. `kernel/smp/acpi.c` and `kernel/smp/mp_tables.c`
 continue to emit 5,708-byte and 4,156-byte objects that pass the shared
 validator. The runtime contract passes on four vCPUs with both
 supported NIC paths.
@@ -1071,7 +1071,7 @@ Source (.cc)
          │ token stream
          ▼
 ┌─────────────────┐
-│  Parser +        │  cupidc_parse.c
+│  Parser +        │  cupidc_parse.cc
 │  Code Generator  │  Recursive descent -> x86 machine code
 └────────┬────────┘
          │ raw bytes
@@ -1089,7 +1089,7 @@ Source (.cc)
 | `cupidc.h` | 459 | Tokens, types, limits, compiler state, and public API |
 | `cupidc.c` | 3,959 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
 | `cupidc_lex.c` | 833 | Lexer for keywords, literals, operators, and delimiters |
-| `cupidc_parse.c` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
+| `cupidc_parse.cc` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
 | `cupidc_elf.c` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer
@@ -1105,7 +1105,7 @@ Whitespace, `//` comments, and `/* ... */` comments are skipped.
 
 ### Parser & Code Generator
 
-The parser (`cupidc_parse.c`) is recursive descent and writes x86 machine-code bytes directly into the code buffer. There is no AST or intermediate representation in this private compiler.
+The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code bytes directly into the code buffer. There is no AST or intermediate representation in this private compiler.
 
 **Key parsing functions:**
 

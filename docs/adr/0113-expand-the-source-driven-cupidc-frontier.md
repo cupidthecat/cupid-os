@@ -120,3 +120,7 @@ Production ownership stays at the checked-seed boundary until a committed
 compiler revision rebuilds and reproves all five static tool images. The
 generated `kernel/cpu/ksyms_data.c` also stays on the host path because its
 `used` attribute remains unsupported.
+
+ADR 0115 records the later production transfer. Those 20 roots now use `.cc`
+paths and checked-seed CupidC in the normal Make graph. The historical `.c`
+paths above describe the compiler-head proof that preceded the rename.
