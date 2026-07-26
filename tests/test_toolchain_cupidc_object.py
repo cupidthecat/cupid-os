@@ -671,6 +671,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "legacy-port-assembly: ok\n")
 
+    def test_machine_state_memory_outputs_emit_exact_i386_instructions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "state-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "state-memory-assembly: ok\n")
+
     def test_atomic_builtins_emit_width_correct_i386_instructions(self):
         result = subprocess.run(
             [str(self.contract_path), "atomic-builtins", str(REPO_ROOT)],

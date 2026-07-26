@@ -7360,12 +7360,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.c", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 208u, 6286u,
-       56771u, 801u, 291u, 0u, 0u},
-      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 214u, 5713u,
-       48950u, 684u, 347u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 325u,
-       13233u, 86985u, 1946u, 1284u, 0u, 0u},
+      {"/toolchain/cupidc_ir.c", CTOOL_OK, 0u, 0u, 0u, "", 210u, 6331u,
+       57177u, 806u, 293u, 0u, 0u},
+      {"/toolchain/cupidc_emit.c", CTOOL_OK, 0u, 0u, 0u, "", 219u, 5778u,
+       49511u, 694u, 350u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.c", CTOOL_OK, 0u, 0u, 0u, "", 327u,
+       13285u, 87334u, 1953u, 1287u, 0u, 0u},
       {"/toolchain/cupidasm.c", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.c", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -25010,6 +25010,162 @@ cleanup:
   return failed;
 }
 
+static int validate_state_memory_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "fnstsw %0", "fnstcw %0", "stmxcsr %0"};
+  static const ctool_u32 lines[] = {4u, 5u, 6u};
+  static const ctool_u32 sizes[] = {2u, 2u, 4u};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != 1u ||
+      unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != ARRAY_COUNT(templates) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != index ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 0u ||
+        string_equal(operand->constraint, "=m") == 0 ||
+        operand->expression >= unit->expression_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->layout.types[operand->type].is_integer != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != sizes[index] ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/state-memory-assembly.c", lines[index]) == 0 ||
+        dual_location_matches(
+            &operand->location, &operand->physical_location,
+            "/state-memory-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(templates) ? 0 : 1;
+}
+
+static int run_state_memory_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "void snapshot(u16 *status, u16 *control, u32 *mxcsr) {\n"
+      "  __asm__ volatile(\"fnstsw %0\" : \"=m\"(*status));\n"
+      "  __asm__ volatile(\"fnstcw %0\" : \"=m\"(*control));\n"
+      "  __asm__ volatile(\"stmxcsr %0\" : \"=m\"(*mxcsr));\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"byte memory output",
+        "void bad(unsigned char *value) { "
+        "__asm__ volatile(\"fnstsw %0\" : \"=m\"(*value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output requires a 16- or 32-bit integer"},
+      {{"wide memory output",
+        "void bad(unsigned long long *value) { "
+        "__asm__ volatile(\"stmxcsr %0\" : \"=m\"(*value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output requires a 16- or 32-bit integer"},
+      {{"wrong FNSTSW width",
+        "void bad(unsigned *value) { "
+        "__asm__ volatile(\"fnstsw %0\" : \"=m\"(*value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU state-memory assembly operand does not match the instruction"},
+      {{"wrong STMXCSR width",
+        "void bad(unsigned short *value) { "
+        "__asm__ volatile(\"stmxcsr %0\" : \"=m\"(*value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU state-memory assembly operand does not match the instruction"},
+      {{"unsupported memory output template",
+        "void bad(unsigned *value) { "
+        "__asm__ volatile(\"nop\" : \"=m\"(*value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output template is outside this slice"},
+      {{"nonvolatile state snapshot",
+        "void bad(unsigned *value) { "
+        "__asm__(\"stmxcsr %0\" : \"=m\"(*value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU state-memory assembly requires volatile assembly"},
+      {{"clobbered state snapshot",
+        "void bad(unsigned *value) { "
+        "__asm__ volatile(\"stmxcsr %0\" : \"=m\"(*value) : : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU state-memory assembly does not accept clobbers"},
+      {{"state snapshot input",
+        "void bad(unsigned value) { "
+        "__asm__ volatile(\"stmxcsr %0\" : : \"a\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU state-memory assembly requires one =m output and no inputs"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "state-memory-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/state-memory-assembly.c", source, &unit) != 0 ||
+      validate_state_memory_assembly_unit(&unit) != 0) {
+    (void)fprintf(stderr, "state-memory-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/state-memory-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_state_memory_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("state-memory-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_port_io_assembly(const char *host_root) {
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"narrow read-write counter",
@@ -26241,6 +26397,7 @@ int main(int argc, char **argv) {
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
                    "pointer-output-assembly|"
+                   "state-memory-assembly|"
                    "operand-free-assembly|"
                    "block-bindings|"
                    "block-functions|"
@@ -26328,6 +26485,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "state-memory-assembly") == 0) {
+    return run_state_memory_assembly(argv[2]);
   }
   if (strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);

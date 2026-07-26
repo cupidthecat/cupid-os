@@ -29188,6 +29188,256 @@ cleanup:
   return 1;
 }
 
+static const char state_memory_assembly_source[] =
+    "typedef unsigned short u16;\n"
+    "typedef unsigned int u32;\n"
+    "void snapshot(u16 *status, u16 *control, u32 *mxcsr) {\n"
+    "  __asm__ volatile(\"fnstsw %0\" : \"=m\"(*status));\n"
+    "  __asm__ volatile(\"fnstcw %0\" : \"=m\"(*control));\n"
+    "  __asm__ volatile(\"stmxcsr %0\" : \"=m\"(*mxcsr));\n"
+    "}\n";
+
+static int state_memory_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const templates[] = {
+      "fnstsw %0", "fnstcw %0", "stmxcsr %0"};
+  static const ctool_u32 sizes[] = {2u, 2u, 4u};
+  const ctool_c_ir_function_t *function;
+  ctool_u32 assembly_count = 0u;
+  ctool_u32 offset;
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 3u ||
+      unit->assembly_operand_count != 3u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL ||
+      ir->function_count != 1u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    (void)fprintf(stderr, "state-memory-assembly: top-level IR shape differs\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  if (function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction ||
+      function->maximum_stack_depth != 1u) {
+    (void)fprintf(
+        stderr,
+        "state-memory-assembly: function shape differs: first=%u count=%u "
+        "depth=%u total=%u\n",
+        function->first_instruction, function->instruction_count,
+        function->maximum_stack_depth, ir->instruction_count);
+    return 0;
+  }
+  for (offset = 0u; offset < function->instruction_count; offset++) {
+    ctool_u32 instruction_index =
+        function->first_instruction + offset;
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[instruction_index];
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+      continue;
+    }
+    if (assembly_count >= 3u ||
+        !inline_assembly_instruction_matches(
+            instruction, assembly_count,
+            "/state-memory-assembly.c") ||
+        instruction_index < function->first_instruction + 3u ||
+        ir->instructions[instruction_index - 3u].kind !=
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+        ir->instructions[instruction_index - 2u].kind !=
+            CTOOL_C_IR_INSTRUCTION_LOAD ||
+        ir->instructions[instruction_index - 1u].kind !=
+            CTOOL_C_IR_INSTRUCTION_DEREFERENCE) {
+      (void)fprintf(
+          stderr,
+          "state-memory-assembly: instruction %u differs: ref=%u prev3=%u "
+          "prev2=%u prev1=%u\n",
+          instruction_index, instruction->reference,
+          instruction_index >= 3u
+              ? (ctool_u32)ir->instructions[instruction_index - 3u].kind
+              : 0xffffffffu,
+          instruction_index >= 2u
+              ? (ctool_u32)ir->instructions[instruction_index - 2u].kind
+              : 0xffffffffu,
+          instruction_index >= 1u
+              ? (ctool_u32)ir->instructions[instruction_index - 1u].kind
+              : 0xffffffffu);
+      return 0;
+    }
+    assembly_count++;
+  }
+  for (offset = 0u; offset < 3u; offset++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[offset];
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[offset];
+    if (string_equal(
+            assembly->template_text, templates[offset]) == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != offset ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 0u ||
+        string_equal(operand->constraint, "=m") == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        operand->type >= unit->layout.type_count ||
+        unit->layout.types[operand->type].is_integer != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != sizes[offset]) {
+      (void)fprintf(
+          stderr,
+          "state-memory-assembly: assembly metadata %u differs\n", offset);
+      return 0;
+    }
+  }
+  return assembly_count == 3u ? 1 : 0;
+}
+
+static int run_state_memory_assembly(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[3];
+  ctool_c_assembly_operand_t operands[3];
+  ctool_c_type_layout_t *layouts = NULL;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/state-memory-assembly.c",
+          state_memory_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(
+          status, CTOOL_OK, "state-memory assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !state_memory_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK,
+          "repeat state-memory assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !state_memory_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr, "state-memory-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_count != 3u ||
+      unit.assembly_operand_count != 3u ||
+      unit.layout.types == NULL ||
+      sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  invalid_unit.assembly_operands = operands;
+
+  operands[0].matching_output = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory output marked as an input")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[0].constraint = ctool_string("=r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory register output")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  assemblies[0].flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory clobber")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].template_text = ctool_string("stmxcsr %0");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory instruction width mismatch")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  if (layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  layouts[unit.assembly_operands[2].type].size = 2u;
+  invalid_unit.layout.types = layouts;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory forged layout")) {
+    goto cleanup;
+  }
+  invalid_unit.layout.types = unit.layout.types;
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(
+          status, CTOOL_OK, "state-memory assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !state_memory_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "state-memory-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("state-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 
 static const char legacy_port_assembly_source[] =
     "typedef unsigned char port_u8;\n"
@@ -31496,6 +31746,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "state-memory-assembly") == 0) {
+    return run_state_memory_assembly(argv[2]);
+  }
   if (argc == 3 &&
       strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);
@@ -31538,7 +31791,8 @@ int main(int argc, char **argv) {
                 "wide-objects|wide-mutations|self-host-frontier|"
                 "inline-assembly|port-io-assembly|legacy-port-assembly|"
                 "atomic-builtins|"
-                "privileged-register-assembly|"
+                "privileged-register-assembly|fxsave-assembly|"
+                "state-memory-assembly|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"

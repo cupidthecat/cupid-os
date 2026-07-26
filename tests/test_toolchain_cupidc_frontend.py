@@ -124,6 +124,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_legacy_port_constraints_keep_the_dx_fallback(self):
         self.run_contract("legacy-port-assembly")
 
+    def test_machine_state_memory_outputs_retain_exact_widths(self):
+        self.run_contract("state-memory-assembly")
+
     def test_operand_free_inline_assembly_retains_basic_and_extended_forms(self):
         self.run_contract("operand-free-assembly")
 

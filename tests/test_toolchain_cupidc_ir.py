@@ -218,6 +218,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "legacy-port-assembly: ok\n")
 
+    def test_machine_state_memory_outputs_lower_one_address_each(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "state-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "state-memory-assembly: ok\n")
+
     def test_direct_forward_goto_lowers_to_function_relative_ir(self):
         result = subprocess.run(
             [str(self.contract_path), "forward-goto", str(REPO_ROOT)],

@@ -308,6 +308,17 @@ objects. The checked seed does not yet carry these forms, so the roots remain
 host-owned `.c` files. WRMSR, unsupported control-register directions, fixed
 EBX and `q` inputs, arbitrary templates, and general clobbers remain open.
 
+Compiler head accepts one memory output for three machine-state
+snapshots. Exact volatile `fnstsw %0` and `fnstcw %0` statements write a
+modifiable 16-bit integer through `=m`; `stmxcsr %0` writes a modifiable
+32-bit integer. Linear IR evaluates the lvalue once, and the emitter sends
+the direct memory instruction through Cupid's x86 encoder without an output
+staging slot. Other `=m` templates remain unsupported. The separate exact
+call-next support also handles the later local-label statement in unchanged
+`kernel/core/panic.c`. Two full kernel-profile compiles produce the same
+validated 10,212-byte ELF32 object. The checked seed does not yet include
+this compiler-head capability.
+
 Compiler head also represents `__atomic_load_n`, `__atomic_store_n`,
 `__atomic_exchange_n`, `__atomic_fetch_add`, and `__atomic_fetch_or` on
 one-, two-, and four-byte integer objects. Constant memory orders stay in the

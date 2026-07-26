@@ -11976,6 +11976,7 @@ static ctool_status_t cfront_validate_assembly_output(
   ctool_bool is_pointer = CTOOL_FALSE;
   ctool_bool is_supported_pointer = CTOOL_FALSE;
   ctool_bool modifiable = CTOOL_FALSE;
+  ctool_bool memory_output = CTOOL_FALSE;
   ctool_bool pointer_only = CTOOL_FALSE;
   ctool_u32 expected_width = 32u;
   ctool_bool any_integer_width = CTOOL_FALSE;
@@ -11996,6 +11997,8 @@ static ctool_status_t cfront_validate_assembly_output(
     fixed_register = CTOOL_C_ASSEMBLY_FIXED_D;
   } else if (cfront_string_literal(constraint, "=r") == CTOOL_TRUE) {
     fixed_register = 0u;
+  } else if (cfront_string_literal(constraint, "=m") == CTOOL_TRUE) {
+    memory_output = CTOOL_TRUE;
   } else if (cfront_string_literal(constraint, "=qm") == CTOOL_TRUE) {
     expected_width = 8u;
   } else if (cfront_string_literal(constraint, "+c") == CTOOL_TRUE) {
@@ -12096,15 +12099,21 @@ static ctool_status_t cfront_validate_assembly_output(
         constraint_token,
         "GNU inline assembly +S and +D outputs require a pointer");
   }
-  if ((any_integer_width == CTOOL_TRUE &&
+  if ((memory_output == CTOOL_TRUE &&
+       integer.width != 16u && integer.width != 32u) ||
+      (any_integer_width == CTOOL_TRUE &&
        integer.width != 8u && integer.width != 16u &&
        integer.width != 32u) ||
-      (any_integer_width == CTOOL_FALSE &&
+      (memory_output == CTOOL_FALSE &&
+       any_integer_width == CTOOL_FALSE &&
        integer.width != expected_width)) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        expected_width == 8u
+        memory_output == CTOOL_TRUE
+            ? "GNU inline assembly =m output requires a 16- or 32-bit "
+              "integer"
+            : expected_width == 8u
             ? "GNU inline assembly =qm output requires an 8-bit integer"
             : any_integer_width == CTOOL_TRUE
                   ? "GNU inline assembly fixed-register output requires "
@@ -12556,6 +12565,86 @@ static ctool_status_t cfront_validate_call_next_assembly(
   return CTOOL_OK;
 }
 
+static ctool_u32 cfront_state_memory_assembly_width(
+    ctool_string_t template_text) {
+  if (cfront_string_literal(template_text, "fnstsw %0") == CTOOL_TRUE ||
+      cfront_string_literal(template_text, "fnstcw %0") == CTOOL_TRUE) {
+    return 16u;
+  }
+  return cfront_string_literal(
+             template_text, "stmxcsr %0") == CTOOL_TRUE
+             ? 32u
+             : 0u;
+}
+
+static ctool_status_t cfront_validate_state_memory_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t operand;
+  cfront_integer_type_t integer;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_u32 expected_width =
+      cfront_state_memory_assembly_width(assembly->template_text);
+  ctool_u32 index;
+  ctool_status_t status;
+  if (expected_width == 0u) {
+    for (index = 0u; index < assembly->output_count; index++) {
+      status = cfront_vector_get(
+          &context->assembly_operands,
+          assembly->first_operand + index, &operand);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (cfront_string_literal(
+              operand.constraint, "=m") == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+            "GNU inline assembly =m output template is outside this slice");
+      }
+    }
+    return CTOOL_OK;
+  }
+  if ((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU state-memory assembly requires volatile assembly");
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU state-memory assembly does not accept clobbers");
+  }
+  if (assembly->output_count != 1u ||
+      assembly->input_count != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU state-memory assembly requires one =m output and no inputs");
+  }
+  status = cfront_vector_get(
+      &context->assembly_operands, assembly->first_operand, &operand);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(
+        context, operand.type, &integer, &is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (cfront_string_literal(
+          operand.constraint, "=m") == CTOOL_FALSE ||
+      is_integer == CTOOL_FALSE ||
+      integer.width != expected_width) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU state-memory assembly operand does not match the instruction");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_parse_gnu_assembly_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *keyword = cfront_advance(context);
@@ -12719,6 +12808,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_call_next_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_state_memory_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {

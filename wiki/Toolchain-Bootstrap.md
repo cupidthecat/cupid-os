@@ -179,6 +179,16 @@ Compiler head now also accepts the GNU `Nd` port alternative in
 kernel compiler profile, but it remains host-owned until the checked seed and
 normal build move together.
 
+Compiler head emits the three machine-state memory outputs in
+`kernel/core/panic.c`. The exact volatile `fnstsw %0` and `fnstcw %0` forms
+require a 16-bit `=m` destination, and `stmxcsr %0` requires a 32-bit
+destination. Linear IR evaluates each lvalue once, and the i386 emitter writes
+through that address with the shared x86 model. The exact call-next support
+above also handles the later local-label statement in the unchanged panic
+source. Two full kernel-profile compiles produce the same validated
+10,212-byte ELF32 object. This does not change the checked seed or the
+136-source production boundary.
+
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
 user executables have no unsupported instruction fallback. The remaining gap

@@ -9734,6 +9734,7 @@ assembly, and broader GNU assembly remain open. A later transfer must refresh
 and verify the checked seed, move the production frontier and Make recipes,
 rename the roots to `.cc`, build the full image, and run the relevant boot
 and runtime gates. ADR 0117 records this boundary.
+
 ## 2026-07-26: emit the stack-trace call-next state read
 
 CupidC compiler head now accepts the exact GNU assembly statement shared by
@@ -9991,22 +9992,22 @@ pointer and reports that requirement at the frontend. `Nd` selects EDX for
 the unchanged byte port templates. Linear IR also rejects an exact FXSAVE
 record whose frozen memory-clobber flag is missing.
 
-All twelve focused frontend, Linear IR, and object selectors pass together. The
+All fifteen focused frontend, Linear IR, and object selectors pass together. The
 active source inventory and deterministic object locks are:
 
 | Source | Functions | Statements | Expressions | Bindings | Initializers | Text bytes | Object bytes | Text fingerprint |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| `toolchain/cupidc_ir.c` | 208 | 6,286 | 56,771 | 801 | 291 | 399,813 | 427,016 | `DC811030` |
-| `toolchain/cupidc_emit.c` | 214 | 5,713 | 48,950 | 684 | 347 | 362,350 | 390,184 | `E679AAC1` |
-| `toolchain/cupidc_frontend.c` | 325 | 13,233 | 86,985 | 1,946 | 1,284 | 655,025 | 777,756 | `2B6F821D` |
+| `toolchain/cupidc_ir.c` | 210 | 6,331 | 57,177 | 806 | 293 | 402,964 | 430,568 | `B2429018` |
+| `toolchain/cupidc_emit.c` | 219 | 5,778 | 49,511 | 694 | 350 | 366,820 | 395,296 | `CBCAB4A6` |
+| `toolchain/cupidc_frontend.c` | 327 | 13,285 | 87,334 | 1,953 | 1,287 | 658,112 | 781,868 | `878E3268` |
 
 The `aggregate-values` source-frontier selector and the complete object
 self-host-frontier selector pass with these measured values. Earlier tables
 record isolated and smaller combined runs; this table is the active
-four-slice lock. The public modules now contain 69 frontend tests, 57 Linear
-IR tests, and 69 object tests.
+five-slice lock. The public modules now contain 70 frontend tests, 58 Linear
+IR tests, and 70 object tests.
 
-The rebuilt compiler then compiled all seven roots unlocked by these four
+The rebuilt compiler then compiled all eight roots unlocked by these five
 slices twice under the complete `KERNEL_I386` profile:
 
 | Source | Object bytes | SHA-256 |
@@ -10016,6 +10017,7 @@ slices twice under the complete `KERNEL_I386` profile:
 | `kernel/smp/lapic.c` | 4,184 | `6ce344d265ad3fb6b221a9159d860954c5f5512a7eac526838e69bc181a4c045` |
 | `kernel/cpu/pic.c` | 2,408 | `c1855a19e0cd285953996344493dcefe916f06d89fed706219718920b4d2ea5d` |
 | `kernel/core/process.c` | 30,216 | `81ef6d428528b6fcc98826cda634abe5d9d0c00b8aa59cb374d7c1186b0320c5` |
+| `kernel/core/panic.c` | 10,212 | `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428` |
 | `kernel/lang/as.c` | 148,056 | `f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c` |
 | `kernel/lang/cupidc.c` | 288,168 | `b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e` |
 
@@ -10063,3 +10065,76 @@ objects. No semantic limit was relaxed.
 This is compiler-head evidence. The checked seed, `pic.c` name, Make recipe,
 normal image, and runtime ownership have not moved. ADR 0120 records the
 decision.
+
+## 2026-07-26: emit machine-state GNU memory outputs
+
+CupidC now represents the three GNU assembly statements used by
+`panic_fpu`:
+
+```c
+__asm__ volatile("fnstsw %0" : "=m"(fsw));
+__asm__ volatile("fnstcw %0" : "=m"(fcw));
+__asm__ volatile("stmxcsr %0" : "=m"(mxcsr));
+```
+
+The frontend accepts `=m` only for a modifiable, non-atomic 16-bit or 32-bit
+integer. It then narrows that syntax to the exact volatile templates above.
+The two x87 stores require the 16-bit form, while `stmxcsr` requires 32 bits.
+Each statement has one output, no inputs, and no clobber.
+
+Linear IR evaluates the destination address once and leaves it below one
+`ASSEMBLY` instruction. It validates the constraint, expression type, layout,
+flags, count, and exact instruction width before lowering. The i386 emitter
+consumes the address into EAX and emits `FNSTSW word [EAX]`,
+`FNSTCW word [EAX]`, or `STMXCSR dword [EAX]` through the shared x86 model.
+Because the instruction writes memory directly, this path does not allocate
+the temporary area used by register outputs.
+
+The first complete compatibility check found a validator bug in the initial
+implementation. The new validator rejected every operand-free
+assembly unit because an empty operand table is null by design. Existing
+operand-free IR and object selectors caught it. The helper now accepts an
+empty table for an unrelated zero-output statement while still requiring an
+operand record for a machine-state store.
+
+The final standards review found that a forbidden memory clobber reached the
+right failure path but received the volatility diagnostic. The frontend now
+checks missing volatility separately, then reports that the supported forms
+do not accept clobbers. A focused negative keeps those cases distinct.
+
+The isolated memory-output branch refreshed its compiler-source inventory and
+self-host object locks from the measured source. `cupidc_ir.c`,
+`cupidc_emit.c`, and `cupidc_frontend.c` contained 205, 209, and 324 function
+definitions. At that point, their CupidC-emitted `.text` sizes were 396,412,
+354,872, and 650,418 bytes. The complete object sizes were 423,444, 381,444,
+and 772,404 bytes, with text
+fingerprints `8BC1A9C4`, `B2C0D6A5`, and `60717770`.
+
+### Test and source evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused frontend selector | Passed all three exact forms plus width, template, volatility, clobber, input, and recovery failures |
+| Focused Linear IR selector | Passed ordered one-address lowering, deterministic repetition, malformed metadata, rollback, and recovery |
+| Focused object selector | Passed the active panic-source guard, deterministic ELF32 emission, and decoded 16-bit and 32-bit memory-instruction checks |
+| Operand-free compatibility selectors | Existing IR and object regressions passed after the null-table fix |
+| Self-host source and object locks | Frontend source inventory and deterministic self-host object selectors passed with measured values |
+| Complete Toolchain target | `make -C toolchain BUILD_DIR=build-integrate-memory test` passed with all five compiler slices combined |
+| Complete panic root | Two complete `KERNEL_I386` compiles produced the same validated 10,212-byte object with SHA-256 `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428` |
+
+The object fixture is 448 bytes with 58 bytes of `.text`, five sections, four
+symbols, and no relocations. Each of its three functions contains exactly one
+decoded machine-state store with an EAX base, no index, no displacement, and
+the required width.
+
+The isolated native compiler-head probe used the complete `KERNEL_I386`
+profile. It first stopped after the three memory snapshots at `call 1f` on
+line 193. The integrated compiler head supports that exact call-next
+statement, so unchanged `kernel/core/panic.c` now compiles completely and
+reproducibly. Unchanged `kernel/cpu/fpu.c` still stops at its unsupported
+`target("general-regs-only")` attribute on line 7, before its own `stmxcsr`
+use.
+
+No production object changed owner. The checked seed still predates this
+capability, no `.c` source was renamed, and an image or boot run would not
+exercise the new compiler-head bytes. ADR 0121 records the accepted boundary.

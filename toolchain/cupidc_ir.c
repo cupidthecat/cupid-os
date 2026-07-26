@@ -272,7 +272,7 @@ static ctool_bool cir_output_assembly_constraint_is_valid(
   if (constraint.size == 2u && constraint.data[0] == '=' &&
       (constraint.data[1] == 'a' || constraint.data[1] == 'b' ||
        constraint.data[1] == 'c' || constraint.data[1] == 'd' ||
-       constraint.data[1] == 'r')) {
+       constraint.data[1] == 'm' || constraint.data[1] == 'r')) {
     return CTOOL_TRUE;
   }
   if (constraint.size == 2u && constraint.data[0] == '+' &&
@@ -484,6 +484,76 @@ static ctool_bool cir_fxsave_assembly_metadata_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_u32 cir_state_memory_assembly_width(
+    ctool_string_t template_text) {
+  if (cir_string_equal(
+          template_text, ctool_string("fnstsw %0")) == CTOOL_TRUE ||
+      cir_string_equal(
+          template_text, ctool_string("fnstcw %0")) == CTOOL_TRUE) {
+    return 16u;
+  }
+  return cir_string_equal(
+             template_text, ctool_string("stmxcsr %0")) == CTOOL_TRUE
+             ? 32u
+             : 0u;
+}
+
+static ctool_bool cir_state_memory_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_expression_t *expression;
+  ctool_u32 expected_width =
+      cir_state_memory_assembly_width(assembly->template_text);
+  ctool_u32 output;
+  ctool_bool has_memory_output = CTOOL_FALSE;
+  if (assembly->first_operand >
+          context->unit->assembly_operand_count) {
+    return CTOOL_FALSE;
+  }
+  if (expected_width == 0u && assembly->output_count == 0u) {
+    return CTOOL_TRUE;
+  }
+  if (context->unit->assembly_operands ==
+      (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  for (output = 0u; output < assembly->output_count; output++) {
+    operand = &context->unit->assembly_operands[
+        assembly->first_operand + output];
+    if (cir_string_equal(
+            operand->constraint, ctool_string("=m")) == CTOOL_TRUE) {
+      has_memory_output = CTOOL_TRUE;
+    }
+  }
+  if (expected_width == 0u) {
+    return has_memory_output == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 0u ||
+      has_memory_output == CTOOL_FALSE ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count) {
+    return CTOOL_FALSE;
+  }
+  operand = &context->unit->assembly_operands[assembly->first_operand];
+  if (operand->expression >= context->unit->expression_count ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->layout.types[operand->type].is_integer ==
+          CTOOL_FALSE ||
+      context->unit->layout.types[operand->type].size !=
+          expected_width / 8u ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0) {
+    return CTOOL_FALSE;
+  }
+  expression = &context->unit->expressions[operand->expression];
+  return expression->type == operand->type ? CTOOL_TRUE
+                                            : CTOOL_FALSE;
+}
+
 static ctool_status_t cir_validate_assembly_slices(
     cir_context_t *context) {
   ctool_u32 operand_cursor = 0u;
@@ -584,6 +654,10 @@ static ctool_status_t cir_validate_assembly_slices(
             assembly->template_text,
             ctool_string("fxsave (%0)")) == CTOOL_TRUE &&
         cir_fxsave_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_state_memory_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -7878,6 +7952,10 @@ static ctool_bool cir_assembly_output_type_is_valid(
   if (cir_string_equal(
           operand->constraint, ctool_string("=qm")) == CTOOL_TRUE) {
     return size == 1u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (cir_string_equal(
+          operand->constraint, ctool_string("=m")) == CTOOL_TRUE) {
+    return size == 2u || size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
   }
   if (cir_string_equal(
           operand->constraint, ctool_string("=r")) == CTOOL_TRUE ||

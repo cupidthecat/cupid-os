@@ -194,6 +194,16 @@ produce the same validated 30,216-byte object, with FXSAVE at text offsets
 0x1967 and 0x4d7c. The checked seed predates this support, so process.c
 remains host-built.
 
+Compiler head accepts three exact volatile machine-state memory outputs.
+fnstsw %0 and fnstcw %0 write a modifiable 16-bit integer through =m.
+stmxcsr %0 writes a modifiable 32-bit integer. Linear IR evaluates each
+destination once, and the i386 emitter writes through that address with the
+shared x86 model. Other =m templates remain unsupported. The separate exact
+call-next support also handles the later local-label statement in unchanged
+panic.c. Two full kernel-profile compiles produce the same validated
+10,212-byte ELF32 object. The checked seed does not yet include this
+capability.
+
 Compiler head handles integer atomic load, store, exchange, fetch-add, and
 fetch-or builtins for one-, two-, and four-byte objects. It checks constant
 memory orders and emits ordinary loads and release stores, memory XCHG, LOCK

@@ -1796,6 +1796,28 @@ static ctool_status_t cemit_x86_fxsave_memory(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_state_memory(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u8 base_register, ctool_u16 width_bits) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, width_bits);
+  if (!((mnemonic == CTOOL_X86_MN_FNSTSW ||
+         mnemonic == CTOOL_X86_MN_FNSTCW) &&
+        width_bits == 16u) &&
+      !(mnemonic == CTOOL_X86_MN_STMXCSR &&
+        width_bits == 32u)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 1u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, base_register),
+      0, 0u);
+  instruction.operands[0].width_bits = width_bits;
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_repeat_string(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u16 operand_bits) {
@@ -5567,6 +5589,124 @@ static ctool_status_t cemit_emit_privileged_assembly(
 }
 
 typedef enum {
+  CEMIT_STATE_MEMORY_NONE = 0,
+  CEMIT_STATE_MEMORY_FNSTSW,
+  CEMIT_STATE_MEMORY_FNSTCW,
+  CEMIT_STATE_MEMORY_STMXCSR
+} cemit_state_memory_kind_t;
+
+static cemit_state_memory_kind_t cemit_state_memory_template_kind(
+    ctool_string_t template_text) {
+  if (cemit_string_equals_literal(
+          template_text, "fnstsw %0") == CTOOL_TRUE) {
+    return CEMIT_STATE_MEMORY_FNSTSW;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "fnstcw %0") == CTOOL_TRUE) {
+    return CEMIT_STATE_MEMORY_FNSTCW;
+  }
+  return cemit_string_equals_literal(
+             template_text, "stmxcsr %0") == CTOOL_TRUE
+             ? CEMIT_STATE_MEMORY_STMXCSR
+             : CEMIT_STATE_MEMORY_NONE;
+}
+
+static ctool_bool cemit_assembly_uses_state_memory_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_state_memory_template_kind(
+                     assembly->template_text) !=
+                     CEMIT_STATE_MEMORY_NONE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_state_memory_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    cemit_state_memory_kind_t kind) {
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_type_node_t *node;
+  ctool_u32 qualifiers;
+  ctool_u32 expected_size =
+      kind == CEMIT_STATE_MEMORY_STMXCSR ? 4u : 2u;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      kind == CEMIT_STATE_MEMORY_NONE ||
+      assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 0u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  if (operand->expression >= context->unit->expression_count ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      cemit_string_equals_literal(
+          operand->constraint, "=m") == CTOOL_FALSE ||
+      cemit_underlying_type(
+          context, operand->type, &qualifiers, &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  qualifiers |= node->qualifiers;
+  return layout->is_integer == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == expected_size &&
+                 (qualifiers &
+                  (CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_ATOMIC)) == 0u &&
+                 context->unit->expressions !=
+                     (const ctool_c_expression_t *)0 &&
+                 context->unit->expressions[operand->expression].type ==
+                     operand->type
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_state_memory_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  cemit_state_memory_kind_t kind =
+      cemit_state_memory_template_kind(assembly->template_text);
+  ctool_x86_mnemonic_t mnemonic;
+  ctool_u16 width_bits;
+  ctool_status_t status;
+  if (temporary_offset != 0u ||
+      cemit_state_memory_metadata_is_valid(
+          context, assembly, kind) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  if (kind == CEMIT_STATE_MEMORY_FNSTSW) {
+    mnemonic = CTOOL_X86_MN_FNSTSW;
+    width_bits = 16u;
+  } else if (kind == CEMIT_STATE_MEMORY_FNSTCW) {
+    mnemonic = CTOOL_X86_MN_FNSTCW;
+    width_bits = 16u;
+  } else {
+    mnemonic = CTOOL_X86_MN_STMXCSR;
+    width_bits = 32u;
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_state_memory(
+        context, mnemonic, 0u, width_bits);
+  }
+  return status;
+}
+
+typedef enum {
   CEMIT_PORT_IO_NONE = 0,
   CEMIT_PORT_IO_INB,
   CEMIT_PORT_IO_OUTB,
@@ -6694,6 +6834,11 @@ static ctool_status_t cemit_emit_assembly(
   }
   if (cemit_assembly_uses_fxsave_path(assembly) == CTOOL_TRUE) {
     return cemit_emit_fxsave_assembly(
+        context, assembly, temporary_offset);
+  }
+  if (cemit_assembly_uses_state_memory_path(
+          assembly) == CTOOL_TRUE) {
+    return cemit_emit_state_memory_assembly(
         context, assembly, temporary_offset);
   }
   if (cemit_assembly_uses_port_io_path(
@@ -9382,6 +9527,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           continue;
         }
         if (cemit_assembly_uses_fxsave_path(
+                assembly) == CTOOL_TRUE) {
+          continue;
+        }
+        if (cemit_assembly_uses_state_memory_path(
                 assembly) == CTOOL_TRUE) {
           continue;
         }

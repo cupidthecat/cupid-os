@@ -344,6 +344,18 @@ complete `kernel/cpu/pic.c` root compiles to a deterministic 2,408-byte
 ELF32 object. The checked seed and normal Make recipe still predate this
 capability.
 
+Compiler head accepts the exact volatile `fnstsw %0`, `fnstcw %0`, and
+`stmxcsr %0` forms with one `=m` output. The first two require a modifiable
+16-bit integer, while `stmxcsr` requires a modifiable 32-bit integer. Linear
+IR evaluates the destination once, and the i386 emitter writes the machine
+state directly through that address without an output staging slot. The exact
+call-next form above covers the later local-label statement in unchanged
+`kernel/core/panic.c` as well. Two complete kernel-profile compiles produce
+the same validated 10,212-byte ELF32 object with SHA-256
+`84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428`.
+The checked seed and normal ownership boundary have not moved for this
+compiler-head addition.
+
 Function-body GNU assembly may have no operands. Basic statements and
 extended statements with an empty output list are implicitly volatile. Exact
 sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit through
@@ -475,7 +487,7 @@ above.
 
 [ADR 0115](docs/adr/0115-transfer-the-source-driven-roots-to-cupidc.md) records the 20-root `.cc` ownership transfer. [ADR 0116](docs/adr/0116-retain-gnu-used-entities-in-cupidc.md) records compiler-head `used` metadata. [ADR 0117](docs/adr/0117-emit-privileged-register-assembly-in-cupidc.md) records control-register and RDMSR assembly. [ADR 0118](docs/adr/0118-cupidc-call-next-gnu-assembly.md) records the stack-trace call-next boundary. [ADR 0119](docs/adr/0119-cupidc-fxsave-pointer-input-assembly.md) records the FXSAVE pointer-input boundary.
 
-[ADR 0120](docs/adr/0120-use-dx-for-gnu-nd-port-operands.md) records the GNU `Nd` DX fallback and the compiler-head PIC proof.
+[ADR 0120](docs/adr/0120-use-dx-for-gnu-nd-port-operands.md) records the GNU `Nd` DX fallback and the compiler-head PIC proof. [ADR 0121](docs/adr/0121-cupidc-machine-state-memory-outputs.md) records the exact machine-state memory-output boundary.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 

@@ -24745,20 +24745,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.c",           "/toolchain/x86.c",
       "/kernel/lang/as_elf.c"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 208u, 214u, 325u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 210u, 219u, 327u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 399813u, 362350u, 655025u, 139612u, 70368u, 77981u,
+      190304u, 402964u, 366820u, 658112u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 427016u, 390184u, 777756u, 157796u, 79348u, 131640u,
+      226668u, 430568u, 395296u, 781868u, 157796u, 79348u, 131640u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xdc811030u, 0xe679aac1u, 0x2b6f821du, 0x3f69aac3u,
+      0xb2429018u, 0xcbcab4a6u, 0x878e3268u, 0x3f69aac3u,
       0x34558a49u, 0x7dcb4208u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -29058,6 +29058,312 @@ cleanup:
   return 1;
 }
 
+static int validate_state_memory_assembly_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    ctool_x86_mnemonic_t expected_mnemonic,
+    ctool_u16 expected_width, const ctool_u8 *expected_bytes,
+    ctool_u32 expected_size) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 target_count = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      expected_bytes == NULL || expected_size == 0u ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size ||
+      memcmp(text->contents.data + symbol->value, expected_bytes,
+             (size_t)expected_size) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == expected_mnemonic) {
+      const ctool_x86_operand_t *operand;
+      const ctool_x86_memory_t *memory;
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_MEMORY) {
+        return 0;
+      }
+      operand = &decoded.instruction.operands[0];
+      memory = &operand->as.memory;
+      if (operand->width_bits != expected_width ||
+          memory->address_bits != 32u ||
+          memory->segment.class_id != CTOOL_X86_REG_NONE ||
+          memory->base.class_id != CTOOL_X86_REG_GPR32 ||
+          memory->base.index != 0u ||
+          memory->index.class_id != CTOOL_X86_REG_NONE ||
+          memory->scale != 1u ||
+          memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+          memory->displacement.bits != 0u) {
+        return 0;
+      }
+      target_count++;
+    } else if (decoded.instruction.mnemonic ==
+                   CTOOL_X86_MN_FNSTSW ||
+               decoded.instruction.mnemonic ==
+                   CTOOL_X86_MN_FNSTCW ||
+               decoded.instruction.mnemonic ==
+                   CTOOL_X86_MN_STMXCSR) {
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && target_count == 1u ? 1 : 0;
+}
+
+static int validate_state_memory_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 status_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xddu, 0x38u, 0xc9u, 0xc3u};
+  static const ctool_u8 control_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xd9u, 0x38u, 0xc9u, 0xc3u};
+  static const ctool_u8 mxcsr_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x0fu, 0xaeu, 0x18u, 0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !validate_state_memory_assembly_function(
+          job, text, find_symbol(object, "save_status"),
+          CTOOL_X86_MN_FNSTSW, 16u, status_bytes,
+          (ctool_u32)sizeof(status_bytes)) ||
+      !validate_state_memory_assembly_function(
+          job, text, find_symbol(object, "save_control"),
+          CTOOL_X86_MN_FNSTCW, 16u, control_bytes,
+          (ctool_u32)sizeof(control_bytes)) ||
+      !validate_state_memory_assembly_function(
+          job, text, find_symbol(object, "save_mxcsr"),
+          CTOOL_X86_MN_STMXCSR, 32u, mxcsr_bytes,
+          (ctool_u32)sizeof(mxcsr_bytes))) {
+    static const char *const names[] = {
+        "save_status", "save_control", "save_mxcsr"};
+    ctool_u32 name_index;
+    (void)fprintf(stderr, "state-memory assembly object differs\n");
+    if (text != NULL && text->contents.data != NULL) {
+      for (name_index = 0u; name_index < 3u; name_index++) {
+        const ctool_elf32_symbol_t *symbol =
+            find_symbol(object, names[name_index]);
+        ctool_u32 byte_index;
+        if (symbol == NULL ||
+            symbol->value > text->contents.size ||
+            symbol->size > text->contents.size - symbol->value) {
+          continue;
+        }
+        (void)fprintf(
+            stderr, "%s size=%u bytes=", names[name_index],
+            (unsigned int)symbol->size);
+        for (byte_index = 0u; byte_index < symbol->size; byte_index++) {
+          (void)fprintf(
+              stderr, "%02x",
+              text->contents.data[symbol->value + byte_index]);
+        }
+        (void)fprintf(stderr, "\n");
+      }
+    }
+    return 0;
+  }
+  return 1;
+}
+
+static int run_state_memory_assembly_object(const char *host_root) {
+  static const char active_source[] =
+      "    __asm__ volatile(\"fnstsw %0\" : \"=m\"(fsw));\n"
+      "    __asm__ volatile(\"fnstcw %0\" : \"=m\"(fcw));\n"
+      "    __asm__ volatile(\"stmxcsr %0\" : \"=m\"(mxcsr));";
+  static const char active_source_crlf[] =
+      "    __asm__ volatile(\"fnstsw %0\" : \"=m\"(fsw));\r\n"
+      "    __asm__ volatile(\"fnstcw %0\" : \"=m\"(fcw));\r\n"
+      "    __asm__ volatile(\"stmxcsr %0\" : \"=m\"(mxcsr));";
+  static const char source[] =
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "void save_status(u16 *value) {\n"
+      "  __asm__ volatile(\"fnstsw %0\" : \"=m\"(*value));\n"
+      "}\n"
+      "void save_control(u16 *value) {\n"
+      "  __asm__ volatile(\"fnstcw %0\" : \"=m\"(*value));\n"
+      "}\n"
+      "void save_mxcsr(u32 *value) {\n"
+      "  __asm__ volatile(\"stmxcsr %0\" : \"=m\"(*value));\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t assemblies[3];
+  ctool_c_assembly_operand_t operands[3];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_contains(
+          job, "/kernel/core/panic.c",
+          "load active machine-state snapshot source",
+          "the active machine-state snapshots changed",
+          active_source, active_source_crlf) ||
+      !parse_source_mode(
+          job, "/state-memory-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 3u ||
+      unit.assembly_count != 3u ||
+      unit.assembly_operand_count != 3u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "state-memory assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(
+          status, CTOOL_OK, "state-memory assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first state-memory assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat state-memory assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "state-memory assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/state-memory-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK, "read state-memory assembly object") ||
+      !validate_state_memory_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 448u ||
+      find_section(&object, ".text") == NULL ||
+      find_section(&object, ".text")->contents.size != 58u ||
+      object.section_count != 5u ||
+      object.symbol_count != 4u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "state-memory metrics differ: object=%u text=%u sections=%u "
+        "symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)(find_section(&object, ".text") == NULL
+                           ? 0u
+                           : find_section(&object, ".text")->contents.size),
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  mutant = unit;
+  mutant.assemblies = assemblies;
+  mutant.assembly_operands = operands;
+
+  assemblies[0].template_text = ctool_string("fnstsw %0 ");
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory trailing template input") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  operands[0].constraint = ctool_string("=r");
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "state-memory forged register output") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "state-memory assembly recovery")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "state-memory assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("state-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_port_io_assembly_object(const char *host_root) {
   static const char source[] =
       "typedef unsigned char port_u8;\n"
@@ -31892,6 +32198,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "state-memory-assembly") == 0) {
+    return run_state_memory_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "atomic-builtins") == 0) {
     return run_atomic_builtin_object(argv[2]);
   }
@@ -31993,7 +32302,7 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|inline-assembly|port-io-assembly|"
                 "privileged-register-assembly|fxsave-assembly|"
-                "legacy-port-assembly|"
+                "legacy-port-assembly|state-memory-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
