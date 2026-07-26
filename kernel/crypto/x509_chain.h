@@ -53,7 +53,7 @@ typedef struct {
     uint32_t       der_len;
 } ca_root_t;
 
-/* Defined in tls_ca_bundle.c. */
+/* Defined in kernel/tls/tls_ca_bundle.cc. */
 extern const ca_root_t TLS_CA_BUNDLE[];
 extern const uint32_t   TLS_CA_BUNDLE_COUNT;
 

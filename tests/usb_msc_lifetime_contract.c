@@ -5,8 +5,8 @@
 
 #define TYPES_H
 
-#include "../kernel/fs/blockdev.c"
-#include "../kernel/usb/usb_msc.c"
+#include "../kernel/fs/blockdev.cc"
+#include "../kernel/usb/usb_msc.cc"
 
 static void *released_state;
 static int release_count;

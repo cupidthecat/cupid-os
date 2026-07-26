@@ -25,14 +25,14 @@ Cupid OS implements these USB host controllers and class drivers:
   - Mass storage registers as block_device_t: usb0, usb1, ...
 
 Source files:
-  drivers/pci.h + pci.c        PCI enumeration layer
+  drivers/pci.h + pci.cc        PCI enumeration layer
   kernel/usb/usb_hc.h          Host controller vtable
-  kernel/usb/usb.h + usb.c     USB core: enumeration FSM, work queue
-  kernel/usb/uhci.c            UHCI 1.1 driver
-  kernel/usb/ehci.c            EHCI 2.0 driver
-  kernel/usb/usb_hid.c         HID keyboard + mouse
-  kernel/usb/usb_hub.c         Hub class driver
-  kernel/usb/usb_msc.c         Mass storage (BBB + SCSI)
+  kernel/usb/usb.h + usb.cc     USB core: enumeration FSM, work queue
+  kernel/usb/uhci.cc            UHCI 1.1 driver
+  kernel/usb/ehci.cc            EHCI 2.0 driver
+  kernel/usb/usb_hid.cc         HID keyboard + mouse
+  kernel/usb/usb_hub.cc         Hub class driver
+  kernel/usb/usb_msc.cc         Mass storage (BBB + SCSI)
 >endtree
 
 >h2 Boot Order: EHCI Before UHCI
@@ -66,7 +66,7 @@ Why it matters:
 
 >h2 PCI Layer
 >tree open PCI Layer
-Source: drivers/pci.c + drivers/pci.h
+Source: drivers/pci.cc + drivers/pci.h
 
 Enumeration: pci_init() scans bus 0, devices 0-31.
   - Read vendor/device ID at config offset 0x00.
@@ -99,7 +99,7 @@ pci_write32(bus, dev, fn, 0x04, v);
 
 >h2 USB Core
 >tree open USB Core
-Source: kernel/usb/usb.c + kernel/usb/usb_hc.h + kernel/usb/usb.h
+Source: kernel/usb/usb.cc + kernel/usb/usb_hc.h + kernel/usb/usb.h
 
 Host controller vtable (usb_hc_t):
 
@@ -193,7 +193,7 @@ partially initialized device.
 
 >h2 UHCI Driver
 >tree open UHCI Driver
-Source: kernel/usb/uhci.c
+Source: kernel/usb/uhci.cc
 
 Register access: IO-port at BAR4 (bit 0 set in BAR value).
 IO base = pci_read32(..., 0x20) & ~3.
@@ -243,7 +243,7 @@ work to finish.
 
 >h2 EHCI Driver
 >tree open EHCI Driver
-Source: kernel/usb/ehci.c
+Source: kernel/usb/ehci.cc
 
 MMIO mapping:
   BAR0 is a memory BAR (bit 0 clear). Typical address: 0xFEBxxxxx,
@@ -330,7 +330,7 @@ callback cannot cancel its own slot.
 
 >h2 HID Driver
 >tree open HID Driver
-Source: kernel/usb/usb_hid.c
+Source: kernel/usb/usb_hid.cc
 
 Claimed when: bInterfaceClass=0x03 (HID) AND bInterfaceSubClass=0x01
 (Boot Interface Subclass). Both keyboard and mouse use this driver.
@@ -371,7 +371,7 @@ Mouse processing:
 
 >h2 Hub Driver
 >tree open Hub Driver
-Source: kernel/usb/usb_hub.c
+Source: kernel/usb/usb_hub.cc
 
 Claimed when: bDeviceClass=0x09 (Hub).
 
@@ -419,7 +419,7 @@ Transaction Translator routing:
 
 >h2 Mass Storage Driver
 >tree open Mass Storage Driver
-Source: kernel/usb/usb_msc.c
+Source: kernel/usb/usb_msc.cc
 
 Bulk-Only Transport (BBB) phases:
 

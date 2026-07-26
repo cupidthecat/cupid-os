@@ -1508,7 +1508,7 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "the active initializer result changed",
              active_initializer_success, NULL) &&
          active_source_contains(
-             job, "/kernel/core/syscall.c", "load active syscall source",
+             job, "/kernel/core/syscall.cc", "load active syscall source",
              "the active sleep helper changed", active_sleep,
              active_sleep_crlf) &&
          active_source_contains(
@@ -21537,7 +21537,7 @@ static int run_wide_multiplication_object(const char *host_root) {
   (void)memset(&unit, 0, sizeof(unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
-          job, "/kernel/crypto/x25519.c",
+          job, "/kernel/crypto/x25519.cc",
           "load active X25519 multiplication source",
           "the active X25519 wide multiplication helper changed",
           active_x25519_wide_multiply_body,
@@ -21977,13 +21977,13 @@ static int run_wide_mutation_object(const char *host_root) {
                sizeof(bit_field_shift_right_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !active_source_contains(
-          job, "/kernel/crypto/x25519.c",
+          job, "/kernel/crypto/x25519.cc",
           "load active X25519 mutation source",
           "the first active X25519 wide mutation chain changed",
           active_x25519_wide_mutation_first,
           active_x25519_wide_mutation_first_crlf) ||
       !active_source_contains(
-          job, "/kernel/crypto/x25519.c",
+          job, "/kernel/crypto/x25519.cc",
           "load active X25519 mutation source",
           "the second active X25519 wide mutation chain changed",
           active_x25519_wide_mutation_second,
@@ -24743,7 +24743,7 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/cupidc_ir.c",      "/toolchain/cupidc_emit.c",
       "/toolchain/cupidc_frontend.c", "/toolchain/cupidasm.c",
       "/toolchain/elf32.c",           "/toolchain/x86.c",
-      "/kernel/lang/as_elf.c"};
+      "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
       65u, 68u, 66u, 14u, 31u, 143u, 210u, 219u, 327u, 81u, 37u, 59u,
       5u};

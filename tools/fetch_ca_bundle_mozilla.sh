@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fetch Mozilla's root-CA bundle (via curl.se's mirror) and emit
-# kernel/tls/tls_ca_bundle_data.c with the popular-CA subset.
+# kernel/tls/tls_ca_bundle_data.cc with the popular-CA subset.
 #
 # The kernel binary is capped at ~2 MB on disk (FAT16 starts at LBA
 # 4096), so the full ~150-cert bundle does NOT fit. Instead this script
@@ -20,7 +20,7 @@
 
 set -euo pipefail
 
-OUT="kernel/tls/tls_ca_bundle_data.c"
+OUT="kernel/tls/tls_ca_bundle_data.cc"
 BUNDLE_URL="${1:-https://curl.se/ca/cacert.pem}"
 TMP="$(mktemp -d)"
 trap "rm -rf $TMP" EXIT

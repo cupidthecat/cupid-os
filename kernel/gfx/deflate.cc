@@ -1,6 +1,7 @@
-/* deflate.c - RFC 1951 raw DEFLATE decoder.
+/* deflate.cc - RFC 1951 raw DEFLATE decoder.
  *
- * Lifted from png.c. Hand-rolled bit reader + Huffman + inflate.
+ * This code came from kernel/gfx/png.cc. It uses a hand-rolled bit reader,
+ * Huffman decoder, and inflater.
  * Static-block, fixed-block, and dynamic-block decoders all here.
 */
 

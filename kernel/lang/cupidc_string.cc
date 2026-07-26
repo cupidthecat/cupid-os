@@ -1,5 +1,5 @@
 /**
- * cupidc_string.c - String utility functions for CupidC programs
+ * cupidc_string.cc - String utility functions for CupidC programs
  *
  * Provides additional string operations beyond the basic kernel string.h.
  * These are bound into CupidC as kernel API calls so that CupidC shell

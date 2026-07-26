@@ -9,7 +9,7 @@
 #include "p256.h"
 #include "ecdsa.h"
 
-/* Same scancodes as drivers/keyboard.c. */
+/* Same scancodes as drivers/keyboard.cc. */
 #define KSC_UP      0x48
 #define KSC_DOWN    0x50
 #define KSC_LEFT    0x4B

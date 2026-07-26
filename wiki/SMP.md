@@ -25,12 +25,12 @@ Core files:
 ```
 kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
 kernel/smp/lapic.h  / lapic.cc       Local APIC driver
-kernel/smp/ioapic.h / ioapic.c       IOAPIC driver
+kernel/smp/ioapic.h / ioapic.cc       IOAPIC driver
 kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
 kernel/smp/bkl.h    / bkl.cc         big kernel lock (ticket spinlock)
 kernel/smp/mp_tables.h / .c      MP table discovery
-kernel/smp/acpi.h / acpi.c       ACPI MADT fallback
-kernel/lang/shell.c              `smp` shell command
+kernel/smp/acpi.h / acpi.cc       ACPI MADT fallback
+kernel/lang/shell.cc              `smp` shell command
 ```
 
 ---
@@ -465,7 +465,7 @@ void smp_call_on_cpu(uint32_t cpu, void (*fn)(void *), void *arg) {
 ## Shell Commands
 
 The `smp` command is implemented by `shell_smp_cmd` in
-`kernel/lang/shell.c` and provides two views:
+`kernel/lang/shell.cc` and provides two views:
 
 ```
 smp              List per-CPU APIC, online, preemption, and PID state
@@ -491,8 +491,8 @@ me: 0
 
 ### Checked-seed ownership and smoke
 
-The normal build compiles `kernel/smp/acpi.c`,
-`kernel/smp/mp_tables.c`, and `kernel/smp/lapic.cc` with checked-seed
+The normal build compiles `kernel/smp/acpi.cc`,
+`kernel/smp/mp_tables.cc`, and `kernel/smp/lapic.cc` with checked-seed
 CupidC. The wrapper freezes and verifies the seed, uses the fixed kernel
 profile, validates each i386 ELF32 object, and only then replaces the
 production output. A forced build with an invalid host compiler proves that
@@ -563,12 +563,12 @@ Fine-grained locking would be required to remove this serialization.
 | `kernel/smp/lapic.h` | LAPIC register offsets, API declarations |
 | `kernel/smp/lapic.cc` | MMIO map, software enable, PIT calibration, IPI send |
 | `kernel/smp/ioapic.h` | IOAPIC register layout, API |
-| `kernel/smp/ioapic.c` | Redirection table init, GSI routing, ISA remap |
+| `kernel/smp/ioapic.cc` | Redirection table init, GSI routing, ISA remap |
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
 | `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
 | `kernel/smp/bkl.h` | `bkl_lock` / `bkl_unlock` and target-stack handoff declarations |
 | `kernel/smp/bkl.cc` | Ticket spinlock implementation |
 | `kernel/smp/mp_tables.h` | MP table parser API |
-| `kernel/smp/mp_tables.c` | `_MP_` scan and CPU/IOAPIC discovery |
-| `kernel/smp/acpi.h` / `kernel/smp/acpi.c` | ACPI RSDP/RSDT/XSDT/MADT fallback |
-| `kernel/lang/shell.c` | `smp` and `smp info` shell commands |
+| `kernel/smp/mp_tables.cc` | `_MP_` scan and CPU/IOAPIC discovery |
+| `kernel/smp/acpi.h` / `kernel/smp/acpi.cc` | ACPI RSDP/RSDT/XSDT/MADT fallback |
+| `kernel/lang/shell.cc` | `smp` and `smp info` shell commands |

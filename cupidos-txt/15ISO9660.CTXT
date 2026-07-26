@@ -84,7 +84,7 @@ Stack layers (top to bottom):
 Source files:
   kernel/iso9660.h + iso9660.cc   PVD parser, directory walker, SUSP/RR
   kernel/fs/loopdev.cc           file-backed block device adapter
-  kernel/iso9660_vfs.c           VFS mount/open/read/readdir adapter
+  kernel/iso9660_vfs.cc           VFS mount/open/read/readdir adapter
 >endtree
 
 >h2 Testing

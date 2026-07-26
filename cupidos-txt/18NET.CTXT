@@ -29,17 +29,17 @@ stack.
   Apps          : curl, wget, browser, ssh, telnet, sshd, feature21-23
 
 Kernel network files:
-  kernel/network/net_if.h / net_if.c  NIC vtable, RX ring, registration
-  kernel/network/arp.h    / arp.c     ARP cache, blocking resolve
-  kernel/network/ip.h     / ip.c      IPv4 parse, route, dispatch
-  kernel/network/icmp.h   / icmp.c    ICMP echo reply
+  kernel/network/net_if.h / net_if.cc  NIC vtable, RX ring, registration
+  kernel/network/arp.h    / arp.cc     ARP cache, blocking resolve
+  kernel/network/ip.h     / ip.cc      IPv4 parse, route, dispatch
+  kernel/network/icmp.h   / icmp.cc    ICMP echo reply
   kernel/network/udp.h    / udp.cc    UDP send/recv
-  kernel/network/tcp.h    / tcp.c     RFC 793 subset state machine
-  kernel/network/socket.h / socket.c  32-slot BSD socket table + API
-  kernel/network/dhcp.h   / dhcp.c    DHCP + static fallback
-  kernel/network/dns.h    / dns.c     UDP/53 A-record resolver + cache
-  drivers/rtl8139.h / rtl8139.c       Realtek 8139 PCI NIC driver
-  drivers/e1000.h   / e1000.c         Intel 82540EM PCI NIC driver
+  kernel/network/tcp.h    / tcp.cc     RFC 793 subset state machine
+  kernel/network/socket.h / socket.cc  32-slot BSD socket table + API
+  kernel/network/dhcp.h   / dhcp.cc    DHCP + static fallback
+  kernel/network/dns.h    / dns.cc     UDP/53 A-record resolver + cache
+  drivers/rtl8139.h / rtl8139.cc       Realtek 8139 PCI NIC driver
+  drivers/e1000.h   / e1000.cc         Intel 82540EM PCI NIC driver
   bin/feature21_net.cc            TCP client smoke test (DNS + connect + HTTP GET)
   bin/feature22_net_server.cc     TCP server smoke test (listen/accept/echo)
 >endtree
@@ -52,18 +52,18 @@ Layer diagram (app at top, silicon at bottom):
   user / kernel code
     socket() bind() listen() accept() connect() send() recv() close()
     dns_resolve(name) -> ipv4
-  kernel/network/socket.c: 32-slot socket_t table
+  kernel/network/socket.cc: 32-slot socket_t table
     type, state, tx_buf/rx_buf, TCP state machine
-  kernel/network/tcp.c, kernel/network/udp.cc, kernel/network/icmp.c
+  kernel/network/tcp.cc, kernel/network/udp.cc, kernel/network/icmp.cc
     TCP state machine     UDP datagram     ICMP echo reply
-  kernel/network/ip.c: IPv4 send + dispatch
+  kernel/network/ip.cc: IPv4 send + dispatch
     ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send
     ipv4_input(frame) -> proto dispatch (ICMP/UDP/TCP)
-  kernel/network/arp.c: 16-entry LRU cache
+  kernel/network/arp.cc: 16-entry LRU cache
     who-has / is-at    blocking resolve on cache miss (500 ms)
-  kernel/network/net_if.c: unified NIC interface
+  kernel/network/net_if.cc: unified NIC interface
     net_if_t vtable    lockless SPSC RX ring (64 slots)
-  drivers/rtl8139.c          drivers/e1000.c
+  drivers/rtl8139.cc          drivers/e1000.cc
     PCI probe + init + register    IRQ top-half (enqueue frame)
 
 >h3 Key Size Constants
@@ -653,7 +653,7 @@ with RX-driven state changes. No fine-grained per-socket locks at Tier 4.
 >h2 Shell Commands
 >tree open Shell Commands
 
-The shell exposes these network commands through kernel/lang/shell.c:
+The shell exposes these network commands through kernel/lang/shell.cc:
 
   [ifconfig](shell:ifconfig)
     Prints MAC, IP/prefix, gateway, DNS, link state, rx/tx counts.
@@ -940,27 +940,27 @@ These constraints define the Tier 4 scope.
 >h2 Source File Index
 >tree open Source File Index
   kernel/network/net_if.h    net_if_t struct, RX ring constants, API declarations
-  kernel/network/net_if.c    NIC registration, RX ring, net_init, net_process_pending
+  kernel/network/net_if.cc    NIC registration, RX ring, net_init, net_process_pending
   kernel/network/arp.h       ARP cache struct, arp_resolve / arp_input declarations
-  kernel/network/arp.c       16-entry LRU cache, ARP request/reply, blocking resolve
+  kernel/network/arp.cc       16-entry LRU cache, ARP request/reply, blocking resolve
   kernel/network/ip.h        ipv4_hdr_t, protocol constants, API
-  kernel/network/ip.c        IPv4 send + receive + checksum + routing
+  kernel/network/ip.cc        IPv4 send + receive + checksum + routing
   kernel/network/icmp.h      ICMP header struct, icmp_input declaration
-  kernel/network/icmp.c      Echo request -> echo reply
+  kernel/network/icmp.cc      Echo request -> echo reply
   kernel/network/udp.h       UDP header struct, udp_send_raw, udp_input
   kernel/network/udp.cc      UDP send + receive + pseudo-header checksum
   kernel/network/tcp.h       tcp_hdr_t, flag macros, TCP_MSS, TCP_RTO_MS, API
-  kernel/network/tcp.c       RFC 793 state machine, tcp_tick, ~1200 LOC
+  kernel/network/tcp.cc       RFC 793 state machine, tcp_tick, ~1200 LOC
   kernel/network/socket.h    socket_t, error codes, tcp_state_t, BSD API declarations
-  kernel/network/socket.c    32-slot table, socket_create/bind/listen/accept/...
+  kernel/network/socket.cc    32-slot table, socket_create/bind/listen/accept/...
   kernel/network/dhcp.h      dhcp_start declaration
-  kernel/network/dhcp.c      DISCOVER/OFFER/REQUEST/ACK, static fallback
+  kernel/network/dhcp.cc      DISCOVER/OFFER/REQUEST/ACK, static fallback
   kernel/network/dns.h       dns_resolve declaration, cache constants
-  kernel/network/dns.c       UDP/53 query, response parse, compression pointer, cache
+  kernel/network/dns.cc       UDP/53 query, response parse, compression pointer, cache
   drivers/rtl8139.h          RTL8139 register offsets, rtl8139_probe declaration
-  drivers/rtl8139.c          PCI probe, init, RX drain, send, IRQ handler, ~300 LOC
+  drivers/rtl8139.cc          PCI probe, init, RX drain, send, IRQ handler, ~300 LOC
   drivers/e1000.h            E1000 register offsets, e1000_probe declaration
-  drivers/e1000.c            PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC
+  drivers/e1000.cc            PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC
   bin/feature21_net.cc          TCP client smoke test
   bin/feature22_net_server.cc   TCP server smoke test
   bin/feature23_full_access.cc  Phase 5 binding sanity (net info,

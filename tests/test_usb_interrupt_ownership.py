@@ -64,7 +64,7 @@ class UsbInterruptOwnershipTests(unittest.TestCase):
             )
 
     def test_controllers_use_local_slots_and_finish_after_callbacks(self):
-        for source_name, prefix in (("ehci.c", "ehci"), ("uhci.c", "uhci")):
+        for source_name, prefix in (("ehci.cc", "ehci"), ("uhci.cc", "uhci")):
             source = (ROOT / "kernel" / "usb" / source_name).read_text(
                 encoding="utf-8"
             )
@@ -91,7 +91,7 @@ class UsbInterruptOwnershipTests(unittest.TestCase):
             self.assertIn(f"{prefix}_submit_unlock(c);", poll[submit:callback])
 
     def test_cancellation_waits_for_the_claimed_generation(self):
-        for source_name, prefix in (("ehci.c", "ehci"), ("uhci.c", "uhci")):
+        for source_name, prefix in (("ehci.cc", "ehci"), ("uhci.cc", "uhci")):
             source = (ROOT / "kernel" / "usb" / source_name).read_text(
                 encoding="utf-8"
             )

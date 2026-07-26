@@ -257,7 +257,7 @@ The hosted cast path accepts a direct four-byte integer literal zero as a repres
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
-The exact hosted gate covers the hermetic Toolchain sources, `kernel/lang/as_elf.c`, and complete command closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The static-tool preprocessing audit runs all 20 C sources under the checked four-byte i386 Linux target: 19 strict C11 files and the GNU-enabled runtime. Repeated emission produces identical ELF32 objects, and Cupid's ELF32 reader checks each object before linking.
+The exact hosted gate covers the hermetic Toolchain sources, `kernel/lang/as_elf.cc`, and complete command closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The static-tool preprocessing audit runs all 20 C sources under the checked four-byte i386 Linux target: 19 strict C11 files and the GNU-enabled runtime. Repeated emission produces identical ELF32 objects, and Cupid's ELF32 reader checks each object before linking.
 
 The repository runtime supplies the checked file, heap, memory, string, `errno`, `getcwd`, and formatted-output interfaces required by the five commands. CupidC emits the runtime, CupidASM assembles `_start` and the system-call boundary, and CupidLD links five deterministic static Linux i386 executables without unresolved symbols. A sixth executable checks allocation, tail release, files, seeks, errors, arguments, memory comparison, and strings. The runtime has unbuffered streams and single-threaded heap, stream, and `errno` state.
 
@@ -279,7 +279,7 @@ A block-scope `extern` object keeps a lexical alias to one canonical linked obje
 
 A block function declaration keeps a lexical alias and visible type alongside one canonical linked function. Plain and `extern` forms share compatible identity. A visible prior declaration contributes to the alias's composite type, but an expired sibling prototype does not change the type seen by a later old-style declaration. A visible file-scope `static` function keeps internal linkage, while a function introduced only in a block stays out of file lookup until a later file declaration publishes it. The declaration emits no runtime IR or storage. Direct calls use `R_386_PC32`, and function addresses use `R_386_32`. Active-source guards cover 27 declarations across nine files. The exact Doom profile still parses all of `kernel/doom/src/d_main.c`, including its local `forwardmove` and `sidemove` declarations.
 
-Block enums keep each enumerator in the ordinary lexical binding stream. A later enumerator can use an earlier value, nested tags and constants shadow their outer names, and scope exit restores those names. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function prefixes and expression or initializer activation records preserve the exact point where each name becomes visible. Linear IR checks that lexical order before lowering runtime control flow, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer constants, so enums need no frame slot, symbol, relocation, or runtime declaration instruction. This covers the cursor constants in the production CupidC-built `kernel/gui/desktop.c` object; the REPL limits remain a separate active guard in `kernel/lang/shell.c`. Block declaration attributes, nested function definitions, nonempty identifier lists, atomic variadic access, aggregate arguments without declared parameter types, and aggregate variadic reads remain unfinished.
+Block enums keep each enumerator in the ordinary lexical binding stream. A later enumerator can use an earlier value, nested tags and constants shadow their outer names, and scope exit restores those names. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function prefixes and expression or initializer activation records preserve the exact point where each name becomes visible. Linear IR checks that lexical order before lowering runtime control flow, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer constants, so enums need no frame slot, symbol, relocation, or runtime declaration instruction. This covers the cursor constants in the production CupidC-built `kernel/gui/desktop.cc` object; the REPL limits remain a separate active guard in `kernel/lang/shell.cc`. Block declaration attributes, nested function definitions, nonempty identifier lists, atomic variadic access, aggregate arguments without declared parameter types, and aggregate variadic reads remain unfinished.
 
 Block-static objects use static storage in the shared ELF32 path. The emitter places top-level `const` objects in `.rodata`, writable zero-filled objects in `.bss`, and other writable objects in `.data`. Each object receives a local symbol derived from its absolute block-binding index, so shadowed names remain distinct. `LOCAL_ADDRESS` reaches that symbol through an `R_386_32` relocation instead of an EBP-relative frame slot, and the declaration emits no runtime initialization code. Unused and unreachable block statics still receive storage.
 
@@ -289,33 +289,33 @@ Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32`
 
 Across the root and supplemental builds, the checked CupidC seed owns 151 C
 transforms. Its normal cohort has 145 transforms: 144 checked-in sources plus
-the generated `kernel/cpu/ksyms_data.cc` source. The established 116 sources
-and 28 source-driven `.cc` roots make up the checked-in cohort. The latest
-transfer covers `kernel/core/panic.cc`, `kernel/core/process.cc`,
-`kernel/cpu/idt.cc`, `kernel/cpu/pic.cc`, `kernel/lang/as.cc`,
-`kernel/lang/cupidc.cc`, `kernel/mm/paging.cc`, and
-`kernel/smp/lapic.cc`. Ten strict checked-in roots remain host-owned. Three
-generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
-programs account for the other six CupidC transforms.
+the generated `kernel/cpu/ksyms_data.cc` source. Of the checked-in roots, 139
+use `.cc`. The seed-bound `toolchain/ctool.c`, `toolchain/cupidasm.c`,
+`toolchain/cupiddis.c`, `toolchain/elf32.c`, and `toolchain/x86.c` roots keep
+`.c` until their fixed point and native-host contracts are refreshed. The
+generated symbol source makes 140 normal `.cc` translations. ADR 0124 records
+the 111-root naming transfer. Ten strict checked-in roots remain host-owned.
+Three generated installation tables and the `hello.cc`, `ls.cc`, and
+`cat.cc` programs account for the other six CupidC transforms.
 
-The strict kernel frontier compiles all 144 approved checked-in sources twice
-to 3,514,456 byte-identical i386 ELF32 bytes. It freezes 432 inputs with
-snapshot SHA-256
-`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
+The strict kernel frontier compiles all 144 approved checked-in sources
+twice. The renamed graph passes its path snapshot, byte-for-byte object
+comparison, clean normal image, symbol and memory checks, and four-vCPU
+runtime gate.
 The generated symbol source stores a logical 104,185-byte blob as
-little-endian `unsigned int` words with three trailing pad bytes. The final
-kernel consumes 4,069 text symbols with no address drift.
+little-endian `unsigned int` words with three trailing pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object
 may omit `.text` while its remaining sections and symbols still receive bounds
 checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through
-Cupid's x86 model while preserving EBX. The four-vCPU GUI contract reaches
+Cupid's x86 model while preserving EBX. The four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
-execution at `0x01100000`. A separate gate loads and reaps the same external
-program twice at `0x00F00000`. The host C compiler owns 146 transforms and 94
-root objects. Host Python owns 163 transforms. The private in-kernel CupidC
-compiler still handles embedded runtime compilation.
+execution at `0x01100000`. A separate gate loads and reaps the same
+external program twice at `0x00F00000`. ADR 0124 records the exact build and
+runtime evidence. The host C compiler owns 146
+transforms and 94 root objects. Host Python owns 163 transforms. The private
+in-kernel CupidC compiler still handles embedded runtime compilation.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects rather than only the earlier hybrid image.
 
@@ -375,12 +375,10 @@ shared x86 model. This brings the active non-Doom header gate to 154/154 at
 compiler head.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 144-source checked-in CupidC cohort, whose deterministic
-frontier has 3,514,456 object bytes. `kernel/smp/acpi.c` and
-`kernel/smp/mp_tables.c`
-continue to emit 5,708-byte and 4,156-byte objects that pass the shared
-validator. The runtime contract passes on four vCPUs with both
-supported NIC paths.
+uses it in the 144-source checked-in CupidC cohort. Earlier frontier evidence
+measured the ACPI and MP-table objects at 5,708 and 4,156 bytes. Their current
+`.cc` paths must pass the shared validator and re-run the four-vCPU contract
+with both supported NIC paths.
 
 Compiler head also accepts the GNU `Nd` alternative in the 8259 PIC helpers.
 It selects DX for the port and emits the exact `outb %0, %1` and
@@ -1164,7 +1162,7 @@ Source (.cc)
          ▼
 ┌─────────────────┐
 │  JIT: Execute    │  cupidc.cc - copy to memory, jump to main()
-│  AOT: Write ELF  │  cupidc_elf.c - emit ELF32 binary to disk
+│  AOT: Write ELF  │  cupidc_elf.cc - emit ELF32 binary to disk
 └─────────────────┘
 ```
 
@@ -1176,7 +1174,7 @@ Source (.cc)
 | `cupidc.cc` | 3,963 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
 | `cupidc_lex.c` | 833 | Lexer for keywords, literals, operators, and delimiters |
 | `cupidc_parse.cc` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
-| `cupidc_elf.c` | 147 | Fixed-address ELF32 executable writer for AOT mode |
+| `cupidc_elf.cc` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer
 

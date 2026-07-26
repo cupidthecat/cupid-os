@@ -17,19 +17,19 @@ cupid-os uses a Linux-style **Virtual File System (VFS)** to expose one file API
 │   Mount table │ FD table │ Path resolution       │
 ├────────────┬────────────┬────────────────────────┤
 │   RamFS    │   DevFS    │   FAT16 VFS Wrapper    │
-│ (ramfs.c)  │ (devfs.c)  │   (fat16_vfs.c)        │
+│ (ramfs.cc)  │ (devfs.cc)  │   (fat16_vfs.cc)        │
 │            │            ├────────────────────────┤
 │ /          │ /dev       │   FAT16 Driver         │
 │ /bin       │            │   (fat16.cc)           │
 │ /tmp       │            ├────────────────────────┤
 │            │            │   Block Cache (LRU)    │
-│            │            │   (blockcache.c)       │
+│            │            │   (blockcache.cc)       │
 │            │            ├────────────────────────┤
 │            │            │   Block Device Layer   │
-│            │            │   (blockdev.c)         │
+│            │            │   (blockdev.cc)         │
 │            │            ├────────────────────────┤
 │            │            │   ATA/IDE PIO Driver   │
-│            │            │   (ata.c)              │
+│            │            │   (ata.cc)              │
 └────────────┴────────────┴────────────────────────┘
 ```
 
@@ -46,7 +46,7 @@ homefs  -> /home  (backed by /disk/HOMEFS.SYS)
 
 ## VFS Layer
 
-The VFS implementation is in `kernel/fs/vfs.c/h`. The shell, Notepad, and program loader access files through this API.
+The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and program loader access files through this API.
 
 ### Features
 
@@ -142,7 +142,7 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 ### VFS Helpers
 
-The helpers in `kernel/fs/vfs_helpers.c/h` wrap common `vfs_open`, `vfs_read`, `vfs_write`, and `vfs_close` sequences in single calls. They are also available as CupidC bindings.
+The helpers in `kernel/fs/vfs_helpers.cc/h` wrap common `vfs_open`, `vfs_read`, `vfs_write`, and `vfs_close` sequences in single calls. They are also available as CupidC bindings.
 
 | Function | Description |
 |----------|-------------|
@@ -179,7 +179,7 @@ void main() {
 
 ## RamFS
 
-The RAM filesystem (`kernel/fs/ramfs.c/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
+The RAM filesystem (`kernel/fs/ramfs.cc/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
 
 ### Features
 
@@ -215,7 +215,7 @@ ramfs_node_t {
 
 ## DevFS
 
-The device filesystem (`kernel/fs/devfs.c/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
+The device filesystem (`kernel/fs/devfs.cc/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
 
 ### Built-in Devices
 
@@ -240,7 +240,7 @@ The device filesystem (`kernel/fs/devfs.c/h`) exposes hardware and pseudo-device
 
 ## FAT16 VFS Wrapper
 
-The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making raw disk files accessible at `/disk`. Homefs separately serializes `/home` into `/disk/HOMEFS.SYS`.
+The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.cc/h`) adapts the existing FAT16 driver to the VFS interface, making raw disk files accessible at `/disk`. Homefs separately serializes `/home` into `/disk/HOMEFS.SYS`.
 
 ### How It Works
 
@@ -271,7 +271,7 @@ The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driv
 
 ## Program Loader
 
-The program loader (`kernel/lang/exec.c/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
+The program loader (`kernel/lang/exec.cc/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
 
 ### Supported Formats
 
@@ -331,7 +331,7 @@ CUPD is the original CupidOS flat binary format with a simple 20-byte header.
 ┌──────────────────────────┐  Offset 0
 │  Header (20 bytes)       │
 │  ├─ magic: 0x43555044    │  "CUPD"
-│  ├─ entry_offset         │  Entry point offset from code start                      
+│  ├─ entry_offset         │  Entry point offset from code start
 │  ├─ code_size            │  Size of code section
 │  ├─ data_size            │  Size of initialized data
 │  └─ bss_size             │  Size of uninitialized data
@@ -368,7 +368,7 @@ The VFS sits on top of the legacy disk I/O stack.
 
 ### Block Device Layer
 
-The block device abstraction (`kernel/fs/blockdev.c`) provides a uniform interface between the filesystem and disk driver.
+The block device abstraction (`kernel/fs/blockdev.cc`) provides a uniform interface between the filesystem and disk driver.
 
 | Function | Description |
 |----------|-------------|
@@ -378,7 +378,7 @@ The block device abstraction (`kernel/fs/blockdev.c`) provides a uniform interfa
 
 ### Block Cache
 
-An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.c`) sits between the block device layer and the ATA driver.
+An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.cc`) sits between the block device layer and the ATA driver.
 
 | Parameter | Value |
 |-----------|-------|
@@ -397,7 +397,7 @@ How it works:
 
 ### ATA/IDE Driver
 
-The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE disk access.
+The ATA driver (`drivers/ata.cc`) implements PIO (Programmed I/O) mode for IDE disk access.
 
 | Feature | Status |
 |---------|--------|

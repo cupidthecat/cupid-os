@@ -18,7 +18,7 @@ Verified against source on: 2026-07-25
 The checked CupidC and CupidLD ELF path is separate from the CupidC source
 JIT.
 
-kernel/lang/exec.c currently supports:
+kernel/lang/exec.cc currently supports:
 - ELF32 executables
 - i386 machine type
 - ET_EXEC
@@ -46,7 +46,7 @@ the kernel.
 
 >h2 Loader Constraints
 >tree open Loader Constraints
-kernel/lang/exec.c applies these loader checks:
+kernel/lang/exec.cc applies these loader checks:
 - ELF32 only
 - little-endian
 - executable type required

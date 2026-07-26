@@ -176,12 +176,12 @@ such as `curl http://example.com/` remains available for review:
 When the buffer fills (cursor reaches row 499), the oldest row is
 discarded, so scrollback is finite.
 
-Mouse wheel routing lives in `kernel/gui/desktop.c`: when the focused
+Mouse wheel routing lives in `kernel/gui/desktop.cc`: when the focused
 window's title is `"Terminal"`, `mouse.scroll_z` is forwarded to
 `terminal_handle_scroll()` instead of being silently consumed.
 PgUp / PgDn / Home / End scancodes arrive via the extended-scancode
 PS/2 path (or, for USB HID keyboards, via the `0xE0` prefix injected
-by `usb_hid.c`'s `hid_is_extended[]` table - see [USB](USB)).
+by `usb_hid.cc`'s `hid_is_extended[]` table - see [USB](USB)).
 
 ### Remote Terminal Support
 

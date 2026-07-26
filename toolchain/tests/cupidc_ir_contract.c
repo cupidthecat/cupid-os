@@ -2042,7 +2042,7 @@ static int wide_mutation_active_source_is_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/kernel/crypto/x25519.c");
+  path.text = ctool_string("/kernel/crypto/x25519.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2305,7 +2305,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active x86 width helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/crypto/aes.c");
+  path.text = ctool_string("/kernel/crypto/aes.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active AES source") ||
@@ -2333,7 +2333,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active CPUID toggle expression changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/core/syscall.c");
+  path.text = ctool_string("/kernel/core/syscall.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active syscall source") ||
@@ -2418,7 +2418,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active Paint coordinate transforms changed\n");
     return 0;
   }
-  path.text = ctool_string("/drivers/vga.c");
+  path.text = ctool_string("/drivers/vga.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active VGA source") ||
@@ -2507,7 +2507,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active Doom color reads changed\n");
     return 0;
   }
-  path.text = ctool_string("/drivers/ata.c");
+  path.text = ctool_string("/drivers/ata.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active ATA source") ||

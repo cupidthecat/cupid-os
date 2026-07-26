@@ -20,7 +20,7 @@ CupidC is the in-OS C-like compiler used for most shell programs in /bin.
 
 Source files: kernel/lang/cupidc.cc, kernel/lang/cupidc_lex.c,
               kernel/lang/cupidc_parse.cc, kernel/lang/cupidc_string.cc,
-              kernel/lang/cupidc_elf.c
+              kernel/lang/cupidc_elf.cc
 
 CupidC has three modes:
 1) JIT run:
@@ -119,7 +119,11 @@ Current toolchain gaps:
 >tree open Normal Build Ownership
 The checked CupidC seed compiles 144 checked-in sources in the normal image
 build. The generated kernel symbol source adds one checked transform, bringing
-the normal total to 145 CupidC transforms.
+the normal total to 145 CupidC transforms. Of the checked-in roots, 139 use
+.cc. The seed-bound toolchain/ctool.c, toolchain/cupidasm.c,
+toolchain/cupiddis.c, toolchain/elf32.c, and toolchain/x86.c roots keep .c
+until their fixed point and native-host contracts are refreshed. The generated
+kernel/cpu/ksyms_data.cc source makes 140 normal .cc translations.
 The complete 20-source crypto cohort includes:
 - AES and AES-GCM
 - ChaCha20 and ChaCha20-Poly1305
@@ -135,50 +139,48 @@ mouse, PCI, PIT, RTC, RTL8139, speaker, VGA, AC'97, system calls, the shell,
 EHCI, and UHCI. Seventy-one more unchanged sources cover audio, filesystems,
 graphics, GUI, language services, memory, networking, SMP, TLS, USB, and
 utility code. The shared ctool.c, cupidasm.c, cupiddis.c, elf32.c, and x86.c
-implementations complete the established 116-source group. Twenty-eight
-source-driven kernel and driver roots use .cc and the checked CupidC seed in
-the normal build. The eight roots added by the latest transfer are:
-- kernel/core/panic.cc and kernel/core/process.cc
-- kernel/cpu/idt.cc and kernel/cpu/pic.cc
-- kernel/lang/as.cc and kernel/lang/cupidc.cc
-- kernel/mm/paging.cc
-- kernel/smp/lapic.cc
+implementations complete the established 116-source group. ADRs 0115 and 0123
+transferred the first 28 source-driven roots. ADR 0124 renames another 111
+roots used only by production CupidC. Ownership and output counts do not
+change.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. A valid data-only object may omit .text, but its other
-sections and symbols must still pass validation. The strict frontier compiles
-all 144 checked-in roots twice and requires 3,514,456 object bytes to match. It
-freezes 432 inputs with snapshot SHA-256
-7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf.
+sections and symbols must still pass validation. The strict frontier must
+compile all 144 checked-in roots twice. Its 432-input path snapshot has
+SHA-256 b965e236694f739c985354dcb84c734feeda537ca8c0157e995ecfef33d80211.
+The object comparison, normal image, and four-vCPU runtime gate remain release
+requirements for this naming boundary.
 
 The production path generates kernel/cpu/ksyms_data.cc after the pass-one
 link. Its normal recipe uses the checked CupidC wrapper. The source stores the
 packed symbol blob as little-endian unsigned int words and records a logical
 size of 104,185 bytes. The last word supplies 3 zero padding bytes outside that
 size.
-The pass-one and final kernels each project 4,069 symbols, with no pass drift.
+The pass-one and final kernels each project 4,342 symbols, with no pass drift.
 
 Across root and supplemental builds, the ownership audit reports 151 CupidC
 transforms, 146 host C transforms, and 163 host Python transforms. Host C
 still creates 94 root objects. Ten strict checked-in roots remain outside
 production CupidC ownership.
 
-The boot self-test runs production code from the complete cohort. Its 62 checks
-cover cryptographic primitives, positive and negative ASN.1 inputs, X.509
-parsing and names, chain state, and embedded-root lookup. That last path uses
-the external CA array whose missing bound once blocked CupidC. It is a runtime
-ownership check, not a claim that certificate trust validation is complete.
+The final boot proof must run production code from the complete cohort. Its 62
+checks cover cryptographic primitives, positive and negative ASN.1 inputs,
+X.509 parsing and names, chain state, and embedded-root lookup. That last path
+uses the external CA array whose missing bound once blocked CupidC. It is a
+runtime ownership check, not a claim that certificate trust validation is
+complete.
 
 The CSPRNG path represents typed GNU assembly outputs and a matching input,
 emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model, and preserves
-EBX. The four-vCPU GUI contract reaches SMP, all 62 crypto checks, e1000
+EBX. The four-vCPU GUI contract must reach SMP, all 62 crypto checks, e1000
 traffic, the desktop, terminal, and CupidC execution at 0x01100000. The
-established e1000 and RTL8139 gates still cover keyboard and mouse detach and
+e1000 and RTL8139 contracts still cover keyboard and mouse detach and
 reattach, ATA, AC'97 and PC speaker audio, EHCI storage across six lifetimes,
-a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check loads
-the same external ELF program twice at 0x00F00000 and releases its first arena
-lease before the second load. CupidC optimization, removal of the Python and
-WSL launch bridge, and the remaining kernel C graph are still in progress.
+a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check must
+load the same external ELF program twice at 0x00F00000 and release its first
+arena lease before the second load. CupidC optimization, removal of the Python
+and WSL launch bridge, and the remaining kernel C graph are still in progress.
 
 CupidC also represents operand-free GNU assembly inside functions. Basic
 statements and extended statements with an empty output list are implicitly
@@ -246,8 +248,8 @@ FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
 header gate is 154/154 at compiler head.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
-the 144-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.c
-and kernel/smp/mp_tables.c with the checked seed. Their 5,708-byte and
+the 144-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
+and kernel/smp/mp_tables.cc with the checked seed. Their 5,708-byte and
 4,156-byte objects are deterministic and validated. Exact recursive header
 closures and poisoned host recipes protect each transferred build rule.
 
@@ -404,7 +406,7 @@ It rejects char ** to const char ** because that would add a qualifier at an
 unsafe nested level. It also rejects removing the nested const.
 
 The exact hosted gate covers the hermetic Toolchain sources,
-kernel/lang/as_elf.c, and the complete command closures for CupidC, CupidASM,
+kernel/lang/as_elf.cc, and the complete command closures for CupidC, CupidASM,
 CupidDis, CupidLD, and CupidObj. The target audit preprocesses all 20 C sources
 under the checked i386 Linux profile with a four-byte pointer fact. Nineteen
 use strict C11, while the runtime enables the represented GNU variadic
@@ -548,8 +550,8 @@ source order before lowering runtime control flow, including case values, loop
 headers, variadic reads, aggregate designators, and compound literals.
 Represented uses become integer constants with no frame slot, symbol,
 relocation, or runtime declaration instruction. This covers the cursor
-constants in the production CupidC-built kernel/gui/desktop.c object. The
-REPL limits in kernel/lang/shell.c remain a separate active guard. Block
+constants in the production CupidC-built kernel/gui/desktop.cc object. The
+REPL limits in kernel/lang/shell.cc remain a separate active guard. Block
 declaration attributes, nested function definitions, nonempty identifier
 lists, atomic variadic access, aggregate arguments without declared parameter
 types, and aggregate variadic reads remain open.
@@ -588,9 +590,9 @@ block-static initializers remain unfinished in the shared path.
 
 The shared path builds 144 checked-in normal kernel and toolchain objects. It
 also owns the generated kernel symbol source as the 145th normal CupidC
-transform. It owns the established 40-source kernel and driver group, 71
-additional kernel and driver sources, five shared toolchain implementations,
-and 28 source-driven .cc roots. The checked seed also
+transform. The checked-in cohort has 139 .cc roots and five seed-bound
+Toolchain .c roots. The generated symbol source makes 140 normal .cc
+translations. The checked seed also
 compiles the three generated installation tables and the three example ELF
 programs. Checked CupidLD links those example programs. The host compiler
 still owns the remaining C transforms, while the private in-kernel CupidC

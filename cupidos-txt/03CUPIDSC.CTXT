@@ -18,8 +18,8 @@ Verified against source on: 2026-05-15
 CupidScript is CupidOS's shell-style scripting language.
 
 The implementation is split across kernel/lang/cupidscript.h,
-kernel/lang/cupidscript_parse.c, cupidscript_runtime.c, and
-cupidscript_exec.c. It supports:
+kernel/lang/cupidscript_parse.cc, cupidscript_runtime.cc, and
+cupidscript_exec.cc. It supports:
 - variables and assignments
 - if / then / elif / else / fi
 - while / do / done
@@ -30,8 +30,8 @@ cupidscript_exec.c. It supports:
 - pipes, redirections, and background jobs
 - variable expansion and arithmetic expansion
 - string manipulation via ${...} forms
-- arrays (kernel/lang/cupidscript_arrays.c)
-- job control (kernel/lang/cupidscript_jobs.c)
+- arrays (kernel/lang/cupidscript_arrays.cc)
+- job control (kernel/lang/cupidscript_jobs.cc)
 >endtree
 
 >h2 How To Run
@@ -51,7 +51,7 @@ the script argument string into cupidscript_run_file().
 
 >h2 Positional and Special Variables
 >tree open Positional and Special Variables
-Runtime special variables implemented in cupidscript_runtime.c:
+Runtime special variables implemented in cupidscript_runtime.cc:
 - $?  last exit status
 - $#  argument count
 - $0  script name

@@ -1,5 +1,5 @@
 /**
- * cupidc_parse.c - Parser and x86 code generator for CupidC
+ * cupidc_parse.cc - Parser and x86 code generator for CupidC
  *
  * Single-pass recursive descent parser that emits x86 machine code
  * directly into a code buffer.  Implements the full CupidC language:

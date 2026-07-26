@@ -25,125 +25,125 @@ SEED_MANIFEST = (
 )
 
 CRYPTO_SOURCES = [
-    "kernel/crypto/aes.c",
-    "kernel/crypto/aes_gcm.c",
-    "kernel/crypto/asn1.c",
-    "kernel/crypto/bigint.c",
-    "kernel/crypto/chacha20.c",
-    "kernel/crypto/chacha20poly1305.c",
-    "kernel/crypto/csprng.c",
-    "kernel/crypto/ct.c",
-    "kernel/crypto/ecdsa.c",
-    "kernel/crypto/ed25519.c",
-    "kernel/crypto/hkdf.c",
-    "kernel/crypto/hmac.c",
-    "kernel/crypto/p256.c",
-    "kernel/crypto/poly1305.c",
-    "kernel/crypto/rsa.c",
-    "kernel/crypto/sha256.c",
-    "kernel/crypto/sha512.c",
-    "kernel/crypto/x25519.c",
-    "kernel/crypto/x509.c",
-    "kernel/crypto/x509_chain.c",
+    "kernel/crypto/aes.cc",
+    "kernel/crypto/aes_gcm.cc",
+    "kernel/crypto/asn1.cc",
+    "kernel/crypto/bigint.cc",
+    "kernel/crypto/chacha20.cc",
+    "kernel/crypto/chacha20poly1305.cc",
+    "kernel/crypto/csprng.cc",
+    "kernel/crypto/ct.cc",
+    "kernel/crypto/ecdsa.cc",
+    "kernel/crypto/ed25519.cc",
+    "kernel/crypto/hkdf.cc",
+    "kernel/crypto/hmac.cc",
+    "kernel/crypto/p256.cc",
+    "kernel/crypto/poly1305.cc",
+    "kernel/crypto/rsa.cc",
+    "kernel/crypto/sha256.cc",
+    "kernel/crypto/sha512.cc",
+    "kernel/crypto/x25519.cc",
+    "kernel/crypto/x509.cc",
+    "kernel/crypto/x509_chain.cc",
 ]
 SMP_SOURCES = [
-    "kernel/smp/acpi.c",
-    "kernel/smp/mp_tables.c",
+    "kernel/smp/acpi.cc",
+    "kernel/smp/mp_tables.cc",
 ]
 OPERAND_FREE_SOURCES = [
-    "drivers/e1000.c",
-    "kernel/gui/desktop.c",
-    "kernel/network/socket.c",
-    "kernel/network/tcp.c",
+    "drivers/e1000.cc",
+    "kernel/gui/desktop.cc",
+    "kernel/network/socket.cc",
+    "kernel/network/tcp.cc",
 ]
 PORT_IO_SOURCES = [
-    "drivers/ata.c",
-    "drivers/keyboard.c",
-    "drivers/mouse.c",
-    "drivers/pci.c",
-    "drivers/pit.c",
-    "drivers/rtc.c",
-    "drivers/rtl8139.c",
-    "drivers/speaker.c",
-    "drivers/vga.c",
-    "kernel/audio/ac97.c",
-    "kernel/core/syscall.c",
-    "kernel/lang/shell.c",
-    "kernel/usb/ehci.c",
-    "kernel/usb/uhci.c",
+    "drivers/ata.cc",
+    "drivers/keyboard.cc",
+    "drivers/mouse.cc",
+    "drivers/pci.cc",
+    "drivers/pit.cc",
+    "drivers/rtc.cc",
+    "drivers/rtl8139.cc",
+    "drivers/speaker.cc",
+    "drivers/vga.cc",
+    "kernel/audio/ac97.cc",
+    "kernel/core/syscall.cc",
+    "kernel/lang/shell.cc",
+    "kernel/usb/ehci.cc",
+    "kernel/usb/uhci.cc",
 ]
 COMPILER_READY_SOURCES = [
-    "kernel/audio/memio.c",
-    "kernel/audio/midiopl.c",
-    "kernel/audio/mixer.c",
-    "kernel/audio/mus2midi.c",
-    "kernel/audio/opl_smoke.c",
-    "kernel/cpu/math.c",
-    "kernel/fs/blockcache.c",
-    "kernel/fs/blockdev.c",
-    "kernel/fs/devfs.c",
-    "kernel/fs/fat16_vfs.c",
-    "kernel/fs/fs.c",
-    "kernel/fs/homefs.c",
-    "kernel/fs/iso9660_vfs.c",
-    "kernel/fs/ramfs.c",
-    "kernel/fs/vfs.c",
-    "kernel/fs/vfs_helpers.c",
-    "kernel/gfx/bmp.c",
-    "kernel/gfx/font_8x8.c",
-    "kernel/gfx/fontsys.c",
-    "kernel/gfx/gfx2d_assets.c",
-    "kernel/gfx/gfx2d_effects.c",
-    "kernel/gfx/gfx2d_icons.c",
-    "kernel/gfx/gfx2d_transform.c",
-    "kernel/gfx/graphics.c",
-    "kernel/gfx/ttf.c",
-    "kernel/gui/ansi.c",
-    "kernel/gui/clipboard.c",
-    "kernel/gui/ctxt_image_worker.c",
-    "kernel/gui/gui.c",
-    "kernel/gui/gui_containers.c",
-    "kernel/gui/gui_events.c",
-    "kernel/gui/gui_menus.c",
-    "kernel/gui/gui_themes.c",
-    "kernel/gui/gui_widgets.c",
-    "kernel/gui/terminal_app.c",
-    "kernel/gui/ui.c",
-    "kernel/lang/as_elf.c",
-    "kernel/lang/ctool_kernel.c",
-    "kernel/lang/cupidc_elf.c",
-    "kernel/lang/cupidscript_arrays.c",
-    "kernel/lang/cupidscript_exec.c",
-    "kernel/lang/cupidscript_jobs.c",
-    "kernel/lang/cupidscript_lex.c",
-    "kernel/lang/cupidscript_parse.c",
-    "kernel/lang/cupidscript_runtime.c",
-    "kernel/lang/cupidscript_streams.c",
-    "kernel/lang/cupidscript_strings.c",
-    "kernel/lang/dis.c",
-    "kernel/lang/exec.c",
-    "kernel/lang/godspeak.c",
-    "kernel/mm/swap.c",
-    "kernel/mm/swap_disk.c",
-    "kernel/network/arp.c",
-    "kernel/network/dhcp.c",
-    "kernel/network/dns.c",
-    "kernel/network/icmp.c",
-    "kernel/network/ip.c",
-    "kernel/network/net_if.c",
-    "kernel/smp/ioapic.c",
-    "kernel/tls/tls_ca_bundle_data.c",
-    "kernel/tls/tls_ctx.c",
-    "kernel/tls/tls_handshake.c",
-    "kernel/tls/tls_kdf.c",
-    "kernel/tls/tls_record.c",
-    "kernel/tls/tls_selftest.c",
-    "kernel/tls/tls12_handshake.c",
-    "kernel/usb/usb.c",
-    "kernel/usb/usb_hid.c",
-    "kernel/usb/usb_hub.c",
-    "kernel/usb/usb_msc.c",
-    "kernel/util/calendar.c",
+    "kernel/audio/memio.cc",
+    "kernel/audio/midiopl.cc",
+    "kernel/audio/mixer.cc",
+    "kernel/audio/mus2midi.cc",
+    "kernel/audio/opl_smoke.cc",
+    "kernel/cpu/math.cc",
+    "kernel/fs/blockcache.cc",
+    "kernel/fs/blockdev.cc",
+    "kernel/fs/devfs.cc",
+    "kernel/fs/fat16_vfs.cc",
+    "kernel/fs/fs.cc",
+    "kernel/fs/homefs.cc",
+    "kernel/fs/iso9660_vfs.cc",
+    "kernel/fs/ramfs.cc",
+    "kernel/fs/vfs.cc",
+    "kernel/fs/vfs_helpers.cc",
+    "kernel/gfx/bmp.cc",
+    "kernel/gfx/font_8x8.cc",
+    "kernel/gfx/fontsys.cc",
+    "kernel/gfx/gfx2d_assets.cc",
+    "kernel/gfx/gfx2d_effects.cc",
+    "kernel/gfx/gfx2d_icons.cc",
+    "kernel/gfx/gfx2d_transform.cc",
+    "kernel/gfx/graphics.cc",
+    "kernel/gfx/ttf.cc",
+    "kernel/gui/ansi.cc",
+    "kernel/gui/clipboard.cc",
+    "kernel/gui/ctxt_image_worker.cc",
+    "kernel/gui/gui.cc",
+    "kernel/gui/gui_containers.cc",
+    "kernel/gui/gui_events.cc",
+    "kernel/gui/gui_menus.cc",
+    "kernel/gui/gui_themes.cc",
+    "kernel/gui/gui_widgets.cc",
+    "kernel/gui/terminal_app.cc",
+    "kernel/gui/ui.cc",
+    "kernel/lang/as_elf.cc",
+    "kernel/lang/ctool_kernel.cc",
+    "kernel/lang/cupidc_elf.cc",
+    "kernel/lang/cupidscript_arrays.cc",
+    "kernel/lang/cupidscript_exec.cc",
+    "kernel/lang/cupidscript_jobs.cc",
+    "kernel/lang/cupidscript_lex.cc",
+    "kernel/lang/cupidscript_parse.cc",
+    "kernel/lang/cupidscript_runtime.cc",
+    "kernel/lang/cupidscript_streams.cc",
+    "kernel/lang/cupidscript_strings.cc",
+    "kernel/lang/dis.cc",
+    "kernel/lang/exec.cc",
+    "kernel/lang/godspeak.cc",
+    "kernel/mm/swap.cc",
+    "kernel/mm/swap_disk.cc",
+    "kernel/network/arp.cc",
+    "kernel/network/dhcp.cc",
+    "kernel/network/dns.cc",
+    "kernel/network/icmp.cc",
+    "kernel/network/ip.cc",
+    "kernel/network/net_if.cc",
+    "kernel/smp/ioapic.cc",
+    "kernel/tls/tls_ca_bundle_data.cc",
+    "kernel/tls/tls_ctx.cc",
+    "kernel/tls/tls_handshake.cc",
+    "kernel/tls/tls_kdf.cc",
+    "kernel/tls/tls_record.cc",
+    "kernel/tls/tls_selftest.cc",
+    "kernel/tls/tls12_handshake.cc",
+    "kernel/usb/usb.cc",
+    "kernel/usb/usb_hid.cc",
+    "kernel/usb/usb_hub.cc",
+    "kernel/usb/usb_msc.cc",
+    "kernel/util/calendar.cc",
 ]
 TOOLCHAIN_KERNEL_SOURCES = [
     "toolchain/ctool.c",
@@ -438,6 +438,42 @@ class WslPrivateDirectoryTests(unittest.TestCase):
                 "invalid private seed directory",
             ):
                 frontier._validated_wsl_private_directory(value)
+
+
+class FrontierInputSnapshotTests(unittest.TestCase):
+    def test_source_hash_canonicalizes_crlf(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            lf = root / "lf.h"
+            crlf = root / "crlf.h"
+            lf.write_bytes(b"first\nsecond\n")
+            crlf.write_bytes(b"first\r\nsecond\r\n")
+
+            self.assertEqual(
+                frontier._source_sha256(lf),
+                frontier._source_sha256(crlf),
+            )
+            self.assertEqual(
+                frontier._source_sha256(lf),
+                hashlib.sha256(b"first\nsecond\n").hexdigest(),
+            )
+
+    def test_source_hash_canonicalizes_lone_carriage_returns(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            lf = root / "lf.h"
+            cr = root / "cr.h"
+            lf.write_bytes(b"first\nsecond\n")
+            cr.write_bytes(b"first\rsecond\n")
+
+            self.assertEqual(
+                frontier._source_sha256(lf),
+                frontier._source_sha256(cr),
+            )
+            self.assertEqual(
+                frontier._source_sha256(cr),
+                hashlib.sha256(b"first\nsecond\n").hexdigest(),
+            )
 
 
 class FrontierElfValidationTests(unittest.TestCase):
@@ -861,9 +897,9 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                         "line": line,
                         "code": code,
                         "message": message,
-                        "source_sha256": hashlib.sha256(
-                            (root / source).read_bytes()
-                        ).hexdigest(),
+                        "source_sha256": frontier._source_sha256(
+                            root / source
+                        ),
                     }
                     for source, (line, code, message) in (BOUNDARY_DIAGNOSTICS.items())
                 ],
@@ -915,7 +951,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 self.assertEqual(entry["object_sha256"], expected_hash)
                 self.assertEqual(
                     entry["source_sha256"],
-                    hashlib.sha256((root / source).read_bytes()).hexdigest(),
+                    frontier._source_sha256(root / source),
                 )
 
     def test_missing_approved_smp_source_is_rejected_before_publication(self):
@@ -925,7 +961,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
-            (root / "kernel" / "smp" / "acpi.c").unlink()
+            (root / "kernel" / "smp" / "acpi.cc").unlink()
             compiler = root / "fake_cupidc.py"
             _write_fake_compiler(compiler)
             output = root / "frontier"
@@ -951,7 +987,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn(
                 "approved kernel source is not a file: "
-                "kernel/smp/acpi.c",
+                "kernel/smp/acpi.cc",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -965,7 +1001,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 path = root / source
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("int source_fixture;\n", encoding="utf-8")
-            (root / "drivers" / "ata.c").unlink()
+            (root / "drivers" / "ata.cc").unlink()
             compiler = root / "fake_cupidc.py"
             _write_fake_compiler(compiler)
             output = root / "frontier"
@@ -990,7 +1026,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "approved kernel source is not a file: drivers/ata.c",
+                "approved kernel source is not a file: drivers/ata.cc",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1027,7 +1063,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stdout, "")
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "emitted object has a truncated section header table",
                 result.stderr,
             )
@@ -1072,7 +1108,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "emitted object section 1 payload is outside the file",
                 result.stderr,
             )
@@ -1116,7 +1152,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "emitted object symbol 1 has an invalid name",
                 result.stderr,
             )
@@ -1165,7 +1201,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "emitted object relocation 0 has an invalid symbol",
                 result.stderr,
             )
@@ -1214,7 +1250,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "emitted object relocation 0 uses unsupported i386 type 42",
                 result.stderr,
             )
@@ -1253,7 +1289,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "emitted object relocation section 2 uses RELA",
                 result.stderr,
             )
@@ -1297,7 +1333,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "drivers/ata.c produced invalid ELF32: "
+                "drivers/ata.cc produced invalid ELF32: "
                 "absolute relocation addend is 4, expected 0",
                 result.stderr,
             )
@@ -1316,7 +1352,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     "if source in BOUNDARIES:\n",
                     (
-                        'if source == "/kernel/smp/acpi.c":\n'
+                        'if source == "/kernel/smp/acpi.cc":\n'
                         '    destination = root / output.lstrip("/")\n'
                         "    destination.parent.mkdir("
                         "parents=True, exist_ok=True)\n"
@@ -1351,7 +1387,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/smp/acpi.c did not compile: "
+                "kernel/smp/acpi.cc did not compile: "
                 "forced compile failure",
                 result.stderr,
             )
@@ -1371,7 +1407,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     "if source in BOUNDARIES:\n",
                     (
-                        'if source == "/kernel/usb/uhci.c":\n'
+                        'if source == "/kernel/usb/uhci.cc":\n'
                         '    destination = root / output.lstrip("/")\n'
                         "    destination.parent.mkdir("
                         "parents=True, exist_ok=True)\n"
@@ -1407,7 +1443,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/usb/uhci.c did not compile: forced late failure",
+                "kernel/usb/uhci.cc did not compile: forced late failure",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1432,7 +1468,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     'shutil.copyfile(root / "fixture.o", destination)\n',
                     (
-                        'if source == "/kernel/smp/acpi.c":\n'
+                        'if source == "/kernel/smp/acpi.cc":\n'
                         '    marker = root / "acpi-first.done"\n'
                         "    fixture = (\n"
                         '        root / "fixture-second.o"\n'
@@ -1470,7 +1506,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/smp/acpi.c object output is not deterministic",
+                "kernel/smp/acpi.cc object output is not deterministic",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1495,7 +1531,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 compiler.read_text(encoding="utf-8").replace(
                     'shutil.copyfile(root / "fixture.o", destination)\n',
                     (
-                        'if source == "/kernel/lang/shell.c":\n'
+                        'if source == "/kernel/lang/shell.cc":\n'
                         '    marker = root / "shell-first.done"\n'
                         "    fixture = (\n"
                         '        root / "fixture-second.o"\n'
@@ -1533,7 +1569,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "kernel/lang/shell.c object output is not deterministic",
+                "kernel/lang/shell.cc object output is not deterministic",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1578,7 +1614,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stdout, "")
             self.assertIn(
-                "drivers/ata.c did not publish an object",
+                "drivers/ata.cc did not publish an object",
                 result.stderr,
             )
             self.assertFalse((root / "frontier").exists())
@@ -1598,7 +1634,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                     'shutil.copyfile(root / "fixture.o", destination)\n',
                     (
                         'shutil.copyfile(root / "fixture.o", destination)\n'
-                        '(root / "kernel/crypto/aes.c").write_text('
+                        '(root / "kernel/crypto/aes.cc").write_text('
                         '"int changed;\\n", encoding="utf-8")\n'
                     ),
                     1,
@@ -1628,7 +1664,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn(
                 "kernel CupidC inputs changed during frontier run: "
-                "kernel/crypto/aes.c",
+                "kernel/crypto/aes.cc",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -1732,52 +1768,52 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3514456,
+                3514568,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
                 for entry in manifest["sources"]
             }
             self.assertEqual(
-                object_records["kernel/smp/acpi.c"],
+                object_records["kernel/smp/acpi.cc"],
                 (
                     5708,
                     "0e32026db8af4d22ad9007c1900df16bee2bca342187a797dc12f154f340b1d5",
                 ),
             )
             self.assertEqual(
-                object_records["kernel/smp/mp_tables.c"],
+                object_records["kernel/smp/mp_tables.cc"],
                 (
                     4156,
                     "37791cc5ab28b93e92553735a2c8380d539f9473529e3f8d5731859c37358960",
                 ),
             )
             self.assertEqual(
-                object_records["drivers/e1000.c"],
+                object_records["drivers/e1000.cc"],
                 (
-                    8780,
-                    "38e896c6b1d0359c858a7601d6c0b692"
-                    "786b9ff439d78c933fdde7af2d07d875",
+                    8784,
+                    "167b60a977a63f28dd92c25afa27f65f"
+                    "bacd4318ce17f5c148db447737542d2e",
                 ),
             )
             self.assertEqual(
-                object_records["kernel/gui/desktop.c"],
+                object_records["kernel/gui/desktop.cc"],
                 (
-                    111196,
-                    "f6f0edc79419ebd8ecfaf9254a17dfb8"
-                    "fe8b6cc7139bf16f872c0ce0a8fba340",
+                    111204,
+                    "afefc0ceb1e46c1f85dea19e83ff78be"
+                    "292c4ed7643bc77b140edc7b53494d30",
                 ),
             )
             self.assertEqual(
-                object_records["kernel/network/socket.c"],
+                object_records["kernel/network/socket.cc"],
                 (
                     12416,
-                    "dff17d1b2e668f577aab6d45ef341a22"
-                    "6ebaf7ae7278c5c8a2d0aafcd0346ee5",
+                    "9e9e40831f1551c499c2899870869b15"
+                    "c204c992adf9da75ff73715a35c86e39",
                 ),
             )
             self.assertEqual(
-                object_records["kernel/network/tcp.c"],
+                object_records["kernel/network/tcp.cc"],
                 (
                     20204,
                     "831f2a82687ab327f4b48b28fef69104"
@@ -1785,75 +1821,75 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
             )
             port_io_object_records = {
-                "drivers/ata.c": (
+                "drivers/ata.cc": (
                     10748,
                     "7675b2eaf6aca4ae022b53943887a6fc"
                     "5d419a41a6dd2af3300f6265fd501575",
                 ),
-                "drivers/keyboard.c": (
+                "drivers/keyboard.cc": (
                     11740,
                     "0703723bd6aecb968fd011d8921cf8595"
                     "eff10d2e8d30b9dd5c68c74f85e6daa",
                 ),
-                "drivers/mouse.c": (
+                "drivers/mouse.cc": (
                     12936,
                     "0fc5292e291cd8ff0403cda1948029cb8"
                     "f1e92051e04f882e8935dc371f330d8",
                 ),
-                "drivers/pci.c": (
+                "drivers/pci.cc": (
                     7136,
                     "7d006772700b8b0192daa7690417bc687"
                     "2b8324588cd67e50126cf318858a68e",
                 ),
-                "drivers/pit.c": (
+                "drivers/pit.cc": (
                     1816,
                     "988d4678c3ca72ee706192c22138dbe3"
                     "a899d70d7ce059eaed5c613e2ca77b53",
                 ),
-                "drivers/rtc.c": (
+                "drivers/rtc.cc": (
                     7520,
                     "e4e81e276d1fc15c04f3b56ace981647"
                     "9af6e8c4c3a4f3b1a38b2a137766ef4a",
                 ),
-                "drivers/rtl8139.c": (
-                    8416,
-                    "0244bebe07cbaf334725e28a4b23963cb"
-                    "bd7cff409b53f6be209557b9561157a",
+                "drivers/rtl8139.cc": (
+                    8420,
+                    "868bc268aa052fada119bbebc32f8565"
+                    "d812ee48ed443f97fe4a909875b27879",
                 ),
-                "drivers/speaker.c": (
+                "drivers/speaker.cc": (
                     1576,
                     "f880fc8db95090e040596589725c0935"
                     "384da2387ba45661cb25657337bc55fa",
                 ),
-                "drivers/vga.c": (
+                "drivers/vga.cc": (
                     4764,
-                    "ab0ffd587b4e4ea473f161957d53255c"
-                    "bb755a401c176cf205eee571d8969840",
+                    "6a4e5de13541c623dfe440ca44705dc2"
+                    "e40bdf843ba33cabe69df5ce0bf45dbd",
                 ),
-                "kernel/audio/ac97.c": (
-                    14100,
-                    "35b1cb43e884a581f5560419b640b5dc"
-                    "811dd0c91ff7d70b19d4020db403aa07",
+                "kernel/audio/ac97.cc": (
+                    14104,
+                    "318d9d78742d2f09b69231fb608da2c4"
+                    "312e40c918efb0a9d29073a7370eecf4",
                 ),
-                "kernel/core/syscall.c": (
+                "kernel/core/syscall.cc": (
                     12572,
                     "c2e30823de92cdd54dd849763dc37d81"
                     "fdd72e64326cef807bf825725096a5aa",
                 ),
-                "kernel/lang/shell.c": (
-                    175056,
-                    "6f608e0ab1abefa467949f18b3731e31"
-                    "a9f46fbdda73f691dcfddf941c1c1559",
+                "kernel/lang/shell.cc": (
+                    175060,
+                    "24d7dfb8eeac4437ec2b333f9e4f0a96"
+                    "5d21c573bedf1bb8705b0ddb676de39e",
                 ),
-                "kernel/usb/ehci.c": (
-                    22820,
-                    "f56b0adb33a676b28d16317a16fb3725"
-                    "44ab6db0ee0c0c63b23e10b54534d610",
+                "kernel/usb/ehci.cc": (
+                    22824,
+                    "4a8897d450b18acf4ddf6011428d66c1"
+                    "1ca36b495b6ae639c310bad52aebee5c",
                 ),
-                "kernel/usb/uhci.c": (
+                "kernel/usb/uhci.cc": (
                     18576,
-                    "bfdade6cbc6210796e7b579cda617fb1b"
-                    "00eca2c41df6a9ef9b4a5200bb6940f",
+                    "1d85d4e77f72e93037637ec6c4c92b06"
+                    "b70fb4c99ad84d0ac119b955f324746e",
                 ),
             }
             self.assertEqual(
@@ -2015,8 +2051,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["input_snapshot"]["count"], 432)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "7670679039ca8f2b9b7816a68cb9b391"
-                "d8a2e65f6b03a7a043d35005b75283bf",
+                "938cee8dfd75ca09c1b16da6e107b811"
+                "d4edbe8482f63a52e04e61a85c7b647f",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

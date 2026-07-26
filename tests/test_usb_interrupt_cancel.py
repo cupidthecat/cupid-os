@@ -12,28 +12,28 @@ class UsbInterruptCancellationTests(unittest.TestCase):
         cls.hc = (ROOT / "kernel" / "usb" / "usb_hc.h").read_text(
             encoding="utf-8"
         )
-        cls.ehci = (ROOT / "kernel" / "usb" / "ehci.c").read_text(
+        cls.ehci = (ROOT / "kernel" / "usb" / "ehci.cc").read_text(
             encoding="utf-8"
         )
-        cls.uhci = (ROOT / "kernel" / "usb" / "uhci.c").read_text(
+        cls.uhci = (ROOT / "kernel" / "usb" / "uhci.cc").read_text(
             encoding="utf-8"
         )
-        cls.hid = (ROOT / "kernel" / "usb" / "usb_hid.c").read_text(
+        cls.hid = (ROOT / "kernel" / "usb" / "usb_hid.cc").read_text(
             encoding="utf-8"
         )
-        cls.hub = (ROOT / "kernel" / "usb" / "usb_hub.c").read_text(
+        cls.hub = (ROOT / "kernel" / "usb" / "usb_hub.cc").read_text(
             encoding="utf-8"
         )
-        cls.usb = (ROOT / "kernel" / "usb" / "usb.c").read_text(
+        cls.usb = (ROOT / "kernel" / "usb" / "usb.cc").read_text(
             encoding="utf-8"
         )
-        cls.blockdev = (ROOT / "kernel" / "fs" / "blockdev.c").read_text(
+        cls.blockdev = (ROOT / "kernel" / "fs" / "blockdev.cc").read_text(
             encoding="utf-8"
         )
         cls.blockdev_header = (
             ROOT / "kernel" / "fs" / "blockdev.h"
         ).read_text(encoding="utf-8")
-        cls.msc = (ROOT / "kernel" / "usb" / "usb_msc.c").read_text(
+        cls.msc = (ROOT / "kernel" / "usb" / "usb_msc.cc").read_text(
             encoding="utf-8"
         )
 

@@ -20,9 +20,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 239 |
+| `c` | 128 |
 | `c_header` | 270 |
-| `cupid_c` | 162 |
+| `cupid_c` | 273 |
 
 ## Source cohorts
 
@@ -41,14 +41,14 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `generated_install_table` | 3 | 0 |
 | `generated_symbol_table` | 1 | 0 |
 | `kernel_assembly` | 3 | 536 |
-| `kernel_audio` | 14 | 4542 |
+| `kernel_audio` | 14 | 4541 |
 | `kernel_core` | 16 | 4025 |
 | `kernel_cpu` | 18 | 3276 |
 | `kernel_crypto` | 40 | 5149 |
 | `kernel_fs` | 26 | 6283 |
-| `kernel_gfx` | 28 | 12182 |
+| `kernel_gfx` | 28 | 12183 |
 | `kernel_gui` | 28 | 11971 |
-| `kernel_lang` | 20 | 10542 |
+| `kernel_lang` | 20 | 10538 |
 | `kernel_mm` | 7 | 1302 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1162 |
@@ -105,7 +105,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 4526 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 640 |
-| `c.output` | 1 | 210 |
+| `c.output` | 1 | 99 |
 | `c.preprocessor` | 18 | 6664 |
 | `c.qualifier` | 2 | 12406 |
 | `c.storage` | 4 | 8180 |
@@ -115,8 +115,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 35 |
-| `cupid_c.storage` | 2 | 17 |
+| `cupid_c.output` | 1 | 146 |
+| `cupid_c.storage` | 2 | 31 |
 | `cupid_c.type` | 12 | 152 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
@@ -151,7 +151,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 164 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 275 |
 
 ## Source-cohort migration order
 
@@ -186,11 +186,11 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/cupidc_lex.c` | `c` | `historical_copy` | 647 | historical_copy_of: `kernel/lang/cupidc_lex.c` |
 | `bin/cupidc_parse.c` | `c` | `historical_copy` | 4111 | historical_copy_of: `kernel/lang/cupidc_parse.cc` |
 | `bin/fat16.c` | `c` | `historical_copy` | 1468 | historical_copy_of: `kernel/fs/fat16.cc` |
-| `bin/fat16_vfs.c` | `c` | `historical_copy` | 423 | historical_copy_of: `kernel/fs/fat16_vfs.c` |
+| `bin/fat16_vfs.c` | `c` | `historical_copy` | 423 | historical_copy_of: `kernel/fs/fat16_vfs.cc` |
 | `bin/kernel.c` | `c` | `historical_copy` | 719 | historical_copy_of: `kernel/core/kernel.c` |
 | `bin/old_cc2.cc` | `cupid_c` | `explicitly_excluded` | 2 | listed in a Make filter-out expression |
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 6744 | listed in a Make filter-out expression |
-| `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.c` |
+| `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |
 | `demos/paint.cc` | `cupid_c` | `superseded` | 622 | superseded_by: `bin/paint.cc` |
 | `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.cc` |
 | `kernel/core/scheduler.h` | `c_header` | `superseded` | 42 | superseded_by: `kernel/core/process.h` |
@@ -210,7 +210,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `kernel/doom/src/mus2mid.h` | `c_header` | `not_reached` | 9 | not reachable from the supported Make target or include closure |
 | `kernel/doom/src/net_packet.h` | `c_header` | `not_reached` | 44 | not reachable from the supported Make target or include closure |
 | `kernel/gui/notepad.c` | `c` | `superseded` | 5683 | superseded_by: `bin/notepad.cc` |
-| `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.c` |
+| `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.cc` |
 | `kernel/lang/cupidc_runtime.c` | `c` | `not_reached` | 284 | not reachable from the supported Make target or include closure |
 | `kernel/lang/cupidc_runtime.h` | `c_header` | `not_reached` | 66 | not reachable from the supported Make target or include closure |
 | `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |

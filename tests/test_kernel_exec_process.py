@@ -122,7 +122,7 @@ class KernelContractCase(unittest.TestCase):
 
 
 class KernelElfLoaderContractTests(KernelContractCase):
-    production_source = Path("kernel/lang/exec.c")
+    production_source = Path("kernel/lang/exec.cc")
     contract_source = Path("tests/kernel_exec_contract.c")
 
     def test_valid_external_image_is_staged_loaded_and_published(self):
@@ -356,7 +356,7 @@ class KernelInterruptGsSourceContractTests(unittest.TestCase):
 class KernelBlockCacheSourceContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source = (REPO_ROOT / "kernel/fs/blockcache.c").read_text()
+        cls.source = (REPO_ROOT / "kernel/fs/blockcache.cc").read_text()
 
     def function_body(self, name):
         match = re.search(

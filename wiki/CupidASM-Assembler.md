@@ -719,7 +719,7 @@ main:
 
 > Syscall table version: **3**. The layout is append-only. Programs built
 > against version 2 still work and observe the larger `SYS_TABLE_SIZE`.
-> `kernel/core/syscall.c` has `_Static_assert` guards on the offsets below, so
+> `kernel/core/syscall.cc` has `_Static_assert` guards on the offsets below, so
 > reordering a field causes a compile-time failure.
 
 AOT-compiled programs receive a pointer to the syscall table at `[esp+4]` when executed. Use `SYS_*` constants (pre-defined as `equ` values) to call kernel functions indirectly:

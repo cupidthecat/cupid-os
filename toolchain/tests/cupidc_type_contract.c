@@ -1673,13 +1673,13 @@ static int check_active_shapes(void) {
   (void)memset(syscall_types, 0, sizeof(syscall_types));
   (void)memset(syscall_members, 0, sizeof(syscall_members));
   syscall_types[S_VOID] =
-      type_node(CTOOL_C_TYPE_VOID, "/kernel/core/syscall.c", 174u);
+      type_node(CTOOL_C_TYPE_VOID, "/kernel/core/syscall.cc", 174u);
   syscall_types[S_FUNCTION] =
-      type_node(CTOOL_C_TYPE_FUNCTION, "/kernel/core/syscall.c", 174u);
+      type_node(CTOOL_C_TYPE_FUNCTION, "/kernel/core/syscall.cc", 174u);
   syscall_types[S_FUNCTION].referenced_type = S_VOID;
   syscall_types[S_FUNCTION].has_prototype = CTOOL_TRUE;
   syscall_types[S_FUNCTION_POINTER] =
-      type_node(CTOOL_C_TYPE_POINTER, "/kernel/core/syscall.c", 174u);
+      type_node(CTOOL_C_TYPE_POINTER, "/kernel/core/syscall.cc", 174u);
   syscall_types[S_FUNCTION_POINTER].referenced_type = S_FUNCTION;
   syscall_types[S_TABLE] =
       type_node(CTOOL_C_TYPE_RECORD, "/user/cupid.h", 100u);
@@ -1814,27 +1814,27 @@ static int check_active_shapes(void) {
   (void)memset(e1000_types, 0, sizeof(e1000_types));
   (void)memset(e1000_members, 0, sizeof(e1000_members));
   e1000_types[D_U8] =
-      type_node(CTOOL_C_TYPE_UNSIGNED_CHAR, "/drivers/e1000.c", 37u);
+      type_node(CTOOL_C_TYPE_UNSIGNED_CHAR, "/drivers/e1000.cc", 37u);
   e1000_types[D_U16] =
-      type_node(CTOOL_C_TYPE_UNSIGNED_SHORT, "/drivers/e1000.c", 35u);
+      type_node(CTOOL_C_TYPE_UNSIGNED_SHORT, "/drivers/e1000.cc", 35u);
   e1000_types[D_U64] =
-      type_node(CTOOL_C_TYPE_UNSIGNED_LONG_LONG, "/drivers/e1000.c", 34u);
+      type_node(CTOOL_C_TYPE_UNSIGNED_LONG_LONG, "/drivers/e1000.cc", 34u);
   e1000_types[D_RECORD] =
-      type_node(CTOOL_C_TYPE_RECORD, "/drivers/e1000.c", 33u);
+      type_node(CTOOL_C_TYPE_RECORD, "/drivers/e1000.cc", 33u);
   e1000_types[D_RECORD].record_complete = CTOOL_TRUE;
   e1000_types[D_RECORD].record_packed = CTOOL_TRUE;
   e1000_types[D_RECORD].explicit_alignment = 16u;
   e1000_types[D_RECORD].member_count = ARRAY_COUNT(e1000_members);
-  e1000_members[0] = record_member("addr", D_U64, "/drivers/e1000.c", 34u, 0u);
-  e1000_members[1] = record_member("len", D_U16, "/drivers/e1000.c", 35u, 0u);
-  e1000_members[2] = record_member("csum", D_U16, "/drivers/e1000.c", 36u, 0u);
-  e1000_members[3] = record_member("status", D_U8, "/drivers/e1000.c", 37u, 0u);
-  e1000_members[4] = record_member("err", D_U8, "/drivers/e1000.c", 38u, 0u);
+  e1000_members[0] = record_member("addr", D_U64, "/drivers/e1000.cc", 34u, 0u);
+  e1000_members[1] = record_member("len", D_U16, "/drivers/e1000.cc", 35u, 0u);
+  e1000_members[2] = record_member("csum", D_U16, "/drivers/e1000.cc", 36u, 0u);
+  e1000_members[3] = record_member("status", D_U8, "/drivers/e1000.cc", 37u, 0u);
+  e1000_members[4] = record_member("err", D_U8, "/drivers/e1000.cc", 38u, 0u);
   e1000_members[5] =
-      record_member("special", D_U16, "/drivers/e1000.c", 39u, 0u);
+      record_member("special", D_U16, "/drivers/e1000.cc", 39u, 0u);
 
   request = layout_request(e1000_types, D_COUNT, e1000_members,
-                           ARRAY_COUNT(e1000_members), "/drivers/e1000.c");
+                           ARRAY_COUNT(e1000_members), "/drivers/e1000.cc");
   status = ctool_c_layout_types(job, &request, &e1000_result);
   if (status != CTOOL_OK ||
       expect_type("adversarial", &e1000_result, D_RECORD,

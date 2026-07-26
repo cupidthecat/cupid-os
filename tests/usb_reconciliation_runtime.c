@@ -12,7 +12,7 @@ typedef struct {
     uint64_t duration_ms;
 } timer_measure_t;
 
-#include "../kernel/usb/usb.c"
+#include "../kernel/usb/usb.cc"
 
 enum mock_failure {
     FAIL_NONE = 0,

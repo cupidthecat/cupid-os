@@ -68,14 +68,14 @@ KNOWN_SOURCE_RELATIONS = {
     "bin/cupidc_lex.c": ("historical_copy_of", "kernel/lang/cupidc_lex.c"),
     "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.cc"),
     "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.cc"),
-    "bin/fat16_vfs.c": ("historical_copy_of", "kernel/fs/fat16_vfs.c"),
+    "bin/fat16_vfs.c": ("historical_copy_of", "kernel/fs/fat16_vfs.cc"),
     "bin/kernel.c": ("historical_copy_of", "kernel/core/kernel.c"),
-    "bin/terminal_app.c": ("historical_copy_of", "kernel/gui/terminal_app.c"),
+    "bin/terminal_app.c": ("historical_copy_of", "kernel/gui/terminal_app.cc"),
     "demos/paint.cc": ("superseded_by", "bin/paint.cc"),
     "kernel/core/scheduler.c": ("superseded_by", "kernel/core/process.cc"),
     "kernel/core/scheduler.h": ("superseded_by", "kernel/core/process.h"),
     "kernel/gui/notepad.c": ("superseded_by", "bin/notepad.cc"),
-    "kernel/gui/terminal_ansi.c": ("superseded_by", "kernel/gui/ansi.c"),
+    "kernel/gui/terminal_ansi.c": ("superseded_by", "kernel/gui/ansi.cc"),
 }
 
 
@@ -310,7 +310,7 @@ _C_PP_DEFERRED_HOSTED_CASES = (
 )
 _C_PP_HOSTED_BRIDGE_CASES = frozenset(
     {
-        "/kernel/lang/as_elf.c",
+        "/kernel/lang/as_elf.cc",
         "/toolchain/tests/cupidasm_kernel_elf_contract.c",
     }
 )
@@ -1421,7 +1421,11 @@ def _source_cohort(path: str, language: str | None, generated: bool) -> str:
         basename in {"as.c", "as.cc", "as.h"} or basename.startswith("as_")
     ):
         return "cupidasm"
-    if path.startswith("kernel/lang/") and basename in {"dis.c", "dis.h"}:
+    if path.startswith("kernel/lang/") and basename in {
+        "dis.c",
+        "dis.cc",
+        "dis.h",
+    }:
         return "cupiddis"
     if path.startswith("drivers/"):
         return "driver"
@@ -3787,7 +3791,7 @@ def _c_preprocessor_require_compiler_invocation(
                 f"CupidC active preprocessing compile recipe has unmodeled "
                 f"shell control for {output}: {token!r}"
             )
-    for token in tokens:
+    for index, token in enumerate(tokens):
         marker_match = re.fullmatch(
             r"\$\(([A-Za-z_][A-Za-z0-9_]*)\)|"
             r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}",
@@ -3805,6 +3809,10 @@ def _c_preprocessor_require_compiler_invocation(
                 )
             argument_profile.append(marker)
         elif token == "-I../kernel/lang":
+            argument_profile.append(token)
+        elif token == "-x":
+            argument_profile.append(token)
+        elif index > 0 and tokens[index - 1] == "-x":
             argument_profile.append(token)
     if argument_profile != expected_argument_profile:
         raise AuditError(
@@ -4078,18 +4086,29 @@ def _c_preprocessor_profile_for_c_transform(
         transform, recipe_tokens
     )
     if directory == "toolchain":
-        if literal_flags not in ([], ["-I../kernel/lang"]):
+        unexpected_literal_flags = [
+            flag
+            for flag in literal_flags
+            if flag not in {"-I../kernel/lang", "-x"}
+        ]
+        if unexpected_literal_flags:
             raise AuditError(
                 f"CupidC active preprocessing found literal preprocessor "
                 f"flag(s) outside the selected profile for {output}: "
-                f"{literal_flags!r}"
+                f"{unexpected_literal_flags!r}"
             )
         logical = _c_preprocessor_logical_path(
             _c_preprocessor_one_c_root(transform)
         )
-        bridge_recipe = literal_flags == ["-I../kernel/lang"]
         bridge_source = logical in _C_PP_HOSTED_BRIDGE_CASES
-        if bridge_recipe != bridge_source:
+        expected_literal_flags = (
+            ["-I../kernel/lang", "-x"]
+            if bridge_source and logical.endswith(".cc")
+            else ["-I../kernel/lang"]
+            if bridge_source
+            else []
+        )
+        if literal_flags != expected_literal_flags:
             raise AuditError(
                 f"CupidC active preprocessing hosted bridge recipe differs "
                 f"for {logical}: expected_bridge={bridge_source!r}, "
@@ -4099,6 +4118,8 @@ def _c_preprocessor_profile_for_c_transform(
         if bridge_source:
             expected_argument_profile.append("-I../kernel/lang")
         expected_argument_profile.append("CFLAGS")
+        if logical.endswith(".cc"):
+            expected_argument_profile.extend(("-x", "c"))
         _c_preprocessor_require_compiler_invocation(
             transform, recipe_tokens, expected_argument_profile, logical
         )

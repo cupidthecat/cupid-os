@@ -241,7 +241,7 @@ int system(const char *cmd)
 }
 
 /* 64-bit division helpers - GCC emits these for 64-bit ops on 32-bit */
-/* __udivdi3 already lives in kernel/math.c. */
+/* __udivdi3 already lives in kernel/cpu/math.cc. */
 
 /* Forward-declare kernel's __udivdi3 */
 extern unsigned long long __udivdi3(unsigned long long a, unsigned long long b);

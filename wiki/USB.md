@@ -30,14 +30,14 @@ shell sees a unified input stream. Mass storage registers as a block device (`us
 
 | Subsystem | File | Notes |
 |-----------|------|-------|
-| PCI enumeration | `drivers/pci.c` | Bus 0, dev 0-31, multi-function via header type bit 7 |
-| USB core | `kernel/usb/usb.c` | Device model, durable reconciliation, address ownership |
+| PCI enumeration | `drivers/pci.cc` | Bus 0, dev 0-31, multi-function via header type bit 7 |
+| USB core | `kernel/usb/usb.cc` | Device model, durable reconciliation, address ownership |
 | HC vtable | `kernel/usb/usb_hc.h` | `usb_hc_t` interface |
-| UHCI driver | `kernel/usb/uhci.c` | I/O-port registers, USB 1.1 |
-| EHCI driver | `kernel/usb/ehci.c` | MMIO, USB 2.0, companion routing |
-| HID class | `kernel/usb/usb_hid.c` | Boot protocol keyboard + mouse |
-| Hub class | `kernel/usb/usb_hub.c` | Hub descriptor, status pipe, downstream ports |
-| Mass storage | `kernel/usb/usb_msc.c` | BBB + SCSI, block-device lifetime |
+| UHCI driver | `kernel/usb/uhci.cc` | I/O-port registers, USB 1.1 |
+| EHCI driver | `kernel/usb/ehci.cc` | MMIO, USB 2.0, companion routing |
+| HID class | `kernel/usb/usb_hid.cc` | Boot protocol keyboard + mouse |
+| Hub class | `kernel/usb/usb_hub.cc` | Hub descriptor, status pipe, downstream ports |
+| Mass storage | `kernel/usb/usb_msc.cc` | BBB + SCSI, block-device lifetime |
 
 ### Subsystem relationships
 
@@ -99,7 +99,7 @@ EHCI-to-UHCI order breaks companion handoff.
 
 ## PCI Layer
 
-Source: `drivers/pci.c`, `drivers/pci.h`
+Source: `drivers/pci.cc`, `drivers/pci.h`
 
 ### Enumeration
 
@@ -156,7 +156,7 @@ which is the safe value for R/WC bits - zeros do not clear anything.
 
 ## USB Core
 
-Source: `kernel/usb/usb.c`, `kernel/usb/usb_hc.h`, `kernel/usb/usb.h`
+Source: `kernel/usb/usb.cc`, `kernel/usb/usb_hc.h`, `kernel/usb/usb.h`
 
 ### Host controller vtable (`usb_hc_t`)
 
@@ -294,7 +294,7 @@ via `hc->submit_sync`. The controller receives an explicit timeout.
 
 ## UHCI Driver
 
-Source: `kernel/usb/uhci.c`
+Source: `kernel/usb/uhci.cc`
 
 ### Register access
 
@@ -366,7 +366,7 @@ finished DMA and returned from its callback.
 
 ## EHCI Driver
 
-Source: `kernel/usb/ehci.c`
+Source: `kernel/usb/ehci.cc`
 
 ### MMIO mapping
 
@@ -491,7 +491,7 @@ driver may release its report buffer. A callback cannot cancel its own slot.
 
 ## HID Driver
 
-Source: `kernel/usb/usb_hid.c`
+Source: `kernel/usb/usb_hid.cc`
 
 ### Probe and setup
 
@@ -535,7 +535,7 @@ PgUp / PgDn / Home / End / Insert / Delete and the cursor arrows are
 the make/break code. The driver tracks which HID keycodes need the
 prefix in `hid_is_extended[]` and injects two scancodes for them
 (`0xE0` then the scancode). `keyboard_inject_scancode()` in
-`drivers/keyboard.c` recognises the `0xE0` prefix and routes the next
+`drivers/keyboard.cc` recognises the `0xE0` prefix and routes the next
 byte through `handle_extended_key()`, the same path a real PS/2 IRQ
 takes - so the kernel's keyboard buffer ends up with `scancode = 0x49`,
 `character = 0` for PgUp (rather than the ASCII `9` it would otherwise
@@ -567,7 +567,7 @@ scroll events.
 
 ## Hub Driver
 
-Source: `kernel/usb/usb_hub.c`
+Source: `kernel/usb/usb_hub.cc`
 
 ### Probe and descriptor fetch
 
@@ -628,7 +628,7 @@ EHCI uses these fields to set the `PORTSC.SPLIT_EN` and `TT*` fields in the QH f
 
 ## Mass Storage Driver
 
-Source: `kernel/usb/usb_msc.c`
+Source: `kernel/usb/usb_msc.cc`
 
 ### Bulk-Only Transport (BBB)
 
@@ -863,13 +863,13 @@ an `Error:` response as a failed hot-plug operation.
 ```
 kernel/
 ├── pci.h          - PCI device struct, BAR helpers, class codes
-├── pci.c          - pci_init, pci_find_by_class, pci_enable_bus_master
+├── pci.cc          - pci_init, pci_find_by_class, pci_enable_bus_master
 ├── usb_hc.h       - usb_hc_t vtable, usb_transfer_t
 ├── usb.h          - usb_device_t, speed/class constants, work queue API
-├── usb.c          - USB core: register_hc, enumeration FSM, usb_control
-├── uhci.c         - UHCI 1.1 host controller driver
-├── ehci.c         - EHCI 2.0 host controller driver
-├── usb_hid.c      - HID boot protocol: keyboard + mouse class driver
-├── usb_hub.c      - Hub class driver
-└── usb_msc.c      - Mass storage BBB + SCSI + block_device registration
+├── usb.cc          - USB core: register_hc, enumeration FSM, usb_control
+├── uhci.cc         - UHCI 1.1 host controller driver
+├── ehci.cc         - EHCI 2.0 host controller driver
+├── usb_hid.cc      - HID boot protocol: keyboard + mouse class driver
+├── usb_hub.cc      - Hub class driver
+└── usb_msc.cc      - Mass storage BBB + SCSI + block_device registration
 ```

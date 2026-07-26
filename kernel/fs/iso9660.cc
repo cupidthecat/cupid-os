@@ -1,4 +1,4 @@
-/* kernel/iso9660.c - ISO9660 / ECMA-119 + Rock Ridge parser. */
+/* kernel/fs/iso9660.cc - ISO9660 / ECMA-119 + Rock Ridge parser. */
 
 #include "iso9660.h"
 #include "vfs.h"   /* for VFS_E* errno values */

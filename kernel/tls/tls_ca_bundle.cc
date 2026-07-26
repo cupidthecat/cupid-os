@@ -1,7 +1,7 @@
 /* Embedded trust anchors for TLS chain validation.
  *
  * `tools/fetch_ca_bundle_mozilla.sh` generates
- * `kernel/tls/tls_ca_bundle_data.c` from curl.se's Mozilla bundle. The
+ * `kernel/tls/tls_ca_bundle_data.cc` from curl.se's Mozilla bundle. The
  * tracked file currently contains a curated set of 39 roots and needs
  * curl, OpenSSL, and xxd when it is refreshed.
  *

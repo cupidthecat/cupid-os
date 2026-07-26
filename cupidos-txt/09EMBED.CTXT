@@ -124,7 +124,7 @@ Goal:
 
 This older approach remains available for manually bundled files. Shipped
 manuals should use the generated /docs/*.ctxt path instead of hardcoded text
-blobs in kernel/fs/fs.c.
+blobs in kernel/fs/fs.cc.
 
 Tradeoff:
 - Always available at boot
@@ -147,7 +147,7 @@ Build-time generators:
 - kernel/util/demos_programs_gen.cc
 
 Tradeoff:
-- Avoids hardcoded strings in kernel/fs/fs.c
+- Avoids hardcoded strings in kernel/fs/fs.cc
 - Requires Makefile and kernel generation changes
 
 >button List /docs | shell:ls /docs

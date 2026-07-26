@@ -129,15 +129,15 @@ cupid-os/
 │   ├── smp/                   # AP bringup, LAPIC/IOAPIC, BKL
 │   └── usb/                   # UHCI/EHCI, HID, hubs, mass storage
 ├── drivers/
-│   ├── keyboard.c/h           # PS/2 keyboard (IRQ1)
-│   ├── mouse.c/h              # PS/2 mouse (IRQ12)
-│   ├── vga.c/h                # VBE 640x480 32bpp
-│   ├── ata.c/h                # ATA/IDE disk
+│   ├── keyboard.cc/h           # PS/2 keyboard (IRQ1)
+│   ├── mouse.cc/h              # PS/2 mouse (IRQ12)
+│   ├── vga.cc/h                # VBE 640x480 32bpp
+│   ├── ata.cc/h                # ATA/IDE disk
 │   ├── serial.cc/h            # COM1 serial port
-│   ├── timer.cc/h + pit.c/h   # PIT timer
-│   ├── rtl8139.c/h            # Realtek NIC
-│   ├── e1000.c/h              # Intel NIC
-│   └── speaker.c/h            # PC speaker
+│   ├── timer.cc/h + pit.cc/h   # PIT timer
+│   ├── rtl8139.cc/h            # Realtek NIC
+│   ├── e1000.cc/h              # Intel NIC
+│   └── speaker.cc/h            # PC speaker
 ├── bin/
 │   ├── browser.cc + browser/  # render-pipeline browser
 │   ├── ssh.cc, telnet.cc      # remote terminal clients

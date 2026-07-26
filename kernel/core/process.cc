@@ -1052,9 +1052,9 @@ const char *process_domain_name(process_domain_t domain) {
 
 /*  *  process_block / process_unblock - Suspend/resume a READY process
  *
- *  Used by the JIT region manager (shell.c) to prevent a process from
- *  being scheduled while the shared JIT code region contains code that
- *  belongs to a different process.
+ *  Used by the JIT region manager in kernel/lang/shell.cc to prevent a
+ *  process from being scheduled while the shared JIT code region contains
+ *  code that belongs to a different process.
  **/
 void process_block(uint32_t pid) {
     if (pid == 0 || pid == 1 || pid > MAX_PROCESSES) return;

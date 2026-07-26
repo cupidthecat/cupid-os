@@ -1,5 +1,5 @@
 /**
- * gfx2d.c - 2D graphics library for cupid-os
+ * gfx2d.cc - 2D graphics library for Cupid OS
  *
  * Software-rendered 2D graphics with alpha blending, gradients,
  * drop shadows, retro effects, sprites, and demo-scene aesthetics.
@@ -2713,7 +2713,7 @@ int gfx2d_window_content_h(void) { return g2d_win_h - GFX2D_TOOLBAR_H - 3; }
 
 #include "mouse.h"
 
-/* 8x10 arrow cursor bitmap (matches drivers/mouse.c) */
+/* 8x10 arrow cursor bitmap (matches drivers/mouse.cc) */
 #define G2D_CURSOR_W 8
 #define G2D_CURSOR_H 10
 

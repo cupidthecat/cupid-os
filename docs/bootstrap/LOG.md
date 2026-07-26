@@ -10280,3 +10280,125 @@ This transfer moves nine normal objects away from the host compiler without
 removing a symbol or weakening a source. Ten strict checked-in roots, Doom,
 vendored code, native hosted tools and contracts, Python orchestration, and
 the Windows WSL bridge remain. ADR 0123 records the production boundary.
+
+## 2026-07-26: name production CupidC sources consistently
+
+The 111 checked-in roots used only by production CupidC now use `.cc` names.
+Their source behavior and build ownership do not change. The normal checked-in
+cohort now contains 139 `.cc` roots and these five seed-bound `.c` roots:
+
+- `toolchain/ctool.c`
+- `toolchain/cupidasm.c`
+- `toolchain/cupiddis.c`
+- `toolchain/elf32.c`
+- `toolchain/x86.c`
+
+Those five files still feed the checked fixed point and native hosted
+contracts. They keep their existing paths until a separate seed refresh proves
+the new names. The generated `kernel/cpu/ksyms_data.cc` source brings the
+normal build to 140 `.cc` translations within its existing 145-transform
+CupidC cohort.
+
+Every active Make, wrapper, test, source comment, README, bootstrap record,
+wiki page, and CupidOS text reference now follows the renamed roots. The hosted
+`kernel/lang/as_elf.cc` recipe selects C explicitly with `-x c`; the audit
+rejects a missing language selection or `-x c++`. Exact tests pin all 111
+renames, the 139-to-5 checked-in split, the generated translation, and the
+useful rejection of the retired `kernel/crypto/ct.c` path. Normalized
+non-comment code is identical for every renamed pair, and none of the roots
+uses `__FILE__` or `__BASE_FILE__`.
+
+### Frontier attempts
+
+The first exact frontier ran beside a clean image build. It correctly stopped
+after 336.222 seconds when the build temporarily created
+`kernel/cpu/.ksyms_data.o.cupidc-*` header snapshots under the repository.
+The frozen input check saw those extra `kernel/core/types.h` and
+`kernel/cpu/ksyms.h` paths and published no mixed result. Frontier and image
+proofs now run in isolation.
+
+The first isolated run compiled all 144 roots twice with matching objects. The
+test then found one stale total-size oracle after 1,288.466 seconds. Renaming
+one-character-longer paths changed object metadata. Twenty-eight objects
+crossed a four-byte file-size boundary, so the cohort grew by exactly 112
+bytes without a source-code or ABI change. The selected object hashes and the
+total-size oracle were updated from the measured output.
+
+After the oracle update, an isolated run passed in 1,343.777 seconds. Staging
+then exposed another reproducibility gap. Several legacy files in this old
+worktree still used CRLF, while `.gitattributes` gives a clean checkout LF.
+The frontier had hashed those raw bytes even though the compiler sees the same
+source. Snapshot hashing now canonicalizes CRLF to LF, like the active audit.
+It also normalizes lone carriage returns to LF. Positive tests pin both rules.
+
+The final checkout-independent run passed in 1,317.122 seconds. It compiled
+144 sources twice from 432 frozen inputs, produced 3,514,568 matching object
+bytes, and reported no boundary diagnostics:
+
+- input snapshot SHA-256:
+  `938cee8dfd75ca09c1b16da6e107b811d4edbe8482f63a52e04e61a85c7b647f`
+- active-source digest:
+  `0a51a83a53ece2df74529c0166d26f9e4a38a2f7c9f1762969d69fdf80313a3d`
+- active-build JSON SHA-256:
+  `1b40d7f3396a868ab1851c4d54fb3da68a0e05ce0f9fa15995f4480bdc2f2518`
+
+The regenerated audit records 698 active inputs, 253 feature IDs, 500
+transforms, and 42 accounted unreachable files. Its language split is 27
+assembly files, 128 C files, 270 C headers, and 273 Cupid C files. Ownership
+remains 151 transforms for CupidC, 146 for the host C compiler, and 163 for
+Python. The host compiler still produces 94 normal root objects.
+
+### Image, symbols, and runtime
+
+The final clean image built in 292.125 seconds with no stderr. CupidLD
+completed both kernel passes, CupidDis and Python generated the packed symbol
+source, CupidC compiled it, and CupidObj flattened the final kernel.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/ksyms_data.cc` | 345,405 | `7d3c81da65335df7214bd8be0629194938cb3bcf87c16b54950d49b726132efd` |
+| `kernel/cpu/ksyms_data.o` | 104,600 | `475335be28078c794f423bc4d0bb00cf0474289f23bacbc1f7314d29e5b4abd5` |
+| `kernel/kernel.elf.pass1` | 7,953,872 | `ded23a6f0f30fab668d179d50b7510e7acf2cbfe879b45f944eef04026af4ec6` |
+| `kernel/kernel.elf` | 8,056,272 | `9d8c9c1af22a7a3c6cbb629a92c82aa63729bca9c379597feb32a3b5dcefd6f4` |
+| `kernel/kernel.bin` | 7,862,352 | `1ffb43764bc224dc48a523e47c5e2425d14fa2e965a1801b419578c651fb27a6` |
+| `cupidos.img` | 209,715,200 | `b3d903f79f39c44a4c4d5a64533e08214cd9a0c0ffde1038a717293688c8a7df` |
+
+The `.ksyms` object contains a 104,188-byte allocated section: 104,185 logical
+bytes and three zero pad bytes. Its `0x000010f6` count word is 4,342. CupidDis
+reports the same 4,342 global text-symbol lines from both kernel passes.
+Earlier prose said 4,069 even though its recorded source and object hashes
+already contained the 4,342-symbol blob. ADR 0124 and the current manuals carry
+the measured count. ADR 0123 and its matching log entry retain the original
+4,069 statement as historical evidence.
+
+`_loaded_end` is `0x0087F850`, 523,696 bytes below `0x008FF600`.
+`_kernel_end` is `0x00CA4A70`, 374,160 bytes below the `0x00D00000` stack
+boundary. The 7,862,352-byte payload at image LBA 5 matches
+`kernel/kernel.bin` and its SHA-256 exactly.
+
+The final four-vCPU QEMU run forces RDRAND seeding and passes all 62 crypto,
+ASN.1, and X.509 checks. MP discovery reports one CPU, ACPI reports four, CPUs
+1 through 3 come online, and the kernel reports four of four. The run passes
+all five in-kernel toolchain self-tests, initializes e1000, reaches the desktop
+and terminal, and completes `/bin/ls.cc` JIT execution. Its 59,644-byte log
+spans 64.515 seconds and has SHA-256
+`7d426813b433c322c25df2bf8df550e990bb76d80c05f9f09a9729b243b21478`.
+
+### Regression evidence
+
+- The complete kernel wrapper module passes 26 tests.
+- The renamed-path and subsystem contracts pass 197 tests.
+- The fake and negative frontier group passes 27 tests, including canonical
+  LF snapshot coverage.
+- The build audit suite passes 56 tests, including missing and wrong hosted
+  language modes.
+- The host-build and memory-layout group passes 10 tests.
+- `make -C toolchain test`, `make verify-bootstrap-seed`,
+  `make bootstrap-audit`, and `make check-bootstrap-audit` pass.
+- The final naming-policy and retired-path checks pass again after the last
+  assertion was added.
+
+This change removes no behavior and claims no new transform. Ten strict
+checked-in roots, Doom and vendored C, native hosted tools, Python
+orchestration, the Windows WSL bridge, and the five shared-root seed refresh
+remain. ADR 0124 records the naming boundary and its exact proof.

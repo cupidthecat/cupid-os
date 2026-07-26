@@ -25,125 +25,125 @@ SEED_MANIFEST = (
 )
 
 CRYPTO_SOURCES = (
-    "kernel/crypto/aes.c",
-    "kernel/crypto/aes_gcm.c",
-    "kernel/crypto/asn1.c",
-    "kernel/crypto/bigint.c",
-    "kernel/crypto/chacha20.c",
-    "kernel/crypto/chacha20poly1305.c",
-    "kernel/crypto/csprng.c",
-    "kernel/crypto/ct.c",
-    "kernel/crypto/ecdsa.c",
-    "kernel/crypto/ed25519.c",
-    "kernel/crypto/hkdf.c",
-    "kernel/crypto/hmac.c",
-    "kernel/crypto/p256.c",
-    "kernel/crypto/poly1305.c",
-    "kernel/crypto/rsa.c",
-    "kernel/crypto/sha256.c",
-    "kernel/crypto/sha512.c",
-    "kernel/crypto/x25519.c",
-    "kernel/crypto/x509.c",
-    "kernel/crypto/x509_chain.c",
+    "kernel/crypto/aes.cc",
+    "kernel/crypto/aes_gcm.cc",
+    "kernel/crypto/asn1.cc",
+    "kernel/crypto/bigint.cc",
+    "kernel/crypto/chacha20.cc",
+    "kernel/crypto/chacha20poly1305.cc",
+    "kernel/crypto/csprng.cc",
+    "kernel/crypto/ct.cc",
+    "kernel/crypto/ecdsa.cc",
+    "kernel/crypto/ed25519.cc",
+    "kernel/crypto/hkdf.cc",
+    "kernel/crypto/hmac.cc",
+    "kernel/crypto/p256.cc",
+    "kernel/crypto/poly1305.cc",
+    "kernel/crypto/rsa.cc",
+    "kernel/crypto/sha256.cc",
+    "kernel/crypto/sha512.cc",
+    "kernel/crypto/x25519.cc",
+    "kernel/crypto/x509.cc",
+    "kernel/crypto/x509_chain.cc",
 )
 SMP_SOURCES = (
-    "kernel/smp/acpi.c",
-    "kernel/smp/mp_tables.c",
+    "kernel/smp/acpi.cc",
+    "kernel/smp/mp_tables.cc",
 )
 OPERAND_FREE_SOURCES = (
-    "drivers/e1000.c",
-    "kernel/gui/desktop.c",
-    "kernel/network/socket.c",
-    "kernel/network/tcp.c",
+    "drivers/e1000.cc",
+    "kernel/gui/desktop.cc",
+    "kernel/network/socket.cc",
+    "kernel/network/tcp.cc",
 )
 PORT_IO_SOURCES = (
-    "drivers/ata.c",
-    "drivers/keyboard.c",
-    "drivers/mouse.c",
-    "drivers/pci.c",
-    "drivers/pit.c",
-    "drivers/rtc.c",
-    "drivers/rtl8139.c",
-    "drivers/speaker.c",
-    "drivers/vga.c",
-    "kernel/audio/ac97.c",
-    "kernel/core/syscall.c",
-    "kernel/lang/shell.c",
-    "kernel/usb/ehci.c",
-    "kernel/usb/uhci.c",
+    "drivers/ata.cc",
+    "drivers/keyboard.cc",
+    "drivers/mouse.cc",
+    "drivers/pci.cc",
+    "drivers/pit.cc",
+    "drivers/rtc.cc",
+    "drivers/rtl8139.cc",
+    "drivers/speaker.cc",
+    "drivers/vga.cc",
+    "kernel/audio/ac97.cc",
+    "kernel/core/syscall.cc",
+    "kernel/lang/shell.cc",
+    "kernel/usb/ehci.cc",
+    "kernel/usb/uhci.cc",
 )
 COMPILER_READY_SOURCES = (
-    "kernel/audio/memio.c",
-    "kernel/audio/midiopl.c",
-    "kernel/audio/mixer.c",
-    "kernel/audio/mus2midi.c",
-    "kernel/audio/opl_smoke.c",
-    "kernel/cpu/math.c",
-    "kernel/fs/blockcache.c",
-    "kernel/fs/blockdev.c",
-    "kernel/fs/devfs.c",
-    "kernel/fs/fat16_vfs.c",
-    "kernel/fs/fs.c",
-    "kernel/fs/homefs.c",
-    "kernel/fs/iso9660_vfs.c",
-    "kernel/fs/ramfs.c",
-    "kernel/fs/vfs.c",
-    "kernel/fs/vfs_helpers.c",
-    "kernel/gfx/bmp.c",
-    "kernel/gfx/font_8x8.c",
-    "kernel/gfx/fontsys.c",
-    "kernel/gfx/gfx2d_assets.c",
-    "kernel/gfx/gfx2d_effects.c",
-    "kernel/gfx/gfx2d_icons.c",
-    "kernel/gfx/gfx2d_transform.c",
-    "kernel/gfx/graphics.c",
-    "kernel/gfx/ttf.c",
-    "kernel/gui/ansi.c",
-    "kernel/gui/clipboard.c",
-    "kernel/gui/ctxt_image_worker.c",
-    "kernel/gui/gui.c",
-    "kernel/gui/gui_containers.c",
-    "kernel/gui/gui_events.c",
-    "kernel/gui/gui_menus.c",
-    "kernel/gui/gui_themes.c",
-    "kernel/gui/gui_widgets.c",
-    "kernel/gui/terminal_app.c",
-    "kernel/gui/ui.c",
-    "kernel/lang/as_elf.c",
-    "kernel/lang/ctool_kernel.c",
-    "kernel/lang/cupidc_elf.c",
-    "kernel/lang/cupidscript_arrays.c",
-    "kernel/lang/cupidscript_exec.c",
-    "kernel/lang/cupidscript_jobs.c",
-    "kernel/lang/cupidscript_lex.c",
-    "kernel/lang/cupidscript_parse.c",
-    "kernel/lang/cupidscript_runtime.c",
-    "kernel/lang/cupidscript_streams.c",
-    "kernel/lang/cupidscript_strings.c",
-    "kernel/lang/dis.c",
-    "kernel/lang/exec.c",
-    "kernel/lang/godspeak.c",
-    "kernel/mm/swap.c",
-    "kernel/mm/swap_disk.c",
-    "kernel/network/arp.c",
-    "kernel/network/dhcp.c",
-    "kernel/network/dns.c",
-    "kernel/network/icmp.c",
-    "kernel/network/ip.c",
-    "kernel/network/net_if.c",
-    "kernel/smp/ioapic.c",
-    "kernel/tls/tls_ca_bundle_data.c",
-    "kernel/tls/tls_ctx.c",
-    "kernel/tls/tls_handshake.c",
-    "kernel/tls/tls_kdf.c",
-    "kernel/tls/tls_record.c",
-    "kernel/tls/tls_selftest.c",
-    "kernel/tls/tls12_handshake.c",
-    "kernel/usb/usb.c",
-    "kernel/usb/usb_hid.c",
-    "kernel/usb/usb_hub.c",
-    "kernel/usb/usb_msc.c",
-    "kernel/util/calendar.c",
+    "kernel/audio/memio.cc",
+    "kernel/audio/midiopl.cc",
+    "kernel/audio/mixer.cc",
+    "kernel/audio/mus2midi.cc",
+    "kernel/audio/opl_smoke.cc",
+    "kernel/cpu/math.cc",
+    "kernel/fs/blockcache.cc",
+    "kernel/fs/blockdev.cc",
+    "kernel/fs/devfs.cc",
+    "kernel/fs/fat16_vfs.cc",
+    "kernel/fs/fs.cc",
+    "kernel/fs/homefs.cc",
+    "kernel/fs/iso9660_vfs.cc",
+    "kernel/fs/ramfs.cc",
+    "kernel/fs/vfs.cc",
+    "kernel/fs/vfs_helpers.cc",
+    "kernel/gfx/bmp.cc",
+    "kernel/gfx/font_8x8.cc",
+    "kernel/gfx/fontsys.cc",
+    "kernel/gfx/gfx2d_assets.cc",
+    "kernel/gfx/gfx2d_effects.cc",
+    "kernel/gfx/gfx2d_icons.cc",
+    "kernel/gfx/gfx2d_transform.cc",
+    "kernel/gfx/graphics.cc",
+    "kernel/gfx/ttf.cc",
+    "kernel/gui/ansi.cc",
+    "kernel/gui/clipboard.cc",
+    "kernel/gui/ctxt_image_worker.cc",
+    "kernel/gui/gui.cc",
+    "kernel/gui/gui_containers.cc",
+    "kernel/gui/gui_events.cc",
+    "kernel/gui/gui_menus.cc",
+    "kernel/gui/gui_themes.cc",
+    "kernel/gui/gui_widgets.cc",
+    "kernel/gui/terminal_app.cc",
+    "kernel/gui/ui.cc",
+    "kernel/lang/as_elf.cc",
+    "kernel/lang/ctool_kernel.cc",
+    "kernel/lang/cupidc_elf.cc",
+    "kernel/lang/cupidscript_arrays.cc",
+    "kernel/lang/cupidscript_exec.cc",
+    "kernel/lang/cupidscript_jobs.cc",
+    "kernel/lang/cupidscript_lex.cc",
+    "kernel/lang/cupidscript_parse.cc",
+    "kernel/lang/cupidscript_runtime.cc",
+    "kernel/lang/cupidscript_streams.cc",
+    "kernel/lang/cupidscript_strings.cc",
+    "kernel/lang/dis.cc",
+    "kernel/lang/exec.cc",
+    "kernel/lang/godspeak.cc",
+    "kernel/mm/swap.cc",
+    "kernel/mm/swap_disk.cc",
+    "kernel/network/arp.cc",
+    "kernel/network/dhcp.cc",
+    "kernel/network/dns.cc",
+    "kernel/network/icmp.cc",
+    "kernel/network/ip.cc",
+    "kernel/network/net_if.cc",
+    "kernel/smp/ioapic.cc",
+    "kernel/tls/tls_ca_bundle_data.cc",
+    "kernel/tls/tls_ctx.cc",
+    "kernel/tls/tls_handshake.cc",
+    "kernel/tls/tls_kdf.cc",
+    "kernel/tls/tls_record.cc",
+    "kernel/tls/tls_selftest.cc",
+    "kernel/tls/tls12_handshake.cc",
+    "kernel/usb/usb.cc",
+    "kernel/usb/usb_hid.cc",
+    "kernel/usb/usb_hub.cc",
+    "kernel/usb/usb_msc.cc",
+    "kernel/util/calendar.cc",
 )
 TOOLCHAIN_KERNEL_SOURCES = (
     "toolchain/ctool.c",
@@ -207,7 +207,7 @@ KERNEL_SOURCES = tuple(
 )
 
 OPERAND_FREE_DEPENDENCIES = {
-    "drivers/e1000.c": (
+    "drivers/e1000.cc": (
         "drivers/pci.h",
         "drivers/serial.h",
         "kernel/core/types.h",
@@ -216,7 +216,7 @@ OPERAND_FREE_DEPENDENCIES = {
         "kernel/mm/memory.h",
         "kernel/network/net_if.h",
     ),
-    "kernel/gui/desktop.c": (
+    "kernel/gui/desktop.cc": (
         "drivers/keyboard.h",
         "drivers/mouse.h",
         "drivers/rtc.h",
@@ -248,7 +248,7 @@ OPERAND_FREE_DEPENDENCIES = {
         "kernel/mm/memory.h",
         "kernel/util/calendar.h",
     ),
-    "kernel/network/socket.c": (
+    "kernel/network/socket.cc": (
         "drivers/rtc.h",
         "drivers/serial.h",
         "drivers/timer.h",
@@ -267,7 +267,7 @@ OPERAND_FREE_DEPENDENCIES = {
         "kernel/tls/tls_ctx.h",
         "kernel/tls/tls_record.h",
     ),
-    "kernel/network/tcp.c": (
+    "kernel/network/tcp.cc": (
         "drivers/timer.h",
         "kernel/core/kernel.h",
         "kernel/core/process.h",
@@ -283,7 +283,7 @@ OPERAND_FREE_DEPENDENCIES = {
 }
 
 PORT_IO_DEPENDENCIES = {
-    "drivers/ata.c": (
+    "drivers/ata.cc": (
         "drivers/ata.h",
         "kernel/core/debug.h",
         "kernel/core/kernel.h",
@@ -292,7 +292,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/cpu/isr.h",
         "kernel/fs/blockdev.h",
     ),
-    "drivers/keyboard.c": (
+    "drivers/keyboard.cc": (
         "drivers/keyboard.h",
         "drivers/rtc.h",
         "drivers/serial.h",
@@ -308,7 +308,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/lang/shell.h",
         "kernel/util/calendar.h",
     ),
-    "drivers/mouse.c": (
+    "drivers/mouse.cc": (
         "drivers/mouse.h",
         "drivers/serial.h",
         "drivers/vga.h",
@@ -319,18 +319,18 @@ PORT_IO_DEPENDENCIES = {
         "kernel/cpu/pic.h",
         "kernel/gfx/graphics.h",
     ),
-    "drivers/pci.c": (
+    "drivers/pci.cc": (
         "drivers/pci.h",
         "drivers/serial.h",
         "kernel/core/ports.h",
         "kernel/core/types.h",
     ),
-    "drivers/pit.c": (
+    "drivers/pit.cc": (
         "drivers/pit.h",
         "kernel/core/ports.h",
         "kernel/core/types.h",
     ),
-    "drivers/rtc.c": (
+    "drivers/rtc.cc": (
         "drivers/rtc.h",
         "drivers/serial.h",
         "kernel/core/kernel.h",
@@ -338,7 +338,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/core/types.h",
         "kernel/cpu/isr.h",
     ),
-    "drivers/rtl8139.c": (
+    "drivers/rtl8139.cc": (
         "drivers/pci.h",
         "drivers/serial.h",
         "kernel/core/ports.h",
@@ -348,7 +348,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/mm/memory.h",
         "kernel/network/net_if.h",
     ),
-    "drivers/speaker.c": (
+    "drivers/speaker.cc": (
         "drivers/pit.h",
         "drivers/speaker.h",
         "drivers/timer.h",
@@ -357,7 +357,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/core/types.h",
         "kernel/cpu/isr.h",
     ),
-    "drivers/vga.c": (
+    "drivers/vga.cc": (
         "drivers/timer.h",
         "drivers/vga.h",
         "kernel/core/kernel.h",
@@ -368,7 +368,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/cpu/simd.h",
         "kernel/mm/memory.h",
     ),
-    "kernel/audio/ac97.c": (
+    "kernel/audio/ac97.cc": (
         "drivers/pci.h",
         "drivers/serial.h",
         "kernel/audio/ac97.h",
@@ -379,7 +379,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/cpu/isr.h",
         "kernel/mm/memory.h",
     ),
-    "kernel/core/syscall.c": (
+    "kernel/core/syscall.cc": (
         "drivers/ata.h",
         "drivers/pci.h",
         "drivers/pit.h",
@@ -409,7 +409,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/smp/bkl.h",
         "kernel/smp/lapic.h",
     ),
-    "kernel/lang/shell.c": (
+    "kernel/lang/shell.cc": (
         "drivers/keyboard.h",
         "drivers/pci.h",
         "drivers/rtc.h",
@@ -463,7 +463,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
     ),
-    "kernel/usb/ehci.c": (
+    "kernel/usb/ehci.cc": (
         "drivers/pci.h",
         "drivers/serial.h",
         "drivers/timer.h",
@@ -477,7 +477,7 @@ PORT_IO_DEPENDENCIES = {
         "kernel/usb/usb.h",
         "kernel/usb/usb_hc.h",
     ),
-    "kernel/usb/uhci.c": (
+    "kernel/usb/uhci.cc": (
         "drivers/pci.h",
         "drivers/serial.h",
         "drivers/timer.h",
@@ -788,7 +788,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
-            "/kernel/crypto/ct.c",
+            "/kernel/crypto/ct.cc",
             "/build/cupid/ct.o",
             "/native/repository",
         )
@@ -796,7 +796,7 @@ class KernelCompileCommandTests(unittest.TestCase):
             command,
             (
                 "-c",
-                "/kernel/crypto/ct.c",
+                "/kernel/crypto/ct.cc",
                 "-o",
                 "/build/cupid/ct.o",
                 *KERNEL_I386_ARGUMENTS,
@@ -805,11 +805,42 @@ class KernelCompileCommandTests(unittest.TestCase):
             ),
         )
 
+    def test_production_owned_roots_use_the_cupidc_extension(self):
+        renamed_sources = (
+            CRYPTO_SOURCES
+            + SMP_SOURCES
+            + OPERAND_FREE_SOURCES
+            + PORT_IO_SOURCES
+            + COMPILER_READY_SOURCES
+        )
+        self.assertEqual(len(renamed_sources), 111)
+        self.assertEqual(len(set(renamed_sources)), 111)
+        self.assertEqual(
+            tuple(
+                source
+                for source in KERNEL_SOURCES
+                if Path(source).suffix == ".c"
+            ),
+            TOOLCHAIN_KERNEL_SOURCES,
+        )
+        self.assertEqual(
+            sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
+            139,
+        )
+
+        for source in renamed_sources:
+            with self.subTest(source=source):
+                self.assertEqual(Path(source).suffix, ".cc")
+                self.assertTrue((REPO_ROOT / source).is_file())
+                self.assertFalse(
+                    (REPO_ROOT / Path(source).with_suffix(".c")).exists()
+                )
+
     def test_wsl_invocation_uses_a_private_staged_seed(self):
         command = kernel_compile.build_wsl_invocation(
             "/mnt/c/repository",
             "/mnt/c/repository/bootstrap/seeds/i386-linux/cupidc.elf",
-            ("-c", "/kernel/crypto/ct.c"),
+            ("-c", "/kernel/crypto/ct.cc"),
         )
         self.assertEqual(command[:4], ("wsl", "-e", "sh", "-c"))
         self.assertIn("umask 077", command[4])
@@ -822,7 +853,7 @@ class KernelCompileCommandTests(unittest.TestCase):
             command[7],
             "/mnt/c/repository/bootstrap/seeds/i386-linux/cupidc.elf",
         )
-        self.assertEqual(command[-2:], ("-c", "/kernel/crypto/ct.c"))
+        self.assertEqual(command[-2:], ("-c", "/kernel/crypto/ct.cc"))
 
     def test_native_executor_runs_the_checked_seed_directly(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -843,7 +874,7 @@ class KernelCompileCommandTests(unittest.TestCase):
             ) as run:
                 result = executor.run(
                     seed,
-                    ("-c", "/kernel/crypto/ct.c"),
+                    ("-c", "/kernel/crypto/ct.cc"),
                     17,
                 )
 
@@ -852,7 +883,7 @@ class KernelCompileCommandTests(unittest.TestCase):
                 [
                     str(seed),
                     "-c",
-                    "/kernel/crypto/ct.c",
+                    "/kernel/crypto/ct.cc",
                 ],
                 cwd=root,
                 text=True,
@@ -919,7 +950,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             self.assertRegex(logical_makefile, rule_pattern)
 
         self.assertIn(
-            "kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.c "
+            "kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.cc "
             "kernel/crypto/ecdsa.h kernel/crypto/p256.h "
             "kernel/crypto/hmac.h kernel/crypto/sha256.h "
             "kernel/core/string.h kernel/core/types.h "
@@ -927,7 +958,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             makefile,
         )
         self.assertIn(
-            "kernel/smp/mp_tables.o: kernel/smp/mp_tables.c "
+            "kernel/smp/mp_tables.o: kernel/smp/mp_tables.cc "
             "kernel/smp/mp_tables.h kernel/smp/ioapic.h "
             "kernel/smp/percpu.h kernel/core/process.h "
             "kernel/core/types.h drivers/serial.h "
@@ -935,7 +966,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             makefile,
         )
         self.assertIn(
-            "kernel/smp/acpi.o: kernel/smp/acpi.c kernel/smp/acpi.h "
+            "kernel/smp/acpi.o: kernel/smp/acpi.cc kernel/smp/acpi.h "
             "kernel/smp/mp_tables.h kernel/smp/ioapic.h "
             "kernel/smp/percpu.h kernel/core/process.h "
             "kernel/core/types.h drivers/serial.h "
@@ -1028,7 +1059,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             )
         self.assertIn(
             "kernel/usb/usb_hc.h",
-            recursive_includes("kernel/usb/usb.c"),
+            recursive_includes("kernel/usb/usb.cc"),
         )
 
         for source in KERNEL_SOURCES + GENERATED_KERNEL_SOURCES:
@@ -1145,8 +1176,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
             if "tools/cupidc_kernel_compile.py" in line
         ]
         self.assertEqual(len(commands), 2)
-        self.assertIn("--source kernel/smp/acpi.c", commands[0])
-        self.assertIn("--source kernel/smp/mp_tables.c", commands[1])
+        self.assertIn("--source kernel/smp/acpi.cc", commands[0])
+        self.assertIn("--source kernel/smp/mp_tables.cc", commands[1])
         self.assertNotIn(
             "__host_c_compiler_must_not_run__",
             result.stdout + result.stderr,
@@ -1227,7 +1258,7 @@ class KernelCompileOperationTests(unittest.TestCase):
     def _root_fixture(self):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name).resolve()
-        source = root / "kernel" / "crypto" / "ct.c"
+        source = root / "kernel" / "crypto" / "ct.cc"
         source.parent.mkdir(parents=True)
         source.write_text("int ct_fixture;\n", encoding="utf-8")
         seed = root / "seed" / "cupidc.elf"
@@ -1278,7 +1309,7 @@ class KernelCompileOperationTests(unittest.TestCase):
         self.assertNotEqual(executor.calls[0][0], seed)
         self.assertEqual(executor.calls[0][0].name, "cupidc.elf")
         arguments = executor.calls[0][1]
-        self.assertEqual(arguments[0:2], ("-c", "/kernel/crypto/ct.c"))
+        self.assertEqual(arguments[0:2], ("-c", "/kernel/crypto/ct.cc"))
         self.assertEqual(
             arguments[arguments.index("--root") + 1],
             "/native/repository",
@@ -1291,6 +1322,7 @@ class KernelCompileOperationTests(unittest.TestCase):
 
         for relative in (
             "kernel/core/panic.c",
+            "kernel/crypto/ct.c",
             "kernel/audio/nuked_opl3.c",
             "kernel/core/string.c",
             "kernel/crypto/new_cipher.c",
@@ -1477,7 +1509,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                 [],
                 1,
                 "",
-                "/kernel/crypto/ct.c:9: error CTD000006: unsupported",
+                "/kernel/crypto/ct.cc:9: error CTD000006: unsupported",
             ),
         )
 
@@ -1490,7 +1522,7 @@ class KernelCompileOperationTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(
                 kernel_compile.KernelCompileError,
-                "CupidC failed for kernel/crypto/ct.c with status 1.*CTD000006",
+                "CupidC failed for kernel/crypto/ct.cc with status 1.*CTD000006",
             ):
                 kernel_compile.compile_kernel_source(
                     root,
@@ -1596,7 +1628,7 @@ class KernelCompileCliTests(unittest.TestCase):
                         "--root",
                         str(REPO_ROOT),
                         "--source",
-                        "kernel/crypto/ct.c",
+                        "kernel/crypto/ct.cc",
                         "--output",
                         "build/ct.o",
                     ]
@@ -1628,7 +1660,7 @@ class KernelCompileCliTests(unittest.TestCase):
                         "--root",
                         str(REPO_ROOT),
                         "--source",
-                        "kernel/crypto/hmac.c",
+                        "kernel/crypto/hmac.cc",
                         "--output",
                         str(output),
                     ]

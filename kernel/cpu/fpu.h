@@ -11,7 +11,7 @@ void fpu_init_cpu(void);
 /* Enable x87 + SSE/SSE2 hardware. MUST be called as the FIRST statement
  * of kmain - before serial_init() and before any other C callable.
  * Rationale: with -mfpmath=sse in CFLAGS, GCC auto-vectorizes stack
- * array zeroing in serial.c (movdqa), which #UDs without CR4.OSFXSR.
+ * array zeroing in drivers/serial.cc (movdqa), which #UDs without CR4.OSFXSR.
  * fpu_init() itself is SSE-free up to its trailing serial_printf.
  * After return: CR0.EM=0/MP=1/NE=1/TS=0, CR4.OSFXSR=1/OSXMMEXCPT=1,
  * FNINIT executed, MXCSR=0x1F80 (all SIMD FP exceptions masked).*/

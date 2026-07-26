@@ -20,7 +20,7 @@ Verified against source on: 2026-05-15
 CupidOS Terminal places a GUI window over the normal shell. It does not
 implement a second shell.
 
-Source: kernel/gui/terminal_app.c, kernel/gui/gui.c, kernel/gui/desktop.c
+Source: kernel/gui/terminal_app.cc, kernel/gui/gui.cc, kernel/gui/desktop.cc
 
 Implementation:
 - shell owns the text and color buffers
@@ -35,7 +35,7 @@ Implementation:
 >tree open Launch Model
 terminal launches the GUI terminal app.
 
-Current behavior from kernel/gui/terminal_app.c:
+Current behavior from kernel/gui/terminal_app.cc:
 - only one terminal window instance is kept at a time
 - the window title is Terminal
 - launch switches shell output to GUI mode
@@ -89,7 +89,7 @@ Useful commands:
 
 >h2 Controls
 >tree open Controls
-kernel/gui/terminal_app.c defines these controls:
+kernel/gui/terminal_app.cc defines these controls:
 - mouse wheel scrolls history
 - Page Up / Page Down scroll by chunks
 - Ctrl + + increases font scale
@@ -143,7 +143,7 @@ through the shared app-launch path instead of ad hoc special cases.
 >tree open Notes
 The tree also contains a hosted /bin/terminal.cc program. The desktop and
 shell launcher use the kernel-side terminal app in
-kernel/gui/terminal_app.c.
+kernel/gui/terminal_app.cc.
 
 Run the kernel-side terminal app with:
   terminal

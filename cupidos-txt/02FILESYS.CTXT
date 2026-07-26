@@ -86,7 +86,7 @@ and diagnostics at /disk.
 
 >h2 HomeFS
 >tree open HomeFS
-homefs is implemented in kernel/fs/homefs.c.
+homefs is implemented in kernel/fs/homefs.cc.
 
 homefs implements:
 - tree-based filesystem
@@ -108,7 +108,7 @@ diagnostics.
 >h2 ISO9660 Loop-Mount
 >tree open ISO9660 Loop-Mount
 ISO 9660 images (.iso) can be mounted read-only at arbitrary mount points
-via the loop device adapter (kernel/fs/loopdev.cc + kernel/fs/iso9660_vfs.c).
+via the loop device adapter (kernel/fs/loopdev.cc + kernel/fs/iso9660_vfs.cc).
 
 Example:
   mount /disk/hello.iso /iso
@@ -151,7 +151,7 @@ Persistent workflow:
 2) run <name>
 3) the shell JIT-compiles it from /home/bin
 
-The command search order in kernel/lang/shell.c includes /home/bin/<cmd> and
+The command search order in kernel/lang/shell.cc includes /home/bin/<cmd> and
 /home/bin/<cmd>.cc.
 >button ls /home/bin | shell:ls /home/bin
 >endtree

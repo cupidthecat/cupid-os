@@ -21,8 +21,10 @@ Removed files (replaced by Cupid OS platform code):
   - i_allegromusic.c        (Allegro music backend)
   - i_allegrosound.c        (Allegro sound backend)
   - i_cdmus.c               (CD music backend)
-  - memio.c / memio.h       (already vendored in kernel/audio/ with kernel modifications)
-  - mus2mid.c               (already vendored in kernel/audio/mus2midi.c)
+  - memio.c / memio.h       (upstream files; the active Cupid OS copies are
+                             kernel/audio/memio.cc and kernel/audio/memio.h)
+  - mus2mid.c               (upstream file; the active Cupid OS copy is
+                             kernel/audio/mus2midi.cc)
 
 Modified files (compile fixes under -nostdinc -ffreestanding):
   All modifications are in-place patches for:

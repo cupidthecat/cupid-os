@@ -1,4 +1,4 @@
-/* fontsys.h - OS-wide TTF font system for CupidOS.
+/* fontsys.h - OS-wide TTF font system for Cupid OS.
  *
  * Resolves CSS-shaped font queries (family list, size_px, weight, italic)
  * to concrete font faces, rasterizes glyphs on demand from TrueType
@@ -98,7 +98,7 @@ int fontsys_run_width(int face_id, int size_px,
  * via row-shear, so glyph N+1 doesn't collide with the slanted top of
  * glyph N. Layout multiplies this by the codepoint count of an italic
  * run before reserving line space. Mirrors the slope baked into
- * blit_glyph (fontsys.c).*/
+ * blit_glyph (kernel/gfx/fontsys.cc).*/
 int fontsys_italic_extra(int size_px);
 
 /* Draw a Latin-1 run anchored at (x, baseline_y). Rendered into the

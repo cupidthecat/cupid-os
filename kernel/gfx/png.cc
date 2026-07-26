@@ -1,5 +1,5 @@
 /**
- * png.c - Minimal PNG decoder for cupid-os
+ * png.cc - Minimal PNG decoder for Cupid OS
  *
  * Decodes a PNG image held in memory into a 32bpp XRGB buffer.
  * Supports 8-bit color types 0/2/3/6 (gray, RGB, palette, RGBA),

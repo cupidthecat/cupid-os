@@ -1,34 +1,36 @@
 # Host dependency inventory
 
-The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 698-input/500-transform graph and its 432-path manifest covers all 425 final-link objects. The language graph contains 239 C translation units, 270 headers, and 162 Cupid C files; the prioritized toolchain-source cohort contains 69 files. The checked Windows Clang/LLVM and Linux GCC/binutils baselines both reproduce the complete 447-artifact three-root cohort at revision `1e079d1`; `baselines/windows-linux.json` verifies their common logical cohort and required behavior while treating cross-toolchain byte equality as observational. That evidence predates the CupidC preprocessing, declaration, type/layout, IR, and object contracts. The hosted root declares 25 artifacts, including six Cupid-built i386 executables, so its complete three-root cohort would contain 460 logical artifacts when recaptured from one committed revision.
+The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. `audits/active-build.json` owns the current 698-input/500-transform graph and its 432-path manifest covers all 425 final-link objects. The language graph contains 128 C translation units, 270 headers, and 273 Cupid C files; the prioritized toolchain-source cohort contains 69 files. The checked Windows Clang/LLVM and Linux GCC/binutils baselines both reproduce the complete 447-artifact three-root cohort at revision `1e079d1`; `baselines/windows-linux.json` verifies their common logical cohort and required behavior while treating cross-toolchain byte equality as observational. That evidence predates the CupidC preprocessing, declaration, type/layout, IR, and object contracts. The hosted root declares 25 artifacts, including six Cupid-built i386 executables, so its complete three-root cohort would contain 460 logical artifacts when recaptured from one committed revision.
 
 The normal root build no longer sends every C object through GCC or Clang.
 Checked-seed CupidC owns 151 C transforms across the three roots. The normal
 cohort contains 144 checked-in sources and the generated kernel symbol table.
-The checked-in sources include the established 40 sources, 71 later kernel
-and driver sources, five shared toolchain implementations, and 28 roots
-renamed to `.cc` with their production transfers. Three generated
-installation tables and three example programs account for the other six
-transforms. The host C compiler still owns 146 transforms, including 94 root
-objects. Python owns 163 transforms, including the 151 checked-seed launches.
-Windows needs WSL
-for this static i386 seed until a native CupidC handoff is available.
+Of the checked-in roots, 139 use `.cc`. The seed-bound
+`toolchain/ctool.c`, `toolchain/cupidasm.c`, `toolchain/cupiddis.c`,
+`toolchain/elf32.c`, and `toolchain/x86.c` roots keep `.c` until their fixed
+point and native-host contracts are refreshed. The generated
+`kernel/cpu/ksyms_data.cc` root makes 140 normal `.cc` translations within
+the existing 145-transform CupidC cohort. Three generated installation
+tables and three example programs account for the other six transforms. The
+host C compiler still owns 146 transforms, including 94 root objects. Python
+owns 163 transforms, including the 151 checked-seed launches. Windows needs
+WSL for this static i386 seed until a native CupidC handoff is available.
 
-The strict frontier compiles all 144 checked-in sources twice to 3,514,456
-byte-identical i386 ELF32 bytes. It freezes 432 inputs with snapshot SHA-256
-`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
-Every transferred Make recipe names its exact recursive header closure and
-common checked-seed controls. The poisoned-host recipes, strict syntax,
-focused tests, and normal-image gate pass. ADRs 0110 and 0111 record the
-earlier transfers, ADR 0115 records the first source-driven ownership, and
-ADR 0123 records the latest transfer.
+The strict frontier must compile all 144 checked-in sources twice. Every
+transferred Make recipe names its exact recursive header closure and common
+checked-seed controls. Poisoned-host recipes, strict syntax, focused tests,
+and the normal-image gate remain part of the proof. The renamed graph passes
+its path snapshot, object comparison, build digest, and runtime checks. ADRs
+0110 and 0111 record the earlier transfers, ADR 0115 records
+the first source-driven ownership, ADR 0123 records the latest production
+transfer, and ADR 0124 records the 111-root naming transfer.
 
-The four-vCPU GUI gate starts every CPU, forces the CSPRNG through RDRAND,
-passes all 62 crypto, ASN.1, and X.509 checks, reaches e1000 traffic, opens
-the desktop and terminal, and completes embedded CupidC execution at
-`0x01100000`. The established dual-NIC gate still covers audio, UHCI input
-reattachment, and six EHCI storage lifetimes. A private image loads and reaps
-the same external ELF program twice at `0x00F00000`, with lease release
+The renamed graph's four-vCPU GUI proof starts every CPU, forces the CSPRNG
+through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, reaches e1000
+traffic, opens the desktop and terminal, and completes embedded CupidC
+execution at `0x01100000`. The dual-NIC contract still covers audio, UHCI input
+reattachment, and six EHCI storage lifetimes. The private-image gate loads and
+reaps the same external ELF program twice at `0x00F00000`, with lease release
 between the two runs.
 
 CupidC represents operand-free GNU assembly statements inside functions and
@@ -59,12 +61,12 @@ The checked seed also accepts the exact per-CPU `mov %%gs:0, %0` form with one
 modifiable four-byte object or `void` pointer output. The integer atomic slice
 handles load, store, exchange, fetch-add, and fetch-or on represented one-,
 two-, and four-byte objects. This completes all three `percpu.h` header roots
-and lets checked-seed CupidC emit `kernel/smp/acpi.c`,
-`kernel/smp/mp_tables.c`, and the active EHCI port-change path.
+and lets checked-seed CupidC emit `kernel/smp/acpi.cc`,
+`kernel/smp/mp_tables.cc`, and the active EHCI port-change path.
 
 Later sections preserve ownership wording that accompanied earlier capability
-slices. The current 144-source checked-in cohort and generated-symbol transfer
-supersede those snapshots.
+slices. The current 144-source checked-in cohort, its 139-to-5 naming split,
+and the generated-symbol transfer supersede those snapshots.
 
 ADRs 0113 and 0114 supersede later statements that comma expressions,
 represented function-pointer casts, typed static nulls, or every GNU
@@ -73,7 +75,9 @@ function-pointer representation casts, known-true loop reachability,
 general-register and EFLAGS snapshots, and canonical `weak`, named `section`,
 and `unused` metadata. ADR 0115 moves the first 20 passing roots into
 production, and ADR 0123 moves eight more roots plus generated kernel symbols.
-Ten strict checked-in roots remain host-owned.
+ADR 0124 renames the other 111 exclusively CupidC-owned roots to `.cc` and
+leaves the five shared Toolchain roots for a separate seed refresh. Ten
+strict checked-in roots remain host-owned.
 
 CupidC accepts GNU `used` and `__used__` on canonical file-scope
 objects and functions. The Linear IR and object boundaries validate the
@@ -140,7 +144,7 @@ The floating work does not move production ownership. The shared path copies mat
 
 Mixed-mode raw inspection also leaves the dependency inventory unchanged. CupidDis now accepts borrowed ordered 16/32-bit ranges and its hosted CLI exposes `--mode-at OFFSET:16|32`. The existing CupidDis executable still owns the normal kernel-symbol inspection transform, but that transform uses ELF input and does not need a raw map. GCC or Clang still builds the hosted CLI and the in-kernel adapter, so no output changes owner and no host tool is retired.
 
-The self-host source frontier also retires no dependency. Hosted CupidC emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic profile. `kernel/lang/as_elf.c` is the kernel bridge, and the hosted adapters use Cupid-owned i386 Linux declarations for their runtime interfaces. The profile rejects a missing or non-32-bit pointer fact. The gate also covers complete CupidLD and CupidObj command closures. Adapter checks lock the named undefined imports and every text relocation.
+The self-host source frontier also retires no dependency. Hosted CupidC emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic profile. `kernel/lang/as_elf.cc` is the kernel bridge, and the hosted adapters use Cupid-owned i386 Linux declarations for their runtime interfaces. The profile rejects a missing or non-32-bit pointer fact. The gate also covers complete CupidLD and CupidObj command closures. Adapter checks lock the named undefined imports and every text relocation.
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
@@ -160,7 +164,7 @@ The private in-kernel CupidC emitter now sends `continue` in a `do` loop to the 
 
 The narrow-mutation proof uses the shared decoder as a small test-only i386 execution oracle. Twelve zero and wrap-boundary cases check EAX, the stored byte or word, and poisoned padding in the four-byte argument slot. This adds no emulator or host execution dependency.
 
-The nine-file source count in the preceding historical summary is superseded by ADR 0081. The hermetic frontend gate contains twelve Toolchain implementation files. The deterministic object gate adds `kernel/lang/as_elf.c` and the three hosted adapters, for sixteen sources in all.
+The nine-file source count in the preceding historical summary is superseded by ADR 0081. The hermetic frontend gate contains twelve Toolchain implementation files. The deterministic object gate adds `kernel/lang/as_elf.cc` and the three hosted adapters, for sixteen sources in all.
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
@@ -220,7 +224,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 182 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, and final initialized ELF-to-raw conversion |
-| CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,069 text symbols and a 104,185-byte panic-backtrace blob; the host oracle remains optional |
+| CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,342 text symbols and a 104,185-byte panic-backtrace blob; the host oracle remains optional |
 | Python | 163 transforms | The 151 checked-seed CupidC launches plus twelve generation, inspection, link, and orchestration transforms; symbol generation still uses Python after CupidDis inspection |
 | Make recursion | 4 transforms | Builds the hosted CupidASM, CupidObj, CupidLD, and CupidDis executables from the root before production transforms consume them |
 

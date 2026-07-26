@@ -1,6 +1,6 @@
 /**
  *  outdated - ed was rewritten in cupid c
- * ed.c - Ed line editor for cupid-os
+ * ed.cc - Ed line editor for Cupid OS
  *
  * A faithful implementation of the classic Unix ed(1) line editor.
  * Supports the standard POSIX ed command set including:

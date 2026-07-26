@@ -749,12 +749,12 @@ echo "First 5: ${NAME:0:5}"
 
 ### Execution Pipeline
 
-1. **Lexer** (`cupidscript_lex.c`) - Breaks source into tokens: keywords, words, strings, variables, operators, arithmetic expressions, pipes, redirections, background operators
-2. **Parser** (`cupidscript_parse.c`) - Builds an Abstract Syntax Tree (AST) from the token stream
-3. **Interpreter** (`cupidscript_exec.c`) - Walks the AST, executes commands, evaluates tests, manages control flow, handles pipelines and color builtins
-4. **Runtime** (`cupidscript_runtime.c`) - Variable storage, function registry, `$VAR` expansion engine, `${}` advanced string operations, command substitution
-5. **Streams** (`cupidscript_streams.c`) - File descriptor table, pipe creation, buffer I/O, stream redirection
-6. **Display** (`terminal_ansi.c`, `shell.c`, `terminal_app.c`) - ANSI escape parsing, per-character color tracking, colored rendering
+1. **Lexer** (`cupidscript_lex.cc`) - Breaks source into tokens: keywords, words, strings, variables, operators, arithmetic expressions, pipes, redirections, background operators
+2. **Parser** (`cupidscript_parse.cc`) - Builds an Abstract Syntax Tree (AST) from the token stream
+3. **Interpreter** (`cupidscript_exec.cc`) - Walks the AST, executes commands, evaluates tests, manages control flow, handles pipelines and color builtins
+4. **Runtime** (`cupidscript_runtime.cc`) - Variable storage, function registry, `$VAR` expansion engine, `${}` advanced string operations, command substitution
+5. **Streams** (`cupidscript_streams.cc`) - File descriptor table, pipe creation, buffer I/O, stream redirection
+6. **Display** (`terminal_ansi.c`, `shell.cc`, `terminal_app.cc`) - ANSI escape parsing, per-character color tracking, colored rendering
 
 ### Limits
 

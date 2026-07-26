@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class UsbPollSerializationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.usb = (ROOT / "kernel" / "usb" / "usb.c").read_text(
+        cls.usb = (ROOT / "kernel" / "usb" / "usb.cc").read_text(
             encoding="utf-8"
         )
         cls.header = (ROOT / "kernel" / "usb" / "usb.h").read_text(
@@ -21,10 +21,10 @@ class UsbPollSerializationTests(unittest.TestCase):
         cls.doom = (
             ROOT / "kernel" / "doom" / "doomgeneric_cupidos.c"
         ).read_text(encoding="utf-8")
-        cls.hid = (ROOT / "kernel" / "usb" / "usb_hid.c").read_text(
+        cls.hid = (ROOT / "kernel" / "usb" / "usb_hid.cc").read_text(
             encoding="utf-8"
         )
-        cls.ehci = (ROOT / "kernel" / "usb" / "ehci.c").read_text(
+        cls.ehci = (ROOT / "kernel" / "usb" / "ehci.cc").read_text(
             encoding="utf-8"
         )
 

@@ -118,6 +118,15 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
+The normal CupidC cohort has 144 checked-in roots. Of those, 139 use `.cc`.
+The seed-bound `toolchain/ctool.c`, `toolchain/cupidasm.c`,
+`toolchain/cupiddis.c`, `toolchain/elf32.c`, and `toolchain/x86.c` roots keep
+`.c` until their fixed point and native-host contracts are refreshed. The
+generated `kernel/cpu/ksyms_data.cc` source makes 140 normal `.cc`
+translations. ADR 0124 records this naming boundary; ownership and output
+counts do not change. The renamed graph passes the closed two-pass frontier,
+clean image build, symbol and memory checks, and four-vCPU runtime gate.
+
 The module dependencies run from top to bottom and contain no cycles:
 
 ```
@@ -147,43 +156,43 @@ core     → (nothing)
 | ISR/IRQ | `isr.asm`, `irq.cc/h` | Interrupt/exception dispatching |
 | PIC | `pic.cc/h` | Programmable interrupt controller |
 | Memory | `memory.cc/h`, `paging.cc` | PMM, heap, paging, canaries, leak detection |
-| VFS | `vfs.c/h` | Virtual filesystem, mount table, path resolution |
+| VFS | `vfs.cc/h` | Virtual filesystem, mount table, path resolution |
 | Panic | `panic.cc/h`, `assert.h` | Crash handler, assertions |
 | Strings | `string.c/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
-| Math | `math.c/h` | 64-bit division, `itoa`, hex printing |
+| Math | `math.cc/h` | 64-bit division, `itoa`, hex printing |
 
 ### Drivers
 | Driver | Files | IRQ | Purpose |
 |--------|-------|-----|---------|
-| Keyboard | `keyboard.c/h` | IRQ1 | PS/2 input with modifiers |
-| Mouse | `mouse.c/h` | IRQ12 | PS/2 mouse with cursor |
-| Timer | `timer.cc/h`, `pit.c/h` | IRQ0 | 200Hz PIT, uptime, sleep |
-| VGA | `vga.c/h` | - | VBE 640x480 32bpp, double buffering |
-| ATA | `ata.c/h` | - | PIO disk read/write |
+| Keyboard | `keyboard.cc/h` | IRQ1 | PS/2 input with modifiers |
+| Mouse | `mouse.cc/h` | IRQ12 | PS/2 mouse with cursor |
+| Timer | `timer.cc/h`, `pit.cc/h` | IRQ0 | 200Hz PIT, uptime, sleep |
+| VGA | `vga.cc/h` | - | VBE 640x480 32bpp, double buffering |
+| ATA | `ata.cc/h` | - | PIO disk read/write |
 | Serial | `serial.cc/h` | - | COM1 logging |
-| Speaker | `speaker.c/h` | - | PC speaker tones |
-| RTC | `rtc.c/h` | - | CMOS real-time clock |
+| Speaker | `speaker.cc/h` | - | PC speaker tones |
+| RTC | `rtc.cc/h` | - | CMOS real-time clock |
 
 ### Subsystems
 | Subsystem | Files | Purpose |
 |-----------|-------|---------|
-| Shell | `shell.c/h` | interactive shell with CWD, REPL fallback, completion, pipes/redirects |
-| CupidScript | `cupidscript*.c/h` | Bash-like scripting language |
+| Shell | `shell.cc/h` | interactive shell with CWD, REPL fallback, completion, pipes/redirects |
+| CupidScript | `cupidscript*.cc/h` | Bash-like scripting language |
 | Ed Editor | `ed.cc/h` | Unix ed(1) line editor |
-| VFS | `vfs.c/h` | Virtual File System with mount table and path resolution |
-| RamFS | `ramfs.c/h` | In-memory filesystem (root, /bin, /tmp) |
-| DevFS | `devfs.c/h` | Device filesystem (/dev/null, zero, random, serial) |
-| FAT16 VFS | `fat16_vfs.c/h` | FAT16 VFS wrapper for /disk |
-| homefs | `homefs.c/h` | persistent `/home` image stored in `/disk/HOMEFS.SYS` |
-| FAT16 | `fat16.cc/h`, `blockdev.c/h`, `blockcache.c/h` | FAT16 driver with block cache |
-| In-Memory FS | `fs.c/h` | Legacy read-only system file table |
-| Exec | `exec.c/h` | CUPD program loader |
+| VFS | `vfs.cc/h` | Virtual File System with mount table and path resolution |
+| RamFS | `ramfs.cc/h` | In-memory filesystem (root, /bin, /tmp) |
+| DevFS | `devfs.cc/h` | Device filesystem (/dev/null, zero, random, serial) |
+| FAT16 VFS | `fat16_vfs.cc/h` | FAT16 VFS wrapper for /disk |
+| homefs | `homefs.cc/h` | persistent `/home` image stored in `/disk/HOMEFS.SYS` |
+| FAT16 | `fat16.cc/h`, `blockdev.cc/h`, `blockcache.cc/h` | FAT16 driver with block cache |
+| In-Memory FS | `fs.cc/h` | Legacy read-only system file table |
+| Exec | `exec.cc/h` | CUPD program loader |
 | Process Mgr | `process.cc/h`, `context_switch.asm` | Scheduler, context switching |
-| GUI | `gui.c/h`, `desktop.c/h`, `graphics.c/h`, `font_8x8.c/h` | Window manager, desktop |
-| Terminal | `terminal_app.c/h` | GUI terminal application |
+| GUI | `gui.cc/h`, `desktop.cc/h`, `graphics.cc/h`, `font_8x8.cc/h` | Window manager, desktop |
+| Terminal | `terminal_app.cc/h` | GUI terminal application |
 | Notepad | `notepad.c/h` | Text editor application (VFS file dialog) |
-| Clipboard | `clipboard.c/h` | System clipboard |
-| Calendar | `calendar.c/h` | Calendar math, time/date formatting, popup state |
+| Clipboard | `clipboard.cc/h` | System clipboard |
+| Calendar | `calendar.cc/h` | Calendar math, time/date formatting, popup state |
 
 ---
 

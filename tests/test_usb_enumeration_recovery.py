@@ -4,19 +4,19 @@ from pathlib import Path
 
 
 USB_SOURCE = (
-    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb.c"
+    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb.cc"
 )
 USB_HEADER = (
     Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb.h"
 )
 USB_HID_SOURCE = (
-    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb_hid.c"
+    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb_hid.cc"
 )
 USB_HUB_SOURCE = (
-    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb_hub.c"
+    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb_hub.cc"
 )
 USB_MSC_SOURCE = (
-    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb_msc.c"
+    Path(__file__).resolve().parent.parent / "kernel" / "usb" / "usb_msc.cc"
 )
 
 

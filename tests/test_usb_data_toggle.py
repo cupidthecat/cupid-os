@@ -9,10 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class UsbDataToggleContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.ehci = (ROOT / "kernel" / "usb" / "ehci.c").read_text(
+        cls.ehci = (ROOT / "kernel" / "usb" / "ehci.cc").read_text(
             encoding="utf-8"
         )
-        cls.uhci = (ROOT / "kernel" / "usb" / "uhci.c").read_text(
+        cls.uhci = (ROOT / "kernel" / "usb" / "uhci.cc").read_text(
             encoding="utf-8"
         )
 

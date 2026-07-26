@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 class ExternalUserRuntimeContractTests(unittest.TestCase):
     def test_external_print_marker_never_interpolates_caller_text(self):
-        source = (REPO_ROOT / "kernel/core/syscall.c").read_text(
+        source = (REPO_ROOT / "kernel/core/syscall.cc").read_text(
             encoding="utf-8"
         )
 
@@ -33,7 +33,7 @@ class ExternalUserRuntimeContractTests(unittest.TestCase):
         )
 
     def test_integer_and_exit_markers_are_bound_to_the_running_pid(self):
-        source = (REPO_ROOT / "kernel/core/syscall.c").read_text(
+        source = (REPO_ROOT / "kernel/core/syscall.cc").read_text(
             encoding="utf-8"
         )
 

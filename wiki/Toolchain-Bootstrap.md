@@ -103,10 +103,10 @@ validated 30,216-byte object, with FXSAVE at text offsets `0x1967` and
 The checked compiler's atomic slice handles integer load, store, exchange,
 and fetch-add builtins with constant orders. Its i386 path selects ordinary
 loads and release stores, memory `XCHG`, and `LOCK XADD`. That brings
-unchanged `acpi.c` and `mp_tables.c` through deterministic i386 ELF32 object
-emission. The normal Make graph owns both through the checked seed. A
-four-vCPU image boots every discovered CPU and completes the normal e1000,
-desktop, terminal, and CupidC runtime smoke.
+unchanged `acpi.cc` and `mp_tables.cc` through i386 ELF32 object emission.
+The normal Make graph owns both through the checked seed. Their renamed paths
+must pass the final four-vCPU e1000, desktop, terminal, and CupidC runtime
+smoke.
 
 Compiler head adds `__atomic_fetch_or` at the same one-, two-, and four-byte
 integer widths. It emits a `LOCK CMPXCHG` retry loop because `LOCK OR` cannot
@@ -123,19 +123,21 @@ forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
 The normal image has 145 checked CupidC C transforms: 144 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. The checked-in cohort
-keeps the established 116 sources and adds 28 source-driven roots named
-`.cc`. The latest eight are `kernel/core/panic.cc`,
-`kernel/core/process.cc`, `kernel/cpu/idt.cc`, `kernel/cpu/pic.cc`,
-`kernel/lang/as.cc`, `kernel/lang/cupidc.cc`, `kernel/mm/paging.cc`, and
-`kernel/smp/lapic.cc`. Ten strict checked-in roots remain host-owned. The
-strict frontier compiles each of its 144 approved sources twice and accepts
-3,514,456 byte-identical i386 ELF32 bytes. It freezes 432 inputs with SHA-256
-`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
+and the generated `kernel/cpu/ksyms_data.cc` source. Of the checked-in roots,
+139 use `.cc`. The seed-bound `toolchain/ctool.c`,
+`toolchain/cupidasm.c`, `toolchain/cupiddis.c`, `toolchain/elf32.c`, and
+`toolchain/x86.c` roots keep `.c` until their fixed point and native-host
+contracts are refreshed. The generated symbol source makes 140 normal `.cc`
+translations. ADR 0124 records the 111-root naming transfer. Ten strict
+checked-in roots remain host-owned.
+
+The strict frontier must compile each of its 144 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every
-production wrapper recipe. Each recipe lists its exact recursive header
+production wrapper recipe, and each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
-and symbols pass validation.
+and symbols pass validation. The renamed graph passes its path snapshot,
+byte-for-byte object comparison, clean normal image, symbol and memory checks,
+and four-vCPU runtime gate.
 
 The checked seed also compiles three generated installation tables and the
 three example external ELF programs. All six use `.cc` source names. The
@@ -162,7 +164,7 @@ snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
 `unsigned int` words and records the logical 104,185-byte blob length
 separately. The word array ends with three zero pad bytes. The final kernel
-consumes 4,069 text symbols and shows no address drift from the pass-one
+consumes 4,342 text symbols and shows no address drift from the pass-one
 kernel.
 
 Compiler head also emits the exact volatile

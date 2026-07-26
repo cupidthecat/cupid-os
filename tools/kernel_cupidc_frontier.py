@@ -17,7 +17,7 @@ try:
         APPROVED_KERNEL_SOURCES,
         BLOCKED_CRYPTO_SOURCES,
         KernelCompileError,
-        KERNEL_CRYPTO_C_SOURCES,
+        KERNEL_CRYPTO_SOURCES,
         KERNEL_I386_ARGUMENTS,
         validate_i386_relocatable_bytes,
     )
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
         APPROVED_KERNEL_SOURCES,
         BLOCKED_CRYPTO_SOURCES,
         KernelCompileError,
-        KERNEL_CRYPTO_C_SOURCES,
+        KERNEL_CRYPTO_SOURCES,
         KERNEL_I386_ARGUMENTS,
         validate_i386_relocatable_bytes,
     )
@@ -303,6 +303,11 @@ def _sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _source_sha256(path):
+    canonical = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def _input_paths(root):
     paths = {root / source for source in KERNEL_SOURCES}
     arguments = KERNEL_I386_ARGUMENTS
@@ -328,7 +333,7 @@ def _capture_input_snapshot(root):
             ) from error
         if not path.is_file():
             raise FrontierError(f"frontier input is not a file: {path}")
-        snapshot[relative.as_posix()] = _sha256(path)
+        snapshot[relative.as_posix()] = _source_sha256(path)
     return snapshot
 
 
@@ -618,15 +623,17 @@ def _run_frontier(arguments):
     boundary_sources = tuple(sorted(item[0] for item in BOUNDARIES))
     if boundary_sources != BLOCKED_CRYPTO_SOURCES:
         raise FrontierError("declared crypto boundary cohort differs")
+    crypto_directory = root / "kernel" / "crypto"
     actual_sources = tuple(
         sorted(
             path.relative_to(root).as_posix()
-            for path in (root / "kernel" / "crypto").glob("*.c")
+            for pattern in ("*.c", "*.cc")
+            for path in crypto_directory.glob(pattern)
         )
     )
-    if actual_sources != KERNEL_CRYPTO_C_SOURCES:
-        missing = sorted(set(KERNEL_CRYPTO_C_SOURCES) - set(actual_sources))
-        unexpected = sorted(set(actual_sources) - set(KERNEL_CRYPTO_C_SOURCES))
+    if actual_sources != KERNEL_CRYPTO_SOURCES:
+        missing = sorted(set(KERNEL_CRYPTO_SOURCES) - set(actual_sources))
+        unexpected = sorted(set(actual_sources) - set(KERNEL_CRYPTO_SOURCES))
         raise FrontierError(
             "kernel crypto source inventory differs: "
             f"missing={missing!r}, unexpected={unexpected!r}"

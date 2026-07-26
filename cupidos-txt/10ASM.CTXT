@@ -26,8 +26,14 @@ Source architecture:
 - toolchain/elf32.c: shared relocatable-object output
 - kernel/lang/as.cc: 631 runtime definitions, VFS, fixed placement, and JIT/AOT
   execution policy; the checked CupidC seed owns its normal object
-- kernel/lang/as_elf.c and .h: checked fixed-image to sectionless ET_EXEC bridge
+- kernel/lang/as_elf.cc and .h: checked fixed-image to sectionless ET_EXEC bridge
 - toolchain/cupidasm_main.c: hosted cupidasm command adapter
+
+The normal build compiles cupidasm.c, x86.c, and elf32.c with CupidC. They
+keep .c because the checked-seed fixed point and native hosted contracts also
+consume them. Together with ctool.c and cupiddis.c, they form the five
+seed-bound exceptions to the production .cc naming rule. ADR 0124 leaves this
+rename for a separate seed refresh and proof.
 
 The old kernel-only as_lex.c and as_parse.c implementations were removed.
 

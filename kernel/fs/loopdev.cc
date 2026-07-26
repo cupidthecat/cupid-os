@@ -1,4 +1,4 @@
-/* kernel/loopdev.c -- file-backed block_device_t using the VFS. */
+/* kernel/fs/loopdev.cc: file-backed block_device_t using the VFS. */
 
 #include "loopdev.h"
 #include "vfs.h"

@@ -476,9 +476,9 @@ void draw_window(int x, int y, int w, int h, char *title) {
 | `kernel/gfx/gfx2d.h` | Public API header (including file dialogs) |
 | `kernel/gfx/gfx2d.cc` | Library implementation (including file dialog UI + event loop) |
 | `kernel/gfx/bmp.h` | BMP encoding/decoding API header |
-| `kernel/gfx/bmp.c` | BMP format implementation |
+| `kernel/gfx/bmp.cc` | BMP format implementation |
 | `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
-| `kernel/fs/vfs_helpers.c` | VFS helpers implementation |
+| `kernel/fs/vfs_helpers.cc` | VFS helpers implementation |
 | `kernel/lang/cupidc.cc` | Binding registration (~100 entries) |
 | `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
 | `cupidc_parse.cc` | Type parsing for new keywords |

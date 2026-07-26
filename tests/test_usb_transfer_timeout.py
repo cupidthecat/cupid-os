@@ -4,8 +4,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONTROLLER_SOURCES = (
-    "kernel/usb/ehci.c",
-    "kernel/usb/uhci.c",
+    "kernel/usb/ehci.cc",
+    "kernel/usb/uhci.cc",
 )
 
 

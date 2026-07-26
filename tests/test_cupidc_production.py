@@ -996,7 +996,7 @@ class ProductionBuildContractTests(unittest.TestCase):
             self.assertIn(f'--command "exec /disk/{program}"', commands)
 
     def test_external_elf_print_has_a_serial_runtime_contract(self):
-        source = (REPO_ROOT / "kernel/core/syscall.c").read_text(
+        source = (REPO_ROOT / "kernel/core/syscall.cc").read_text(
             encoding="utf-8"
         )
         wrapper = re.search(

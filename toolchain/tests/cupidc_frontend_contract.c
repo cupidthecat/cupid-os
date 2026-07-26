@@ -2739,7 +2739,7 @@ static int run_attributes(const char *host_root) {
       goto cleanup;
     }
   }
-  if (parse_loaded_fixture(&fixture, "/drivers/e1000.c", "e1000_init", 0u,
+  if (parse_loaded_fixture(&fixture, "/drivers/e1000.cc", "e1000_init", 0u,
                            &unit) != 0) {
     goto cleanup;
   }
@@ -3905,7 +3905,7 @@ static int run_static_asserts(const char *host_root) {
       goto cleanup;
     }
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.c",
+  if (parse_loaded_fixture(&fixture, "/kernel/lang/exec.cc",
                            "elf_image_regions", 0u, &unit) != 0) {
     goto cleanup;
   }
@@ -3933,8 +3933,8 @@ static int run_static_asserts(const char *host_root) {
       "_Static_assert(__alignof__(((process_t *)0)->fp_state)",
       "(PCB_FP_STATE_OFFSET=80)\");", 6u);
   active_syscall_assertions = build_active_assertion_fixture(
-      &fixture, "/kernel/core/syscall.c",
-      "#include \"syscall.h\"\n#line 174 \"/kernel/core/syscall.c\"\n",
+      &fixture, "/kernel/core/syscall.cc",
+      "#include \"syscall.h\"\n#line 174 \"/kernel/core/syscall.cc\"\n",
       "#define SC_OFF(field)", "#undef SC_OFF", 12u);
   if (active_process_assertions == NULL || active_syscall_assertions == NULL) {
     goto cleanup;
@@ -4996,11 +4996,11 @@ static int block_function_active_source_is_unchanged(
     const char *declaration;
     ctool_u32 count;
   } cases[] = {
-      {"/kernel/audio/ac97.c", "    extern int  mixer_play(", 3u},
-      {"/kernel/audio/ac97.c", "    extern void mixer_stop(int);", 3u},
-      {"/kernel/audio/ac97.c",
+      {"/kernel/audio/ac97.cc", "    extern int  mixer_play(", 3u},
+      {"/kernel/audio/ac97.cc", "    extern void mixer_stop(int);", 3u},
+      {"/kernel/audio/ac97.cc",
        "    extern void mixer_set_volume(int, uint8_t, uint8_t);", 1u},
-      {"/kernel/audio/ac97.c", "    extern void opl_smoke(void);", 1u},
+      {"/kernel/audio/ac97.cc", "    extern void opl_smoke(void);", 1u},
       {"/kernel/core/kernel.c", "    extern int ac97_init(void);", 1u},
       {"/kernel/core/kernel.c", "    extern int  mixer_init(void);", 1u},
       {"/kernel/core/kernel.c",
@@ -5024,9 +5024,9 @@ static int block_function_active_source_is_unchanged(
       {"/kernel/doom/src/m_menu.c",
        "    extern void I_OPL_DevMessages(char *, size_t);", 1u},
       {"/kernel/doom/src/wi_stuff.c", "    void WI_unloadData(void);", 1u},
-      {"/kernel/network/arp.c", "    extern void net_process_pending(void);",
+      {"/kernel/network/arp.cc", "    extern void net_process_pending(void);",
        1u},
-      {"/kernel/network/icmp.c",
+      {"/kernel/network/icmp.cc",
        "    extern net_if_t *net_if_primary(void);", 1u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -6396,10 +6396,10 @@ static int block_enum_active_source_is_unchanged(
     const char *path;
     const char *declaration;
   } cases[] = {
-      {"/kernel/gui/desktop.c", "    CURSOR_W = 8,"},
-      {"/kernel/gui/desktop.c", "    CURSOR_H = 10,"},
-      {"/kernel/gui/desktop.c", "    CURSOR_PAD = 1"},
-      {"/kernel/lang/shell.c",
+      {"/kernel/gui/desktop.cc", "    CURSOR_W = 8,"},
+      {"/kernel/gui/desktop.cc", "    CURSOR_H = 10,"},
+      {"/kernel/gui/desktop.cc", "    CURSOR_PAD = 1"},
+      {"/kernel/lang/shell.cc",
        "  enum { CC_REPL_LINE_MAX = 512, CC_REPL_SRC_MAX = 64 * 1024 };"}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -10200,7 +10200,7 @@ static int run_file_scope_initializers(const char *host_root) {
   }
   if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
                            forced_includes) != 0 ||
-      parse_loaded_fixture(&fixture, "/kernel/gui/gui_themes.c",
+      parse_loaded_fixture(&fixture, "/kernel/gui/gui_themes.cc",
                            "gui_themes_init", 0u, &active_unit) != 0) {
     goto cleanup;
   }
@@ -10241,7 +10241,7 @@ static int run_file_scope_initializers(const char *host_root) {
                   "file-scope-initializers: active tentative state differs\n");
     goto cleanup;
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/fs/ramfs.c",
+  if (parse_loaded_fixture(&fixture, "/kernel/fs/ramfs.cc",
                            "ramfs_get_ops", 0u, &ramfs_unit) != 0) {
     goto cleanup;
   }

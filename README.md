@@ -65,8 +65,8 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
 - `bin/ssh.cc` is an SSH-2 client with Curve25519 key exchange, ChaCha20-Poly1305 transport, Ed25519, RSA-SHA2, and ECDSA-P256 host-key verification, password and keyboard-interactive authentication, PTY shells, and remote execution. `bin/telnet.cc` handles IAC negotiation, TTYPE, NAWS, Ctrl-] commands, and CRLF-safe interactive sessions. `kernel/lang/ssh_io.cc` connects both clients to the GUI terminal and handles hidden passwords, VT/xterm keys, resize events, and ANSI output.
 - `bin/browser.cc` drives a browser assembled from `bin/browser/{css,dom,font_face,image,input,js_dom,js_interp,js_lex,js_parse,layout,main,nav,net,paint,parser,render_tree,style,url,url_hash,util,woff,woff2}.cc`. It has an HTML5 tokenizer and tree builder, a CSS lexer with user-agent and author cascades, specificity, variables, `calc`, external stylesheets, `@font-face`, WOFF1 support, WOFF2 fallback handling, a render-tree builder, block and inline formatting, clipping, rounded corners, box shadows, and a painter that walks the render tree. The UI supports HTTP and HTTPS, Ctrl-L for the address bar, Backspace history, link navigation, GET forms, checkboxes, text inputs, and `about:dump`.
-- `kernel/gfx/fontsys.c` registers the bundled Liberation fonts, rasterizes UTF-8 text, stores the default in `/etc/font.conf`, exposes CupidC bindings, and supplies text to the browser and `fontswitch`.
-- `kernel/audio/ac97.c` drives the PCI AC97 codec with a 32-entry BDL ring and IOC refills. `kernel/audio/mixer.c` provides 16 signed 16-bit slots for PCM and streamed sources. The repository also carries the LGPL-2.1 Nuked-OPL3 emulator, the GPL-2 chocolate-doom MUS-to-MIDI converter, and an 18-voice dispatcher in `kernel/audio/midiopl.c`. The dispatcher loads GENMIDI patches and handles the percussion bank, two-voice patches, pan, sustain, master-volume re-leveling, and single-pass resampling. `audiotest all` runs the sine, sweep, pan, OPL, and AC97-routed OPL checks.
+- `kernel/gfx/fontsys.cc` registers the bundled Liberation fonts, rasterizes UTF-8 text, stores the default in `/etc/font.conf`, exposes CupidC bindings, and supplies text to the browser and `fontswitch`.
+- `kernel/audio/ac97.cc` drives the PCI AC97 codec with a 32-entry BDL ring and IOC refills. `kernel/audio/mixer.cc` provides 16 signed 16-bit slots for PCM and streamed sources. The repository also carries the LGPL-2.1 Nuked-OPL3 emulator, the GPL-2 chocolate-doom MUS-to-MIDI converter, and an 18-voice dispatcher in `kernel/audio/midiopl.cc`. The dispatcher loads GENMIDI patches and handles the percussion bank, two-voice patches, pan, sustain, master-volume re-leveling, and single-pass resampling. `audiotest all` runs the sine, sweep, pan, OPL, and AC97-routed OPL checks.
 - The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, and setjmp routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` live in homefs under `/home/doom/`.
 - A two-pass kernel link generates and embeds a `.ksyms` blob. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
@@ -279,22 +279,26 @@ teardown exchanges without `pexpect` or Scapy.
 ### Self-hosting compiler status
 
 The normal image build uses the checked CupidC seed for 144 checked-in
-objects and the generated kernel symbol object. The checked-in cohort keeps
-the established 40 kernel and driver sources, 71 later kernel and driver
-sources, and the shared `ctool.c`, `cupidasm.c`, `cupiddis.c`, `elf32.c`,
-and `x86.c` implementations. Twenty source-driven roots and eight GNU
-assembly frontier roots now use `.cc` after moving from the host compiler to
-CupidC. Typed null conversion, external-array address decay, GNU assembly
-operands, the per-CPU GS load, port I/O, integer atomics, and the wider
-shared C path cover this cohort. The generated `kernel/cpu/ksyms_data.cc`
-translation uses the same checked wrapper.
+objects and the generated kernel symbol object. Of the checked-in roots, 139
+now use `.cc`. The seed-bound `toolchain/ctool.c`,
+`toolchain/cupidasm.c`, `toolchain/cupiddis.c`, `toolchain/elf32.c`, and
+`toolchain/x86.c` roots keep `.c` until their fixed point and native-host
+contracts are refreshed. The generated `kernel/cpu/ksyms_data.cc`
+translation brings the normal build to 140 `.cc` translations within its
+existing 145-transform CupidC cohort. The 111-root naming transfer changes
+neither ownership nor output counts.
+
+Typed null conversion, external-array address decay, GNU assembly operands,
+the per-CPU GS load, port I/O, integer atomics, and the wider shared C path
+cover this cohort.
+
 The CSPRNG emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model
 while preserving EBX. Every object is validated as an i386 ELF32 relocatable
 before publication. A valid data-only object may omit `.text`; its remaining
 sections and symbols still receive the full bounds checks. The strict kernel
-frontier compiles all 144 checked-in sources twice to 3,514,456
-byte-identical bytes. It freezes a 432-input snapshot with SHA-256
-`7670679039ca8f2b9b7816a68cb9b391d8a2e65f6b03a7a043d35005b75283bf`.
+frontier compiles all 144 checked-in sources twice. The renamed graph passes
+its closed path snapshot, byte-for-byte object comparison, clean image build,
+two-pass symbol check, memory checks, and four-vCPU runtime gate.
 
 The generated ramfs, homefs, and demo installation tables are emitted as
 `.cc` sources and compiled by the checked CupidC seed. The separate `user/`
@@ -313,17 +317,19 @@ copy, the cat gate copies a fixed FAT fixture over `/home/readme.txt`,
 preserving the program's normal path and the selected image. Every program
 must produce a matching process exit.
 
-The refreshed checked seed now owns 28 source-driven roots in the normal
-build. The latest transfer adds IDT and PIC setup, paging, LAPIC control,
+ADRs 0115 and 0123 transferred 28 source-driven roots into the normal
+CupidC build. The later transfer added IDT and PIC setup, paging, LAPIC control,
 process management, panic handling, and the in-kernel CupidASM and CupidC
 adapters. It emits weak ELF symbols and named sections, records `unused`
 declarations, preserves typed static null pointers, recognizes known-true
 loops as non-fallthrough, lowers comma expressions in source order, and keeps
 all 32 bits through represented function-pointer casts. Exact output-only
 assembly forms snapshot general registers, ESP, EBP, the caller return slot,
-or EFLAGS into one four-byte destination. The files were renamed to `.cc`
-with the ownership transfer. Ten strict checked-in roots remain on the host
-compiler.
+or EFLAGS into one four-byte destination. Those files were renamed to `.cc`
+with their ownership transfer. ADR 0124 renames another 111 exclusively
+CupidC-owned roots to `.cc`; the five shared Toolchain roots remain the
+explicit seed-refresh boundary. Ten strict checked-in roots remain on the
+host compiler.
 
 CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
@@ -414,26 +420,28 @@ flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
 The active non-Doom header gate is 154/154 at compiler head. Under the full
-kernel profile, unchanged `kernel/smp/acpi.c` and `kernel/smp/mp_tables.c`
+kernel profile, unchanged `kernel/smp/acpi.cc` and `kernel/smp/mp_tables.cc`
 emit byte-identical 5,708-byte and 4,156-byte i386 ELF32 objects. The checked
 wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
 ownership path. Each transferred Make recipe carries its exact recursive
 header closure.
 
-Separate poisoned-host checks cover all 145 normal CupidC recipes. The check
-fails if a CupidC-owned object reaches Clang or GCC. Across the three
-supported build roots, the current audit assigns 151 transforms to CupidC,
-146 C transforms to the host compiler, and 163 transforms to host Python.
+Poisoned-host checks cover all 145 normal CupidC recipes and fail if a
+CupidC-owned object reaches Clang or GCC. They pass against the renamed
+graph. Across the three supported build roots, ownership
+stays at 151 transforms for CupidC, 146 C transforms for the host compiler,
+and 163 transforms for host Python.
 The CupidC transforms are 144 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
-programs. The host compiler still produces 94 root objects. The complete
-image passes both CupidLD links and CupidObj flattening. The four-vCPU GUI
-contract reaches SMP startup,
+programs. The host compiler still produces 94 root objects. The renamed graph
+passes both CupidLD links and CupidObj flattening. Its four-vCPU GUI run reaches
+SMP startup,
 RDRAND and all 62 crypto checks, the desktop, terminal, e1000 network, and
 in-OS CupidC execution at `0x01100000`. The wider USB and dual-NIC gates from
 the established cohort remain part of the runtime contract. A separate smoke
 loads the same external ELF program twice at `0x00F00000`; process cleanup
-releases the first arena lease before the second load.
+releases the first arena lease before the second load. ADR 0124 records
+the renamed graph's exact hashes, byte counts, timing, and runtime log.
 
 The hosted CupidC path carries one-byte, two-byte, and four-byte integers
 through target-sized locals, file objects,
@@ -454,7 +462,7 @@ The hosted path also carries complete fixed-size structures with alignment up to
 
 The shared value path copies nested union storage inside a supported structure and reads a scalar member directly from a returned structure snapshot. A direct four-byte integer literal zero may be cast to a represented function pointer. Represented function pointers may also cast to another function-pointer type or to and from a represented 32-bit integer without changing target bits. Explicit conversions between an object pointer and a signed or unsigned eight-byte integer use the wide snapshot path: widening writes a zero high word, and narrowing keeps the low word. Object-pointer and function-pointer interchange, function-pointer and wide-integer conversions, top-level union parameters or results, and aggregate members selected from structure rvalues remain outside this boundary. Static compatible character and void pointers also accept an ordinary string literal hidden behind parentheses or a macro. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
 
-The exact hosted gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. CupidC emits deterministic i386 ELF32 objects for those files and `kernel/lang/as_elf.c`, then reads every object through the Cupid ELF32 reader and compares a second emission byte for byte. The static-tool audit also preprocesses every C source in the complete hosted i386 closure under its target profile: 19 strict C11 units and the GNU-enabled runtime. These profiles use repository headers, an explicit four-byte pointer fact, and no host system headers.
+The exact hosted gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. CupidC emits deterministic i386 ELF32 objects for those files and `kernel/lang/as_elf.cc`, then reads every object through the Cupid ELF32 reader and compares a second emission byte for byte. The static-tool audit also preprocesses every C source in the complete hosted i386 closure under its target profile: 19 strict C11 units and the GNU-enabled runtime. These profiles use repository headers, an explicit four-byte pointer fact, and no host system headers.
 
 CupidC emits the repository's i386 Linux runtime and five command closures: CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. CupidASM assembles `_start` and the system-call boundary, while CupidLD links each deterministic static i386 command without unresolved symbols. A sixth executable checks process arguments, heap reuse and release, allocation failures, files and seeks, formatting errors, working-directory errors, memory comparison, and the remaining checked string functions. The runtime is intentionally narrow, with unbuffered streams and single-threaded heap, stream, and `errno` state.
 
@@ -468,7 +476,7 @@ Variadic calls and callees follow that same hosted path. The frontend applies lv
 
 In GNU C mode, `__builtin_va_list` is a target `char *` cursor. Explicit frontend and IR operations cover `__builtin_va_start`, `__builtin_va_arg`, `__builtin_va_copy`, and `__builtin_va_end`. The emitter starts the cursor after the full width of the final named cdecl argument. A four-byte pointer, integer, or enum read advances the stored cursor by four bytes. A signed or unsigned eight-byte integer, 64-bit enum, or `double` is copied into a fresh private snapshot and advances the cursor by eight bytes. Both forms keep the i386 cursor on four-byte slot alignment. The execution contracts read successive wide integer and `double` slots through the original cursor and the first slot through a copied cursor. Nested callers also check aligned calls, cleanup, and complete returned values. Atomic, `float`, and aggregate reads remain unsupported. Calling `va_arg` with `float` is invalid C because a variadic `float` must arrive as `double`.
 
-The hosted path accepts zero-parameter definitions written with an empty identifier list and preserves their non-prototype function type. Direct and indirect calls without a prototype apply the default argument promotions to every argument. Each call keeps its actual count and post-conversion type slice in Linear IR, and the i386 emitter accepts represented four-byte integers and pointers, signed or unsigned eight-byte integers, existing `double` values, and source `float` values promoted to `double`. Block-scope `struct` and `union` tags now support forward declarations, same-scope completion, ordinary references, nested shadowing, and scope restoration. A record tag declared in a function definition's parameter list stays visible through the outer body and expires when that definition ends. Tag-only declarations accept the represented `typedef`, `extern`, `static`, `auto`, and `register` spellings, or a represented type qualifier, when they introduce a tag, and lower without runtime work. An empty declaration with storage or type qualification cannot merely repeat a visible tag. A `for` initializer may use a visible record type or an anonymous record, but it cannot introduce a named tag or omit the object. Anonymous record definitions cover Doom's block-static `packs` array. Block-scope `extern` object declarations now keep a lexical alias to one canonical linked object. Compatible repeats share identity, incomplete arrays may be completed, visible file-scope `static` objects keep internal linkage, and declarations introduced only inside a block do not leak into ordinary file-scope lookup. Their declarations reserve no frame storage and lower without runtime instructions. Block typedefs follow the same ordinary lexical scope. Each alias keeps a stable type and source-order binding, supports exact same-type repetition and nested shadowing, and lowers as a validated no-op. Record and function aliases work, and spelling a local alias does not change emitted ELF bytes. Block function declarations now keep a lexical alias to one canonical linked function. Plain and `extern` declarations share compatible identity, preserve a visible file-scope `static` function's internal linkage, stay out of file lookup when introduced only inside a block, and lower without storage or runtime instructions. A later file declaration can publish the same external entity, while calls and addresses use the normal linked-function path. Block enums publish lexical enumerator bindings with folded target values. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function-prefix and expression or initializer ownership records preserve the point where each name becomes visible, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer IR without storage, symbols, or relocations. This covers the unchanged cursor constants in `kernel/gui/desktop.c` and REPL limits in `kernel/lang/shell.c`. The exact Doom profile still parses all of `kernel/doom/src/d_main.c`, including `forwardmove` and `sidemove` on lines 1336 and 1337. Nonempty identifier-list definitions, block declaration attributes, nested function definitions, atomic variadic access, aggregate arguments without a declared parameter type, and aggregate variadic reads remain unfinished.
+The hosted path accepts zero-parameter definitions written with an empty identifier list and preserves their non-prototype function type. Direct and indirect calls without a prototype apply the default argument promotions to every argument. Each call keeps its actual count and post-conversion type slice in Linear IR, and the i386 emitter accepts represented four-byte integers and pointers, signed or unsigned eight-byte integers, existing `double` values, and source `float` values promoted to `double`. Block-scope `struct` and `union` tags now support forward declarations, same-scope completion, ordinary references, nested shadowing, and scope restoration. A record tag declared in a function definition's parameter list stays visible through the outer body and expires when that definition ends. Tag-only declarations accept the represented `typedef`, `extern`, `static`, `auto`, and `register` spellings, or a represented type qualifier, when they introduce a tag, and lower without runtime work. An empty declaration with storage or type qualification cannot merely repeat a visible tag. A `for` initializer may use a visible record type or an anonymous record, but it cannot introduce a named tag or omit the object. Anonymous record definitions cover Doom's block-static `packs` array. Block-scope `extern` object declarations now keep a lexical alias to one canonical linked object. Compatible repeats share identity, incomplete arrays may be completed, visible file-scope `static` objects keep internal linkage, and declarations introduced only inside a block do not leak into ordinary file-scope lookup. Their declarations reserve no frame storage and lower without runtime instructions. Block typedefs follow the same ordinary lexical scope. Each alias keeps a stable type and source-order binding, supports exact same-type repetition and nested shadowing, and lowers as a validated no-op. Record and function aliases work, and spelling a local alias does not change emitted ELF bytes. Block function declarations now keep a lexical alias to one canonical linked function. Plain and `extern` declarations share compatible identity, preserve a visible file-scope `static` function's internal linkage, stay out of file lookup when introduced only inside a block, and lower without storage or runtime instructions. A later file declaration can publish the same external entity, while calls and addresses use the normal linked-function path. Block enums publish lexical enumerator bindings with folded target values. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function-prefix and expression or initializer ownership records preserve the point where each name becomes visible, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer IR without storage, symbols, or relocations. This covers the unchanged cursor constants in `kernel/gui/desktop.cc` and REPL limits in `kernel/lang/shell.cc`. The exact Doom profile still parses all of `kernel/doom/src/d_main.c`, including `forwardmove` and `sidemove` on lines 1336 and 1337. Nonempty identifier-list definitions, block declaration attributes, nested function definitions, atomic variadic access, aggregate arguments without a declared parameter type, and aggregate variadic reads remain unfinished.
 
 The private in-kernel compiler tags loop and switch control frames. `break` selects the innermost frame. `continue` scans outward to the nearest loop and removes every crossed switch selector before it jumps. `/bin/feature25.cc` checks `do`, `while`, and `for` continuation targets, two nested switches, and sustained selector cleanup for both `continue` and switch-local `break`.
 
@@ -493,6 +501,8 @@ and the generated kernel symbol translation described above.
 [ADR 0120](docs/adr/0120-use-dx-for-gnu-nd-port-operands.md) records the GNU `Nd` DX fallback and the compiler-head PIC proof. [ADR 0121](docs/adr/0121-cupidc-machine-state-memory-outputs.md) records the exact machine-state memory-output boundary. [ADR 0122](docs/adr/0122-refresh-seed-for-gnu-assembly-frontier.md) records the five-tool seed refresh and poisoned-host reproof.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
+
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer and the five seed-bound Toolchain exceptions.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 
@@ -645,15 +655,15 @@ The preemptive scheduler supports up to 32 threads. IRQ0 runs at 200 Hz and prov
 
 | File | What it does |
 |------|-------------|
-| `vfs.c/.h` | VFS layer: open, read, write, close, seek, stat, readdir |
-| `vfs_helpers.c/.h` | read_all(), write_all(), read_text(), write_text() |
-| `ramfs.c/.h` | In-memory root filesystem, populated at boot with programs/docs/demos |
-| `devfs.c/.h` | /dev entries: null, zero, console, serial, random |
+| `vfs.cc/.h` | VFS layer: open, read, write, close, seek, stat, readdir |
+| `vfs_helpers.cc/.h` | read_all(), write_all(), read_text(), write_text() |
+| `ramfs.cc/.h` | In-memory root filesystem, populated at boot with programs/docs/demos |
+| `devfs.cc/.h` | /dev entries: null, zero, console, serial, random |
 | `fat16.cc/.h` | FAT16: MBR parsing, cluster chains, file read/write/create |
-| `fat16_vfs.c/.h` | FAT16 to VFS adapter |
-| `homefs.c/.h` | Persistent logical filesystem for /home, serialized to HOMEFS.SYS |
-| `blockdev.c/.h` | Block device abstraction |
-| `blockcache.c/.h` | 64-entry LRU sector cache, write-back, flushes periodically |
+| `fat16_vfs.cc/.h` | FAT16 to VFS adapter |
+| `homefs.cc/.h` | Persistent logical filesystem for /home, serialized to HOMEFS.SYS |
+| `blockdev.cc/.h` | Block device abstraction |
+| `blockcache.cc/.h` | 64-entry LRU sector cache, write-back, flushes periodically |
 
 Filesystem layout at runtime:
 ```
@@ -670,14 +680,14 @@ Filesystem layout at runtime:
 
 | File | What it does |
 |------|-------------|
-| `graphics.c/.h` | Pixel, line, rect primitives with clipping |
+| `graphics.cc/.h` | Pixel, line, rect primitives with clipping |
 | `gfx2d.cc/.h` | Gradients (H/V/radial), shadows, dither, alpha blending, file dialogs |
-| `gfx2d_effects.c/.h` | Blur, sharpen, sepia, noise, color manipulation |
-| `gfx2d_icons.c/.h` | Desktop icon registration, hit-testing, drag and drop |
-| `gfx2d_assets.c/.h` | Texture loading and caching |
-| `gfx2d_transform.c/.h` | Scale, rotate, skew, perspective |
-| `font_8x8.c/.h` | 8x8 bitmap font data and renderer |
-| `bmp.c/.h` | BMP codec: 24-bit uncompressed read/write, 32bpp output |
+| `gfx2d_effects.cc/.h` | Blur, sharpen, sepia, noise, color manipulation |
+| `gfx2d_icons.cc/.h` | Desktop icon registration, hit-testing, drag and drop |
+| `gfx2d_assets.cc/.h` | Texture loading and caching |
+| `gfx2d_transform.cc/.h` | Scale, rotate, skew, perspective |
+| `font_8x8.cc/.h` | 8x8 bitmap font data and renderer |
+| `bmp.cc/.h` | BMP codec: 24-bit uncompressed read/write, 32bpp output |
 
 All rendering goes to a RAM back buffer first. `vga_flip()` copies it to the linear framebuffer, and the double buffering prevents tearing.
 
@@ -685,29 +695,29 @@ All rendering goes to a RAM back buffer first. `vga_flip()` copies it to the lin
 
 | File | What it does |
 |------|-------------|
-| `gui.c/.h` | Window list, z-order, drag, focus, minimize, close (up to 16 windows) |
-| `gui_widgets.c/.h` | Checkboxes, radio buttons, dropdowns, sliders, progress bars |
-| `gui_containers.c/.h` | Panels, tabs, splitters, groups |
-| `gui_menus.c/.h` | Menu bars, dropdown menus, context menus, toolbars, status bars, tooltips |
-| `gui_themes.c/.h` | 7 built-in themes, .theme file load/save |
-| `gui_events.c/.h` | Mouse, keyboard, and window event dispatch |
-| `ui.c/.h` | Higher-level controls on top of the widget layer |
+| `gui.cc/.h` | Window list, z-order, drag, focus, minimize, close (up to 16 windows) |
+| `gui_widgets.cc/.h` | Checkboxes, radio buttons, dropdowns, sliders, progress bars |
+| `gui_containers.cc/.h` | Panels, tabs, splitters, groups |
+| `gui_menus.cc/.h` | Menu bars, dropdown menus, context menus, toolbars, status bars, tooltips |
+| `gui_themes.cc/.h` | 7 built-in themes, .theme file load/save |
+| `gui_events.cc/.h` | Mouse, keyboard, and window event dispatch |
+| `ui.cc/.h` | Higher-level controls on top of the widget layer |
 
 Themes include Windows95, Pastel Dream, Dark Mode, High Contrast, Retro Amber, Temple, and Vaporwave. Theme files can be saved and loaded from disk.
 
 ### Desktop
 
-`desktop.c/.h` handles the desktop shell: animated gradient background, taskbar with clock, icon grid, and the main event loop. On mouse-move it only redraws the cursor, not the whole screen. The background color LUT is recalculated at most every 3-4 animation frames.
+`desktop.cc/.h` handles the desktop shell: animated gradient background, taskbar with clock, icon grid, and the main event loop. On mouse-move it only redraws the cursor, not the whole screen. The background color LUT is recalculated at most every 3-4 animation frames.
 
 ### Apps
 
 | File | What it does |
 |------|-------------|
-| `notepad.c/.h` | Text editor with menus, scrollbars, clipboard, undo/redo, file open/save |
-| `terminal_app.c/.h` | GUI terminal window: scrolling text buffer, PS/2 input, ANSI color support |
-| `terminal_ansi.c/.h` | ANSI escape sequence parser: colors, cursor positioning, screen clear |
-| `calendar.c/.h` | Date/time math, RTC integration, taskbar clock, calendar popup |
-| `clipboard.c/.h` | System clipboard, shared across Notepad and Terminal |
+| `bin/notepad.cc` | Text editor with menus, scrollbars, clipboard, undo/redo, file open/save |
+| `terminal_app.cc/.h` | GUI terminal window: scrolling text buffer, PS/2 input, ANSI color support |
+| `ansi.cc/.h` | ANSI escape sequence parser: colors, cursor positioning, screen clear |
+| `calendar.cc/.h` | Date/time math, RTC integration, taskbar clock, calendar popup |
+| `clipboard.cc/.h` | System clipboard, shared across Notepad and Terminal |
 | `ed.cc/.h` | Kernel line editor, separate from the `bin/ed.cc` program |
 
 ### Compilers and languages
@@ -720,7 +730,7 @@ CupidC (`kernel/lang/cupidc*`) is a compiler for a HolyC-inspired C dialect:
 - Inline assembly, structs/classes, floats/SIMD, constant expressions, labels/goto, and full ring-0 kernel bindings
 - Limits: 1MB code, 8MB data/string storage, 1024 functions, 4096 symbols per unit
 
-CupidASM (`as*.c`) is an Intel-syntax x86-32 assembler:
+CupidASM (`as*.cc`) is an Intel-syntax x86-32 assembler:
 
 - Expanded x86-32 integer/control-flow/system/FPU/SSE/atomic coverage
 - JIT and AOT (ELF32) modes
@@ -728,7 +738,7 @@ CupidASM (`as*.c`) is an Intel-syntax x86-32 assembler:
 - Forward references, up to 8192 labels
 - Kernel bindings for print, malloc, VFS, graphics calls
 
-CupidScript (`cupidscript*.c`) is a shell scripting language for `.cup` files:
+CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 
 - Variables, if/else, while, for loops
 - Functions with parameters and return values
@@ -742,10 +752,10 @@ CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted 
 
 | File | What it does |
 |------|-------------|
-| `exec.c/.h` | Fixed-address ELF32/CUPD loader: validated segments, staged ELF loading, BSS zeroing, and image/lease lifetime transfer |
-| `syscall.c/.h` | Syscall table passed to ELF programs as a struct of function pointers |
+| `exec.cc/.h` | Fixed-address ELF32/CUPD loader: validated segments, staged ELF loading, BSS zeroing, and image/lease lifetime transfer |
+| `syscall.cc/.h` | Syscall table passed to ELF programs as a struct of function pointers |
 
-### Shell (kernel/lang/shell.c)
+### Shell (kernel/lang/shell.cc)
 
 The shell handles command parsing, pipelines, input/output redirection, background jobs, history with arrow-key navigation, and tab completion. Typing a .cc filename runs it through CupidC JIT. Typing a .asm file runs it through CupidASM JIT. Typing a .cup file runs it through CupidScript.
 
@@ -754,7 +764,7 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 | File | What it does |
 |------|-------------|
 | `string.c/.h` | strlen, strcmp, strcpy, strcat, strtok, strstr, sprintf and more |
-| `math.c/.h` | 64-bit integer math, g2d_isqrt(), trig approximations, itoa/atoi |
+| `math.cc/.h` | 64-bit integer math, g2d_isqrt(), trig approximations, itoa/atoi |
 
 ---
 
@@ -762,14 +772,14 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 | File | What it does |
 |------|-------------|
-| `vga.c/.h` | VBE 640x480x32bpp, double-buffering, vsync via Y_OFFSET page flip |
-| `keyboard.c/.h` | PS/2 keyboard on IRQ1, scancode to ASCII, modifiers, key repeat, circular buffer |
-| `mouse.c/.h` | PS/2 mouse on IRQ12, 3-byte packet parsing, scroll wheel, cursor |
-| `pit.c/.h` | 8254 PIT channel 0 at 200Hz, channel 2 for speaker |
+| `vga.cc/.h` | VBE 640x480x32bpp, double-buffering, vsync via Y_OFFSET page flip |
+| `keyboard.cc/.h` | PS/2 keyboard on IRQ1, scancode to ASCII, modifiers, key repeat, circular buffer |
+| `mouse.cc/.h` | PS/2 mouse on IRQ12, 3-byte packet parsing, scroll wheel, cursor |
+| `pit.cc/.h` | 8254 PIT channel 0 at 200Hz, channel 2 for speaker |
 | `timer.cc/.h` | Tick counter, sleep(), multi-channel timer callbacks |
-| `speaker.c/.h` | PC speaker beep via port 0x61 |
-| `ata.c/.h` | ATA/IDE PIO, 28-bit LBA, IDENTIFY, read/write on primary channel |
-| `rtc.c/.h` | Real-time clock from CMOS, BCD to binary, NMI masking |
+| `speaker.cc/.h` | PC speaker beep via port 0x61 |
+| `ata.cc/.h` | ATA/IDE PIO, 28-bit LBA, IDENTIFY, read/write on primary channel |
+| `rtc.cc/.h` | Real-time clock from CMOS, BCD to binary, NMI masking |
 | `serial.cc/.h` | COM1 at 115200 baud, used for kernel debug output |
 
 ---

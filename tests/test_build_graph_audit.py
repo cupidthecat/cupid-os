@@ -2860,8 +2860,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(len(active), 379)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.c"),
-            ("KERNEL_I386", "/kernel/audio/memio.c"),
-            ("KERNEL_I386", "/kernel/audio/mus2midi.c"),
+            ("KERNEL_I386", "/kernel/audio/memio.cc"),
+            ("KERNEL_I386", "/kernel/audio/mus2midi.cc"),
             ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
             ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.c"),
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
@@ -2871,7 +2871,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_emit.c"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/cupidc_ir.c"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/x86.c"),
-            ("HOSTED_KERNEL_BRIDGE_64", "/kernel/lang/as_elf.c"),
+            ("HOSTED_KERNEL_BRIDGE_64", "/kernel/lang/as_elf.cc"),
             ("HOSTED_I386_LINUX", "/toolchain/ctool_host.c"),
             ("HOSTED_I386_LINUX", "/toolchain/cupidc_main.c"),
             (
@@ -2885,11 +2885,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         ):
             self.assertIn(expected, active)
         self.assertNotIn(
-            ("DOOM_COMPAT_I386", "/kernel/audio/memio.c"),
+            ("DOOM_COMPAT_I386", "/kernel/audio/memio.cc"),
             active,
         )
         self.assertNotIn(
-            ("DOOM_COMPAT_I386", "/kernel/audio/mus2midi.c"),
+            ("DOOM_COMPAT_I386", "/kernel/audio/mus2midi.cc"),
             active,
         )
         self.assertEqual(
@@ -3447,19 +3447,36 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "hosted bridge source loses its include flag": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@",
-                    "kernel/lang/as_elf.c",
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@",
+                    "kernel/lang/as_elf.cc",
                 ),
-                r"hosted bridge recipe differs.*kernel/lang/as_elf\.c",
+                r"hosted bridge recipe differs.*kernel/lang/as_elf\.cc",
+            ),
+            "renamed hosted bridge loses its C language mode": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) "
+                    "-c $< -o $@",
+                    "kernel/lang/as_elf.cc",
+                ),
+                r"hosted bridge recipe differs.*kernel/lang/as_elf\.cc",
+            ),
+            "renamed hosted bridge selects C++ mode": (
+                hosted_audit(
+                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) "
+                    "-x c++ -c $< -o $@",
+                    "kernel/lang/as_elf.cc",
+                ),
+                r"compiler argument profile differs"
+                r".*kernel/lang/as_elf\.cc",
             ),
             "hosted bridge include precedes common include roots": (
                 hosted_audit(
-                    "$(CC) -I../kernel/lang $(CPPFLAGS) $(CFLAGS) "
+                    "$(CC) -I../kernel/lang $(CPPFLAGS) $(CFLAGS) -x c "
                     "-c $< -o $@",
-                    "kernel/lang/as_elf.c",
+                    "kernel/lang/as_elf.cc",
                 ),
                 r"compiler argument profile differs"
-                r".*kernel/lang/as_elf\.c",
+                r".*kernel/lang/as_elf\.cc",
             ),
             "hosted include marker is shell quoted": (
                 hosted_audit(
@@ -3616,7 +3633,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         transform = {
             "output": "kernel/crypto/aes.o",
             "inputs": [
-                "kernel/crypto/aes.c",
+                "kernel/crypto/aes.cc",
                 "kernel/crypto/aes.h",
                 "kernel/core/types.h",
             ],
@@ -3624,7 +3641,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "operation": "compile_c_to_elf32_object",
             "recipe": [
                 "$(CUPIDC_KERNEL_COMPILE) "
-                "--source kernel/crypto/aes.c "
+                "--source kernel/crypto/aes.cc "
                 "--output kernel/crypto/aes.o"
             ],
         }
@@ -3636,7 +3653,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         changed = dict(transform)
         changed["recipe"] = [
             "$(CUPIDC_KERNEL_COMPILE) "
-            "--source kernel/crypto/aes.c "
+            "--source kernel/crypto/aes.cc "
             "--output build/aes.o"
         ]
         with self.assertRaisesRegex(
@@ -3898,6 +3915,45 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 transform["output"]: transform
                 for transform in audit_payload["build"]["transforms"]
             }
+            checked_cupidc_roots = []
+            for transform in root_transform_by_output.values():
+                if (
+                    transform["tools"]
+                    != ["cupid_c_compiler", "host_python"]
+                    or transform["operation"]
+                    != "compile_c_to_elf32_object"
+                ):
+                    continue
+                roots = [
+                    path
+                    for path in transform["inputs"]
+                    if Path(path).suffix in {".c", ".cc"}
+                ]
+                self.assertEqual(len(roots), 1, transform["output"])
+                checked_cupidc_roots.extend(roots)
+            seed_bound_roots = {
+                "toolchain/ctool.c",
+                "toolchain/cupidasm.c",
+                "toolchain/cupiddis.c",
+                "toolchain/elf32.c",
+                "toolchain/x86.c",
+            }
+            self.assertEqual(len(checked_cupidc_roots), 148)
+            self.assertEqual(
+                {
+                    path
+                    for path in checked_cupidc_roots
+                    if Path(path).suffix == ".c"
+                },
+                seed_bound_roots,
+            )
+            self.assertEqual(
+                sum(
+                    Path(path).suffix == ".cc"
+                    for path in checked_cupidc_roots
+                ),
+                143,
+            )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
             ]
@@ -3920,35 +3976,35 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 )
             )
             established_cupidc_kernel_sources = (
-                "kernel/crypto/aes.c",
-                "kernel/crypto/aes_gcm.c",
-                "kernel/crypto/asn1.c",
-                "kernel/crypto/bigint.c",
-                "kernel/crypto/chacha20.c",
-                "kernel/crypto/chacha20poly1305.c",
-                "kernel/crypto/csprng.c",
-                "kernel/crypto/ct.c",
-                "kernel/crypto/ecdsa.c",
-                "kernel/crypto/ed25519.c",
-                "kernel/crypto/hkdf.c",
-                "kernel/crypto/hmac.c",
-                "kernel/crypto/p256.c",
-                "kernel/crypto/poly1305.c",
-                "kernel/crypto/rsa.c",
-                "kernel/crypto/sha256.c",
-                "kernel/crypto/sha512.c",
-                "kernel/crypto/x25519.c",
-                "kernel/crypto/x509.c",
-                "kernel/crypto/x509_chain.c",
-                "drivers/e1000.c",
-                "kernel/gui/desktop.c",
-                "kernel/network/socket.c",
-                "kernel/network/tcp.c",
-                "kernel/smp/acpi.c",
-                "kernel/smp/mp_tables.c",
+                "kernel/crypto/aes.cc",
+                "kernel/crypto/aes_gcm.cc",
+                "kernel/crypto/asn1.cc",
+                "kernel/crypto/bigint.cc",
+                "kernel/crypto/chacha20.cc",
+                "kernel/crypto/chacha20poly1305.cc",
+                "kernel/crypto/csprng.cc",
+                "kernel/crypto/ct.cc",
+                "kernel/crypto/ecdsa.cc",
+                "kernel/crypto/ed25519.cc",
+                "kernel/crypto/hkdf.cc",
+                "kernel/crypto/hmac.cc",
+                "kernel/crypto/p256.cc",
+                "kernel/crypto/poly1305.cc",
+                "kernel/crypto/rsa.cc",
+                "kernel/crypto/sha256.cc",
+                "kernel/crypto/sha512.cc",
+                "kernel/crypto/x25519.cc",
+                "kernel/crypto/x509.cc",
+                "kernel/crypto/x509_chain.cc",
+                "drivers/e1000.cc",
+                "kernel/gui/desktop.cc",
+                "kernel/network/socket.cc",
+                "kernel/network/tcp.cc",
+                "kernel/smp/acpi.cc",
+                "kernel/smp/mp_tables.cc",
             )
             port_io_header_closures = {
-                "drivers/ata.c": (
+                "drivers/ata.cc": (
                     "drivers/ata.h",
                     "kernel/core/debug.h",
                     "kernel/core/kernel.h",
@@ -3957,7 +4013,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/cpu/isr.h",
                     "kernel/fs/blockdev.h",
                 ),
-                "drivers/keyboard.c": (
+                "drivers/keyboard.cc": (
                     "drivers/keyboard.h",
                     "drivers/rtc.h",
                     "drivers/serial.h",
@@ -3973,7 +4029,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/lang/shell.h",
                     "kernel/util/calendar.h",
                 ),
-                "drivers/mouse.c": (
+                "drivers/mouse.cc": (
                     "drivers/mouse.h",
                     "drivers/serial.h",
                     "drivers/vga.h",
@@ -3984,18 +4040,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/cpu/pic.h",
                     "kernel/gfx/graphics.h",
                 ),
-                "drivers/pci.c": (
+                "drivers/pci.cc": (
                     "drivers/pci.h",
                     "drivers/serial.h",
                     "kernel/core/ports.h",
                     "kernel/core/types.h",
                 ),
-                "drivers/pit.c": (
+                "drivers/pit.cc": (
                     "drivers/pit.h",
                     "kernel/core/ports.h",
                     "kernel/core/types.h",
                 ),
-                "drivers/rtc.c": (
+                "drivers/rtc.cc": (
                     "drivers/rtc.h",
                     "drivers/serial.h",
                     "kernel/core/kernel.h",
@@ -4003,7 +4059,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/core/types.h",
                     "kernel/cpu/isr.h",
                 ),
-                "drivers/rtl8139.c": (
+                "drivers/rtl8139.cc": (
                     "drivers/pci.h",
                     "drivers/serial.h",
                     "kernel/core/ports.h",
@@ -4013,7 +4069,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/mm/memory.h",
                     "kernel/network/net_if.h",
                 ),
-                "drivers/speaker.c": (
+                "drivers/speaker.cc": (
                     "drivers/pit.h",
                     "drivers/speaker.h",
                     "drivers/timer.h",
@@ -4022,7 +4078,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/core/types.h",
                     "kernel/cpu/isr.h",
                 ),
-                "drivers/vga.c": (
+                "drivers/vga.cc": (
                     "drivers/timer.h",
                     "drivers/vga.h",
                     "kernel/core/kernel.h",
@@ -4033,7 +4089,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/cpu/simd.h",
                     "kernel/mm/memory.h",
                 ),
-                "kernel/audio/ac97.c": (
+                "kernel/audio/ac97.cc": (
                     "drivers/pci.h",
                     "drivers/serial.h",
                     "kernel/audio/ac97.h",
@@ -4044,7 +4100,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/cpu/isr.h",
                     "kernel/mm/memory.h",
                 ),
-                "kernel/core/syscall.c": (
+                "kernel/core/syscall.cc": (
                     "drivers/ata.h",
                     "drivers/pci.h",
                     "drivers/pit.h",
@@ -4074,7 +4130,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/smp/bkl.h",
                     "kernel/smp/lapic.h",
                 ),
-                "kernel/lang/shell.c": (
+                "kernel/lang/shell.cc": (
                     "drivers/keyboard.h",
                     "drivers/pci.h",
                     "drivers/rtc.h",
@@ -4128,7 +4184,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/usb/usb_hc.h",
                     "kernel/util/calendar.h",
                 ),
-                "kernel/usb/ehci.c": (
+                "kernel/usb/ehci.cc": (
                     "drivers/pci.h",
                     "drivers/serial.h",
                     "drivers/timer.h",
@@ -4142,7 +4198,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/usb/usb.h",
                     "kernel/usb/usb_hc.h",
                 ),
-                "kernel/usb/uhci.c": (
+                "kernel/usb/uhci.cc": (
                     "drivers/pci.h",
                     "drivers/serial.h",
                     "drivers/timer.h",

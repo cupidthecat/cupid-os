@@ -29,7 +29,7 @@ Use:
 
 >h2 Shell Built-Ins
 >tree open Shell Built-Ins
-Built-ins verified in kernel/lang/shell.c (commands[] table):
+Built-ins verified in kernel/lang/shell.cc (commands[] table):
 
 Language / compiler:
 - cupid        run a .cup script

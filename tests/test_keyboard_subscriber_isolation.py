@@ -8,10 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class KeyboardSubscriberIsolationTests(unittest.TestCase):
     def test_usb_keyboard_uses_the_production_subscriber_path(self):
-        hid = (ROOT / "kernel" / "usb" / "usb_hid.c").read_text(
+        hid = (ROOT / "kernel" / "usb" / "usb_hid.cc").read_text(
             encoding="utf-8"
         )
-        driver = (ROOT / "drivers" / "keyboard.c").read_text(
+        driver = (ROOT / "drivers" / "keyboard.cc").read_text(
             encoding="utf-8"
         )
 
@@ -29,7 +29,7 @@ class KeyboardSubscriberIsolationTests(unittest.TestCase):
         program = (ROOT / "bin" / "kbdsub_test.cc").read_text(
             encoding="utf-8"
         )
-        driver = (ROOT / "drivers" / "keyboard.c").read_text(
+        driver = (ROOT / "drivers" / "keyboard.cc").read_text(
             encoding="utf-8"
         )
         self.assertIn(

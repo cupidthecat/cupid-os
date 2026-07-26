@@ -239,8 +239,8 @@ $(BUILD_DIR)/cupidld.o: cupidld.c cupidld.h elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/cupidld_main.o: cupidld_main.c cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.c ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

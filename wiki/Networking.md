@@ -37,17 +37,17 @@ Language binding references:
 Kernel files:
 
 ```
-kernel/network/net_if.h / net_if.c     NIC vtable, RX ring, registration, net_init
-kernel/network/arp.h    / arp.c        16-entry LRU ARP cache, blocking resolve
-kernel/network/ip.h     / ip.c         IPv4 parse, route, send, protocol dispatch
-kernel/network/icmp.h   / icmp.c       ICMP echo reply
+kernel/network/net_if.h / net_if.cc     NIC vtable, RX ring, registration, net_init
+kernel/network/arp.h    / arp.cc        16-entry LRU ARP cache, blocking resolve
+kernel/network/ip.h     / ip.cc         IPv4 parse, route, send, protocol dispatch
+kernel/network/icmp.h   / icmp.cc       ICMP echo reply
 kernel/network/udp.h    / udp.cc       UDP send/recv, pseudo-header checksum
-kernel/network/tcp.h    / tcp.c        RFC 793 subset state machine (~1200 LOC)
-kernel/network/socket.h / socket.c     32-slot BSD socket table + API
-kernel/network/dhcp.h   / dhcp.c       DHCP four-way handshake + static fallback
-kernel/network/dns.h    / dns.c        UDP/53 A-record resolver + 16-entry cache
-drivers/rtl8139.h / rtl8139.c   Realtek 8139 PCI NIC driver (~300 LOC)
-drivers/e1000.h   / e1000.c     Intel 82540EM PCI NIC driver (~500 LOC)
+kernel/network/tcp.h    / tcp.cc        RFC 793 subset state machine (~1200 LOC)
+kernel/network/socket.h / socket.cc     32-slot BSD socket table + API
+kernel/network/dhcp.h   / dhcp.cc       DHCP four-way handshake + static fallback
+kernel/network/dns.h    / dns.cc        UDP/53 A-record resolver + 16-entry cache
+drivers/rtl8139.h / rtl8139.cc   Realtek 8139 PCI NIC driver (~300 LOC)
+drivers/e1000.h   / e1000.cc     Intel 82540EM PCI NIC driver (~500 LOC)
 bin/feature21_net.cc           TCP client smoke test (DNS + connect + HTTP GET)
 bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 ```
@@ -64,24 +64,24 @@ bin/feature22_net_server.cc    TCP server smoke test (listen/accept/echo)
 │  connect() send()  recv()    close()                          │
 │  dns_resolve(name) -> ipv4                                    │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/socket.c - 32-slot table ─────────────────┐
+┌──────────▼── kernel/network/socket.cc - 32-slot table ─────────────────┐
 │  socket_t { type, state, tx_buf/rx_buf, TCP state machine }   │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────▼── kernel/network/tcp.c, udp.cc, and icmp.c ───────────┐
+┌──────▼── kernel/network/tcp.cc, udp.cc, and icmp.cc ───────────┐
 │  TCP state machine      UDP datagram       ICMP echo reply    │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/ip.c - IPv4 send + dispatch ──────────────┐
+┌──────────▼── kernel/network/ip.cc - IPv4 send + dispatch ──────────────┐
 │  ipv4_send(dst, proto, buf, len) -> arp resolve -> NIC send   │
 │  ipv4_input(frame) -> proto dispatch (ICMP/UDP/TCP)           │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/arp.c - 16-entry LRU cache ───────────────┐
+┌──────────▼── kernel/network/arp.cc - 16-entry LRU cache ───────────────┐
 │  who-has / is-at    blocking resolve on cache miss (500 ms)   │
 └──────────┬────────────────────────────────────────────────────┘
-┌──────────▼── kernel/network/net_if.c - unified NIC interface ─────────┐
+┌──────────▼── kernel/network/net_if.cc - unified NIC interface ─────────┐
 │  net_if_t vtable    lockless SPSC RX ring (64 slots)          │
 └──────────┬────────────────────────────────────────────────────┘
            ▼
-┌── drivers/rtl8139.c ──────── drivers/e1000.c ───────────────────┐
+┌── drivers/rtl8139.cc ──────── drivers/e1000.cc ───────────────────┐
 │  PCI probe + init + register      IRQ top-half (enqueue frame)│
 └───────────────────────────────────────────────────────────────┘
 ```
@@ -195,7 +195,7 @@ the idle/reschedule path.
 
 ---
 
-## RTL8139 Driver (drivers/rtl8139.c)
+## RTL8139 Driver (drivers/rtl8139.cc)
 
 ### PCI identification
 
@@ -280,7 +280,7 @@ static int rtl8139_send(net_if_t *nif, const uint8_t *frame, uint32_t len) {
 
 ---
 
-## E1000 Driver (drivers/e1000.c)
+## E1000 Driver (drivers/e1000.cc)
 
 ### PCI identification
 
@@ -349,7 +349,7 @@ IFCS=1 insert FCS / CRC).
 
 ---
 
-## ARP (kernel/network/arp.c)
+## ARP (kernel/network/arp.cc)
 
 ### Cache structure
 
@@ -389,7 +389,7 @@ On receiving an ARP frame (`arp_input`):
 
 ---
 
-## IPv4 (kernel/network/ip.c)
+## IPv4 (kernel/network/ip.cc)
 
 ### Header structure
 
@@ -435,7 +435,7 @@ void ipv4_input(const uint8_t *frame, uint32_t len);
 
 ---
 
-## ICMP (kernel/network/icmp.c)
+## ICMP (kernel/network/icmp.cc)
 
 The kernel implements ICMP echo requests and replies.
 
@@ -484,7 +484,7 @@ udp_length), then calls `ipv4_send`.
 
 ---
 
-## TCP (kernel/network/tcp.c)
+## TCP (kernel/network/tcp.cc)
 
 ### Header
 
@@ -613,7 +613,7 @@ void tcp_tick(void) {
 
 ---
 
-## DHCP (kernel/network/dhcp.c)
+## DHCP (kernel/network/dhcp.cc)
 
 ### Overview
 
@@ -648,7 +648,7 @@ Lease renewal is not implemented. The hobby OS reboots before leases expire.
 
 ---
 
-## DNS (kernel/network/dns.c)
+## DNS (kernel/network/dns.cc)
 
 ### API
 
@@ -818,7 +818,7 @@ implementation does not use fine-grained per-socket locks.
 
 ## Shell Commands
 
-Networking commands in `kernel/lang/shell.c`:
+Networking commands in `kernel/lang/shell.cc`:
 
 ### `ifconfig`
 
@@ -1192,27 +1192,27 @@ manual inspection if anything looks odd.
 | File | Purpose |
 |---|---|
 | `kernel/network/net_if.h` | `net_if_t` struct, RX ring constants, API declarations |
-| `kernel/network/net_if.c` | NIC registration, RX ring, `net_init`, `net_process_pending` |
+| `kernel/network/net_if.cc` | NIC registration, RX ring, `net_init`, `net_process_pending` |
 | `kernel/network/arp.h` | ARP cache struct, `arp_resolve` / `arp_input` declarations |
-| `kernel/network/arp.c` | 16-entry LRU cache, ARP request/reply handler, blocking resolve |
+| `kernel/network/arp.cc` | 16-entry LRU cache, ARP request/reply handler, blocking resolve |
 | `kernel/network/ip.h` | `ipv4_hdr_t`, protocol constants, API |
-| `kernel/network/ip.c` | IPv4 send + receive + checksum + routing |
+| `kernel/network/ip.cc` | IPv4 send + receive + checksum + routing |
 | `kernel/network/icmp.h` | ICMP header struct, `icmp_input` declaration |
-| `kernel/network/icmp.c` | Echo request -> echo reply |
+| `kernel/network/icmp.cc` | Echo request -> echo reply |
 | `kernel/network/udp.h` | UDP header struct, `udp_send_raw`, `udp_input` |
 | `kernel/network/udp.cc` | UDP send + receive + pseudo-header checksum |
 | `kernel/network/tcp.h` | `tcp_hdr_t`, flag macros, `TCP_MSS`, `TCP_RTO_MS`, API |
-| `kernel/network/tcp.c` | RFC 793 state machine, `tcp_tick`, ~1200 LOC |
+| `kernel/network/tcp.cc` | RFC 793 state machine, `tcp_tick`, ~1200 LOC |
 | `kernel/network/socket.h` | `socket_t`, error codes, `tcp_state_t`, BSD API declarations |
-| `kernel/network/socket.c` | 32-slot table, `socket_create`/`bind`/`listen`/`accept`/... |
+| `kernel/network/socket.cc` | 32-slot table, `socket_create`/`bind`/`listen`/`accept`/... |
 | `kernel/network/dhcp.h` | `dhcp_start` declaration |
-| `kernel/network/dhcp.c` | DISCOVER/OFFER/REQUEST/ACK, static fallback |
+| `kernel/network/dhcp.cc` | DISCOVER/OFFER/REQUEST/ACK, static fallback |
 | `kernel/network/dns.h` | `dns_resolve` declaration, cache constants |
-| `kernel/network/dns.c` | UDP/53 query, response parse, compression pointer, 16-entry cache |
+| `kernel/network/dns.cc` | UDP/53 query, response parse, compression pointer, 16-entry cache |
 | `drivers/rtl8139.h` | RTL8139 register offsets, `rtl8139_probe` declaration |
-| `drivers/rtl8139.c` | PCI probe, init, RX drain, send, IRQ handler, ~300 LOC |
+| `drivers/rtl8139.cc` | PCI probe, init, RX drain, send, IRQ handler, ~300 LOC |
 | `drivers/e1000.h` | E1000 register offsets, `e1000_probe` declaration |
-| `drivers/e1000.c` | PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC |
+| `drivers/e1000.cc` | PCI probe, MMIO map, RX/TX ring init, IRQ handler, ~500 LOC |
 | `bin/feature21_net.cc` | TCP client smoke test: DNS + connect + HTTP GET |
 | `bin/feature22_net_server.cc` | TCP server smoke test: listen + accept + echo |
 | `bin/feature23_full_access.cc` | Phase 5 binding sanity (net info, ARP/ICMP/UDP, PCI, blkdev, BKL) |
