@@ -60,14 +60,16 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 
 The checked seed includes the active CSPRNG assembly, operand-free
 function assembly, per-CPU pointer output, integer atomics through fetch-or, and
-width-aware port I/O. Its stage-three CupidC image is 2,000,636 bytes with
+width-aware port I/O. Its stage-three CupidC image is 2,042,976 bytes with
 SHA-256
-`2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`.
+`e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`.
 It came from stage three of the checked bootstrap at revision
-`d2e0f8b876d96b9268666e16c26a9e16ab5249af`, not from the native compiler
-candidate. With host compiler and linker commands poisoned, all five seed
-images match stage two. All 19 stage-two C objects, startup, and five images
-then match stage three, and both stages pass all 21 tool behavior cases.
+`32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`, not from the native compiler
+candidate. It also carries GNU `used`, privileged-register inputs, FXSAVE,
+call-next capture, GNU `Nd`, and machine-state memory outputs. With host
+code-generator commands poisoned, all five seed images match stage two. All
+19 stage-two C objects, startup, and five images then match stage three, and
+both stages pass all 21 tool behavior cases.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -87,7 +89,7 @@ moves and RDMSR emit directly into deterministic i386 ELF32 objects. The
 three double-compiled objects are 8,756, 2,336, and 4,184 bytes and pass the
 shared validator. Focused frontend, Linear IR, object, and decoder contracts
 cover the supported forms and their failures without executing privileged
-instructions. The checked seed predates this compiler work, so production
+instructions. The checked seed carries this compiler work, while production
 ownership remains unchanged.
 
 Compiler head now handles the exact volatile `fxsave (%0)` form used twice in
@@ -96,8 +98,8 @@ four-byte object or `void` pointer, and the statement must retain its
 `memory` clobber. The emitter places the pointer in EAX and asks the shared
 x86 model for `0F AE 00`. Two full-profile compiles produce the same
 validated 30,216-byte object, with FXSAVE at text offsets `0x1967` and
-`0x4d7c`. The checked seed predates this compiler-head capability, so
-production ownership has not moved.
+`0x4d7c`. The checked seed carries this compiler capability, but production
+ownership has not moved.
 
 The checked compiler's atomic slice handles integer load, store, exchange,
 and fetch-add builtins with constant orders. Its i386 path selects ordinary
@@ -169,15 +171,15 @@ the complete kernel profile. The `as.c` object is 148,056 bytes with SHA-256
 `f88e783dd6fdb3687fbd70981efe12d71bd9e66fabc0bd244f18925047e6167c`.
 The `cupidc.c` object is 288,168 bytes with SHA-256
 `b7a977c057eab72010a63e405f7d08cc9c929f38a30051f04edf3742a97c4d3e`.
-They remain host-owned `.c` sources until a refreshed checked seed and the
-production handoff carry this capability. Other call templates and general
-inline-assembly labels remain unsupported.
+They remain host-owned `.c` sources until the production handoff uses this
+checked-seed capability. Other call templates and general inline-assembly
+labels remain unsupported.
 
 Compiler head now also accepts the GNU `Nd` port alternative in
 `kernel/cpu/pic.c`. It selects the valid DX branch and emits both unchanged
 8-bit PIC templates through Cupid's x86 model. The root passes the complete
-kernel compiler profile, but it remains host-owned until the checked seed and
-normal build move together.
+kernel compiler profile, but it remains host-owned until the normal build
+moves.
 
 Compiler head emits the three machine-state memory outputs in
 `kernel/core/panic.c`. The exact volatile `fnstsw %0` and `fnstcw %0` forms
@@ -186,8 +188,8 @@ destination. Linear IR evaluates each lvalue once, and the i386 emitter writes
 through that address with the shared x86 model. The exact call-next support
 above also handles the later local-label statement in the unchanged panic
 source. Two full kernel-profile compiles produce the same validated
-10,212-byte ELF32 object. This does not change the checked seed or the
-136-source production boundary.
+10,212-byte ELF32 object. The checked seed carries the capability, but this
+does not change the 136-source production boundary.
 
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and

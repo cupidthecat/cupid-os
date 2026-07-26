@@ -98,7 +98,6 @@ same validated 10,212-byte ELF32 object with SHA-256
 The unchanged `kernel/cpu/fpu.c` source still stops at
 `target("general-regs-only")`, before its `stmxcsr` statement.
 
-This is compiler-head capability only. The checked seed predates it, no
-normal-build object changes owner, and no `.c` source is renamed. An OS image
-or boot result would not exercise these new bytes until a later seed and
-production transfer.
+ADR 0122 moves the capability into the checked seed. No normal-build object
+changes owner, and no `.c` source is renamed. An OS image or boot result does
+not exercise these new bytes until the production transfer.

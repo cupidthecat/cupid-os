@@ -10138,3 +10138,56 @@ use.
 No production object changed owner. The checked seed still predates this
 capability, no `.c` source was renamed, and an image or boot run would not
 exercise the new compiler-head bytes. ADR 0121 records the accepted boundary.
+
+## 2026-07-26: refresh the checked seed for the GNU assembly frontier
+
+Commit `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb` fixed the compiler source
+for this seed. It combines GNU `used`, privileged-register inputs, FXSAVE,
+call-next capture, the GNU `Nd` DX alternative, and machine-state memory
+outputs. The prior checked seed verified before the transition.
+
+The transition set `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `LD`,
+`AR`, `NM`, and `OBJCOPY` to commands that do not exist. It rebuilt the 19 C
+objects, startup, and all five static tools without an external code
+generator. Every stage-two object and image matched stage three. Both stages
+passed five help cases, ten successful operations, and six useful failures.
+The 40-input snapshot has SHA-256
+`8afdfbe4917adbe43d0c97a5b158b70220ab7f973b6b6293f284d3dc80a727ba`.
+
+The 14,860-byte transition report has SHA-256
+`f2520ee3e2eb7dee2cb023b63d7de4bd97ccc4600f6e0ac1769972ea486f81f5`.
+The run took 515.3 seconds. CupidASM, CupidDis, CupidLD, and CupidObj matched
+their prior seed images. CupidC changed as expected and matched between
+stages two and three.
+
+All five stage-three images were promoted:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0` |
+| CupidDis | 366,968 | `67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 2,042,976 | `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41` |
+
+The build-plan SHA-256 remains
+`7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0`.
+The refreshed 5,421-byte manifest has SHA-256
+`3c83d8b8fb2467a011b1cc99551e83ffda80ddaed78582123b0266b6a188951d`.
+
+A second poisoned-host bootstrap started from the promoted seed. All five
+seed images matched stage two, and every stage-two object and image matched
+stage three. The same 21 behavior cases passed over the same source snapshot.
+The 14,859-byte report has SHA-256
+`1a98a07c0b5fc9e43ff6ca76c489b68552725eaae5996e5358bd2f7094208d10`.
+The reproof took 505.4 seconds.
+
+The complete 14-test seed module passed in 506.181 seconds. It covers exact
+provenance, manifest schema and digests, ELF entry checks, source and seed
+mutation rejection, frozen input independence, private WSL staging, and an
+independent complete fixed point. `make verify-bootstrap-seed` also passed.
+
+This commit changes the bootstrap root, not normal-build ownership. The
+pending strict roots and generated symbol source remain host-built until
+their closed production transfer, image build, and runtime gates pass. ADR
+0122 records the promotion and trust boundary.

@@ -122,10 +122,9 @@ The complete hosted Toolchain contract passes with the new selectors. Exact
 self-source locks now record 204 functions for `cupidc_ir.c`, 209 for
 `cupidc_emit.c`, and 322 for `cupidc_frontend.c`.
 
-This is compiler-head evidence only. The checked seed predates the new input
-constraints and templates. The three roots remain host-owned `.c` files, and
-the 136-source production boundary does not move. Seed refresh, production
-recipe transfer, `.cc` renames, an image build, and runtime proof remain
-separate work. WRMSR, CR1, CR2 writes, arbitrary control-register forms,
-general clobbers, fixed EBX and `q` inputs, and broader GNU assembly are still
-unsupported.
+ADR 0122 moves the new input constraints and templates into the checked seed.
+The three roots remain host-owned `.c` files, and the 136-source production
+boundary does not move. Production recipe transfer, `.cc` renames, an image
+build, and runtime proof remain separate work. WRMSR, CR1, CR2 writes,
+arbitrary control-register forms, general clobbers, fixed EBX and `q` inputs,
+and broader GNU assembly are still unsupported.

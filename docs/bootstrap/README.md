@@ -16,7 +16,7 @@ integer.
 Object-pointer interchange and narrower or wider integer forms still fail
 with a feature diagnostic. ADR 0113 records the current boundary.
 
-The exact frontend gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. The object gate emits those files plus `kernel/lang/as_elf.c` twice, reads each result through Cupid's ELF32 reader, and requires byte-identical output. The static i386 audit adds all 20 C files in the hosted tool closure under the checked four-byte Linux target: 19 strict C11 units and the GNU-enabled runtime. The five-tool fixed point excludes the separate runtime-contract source, so its build manifest contains 19 C sources: 18 strict units and the GNU-enabled runtime. The checked seed manifest carries that source set, all five link orders, producer lineage, and target ABI into a clean bootstrap. The fourteen-file issue #27 cohort remains ten hermetic Toolchain files, the kernel bridge, and the `ctool_host.c`, `cupidasm_main.c`, and `cupiddis_main.c` adapters. ADR 0082 records the ABI boundary, ADR 0088 records the full target-profile audit, ADR 0089 records the compiler fixed point, ADR 0090 records the complete static tool fixed point, ADR 0092 records the first checked seed, ADR 0097 records the first stage-three refresh, and ADRs 0102, 0106, and 0108 record the SMP, port-I/O, and fetch-or compiler refreshes. ADR 0117 records the compiler-head control-register and RDMSR boundary.
+The exact frontend gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. The object gate emits those files plus `kernel/lang/as_elf.c` twice, reads each result through Cupid's ELF32 reader, and requires byte-identical output. The static i386 audit adds all 20 C files in the hosted tool closure under the checked four-byte Linux target: 19 strict C11 units and the GNU-enabled runtime. The five-tool fixed point excludes the separate runtime-contract source, so its build manifest contains 19 C sources: 18 strict units and the GNU-enabled runtime. The checked seed manifest carries that source set, all five link orders, producer lineage, and target ABI into a clean bootstrap. The fourteen-file issue #27 cohort remains ten hermetic Toolchain files, the kernel bridge, and the `ctool_host.c`, `cupidasm_main.c`, and `cupiddis_main.c` adapters. ADR 0082 records the ABI boundary, ADR 0088 records the full target-profile audit, ADR 0089 records the compiler fixed point, ADR 0090 records the complete static tool fixed point, ADR 0092 records the first checked seed, ADR 0097 records the first stage-three refresh, and ADRs 0102, 0106, and 0108 record the SMP, port-I/O, and fetch-or compiler refreshes. ADR 0122 records the current GNU assembly frontier seed.
 
 The repository now provides the next boundary as working code. CupidASM assembles i386 Linux startup and system-call wrappers. CupidC compiles a narrow runtime with a reusable heap, unbuffered files, standard streams, memory and string functions, `errno`, `getcwd`, and formatted diagnostics. CupidLD joins that runtime with complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The compiler driver handles compile-only C11 jobs, definitions, undefinitions, GNU and freestanding modes, and commit-gated compiler output. Ordered `-I` roots accept quoted and angle includes, while `--include-angle` roots accept angle includes only. The resulting static commands run real positive and failure fixtures on Linux or through WSL. ADR 0086 records the runtime and sibling commands. ADR 0088 records the compiler driver and first compiler generation.
 
@@ -32,7 +32,7 @@ The i386 Linux adapter objects are `ctool_host.c` at 11 functions, 5,522 text by
 
 The `ctool_host.c` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,000,636 bytes. The repository keeps those exact stage-three images as its checked i386 Linux seed. CupidC has SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`; the other four images remain byte-identical to the first seed. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The manifest names source revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af` and the stage-two checked-seed producer trio. The harness also pins the exact 19-source mapping, freezes the verified manifest and binary bytes for the run, and watches a 40-input source snapshot that includes `link.ld`. The seed producer trio compiles the source union and assembles and links stage two. Stage-two CupidC, CupidASM, and CupidLD repeat that work for stage three. The 19 C object pairs, startup objects, and all five tool images match byte for byte. The stages also agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. `make verify-bootstrap-seed` checks the inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 103 normal Cupid OS root objects. Native Windows tooling and production C ownership remain open.
+The current static commands are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,042,976 bytes. The repository keeps those exact stage-three images as its checked i386 Linux seed. CupidC has SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`; the other four images remain byte-identical to the first seed. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The manifest names source revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb` and the stage-two checked-seed producer trio. The harness also pins the exact 19-source mapping, freezes the verified manifest and binary bytes for the run, and watches a 40-input source snapshot that includes `link.ld`. The seed producer trio compiles the source union and assembles and links stage two. Stage-two CupidC, CupidASM, and CupidLD repeat that work for stage three. The 19 C object pairs, startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. The stages also agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. `make verify-bootstrap-seed` checks the inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 103 normal Cupid OS root objects. Native Windows tooling and production C ownership remain open.
 
 The normal root build gives checked-seed CupidC ownership of 136 C sources.
 The established 116-source cohort stays intact. The current transfer adds 20
@@ -107,9 +107,9 @@ the generated kernel-symbol declaration with `section(".ksyms")`, `used`, and
 four-byte alignment. A separate probe compiles the current 621,273-byte
 generated source twice to the same 101,808-byte ELF32 object with SHA-256
 `802b604aa24261b48251a537c011e7d81839fab67fbe3c7491e7991ad4797ae3`.
-The checked seed still predates this capability, so
-`kernel/cpu/ksyms_data.c` remains host-compiled until the seed and production
-path are proved. ADR 0116 records the boundary.
+The checked seed carries this capability. `kernel/cpu/ksyms_data.c` remains
+host-compiled until the production path is proved. ADR 0116 records the
+language boundary, and ADR 0122 records the seed refresh.
 
 Compiler head also accepts the exact volatile
 `call 1f\n1: popl %0` statement in the stack-trace helpers. It requires one
@@ -121,7 +121,7 @@ address of the pop and ESP is restored without a relocation.
 The unchanged `kernel/lang/as.c` and `kernel/lang/cupidc.c` roots now compile
 twice under the complete kernel profile to byte-identical validated i386
 ELF32 objects. Their sizes are 148,056 and 288,168 bytes. The checked seed
-predates this capability, so this proof does not move either root, change its
+carries this capability, but this proof does not move either root, change its
 `.c` suffix, or retire a host dependency. ADR 0118 records the boundary.
 
 Compiler head now accepts operand-free GNU assembly in function bodies. Basic
@@ -153,8 +153,8 @@ constraints, invalid types, duplicate EDX ownership, forged metadata,
 partial templates, deterministic output, rollback, and recovery. The full
 kernel profile produces a 2,408-byte object with SHA-256
 `c1855a19e0cd285953996344493dcefe916f06d89fed706219718920b4d2ea5d`.
-The checked seed and production recipe have not moved. ADR 0120 records the
-boundary.
+The checked seed now carries this capability. The production recipe has not
+moved. ADR 0120 records the boundary.
 
 The next compiler-head slice accepts one modifiable four-byte object or
 `void` pointer as the `=r` output of the exact per-CPU template
@@ -171,7 +171,7 @@ RDMSR emit without a host assembler or an EBX scratch slot. Frontend, Linear
 IR, and object contracts reject unsupported widths, types, fixed-register
 collisions, directions, and clobbers without publishing partial state. The
 three strict roots compile twice to byte-identical validated objects. This is
-compiler-head evidence because the checked seed predates the capability.
+now checked-seed capability, although production ownership has not moved.
 ADR 0117 records the boundary and exact object evidence.
 
 Compiler head now accepts the independent `r` pointer input used by both
@@ -182,9 +182,9 @@ the shared x86 model to produce `0F AE 00` at `[EAX]` without a temporary
 frame slot. A two-function fixture produces a deterministic 396-byte ELF32
 object with 40 bytes of text and no relocations. The complete process source
 also compiles twice under the fixed kernel profile to matching validated
-30,216-byte objects. The checked seed and normal build still use the earlier
-compiler boundary, so `process.c` remains host-owned. ADR 0119 records the
-language and object boundary.
+30,216-byte objects. The checked seed carries the compiler boundary, but
+`process.c` remains host-owned until the normal build transfers it. ADR 0119
+records the language and object boundary.
 
 Compiler head now carries the SMP integer atomics that follow that load.
 `__atomic_load_n`, `__atomic_store_n`, `__atomic_exchange_n`, and
@@ -384,7 +384,8 @@ integrated compiler head also supports its later exact call-next template.
 Two complete kernel-profile compiles produce the same validated 10,212-byte
 ELF32 object with SHA-256
 `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428`.
-The checked seed and normal-build ownership still predate this capability.
+The checked seed carries this capability. Normal-build ownership has not
+moved.
 
 The body operator ladder uses checked value/operator vectors and an iterative precedence reducer. A recursive wrapper per precedence tier was rejected after the established 256-deep nested-call contract exhausted the default Windows host stack before reaching its transactional syntax-limit diagnostic. The iterative reducer keeps binary chains bounded by job storage while calls, parentheses, unary nesting, and assignment continue to consume the explicit 256-level budget. A 4,096-operator flat addition oracle publishes 8,193 left-associated postorder expressions and 8,192 child references; a 256-byte output ceiling on the same source proves one limit diagnostic, complete arena/scratch rollback, tape and prior-result preservation, and same-job recovery. High-bit ordinary character bytes sign-extend into signed target `int`; compatible enum/integer assignment retains an explicit destination conversion; and freeze requires every assignment's `computation_type` to equal its result type. Valid decimal and hexadecimal floating constants, floating assignment conversions, and floating logical operands now fail with distinct deferred-feature diagnostics rather than masquerading as malformed integers, incompatible operands, or generic non-scalars.
 

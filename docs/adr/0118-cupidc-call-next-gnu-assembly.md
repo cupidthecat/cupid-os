@@ -99,7 +99,6 @@ i386 relocatable object with SHA-256
 Both repeated objects are byte-identical and pass the shared ELF32 validator.
 The complete Toolchain contract target also passes.
 
-This is compiler-head evidence only. The checked seed predates the capability,
-so both roots remain host-owned and keep their `.c` names. A checked-seed
-refresh, production recipe transfer, source rename, full image build, and
-runtime proof remain separate work.
+ADR 0122 moves the capability into the checked seed. Both roots remain
+host-owned and keep their `.c` names. Production recipe transfer, source
+rename, full image build, and runtime proof remain separate work.

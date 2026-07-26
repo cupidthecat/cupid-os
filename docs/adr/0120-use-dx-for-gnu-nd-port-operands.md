@@ -81,6 +81,6 @@ Compiler head compiles the unchanged `kernel/cpu/pic.c` under the complete
 The six focused legacy and existing port wrapper tests pass, and the complete
 toolchain contract target passes.
 
-The checked seed still predates this capability. `pic.c` remains host-built
-until a seed refresh, source rename, production wrapper proof, full image
+ADR 0122 moves this capability into the checked seed. `pic.c` remains
+host-built until its source rename, production wrapper proof, full image
 build, and runtime smoke move ownership together.

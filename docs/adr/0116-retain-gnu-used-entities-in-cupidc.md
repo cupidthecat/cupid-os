@@ -97,7 +97,6 @@ The complete toolchain contract target passes from the exact staged source
 tree. That run includes the frontend, Linear IR, object, self-host, active
 source, and static hosted-tool checks.
 
-This is compiler-head evidence only. The checked seed predates `used`, so the
-normal Make graph still compiles the generated root with GCC or Clang. Seed
-refresh, production-wrapper ownership, the full image build, and runtime
-proof remain separate work.
+ADR 0122 moves `used` into the checked seed. The normal Make graph still
+compiles the generated root with GCC or Clang. Production-wrapper ownership,
+the full image build, and runtime proof remain separate work.

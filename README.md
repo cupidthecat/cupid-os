@@ -326,8 +326,8 @@ Linear IR and object boundaries validate it before use. The attribute does
 not change current ELF32 bytes because CupidC already emits every represented
 definition. The generated `kernel/cpu/ksyms_data.c` source compiles twice to
 the same 101,808-byte object under the complete kernel profile. The checked
-seed still predates this capability, so the normal symbol-generation path
-remains host-compiled.
+seed now carries this capability, while the normal symbol-generation path
+remains host-compiled pending its production transfer.
 
 Compiler head now emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in unchanged
@@ -335,14 +335,15 @@ Compiler head now emits the exact volatile
 integer `=r` output. It becomes a zero-displacement `CALL` followed by
 `POP r32` through Cupid's x86 model, with no relocation or host assembler.
 Both complete roots compile reproducibly under the kernel profile. The
-checked seed predates this support, so they remain host-built `.c` sources.
+checked seed now carries this support, but they remain host-built `.c`
+sources until their production transfer.
 
 Compiler head now accepts the GNU `Nd` alternative used by the unchanged
 8259 PIC helpers. It selects the valid DX branch and emits the exact
 `outb %0, %1` and `inb %1, %0` byte forms through Cupid's x86 model. The
 complete `kernel/cpu/pic.c` root compiles to a deterministic 2,408-byte
-ELF32 object. The checked seed and normal Make recipe still predate this
-capability.
+ELF32 object. The checked seed carries the capability; the normal Make
+recipe does not use it yet.
 
 Compiler head accepts the exact volatile `fnstsw %0`, `fnstcw %0`, and
 `stmxcsr %0` forms with one `=m` output. The first two require a modifiable
@@ -353,8 +354,8 @@ call-next form above covers the later local-label statement in unchanged
 `kernel/core/panic.c` as well. Two complete kernel-profile compiles produce
 the same validated 10,212-byte ELF32 object with SHA-256
 `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428`.
-The checked seed and normal ownership boundary have not moved for this
-compiler-head addition.
+The checked seed now carries both required assembly forms. The normal
+ownership boundary has not moved.
 
 Function-body GNU assembly may have no operands. Basic statements and
 extended statements with an empty output list are implicitly volatile. Exact
@@ -375,8 +376,8 @@ constraint carries a represented four-byte integer or data pointer, while
 `c` carries a represented four-byte integer in ECX. CupidC emits CR0, CR2,
 CR3, and CR4 moves plus RDMSR directly into ELF32 objects without a host
 assembler. All three unchanged roots compile twice to byte-identical,
-validated objects. The checked seed predates this capability, so the files
-remain host-owned `.c` roots until a later production transfer.
+validated objects. The checked seed carries this capability, but the files
+remain host-owned `.c` roots until their production transfer.
 
 Compiler head now compiles both unchanged FXSAVE statements in
 `kernel/core/process.c`. The exact volatile `fxsave (%0)` form accepts one
@@ -384,8 +385,8 @@ four-byte object or `void` pointer `r` input and the source's `memory`
 clobber. The emitter loads the pointer into EAX and emits `0F AE 00` through
 the shared x86 model. Two complete `KERNEL_I386` compiles produce the same
 validated 30,216-byte ELF32 object, with one decoded FXSAVE in each process
-creation path. The checked seed predates this support, so `process.c` remains
-host-owned until a later seed refresh and production cutover.
+creation path. The checked seed carries this support, but `process.c` remains
+host-owned until its production cutover.
 
 Compiler head compiles every unchanged helper in `kernel/core/ports.h`.
 The six scalar helpers retain their 8-bit, 16-bit, or 32-bit accumulator
@@ -457,7 +458,7 @@ CupidC emits the repository's i386 Linux runtime and five command closures: Cupi
 
 The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Both options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file.
 
-The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,000,636-byte stage-three image with SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`. It carries the source-driven frontier from revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af`, including weak symbols, named sections, unused declarations, typed static nulls, known-true loop reachability, comma expressions, represented function-pointer casts, and output-only register snapshots. The harness pins the build plan independently, freezes the verified manifest and binaries, and captures 40 live inputs, including `link.ld`. Seed CupidC, CupidASM, and CupidLD build stage two, then the stage-two producer trio repeats the work for stage three. The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and 103 normal Cupid OS root objects. Native Windows tooling and the remaining production handoff stay open.
+The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,042,976-byte stage-three image with SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`. It comes from revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb` and adds GNU `used`, privileged-register inputs, FXSAVE, call-next capture, GNU `Nd`, and machine-state memory outputs to the prior source-driven frontier. The harness pins the build plan independently, freezes the verified manifest and binaries, and captures 40 live inputs, including `link.ld`. Seed CupidC, CupidASM, and CupidLD build stage two, then the stage-two producer trio repeats the work for stage three. The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte with host code-generator commands poisoned. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and 103 normal Cupid OS root objects. Native Windows tooling and the remaining production handoff stay open.
 
 Hosted i386 object emission places ESP on a sixteen-byte boundary immediately before every `CALL`. The emitter derives padding from the function frame, the live Linear IR stack depth, and any outgoing target-sized argument area. Direct and indirect calls use the same rule for prototyped, variadic, unprototyped, nested, structure, and wide cases, with zero, four, eight, or twelve bytes of padding as needed.
 
@@ -487,7 +488,7 @@ above.
 
 [ADR 0115](docs/adr/0115-transfer-the-source-driven-roots-to-cupidc.md) records the 20-root `.cc` ownership transfer. [ADR 0116](docs/adr/0116-retain-gnu-used-entities-in-cupidc.md) records compiler-head `used` metadata. [ADR 0117](docs/adr/0117-emit-privileged-register-assembly-in-cupidc.md) records control-register and RDMSR assembly. [ADR 0118](docs/adr/0118-cupidc-call-next-gnu-assembly.md) records the stack-trace call-next boundary. [ADR 0119](docs/adr/0119-cupidc-fxsave-pointer-input-assembly.md) records the FXSAVE pointer-input boundary.
 
-[ADR 0120](docs/adr/0120-use-dx-for-gnu-nd-port-operands.md) records the GNU `Nd` DX fallback and the compiler-head PIC proof. [ADR 0121](docs/adr/0121-cupidc-machine-state-memory-outputs.md) records the exact machine-state memory-output boundary.
+[ADR 0120](docs/adr/0120-use-dx-for-gnu-nd-port-operands.md) records the GNU `Nd` DX fallback and the compiler-head PIC proof. [ADR 0121](docs/adr/0121-cupidc-machine-state-memory-outputs.md) records the exact machine-state memory-output boundary. [ADR 0122](docs/adr/0122-refresh-seed-for-gnu-assembly-frontier.md) records the five-tool seed refresh and poisoned-host reproof.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 

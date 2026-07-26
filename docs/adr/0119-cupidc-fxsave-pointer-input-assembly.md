@@ -104,6 +104,6 @@ Disassembly finds exactly two `0F AE 00` instructions at `.text` offsets
 
 The full native Toolchain contract target and all three focused public
 selectors pass. No production object or runtime path changed, so this
-compiler-head step does not claim a boot result. The checked seed predates
-the capability, and `process.c` remains a host-owned `.c` source until a
-seed refresh and production cutover pass their own gates.
+compiler step does not claim a boot result. ADR 0122 moves the capability
+into the checked seed, and `process.c` remains a host-owned `.c` source until
+its production cutover passes.

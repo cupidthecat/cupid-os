@@ -180,7 +180,7 @@ and CR4 moves and RDMSR into ELF32 objects without a host assembler.
 
 The unchanged roots compile twice to byte-identical validated objects. Their
 sizes are 8,756 bytes for idt.c, 2,336 bytes for paging.c, and 4,184 bytes for
-lapic.c. The checked seed predates these forms, so the normal build still
+lapic.c. The checked seed carries these forms, but the normal build still
 uses the host compiler for all three .c files. WRMSR, unsupported
 control-register directions, fixed EBX and q inputs, arbitrary templates,
 and general clobbers remain open.
@@ -191,7 +191,7 @@ or void pointer, and the statement retains its memory clobber. Linear IR
 evaluates the pointer once. The shared x86 model emits 0F AE 00 at the address
 in EAX without a temporary frame slot. Two complete KERNEL_I386 compiles
 produce the same validated 30,216-byte object, with FXSAVE at text offsets
-0x1967 and 0x4d7c. The checked seed predates this support, so process.c
+0x1967 and 0x4d7c. The checked seed carries this support, but process.c
 remains host-built.
 
 Compiler head accepts three exact volatile machine-state memory outputs.
@@ -201,8 +201,8 @@ destination once, and the i386 emitter writes through that address with the
 shared x86 model. Other =m templates remain unsupported. The separate exact
 call-next support also handles the later local-label statement in unchanged
 panic.c. Two full kernel-profile compiles produce the same validated
-10,212-byte ELF32 object. The checked seed does not yet include this
-capability.
+10,212-byte ELF32 object. The checked seed carries this capability, but the
+normal build does not use it yet.
 
 Compiler head handles integer atomic load, store, exchange, fetch-add, and
 fetch-or builtins for one-, two-, and four-byte objects. It checks constant
@@ -418,9 +418,11 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current 2,000,636-byte CupidC image has SHA-256
-2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac
-and comes from revision d2e0f8b876d96b9268666e16c26a9e16ab5249af.
+The current 2,042,976-byte CupidC image has SHA-256
+e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41
+and comes from revision 32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb.
+It carries GNU used, privileged-register inputs, FXSAVE, call-next capture,
+GNU Nd, and machine-state memory outputs.
 The harness freezes the verified manifest and binaries and captures 40 current
 inputs, including link.ld. The seed producer trio builds stage two from that
 snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,
@@ -589,8 +591,8 @@ functions. Compatible redeclarations merge the flag into one canonical
 entity. Linear IR and object emission validate the frozen metadata. The
 attribute does not change current object bytes because every represented
 definition is already emitted. The generated kernel-symbol source passes
-deterministic compiler-head emission, but the checked seed and normal build
-still use the earlier compiler boundary.
+deterministic compiler-head emission. The checked seed carries the
+capability, but the normal build still uses the host compiler.
 
 Compiler head also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.c
@@ -598,9 +600,9 @@ and kernel/lang/cupidc.c. It takes one modifiable four-byte integer =r
 output. Cupid's x86 model emits a zero-displacement CALL followed by POP r32,
 which captures the address of the pop and restores ESP without a relocation.
 Both unchanged roots compile reproducibly as validated i386 ELF32 objects
-under the complete kernel profile. They remain host-built .c sources because
-the checked seed predates this capability. Other call templates and general
-inline-assembly labels remain unsupported.
+under the complete kernel profile. They remain host-built .c sources pending
+their production transfer. Other call templates and general inline-assembly
+labels remain unsupported.
 >endtree
 
 >h2 C Compatibility Notes

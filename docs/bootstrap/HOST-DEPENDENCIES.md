@@ -77,19 +77,19 @@ frozen flag, and the focused object proof reproduces the generated
 `kernel/cpu/ksyms_data.c` compiles twice to the same 101,808-byte object with
 SHA-256
 `802b604aa24261b48251a537c011e7d81839fab67fbe3c7491e7991ad4797ae3`.
-This removes a compiler-head language blocker but retires no host dependency.
-The checked seed predates the capability, so GCC or Clang still compiles that
-generated root in the normal build. ADR 0116 records the boundary.
+This removes a language blocker but retires no host dependency. The checked
+seed carries the capability, while GCC or Clang still compiles that generated
+root in the normal build. ADR 0116 records the boundary.
 
 Compiler head now accepts the independent `r` and `c` inputs used by exact
 control-register moves and RDMSR. It compiles unchanged `kernel/cpu/idt.c`,
 `kernel/mm/paging.c`, and `kernel/smp/lapic.c` twice to byte-identical
 validated objects of 8,756, 2,336, and 4,184 bytes. The emitter writes the
 privileged i386 instructions directly and does not invoke a host assembler.
-This proof retires no normal-build dependency. The checked seed predates the
-new forms, so GCC or Clang still owns all three roots and their `.c` names.
-Seed refresh, production transfer, image linkage, and runtime evidence remain
-open. ADR 0117 records the capability and its unsupported forms.
+This proof retires no normal-build dependency. The checked seed carries the
+new forms, but GCC or Clang still owns all three roots and their `.c` names.
+Production transfer, image linkage, and runtime evidence remain open. ADR
+0117 records the capability and its unsupported forms.
 
 Compiler head now handles the exact volatile
 `call 1f\n1: popl %0` state read in `kernel/lang/as.c` and
@@ -98,7 +98,7 @@ output and emits a zero-displacement call followed by a pop through Cupid's
 x86 model. Both unchanged roots compile twice to byte-identical validated
 i386 relocatable objects under the complete kernel profile. This removes
 their call-next compiler-head blocker, but it retires no host dependency.
-The checked seed predates the capability, so the normal build still assigns
+The checked seed carries the capability, but the normal build still assigns
 both roots to GCC or Clang and keeps their `.c` names. ADR 0118 records the
 boundary.
 
@@ -107,7 +107,7 @@ now compiles both exact volatile `fxsave (%0)` statements in unchanged
 `kernel/core/process.c`, retaining one four-byte object or `void` pointer
 `r` input and the `memory` clobber. The shared x86 path emits `0F AE 00` at
 `[EAX]`. Two full-profile compiles produce the same validated 30,216-byte
-object. The checked seed still lacks this support, so GCC or Clang remains
+object. The checked seed now carries this support, but GCC or Clang remains
 the normal-build owner of `process.c`. Native contract binaries also remain
 host-built. ADR 0119 records the boundary.
 
@@ -116,9 +116,9 @@ Compiler head now represents the GNU `Nd` constraint in
 8-bit port templates without a host assembler. The unchanged root produces
 a 2,408-byte object with SHA-256
 `c1855a19e0cd285953996344493dcefe916f06d89fed706219718920b4d2ea5d`.
-This does not retire a host dependency yet. The checked seed and normal PIC
-recipe still use the earlier compiler boundary. ADR 0120 records the
-capability and remaining transfer proof.
+This does not retire a host dependency yet. The checked seed carries the
+compiler boundary, but the normal PIC recipe does not use it. ADR 0120
+records the capability and remaining transfer proof.
 
 Compiler head writes the FPU status word, x87 control word, and MXCSR
 through the exact `=m` GNU assembly outputs in `kernel/core/panic.c`. The
@@ -128,9 +128,9 @@ supports the source's later exact `call 1f` template. Two complete profile
 compiles produce the same validated 10,212-byte object with SHA-256
 `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428`.
 This work does not change the 136-source production cohort, the 155 host C
-transforms, or the 103 host-owned root objects. The checked seed still needs
-a later refresh and production gate before one of those dependencies can
-move. ADR 0121 records the boundary.
+transforms, or the 103 host-owned root objects. The checked seed carries the
+capability, but the production gate must pass before one of those
+dependencies can move. ADR 0121 records the boundary.
 
 Value-preserving bit-field assignment changes compiler capability without moving another output. Four focused functions cover unsigned, signed, full-width, pointer-derived, and indexed stores. The execution oracle checks the stored value, neighboring bits, arguments, and stack state. GCC or Clang still builds the shared frontend, Linear IR, emitter, and contracts. The proof adds no transform beyond the 136-object production cohort and retires no executable, linker, assembler, or object-tool dependency.
 
@@ -144,7 +144,7 @@ The self-host source frontier also retires no dependency. Hosted CupidC emits de
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
-The five static commands now share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `d2e0f8b876d96b9268666e16c26a9e16ab5249af`; only CupidC changed from the preceding seed. Its 2,000,636-byte image has SHA-256 `2224337832dda113f27c70fb944188b48c0660324a652725feb83976461bc0ac`. Checked CupidC compiles the stage-two union, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. A clean checkout can rebuild this static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
+The five static commands now share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`; only CupidC changed from the preceding seed. Its 2,042,976-byte image has SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`. Checked CupidC compiles the stage-two union, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. A clean checkout can rebuild this static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
 
 Two active-source fragments anchor the wide call requirement. `toolchain/tests/cupidc_object_contract.c::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.c::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover those call fragments only. They do not establish whole-function CupidC ownership. No active-source guard covers a wide `va_arg` or an unprototyped wide call, so those paths have focused ABI fixture evidence only. Current public modules contain 70 frontend tests, 58 IR tests, and 70 object tests. The neighboring `variadic-callees`, `old-style-empty-functions`, `wide-returns`, and `floating-transport` modes remain part of the full gate. The `js_push_num` guard covers its declaration and assignment lines only, not the full browser interpreter function.
 
