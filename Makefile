@@ -607,9 +607,11 @@ kernel/audio/ac97.o: kernel/audio/ac97.cc drivers/pci.h drivers/serial.h \
 kernel/audio/mixer.o: kernel/audio/mixer.cc kernel/audio/mixer.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mixer.cc --output kernel/audio/mixer.o
 
-# Nuked-OPL3 emulator — vendored LGPL-2.1, built with relaxed CFLAGS_DOOM
-kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.c kernel/audio/nuked_opl3.h
-	$(CC) $(CFLAGS_DOOM) -o $@ $<
+# Nuked OPL3 emulator, vendored LGPL-2.1 and compiled by checked CupidC
+kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.cc \
+	kernel/audio/nuked_opl3.h kernel/core/string.h kernel/core/types.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o
 
 # mus2midi + memio — vendored GPL-2, built with relaxed CFLAGS_DOOM
 kernel/audio/memio.o: kernel/audio/memio.cc kernel/audio/memio.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)

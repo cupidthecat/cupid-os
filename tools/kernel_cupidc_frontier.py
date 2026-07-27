@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -9,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -39,6 +41,7 @@ except ModuleNotFoundError:
 KERNEL_SOURCES = APPROVED_KERNEL_SOURCES
 
 BOUNDARIES = ()
+PUBLISH_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2, 0.4, 0.8)
 
 
 class FrontierError(Exception):
@@ -289,6 +292,14 @@ def _logical_path(root, path):
     return "/" + relative.as_posix()
 
 
+def _retryable_publish_error(error):
+    return (
+        isinstance(error, PermissionError)
+        or error.errno in (errno.EACCES, errno.EPERM)
+        or getattr(error, "winerror", None) in (5, 32)
+    )
+
+
 def _profile_arguments():
     return list(KERNEL_I386_ARGUMENTS)
 
@@ -318,7 +329,14 @@ def _input_paths(root):
         if not include_root.is_dir():
             continue
         for suffix in ("*.h", "*.inc"):
-            paths.update(include_root.rglob(suffix))
+            paths.update(
+                path
+                for path in include_root.rglob(suffix)
+                if not any(
+                    part.startswith(".")
+                    for part in path.relative_to(include_root).parts
+                )
+            )
     return sorted(paths)
 
 
@@ -490,12 +508,22 @@ def _staged_output(output):
         for name in ("first", "second", "negative"):
             (staging / name).mkdir()
         yield staging
-        try:
-            os.replace(staging, output)
-        except OSError as error:
-            raise FrontierError(
-                f"could not publish frontier directory {output}: {error}"
-            ) from error
+        publish_error = None
+        for attempt in range(len(PUBLISH_RETRY_DELAYS_SECONDS) + 1):
+            try:
+                os.replace(staging, output)
+                return
+            except OSError as error:
+                publish_error = error
+                if (
+                    not _retryable_publish_error(error)
+                    or attempt == len(PUBLISH_RETRY_DELAYS_SECONDS)
+                ):
+                    break
+                time.sleep(PUBLISH_RETRY_DELAYS_SECONDS[attempt])
+        raise FrontierError(
+            f"could not publish frontier directory {output}: {publish_error}"
+        ) from publish_error
 
 
 def _validate_elf32_header(image):

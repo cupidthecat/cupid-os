@@ -50,7 +50,7 @@ executables are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean checkout.
 It does not complete the normal OS build migration. Native contract runners,
-hosted development commands, and 93 normal C root objects still use a host C
+hosted development commands, and 92 normal C root objects still use a host C
 compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
@@ -121,36 +121,43 @@ Compiler head and the checked seed parse all eight helpers in unchanged
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
-header gate to 154/154 at compiler head.
+header gate to 155/155 at compiler head.
 
-The normal image has 146 checked CupidC C transforms: 145 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. All 146 sources use
+The normal image has 147 checked CupidC C transforms: 146 checked-in sources
+and the generated `kernel/cpu/ksyms_data.cc` source. All 147 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386
 Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
 records the first 111-root transfer, ADR 0126 records the complete
-fixed-point rename and old-seed proof, and ADR 0129 records the lexer
-transfer. Nine strict checked-in roots remain host-owned.
+fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer,
+and ADR 0135 records the Nuked OPL3 transfer. Nine strict checked-in roots
+remain host-owned.
 
-Compiler head now resolves the C11 inline declaration set in unchanged
-`kernel/audio/nuked_opl3.c`. The ordinary declaration in its header means
+The checked seed resolves the C11 inline declaration set in
+`kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
 the later inline body provides a global `OPL3_Generate4Ch` definition. Two
 kernel-profile compiles produce the same validated 40,424-byte object with
 SHA-256
 `a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1`.
-Prior `static` linkage remains internal, and an external-linkage inline
-declaration now requires a definition in the same translation unit.
-The checked seed now carries this rule. The normal recipe remains host-owned
-and the source stays `.c` until the production ownership gates pass.
+The object imports only `memset`. Prior `static` linkage remains internal, and
+an external-linkage inline declaration requires a definition in the same
+translation unit. The closed production recipe, frontier, image builds, and
+dual-NIC runtime gates pass. The wrapper compiles from a private copy of the
+source and its three headers, then rejects live input drift before it replaces
+the object.
 
-The strict frontier must compile each of its 145 approved sources twice.
+The strict frontier must compile each of its 146 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe, and each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
-and symbols pass validation. The complete frontier now compiles all 145 roots
-twice against a 433-file snapshot. Both object sets are byte-identical and
-total 3,545,724 bytes. The combined graph passes the two-link symbol and
-memory checks, a clean normal image build, and the strong four-vCPU runtime
-gate.
+and symbols pass validation. Final frontier publication retries only short
+permission-style directory locks with five bounded delays. A persistent lock
+or any other filesystem error publishes nothing. Input discovery skips hidden
+paths under active include roots, so private compiler staging headers from a
+concurrent build do not enter the repository snapshot. The complete frontier
+now compiles all 146 roots twice against a 434-file snapshot. Both object sets
+are byte-identical and total 3,586,148 bytes. The combined graph passes the
+two-link symbol and memory checks, clean normal and partitioned image builds,
+and strong four-vCPU runtime gates with both NICs.
 
 The checked seed compiles three generated installation tables. CupidC also
 compiles the three example external ELF programs. All six use `.cc` source
@@ -183,13 +190,13 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 104,447-byte blob length
+`unsigned int` words and records the logical 104,933-byte blob length
 separately. It runs private snapshots of the pass-one kernel and CupidDis,
 rejects malformed symbol rows, an empty text-symbol set, and live input
 drift, then replaces the `.cc` source atomically. The checked compiler
 wrapper freezes that source and its header closure before it publishes the
-object. The word array ends with one zero pad byte. The final kernel
-consumes 4,351 text symbols and shows no address drift from the pass-one
+object. The word array ends with three zero pad bytes. The final kernel
+consumes 4,369 text symbols and shows no address drift from the pass-one
 kernel.
 
 Compiler head also emits the exact volatile
@@ -238,12 +245,12 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 152
-transforms to CupidC, 145 to the host C compiler, 165 to host Python, and five
+Across the root and supplemental builds, the current audit assigns 153
+transforms to CupidC, 144 to the host C compiler, 166 to host Python, and five
 to Make.
-CupidC's total is the 146 normal transforms plus three generated installation
+CupidC's total is the 147 normal transforms plus three generated installation
 tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The host compiler
-still produces 93 root objects and still builds the native user drivers.
+still produces 92 root objects and still builds the native user drivers.
 The fifth Make transform prepares those drivers.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.

@@ -3008,8 +3008,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             {name: sum(case_name == name for case_name, _ in active)
              for name, _, _, _ in profiles},
             {
-                "KERNEL_I386": 154,
-                "DOOM_COMPAT_I386": 4,
+                "KERNEL_I386": 155,
+                "DOOM_COMPAT_I386": 3,
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
                 "CUPID_RUNTIME": 105,
@@ -3024,7 +3024,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("KERNEL_I386", "/kernel/core/kernel.c"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
             ("KERNEL_I386", "/kernel/audio/mus2midi.cc"),
-            ("DOOM_COMPAT_I386", "/kernel/audio/nuked_opl3.c"),
+            ("KERNEL_I386", "/kernel/audio/nuked_opl3.cc"),
             ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.c"),
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
             ("USER_I386", "/user/examples/hello.cc"),
@@ -4073,8 +4073,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for profile in contract["profiles"]
                 ],
                 [
-                    ("KERNEL_I386", 154, 4),
-                    ("DOOM_COMPAT_I386", 4, 0),
+                    ("KERNEL_I386", 155, 4),
+                    ("DOOM_COMPAT_I386", 3, 0),
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
                     ("CUPID_RUNTIME", 105, 0),
@@ -4145,7 +4145,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 149)
+            self.assertEqual(len(checked_cupidc_roots), 150)
             self.assertEqual(
                 {
                     path
@@ -4162,7 +4162,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                149,
+                150,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4483,9 +4483,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 152,
-                    "host_c_compiler": 145,
-                    "host_python": 165,
+                    "cupid_c_compiler": 153,
+                    "host_c_compiler": 144,
+                    "host_python": 166,
                 },
             )
 

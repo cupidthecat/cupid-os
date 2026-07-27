@@ -21,9 +21,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 108 |
+| `c` | 107 |
 | `c_header` | 270 |
-| `cupid_c` | 293 |
+| `cupid_c` | 294 |
 
 ## Source cohorts
 
@@ -77,12 +77,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 152 |
+| `cupid_c_compiler` | 153 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 145 |
-| `host_python` | 165 |
+| `host_c_compiler` | 144 |
+| `host_python` | 166 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -106,7 +106,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 4599 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 643 |
-| `c.output` | 1 | 93 |
+| `c.output` | 1 | 92 |
 | `c.preprocessor` | 18 | 6668 |
 | `c.qualifier` | 2 | 12499 |
 | `c.storage` | 4 | 8231 |
@@ -116,8 +116,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 152 |
-| `cupid_c.storage` | 2 | 118 |
+| `cupid_c.output` | 1 | 153 |
+| `cupid_c.storage` | 2 | 129 |
 | `cupid_c.type` | 12 | 152 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
@@ -152,7 +152,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 282 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 283 |
 
 ## Source-cohort migration order
 
@@ -232,7 +232,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_include_operands` | `pass` | 2382 C include operands (2150 quoted, 232 angle, 0 pp-token); 667 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 667 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
-| `c_preprocessor_translation_units` | `pass` | 379 tracked + 4 generated translation units (KERNEL_I386=154, DOOM_COMPAT_I386=4, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=12, HOSTED_KERNEL_BRIDGE_64=1, HOSTED_I386_LINUX=19, HOSTED_I386_LINUX_GNU=1); 22 include-only, 2 non-root headers; 20 hosted deferred (20 external, 0 hermetic) |
+| `c_preprocessor_translation_units` | `pass` | 379 tracked + 4 generated translation units (KERNEL_I386=155, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=12, HOSTED_KERNEL_BRIDGE_64=1, HOSTED_I386_LINUX=19, HOSTED_I386_LINUX_GNU=1); 22 include-only, 2 non-root headers; 20 hosted deferred (20 external, 0 hermetic) |
 | `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 10 success and 6 failure cases; i386-linux |
 
 ## Interpretation limits

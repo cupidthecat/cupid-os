@@ -11524,3 +11524,181 @@ and repeats all 21 behavior cases.
 This step changes the checked bootstrap input only. Nuked OPL3 remains
 host-built until its separate source rename, production frontier, image, and
 runtime gates pass. The host compiler still owns 93 normal root objects.
+
+## 2026-07-27: transfer Nuked OPL3 to checked CupidC
+
+The refreshed seed removed the last language blocker in the Nuked OPL3
+emulator. The production path now renames
+`kernel/audio/nuked_opl3.c` to `kernel/audio/nuked_opl3.cc` without changing
+the implementation. Its Make rule runs the checked kernel compiler wrapper
+under `KERNEL_I386` and declares the source, three headers, and common seed
+controls as its complete input set.
+
+The dedicated ownership test failed first because the `.cc` source was not in
+the wrapper's approved source list. After the transfer, it checks the exact
+dependency closure, command, approved path, and active profile. The old `.c`
+spelling remains only in a negative wrapper test.
+
+Two focused compiles produce the same validated 40,424-byte object with
+SHA-256
+`a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1`.
+CupidDis reports `OPL3_Generate4Ch` as a defined global function. The only
+undefined import is `memset`.
+
+### Frontier and audit evidence
+
+The public kernel frontier passed in 1,231.136 seconds. It compiles all 146
+checked-in roots twice, validates every i386 relocatable object, and compares
+the two object sets byte for byte.
+
+| Frontier fact | Value |
+| --- | --- |
+| Frozen input count | 434 |
+| Input snapshot SHA-256 | `4bf3bca0564df68e1049e496ac990691023c4ccb5d8815e419c98bf6a11d2b53` |
+| Object count per pass | 146 |
+| Aggregate object bytes | 3,586,148 |
+| Manifest bytes | 83,265 |
+| Manifest SHA-256 | `343df05e20778b8f0d96d35d90f878e2e1fd8fb1bc131a3fde9aaf719d2e055f` |
+
+The active-source audit has 698 sources, 253 feature IDs, 502 transforms, and
+42 accounted unreachable files. The language split is 27 assembly files, 107
+C translation units, 270 C headers, and 294 Cupid C files. Ownership is 153
+CupidC transforms, 144 host C transforms, 166 host Python transforms, and
+five Make transforms. Host C now produces 92 normal root objects. The
+active-source digest is
+`0da325a39ff0f8a0ee7e42ccd49ff5137c932ded8e90cc0bbb7885d4d6164c50`.
+The 1,521,845-byte audit JSON has SHA-256
+`6f6d194ddeaeb30c69b7488e098ef8c92c623ce32fa02a9b7a289e5bdd3df175`.
+
+The audit runs 379 tracked profiles plus four generated roots. The kernel
+profile now owns 155 runs, while the Doom compatibility profile owns three.
+The active non-Doom header gate is 155/155. All 62 build-audit tests passed in
+466.116 seconds. The 97 wrapper and frontend tests passed in 93.932 seconds.
+
+The first canonical `make test` run caught stale profile totals in the
+preprocessor contract. The generated manifest reported the correct transfer
+from four Doom compatibility cases to three and from 154 kernel cases to 155.
+The frozen expectations still held the old totals. The focused active-corpus
+test failed before the two totals changed, then passed in 4.810 seconds. All
+39 preprocessor contract tests passed in 5.206 seconds. A fresh canonical run
+passed all 764 tests in 3,305.941 seconds with one expected skip.
+
+The specification review found that the wrapper still read ordinary sources
+from the live repository even though this checkpoint promised a frozen Nuked
+closure. A positive test now requires a private copy of the source and all
+three headers. A negative test changes a live header during compilation and
+requires the existing object to remain untouched. The pair first failed
+against the live path, then passed with the generated-symbol closure tests
+after the wrapper gained a general frozen-input map and prepublish drift
+check. A real production compile through that path reproduced the same
+40,424-byte object and SHA-256.
+
+The next canonical `make test` run exercised all 766 tests in 3,313.251
+seconds. The compiles completed, but the real WSL frontier failed at its final
+directory promotion with Windows access denied. Both smaller two-pass
+publishers passed again, isolating the defect to a short-lived handle after
+the large WSL run. Two new publication tests first failed against the
+single-attempt rename. Frontier publication now retries only
+permission-style errors with five bounded delays. The positive test clears a
+simulated lock on its third attempt. The negative test keeps the lock active,
+exhausts every delay, and proves that no output appears. Other filesystem
+errors still fail immediately. All three focused publication tests pass in
+33.676 seconds.
+
+A real frontier rerun overlapped a normal image build and found another
+parallel-build defect after 815.242 seconds. The checked wrapper created a
+hidden `kernel/cpu/.ksyms_data.o.cupidc-*` tree for its private compile. The
+frontier's recursive header scan entered that tree, added the copied
+`kernel/core/types.h` and `kernel/cpu/ksyms.h` files to its live inventory,
+and correctly rejected the apparent drift.
+
+A focused regression first showed that the private header was included. The
+fixed scan ignores any header or include file with a hidden path component
+below an active include root, while the ordinary header beside it remains in
+the snapshot. The snapshot and publication group now passes all five tests.
+This keeps concurrent checked builds isolated without weakening the frozen
+repository-header contract.
+
+An independent current-tree reproof then passed all 146 roots in 1,319.325
+seconds while the canonical suite and runtime work were also active. Both
+object sets remained byte-identical, the 434-input snapshot kept its reviewed
+hash, and the retained 83,265-byte manifest kept SHA-256
+`343df05e20778b8f0d96d35d90f878e2e1fd8fb1bc131a3fde9aaf719d2e055f`.
+
+The standards review also found that the strict host-root count should remain
+nine. Nuked used the separate relaxed vendored profile, so the transfer moves
+the total host root count from 93 to 92 without changing those nine strict
+roots. The current README, bootstrap records, wiki, and CTXT text now state
+that distinction.
+
+The final canonical `make test` returned zero in 3,502.557 seconds. Unittest
+ran 769 tests in 3,422.213 seconds: 768 passed, the expected Windows-only
+check skipped once, and none failed or errored. Both production frontiers and
+the closing active-source audit check passed in the same run.
+
+### Clean build and symbol evidence
+
+The proof removed only ignored build outputs, then ran
+`make -j2 all WAD_SRCS=` from a clean artifact state. It completed in 406.9
+seconds. Both CupidLD links, symbol generation, checked compilation of the
+generated symbol source, CupidObj flattening, and image construction passed.
+`make test_usb_partitioned.img` also produced the 32 MiB partitioned image.
+Review then caught that the CTXT edits embedded in the kernel made those
+artifact hashes stale. The concurrency fix added one last CTXT clarification.
+A final build after every embedded document settled completed in 455.681
+seconds. The table records that current-tree image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,003,988 | `e597c9ca869e3ef3804a12be6c39291161e203c98650d5421202a137b2589315` |
+| `kernel/kernel.elf` | 8,110,484 | `1e1720f0603595ccff4b15d6c07433e4fcb9bbe522c1632f383c80ec95250726` |
+| `kernel/kernel.bin` | 7,913,528 | `97fd9704ed2ceb1a095853e4746aafa360420f79a1cbefad1374c3396263270a` |
+| `cupidos.img` | 209,715,200 | `e480f936f2192cdf4cb35028a3da898817ab4fdee66d1f3c3bfc8e9b6639d819` |
+| `kernel/cpu/ksyms_data.cc` | 347,884 | `5aa057ae4472f01df1a07212ed9e313ec75945aaa448fee7eb7adbac92215a08` |
+| `kernel/cpu/ksyms_data.o` | 105,348 | `223c19ab43e228e0ef83b2b878617121a687f0eb86e5f9545f1b1754808ef36e` |
+
+CupidDis reports 4,369 text symbols from both kernel passes. The generated
+source packs 104,933 logical bytes and three tail padding bytes. The flat
+kernel matches the image at LBA 5. `_loaded_end` is `0x0088C038`, leaving
+472,520 bytes below `0x008FF600`. `_kernel_end` is `0x00CB1A70`, leaving
+320,912 bytes below `0x00D00000`.
+
+### Runtime evidence and incomplete attempt
+
+The first 45-second e1000 boot window expired while both long WSL compiler
+proofs were active. Startup kept making progress, and the log contained no
+panic, compiler failure, or frontier rejection. The immutable image kept
+SHA-256
+`e480f936f2192cdf4cb35028a3da898817ab4fdee66d1f3c3bfc8e9b6639d819`.
+The 90-second-window retry passed in 192.908 seconds. The framebuffer reported
+95,201 changed pixels. AC97 reported 6,275,031 frames with peak 25,600, and
+the PC speaker reported 78,916 frames with peak 32,248.
+SMP, RDRAND, all 62 crypto checks, USB storage and reattachment, networking,
+the desktop, terminal, and in-OS CupidC execution all completed. The
+71,277-byte log has SHA-256
+`c2e37d7d422a50e62ad016d6afa61b9f4414a5ccb38981477df75f5183e3e55f`.
+
+The first pre-review RTL8139 run reached networking, USB, the desktop,
+terminal, and audio, then timed out during the final `godsong 1 200` command.
+It contained no panic or compiler failure, so it was retained as an
+incomplete attempt rather than accepted evidence. Its 60,906-byte log has
+SHA-256
+`9638093bc9864691ef4f0e36d0297709223d76c26acb9aab011a768c2d9e3ad3`.
+
+A pre-review retry passed but became supporting evidence only after review
+found that the embedded CTXT changes were not in that image. The first
+current-image RTL8139 attempt ran beside the compiler proofs and exhausted
+its 45-second desktop window while the kernel was still making filesystem
+progress. It contained no failure marker. A 90-second retry passed, and the
+final captured proof passed in 188.651 seconds. The framebuffer reported
+85,633 changed pixels. AC97 reported 6,216,315 frames with peak 25,600, and
+the PC speaker reported 81,905 frames with peak 32,512. The 65,102-byte log
+has
+SHA-256
+`aa8b46c52524cf7d343806b208cc6bb69d361004da5f4be1578e994f043b9d24`.
+Neither final log contains a panic, compiler failure, or frontier rejection
+marker.
+
+The normal build now contains 146 checked-in CupidC roots plus the generated
+kernel symbol source. All 147 normal sources use `.cc`. Nine strict
+checked-in roots remain host-owned. ADR 0135 records the ownership decision.

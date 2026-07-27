@@ -3229,16 +3229,29 @@
       },
       {
         "inputs": [
-          "kernel/audio/nuked_opl3.c",
-          "kernel/audio/nuked_opl3.h"
+          "kernel/audio/nuked_opl3.cc",
+          "kernel/audio/nuked_opl3.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/audio/nuked_opl3.o",
         "recipe": [
-          "$(CC) $(CFLAGS_DOOM) -o $@ $<"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -10481,55 +10494,55 @@
             {
               "directive": "if",
               "line": 219,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1019,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1028,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1163,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1196,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1361,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1373,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1402,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
               "directive": "if",
               "line": 1485,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT"
             },
             {
@@ -10547,7 +10560,7 @@
           ],
           "expression": "OPL_ENABLE_STEREOEXT",
           "files": [
-            "kernel/audio/nuked_opl3.c",
+            "kernel/audio/nuked_opl3.cc",
             "kernel/audio/nuked_opl3.h"
           ],
           "if_occurrences": 11,
@@ -10559,13 +10572,13 @@
             {
               "directive": "if",
               "line": 61,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_ENABLE_STEREOEXT && !defined OPL_SIN"
             }
           ],
           "expression": "OPL_ENABLE_STEREOEXT && ! defined OPL_SIN",
           "files": [
-            "kernel/audio/nuked_opl3.c"
+            "kernel/audio/nuked_opl3.cc"
           ],
           "if_occurrences": 1,
           "occurrences": 1
@@ -10576,31 +10589,31 @@
             {
               "directive": "if",
               "line": 1148,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             },
             {
               "directive": "if",
               "line": 1173,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             },
             {
               "directive": "if",
               "line": 1183,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             },
             {
               "directive": "if",
               "line": 1206,
-              "path": "kernel/audio/nuked_opl3.c",
+              "path": "kernel/audio/nuked_opl3.cc",
               "text": "#if OPL_QUIRK_CHANNELSAMPLEDELAY"
             }
           ],
           "expression": "OPL_QUIRK_CHANNELSAMPLEDELAY",
           "files": [
-            "kernel/audio/nuked_opl3.c"
+            "kernel/audio/nuked_opl3.cc"
           ],
           "if_occurrences": 4,
           "occurrences": 4
@@ -11395,7 +11408,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "KERNEL_I386",
-          "tracked_translation_units": 154
+          "tracked_translation_units": 155
         },
         {
           "forced_includes": [],
@@ -11516,7 +11529,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "DOOM_COMPAT_I386",
-          "tracked_translation_units": 4
+          "tracked_translation_units": 3
         },
         {
           "forced_includes": [
@@ -15573,7 +15586,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/process.cc",
         "kernel/cpu/fpu.c",
         "kernel/cpu/irq.cc",
@@ -15733,7 +15746,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/app_launch.cc",
         "kernel/doom/src/d_main.c",
         "kernel/doom/src/d_mode.c",
@@ -15991,7 +16004,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/doom/src/d_mode.c",
         "kernel/doom/src/f_finale.c",
         "kernel/doom/src/g_game.c",
@@ -16219,7 +16232,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
         "kernel/core/kernel.c",
         "kernel/core/panic.cc",
@@ -16460,7 +16473,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/kernel.c",
@@ -16869,7 +16882,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
@@ -17239,7 +17252,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/kernel.c",
@@ -17504,7 +17517,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/app_launch.cc",
         "kernel/doom/src/d_main.c",
         "kernel/doom/src/d_mode.c",
@@ -17677,7 +17690,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
         "kernel/core/kernel.c",
         "kernel/core/panic.cc",
@@ -17934,7 +17947,7 @@
         "kernel/audio/ac97.cc",
         "kernel/audio/ac97.h",
         "kernel/audio/mixer.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
         "kernel/core/process.cc",
@@ -18219,7 +18232,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/kernel.c",
         "kernel/core/process.cc",
@@ -18943,11 +18956,6 @@
       "examples": [
         {
           "line": 1,
-          "path": "kernel/audio/nuked_opl3.c",
-          "text": "compile_c_to_elf32_object -> kernel/audio/nuked_opl3.o"
-        },
-        {
-          "line": 1,
           "path": "kernel/core/kernel.c",
           "text": "compile_c_to_elf32_object -> kernel/core/kernel.o"
         },
@@ -18955,10 +18963,14 @@
           "line": 1,
           "path": "kernel/core/string.c",
           "text": "compile_c_to_elf32_object -> kernel/core/string.o"
+        },
+        {
+          "line": 1,
+          "path": "kernel/cpu/fpu.c",
+          "text": "compile_c_to_elf32_object -> kernel/cpu/fpu.o"
         }
       ],
       "files": [
-        "kernel/audio/nuked_opl3.c",
         "kernel/core/kernel.c",
         "kernel/core/string.c",
         "kernel/cpu/fpu.c",
@@ -19053,7 +19065,7 @@
         "kernel/smp/smp.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 93
+      "occurrences": 92
     },
     {
       "category": "preprocessor",
@@ -19112,7 +19124,7 @@
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.cc",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/audio/opl_smoke.h",
         "kernel/core/app_launch.cc",
@@ -19524,18 +19536,18 @@
         },
         {
           "line": 1150,
-          "path": "kernel/audio/nuked_opl3.c",
+          "path": "kernel/audio/nuked_opl3.cc",
           "text": "#else"
         },
         {
           "line": 1165,
-          "path": "kernel/audio/nuked_opl3.c",
+          "path": "kernel/audio/nuked_opl3.cc",
           "text": "#else"
         }
       ],
       "files": [
         "bin/cupidc_test5.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
         "kernel/core/kernel.c",
         "kernel/doom/src/d_iwad.c",
@@ -19603,7 +19615,7 @@
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.cc",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/audio/opl_smoke.h",
         "kernel/core/app_launch.h",
@@ -19939,7 +19951,7 @@
         "drivers/serial.cc",
         "drivers/serial.h",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
         "kernel/core/panic.h",
         "kernel/core/syscall.cc",
@@ -20015,22 +20027,22 @@
       "examples": [
         {
           "line": 61,
-          "path": "kernel/audio/nuked_opl3.c",
+          "path": "kernel/audio/nuked_opl3.cc",
           "text": "#if OPL_ENABLE_STEREOEXT && !defined OPL_SIN"
         },
         {
           "line": 219,
-          "path": "kernel/audio/nuked_opl3.c",
+          "path": "kernel/audio/nuked_opl3.cc",
           "text": "#if OPL_ENABLE_STEREOEXT"
         },
         {
           "line": 1019,
-          "path": "kernel/audio/nuked_opl3.c",
+          "path": "kernel/audio/nuked_opl3.cc",
           "text": "#if OPL_ENABLE_STEREOEXT"
         }
       ],
       "files": [
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/core/types.h",
         "kernel/doom/src/d_iwad.c",
@@ -20167,7 +20179,7 @@
         "kernel/audio/midiopl.h",
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/audio/opl_smoke.h",
         "kernel/core/app_launch.h",
@@ -20472,7 +20484,7 @@
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.cc",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
@@ -21049,7 +21061,7 @@
       ],
       "files": [
         "drivers/serial.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
         "kernel/core/panic.h",
         "kernel/cpu/fpu.c",
@@ -21179,7 +21191,7 @@
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.cc",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/app_launch.h",
         "kernel/core/debug.h",
@@ -21697,7 +21709,7 @@
         "bin/feature24_widetypes.cc",
         "drivers/timer.cc",
         "drivers/vga.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/debug.h",
         "kernel/core/kernel.c",
         "kernel/core/ports.h",
@@ -21781,7 +21793,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/debug.h",
@@ -22474,7 +22486,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/memio.h",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/core/app_launch.h",
         "kernel/core/process.h",
         "kernel/core/types.h",
@@ -23577,7 +23589,7 @@
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.cc",
         "kernel/audio/mus2midi.h",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/core/app_launch.h",
         "kernel/core/process.h",
@@ -24146,7 +24158,7 @@
         "kernel/audio/mixer.cc",
         "kernel/audio/mixer.h",
         "kernel/audio/mus2midi.cc",
-        "kernel/audio/nuked_opl3.c",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/audio/opl_smoke.cc",
         "kernel/audio/opl_smoke.h",
@@ -24876,6 +24888,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mixer.cc",
         "kernel/audio/mus2midi.cc",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/panic.cc",
@@ -25013,7 +25026,7 @@
         "user/examples/ls.cc"
       ],
       "id": "cupid_c.output.elf32_relocatable",
-      "occurrences": 152
+      "occurrences": 153
     },
     {
       "category": "storage",
@@ -25053,6 +25066,7 @@
         "bin/feature8_reg_noreg.cc",
         "drivers/rtc.cc",
         "kernel/audio/midiopl.cc",
+        "kernel/audio/nuked_opl3.cc",
         "kernel/lang/ctool_kernel.cc",
         "kernel/lang/cupidc_parse.cc",
         "kernel/smp/ioapic.cc",
@@ -25062,7 +25076,7 @@
         "toolchain/x86.cc"
       ],
       "id": "cupid_c.storage.reg",
-      "occurrences": 117
+      "occurrences": 128
     },
     {
       "category": "type",
@@ -25368,11 +25382,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "cb2781d5aa6900b15e4931c29e6f1b1699b51c46367af61f3c9248be4d9c7ddf",
+    "active_source_digest": "0da325a39ff0f8a0ee7e42ccd49ff5137c932ded8e90cc0bbb7885d4d6164c50",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "e2a6ecb47be300b76dd2ae8fa9cd445fcec82b0e82dd4b52b70d0163bc4b935f"
+        "sha256": "b63e2e6b57f019cd28a832edd5fbc92ae359e6b1afba45f6de338745087a143e"
       },
       {
         "path": "user/Makefile",
@@ -25384,11 +25398,11 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "33bb60d8c49d5b4a1b5092488f5f54e406c9175d716edf5d2859a46e1643cf1b"
+        "sha256": "bbe0c3c71ec1fece9b4e7b2fed02f6c9679b80ffa6f99a4189649c6f27850052"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
-        "sha256": "30b92611af39229805c0c5a3508758a297669eb6043540fcf8467320f2bd0763"
+        "sha256": "c90770f9d403b87e0008a452eb253c7a3c113184884a178e2dc31b7a26529308"
       },
       {
         "path": "tools/bootstrap_toolchain.py",
@@ -25417,7 +25431,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "32bc8e041adea685dfadcf4a2b4c7fa4d77d5b7bd1d5cbf8571c323e7fa49349"
+      "sha256": "09098a834057600dcbfafe21bb7eae1db36d0596bba93aa8db58d631a3487c94"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -25958,7 +25972,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 282,
+        "source_count": 283,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -31905,7 +31919,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -31923,7 +31938,6 @@
         "c.control.while",
         "c.declarator.function_pointer",
         "c.expression.sizeof",
-        "c.output.elf32_relocatable",
         "c.preprocessor.define",
         "c.preprocessor.else",
         "c.preprocessor.endif",
@@ -31937,24 +31951,25 @@
         "c.storage.static",
         "c.type.enum",
         "c.type.typedef",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable",
+        "cupid_c.storage.reg"
       ],
       "includes": [
         "kernel/audio/nuked_opl3.h",
         "kernel/core/string.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 1554,
       "origin": "tracked",
-      "path": "kernel/audio/nuked_opl3.c",
+      "path": "kernel/audio/nuked_opl3.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "17fc546afd6a7f45c82cbecabb674bc440df91d25d36c1c840b40d59b7cc54ad"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -50203,7 +50218,7 @@
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "326fb6adf1a1e3609327e302f6517b4c8106b5e84638e9a5b3790e401f04a829"
+      "sha256": "caa8322e214595c4ef3b6146597c128dcf807778315b8cf620aac86a00e11b59"
     },
     {
       "build_owners": [
@@ -50250,7 +50265,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "a62dfd6d5ca393c6df0fe19720135b018d8c5059cfb64bd7959826e659fb4aa7"
+      "sha256": "586f28484a1d20844aed5c23ef34ff9c0c05a4b9485258286dc539e080cbec8c"
     },
     {
       "build_owners": [

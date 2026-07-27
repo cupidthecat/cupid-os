@@ -155,6 +155,7 @@ TOOLCHAIN_KERNEL_SOURCES = [
 SOURCE_DRIVEN_SOURCES = [
     "drivers/serial.cc",
     "drivers/timer.cc",
+    "kernel/audio/nuked_opl3.cc",
     "kernel/core/app_launch.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
@@ -475,6 +476,98 @@ class FrontierInputSnapshotTests(unittest.TestCase):
                 frontier._source_sha256(cr),
                 hashlib.sha256(b"first\nsecond\n").hexdigest(),
             )
+
+    def test_input_inventory_ignores_private_compiler_staging_headers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tracked = root / "kernel" / "core" / "types.h"
+            tracked.parent.mkdir(parents=True)
+            tracked.write_text("typedef unsigned int uint32_t;\n")
+            private = (
+                root
+                / "kernel"
+                / "cpu"
+                / ".ksyms_data.o.cupidc-private"
+                / "kernel"
+                / "core"
+                / "types.h"
+            )
+            private.parent.mkdir(parents=True)
+            private.write_text("typedef unsigned int private_uint32_t;\n")
+
+            inputs = frontier._input_paths(root)
+
+            self.assertIn(tracked, inputs)
+            self.assertNotIn(private, inputs)
+
+
+class FrontierPublicationTests(unittest.TestCase):
+    def test_transient_permission_error_retries_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            output = parent / "frontier"
+            real_replace = frontier.os.replace
+            attempts = []
+
+            def replace(source, destination):
+                attempts.append((Path(source), Path(destination)))
+                if len(attempts) < 3:
+                    raise PermissionError(13, "frontier still busy")
+                real_replace(source, destination)
+
+            with (
+                mock.patch.object(
+                    frontier.os,
+                    "replace",
+                    side_effect=replace,
+                ),
+                mock.patch.object(frontier.time, "sleep") as sleep,
+            ):
+                with frontier._staged_output(output) as staging:
+                    (staging / "manifest.json").write_text(
+                        "{}\n",
+                        encoding="utf-8",
+                    )
+
+            self.assertEqual(len(attempts), 3)
+            self.assertEqual(
+                [call.args[0] for call in sleep.call_args_list],
+                list(frontier.PUBLISH_RETRY_DELAYS_SECONDS[:2]),
+            )
+            self.assertEqual(
+                (output / "manifest.json").read_text(encoding="utf-8"),
+                "{}\n",
+            )
+
+    def test_persistent_permission_error_fails_without_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "frontier"
+            denied = PermissionError(13, "frontier remains busy")
+
+            with (
+                mock.patch.object(
+                    frontier.os,
+                    "replace",
+                    side_effect=denied,
+                ) as replace,
+                mock.patch.object(frontier.time, "sleep") as sleep,
+                self.assertRaisesRegex(
+                    frontier.FrontierError,
+                    "could not publish frontier directory",
+                ),
+            ):
+                with frontier._staged_output(output):
+                    pass
+
+            self.assertEqual(
+                replace.call_count,
+                len(frontier.PUBLISH_RETRY_DELAYS_SECONDS) + 1,
+            )
+            self.assertEqual(
+                [call.args[0] for call in sleep.call_args_list],
+                list(frontier.PUBLISH_RETRY_DELAYS_SECONDS),
+            )
+            self.assertFalse(output.exists())
 
 
 class FrontierElfValidationTests(unittest.TestCase):
@@ -1769,7 +1862,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3545724,
+                3586148,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1919,6 +2012,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "af2c13c68060bfa71a2e001722837ba1"
                     "64c803de8864acfa6d468d7cedc2e3da",
                 ),
+                "kernel/audio/nuked_opl3.cc": (
+                    40424,
+                    "a3a04ade4029d9333902bb93376fb5eef"
+                    "21f349ee5a1406bd0751cc4cee9f2a1",
+                ),
                 "kernel/core/app_launch.cc": (
                     5488,
                     "242aa3d0d14d70f6096fd64d3cff4a52"
@@ -2062,11 +2160,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 433)
+            self.assertEqual(manifest["input_snapshot"]["count"], 434)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "7a3fd38fec7fd220bce1ed18690088f55"
-                "3a7e6e7e7a613f7114a3db55a05c953",
+                "4bf3bca0564df68e1049e496ac990691"
+                "023c4ccb5d8815e419c98bf6a11d2b53",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

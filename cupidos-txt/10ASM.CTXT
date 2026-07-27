@@ -129,7 +129,7 @@ byte-identical stage-three startup. The complete seed build also compares all
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static
 Linux tools through WSL. Native contract runners, hosted development commands,
-and 93 normal Cupid OS root objects still use a host compiler.
+and 92 normal Cupid OS root objects still use a host compiler.
 
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.

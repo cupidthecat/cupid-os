@@ -155,6 +155,7 @@ TOOLCHAIN_KERNEL_SOURCES = (
 SOURCE_DRIVEN_SOURCES = (
     "drivers/serial.cc",
     "drivers/timer.cc",
+    "kernel/audio/nuked_opl3.cc",
     "kernel/core/app_launch.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
@@ -186,7 +187,12 @@ SOURCE_DRIVEN_SOURCES = (
 GENERATED_KERNEL_SOURCES = (
     "kernel/cpu/ksyms_data.cc",
 )
-GENERATED_KERNEL_INPUT_CLOSURES = {
+FROZEN_KERNEL_INPUT_CLOSURES = {
+    "kernel/audio/nuked_opl3.cc": (
+        "kernel/audio/nuked_opl3.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+    ),
     "kernel/cpu/ksyms_data.cc": (
         "kernel/cpu/ksyms.h",
         "kernel/core/types.h",
@@ -773,8 +779,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             GENERATED_KERNEL_SOURCES,
         )
         self.assertEqual(
-            kernel_compile.GENERATED_KERNEL_INPUT_CLOSURES,
-            GENERATED_KERNEL_INPUT_CLOSURES,
+            kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES,
+            FROZEN_KERNEL_INPUT_CLOSURES,
         )
         self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
@@ -784,8 +790,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 145)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 145)
+        self.assertEqual(len(KERNEL_SOURCES), 146)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 146)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -826,7 +832,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            145,
+            146,
         )
 
         for source in renamed_sources:
@@ -894,6 +900,50 @@ class KernelCompileCommandTests(unittest.TestCase):
 
 
 class KernelCompileMakefileTests(unittest.TestCase):
+    def test_nuked_opl3_uses_checked_cupidc_with_closed_inputs(self):
+        source = "kernel/audio/nuked_opl3.cc"
+        self.assertIn(
+            source,
+            kernel_compile.APPROVED_SOURCE_DRIVEN_SOURCES,
+        )
+        self.assertTrue((REPO_ROOT / source).is_file())
+        self.assertFalse(
+            (REPO_ROOT / "kernel/audio/nuked_opl3.c").exists()
+        )
+        self.assertEqual(
+            kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[source],
+            (
+                "kernel/audio/nuked_opl3.h",
+                "kernel/core/string.h",
+                "kernel/core/types.h",
+            ),
+        )
+
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        logical_makefile = makefile.replace("\\\n", " ")
+        rule = re.search(
+            r"^kernel/audio/nuked_opl3\.o: ([^\n]+)$",
+            logical_makefile,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(rule)
+        self.assertEqual(
+            set(rule.group(1).split()),
+            {
+                source,
+                "kernel/audio/nuked_opl3.h",
+                "kernel/core/string.h",
+                "kernel/core/types.h",
+                "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+            },
+        )
+        self.assertIn(
+            "\t$(CUPIDC_KERNEL_COMPILE) "
+            "--source kernel/audio/nuked_opl3.cc "
+            "--output kernel/audio/nuked_opl3.o\n",
+            makefile,
+        )
+
     def test_exact_approved_cohort_uses_the_checked_cupidc_wrapper(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
         self.assertIn(
@@ -1349,6 +1399,156 @@ class KernelCompileOperationTests(unittest.TestCase):
                 )
         self.assertEqual(executor.calls, [])
 
+    def _source_driven_closure_fixture(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name).resolve()
+        source = root / "kernel" / "audio" / "nuked_opl3.cc"
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            '#include "nuked_opl3.h"\nint opl_fixture;\n',
+            encoding="utf-8",
+        )
+        header = source.parent / "nuked_opl3.h"
+        header.write_text(
+            '#include "../core/types.h"\n',
+            encoding="utf-8",
+        )
+        core = root / "kernel" / "core"
+        core.mkdir()
+        string_header = core / "string.h"
+        string_header.write_text(
+            "void *memset(void *, int, unsigned int);\n",
+            encoding="utf-8",
+        )
+        types = core / "types.h"
+        types.write_text(
+            "typedef signed short int16_t;\n",
+            encoding="utf-8",
+        )
+        seed = root / "seed" / "cupidc.elf"
+        seed.parent.mkdir()
+        seed.write_bytes(b"seed")
+        manifest = seed.parent / "manifest.json"
+        manifest.write_text("{}\n", encoding="utf-8")
+        output = source.parent / "nuked_opl3.o"
+        return (
+            root,
+            source,
+            header,
+            string_header,
+            types,
+            seed,
+            manifest,
+            output,
+        )
+
+    def test_source_driven_inputs_are_compiled_from_one_frozen_closure(self):
+        (
+            root,
+            source,
+            header,
+            string_header,
+            types,
+            seed,
+            manifest,
+            output,
+        ) = self._source_driven_closure_fixture()
+        captured = {}
+
+        class ClosureExecutor(FakeExecutor):
+            def run(self, executable, arguments, timeout):
+                compiler_root = Path(
+                    arguments[arguments.index("--root") + 1]
+                )
+                for relative in (
+                    "kernel/audio/nuked_opl3.cc",
+                    "kernel/audio/nuked_opl3.h",
+                    "kernel/core/string.h",
+                    "kernel/core/types.h",
+                ):
+                    captured[relative] = (
+                        compiler_root / relative
+                    ).read_bytes()
+                return super().run(executable, arguments, timeout)
+
+        executor = ClosureExecutor(root, payload=_valid_elf32_object())
+        with mock.patch.object(
+            kernel_compile,
+            "freeze_seed_inputs",
+            side_effect=lambda _manifest, snapshot: mock.Mock(
+                tools={"cupidc": shutil.copyfile(seed, snapshot / seed.name)}
+            ),
+        ):
+            kernel_compile.compile_kernel_source(
+                root,
+                source,
+                output,
+                manifest=manifest,
+                executor=executor,
+            )
+
+        self.assertEqual(
+            captured,
+            {
+                "kernel/audio/nuked_opl3.cc": source.read_bytes(),
+                "kernel/audio/nuked_opl3.h": header.read_bytes(),
+                "kernel/core/string.h": string_header.read_bytes(),
+                "kernel/core/types.h": types.read_bytes(),
+            },
+        )
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        compiler_root = Path(
+            executor.calls[0][1][
+                executor.calls[0][1].index("--root") + 1
+            ]
+        )
+        self.assertNotEqual(compiler_root, root)
+
+    def test_source_driven_input_drift_preserves_the_existing_object(self):
+        (
+            root,
+            source,
+            header,
+            _string_header,
+            _types,
+            seed,
+            manifest,
+            output,
+        ) = self._source_driven_closure_fixture()
+        output.write_bytes(b"existing object")
+
+        class DriftingExecutor(FakeExecutor):
+            def run(self, executable, arguments, timeout):
+                header.write_text(
+                    '#include "../core/types.h"\nint changed;\n',
+                    encoding="utf-8",
+                )
+                return super().run(executable, arguments, timeout)
+
+        executor = DriftingExecutor(root, payload=_valid_elf32_object())
+        with mock.patch.object(
+            kernel_compile,
+            "freeze_seed_inputs",
+            side_effect=lambda _manifest, snapshot: mock.Mock(
+                tools={"cupidc": shutil.copyfile(seed, snapshot / seed.name)}
+            ),
+        ):
+            with self.assertRaisesRegex(
+                kernel_compile.KernelCompileError,
+                "kernel inputs changed while compiling "
+                "kernel/audio/nuked_opl3.cc",
+            ):
+                kernel_compile.compile_kernel_source(
+                    root,
+                    source,
+                    output,
+                    manifest=manifest,
+                    executor=executor,
+                )
+
+        self.assertEqual(output.read_bytes(), b"existing object")
+
     def test_generated_kernel_symbol_inputs_are_compiled_from_one_frozen_closure(
         self,
     ):
@@ -1470,7 +1670,7 @@ class KernelCompileOperationTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(
                 kernel_compile.KernelCompileError,
-                "generated kernel inputs changed while compiling "
+                "kernel inputs changed while compiling "
                 "kernel/cpu/ksyms_data.cc",
             ):
                 kernel_compile.compile_kernel_source(

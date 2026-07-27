@@ -277,7 +277,7 @@ The repository runtime supplies the checked file, heap, memory, string, `errno`,
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Both forms accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,084,592-byte stage-three output from revision `a14ce50fa97264eeba2da3f913b643a12517a78b`, with SHA-256 `f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1`. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 93 normal Cupid OS root objects still come from a host compiler.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,084,592-byte stage-three output from revision `a14ce50fa97264eeba2da3f913b643a12517a78b`, with SHA-256 `f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1`. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 92 normal Cupid OS root objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -305,25 +305,31 @@ The shared frontend now publishes decimal `float` and `double` constants as exac
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-Across the root and supplemental builds, the checked CupidC seed owns 152 C
-transforms. Its normal cohort has 146 transforms: 145 checked-in sources plus
-the generated `kernel/cpu/ksyms_data.cc` source. All 146 sources use `.cc`.
+Across the root and supplemental builds, the checked CupidC seed owns 153 C
+transforms. Its normal cohort has 147 transforms: 146 checked-in sources plus
+the generated `kernel/cpu/ksyms_data.cc` source. All 147 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan, and native GCC or Clang rules select C with `-x c`. ADRs
-0124 and 0126 record the first two naming steps, and ADR 0129 records the
-lexer transfer. Nine strict checked-in roots remain host-owned.
+0124 and 0126 record the first two naming steps, ADR 0129 records the lexer
+transfer, and ADR 0135 records the Nuked OPL3 transfer. Nine strict checked-in
+roots remain host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
 `cat.cc` programs account for the other six CupidC transforms.
 
-The strict kernel frontier must compile all 145 approved checked-in sources
-twice. The full frontier now passes against a 433-file snapshot with SHA-256
-`7a3fd38fec7fd220bce1ed18690088f553a7e6e7e7a613f7114a3db55a05c953`.
-Both 145-object sets are byte-identical and total 3,545,724 bytes. The
-combined graph passes a clean normal image build and the strong four-vCPU
-runtime gate. That boot covers SMP, RDRAND, all 62 crypto checks, e1000
-traffic, the desktop, terminal, and in-OS CupidC execution.
-The generated symbol source stores a logical 104,447-byte blob as
-little-endian `unsigned int` words with one trailing pad byte.
+The Nuked OPL3 recipe compiles from a private snapshot of its source and
+three-header closure. The wrapper compares every live input before replacing
+the object, so a concurrent edit cannot publish a mixed result.
+
+The strict kernel frontier must compile all 146 approved checked-in sources
+twice. The full frontier now passes against a 434-file snapshot with SHA-256
+`4bf3bca0564df68e1049e496ac990691023c4ccb5d8815e419c98bf6a11d2b53`.
+Both 146-object sets are byte-identical and total 3,586,148 bytes. The
+combined graph passes clean normal and partitioned image builds. Strong
+four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
+RDRAND, all 62 crypto checks, USB storage, audio, the desktop, terminal, and
+in-OS CupidC execution. The generated symbol source stores a logical
+104,933-byte blob as little-endian `unsigned int` words with three trailing
+pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object
@@ -333,20 +339,20 @@ Cupid's x86 model while preserving EBX. The combined four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x00F00000`. ADR 0124 records the exact build and
-runtime evidence. The host C compiler owns 145
-transforms and 93 root objects. Host Python owns 165 transforms. The private
+runtime evidence. The host C compiler owns 144
+transforms and 92 root objects. Host Python owns 166 transforms. The private
 in-kernel CupidC compiler still handles embedded runtime compilation.
 
-Compiler head now decides C11 inline linkage from the complete file-scope
+The checked seed decides C11 inline linkage from the complete file-scope
 declaration set. This covers the ordinary header declaration and inline
-definition of `OPL3_Generate4Ch` in unchanged
-`kernel/audio/nuked_opl3.c`. Two complete kernel-profile compiles produce the
-same validated 40,424-byte object. Prior `static` linkage stays internal,
-even when a later definition is spelled `extern inline`. An external-linkage
-inline declaration without a definition fails during finalization, while a
-pure external inline definition remains unsupported during lowering. The
-checked seed carries this rule. Nuked OPL3 remains a host-built `.c` source
-until its production frontier, image, and runtime gates pass.
+definition of `OPL3_Generate4Ch` in `kernel/audio/nuked_opl3.cc`. Two complete
+kernel-profile compiles produce the same validated 40,424-byte object. It
+defines the global function and imports only `memset`. Prior `static` linkage
+stays internal, even when a later definition is spelled `extern inline`. An
+external-linkage inline declaration without a definition fails during
+finalization, while a pure external inline definition remains unsupported
+during lowering. The closed production recipe, frontier, image builds, and
+dual-NIC runtime gates pass.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects rather than only the earlier hybrid image.
 
@@ -402,11 +408,11 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. This brings the active non-Doom header gate to 154/154 at
+shared x86 model. This brings the active non-Doom header gate to 155/155 at
 compiler head.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 145-source checked-in CupidC cohort. Earlier frontier evidence
+uses it in the 146-source checked-in CupidC cohort. Earlier frontier evidence
 measured the ACPI and MP-table objects at 5,708 and 4,156 bytes. Their current
 `.cc` paths must pass the shared validator and re-run the four-vCPU contract
 with both supported NIC paths.

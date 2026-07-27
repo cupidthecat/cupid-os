@@ -162,6 +162,7 @@ APPROVED_TOOLCHAIN_KERNEL_SOURCES = (
 APPROVED_SOURCE_DRIVEN_SOURCES = (
     "drivers/serial.cc",
     "drivers/timer.cc",
+    "kernel/audio/nuked_opl3.cc",
     "kernel/core/app_launch.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
@@ -193,7 +194,12 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
 APPROVED_GENERATED_KERNEL_SOURCES = (
     "kernel/cpu/ksyms_data.cc",
 )
-GENERATED_KERNEL_INPUT_CLOSURES = {
+FROZEN_KERNEL_INPUT_CLOSURES = {
+    "kernel/audio/nuked_opl3.cc": (
+        "kernel/audio/nuked_opl3.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+    ),
     "kernel/cpu/ksyms_data.cc": (
         "kernel/cpu/ksyms.h",
         "kernel/core/types.h",
@@ -719,11 +725,11 @@ def _output_path(root: Path, output: Path) -> tuple[Path, str]:
     return resolved, "/" + relative.as_posix()
 
 
-def _generated_input_paths(
+def _kernel_input_paths(
     root: Path,
     source_name: str,
 ) -> tuple[Path, ...]:
-    closure = GENERATED_KERNEL_INPUT_CLOSURES.get(source_name)
+    closure = FROZEN_KERNEL_INPUT_CLOSURES.get(source_name)
     if closure is None:
         return ()
     paths = []
@@ -731,24 +737,24 @@ def _generated_input_paths(
         path = root / relative_name
         if path.is_symlink():
             raise KernelCompileError(
-                f"generated kernel input may not be a symlink: {relative_name}"
+                f"kernel input may not be a symlink: {relative_name}"
             )
         try:
             resolved = path.resolve(strict=True)
             resolved.relative_to(root)
         except (OSError, ValueError) as error:
             raise KernelCompileError(
-                f"generated kernel input is unavailable: {relative_name}"
+                f"kernel input is unavailable: {relative_name}"
             ) from error
         if not resolved.is_file():
             raise KernelCompileError(
-                f"generated kernel input is not a file: {relative_name}"
+                f"kernel input is not a file: {relative_name}"
             )
         paths.append(resolved)
     return tuple(paths)
 
 
-def _capture_generated_inputs(
+def _capture_kernel_inputs(
     paths: Sequence[Path],
 ) -> dict[Path, bytes]:
     captured = {}
@@ -757,12 +763,12 @@ def _capture_generated_inputs(
             captured[path] = path.read_bytes()
         except OSError as error:
             raise KernelCompileError(
-                f"cannot read generated kernel input {path}: {error}"
+                f"cannot read kernel input {path}: {error}"
             ) from error
     return captured
 
 
-def _write_generated_inputs(
+def _write_kernel_inputs(
     root: Path,
     frozen_root: Path,
     captured: dict[Path, bytes],
@@ -805,8 +811,8 @@ def compile_kernel_source(
     if timeout <= 0:
         raise KernelCompileError("compiler timeout must be positive")
 
-    generated_paths = _generated_input_paths(root, source_name)
-    captured_inputs = _capture_generated_inputs(generated_paths)
+    input_paths = _kernel_input_paths(root, source_name)
+    captured_inputs = _capture_kernel_inputs(input_paths)
     manifest_path = (
         manifest.resolve()
         if manifest is not None
@@ -841,7 +847,7 @@ def compile_kernel_source(
             ) as temporary:
                 temporary_root = Path(temporary)
                 if captured_inputs:
-                    _write_generated_inputs(
+                    _write_kernel_inputs(
                         root,
                         temporary_root,
                         captured_inputs,
@@ -904,11 +910,11 @@ def compile_kernel_source(
                     ) from error
                 if (
                     captured_inputs
-                    and _capture_generated_inputs(generated_paths)
+                    and _capture_kernel_inputs(input_paths)
                     != captured_inputs
                 ):
                     raise KernelCompileError(
-                        f"generated kernel inputs changed while compiling "
+                        f"kernel inputs changed while compiling "
                         f"{source_name}"
                     )
                 os.replace(temporary_output, output)

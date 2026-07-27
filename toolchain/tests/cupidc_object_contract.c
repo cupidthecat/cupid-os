@@ -1596,7 +1596,7 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "void OPL3_Generate4Ch(opl3_chip *chip, int16_t *buf4);",
              NULL) &&
          active_source_contains(
-             job, "/kernel/audio/nuked_opl3.c",
+             job, "/kernel/audio/nuked_opl3.cc",
              "load active Nuked OPL3 source",
              "the active Nuked OPL3 inline definition changed",
              "inline void OPL3_Generate4Ch(opl3_chip *chip, int16_t "

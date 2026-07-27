@@ -230,7 +230,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "bin/feature24_widetypes.cc",
                 "drivers/timer.cc",
                 "drivers/vga.cc",
-                "kernel/audio/nuked_opl3.c",
+                "kernel/audio/nuked_opl3.cc",
                 "kernel/core/debug.h",
                 "kernel/core/kernel.c",
                 "kernel/core/ports.h",
