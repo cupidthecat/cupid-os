@@ -7367,12 +7367,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 211u, 6367u,
-       57701u, 813u, 297u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 225u, 5931u,
-       50996u, 718u, 361u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 334u,
-       13582u, 89442u, 2008u, 1329u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 213u, 6411u,
+       58097u, 821u, 299u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 225u, 5947u,
+       51246u, 721u, 361u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 337u,
+       13803u, 90768u, 2049u, 1345u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -8197,13 +8197,13 @@ static int run_static_initializers(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 28u, "string initializer requires a character array"},
-      {{"floating static target boundary",
+      {{"floating static arithmetic boundary",
         "void bad(void) {\n"
-        "  static double value = 1.0;\n"
+        "  static double value = 1.0 + 2.0;\n"
         "}\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 25u,
-       "static floating initialization is outside this constant-data slice"},
+       "static floating arithmetic is outside this constant-data slice"},
       {{"floating arithmetic constant boundary",
         "void bad(void) {\n"
         "  static int value = 1.0;\n"
@@ -18921,8 +18921,8 @@ cleanup:
 
 static int run_boundaries(const char *host_root) {
   static const frontend_failure_case_t initializer = {
-      "floating object initializer boundary",
-      "double boundary_object = 1.0;\n", CTOOL_ERR_UNSUPPORTED,
+      "floating object arithmetic boundary",
+      "double boundary_object = 1.0 + 2.0;\n", CTOOL_ERR_UNSUPPORTED,
       CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION};
   static const frontend_failure_case_t body = {
       "block assertion boundary",
@@ -23696,6 +23696,162 @@ cleanup:
   return failed;
 }
 
+static int initializer_is_static_floating(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer,
+    ctool_c_type_kind_t expected_kind, ctool_u64 expected_bits) {
+  return initializer != NULL &&
+                 initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
+                 underlying_type_kind(unit, initializer->type, NULL) ==
+                     expected_kind &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == expected_bits &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == CTOOL_C_AST_NONE &&
+                 initializer->element_count == 0u
+             ? 1
+             : 0;
+}
+
+static int validate_static_floating_initializers(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u64 expected_table_bits[] = {
+      0x3eb504f3ull, 0xbdc7c5c2ull, 0x00000000ull, 0x80000000ull};
+  const ctool_c_object_definition_t *table_definition =
+      find_object_definition(unit, "static_float_table");
+  const ctool_c_object_definition_t *double_definition =
+      find_object_definition(unit, "static_double");
+  const ctool_c_object_definition_t *zero_definition =
+      find_object_definition(unit, "static_float_zero");
+  const ctool_c_object_definition_t *negative_zero_definition =
+      find_object_definition(unit, "static_float_negative_zero");
+  const ctool_c_object_definition_t *narrowed_definition =
+      find_object_definition(unit, "static_narrowed");
+  const ctool_c_object_definition_t *widened_definition =
+      find_object_definition(unit, "static_widened");
+  const ctool_c_object_definition_t *tie_definition =
+      find_object_definition(unit, "static_tie");
+  const ctool_c_block_binding_t *local_scalar_binding =
+      find_block_binding(unit, "local_scalar");
+  const ctool_c_block_binding_t *local_table_binding =
+      find_block_binding(unit, "local_table");
+  const ctool_c_initializer_t *table =
+      table_definition == NULL
+          ? NULL
+          : initializer_node(unit, table_definition->initializer);
+  const ctool_c_initializer_t *double_value =
+      double_definition == NULL
+          ? NULL
+          : initializer_node(unit, double_definition->initializer);
+  const ctool_c_initializer_t *zero_value =
+      zero_definition == NULL
+          ? NULL
+          : initializer_node(unit, zero_definition->initializer);
+  const ctool_c_initializer_t *negative_zero_value =
+      negative_zero_definition == NULL
+          ? NULL
+          : initializer_node(unit, negative_zero_definition->initializer);
+  const ctool_c_initializer_t *narrowed_value =
+      narrowed_definition == NULL
+          ? NULL
+          : initializer_node(unit, narrowed_definition->initializer);
+  const ctool_c_initializer_t *widened_value =
+      widened_definition == NULL
+          ? NULL
+          : initializer_node(unit, widened_definition->initializer);
+  const ctool_c_initializer_t *tie_value =
+      tie_definition == NULL
+          ? NULL
+          : initializer_node(unit, tie_definition->initializer);
+  const ctool_c_initializer_t *local_scalar =
+      local_scalar_binding == NULL
+          ? NULL
+          : initializer_node(unit, local_scalar_binding->initializer);
+  const ctool_c_initializer_t *local_table =
+      local_table_binding == NULL
+          ? NULL
+          : initializer_node(unit, local_table_binding->initializer);
+  const ctool_c_initializer_t *local_row =
+      initializer_list_child(unit, local_table, 0u, 0u);
+  ctool_u32 row;
+  ctool_u32 floating_count = 0u;
+  ctool_u32 index;
+
+  if (table == NULL || table->kind != CTOOL_C_INITIALIZER_LIST ||
+      table->element_count != 2u ||
+      !initializer_is_static_floating(
+          unit, double_value, CTOOL_C_TYPE_DOUBLE,
+          0xc024000000000000ull) ||
+      !initializer_is_static_floating(
+          unit, zero_value, CTOOL_C_TYPE_FLOAT, 0u) ||
+      !initializer_is_static_floating(
+          unit, negative_zero_value, CTOOL_C_TYPE_FLOAT,
+          0x80000000ull) ||
+      !initializer_is_static_floating(
+          unit, narrowed_value, CTOOL_C_TYPE_FLOAT,
+          0x3dcccccdull) ||
+      !initializer_is_static_floating(
+          unit, widened_value, CTOOL_C_TYPE_DOUBLE,
+          0x3fb99999a0000000ull) ||
+      !initializer_is_static_floating(
+          unit, tie_value, CTOOL_C_TYPE_FLOAT,
+          0x4b800000ull) ||
+      local_scalar_binding == NULL ||
+      local_scalar_binding->kind != CTOOL_C_BINDING_OBJECT ||
+      local_scalar_binding->storage != CTOOL_C_STORAGE_STATIC ||
+      !initializer_is_static_floating(
+          unit, local_scalar, CTOOL_C_TYPE_FLOAT,
+          0xbdc7c5c2ull) ||
+      local_table_binding == NULL ||
+      local_table_binding->kind != CTOOL_C_BINDING_OBJECT ||
+      local_table_binding->storage != CTOOL_C_STORAGE_STATIC ||
+      local_table == NULL ||
+      local_table->kind != CTOOL_C_INITIALIZER_LIST ||
+      local_table->element_count != 1u ||
+      local_row == NULL ||
+      local_row->kind != CTOOL_C_INITIALIZER_LIST ||
+      local_row->element_count != 2u ||
+      !initializer_is_static_floating(
+          unit, initializer_list_child(unit, local_row, 0u, 0u),
+          CTOOL_C_TYPE_FLOAT, 0x3eb504f3ull) ||
+      !initializer_is_static_floating(
+          unit, initializer_list_child(unit, local_row, 1u, 1u),
+          CTOOL_C_TYPE_FLOAT, 0x80000000ull)) {
+    return 1;
+  }
+  for (row = 0u; row < 2u; row++) {
+    const ctool_c_initializer_t *row_initializer =
+        initializer_list_child(unit, table, row, row);
+    ctool_u32 column;
+    if (row_initializer == NULL ||
+        row_initializer->kind != CTOOL_C_INITIALIZER_LIST ||
+        row_initializer->element_count != 2u) {
+      return 1;
+    }
+    for (column = 0u; column < 2u; column++) {
+      const ctool_c_initializer_t *value = initializer_list_child(
+          unit, row_initializer, column, column);
+      if (!initializer_is_static_floating(
+              unit, value, CTOOL_C_TYPE_FLOAT,
+              expected_table_bits[row * 2u + column])) {
+        return 1;
+      }
+    }
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    if (unit->initializers[index].kind ==
+        CTOOL_C_INITIALIZER_FLOATING) {
+      floating_count++;
+    }
+  }
+  return floating_count == 13u ? 0 : 1;
+}
+
 static int validate_floating_scalars(
     const ctool_c_translation_unit_t *unit) {
   ctool_u32 floating_constants[5] = {0u, 0u, 0u, 0u, 0u};
@@ -23703,7 +23859,8 @@ static int validate_floating_scalars(
   ctool_u32 casts[2] = {0u, 0u};
   ctool_u32 usual_integer_to_double = 0u;
   ctool_u32 index;
-  if (unit == NULL || unit->function_definition_count != 12u) {
+  if (unit == NULL || unit->function_definition_count != 14u ||
+      validate_static_floating_initializers(unit) != 0) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -23818,6 +23975,14 @@ static int validate_floating_scalars(
 
 static int run_floating_scalars(const char *host_root) {
   static const char source[] =
+      "static const float static_float_table[2][2] = "
+      "{{(0.35355339f), -0.09754516f}, {+0.0f, -0.0f}};\n"
+      "static const double static_double = -10.0;\n"
+      "static const float static_narrowed = 0.1;\n"
+      "static const double static_widened = 0.1f;\n"
+      "static const float static_tie = 16777217.0;\n"
+      "static float static_float_zero = 0.0f;\n"
+      "static float static_float_negative_zero = -0.0f;\n"
       "float literal_float(void) { return .5f; }\n"
       "double literal_zero(void) { return 0.0; }\n"
       "double literal_double(void) { return 0.1; }\n"
@@ -23829,7 +23994,16 @@ static int run_floating_scalars(const char *host_root) {
       "float cast_from_uint(unsigned int value) { return (float)value; }\n"
       "int assign_from_float(float value) { return value; }\n"
       "int cast_from_double(double value) { return (int)value; }\n"
-      "double mixed_add(int left, double right) { return left + right; }\n";
+      "double mixed_add(int left, double right) { return left + right; }\n"
+      "float read_local_scalar(void) {\n"
+      "  static const float local_scalar = -0.09754516f;\n"
+      "  return local_scalar;\n"
+      "}\n"
+      "float read_local_table(unsigned int index) {\n"
+      "  static const float local_table[1][2] = "
+      "{{0.35355339f, -0.0f}};\n"
+      "  return local_table[0][index];\n"
+      "}\n";
   static const frontend_failure_case_t failure_cases[] = {
       {"long double literal",
        "void bad(void) { (void)1.0L; }\n",
@@ -23847,6 +24021,23 @@ static int run_floating_scalars(const char *host_root) {
        "double bad(long long value) { return value; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION}};
   static const frontend_exact_failure_case_t range_failure_cases[] = {
+      {{"atomic static floating initialization",
+        "static _Atomic float bad = 1.0f;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 28u,
+       "atomic static floating initialization is outside this "
+       "constant-data slice"},
+      {{"static floating arithmetic",
+        "static float bad = 1.0f + 2.0f;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 20u,
+       "static floating arithmetic is outside this constant-data slice"},
+      {{"static long double initialization",
+        "static long double bad = 1.0L;\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 26u,
+       "static long double initialization is outside this constant-data "
+       "slice"},
       {{"excess decimal scale",
         "double bad(void) { return 1e4097; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},

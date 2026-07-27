@@ -92,13 +92,21 @@ conversions, and mixed represented integer and floating arithmetic.
 Unsigned four-byte input uses an exact split across the sign boundary. The
 refreshed seed carries that path, and `kernel/lang/cupidc_lex.cc` now builds
 through the checked wrapper.
+Compiler head also writes target-width static floating constant data for
+scalar and aggregate leaves. Parentheses, unary signs, direct conversion
+between `float` and `double`, and signed zero are represented without a host
+floating library. The unchanged `kernel/gfx/jpeg.c` source compiles twice to
+the same valid object with the native compiler-head driver, but the checked
+seed does not carry this record yet. JPEG therefore remains one of the 92
+host-built normal roots.
 Hexadecimal and subnormal literals, `long double`, conversion to unsigned
 four-byte integers or `_Bool`, floating comparisons and truth, mixed integer
-and floating conditional arms, and floating increment and decrement remain
-host-bound. Matching or mixed-width floating conditional arms and the four
-arithmetic compound assignments retain their established x87 path. Older
-detailed rows that list every floating literal or integer conversion as open
-are superseded by this boundary.
+and floating conditional arms, floating increment and decrement, and static
+floating arithmetic remain host-bound. Matching or mixed-width floating
+conditional arms and the four arithmetic compound assignments retain their
+established x87 path. Older detailed rows that list every floating literal,
+static floating initializer, or integer conversion as open are superseded by
+this boundary.
 
 Later sections preserve ownership wording that accompanied earlier capability
 slices. The current 146-source checked-in cohort, complete `.cc` naming, and
@@ -285,7 +293,7 @@ Eight-byte integer and exact floating object access use those existing storage i
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. Static initializer addresses based on another block static remain a frontend boundary.
 
-The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 155/155 at compiler head. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 211/6,367/57,701/813/297. `cupidc_emit.cc` publishes 225/5,931/50,996/718/361, while `cupidc_frontend.cc` publishes 334/13,582/89,442/2,008/1,329. The generated audit records the current active-source totals and source graph.
+The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 155/155 at compiler head. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 213/6,411/58,097/821/299. `cupidc_emit.cc` publishes 225/5,947/51,246/721/361, while `cupidc_frontend.cc` publishes 337/13,803/90,768/2,049/1,345. The generated audit records the current active-source totals and source graph.
 
 These hosted semantics do not retire a host dependency. GCC or Clang still builds the shared frontend, emitter, and contracts, the host linker still links the hosted tools, and the host C compiler still owns 92 normal OS root objects and 144 active transforms, while the private kernel compiler owns embedded runtime JIT and AOT compilation. The open host-bound work includes full constant-expression coverage, chained and overriding designators, promoted anonymous-member designators, positional union or Cupid class lists, static member-address constants, explicit address casts, broader runtime values and addresses, deferred automatic initializer forms, aggregate categories outside the supported structure slice, Boolean mutation, character-sized bit-field storage, non-four-byte storage units, partial volatile bit-field mutation, pointer and eight-byte atomics, computed `goto`, GNU label addresses, the remaining GNU surface, floating literals, mixed-kind and integer conversions, comparisons, truth testing, conditional expressions and conditions, compound updates, comma expressions, broader local and function code generation, whole-unit emission, and production integration. The private compiler's tagged loop and switch frames change production JIT output and pass the expanded in-OS `feature25` smoke. It transfers no build ownership.
 

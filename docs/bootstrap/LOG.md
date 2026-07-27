@@ -11702,3 +11702,104 @@ marker.
 The normal build now contains 146 checked-in CupidC roots plus the generated
 kernel symbol source. All 147 normal sources use `.cc`. Nine strict
 checked-in roots remain host-owned. ADR 0135 records the ownership decision.
+
+## 2026-07-27: represent static floating constant data
+
+The next strict production probe reached the 64-entry cosine table in
+`kernel/gfx/jpeg.c` and stopped at its first explicit `float` initializer.
+Runtime decimal constants already had deterministic IEEE bits, but the static
+initializer forest only carried integer, string, address, list, and zero
+records.
+
+The first contract change failed to compile because
+`CTOOL_C_INITIALIZER_FLOATING` did not exist. The new record keeps one
+target-width binary32 or binary64 value and no runtime expression metadata.
+The frontend reduces a decimal constant through parentheses and unary signs,
+performs direct width conversion with integer-only round-to-nearest,
+ties-to-even arithmetic, and rewinds its temporary expression records. The
+IR boundary checks the frozen record. Object emission writes the exact
+little-endian bytes through the normal static placement path.
+
+Positive zero is empty writable storage and can use `.bss`. Negative zero has
+a set sign bit, so it remains in `.data`. Constant objects continue to use
+`.rodata`. Static floating arithmetic, atomic floating objects, and
+`long double` keep distinct feature diagnostics.
+
+The focused table uses the unchanged JPEG values `0.35355339f` and
+`-0.09754516f`. Additional leaves cover positive zero, negative zero, a
+negative `double`, direct narrowing and widening, and the ties-to-even
+conversion of `16777217.0` to binary32. The object contract checks all bytes,
+section sizes, symbol spans, and offsets. It also forges a floating record
+with an integer target and another with bits outside binary32, then requires
+IR rejection before object publication and same-job recovery.
+
+One attempted `1e-45` conversion case did not reach the new width converter.
+The existing decimal parser rejects that scale before it can publish a
+constant. The case was removed rather than weakening its expected result.
+Hexadecimal and subnormal source constants remain a documented gap.
+
+The selected initializer suite found one stale negative contract that still
+expected `static double value = 1.0` to fail. It now checks the remaining
+arithmetic boundary with `1.0 + 2.0`. The static, aggregate, file-scope, and
+all existing floating frontend modes pass. The related IR and object
+aggregate and floating modes pass as well.
+
+Standards review found that the first IR change accepted the new enum value
+without checking the record behind it, and specification review confirmed
+the gap. The lowerer now rejects integer and atomic targets, excess binary32
+bits, and stray expression, string, address, or list metadata. It applies the
+same checks to every leaf in a nested block-static initializer list. Each
+forged unit fails transactionally, and the unchanged unit succeeds again in
+the same job.
+
+Standards review also found that the written block-static claim had only
+file-scope evidence. The focused frontend and IR fixtures now include a
+block-static scalar and a nested array. A separate deterministic ELF object
+checks their exact bytes, local symbols, and one text relocation to each
+object. An attempt to place those functions in the existing floating
+execution object exposed a test-oracle limit: that interpreter rejects any
+text relocation to read-only data, even in a function it does not execute.
+The proof uses its own object and leaves the unrelated oracle alone. This
+commit also drops an unrelated diagnostic refactor.
+
+A final rereview found that the stronger IR check still ran only while
+lowering block statics. Initializer ownership validation now applies it to
+every file-object root as well. A forged binary32 leaf inside the nested
+file-scope table fails transactionally, and the original unit still lowers
+in the same job.
+
+The source-frontier gate also caught the expected compiler shape changes.
+`cupidc_ir.cc` now publishes
+213/6,411/58,097/821/299, `cupidc_emit.cc` publishes
+225/5,947/51,246/721/361, and `cupidc_frontend.cc` publishes
+337/13,803/90,768/2,049/1,345. Each tuple reports definitions, statements,
+expressions, block bindings, and initializers.
+
+The self-host object frontier was refreshed only after two-run determinism
+passed. `cupidc_ir.cc` produces 410,348 text bytes in a 438,324-byte object
+with fingerprint `7D9A96F4`. `cupidc_emit.cc` produces 380,601 text bytes in a
+409,788-byte object with fingerprint `172DD726`. `cupidc_frontend.cc`
+produces 695,346 text bytes in an 822,644-byte object with fingerprint
+`406F16C0`.
+
+The complete native Toolchain suite passes after both stale rejection cases
+and both source-frontier tables were corrected. It includes the linked
+CupidC, CupidASM, CupidDis, CupidLD, CupidObj, and hosted runtime proofs.
+`make verify-bootstrap-seed` also passes for the existing five checked tools.
+That verifies the old seed's integrity; it does not claim the new initializer
+record is present in those binaries.
+
+The generated active-source audit was refreshed after the implementation and
+contract changes. It now records 113,178 contract lines and 64,965 core
+Toolchain lines. `make check-bootstrap-audit` passes against the regenerated
+Markdown and JSON reports.
+
+The unchanged JPEG source compiles twice under the full native `KERNEL_I386`
+profile. Both outputs are valid 21,120-byte i386 `ET_REL` objects with
+SHA-256
+`a758532d86faca55a767042a975dc06631efae2054e11f97ed0880182d9444b0`.
+This is compiler-head evidence only. The checked seed still predates the
+initializer record, so the normal build remains at 92 host root objects and
+`kernel/gfx/jpeg.c` keeps its `.c` name until seed promotion.
+
+ADR 0136 records the representation and its remaining limits.

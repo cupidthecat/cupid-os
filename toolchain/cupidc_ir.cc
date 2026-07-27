@@ -7707,6 +7707,80 @@ static ctool_status_t cir_validate_block_enumerator(
   return CTOOL_OK;
 }
 
+static ctool_bool cir_static_floating_initializer_is_valid(
+    const cir_context_t *context,
+    const ctool_c_initializer_t *initializer) {
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_type_node_t *floating;
+  ctool_u32 floating_base;
+  ctool_u32 qualifiers;
+  if (initializer->type >= context->unit->layout.type_count ||
+      cir_underlying_type(context, initializer->type, &floating_base,
+                          &qualifiers, &floating) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)floating_base;
+  layout = &context->unit->layout.types[initializer->type];
+  if (((qualifiers | floating->qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u ||
+      !((floating->kind == CTOOL_C_TYPE_FLOAT && layout->size == 4u &&
+         (initializer->integer_bits & 0xffffffff00000000ull) == 0ull) ||
+        (floating->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u)) ||
+      initializer->expression != CTOOL_C_AST_NONE ||
+      initializer->string_bytes.data != (const ctool_u8 *)0 ||
+      initializer->string_bytes.size != 0u ||
+      initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+      initializer->address_reference != CTOOL_C_AST_NONE ||
+      initializer->address_addend != 0 ||
+      initializer->first_element != CTOOL_C_AST_NONE ||
+      initializer->element_count != 0u) {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cir_validate_static_floating_initializer_forest(
+    cir_context_t *context, ctool_u32 initializer_index,
+    ctool_u32 depth) {
+  const ctool_c_initializer_t *initializer;
+  ctool_u32 child_offset;
+  if (initializer_index >= context->unit->initializer_count ||
+      depth >= CTOOL_C_PARSE_NESTING_LIMIT) {
+    return cir_invalid_unit(context,
+                            (const ctool_c_pp_location_t *)0);
+  }
+  initializer = &context->unit->initializers[initializer_index];
+  if (initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
+      cir_static_floating_initializer_is_valid(
+          context, initializer) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
+    return CTOOL_OK;
+  }
+  if (initializer->first_element >
+          context->unit->initializer_element_count ||
+      initializer->element_count >
+          context->unit->initializer_element_count -
+              initializer->first_element) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
+  for (child_offset = 0u;
+       child_offset < initializer->element_count; child_offset++) {
+    ctool_u32 child =
+        context->unit
+            ->initializer_elements[initializer->first_element +
+                                   child_offset]
+            .initializer;
+    ctool_status_t status =
+        cir_validate_static_floating_initializer_forest(
+            context, child, depth + 1u);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_lower_declaration(
     cir_context_t *context, const ctool_c_statement_t *statement) {
   ctool_u32 binding_offset;
@@ -7874,8 +7948,13 @@ static ctool_status_t cir_lower_declaration(
       initializer = &context->unit->initializers[binding->initializer];
       if (initializer->type != binding->type ||
           initializer->kind < CTOOL_C_INITIALIZER_ZERO ||
-          initializer->kind > CTOOL_C_INITIALIZER_LIST) {
+          initializer->kind > CTOOL_C_INITIALIZER_FLOATING) {
         return cir_invalid_unit(context, &initializer->location);
+      }
+      status = cir_validate_static_floating_initializer_forest(
+          context, binding->initializer, 0u);
+      if (status != CTOOL_OK) {
+        return status;
       }
       continue;
     }
@@ -10941,6 +11020,8 @@ static ctool_status_t cir_validate_initializer_ownership(
       valid = CTOOL_FALSE;
     } else {
       owners[root] = 1u;
+      status = cir_validate_static_floating_initializer_forest(
+          context, root, 0u);
     }
   }
   for (index = 0u;

@@ -364,15 +364,19 @@ not execute native x87 code.
 The public frontend publishes decimal float and double constants as exact IEEE
 binary32 or binary64 bits. It uses bounded integer arithmetic and rounds to
 nearest with ties to even, so the self-hosted compiler does not depend on a
-host floating library. The IR and SSE path cover represented
+host floating library. Static-duration scalar and aggregate leaves keep
+target-width bits for decimal constants, parentheses, and unary signs. Direct
+float-to-double or double-to-float conversion happens before the bytes reach
+read-only, writable, or zero-filled storage. Signed zero stays distinct. The
+IR and SSE path cover represented
 integer-to-floating conversions, floating-to-signed conversions,
 floating-to-unsigned byte or word conversions, and mixed represented integer
 and floating arithmetic. Unsigned four-byte input uses an exact split across
 the sign boundary. Hexadecimal and subnormal literals, long double, conversion
 to unsigned four-byte integers or _Bool, floating comparisons and truth,
 mixed integer and floating conditional arms, increment and decrement,
-explicit static floating initializers, SIMD, floating atomic access, and
-over-aligned object emission remain unfinished. Matching or mixed-width
+static floating arithmetic, SIMD, floating atomic access, and over-aligned
+object emission remain unfinished. Matching or mixed-width
 floating conditional arms and the four arithmetic compound assignments keep
 their established x87 path.
 

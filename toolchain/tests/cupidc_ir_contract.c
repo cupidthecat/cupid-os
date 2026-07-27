@@ -26575,18 +26575,143 @@ static int validate_floating_scalar_ir(
       find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
   ctool_u32 double_type =
       find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 local_scalar_binding =
+      find_block_binding(unit, "local_scalar");
+  ctool_u32 local_table_binding =
+      find_block_binding(unit, "local_table");
   ctool_u32 constants[5] = {0u, 0u, 0u, 0u, 0u};
+  ctool_u32 static_values[8] = {
+      0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 integer_to_floating[3] = {0u, 0u, 0u};
   ctool_u32 floating_to_integer[2] = {0u, 0u};
   ctool_u32 index;
   if (unit == NULL || ir == NULL ||
-      unit->function_definition_count != 12u ||
-      ir->function_count != 12u ||
+      unit->function_definition_count != 14u ||
+      ir->function_count != 14u ||
       signed_int == CTOOL_C_TYPE_NONE ||
       unsigned_int == CTOOL_C_TYPE_NONE ||
       float_type == CTOOL_C_TYPE_NONE ||
-      double_type == CTOOL_C_TYPE_NONE) {
+      double_type == CTOOL_C_TYPE_NONE ||
+      local_scalar_binding == CTOOL_C_AST_NONE ||
+      local_table_binding == CTOOL_C_AST_NONE) {
     return 0;
+  }
+  {
+    const ctool_c_block_binding_t *scalar =
+        &unit->block_bindings[local_scalar_binding];
+    const ctool_c_block_binding_t *table =
+        &unit->block_bindings[local_table_binding];
+    const ctool_c_initializer_t *scalar_initializer =
+        scalar->initializer < unit->initializer_count
+            ? &unit->initializers[scalar->initializer]
+            : NULL;
+    const ctool_c_initializer_t *table_initializer =
+        table->initializer < unit->initializer_count
+            ? &unit->initializers[table->initializer]
+            : NULL;
+    const ctool_c_initializer_t *row_initializer = NULL;
+    const ctool_c_initializer_t *first_value = NULL;
+    const ctool_c_initializer_t *second_value = NULL;
+    if (table_initializer != NULL &&
+        table_initializer->kind == CTOOL_C_INITIALIZER_LIST &&
+        table_initializer->element_count == 1u &&
+        table_initializer->first_element <
+            unit->initializer_element_count) {
+      const ctool_c_initializer_element_t *row_edge =
+          &unit->initializer_elements[table_initializer->first_element];
+      if (row_edge->subobject == 0u &&
+          row_edge->initializer < unit->initializer_count) {
+        row_initializer = &unit->initializers[row_edge->initializer];
+      }
+    }
+    if (row_initializer != NULL &&
+        row_initializer->kind == CTOOL_C_INITIALIZER_LIST &&
+        row_initializer->element_count == 2u &&
+        row_initializer->first_element <=
+            unit->initializer_element_count &&
+        row_initializer->element_count <=
+            unit->initializer_element_count -
+                row_initializer->first_element) {
+      const ctool_c_initializer_element_t *first_edge =
+          &unit->initializer_elements[row_initializer->first_element];
+      const ctool_c_initializer_element_t *second_edge =
+          &unit->initializer_elements[
+              row_initializer->first_element + 1u];
+      if (first_edge->subobject == 0u &&
+          first_edge->initializer < unit->initializer_count) {
+        first_value = &unit->initializers[first_edge->initializer];
+      }
+      if (second_edge->subobject == 1u &&
+          second_edge->initializer < unit->initializer_count) {
+        second_value = &unit->initializers[second_edge->initializer];
+      }
+    }
+    if (scalar->kind != CTOOL_C_BINDING_OBJECT ||
+        scalar->storage != CTOOL_C_STORAGE_STATIC ||
+        scalar_initializer == NULL ||
+        scalar_initializer->kind != CTOOL_C_INITIALIZER_FLOATING ||
+        scalar_initializer->type != scalar->type ||
+        scalar_initializer->integer_bits != 0xbdc7c5c2ull ||
+        table->kind != CTOOL_C_BINDING_OBJECT ||
+        table->storage != CTOOL_C_STORAGE_STATIC ||
+        table_initializer == NULL ||
+        first_value == NULL || second_value == NULL ||
+        first_value->kind != CTOOL_C_INITIALIZER_FLOATING ||
+        first_value->integer_bits != 0x3eb504f3ull ||
+        second_value->kind != CTOOL_C_INITIALIZER_FLOATING ||
+        second_value->integer_bits != 0x80000000ull) {
+      return 0;
+    }
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    const ctool_c_initializer_t *initializer =
+        &unit->initializers[index];
+    const ctool_c_type_layout_t *layout =
+        initializer->type < unit->layout.type_count
+            ? &unit->layout.types[initializer->type]
+            : NULL;
+    if (initializer->kind != CTOOL_C_INITIALIZER_FLOATING) {
+      continue;
+    }
+    if (layout == NULL || initializer->expression != CTOOL_C_AST_NONE ||
+        initializer->string_bytes.data != NULL ||
+        initializer->string_bytes.size != 0u ||
+        initializer->address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+        initializer->address_reference != CTOOL_C_AST_NONE ||
+        initializer->address_addend != 0 ||
+        initializer->first_element != CTOOL_C_AST_NONE ||
+        initializer->element_count != 0u) {
+      return 0;
+    }
+    if (layout->size == 4u &&
+        initializer->integer_bits == 0x3eb504f3ull) {
+      static_values[0]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0xbdc7c5c2ull) {
+      static_values[1]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0u) {
+      static_values[2]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x80000000ull) {
+      static_values[3]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0xc024000000000000ull) {
+      static_values[4]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x3dcccccdull) {
+      static_values[5]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0x3fb99999a0000000ull) {
+      static_values[6]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x4b800000ull) {
+      static_values[7]++;
+    } else {
+      return 0;
+    }
   }
   for (index = 0u; index < ir->instruction_count; index++) {
     const ctool_c_ir_instruction_t *instruction =
@@ -26651,7 +26776,14 @@ static int validate_floating_scalar_ir(
       }
     }
   }
-  return constants[0] == 1u && constants[1] == 1u &&
+  return static_values[0] == 2u && static_values[1] == 2u &&
+                 static_values[2] == 2u &&
+                 static_values[3] == 3u &&
+                 static_values[4] == 1u &&
+                 static_values[5] == 1u &&
+                 static_values[6] == 1u &&
+                 static_values[7] == 1u &&
+                 constants[0] == 1u && constants[1] == 1u &&
                  constants[2] == 1u && constants[3] == 1u &&
                  constants[4] == 1u &&
                  integer_to_floating[0] == 2u &&
@@ -26666,6 +26798,15 @@ static int validate_floating_scalar_ir(
 static int run_floating_scalars(const char *host_root) {
   static const char source[] =
       "typedef long double unsupported_long_double;\n"
+      "extern _Atomic float atomic_float_probe;\n"
+      "static const float static_float_table[2][2] = "
+      "{{(0.35355339f), -0.09754516f}, {+0.0f, -0.0f}};\n"
+      "static const double static_double = -10.0;\n"
+      "static const float static_narrowed = 0.1;\n"
+      "static const double static_widened = 0.1f;\n"
+      "static const float static_tie = 16777217.0;\n"
+      "static float static_float_zero = 0.0f;\n"
+      "static float static_float_negative_zero = -0.0f;\n"
       "float literal_float(void) { return .5f; }\n"
       "double literal_zero(void) { return 0.0; }\n"
       "double literal_tenth(void) { return 0.1; }\n"
@@ -26677,13 +26818,24 @@ static int run_floating_scalars(const char *host_root) {
       "float cast_from_uint(unsigned int value) { return (float)value; }\n"
       "int assign_from_float(float value) { return value; }\n"
       "int cast_from_double(double value) { return (int)value; }\n"
-      "double mixed_add(int left, double right) { return left + right; }\n";
+      "double mixed_add(int left, double right) { return left + right; }\n"
+      "float read_local_scalar(void) {\n"
+      "  static const float local_scalar = -0.09754516f;\n"
+      "  return local_scalar;\n"
+      "}\n"
+      "float read_local_table(unsigned int index) {\n"
+      "  static const float local_table[1][2] = "
+      "{{0.35355339f, -0.0f}};\n"
+      "  return local_table[0][index];\n"
+      "}\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_block_binding_t *invalid_block_bindings = NULL;
+  ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_ir_unit_t ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_u32 float_constant = CTOOL_C_AST_NONE;
@@ -26694,6 +26846,15 @@ static int run_floating_scalars(const char *host_root) {
   ctool_u32 float_type;
   ctool_u32 double_type;
   ctool_u32 long_double_type;
+  ctool_u32 atomic_float_binding;
+  ctool_u32 atomic_float_type;
+  ctool_u32 file_table_binding;
+  ctool_u32 file_table_root = CTOOL_C_AST_NONE;
+  ctool_u32 local_scalar_binding;
+  ctool_u32 local_table_binding;
+  ctool_u32 static_floating;
+  ctool_u32 nested_file_floating = CTOOL_C_AST_NONE;
+  ctool_u32 nested_static_floating;
   ctool_u32 index;
   ctool_status_t status;
   uint64_t unit_hash;
@@ -26718,14 +26879,104 @@ static int run_floating_scalars(const char *host_root) {
       find_plain_type_kind(&unit, CTOOL_C_TYPE_DOUBLE);
   long_double_type =
       find_plain_type_kind(&unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  atomic_float_binding =
+      find_binding(&unit, "atomic_float_probe");
+  atomic_float_type =
+      atomic_float_binding < unit.binding_count
+          ? unit.bindings[atomic_float_binding].type
+          : CTOOL_C_TYPE_NONE;
+  file_table_binding =
+      find_binding(&unit, "static_float_table");
+  if (file_table_binding < unit.binding_count) {
+    for (index = 0u; index < unit.object_definition_count; index++) {
+      if (unit.object_definitions[index].binding ==
+          file_table_binding) {
+        file_table_root =
+            unit.object_definitions[index].initializer;
+        break;
+      }
+    }
+  }
+  if (file_table_root < unit.initializer_count &&
+      unit.initializers[file_table_root].kind ==
+          CTOOL_C_INITIALIZER_LIST &&
+      unit.initializers[file_table_root].element_count == 2u &&
+      unit.initializers[file_table_root].first_element <
+          unit.initializer_element_count) {
+    ctool_u32 row_root =
+        unit.initializer_elements[
+                unit.initializers[file_table_root].first_element]
+            .initializer;
+    if (row_root < unit.initializer_count &&
+        unit.initializers[row_root].kind ==
+            CTOOL_C_INITIALIZER_LIST &&
+        unit.initializers[row_root].element_count == 2u &&
+        unit.initializers[row_root].first_element <
+            unit.initializer_element_count) {
+      nested_file_floating =
+          unit.initializer_elements[
+                  unit.initializers[row_root].first_element]
+              .initializer;
+    }
+  }
+  local_scalar_binding =
+      find_block_binding(&unit, "local_scalar");
+  local_table_binding =
+      find_block_binding(&unit, "local_table");
+  static_floating =
+      local_scalar_binding < unit.block_binding_count
+          ? unit.block_bindings[local_scalar_binding].initializer
+          : CTOOL_C_AST_NONE;
+  nested_static_floating = CTOOL_C_AST_NONE;
+  if (local_table_binding < unit.block_binding_count) {
+    ctool_u32 table_root =
+        unit.block_bindings[local_table_binding].initializer;
+    if (table_root < unit.initializer_count &&
+        unit.initializers[table_root].kind ==
+            CTOOL_C_INITIALIZER_LIST &&
+        unit.initializers[table_root].element_count == 1u &&
+        unit.initializers[table_root].first_element <
+            unit.initializer_element_count) {
+      ctool_u32 row_root =
+          unit.initializer_elements[
+                  unit.initializers[table_root].first_element]
+              .initializer;
+      if (row_root < unit.initializer_count &&
+          unit.initializers[row_root].kind ==
+              CTOOL_C_INITIALIZER_LIST &&
+          unit.initializers[row_root].element_count == 2u &&
+          unit.initializers[row_root].first_element <
+              unit.initializer_element_count) {
+        nested_static_floating =
+            unit.initializer_elements[
+                    unit.initializers[row_root].first_element]
+                .initializer;
+      }
+    }
+  }
   if (unsigned_int == CTOOL_C_TYPE_NONE ||
       signed_int == CTOOL_C_TYPE_NONE ||
       float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
+      atomic_float_type == CTOOL_C_TYPE_NONE ||
+      atomic_float_type >= unit.layout.type_count ||
+      file_table_binding == CTOOL_C_AST_NONE ||
+      file_table_root >= unit.initializer_count ||
+      nested_file_floating >= unit.initializer_count ||
+      local_scalar_binding == CTOOL_C_AST_NONE ||
+      local_table_binding == CTOOL_C_AST_NONE ||
+      static_floating >= unit.initializer_count ||
+      nested_static_floating >= unit.initializer_count ||
       unit.expression_count == 0u ||
       sizeof(*invalid_expressions) >
-          SIZE_MAX / (size_t)unit.expression_count) {
+          SIZE_MAX / (size_t)unit.expression_count ||
+      unit.block_binding_count == 0u ||
+      sizeof(*invalid_block_bindings) >
+          SIZE_MAX / (size_t)unit.block_binding_count ||
+      unit.initializer_count == 0u ||
+      sizeof(*invalid_initializers) >
+          SIZE_MAX / (size_t)unit.initializer_count) {
     goto cleanup;
   }
   unit_hash = unit_fingerprint(&unit);
@@ -26749,7 +27000,15 @@ static int run_floating_scalars(const char *host_root) {
   invalid_expressions = (ctool_c_expression_t *)malloc(
       (size_t)unit.expression_count *
           sizeof(*invalid_expressions));
-  if (invalid_expressions == NULL) {
+  invalid_block_bindings = (ctool_c_block_binding_t *)malloc(
+      (size_t)unit.block_binding_count *
+          sizeof(*invalid_block_bindings));
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)unit.initializer_count *
+          sizeof(*invalid_initializers));
+  if (invalid_expressions == NULL ||
+      invalid_block_bindings == NULL ||
+      invalid_initializers == NULL) {
     goto cleanup;
   }
   for (index = 0u; index < unit.expression_count; index++) {
@@ -26836,9 +27095,153 @@ static int run_floating_scalars(const char *host_root) {
           "floating to unsigned 32-bit conversion")) {
     goto cleanup;
   }
+  invalid_unit = unit;
+  invalid_unit.block_bindings = invalid_block_bindings;
+  invalid_unit.initializers = invalid_initializers;
+  (void)memcpy(invalid_block_bindings, unit.block_bindings,
+               (size_t)unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[nested_file_floating].integer_bits |=
+      0x0000000100000000ull;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "nested file static float initializer with out-of-width bits")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, unit.block_bindings,
+               (size_t)unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_block_bindings[local_scalar_binding].type = unsigned_int;
+  invalid_initializers[static_floating].type = unsigned_int;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block static floating initializer with integer type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, unit.block_bindings,
+               (size_t)unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_block_bindings[local_scalar_binding].type =
+      atomic_float_type;
+  invalid_initializers[static_floating].type =
+      atomic_float_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "atomic block static floating initializer")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_block_bindings, unit.block_bindings,
+               (size_t)unit.block_binding_count *
+                   sizeof(*invalid_block_bindings));
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].integer_bits |=
+      0x0000000100000000ull;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block static float initializer with out-of-width bits")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].expression = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block static floating initializer with expression metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].string_bytes.data =
+      (const ctool_u8 *)source;
+  invalid_initializers[static_floating].string_bytes.size = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block static floating initializer with string metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].address_kind =
+      CTOOL_C_INITIALIZER_ADDRESS_BINDING;
+  invalid_initializers[static_floating].address_reference =
+      atomic_float_binding;
+  invalid_initializers[static_floating].address_addend = 1;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block static floating initializer with address metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].first_element = 0u;
+  invalid_initializers[static_floating].element_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "block static floating initializer with list metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[nested_static_floating].type =
+      unsigned_int;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "nested block static floating initializer with integer type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[nested_static_floating].integer_bits |=
+      0x0000000100000000ull;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "nested block static float initializer with out-of-width bits") ||
+      !expect_ir_success_preserves_unit(
+          job, &unit, "block static floating initializer recovery")) {
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
+  free(invalid_initializers);
+  free(invalid_block_bindings);
   free(invalid_expressions);
   if (job != NULL) {
     ctool_job_close(job);

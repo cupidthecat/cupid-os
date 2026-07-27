@@ -14487,6 +14487,268 @@ static ctool_status_t cfront_parse_aggregate_initializer(
   return status;
 }
 
+static ctool_u64 cfront_round_floating_shift(
+    ctool_u64 value, ctool_u32 shift) {
+  ctool_u64 truncated;
+  ctool_u64 remainder;
+  ctool_u64 halfway;
+  if (shift == 0u) {
+    return value;
+  }
+  if (shift > 64u) {
+    return 0ull;
+  }
+  if (shift == 64u) {
+    return value > 0x8000000000000000ull ? 1ull : 0ull;
+  }
+  truncated = value >> shift;
+  remainder = value & ((1ull << shift) - 1ull);
+  halfway = 1ull << (shift - 1u);
+  if (remainder > halfway ||
+      (remainder == halfway && (truncated & 1ull) != 0ull)) {
+    truncated++;
+  }
+  return truncated;
+}
+
+static ctool_status_t cfront_convert_static_floating_bits(
+    cfront_context_t *context,
+    ctool_c_type_kind_t source_kind, ctool_u64 source_bits,
+    ctool_c_type_kind_t target_kind, ctool_u64 *target_bits_out) {
+  if (source_kind == target_kind) {
+    *target_bits_out =
+        target_kind == CTOOL_C_TYPE_FLOAT
+            ? source_bits & 0x00000000ffffffffull
+            : source_bits;
+    return CTOOL_OK;
+  }
+  if (source_kind == CTOOL_C_TYPE_FLOAT &&
+      target_kind == CTOOL_C_TYPE_DOUBLE) {
+    ctool_u32 narrow = (ctool_u32)source_bits;
+    ctool_u32 exponent = (narrow >> 23u) & 0xffu;
+    ctool_u32 fraction = narrow & 0x007fffffu;
+    ctool_u64 sign = (ctool_u64)(narrow & 0x80000000u) << 32u;
+    if (exponent == 0xffu) {
+      ctool_u64 payload = (ctool_u64)fraction << 29u;
+      if (fraction != 0u && payload == 0ull) {
+        payload = 1ull;
+      }
+      *target_bits_out =
+          sign | 0x7ff0000000000000ull | payload;
+      return CTOOL_OK;
+    }
+    if (exponent == 0u) {
+      ctool_u32 highest;
+      ctool_i32 unbiased;
+      ctool_u64 significand;
+      if (fraction == 0u) {
+        *target_bits_out = sign;
+        return CTOOL_OK;
+      }
+      highest = 22u;
+      while ((fraction & (1u << highest)) == 0u) {
+        highest--;
+      }
+      unbiased = (ctool_i32)highest - 149;
+      significand =
+          (ctool_u64)fraction << (52u - highest);
+      *target_bits_out =
+          sign |
+          ((ctool_u64)(unbiased + 1023) << 52u) |
+          (significand & 0x000fffffffffffffull);
+      return CTOOL_OK;
+    }
+    *target_bits_out =
+        sign |
+        ((ctool_u64)(exponent + 896u) << 52u) |
+        ((ctool_u64)fraction << 29u);
+    return CTOOL_OK;
+  }
+  if (source_kind == CTOOL_C_TYPE_DOUBLE &&
+      target_kind == CTOOL_C_TYPE_FLOAT) {
+    ctool_u32 exponent =
+        (ctool_u32)((source_bits >> 52u) & 0x7ffull);
+    ctool_u64 fraction =
+        source_bits & 0x000fffffffffffffull;
+    ctool_u32 sign =
+        (ctool_u32)((source_bits >> 32u) & 0x80000000ull);
+    ctool_i32 unbiased;
+    ctool_u64 significand;
+    ctool_u64 rounded;
+    ctool_u32 target_exponent;
+    if (exponent == 0x7ffu) {
+      ctool_u32 payload =
+          (ctool_u32)(fraction >> 29u) & 0x007fffffu;
+      if (fraction != 0ull && payload == 0u) {
+        payload = 1u;
+      }
+      *target_bits_out =
+          (ctool_u64)(sign | 0x7f800000u | payload);
+      return CTOOL_OK;
+    }
+    if (exponent == 0u) {
+      *target_bits_out = (ctool_u64)sign;
+      return CTOOL_OK;
+    }
+    unbiased = (ctool_i32)exponent - 1023;
+    significand = 0x0010000000000000ull | fraction;
+    if (unbiased > 127) {
+      *target_bits_out = (ctool_u64)(sign | 0x7f800000u);
+      return CTOOL_OK;
+    }
+    if (unbiased >= -126) {
+      rounded = cfront_round_floating_shift(significand, 29u);
+      if (rounded == 0x01000000ull) {
+        rounded >>= 1u;
+        unbiased++;
+        if (unbiased > 127) {
+          *target_bits_out =
+              (ctool_u64)(sign | 0x7f800000u);
+          return CTOOL_OK;
+        }
+      }
+      target_exponent = (ctool_u32)(unbiased + 127);
+      *target_bits_out =
+          (ctool_u64)(sign | (target_exponent << 23u) |
+                      ((ctool_u32)rounded & 0x007fffffu));
+      return CTOOL_OK;
+    }
+    rounded = cfront_round_floating_shift(
+        significand, (ctool_u32)(-unbiased - 97));
+    if (rounded >= 0x00800000ull) {
+      *target_bits_out = (ctool_u64)(sign | 0x00800000u);
+    } else {
+      *target_bits_out =
+          (ctool_u64)(sign | (ctool_u32)rounded);
+    }
+    return CTOOL_OK;
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+      cfront_peek(context),
+      "static floating conversion metadata is invalid");
+}
+
+static ctool_status_t cfront_extract_static_floating_bits(
+    cfront_context_t *context, ctool_u32 expression_index,
+    ctool_c_type_kind_t target_kind, ctool_u64 *bits_out,
+    ctool_bool *matched_out) {
+  ctool_bool negate = CTOOL_FALSE;
+  ctool_u32 traversed = 0u;
+  *bits_out = 0ull;
+  *matched_out = CTOOL_FALSE;
+  for (;;) {
+    ctool_c_expression_t expression;
+    ctool_status_t status;
+    if (expression_index >= context->expressions.count ||
+        traversed++ >= context->expressions.count) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "static floating expression metadata is unavailable");
+    }
+    status = cfront_vector_get(
+        &context->expressions, expression_index, &expression);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "static floating expression metadata is unavailable");
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_UNARY &&
+        (expression.operation ==
+             CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS ||
+         expression.operation ==
+             CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE)) {
+      ctool_u32 child;
+      if (expression.child_count != 1u ||
+          expression.first_child >=
+              context->expression_children.count ||
+          cfront_vector_get(&context->expression_children,
+                            expression.first_child, &child) != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static floating unary operand is unavailable");
+      }
+      if (expression.operation ==
+          CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+        negate = negate == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+      }
+      expression_index = child;
+      continue;
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_CAST &&
+        expression.conversion == CTOOL_C_CONVERSION_NONE) {
+      ctool_c_type_node_t cast_type;
+      ctool_u32 cast_base;
+      ctool_u32 cast_qualifiers;
+      ctool_u32 child;
+      status = cfront_underlying_type(
+          context, expression.type, &cast_base, &cast_qualifiers,
+          &cast_type);
+      (void)cast_base;
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (cast_type.kind != target_kind ||
+          ((cast_qualifiers | cast_type.qualifiers) &
+           CTOOL_C_QUAL_ATOMIC) != 0u) {
+        return CTOOL_OK;
+      }
+      if (expression.child_count != 1u ||
+          expression.first_child >=
+              context->expression_children.count ||
+          cfront_vector_get(&context->expression_children,
+                            expression.first_child, &child) != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static floating cast operand is unavailable");
+      }
+      expression_index = child;
+      continue;
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      ctool_c_type_node_t source;
+      ctool_u32 source_base;
+      ctool_u32 source_qualifiers;
+      status = cfront_underlying_type(
+          context, expression.type, &source_base, &source_qualifiers,
+          &source);
+      (void)source_base;
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if ((source.kind != CTOOL_C_TYPE_FLOAT &&
+           source.kind != CTOOL_C_TYPE_DOUBLE) ||
+          ((source_qualifiers | source.qualifiers) &
+           CTOOL_C_QUAL_ATOMIC) != 0u ||
+          (source.kind == CTOOL_C_TYPE_FLOAT &&
+           (expression.integer_bits & 0xffffffff00000000ull) != 0ull)) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static floating constant metadata is invalid");
+      }
+      status = cfront_convert_static_floating_bits(
+          context, source.kind, expression.integer_bits,
+          target_kind, bits_out);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      if (negate == CTOOL_TRUE) {
+        *bits_out ^=
+            target_kind == CTOOL_C_TYPE_FLOAT
+                ? 0x0000000080000000ull
+                : 0x8000000000000000ull;
+      }
+      *matched_out = CTOOL_TRUE;
+    }
+    return CTOOL_OK;
+  }
+}
+
 static ctool_status_t cfront_parse_static_initializer(
     cfront_context_t *context, ctool_u32 *object_type_io,
     ctool_u32 *initializer_out) {
@@ -14700,11 +14962,71 @@ static ctool_status_t cfront_parse_static_initializer(
     if (target.kind == CTOOL_C_TYPE_FLOAT ||
         target.kind == CTOOL_C_TYPE_DOUBLE ||
         target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
-          "static floating initialization is outside this constant-data "
-          "slice");
+      cfront_expression_value_t floating_value;
+      ctool_u32 expression_mark = context->expressions.count;
+      ctool_u32 child_mark = context->expression_children.count;
+      ctool_u64 floating_bits = 0ull;
+      ctool_bool matched = CTOOL_FALSE;
+      if (target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+            "static long double initialization is outside this "
+            "constant-data slice");
+      }
+      if (((target_qualifiers | target.qualifiers) &
+           CTOOL_C_QUAL_ATOMIC) != 0u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+            "atomic static floating initialization is outside this "
+            "constant-data slice");
+      }
+      if (value_token == (const ctool_c_pp_token_t *)0 ||
+          cfront_peek_is(context, ";") == CTOOL_TRUE ||
+          cfront_peek_is(context, ",") == CTOOL_TRUE ||
+          cfront_peek_is(context, "}") == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+            "static initializer requires a constant expression");
+      }
+      cfront_zero(&floating_value, (ctool_u32)sizeof(floating_value));
+      context->static_initializer_depth++;
+      status = cfront_parse_body_conditional(context, &floating_value);
+      context->static_initializer_depth--;
+      if (status == CTOOL_OK) {
+        status = cfront_extract_static_floating_bits(
+            context, floating_value.expression, target.kind,
+            &floating_bits, &matched);
+      }
+      if (status == CTOOL_OK && matched == CTOOL_TRUE) {
+        ctool_c_initializer_t initializer;
+        cfront_initializer_init(
+            &initializer, CTOOL_C_INITIALIZER_FLOATING,
+            *object_type_io, value_token);
+        initializer.integer_bits = floating_bits;
+        status = cfront_append_initializer(
+            context, &initializer, initializer_out);
+      } else if (status == CTOOL_OK) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+            "static floating arithmetic is outside this constant-data "
+            "slice");
+      }
+      {
+        ctool_status_t rewind_status = cfront_vector_rewind(
+            &context->expression_children, child_mark);
+        if (rewind_status == CTOOL_OK) {
+          rewind_status = cfront_vector_rewind(
+              &context->expressions, expression_mark);
+        }
+        if (rewind_status != CTOOL_OK) {
+          return cfront_storage_failure(context, rewind_status);
+        }
+      }
+      return status;
     }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
@@ -18376,6 +18698,29 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
                   ? CTOOL_TRUE
                   : CTOOL_FALSE;
     } else if (valid == CTOOL_TRUE &&
+               initializer->kind == CTOOL_C_INITIALIZER_FLOATING) {
+      ctool_c_type_node_t floating;
+      ctool_u32 floating_base;
+      ctool_u32 floating_qualifiers;
+      status = cfront_underlying_type(
+          context, initializer->type, &floating_base,
+          &floating_qualifiers, &floating);
+      (void)floating_base;
+      valid = status == CTOOL_OK &&
+                      (floating.kind == CTOOL_C_TYPE_FLOAT ||
+                       floating.kind == CTOOL_C_TYPE_DOUBLE) &&
+                      ((floating_qualifiers | floating.qualifiers) &
+                       CTOOL_C_QUAL_ATOMIC) == 0u &&
+                      initializer->expression == CTOOL_C_AST_NONE &&
+                      no_string == CTOOL_TRUE &&
+                      no_address == CTOOL_TRUE &&
+                      no_elements == CTOOL_TRUE &&
+                      (floating.kind != CTOOL_C_TYPE_FLOAT ||
+                       (initializer->integer_bits &
+                        0xffffffff00000000ull) == 0ull)
+                  ? CTOOL_TRUE
+                  : CTOOL_FALSE;
+    } else if (valid == CTOOL_TRUE &&
                initializer->kind == CTOOL_C_INITIALIZER_STRING) {
       ctool_c_type_node_t array;
       ctool_c_type_node_t element;
@@ -18886,6 +19231,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           (storage_domains[index] == CFRONT_INITIALIZER_DOMAIN_STATIC &&
            initializer->kind != CTOOL_C_INITIALIZER_ZERO &&
            initializer->kind != CTOOL_C_INITIALIZER_INTEGER &&
+           initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
            initializer->kind != CTOOL_C_INITIALIZER_STRING &&
            initializer->kind != CTOOL_C_INITIALIZER_ADDRESS &&
            initializer->kind != CTOOL_C_INITIALIZER_LIST)) {

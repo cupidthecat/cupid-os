@@ -703,6 +703,38 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
       is_zero = CTOOL_TRUE;
     } else if (initializer->kind == CTOOL_C_INITIALIZER_INTEGER) {
       is_zero = initializer->integer_bits == 0u ? CTOOL_TRUE : CTOOL_FALSE;
+    } else if (initializer->kind == CTOOL_C_INITIALIZER_FLOATING) {
+      const ctool_c_type_node_t *floating;
+      const ctool_c_type_layout_t *layout;
+      ctool_u32 qualifiers;
+      if (initializer->type >= context->unit->layout.type_count ||
+          cemit_underlying_type(
+              context, initializer->type, &qualifiers,
+              &floating) == CTOOL_FALSE) {
+        return cemit_invalid_unit(context, &initializer->location);
+      }
+      layout = &context->unit->layout.types[initializer->type];
+      if (((qualifiers | floating->qualifiers) & CTOOL_C_QUAL_ATOMIC) !=
+              0u ||
+          !((floating->kind == CTOOL_C_TYPE_FLOAT &&
+             layout->size == 4u &&
+             (initializer->integer_bits &
+              0xffffffff00000000ull) == 0ull) ||
+            (floating->kind == CTOOL_C_TYPE_DOUBLE &&
+             layout->size == 8u)) ||
+          initializer->expression != CTOOL_C_AST_NONE ||
+          initializer->string_bytes.data != (const ctool_u8 *)0 ||
+          initializer->string_bytes.size != 0u ||
+          initializer->address_kind !=
+              CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+          initializer->address_reference != CTOOL_C_AST_NONE ||
+          initializer->address_addend != 0 ||
+          initializer->first_element != CTOOL_C_AST_NONE ||
+          initializer->element_count != 0u) {
+        return cemit_invalid_unit(context, &initializer->location);
+      }
+      is_zero =
+          initializer->integer_bits == 0u ? CTOOL_TRUE : CTOOL_FALSE;
     } else if (initializer->kind == CTOOL_C_INITIALIZER_STRING) {
       if (initializer->string_bytes.data == (const ctool_u8 *)0 &&
           initializer->string_bytes.size != 0u) {
@@ -1508,6 +1540,10 @@ static ctool_status_t cemit_encode_initializer(
     return CTOOL_OK;
   }
   if (initializer->kind == CTOOL_C_INITIALIZER_INTEGER) {
+    return cemit_patch_integer(context, section, offset, layout->size,
+                               initializer->integer_bits);
+  }
+  if (initializer->kind == CTOOL_C_INITIALIZER_FLOATING) {
     return cemit_patch_integer(context, section, offset, layout->size,
                                initializer->integer_bits);
   }

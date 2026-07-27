@@ -158,7 +158,8 @@ typedef enum {
   CTOOL_C_INITIALIZER_INTEGER,
   CTOOL_C_INITIALIZER_STRING,
   CTOOL_C_INITIALIZER_ADDRESS,
-  CTOOL_C_INITIALIZER_LIST
+  CTOOL_C_INITIALIZER_LIST,
+  CTOOL_C_INITIALIZER_FLOATING
 } ctool_c_initializer_kind_t;
 
 typedef enum {
@@ -179,7 +180,8 @@ typedef struct {
   /* EXPRESSION: converted runtime expression root. It may be an automatic
    * object's root or a leaf in an automatic LIST. Other kinds use AST_NONE. */
   ctool_u32 expression;
-  /* INTEGER: target-width converted value bits. */
+  /* INTEGER: target-width converted value bits. FLOATING: target-width
+   * IEEE binary32 or binary64 bits. */
   ctool_u64 integer_bits;
   /* STRING: effective character bytes copied into the target array. The
    * target type supplies any remaining semantic zero initialization.

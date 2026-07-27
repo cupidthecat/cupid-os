@@ -24270,6 +24270,205 @@ cleanup:
   return 1;
 }
 
+static int validate_static_floating_object_data(
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_rodata[] = {
+      0xf3u, 0x04u, 0xb5u, 0x3eu,
+      0xc2u, 0xc5u, 0xc7u, 0xbdu,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x80u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x24u, 0xc0u,
+      0xcdu, 0xccu, 0xccu, 0x3du,
+      0x00u, 0x00u, 0x00u, 0xa0u,
+      0x99u, 0x99u, 0xb9u, 0x3fu,
+      0x00u, 0x00u, 0x80u, 0x4bu};
+  static const ctool_u8 expected_data[] = {
+      0x00u, 0x00u, 0x00u, 0x80u};
+  const ctool_elf32_section_t *rodata =
+      find_section(object, ".rodata");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_symbol_t *table =
+      find_symbol(object, "static_float_table");
+  const ctool_elf32_symbol_t *double_value =
+      find_symbol(object, "static_double");
+  const ctool_elf32_symbol_t *narrowed =
+      find_symbol(object, "static_narrowed");
+  const ctool_elf32_symbol_t *widened =
+      find_symbol(object, "static_widened");
+  const ctool_elf32_symbol_t *tie =
+      find_symbol(object, "static_tie");
+  const ctool_elf32_symbol_t *zero =
+      find_symbol(object, "static_float_zero");
+  const ctool_elf32_symbol_t *negative_zero =
+      find_symbol(object, "static_float_negative_zero");
+  if (rodata == NULL || data == NULL || bss == NULL ||
+      rodata->contents.size !=
+          (ctool_u32)sizeof(expected_rodata) ||
+      data->contents.size != (ctool_u32)sizeof(expected_data) ||
+      bss->size != 4u || bss->contents.size != 0u ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      memcmp(data->contents.data, expected_data,
+             sizeof(expected_data)) != 0 ||
+      !symbol_matches(
+          table, 1u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 0u, 16u) ||
+      !symbol_matches(
+          double_value, 2u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 16u, 8u) ||
+      !symbol_matches(
+          narrowed, 3u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 24u, 4u) ||
+      !symbol_matches(
+          widened, 4u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 28u, 8u) ||
+      !symbol_matches(
+          tie, 5u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 36u, 4u) ||
+      !symbol_matches(
+          zero, 6u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          bss->file_index, 0u, 4u) ||
+      !symbol_matches(
+          negative_zero, 7u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          data->file_index, 0u, 4u)) {
+    (void)fprintf(
+        stderr, "static floating object data differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_block_static_floating_object(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_rodata[] = {
+      0xc2u, 0xc5u, 0xc7u, 0xbdu,
+      0xf3u, 0x04u, 0xb5u, 0x3eu,
+      0x00u, 0x00u, 0x00u, 0x80u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_symbol_t *scalar_symbol;
+  const ctool_elf32_symbol_t *table_symbol;
+  const ctool_elf32_symbol_t *scalar_reader =
+      find_symbol(object, "read_local_scalar");
+  const ctool_elf32_symbol_t *table_reader =
+      find_symbol(object, "read_local_table");
+  ctool_u32 scalar_binding = CTOOL_C_AST_NONE;
+  ctool_u32 table_binding = CTOOL_C_AST_NONE;
+  ctool_u32 scalar_relocations = 0u;
+  ctool_u32 table_relocations = 0u;
+  char scalar_name[48];
+  char table_name[48];
+  int scalar_name_size;
+  int table_name_size;
+  ctool_u32 index;
+  if (unit == NULL || object == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding =
+        &unit->block_bindings[index];
+    if (string_equal(binding->name, "local_scalar") != 0) {
+      scalar_binding = index;
+    } else if (string_equal(binding->name, "local_table") != 0) {
+      table_binding = index;
+    }
+  }
+  scalar_name_size = snprintf(
+      scalar_name, sizeof(scalar_name), ".LBS%u.local_scalar",
+      (unsigned int)scalar_binding);
+  table_name_size = snprintf(
+      table_name, sizeof(table_name), ".LBS%u.local_table",
+      (unsigned int)table_binding);
+  if (scalar_binding == CTOOL_C_AST_NONE ||
+      table_binding == CTOOL_C_AST_NONE ||
+      scalar_name_size < 0 ||
+      (size_t)scalar_name_size >= sizeof(scalar_name) ||
+      table_name_size < 0 ||
+      (size_t)table_name_size >= sizeof(table_name) ||
+      unit->block_bindings[scalar_binding].kind !=
+          CTOOL_C_BINDING_OBJECT ||
+      unit->block_bindings[scalar_binding].storage !=
+          CTOOL_C_STORAGE_STATIC ||
+      unit->block_bindings[table_binding].kind !=
+          CTOOL_C_BINDING_OBJECT ||
+      unit->block_bindings[table_binding].storage !=
+          CTOOL_C_STORAGE_STATIC) {
+    return 0;
+  }
+  scalar_symbol = find_symbol(object, scalar_name);
+  table_symbol = find_symbol(object, table_name);
+  if (text == NULL || rodata == NULL ||
+      rodata->contents.size !=
+          (ctool_u32)sizeof(expected_rodata) ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      scalar_symbol == NULL ||
+      scalar_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      scalar_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      scalar_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      scalar_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      scalar_symbol->section_file_index != rodata->file_index ||
+      scalar_symbol->value != 0u || scalar_symbol->size != 4u ||
+      table_symbol == NULL ||
+      table_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      table_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      table_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      table_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      table_symbol->section_file_index != rodata->file_index ||
+      table_symbol->value != 4u || table_symbol->size != 8u ||
+      scalar_reader == NULL ||
+      scalar_reader->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      scalar_reader->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      scalar_reader->section_file_index != text->file_index ||
+      table_reader == NULL ||
+      table_reader->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      table_reader->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      table_reader->section_file_index != text->file_index ||
+      text->relocation_count != 2u ||
+      object->relocation_count != 2u) {
+    (void)fprintf(
+        stderr, "block static floating ELF inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->target_section_file_index != text->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != 0) {
+      return 0;
+    }
+    if (relocation->symbol_file_index == scalar_symbol->file_index) {
+      scalar_relocations++;
+    } else if (relocation->symbol_file_index ==
+               table_symbol->file_index) {
+      table_relocations++;
+    } else {
+      return 0;
+    }
+  }
+  if (scalar_relocations != 1u || table_relocations != 1u) {
+    (void)fprintf(
+        stderr,
+        "block static floating references differ: scalar=%u table=%u\n",
+        (unsigned int)scalar_relocations,
+        (unsigned int)table_relocations);
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_scalar_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -24292,7 +24491,8 @@ static int validate_floating_scalar_object(
   ctool_u32 mnemonic_counts[CTOOL_X86_MN_COUNT];
   ctool_u32 cursor = 0u;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size == 0u) {
+      text->contents.data == NULL || text->contents.size == 0u ||
+      !validate_static_floating_object_data(object)) {
     return 0;
   }
   (void)memset(mnemonic_counts, 0, sizeof(mnemonic_counts));
@@ -24432,6 +24632,14 @@ static int run_floating_scalar_object(const char *host_root) {
       "typedef long double unsupported_long_double;\n"
       "typedef union { float value; u32 bits; } float_box;\n"
       "typedef union { double value; struct { u32 low; u32 high; } words; } double_box;\n"
+      "static const float static_float_table[2][2] = "
+      "{{(0.35355339f), -0.09754516f}, {+0.0f, -0.0f}};\n"
+      "static const double static_double = -10.0;\n"
+      "static const float static_narrowed = 0.1;\n"
+      "static const double static_widened = 0.1f;\n"
+      "static const float static_tie = 16777217.0;\n"
+      "static float static_float_zero = 0.0f;\n"
+      "static float static_float_negative_zero = -0.0f;\n"
       "u32 float_bits(float value) { float_box box; box.value = value; return box.bits; }\n"
       "float float_from_bits(u32 bits) { float_box box; box.bits = bits; return box.value; }\n"
       "u32 double_low(double value) { double_box box; box.value = value; return box.words.low; }\n"
@@ -24453,37 +24661,73 @@ static int run_floating_scalar_object(const char *host_root) {
       "unsigned char truncate_unsigned_char(u32 bits) { return float_from_bits(bits); }\n"
       "unsigned short truncate_unsigned_short(u32 low, u32 high) { return double_from_words(low, high); }\n"
       "u32 lexer_number_low(int digit) { double value = 0.0; value = value * 10.0 + (double)digit; value += 0.1; value *= 1.0; return double_low(value); }\n";
+  static const char block_static_source[] =
+      "typedef unsigned int u32;\n"
+      "float read_local_scalar(void) {\n"
+      "  static const float local_scalar = -0.09754516f;\n"
+      "  return local_scalar;\n"
+      "}\n"
+      "float read_local_table(u32 index) {\n"
+      "  static const float local_table[1][2] = "
+      "{{0.35355339f, -0.0f}};\n"
+      "  return local_table[0][index];\n"
+      "}\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_buffer_t *first = NULL;
   ctool_buffer_t *second = NULL;
   ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *block_first = NULL;
+  ctool_buffer_t *block_second = NULL;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t block_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_source_t object_source;
+  ctool_source_t block_object_source;
   ctool_elf32_object_t object;
+  ctool_elf32_object_t block_object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
+  ctool_bytes_t block_first_bytes;
+  ctool_bytes_t block_second_bytes;
   ctool_u32 unsigned_int = CTOOL_C_TYPE_NONE;
   ctool_u32 signed_int = CTOOL_C_TYPE_NONE;
   ctool_u32 double_type = CTOOL_C_TYPE_NONE;
   ctool_u32 long_double_type = CTOOL_C_TYPE_NONE;
   ctool_u32 floating_constant = CTOOL_C_AST_NONE;
+  ctool_u32 static_floating = CTOOL_C_AST_NONE;
   ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&block_unit, 0, sizeof(block_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/floating-scalars.c", source,
                          CTOOL_TRUE, &unit) ||
+      !parse_source_mode(
+          job, "/block-static-floating.c", block_static_source,
+          CTOOL_TRUE, &block_unit) ||
       unit.expression_count == 0u ||
       sizeof(*invalid_expressions) >
-          SIZE_MAX / (size_t)unit.expression_count) {
+          SIZE_MAX / (size_t)unit.expression_count ||
+      unit.initializer_count == 0u ||
+      sizeof(*invalid_initializers) >
+          SIZE_MAX / (size_t)unit.initializer_count) {
     goto cleanup;
+  }
+  for (index = 0u; index < unit.initializer_count; index++) {
+    if (unit.initializers[index].kind ==
+            CTOOL_C_INITIALIZER_FLOATING &&
+        unit.initializers[index].type < unit.layout.type_count &&
+        unit.layout.types[unit.initializers[index].type].size == 4u) {
+      static_floating = index;
+      break;
+    }
   }
   for (index = 0u; index < unit.graph.type_count; index++) {
     if (unit.graph.types[index].kind ==
@@ -24531,13 +24775,17 @@ static int run_floating_scalar_object(const char *host_root) {
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
       floating_constant == CTOOL_C_AST_NONE ||
+      static_floating == CTOOL_C_AST_NONE ||
       integer_to_floating == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
   invalid_expressions = (ctool_c_expression_t *)malloc(
       (size_t)unit.expression_count *
           sizeof(*invalid_expressions));
-  if (invalid_expressions == NULL) {
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)unit.initializer_count *
+          sizeof(*invalid_initializers));
+  if (invalid_expressions == NULL || invalid_initializers == NULL) {
     goto cleanup;
   }
   status = ctool_job_open_buffer(
@@ -24549,6 +24797,14 @@ static int run_floating_scalar_object(const char *host_root) {
   if (status == CTOOL_OK) {
     status = ctool_job_open_buffer(
         job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &block_first);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &block_second);
   }
   if (!check_status(status, CTOOL_OK,
                     "floating scalar buffers") ||
@@ -24607,6 +24863,33 @@ static int run_floating_scalar_object(const char *host_root) {
           "integer to long double conversion at object boundary")) {
     goto cleanup;
   }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].type = unsigned_int;
+  invalid_unit = unit;
+  invalid_unit.initializers = invalid_initializers;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static floating initializer with integer type")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_initializers, unit.initializers,
+               (size_t)unit.initializer_count *
+                   sizeof(*invalid_initializers));
+  invalid_initializers[static_floating].integer_bits |=
+      0x0000000100000000ull;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static float initializer with out-of-width bits")) {
+    goto cleanup;
+  }
   object_source.path.text =
       ctool_string("/floating-scalars.o");
   object_source.contents = second_bytes;
@@ -24618,12 +24901,51 @@ static int run_floating_scalar_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  if (!expect_object_success_preserves_unit(
+          job, &block_unit, block_first,
+          "block static floating object") ||
+      !expect_object_success_preserves_unit(
+          job, &block_unit, block_second,
+          "repeat block static floating object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  block_first_bytes = ctool_buffer_view(block_first);
+  block_second_bytes = ctool_buffer_view(block_second);
+  if (block_first_bytes.size != block_second_bytes.size ||
+      memcmp(block_first_bytes.data, block_second_bytes.data,
+             (size_t)block_first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "block static floating objects are not deterministic\n");
+    goto cleanup;
+  }
+  block_object_source.path.text =
+      ctool_string("/block-static-floating.o");
+  block_object_source.contents = block_second_bytes;
+  (void)memset(&block_object, 0xa5, sizeof(block_object));
+  status = ctool_elf32_read(
+      job, &block_object_source, &block_object);
+  if (!check_status(status, CTOOL_OK,
+                    "read block static floating object") ||
+      !validate_block_static_floating_object(
+          &block_unit, &block_object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
+  free(invalid_initializers);
   free(invalid_expressions);
   if (failure != NULL) {
     ctool_buffer_close(failure);
+  }
+  if (block_second != NULL) {
+    ctool_buffer_close(block_second);
+  }
+  if (block_first != NULL) {
+    ctool_buffer_close(block_first);
   }
   if (second != NULL) {
     ctool_buffer_close(second);
@@ -25555,20 +25877,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 211u, 225u, 334u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 213u, 225u, 337u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 407513u, 378521u, 682521u, 139612u, 70368u, 77981u,
+      190304u, 410348u, 380601u, 695346u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 435300u, 407676u, 808516u, 157796u, 79348u, 131848u,
+      226668u, 438324u, 409788u, 822644u, 157796u, 79348u, 131848u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xa6848d3bu, 0x184d3a2fu, 0x167b0dedu, 0x3f69aac3u,
+      0x7d9a96f4u, 0x172dd726u, 0x406f16c0u, 0x3f69aac3u,
       0x34558a49u, 0x20934327u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
