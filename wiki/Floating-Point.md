@@ -44,6 +44,9 @@ integer-and-floating arithmetic, and all six comparisons use the shared SSE
 path. A mixed floating comparison uses `double`; only `!=` is true for an
 unordered NaN input.
 
+The checked i386 Linux seed at ADR 0138 carries static floating constant data
+and this complete comparison path.
+
 Direct floating truth, a floating controlling expression, increment or
 decrement, hexadecimal or subnormal constants, `long double`, SIMD, and
 atomic floating access remain unsupported. The SSE details below describe the

@@ -11895,3 +11895,66 @@ the final kernel and image remained current. `make test_usb_partitioned.img`
 then returned success with the partitioned image up to date.
 
 ADR 0137 records the comparison semantics and remaining limits.
+
+## 2026-07-27: refresh the checked seed for floating data and comparisons
+
+The checked seed at revision
+`a14ce50fa97264eeba2da3f913b643a12517a78b` predated ADR 0136's static
+floating initializer records and ADR 0137's six floating comparisons. It
+verified before the transition. The native-generation five-tool fixed point
+also passed in 630.1 seconds.
+
+The old seed rebuilt the 19-source Toolchain union, startup, and all five
+static tools with `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `LD`,
+`AR`, `NM`, and `OBJCOPY` set to commands that do not exist. Every
+stage-two object and image matched stage three. Both stages passed five help
+cases, ten successful operations, and six useful failures.
+
+The transition watched 40 inputs with SHA-256
+`230bffbf41d645e50b9944a179febd1d7920e1cfbc92b98e24a752d93192a7b8`.
+Its 14,879-byte report has SHA-256
+`e25eebc37719adcbe541b3fc048384ca4735ddf45af59d0e1234604ffdfc0064`.
+The run took 610.9 seconds. CupidASM, CupidDis, CupidLD, and CupidObj matched
+their old seed images. CupidC changed as expected and matched between stages
+two and three.
+
+All five stage-three images were copied as one promoted seed:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `92ab7705b7a5929185730aa981e40f2b5d6e5100d5913490cb79f930f9de5a5b` |
+| CupidDis | 366,968 | `1f264bd895cee544834f10c70ef145492ef833dc759df75c601e90453e429b75` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 2,109,488 | `39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e` |
+
+The build-plan SHA-256 remains
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The refreshed 5,440-byte manifest has SHA-256
+`1696d203fa319a98c23eb5f2b15b0764459bf7d495ae52918ae32a0a1606860b`
+and names source revision
+`7e7029637ef22a4f18c382ffb225fd6a2ea84b85`.
+
+A second poisoned-host bootstrap started from the promoted seed in a fresh
+output tree. All five checked images matched stage two, and every stage-two
+object and image matched stage three. The same 21 behavior cases passed over
+the same source snapshot. The 14,878-byte reproof report has SHA-256
+`f4995f4d7a0749cd02d71e3ab99166074665f22f68e06455730eea3dfdc5edf0`.
+The reproof took 610.6 seconds. `make verify-bootstrap-seed` accepts the
+promoted manifest and all five static ELF32 files.
+
+The complete seed module passed all 14 tests in 592.649 seconds. It covers
+exact provenance, manifest schema and digests, ELF entry checks, source and
+seed mutation rejection, frozen-input independence, private WSL staging, and
+another independent complete fixed point. The regenerated active-build audit
+and its checked replay also pass with the new manifest digest.
+
+There is no automatic seed-promotion command. Copying all five stage-three
+files explicitly was kept as a deliberate trust transition. Promoting a
+native image or only CupidC was rejected because either choice would break
+the recorded producer lineage or the five-tool manifest boundary.
+
+No production object changes owner in this commit. JPEG and glyph
+rasterization keep their `.c` names and host recipes until a separate transfer
+proves their closed inputs, renamed-source objects, normal image, and runtime
+behavior. ADR 0138 records the promotion and trust boundary.

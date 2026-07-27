@@ -184,7 +184,8 @@ The hosted function-pointer relation now uses checked, memoized job scratch. It 
 The detailed module rows below keep the language boundary carried by the
 current checked seed. The refreshed seed represents comma sequencing, typed
 static nulls, known-true loop reachability, bounded register and EFLAGS
-snapshots, and GNU `weak`, `section`, `unused`, and `used` metadata.
+snapshots, GNU `weak`, `section`, `unused`, and `used` metadata, target-width
+static floating data, and all six floating comparisons.
 Rows that still quote the earlier 139-to-5 source-name split are historical
 snapshots. The complete `.cc` boundary and floating capability stated above
 supersede those counts and open lists.

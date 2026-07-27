@@ -58,19 +58,20 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00F00000` boot-stack layout.
 
-The checked seed includes decimal floating scalars, the active CSPRNG
-assembly, operand-free function assembly, per-CPU pointer output, integer
-atomics through fetch-or, and width-aware port I/O. Its stage-three CupidC
-image is 2,084,592 bytes with SHA-256
-`f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1`.
+The checked seed includes exact static floating data, all six floating
+comparisons, decimal floating scalars, the active CSPRNG assembly,
+operand-free function assembly, per-CPU pointer output, integer atomics
+through fetch-or, and width-aware port I/O. Its stage-three CupidC image is
+2,109,488 bytes with SHA-256
+`39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e`.
 It came from stage three of the checked bootstrap at revision
-`a14ce50fa97264eeba2da3f913b643a12517a78b`. It also carries GNU `used`,
-privileged-register inputs, FXSAVE, call-next capture, GNU `Nd`, and
-machine-state memory outputs, plus C11 external inline finalization. The same
-seed refresh carries immediate `IMUL` in CupidASM and CupidDis. With host
-code-generator commands poisoned, all five seed images match stage two. All
-19 stage-two C objects, startup, and five images then match stage three, and
-both stages pass all 21 tool behavior cases.
+`7e7029637ef22a4f18c382ffb225fd6a2ea84b85`. It also carries GNU `used`,
+privileged-register inputs, FXSAVE, call-next capture, GNU `Nd`,
+machine-state memory outputs, and C11 external inline finalization. CupidASM
+and CupidDis retain immediate `IMUL`. With host code-generator commands
+poisoned, all five seed images match stage two. All 19 stage-two C objects,
+startup, and five images then match stage three, and both stages pass all 21
+tool behavior cases.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
