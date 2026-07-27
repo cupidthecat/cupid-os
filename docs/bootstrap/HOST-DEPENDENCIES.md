@@ -17,12 +17,18 @@ external-program syscall ABI verification. Make owns five transforms. The
 fifth prepares the native hosted CupidC and CupidLD drivers for `user:all` on
 Windows.
 
+The ABI verification captures the exact bytes of its six declaration inputs,
+compares the reviewed i386 contract, and rechecks every input before success.
+The external-program runtime gate gives hello, ls, and cat separate private
+copies of the staged image. ADR 0133 records these consistency boundaries.
+
 Linux runs the checked i386 seed for all six user artifacts. Windows runs
-private snapshots of the two native hosted drivers and compares their output
-with the seed. That user path no longer needs WSL after the drivers exist.
-The root and generated-table checked-seed paths still use WSL on Windows.
-Clang and its native linker still build the Windows drivers, so the native
-user path does not establish a Windows fixed point.
+private snapshots of the two native hosted drivers. A separate frontier
+compares all six Windows outputs with the seed. That user path no longer
+needs WSL after the drivers exist. The root and generated-table checked-seed
+paths still use WSL on Windows. Clang and its native linker still build the
+Windows drivers, so the native user path does not establish a Windows fixed
+point.
 
 The strict frontier must compile all 145 checked-in sources twice. Every
 transferred Make recipe names its exact recursive header closure and common

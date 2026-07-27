@@ -11205,8 +11205,8 @@ were test contracts that still described the graph before the integrations:
   a checked total of 4,557 across the same 168 files.
 - The memory-layout test expected the user link rule to stop at `Makefile`.
   The rule now also depends on `NATIVE_USER_TOOL_GATE`, which prevents a user
-  executable from being linked before the native hosted tools pass their
-  equivalence check.
+  executable from being linked before the native hosted tools exist. The
+  separate user frontier compares every native output with the checked seed.
 - A register-snapshot negative fixture used `call 1f; 1: popl %0`. Call-next
   assembly now owns templates that begin with `call`, and Linear IR rejects
   that noncanonical separator before object emission. The fixture now lives
@@ -11343,3 +11343,133 @@ program, and strong four-CPU runtime evidence. The remaining migration still
 includes 145 host C transforms, 165 host Python transforms, five Make
 transforms, the native Windows hosted-tool fixed point, the nine strict
 checked-in kernel roots, Doom, and other vendored sources.
+
+## 2026-07-27: freeze the live user ABI and isolate every guest boot
+
+A final review found two gaps in the external-program proof. The ABI checker
+parsed one captured copy of each declaration but did not confirm that those
+files were still current before reporting success. The hello and ls runtime
+commands also booted the selected image directly, while only cat used a
+private copy.
+
+The ABI operation now stores the exact bytes and decoded text of all six
+declaration inputs. After it validates the reviewed i386 contract, it rereads
+the same paths in order and rejects a missing file, symlink, read or decode
+failure, or byte difference. The checker script remains a control dependency
+and is not counted as a seventh ABI declaration.
+
+Each hello, ls, and cat QEMU command now receives `--private-image`. The
+selected image is staged once, then each guest receives its own temporary
+copy. Cat still copies the hostile fixture into its copy before launch.
+
+### Review corrections and rejected approaches
+
+The live-drift test changes `kernel/core/types.h` after its first read while
+the checker reads `user/cupid.h`. The old checker returned success. The new
+checker reports the changed kernel path, publishes no report, restores the
+fixture, and succeeds on the following unchanged call.
+
+Comparing only the parsed declarations was rejected because a captured ABI
+can stay internally valid after the live build input changes. Make timestamp
+checks were also rejected because a file can change while one recipe is
+running. No lock spans later compile and link recipes, so an edit after this
+operation returns remains outside its boundary.
+
+The first private-image assertions counted three options across the complete
+recipe. Review showed that three options on one command would satisfy that
+form. Both build contracts now divide the recipe into its three QEMU commands
+and require exactly one private-image option on each named program.
+
+Review also found live documentation that described an older 4,342-symbol
+cohort and blurred the native Windows tool prerequisite with the separate
+seed-equivalence frontier. The current documentation now names 4,351 symbols,
+keeps the tool preparation and comparison gates separate, and calls the ABI
+inputs six declarations plus one checker control. Historical log entries
+retain the evidence that was true when they were written.
+
+### Static and audit evidence
+
+The new ABI mutation test failed against the old checker. The two initial
+private-image contracts also failed because the recipe contained one option.
+After implementation, all 14 ABI tests and both focused runtime build
+contracts pass in 7.914 seconds.
+
+`make bootstrap-audit` regenerates a 698-input, 253-feature, 502-transform
+graph with 42 accounted unreachable files. The ownership counts remain 152
+CupidC, 145 host C, 165 host Python, and five Make transforms. The
+active-source digest remains
+`cb2781d5aa6900b15e4931c29e6f1b1699b51c46367af61f3c9248be4d9c7ddf`.
+`make check-bootstrap-audit` passes, and the generated JSON has SHA-256
+`b7e8f33d53001fbec3e044be7a9c8d6fbe3e3992446c08cee10cc82f2b7d4ce3`.
+
+### Clean image evidence
+
+The proof removed the kernel, boot, image, generated-symbol, user-build, and
+runtime-log outputs. A direct file check found none of the named artifacts.
+`make -j2 all WAD_SRCS=` then completed from that clean state in 402.1
+seconds.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc` |
+| `kernel/kernel.elf.pass1` | 7,974,684 | `4ce601cf474363d3c2b93652e123390b1c89112e37a8698047dda79922101940` |
+| `kernel/kernel.elf` | 8,077,084 | `669e3f39b9082bfe65b3e08456f6695defb68f8a36d565818eb734b954553a78` |
+| `kernel/kernel.bin` | 7,883,984 | `7465392d2b4b3ee074244cbebe4de8d0fc7060d0257ff193a42164a72ab1c4e9` |
+| `kernel/cpu/ksyms_data.cc` | 346,266 | `86caa0ee84403365e9828c1dd47560f9b59eb769f6f92efb3e0ac74e64d776e7` |
+| `kernel/cpu/ksyms_data.o` | 104,860 | `dfc7883f192ecf26eb46eb477208f9786c5809c6df7b756703fa8eb999eb88bd` |
+| Pristine `cupidos.img` | 209,715,200 | `0c019109f7110802092863fc43a49b94f1c79199869fb7e14f3c2ebb5e196d70` |
+
+CupidDis reports 4,351 text-symbol rows from each link pass with zero row
+difference. The generated source packs 104,447 logical bytes and one tail
+pad byte. `mp_tables_discover` remains at `0x001D4AA6`, and
+`acpi_discover` remains at `0x001D6097`. `_loaded_end` is `0x00884CD0`,
+leaving 502,064 bytes below `0x008FF600`. `_kernel_end` is `0x00CA9A70`,
+leaving 353,680 bytes below the stack at `0x00D00000`. The complete flat
+kernel matches the image bytes at LBA 5.
+
+### Isolated external-program evidence
+
+`make test-user-cupidc-runtime WAD_SRCS=` passed in 907.1 seconds. It built
+all three examples through CupidC and CupidLD, staged them once, and completed
+three private-image boots.
+
+| Runtime log | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `tests/user-cupidc-runtime.log` | 37,253 | `701ad83d2c58a17a454e1e87494bd8ec3968de57c0bea0491c8b792fff832f86` |
+| `tests/user-cupidc-runtime-ls.log` | 38,604 | `8f28910d88095a2aad89154c497dd615a8e07eb20c5c8e485a2bc39bb7455d1b` |
+| `tests/user-cupidc-runtime-cat.log` | 64,579 | `48ae8a846dc91a85d760a8b9df01b161a097121a5b682220580c8e0eb10a85c6` |
+
+Each full Make success expression matches once and binds the program to PID
+4. Hello prints its greeting, PID, and nonzero uptime. Ls prints all five
+required root-entry fingerprints. Cat compiles and runs `/bin/cp.cc`, prints
+the 62-byte fixture fingerprint, and produces no PID 999 exit event. Each log
+contains one desktop marker, one terminal marker, one PID-bound syscall exit,
+and one matching process exit.
+
+Every panic expression and every SMP, NIC, and frontier rejection string has
+zero matches in all three logs. The four groups contain 69 unique rejected
+strings after overlap is removed. The selected staged image is 209,715,200
+bytes with SHA-256
+`49d8dd5c87ce02bce84491909a230ef664c51748c595013dc3dc5e836b105b42`.
+Only deliberate FAT staging separates it from the pristine image.
+
+### Combined runtime and repository gate
+
+The strong smoke booted a private copy of the staged image with four virtual
+CPUs, the `max` CPU model, and e1000. It passed in 55.1 seconds. RDRAND
+seeding, CPUs 1 through 3, the four-of-four SMP report, 62 individual crypto
+checks, the crypto summary, e1000 initialization and address assignment,
+desktop and terminal startup, and completed in-OS CupidC execution each
+appear as required. The configured panic, SMP, NIC, and frontier rejection
+groups have zero matches. The 60,139-byte
+`tests/combined-145-smp-runtime.log` has SHA-256
+`57b795797ae57dc729b5c83de06ea6631a1c6e93cb68138b7390856a4958e772`.
+
+The final canonical `make test` passes both production frontiers. All 763
+tests pass in 3,295.058 seconds with the expected Windows `/dev/full` skip,
+and Make returns zero in 3,370.9 seconds.
+
+This repair changes no production source owner and adds no host dependency.
+The native Windows drivers still depend on Clang and its linker. Nine strict
+checked-in kernel roots, the remaining host-owned C graph, Doom, vendored
+code, and the native Windows fixed point remain open.

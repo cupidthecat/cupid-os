@@ -1371,8 +1371,8 @@ sync-user-runtime: sync-user $(USER_CUPIDC_RUNTIME_FIXTURE)
 		--fat-start-lba $(FAT_START_LBA) \
 		$(USER_CUPIDC_RUNTIME_FIXTURE):/catfix.txt
 
-# Each command boots from the staged image and must reach its own PID-bound
-# syscall exit marker. The detailed patterns below also cover program output.
+# Each command boots a private copy of the staged image and must reach its own
+# PID-bound syscall exit marker. The detailed patterns also cover program output.
 USER_CUPIDC_RUNTIME_LOG ?= tests/user-cupidc-runtime.log
 USER_CUPIDC_RUNTIME_LS_LOG ?= tests/user-cupidc-runtime-ls.log
 USER_CUPIDC_RUNTIME_CAT_LOG ?= tests/user-cupidc-runtime-cat.log
@@ -1385,10 +1385,12 @@ USER_CUPIDC_RUNTIME_SUCCESS := $(USER_CUPIDC_RUNTIME_HELLO_SUCCESS)
 test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
 	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \
 		--image $(OS_IMAGE) --log $(USER_CUPIDC_RUNTIME_LOG) \
+		--private-image \
 		--command "exec /disk/hello" --repeat 1 --key-pause 0.60 \
 		--success-pattern "$(USER_CUPIDC_RUNTIME_HELLO_SUCCESS)" --timeout 90
 	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \
 		--image $(OS_IMAGE) --log $(USER_CUPIDC_RUNTIME_LS_LOG) \
+		--private-image \
 		--command "exec /disk/ls" --repeat 1 --key-pause 0.60 \
 		--success-pattern "$(USER_CUPIDC_RUNTIME_LS_SUCCESS)" --timeout 90
 	$(PYTHON) tools/gui_terminal_smoke.py --qemu "$(QEMU)" \

@@ -132,6 +132,10 @@ The public i386 scalar widths are:
 VFS names may use 128 bytes and paths may use 512 bytes. cupid_dirent_t is
 136 bytes, with name at byte 0, size at byte 128, and type at byte 132.
 cupid_stat_t is 8 bytes, with size at byte 0 and type at byte 4.
+
+Before compiling a tracked example, the build captures the exact bytes of
+the six kernel and public declarations that define this ABI. It compares the
+reviewed i386 layout and rechecks every input before reporting success.
 >endtree
 
 >h2 Process Model
@@ -179,13 +183,14 @@ Programs linked at an earlier fixed base must be rebuilt.
 
 The runtime gate boots and executes hello, ls, and cat separately. It checks
 hello's greeting and numeric output and confirms that ls reads the shell's
-root directory. In a private image copy, the cat gate copies a fixed
-/disk/catfix.txt fixture over /home/readme.txt. Cat keeps its normal HomeFS
-path, the selected image stays unchanged, and the fixture supplies text
-shaped like a serial marker. External print calls record only their PID, byte
-count, and FNV-1a fingerprint, so file contents cannot forge a passing event.
-Every run must finish with an exit marker and process exit for the PID that
-the loader assigned.
+root directory. Every run starts from a private copy of the same staged
+image. The cat copy also receives the fixed /disk/catfix.txt fixture at
+/home/readme.txt. Cat keeps its normal HomeFS path, the selected image stays
+unchanged, and the fixture supplies text shaped like a serial marker.
+External print calls record only their PID, byte count, and FNV-1a
+fingerprint, so file contents cannot forge a passing event. Every run must
+finish with an exit marker and process exit for the PID that the loader
+assigned.
 
 A separate lease gate starts the same external program twice at 0x00F00000.
 The first process exits and releases the arena before the second process

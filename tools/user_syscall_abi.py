@@ -122,6 +122,12 @@ class Field:
     declaration: str
 
 
+@dataclass(frozen=True)
+class AbiInputSnapshot:
+    payload: bytes
+    text: str
+
+
 def _root_path(root: Path) -> Path:
     try:
         resolved = root.resolve(strict=True)
@@ -136,16 +142,40 @@ def _root_path(root: Path) -> Path:
     return resolved
 
 
-def _read_input(root: Path, relative: str) -> str:
+def _read_input(root: Path, relative: str) -> AbiInputSnapshot:
     path = root / relative
     if path.is_symlink() or not path.is_file():
         raise UserSyscallAbiError(f"ABI input is unavailable: {relative}")
     try:
-        return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as error:
+        payload = path.read_bytes()
+    except OSError as error:
         raise UserSyscallAbiError(
             f"cannot read ABI input {relative}: {error}"
         ) from error
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeError as error:
+        raise UserSyscallAbiError(
+            f"cannot read ABI input {relative}: {error}"
+        ) from error
+    return AbiInputSnapshot(payload=payload, text=text)
+
+
+def _require_inputs_unchanged(
+    root: Path,
+    snapshots: dict[str, AbiInputSnapshot],
+) -> None:
+    for relative, snapshot in snapshots.items():
+        try:
+            current = _read_input(root, relative)
+        except UserSyscallAbiError as error:
+            raise UserSyscallAbiError(
+                f"ABI input changed while checking: {relative}: {error}"
+            ) from error
+        if current.payload != snapshot.payload:
+            raise UserSyscallAbiError(
+                f"ABI input changed while checking: {relative}"
+            )
 
 
 def _without_comments(source: str) -> str:
@@ -651,8 +681,12 @@ def _abi_digest(fields: tuple[Field, ...]) -> str:
 def check_syscall_abi(root: Path) -> dict[str, object]:
     """Return the reviewed ABI report or fail with a precise mismatch."""
     root = _root_path(root)
-    sources = {
+    snapshots = {
         relative: _read_input(root, relative) for relative in ABI_INPUTS
+    }
+    sources = {
+        relative: snapshot.text
+        for relative, snapshot in snapshots.items()
     }
     kernel_types = sources["kernel/core/types.h"]
     kernel_header = sources["kernel/core/syscall.h"]
@@ -738,7 +772,7 @@ def check_syscall_abi(root: Path) -> dict[str, object]:
             "reviewed ABI contract"
         )
 
-    return {
+    report = {
         "schema": SCHEMA,
         "version": kernel_version,
         "field_count": field_count,
@@ -754,6 +788,8 @@ def check_syscall_abi(root: Path) -> dict[str, object]:
         "last_function": kernel_fields[-1].name,
         "abi_sha256": abi_sha256,
     }
+    _require_inputs_unchanged(root, snapshots)
+    return report
 
 
 def _build_parser() -> argparse.ArgumentParser:

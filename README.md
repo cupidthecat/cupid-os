@@ -312,10 +312,11 @@ The generated ramfs, homefs, and demo installation tables are emitted as
 build uses CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then CupidLD places
 each executable in the fixed external arena. Linux runs the checked i386
 Linux seed directly. Windows prepares the native hosted drivers through an
-explicit Make prerequisite, runs private PE snapshots, and compares all six
-outputs with the checked seed. Before compiling, that build checks the kernel
-and public syscall
-declarations as one i386 ABI. The contract is version 5 with 103 fields in
+explicit Make prerequisite and runs private PE snapshots. A separate
+frontier compares all six Windows outputs with the checked seed. Before
+compiling, the user build checks the kernel and public syscall declarations
+as one i386 ABI. The checker captures all six declaration inputs and rechecks
+their exact bytes before success. The contract is version 5 with 103 fields in
 412 bytes, a 136-byte directory entry, an 8-byte file status record, and 101
 reviewed function providers. Both paths freeze their complete source and
 control inputs, validate the resulting ELF files, and publish only complete
@@ -325,13 +326,14 @@ still needs Clang and its Windows linker, so this is not a native Windows
 fixed point. `user/build/` contains local generated outputs and is ignored
 by Git.
 
-The external-program gate boots `hello`, `ls`, and `cat` separately. Serial
+The external-program gate boots `hello`, `ls`, and `cat` from separate
+private image copies. Serial
 events bind each syscall to the loaded PID and record printable content by
 byte count and FNV-1a fingerprint instead of copying caller text into the log.
-The checks cover numeric output and root-directory reads. In a private image
-copy, the cat gate copies a fixed FAT fixture over `/home/readme.txt`,
-preserving the program's normal path and the selected image. Every program
-must produce a matching process exit.
+The checks cover numeric output and root-directory reads. The cat gate also
+copies a fixed FAT fixture over `/home/readme.txt`, preserving the program's
+normal path and the selected image. Every program must produce a matching
+process exit.
 
 ADRs 0115, 0123, and 0127 transferred 29 source-driven roots into the normal
 CupidC build. The later transfer added IDT and PIC setup, paging, LAPIC control,
@@ -550,7 +552,7 @@ and the generated kernel symbol translation described above.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
 
-[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, and [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the native Windows user-tool handoff.
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the native Windows user-tool handoff, and [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 

@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools import user_syscall_abi
 
@@ -204,6 +205,41 @@ class UserSyscallAbiTests(unittest.TestCase):
             "syscall provider contract changed",
         ):
             user_syscall_abi.check_syscall_abi(self.root)
+
+    def test_live_input_drift_is_rejected_before_success(self):
+        early_input = self.root / "kernel/core/types.h"
+        original_payload = early_input.read_bytes()
+        original_read = user_syscall_abi._read_input
+        mutated = False
+
+        def read_and_mutate(root, relative):
+            nonlocal mutated
+            result = original_read(root, relative)
+            if relative == "user/cupid.h" and not mutated:
+                early_input.write_bytes(original_payload + b"\n")
+                mutated = True
+            return result
+
+        try:
+            with mock.patch.object(
+                user_syscall_abi,
+                "_read_input",
+                side_effect=read_and_mutate,
+            ):
+                with self.assertRaisesRegex(
+                    user_syscall_abi.UserSyscallAbiError,
+                    "ABI input changed while checking: "
+                    "kernel/core/types.h",
+                ):
+                    user_syscall_abi.check_syscall_abi(self.root)
+        finally:
+            early_input.write_bytes(original_payload)
+
+        report = user_syscall_abi.check_syscall_abi(self.root)
+        self.assertEqual(
+            report["abi_sha256"],
+            user_syscall_abi.EXPECTED_ABI_SHA256,
+        )
 
     def test_cli_emits_the_checked_contract_as_json(self):
         result = subprocess.run(

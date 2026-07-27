@@ -161,13 +161,19 @@ control inputs, validate every ELF result, and replace an artifact only after
 the operation succeeds. The Windows frontier also requires all six files to
 match checked-seed output.
 
+Before compilation, the user ABI operation captures the exact bytes of its
+six kernel and public declarations. It compares the reviewed i386 layout and
+rechecks every input before reporting success.
+
 The external-program runtime gate boots the validated hello, ls, and cat
-executables separately through the ordinary loader. Serial events carry the
-running PID. Print events record a byte count and FNV-1a fingerprint instead
-of caller text, which keeps newline and marker-shaped file contents inside
-one event. The checks cover hello's numeric writes, ls reading the shell root,
-cat reading a fixed FAT fixture, and a PID-matched exit from each program.
-Kernel and JIT printing remain on their existing path.
+executables separately through the ordinary loader. Each QEMU process gets a
+private copy of the same staged image. The cat copy also receives a fixed FAT
+fixture at `/home/readme.txt`. Serial events carry the running PID. Print
+events record a byte count and FNV-1a fingerprint instead of caller text,
+which keeps newline and marker-shaped file contents inside one event. The
+checks cover hello's numeric writes, ls reading the shell root, cat reading
+the fixture, and a PID-matched exit from each program. Kernel and JIT printing
+remain on their existing path. ADR 0133 records the ABI and image boundaries.
 
 The refreshed checked seed emits weak symbols and arbitrary compatible named
 sections, records `unused` and `used` declarations, preserves typed static

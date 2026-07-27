@@ -96,8 +96,9 @@ Linux runs the checked seed directly. Windows builds native hosted CupidC and
 CupidLD drivers through an explicit Make prerequisite and runs private PE32+
 snapshots. Before compilation, a separate verifier compares the public header
 with the kernel types, syscall table and initializer, VFS declarations, and
-socket constants. It pins version 5, all 103 table fields and 101 function
-providers, the 412-byte table, and the shared i386 record layouts. Both
+socket constants. It captures the exact bytes of those six declarations and
+rechecks them before success. It pins version 5, all 103 table fields and 101
+function providers, the 412-byte table, and the shared i386 record layouts. Both
 wrappers freeze their source and control inputs, validate ELF output, and
 replace an artifact only after the full operation succeeds. Deterministic
 frontiers repeat all six builds. The Windows frontier also compares every
@@ -112,10 +113,11 @@ with the running PID before using the normal console or process path. A print
 event carries only its byte count and FNV-1a fingerprint, so newline or
 marker-shaped caller text cannot create a second serial event. Kernel and JIT
 callers still use their existing paths. Separate hello, ls, and cat boots
-check numeric output and a root-directory read. In a private image copy, the
-cat boot copies a fixed FAT fixture over `/home/readme.txt` before launch, so
-the program keeps its normal HomeFS path and the selected image stays
-unchanged. Every boot requires PID-matched process completion.
+use private copies of one staged image and check numeric output and a
+root-directory read. The cat boot also copies a fixed FAT fixture over
+`/home/readme.txt` before launch, so the program keeps its normal HomeFS path
+and the selected image stays unchanged. Every boot requires PID-matched
+process completion.
 
 The larger unoptimized objects needed more kernel address space. The kernel
 ceiling is now `0x00D00000`; the full two-MiB stack occupies
@@ -145,7 +147,8 @@ production transfer and source rename. ADR 0123 records the eight-root and
 generated-symbol transfer. ADR 0124 records the 111-root naming transfer and
 the five deferred shared roots. ADR 0125 records decimal floating scalars,
 ADR 0126 records the complete fixed-point rename, and ADR 0130 records the
-native Windows user path.
+native Windows user path. ADR 0133 records the live ABI input check and
+private guest images.
 
 Compiler head now accepts GNU `used` and `__used__` on file-scope objects and
 functions. Compatible redeclarations merge the flag into the canonical

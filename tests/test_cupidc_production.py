@@ -1275,12 +1275,22 @@ class ProductionBuildContractTests(unittest.TestCase):
         self.assertIn("tools/gui_terminal_smoke.py", rule.prerequisites)
         recipe = " ".join(rule.recipe)
         self.assertEqual(recipe.count("tools/gui_terminal_smoke.py"), 3)
-        for program in ("hello", "ls", "cat"):
-            self.assertIn(f'--command "exec /disk/{program}"', recipe)
+        commands = []
+        for line in rule.recipe:
+            if line.startswith(
+                "$(PYTHON) tools/gui_terminal_smoke.py"
+            ):
+                commands.append(line)
+            else:
+                commands[-1] += " " + line
+        self.assertEqual(len(commands), 3)
+        for program, command in zip(("hello", "ls", "cat"), commands):
+            self.assertIn(f'--command "exec /disk/{program}"', command)
             self.assertIn(
                 f"$(USER_CUPIDC_RUNTIME_{program.upper()}_SUCCESS)",
-                recipe,
+                command,
             )
+            self.assertEqual(command.count("--private-image"), 1)
         self.assertEqual(recipe.count("--repeat 1"), 3)
         self.assertEqual(recipe.count("--key-pause 0.60"), 3)
         values = build_graph_audit._read_evaluated_make_variables(

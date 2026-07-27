@@ -73,17 +73,26 @@ class ExternalUserRuntimeContractTests(unittest.TestCase):
         self.assertIn("sync-user-runtime", runtime_rule.prerequisites)
         recipe = " ".join(runtime_rule.recipe)
         self.assertEqual(recipe.count("tools/gui_terminal_smoke.py"), 3)
-        for name in ("hello", "ls", "cat"):
-            self.assertIn(f'--command "exec /disk/{name}"', recipe)
+        commands = []
+        for line in runtime_rule.recipe:
+            if line.startswith(
+                "$(PYTHON) tools/gui_terminal_smoke.py"
+            ):
+                commands.append(line)
+            else:
+                commands[-1] += " " + line
+        self.assertEqual(len(commands), 3)
+        for name, command in zip(("hello", "ls", "cat"), commands):
+            self.assertIn(f'--command "exec /disk/{name}"', command)
             self.assertIn(
                 f"$(USER_CUPIDC_RUNTIME_{name.upper()}_SUCCESS)",
-                recipe,
+                command,
             )
+            self.assertEqual(command.count("--private-image"), 1)
         self.assertIn(
             '--setup-command "cp /disk/catfix.txt /home/readme.txt"',
             recipe,
         )
-        self.assertIn("--private-image", recipe)
         self.assertIn(
             "$(USER_CUPIDC_RUNTIME_CAT_SETUP_SUCCESS)",
             recipe,
