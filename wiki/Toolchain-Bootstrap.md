@@ -61,12 +61,13 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 The checked seed includes decimal floating scalars, the active CSPRNG
 assembly, operand-free function assembly, per-CPU pointer output, integer
 atomics through fetch-or, and width-aware port I/O. Its stage-three CupidC
-image is 2,080,288 bytes with SHA-256
-`e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`.
+image is 2,084,592 bytes with SHA-256
+`f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1`.
 It came from stage three of the checked bootstrap at revision
-`fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d`. It also carries GNU `used`,
+`a14ce50fa97264eeba2da3f913b643a12517a78b`. It also carries GNU `used`,
 privileged-register inputs, FXSAVE, call-next capture, GNU `Nd`, and
-machine-state memory outputs. With host
+machine-state memory outputs, plus C11 external inline finalization. The same
+seed refresh carries immediate `IMUL` in CupidASM and CupidDis. With host
 code-generator commands poisoned, all five seed images match stage two. All
 19 stage-two C objects, startup, and five images then match stage three, and
 both stages pass all 21 tool behavior cases.
@@ -138,8 +139,8 @@ SHA-256
 `a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1`.
 Prior `static` linkage remains internal, and an external-linkage inline
 declaration now requires a definition in the same translation unit.
-The checked seed predates this rule, so the normal recipe stays host-owned
-and the source stays `.c` until seed promotion and the production gates pass.
+The checked seed now carries this rule. The normal recipe remains host-owned
+and the source stays `.c` until the production ownership gates pass.
 
 The strict frontier must compile each of its 145 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every

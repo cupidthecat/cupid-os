@@ -260,7 +260,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b",
+                "f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -633,7 +633,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d",
+                "a14ce50fa97264eeba2da3f913b643a12517a78b",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -669,7 +669,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             seed_transition_snapshot = (
-                "7bee858042b883aac9d07ab4e2b6ba5b44075cdca308566a7317c0e00766ef1f"
+                "7db570c8f0975d10a00930fdd5e17ec321a0e45e83cb6e365c824dc89d4df9d8"
             )
             if report["source_snapshot_sha256"] == seed_transition_snapshot:
                 self.assertTrue(all(initial_matches.values()))

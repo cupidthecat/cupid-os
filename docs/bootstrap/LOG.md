@@ -11473,3 +11473,54 @@ This repair changes no production source owner and adds no host dependency.
 The native Windows drivers still depend on Clang and its linker. Nine strict
 checked-in kernel roots, the remaining host-owned C graph, Doom, vendored
 code, and the native Windows fixed point remain open.
+
+## 2026-07-27: promote shared x86 and external inline support into the seed
+
+The checked seed at revision
+`fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d` did not contain two later
+source changes. CupidC compiler head finalized C11 external inline
+definitions, which allowed unchanged `kernel/audio/nuked_opl3.c` to compile.
+The shared x86 model also gained the three-operand immediate `IMUL` family,
+which changed the CupidASM and CupidDis closures.
+
+### Transition proof
+
+The old checked seed rebuilt the 19-source Toolchain union at clean revision
+`a14ce50fa97264eeba2da3f913b643a12517a78b`. `CC`, `CXX`, `CPP`, `HOSTCC`,
+`HOSTCXX`, `ASM`, `LD`, `AR`, `NM`, and `OBJCOPY` all named commands that do
+not exist.
+
+All 19 C objects, startup, and five tool images match between stages two and
+three. Both stages pass five help cases, ten successful operations, and six
+useful failures. The 40-input snapshot has SHA-256
+`7db570c8f0975d10a00930fdd5e17ec321a0e45e83cb6e365c824dc89d4df9d8`.
+The 14,881-byte transition report has SHA-256
+`14ef822581df1b3ccb66533c58f9f521b60c73d7df7272d015c6b08fb4f24073`.
+
+The old seed matches stage two for CupidLD and CupidObj. CupidASM, CupidDis,
+and CupidC differ because their source closures changed.
+
+### Promoted artifacts
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,060 | `92ab7705b7a5929185730aa981e40f2b5d6e5100d5913490cb79f930f9de5a5b` |
+| CupidDis | 366,968 | `1f264bd895cee544834f10c70ef145492ef833dc759df75c601e90453e429b75` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 2,084,592 | `f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1` |
+
+All five stage-three files were promoted as one seed. The 19-source build
+plan remains unchanged with SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The refreshed 5,440-byte manifest has SHA-256
+`de82efad0d42d5e45f6b2c4771f04ebe3838e1c71359ea32dc0d7652aa674b74`.
+
+The promoted-seed fixed-point test passed in 611.116 seconds. Its exact
+snapshot lock requires all five checked images to match stage two. The test
+then requires the 19 C objects, startup, and five images to match stage three
+and repeats all 21 behavior cases.
+
+This step changes the checked bootstrap input only. Nuked OPL3 remains
+host-built until its separate source rename, production frontier, image, and
+runtime gates pass. The host compiler still owns 93 normal root objects.

@@ -196,6 +196,9 @@ demos and the four boot/kernel assembly sources. Common families include:
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
+The checked i386 Linux seed carries this shared IMUL model in both CupidASM
+and CupidDis. Its stage-two and stage-three images match byte for byte.
+
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
 - SSE scalar (23): MOVSS/SD, ADDSS/SD, and more

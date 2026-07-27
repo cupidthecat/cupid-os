@@ -34,9 +34,9 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,080,288 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 433,060 bytes, CupidDis at 366,968 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,084,592 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
-The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,080,288-byte CupidC image carries ADR 0125's decimal floating scalar support. Its SHA-256 is `e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`, and its source revision is `fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d`. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 93 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
+The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,084,592-byte CupidC image carries decimal floating scalars and C11 external inline finalization. Its SHA-256 is `f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1`, and its source revision is `a14ce50fa97264eeba2da3f913b643a12517a78b`. CupidASM and CupidDis from the same revision carry the shared immediate multiply family. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 93 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
 
 The normal root build gives checked-seed CupidC ownership of 145 checked-in
 sources and the generated kernel symbol source. All 146 sources use `.cc`.
@@ -55,9 +55,10 @@ validated 40,424-byte object with SHA-256
 An earlier `static` declaration keeps a later `extern inline` definition
 internal. An external-linkage inline declaration without a definition now
 fails during translation-unit finalization.
-The existing checked seed cannot compile this form, so the normal recipe and
-the `.c` path remain host-owned. ADR 0131 records the language boundary and
-the remaining seed, frontier, image, and runtime gates.
+The checked seed now compiles this form, but the normal recipe and the `.c`
+path remain host-owned. ADR 0131 records the language boundary, and ADR 0134
+records the seed promotion. The production frontier, image, and runtime gates
+remain.
 
 The wrapper freezes and verifies the seed before each compile and publishes
 only a validated i386 ELF32 object. A valid data-only object no longer needs a

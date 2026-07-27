@@ -4,14 +4,14 @@
       "file": "cupidasm.elf",
       "name": "cupidasm",
       "producer": true,
-      "sha256": "00f684ca5ca1e2ba36763e6810c65fea8b3786d40f6008d635751a1f2c2b6db0",
+      "sha256": "92ab7705b7a5929185730aa981e40f2b5d6e5100d5913490cb79f930f9de5a5b",
       "size": 433060
     },
     {
       "file": "cupiddis.elf",
       "name": "cupiddis",
       "producer": false,
-      "sha256": "67fcdbcf8a7924e37f00ec571bb5a4dbfbf4897c9743e9f3a3bbcaf0ea20ca60",
+      "sha256": "1f264bd895cee544834f10c70ef145492ef833dc759df75c601e90453e429b75",
       "size": 366968
     },
     {
@@ -32,8 +32,8 @@
       "file": "cupidc.elf",
       "name": "cupidc",
       "producer": true,
-      "sha256": "e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b",
-      "size": 2080288
+      "sha256": "f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1",
+      "size": 2084592
     }
   ],
   "build_plan": {
@@ -212,7 +212,7 @@
       "link": "stage-two CupidLD from the checked-seed bootstrap"
     },
     "seed_generation": "stage-three",
-    "source_revision": "fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d"
+    "source_revision": "a14ce50fa97264eeba2da3f913b643a12517a78b"
   },
   "schema": "cupid.bootstrap-seed.v1",
   "target": {

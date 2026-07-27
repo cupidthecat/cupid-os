@@ -181,9 +181,9 @@ global function. Two complete kernel-profile compiles produce the same
 validated 40,424-byte object. Prior static linkage stays internal, and an
 external-linkage inline declaration now requires a definition in the same
 translation unit. A pure external inline definition remains outside hosted
-emission. The checked seed predates this rule, so the normal image still
-builds Nuked OPL3 through the host path until the seed is promoted and the
-production gates pass.
+emission. The checked seed carries this rule. The normal image still builds
+Nuked OPL3 through the host path until the production frontier, image, and
+runtime gates pass.
 
 The final boot proof must run production code from the complete cohort. Its 62
 checks cover cryptographic primitives, positive and negative ASN.1 inputs,
@@ -470,11 +470,11 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current CupidC image is 2,080,288 bytes. Its SHA-256 is
-e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b
-and its source revision is fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d.
+The current CupidC image is 2,084,592 bytes. Its SHA-256 is
+f65bf21e999d09abf5028971000e5f2f4e58a82aed21c286fcd5c24ec9f68ab1
+and its source revision is a14ce50fa97264eeba2da3f913b643a12517a78b.
 It carries GNU used, privileged-register inputs, FXSAVE, call-next capture,
-GNU Nd, and machine-state memory outputs.
+GNU Nd, machine-state memory outputs, and C11 external inline finalization.
 The harness freezes the verified manifest and binaries and captures 40 current
 inputs, including link.ld. The seed producer trio builds stage two from that
 snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,
