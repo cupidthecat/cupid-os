@@ -162,12 +162,12 @@ reaches the desktop and terminal, and completes in-OS CupidC execution.
 The production path generates kernel/cpu/ksyms_data.cc after the pass-one
 link. Its normal recipe uses the checked CupidC wrapper. The source stores the
 packed symbol blob as little-endian unsigned int words and records a logical
-size of 104,185 bytes. The last word supplies 3 zero padding bytes outside that
+size of 104,447 bytes. The last word supplies 1 zero padding byte outside that
 size. Generation runs private snapshots of the pass-one kernel and CupidDis.
 It rejects malformed symbol rows, missing text symbols, or live input drift
 before it replaces the source. The compiler wrapper freezes the source and
 its two-header closure before object validation and publication.
-The pass-one and final kernels each project 4,342 symbols, with no pass drift.
+The pass-one and final kernels each project 4,351 symbols, with no pass drift.
 
 Across root and supplemental builds, the ownership audit reports 152 CupidC
 transforms, 145 host C transforms, and 165 host Python transforms. Host C

@@ -365,10 +365,9 @@ CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
 and object boundaries validate it before use. The generated
 `kernel/cpu/ksyms_data.cc` source is now part of the normal checked CupidC
-graph. Its i386-word initializer preserves the 104,185-byte symbol blob while
-cutting checked compile time from 1,041 seconds to about 66 seconds. Two
-compiles produce the same 104,600-byte object with SHA-256
-`475335be28078c794f423bc4d0bb00cf0474289f23bacbc1f7314d29e5b4abd5`.
+graph. Its i386-word initializer preserves the 104,447-byte symbol blob. Two
+compiles produce the same 104,860-byte object with SHA-256
+`dfc7883f192ecf26eb46eb477208f9786c5809c6df7b756703fa8eb999eb88bd`.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in

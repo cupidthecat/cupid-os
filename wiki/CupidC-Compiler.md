@@ -322,8 +322,8 @@ Both 145-object sets are byte-identical and total 3,545,724 bytes. The
 combined graph passes a clean normal image build and the strong four-vCPU
 runtime gate. That boot covers SMP, RDRAND, all 62 crypto checks, e1000
 traffic, the desktop, terminal, and in-OS CupidC execution.
-The generated symbol source stores a logical 104,185-byte blob as
-little-endian `unsigned int` words with three trailing pad bytes.
+The generated symbol source stores a logical 104,447-byte blob as
+little-endian `unsigned int` words with one trailing pad byte.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object

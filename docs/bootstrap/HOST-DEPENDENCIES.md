@@ -120,11 +120,10 @@ objects and functions. The Linear IR and object boundaries validate the
 frozen flag, and the focused object proof reproduces the generated
 `section(".ksyms"), used, aligned(4)` declaration. The generated
 `kernel/cpu/ksyms_data.cc` now compiles through the normal checked wrapper.
-Its packed i386 words preserve the exact 104,185-byte blob and reduce checked
-compile time from 1,041 seconds to about 66 seconds. Two compiles produce the
-same 104,600-byte object with
+Its packed i386 words preserve the exact 104,447-byte blob. Two compiles
+produce the same 104,860-byte object with
 SHA-256
-`475335be28078c794f423bc4d0bb00cf0474289f23bacbc1f7314d29e5b4abd5`.
+`dfc7883f192ecf26eb46eb477208f9786c5809c6df7b756703fa8eb999eb88bd`.
 Python still serializes the blob, but it runs a frozen CupidDis image against
 a frozen pass-one kernel. It rejects malformed output, an empty text-symbol
 set, i386 address overflow, and live input drift before atomic publication.
@@ -263,7 +262,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 182 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, and final initialized ELF-to-raw conversion |
-| CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,342 text symbols and a 104,185-byte panic-backtrace blob; the host oracle remains optional |
+| CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,351 text symbols and a 104,447-byte panic-backtrace blob; the host oracle remains optional |
 | Python | 165 transforms | The 152 CupidC launches plus twelve generation, inspection, link, and orchestration transforms and one external-program syscall ABI verification; Windows uses native CupidC for three user launches, and symbol generation still uses Python after CupidDis inspection |
 | Make recursion | 5 transforms | Builds the hosted CupidASM, CupidObj, CupidLD, and CupidDis executables from the root and prepares native CupidC plus CupidLD for the Windows user build before production transforms consume them |
 
