@@ -354,12 +354,17 @@ eight-byte snapshot. The unchanged libm_tanh_impl expression
 helper slice pins width conversion. At an ellipsis or unprototyped call, the
 frontend promotes float to double after lvalue conversion. Arguments occupy
 four-byte or eight-byte cdecl slots, floating results return in x87 ST0, and
-va_arg(double) advances by eight bytes. Floating values remain invalid truth
-operands.
+va_arg(double) advances by eight bytes. All six comparisons work at a
+matching width or widen a mixed pair to double. They produce a signed int and
+follow IEEE unordered rules, so only != is true for a NaN operand. A
+comparison result can control a statement, but a bare floating value remains
+an invalid truth operand.
 
 The decoder-driven model checks width-specific x87 loads and stores, IEEE
-rounding cases, mixed expressions, call alignment, and frame state. It does
-not execute native x87 code.
+rounding cases, mixed expressions, UCOMISS and UCOMISD comparisons, call
+alignment, and frame state. The comparison execution proof includes signed
+zero, infinities, quiet NaN, and signaling NaN. The arithmetic model does not
+execute native x87 code.
 
 The public frontend publishes decimal float and double constants as exact IEEE
 binary32 or binary64 bits. It uses bounded integer arithmetic and rounds to
@@ -373,12 +378,11 @@ integer-to-floating conversions, floating-to-signed conversions,
 floating-to-unsigned byte or word conversions, and mixed represented integer
 and floating arithmetic. Unsigned four-byte input uses an exact split across
 the sign boundary. Hexadecimal and subnormal literals, long double, conversion
-to unsigned four-byte integers or _Bool, floating comparisons and truth,
-mixed integer and floating conditional arms, increment and decrement,
-static floating arithmetic, SIMD, floating atomic access, and over-aligned
-object emission remain unfinished. Matching or mixed-width
-floating conditional arms and the four arithmetic compound assignments keep
-their established x87 path.
+to unsigned four-byte integers or _Bool, direct floating truth, mixed integer
+and floating conditional arms, increment and decrement, static floating
+arithmetic, SIMD, floating atomic access, and over-aligned object emission
+remain unfinished. Matching or mixed-width floating conditional arms and the
+four arithmetic compound assignments keep their established x87 path.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -622,8 +626,8 @@ than four bytes and contain no stored volatile or atomic subobjects. Graphs
 may contain a nested union. Top-level union and class values remain
 unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
-case, explicit bit-field initializer leaves, Boolean mutation, floating
-comparisons, truth, unsupported conversion widths, floating update, atomic
+case, explicit bit-field initializer leaves, Boolean mutation, direct floating
+truth, unsupported conversion widths, floating update, atomic
 variadic access, aggregate arguments without declared parameter types,
 aggregate variadic reads, wide strings, literal pooling, and block-static
 addresses in other

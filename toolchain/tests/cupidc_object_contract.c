@@ -19038,17 +19038,81 @@ static int floating_sse_write_bits(
 
 static int floating_sse_oracle_step(
     narrow_oracle_machine_t *machine,
-    const ctool_x86_instruction_t *instruction, ctool_bool *handled) {
+    const ctool_x86_instruction_t *instruction, ctool_bool *zero_flag,
+    ctool_bool *carry_flag, ctool_bool *parity_flag,
+    ctool_bool *handled) {
   const ctool_x86_operand_t *left;
   const ctool_x86_operand_t *right;
   ctool_u64 left_bits;
   ctool_u64 right_bits;
   ctool_u32 integer_bits;
   ctool_i32 integer_value;
-  if (machine == NULL || instruction == NULL || handled == NULL) {
+  if (machine == NULL || instruction == NULL || zero_flag == NULL ||
+      carry_flag == NULL || parity_flag == NULL || handled == NULL) {
     return 0;
   }
   *handled = CTOOL_FALSE;
+  if ((instruction->mnemonic == CTOOL_X86_MN_UCOMISS ||
+       instruction->mnemonic == CTOOL_X86_MN_UCOMISD) &&
+      instruction->operand_count == 2u) {
+    ctool_u16 width_bits =
+        instruction->mnemonic == CTOOL_X86_MN_UCOMISS ? 32u : 64u;
+    ctool_bool unordered;
+    left = &instruction->operands[0];
+    right = &instruction->operands[1];
+    if (!floating_sse_read_bits(machine, left, width_bits, &left_bits) ||
+        !floating_sse_read_bits(machine, right, width_bits, &right_bits)) {
+      return 0;
+    }
+    if (width_bits == 32u) {
+      unordered =
+          ((((ctool_u32)left_bits & 0x7f800000u) == 0x7f800000u &&
+            ((ctool_u32)left_bits & 0x007fffffu) != 0u) ||
+           (((ctool_u32)right_bits & 0x7f800000u) == 0x7f800000u &&
+            ((ctool_u32)right_bits & 0x007fffffu) != 0u))
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+    } else {
+      unordered =
+          (((left_bits & UINT64_C(0x7ff0000000000000)) ==
+                UINT64_C(0x7ff0000000000000) &&
+            (left_bits & UINT64_C(0x000fffffffffffff)) != 0u) ||
+           ((right_bits & UINT64_C(0x7ff0000000000000)) ==
+                UINT64_C(0x7ff0000000000000) &&
+            (right_bits & UINT64_C(0x000fffffffffffff)) != 0u))
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+    }
+    if (unordered == CTOOL_TRUE) {
+      *zero_flag = CTOOL_TRUE;
+      *carry_flag = CTOOL_TRUE;
+      *parity_flag = CTOOL_TRUE;
+    } else if (width_bits == 32u) {
+      float left_value;
+      float right_value;
+      ctool_u32 left_narrow_bits = (ctool_u32)left_bits;
+      ctool_u32 right_narrow_bits = (ctool_u32)right_bits;
+      (void)memcpy(&left_value, &left_narrow_bits, sizeof(left_value));
+      (void)memcpy(&right_value, &right_narrow_bits, sizeof(right_value));
+      *zero_flag =
+          left_value == right_value ? CTOOL_TRUE : CTOOL_FALSE;
+      *carry_flag =
+          left_value < right_value ? CTOOL_TRUE : CTOOL_FALSE;
+      *parity_flag = CTOOL_FALSE;
+    } else {
+      double left_value;
+      double right_value;
+      (void)memcpy(&left_value, &left_bits, sizeof(left_value));
+      (void)memcpy(&right_value, &right_bits, sizeof(right_value));
+      *zero_flag =
+          left_value == right_value ? CTOOL_TRUE : CTOOL_FALSE;
+      *carry_flag =
+          left_value < right_value ? CTOOL_TRUE : CTOOL_FALSE;
+      *parity_flag = CTOOL_FALSE;
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
   if ((instruction->mnemonic == CTOOL_X86_MN_MOVSS ||
        instruction->mnemonic == CTOOL_X86_MN_MOVSD) &&
       instruction->operand_count == 2u) {
@@ -19377,6 +19441,7 @@ static int wide_oracle_execute_arguments(
   ctool_u32 argument;
   ctool_bool zero_flag = CTOOL_FALSE;
   ctool_bool carry_flag = CTOOL_FALSE;
+  ctool_bool parity_flag = CTOOL_FALSE;
   ctool_bool sign_flag = CTOOL_FALSE;
   ctool_bool overflow_flag = CTOOL_FALSE;
   ctool_bool direction_clear = CTOOL_FALSE;
@@ -19495,7 +19560,9 @@ static int wide_oracle_execute_arguments(
         instruction->mnemonic == CTOOL_X86_MN_JA ||
         instruction->mnemonic == CTOOL_X86_MN_JB ||
         instruction->mnemonic == CTOOL_X86_MN_JE ||
-        instruction->mnemonic == CTOOL_X86_MN_JNE) {
+        instruction->mnemonic == CTOOL_X86_MN_JNE ||
+        instruction->mnemonic == CTOOL_X86_MN_JP ||
+        instruction->mnemonic == CTOOL_X86_MN_JNP) {
       if (!call_alignment_branch_target(&decoded, pc,
                                         text->contents.size, &target)) {
         return 0;
@@ -19509,7 +19576,11 @@ static int wide_oracle_execute_arguments(
                    (instruction->mnemonic == CTOOL_X86_MN_JE &&
                     zero_flag == CTOOL_TRUE) ||
                    (instruction->mnemonic == CTOOL_X86_MN_JNE &&
-                    zero_flag == CTOOL_FALSE)
+                    zero_flag == CTOOL_FALSE) ||
+                   (instruction->mnemonic == CTOOL_X86_MN_JP &&
+                    parity_flag == CTOOL_TRUE) ||
+                   (instruction->mnemonic == CTOOL_X86_MN_JNP &&
+                    parity_flag == CTOOL_FALSE)
                ? target
                : next_pc;
       continue;
@@ -19572,7 +19643,9 @@ static int wide_oracle_execute_arguments(
                                 &carry_flag, &sign_flag, &overflow_flag,
                                 &handled)) ||
         (handled == CTOOL_FALSE &&
-         !floating_sse_oracle_step(&machine, instruction, &handled)) ||
+         !floating_sse_oracle_step(
+             &machine, instruction, &zero_flag, &carry_flag,
+             &parity_flag, &handled)) ||
         (handled == CTOOL_FALSE &&
          !floating_oracle_step(&machine, instruction, &handled)) ||
         (handled == CTOOL_FALSE &&
@@ -23190,6 +23263,549 @@ static int floating_result_stack_reserve(
              : 0;
 }
 
+static ctool_bool floating_object_is_comparison_operation(
+    ctool_c_expression_operator_t operation) {
+  return operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_LESS ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
+                 operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static int validate_floating_comparison_x86_inventory(
+    ctool_job_t *job, const ctool_elf32_section_t *text) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 movss = 0u;
+  ctool_u32 movsd = 0u;
+  ctool_u32 fld32 = 0u;
+  ctool_u32 fld64 = 0u;
+  ctool_u32 fstp32 = 0u;
+  ctool_u32 fstp64 = 0u;
+  ctool_u32 ucomiss = 0u;
+  ctool_u32 ucomisd = 0u;
+  ctool_u32 sete = 0u;
+  ctool_u32 setne = 0u;
+  ctool_u32 setb = 0u;
+  ctool_u32 setbe = 0u;
+  ctool_u32 seta = 0u;
+  ctool_u32 setae = 0u;
+  ctool_u32 jp = 0u;
+  ctool_u32 jmp = 0u;
+  ctool_u32 ret = 0u;
+  if (job == NULL || text == NULL || text->contents.data == NULL) {
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_MOVSS) {
+      movss++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOVSD) {
+      movsd++;
+    } else if ((instruction->mnemonic == CTOOL_X86_MN_FLD ||
+                instruction->mnemonic == CTOOL_X86_MN_FSTP) &&
+               instruction->operand_count == 1u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_MEMORY) {
+      if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+          instruction->operands[0].width_bits == 32u) {
+        fld32++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                 instruction->operands[0].width_bits == 64u) {
+        fld64++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 instruction->operands[0].width_bits == 32u) {
+        fstp32++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 instruction->operands[0].width_bits == 64u) {
+        fstp64++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_UCOMISS ||
+               instruction->mnemonic == CTOOL_X86_MN_UCOMISD) {
+      if (instruction->operand_count != 2u ||
+          instruction->operands[0].kind !=
+              CTOOL_X86_OPERAND_REGISTER ||
+          instruction->operands[0].as.reg.class_id !=
+              CTOOL_X86_REG_XMM ||
+          instruction->operands[0].as.reg.index != 0u ||
+          instruction->operands[1].kind !=
+              CTOOL_X86_OPERAND_REGISTER ||
+          instruction->operands[1].as.reg.class_id !=
+              CTOOL_X86_REG_XMM ||
+          instruction->operands[1].as.reg.index != 1u) {
+        return 0;
+      }
+      if (instruction->mnemonic == CTOOL_X86_MN_UCOMISS) {
+        ucomiss++;
+      } else {
+        ucomisd++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETE) {
+      sete++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETNE) {
+      setne++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETB) {
+      setb++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETBE) {
+      setbe++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETA) {
+      seta++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_SETAE) {
+      setae++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_JP) {
+      jp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_JMP) {
+      jmp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+      ret++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || movss != 12u || movsd != 24u ||
+      fld32 != 6u || fld64 != 0u || fstp32 != 0u || fstp64 != 6u ||
+      ucomiss != 6u || ucomisd != 12u ||
+      sete != 3u || setne != 3u || setb != 3u || setbe != 3u ||
+      seta != 3u || setae != 3u || jp != 12u || jmp != 12u ||
+      ret != 18u) {
+    (void)fprintf(
+        stderr,
+        "floating comparison x86 inventory differs: "
+        "movss=%u movsd=%u fld32=%u fld64=%u fstp32=%u fstp64=%u "
+        "ucomiss=%u ucomisd=%u "
+        "sete=%u setne=%u setb=%u setbe=%u seta=%u setae=%u "
+        "jp=%u jmp=%u ret=%u cursor=%u/%u\n",
+        (unsigned int)movss, (unsigned int)movsd,
+        (unsigned int)fld32, (unsigned int)fld64,
+        (unsigned int)fstp32, (unsigned int)fstp64,
+        (unsigned int)ucomiss, (unsigned int)ucomisd,
+        (unsigned int)sete, (unsigned int)setne, (unsigned int)setb,
+        (unsigned int)setbe, (unsigned int)seta, (unsigned int)setae,
+        (unsigned int)jp, (unsigned int)jmp, (unsigned int)ret,
+        (unsigned int)cursor, (unsigned int)text->contents.size);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_floating_comparison_semantics(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text) {
+  static const char *const float_names[] = {
+      "float_equal", "float_not_equal", "float_less",
+      "float_less_equal", "float_greater", "float_greater_equal"};
+  static const char *const double_names[] = {
+      "double_equal", "double_not_equal", "double_less",
+      "double_less_equal", "double_greater", "double_greater_equal"};
+  static const char *const mixed_names[] = {
+      "mixed_equal", "mixed_not_equal", "mixed_less",
+      "mixed_less_equal", "mixed_greater", "mixed_greater_equal"};
+  static const struct {
+    ctool_u32 left;
+    ctool_u32 right;
+    ctool_u32 expected[6];
+  } float_cases[] = {
+      {0x3f800000u, 0x40000000u, {0u, 1u, 1u, 1u, 0u, 0u}},
+      {0x40000000u, 0x3f800000u, {0u, 1u, 0u, 0u, 1u, 1u}},
+      {0x3f800000u, 0x3f800000u, {1u, 0u, 0u, 1u, 0u, 1u}},
+      {0x7fc00001u, 0x3f800000u, {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x3f800000u, 0x7fc00001u, {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x7f800001u, 0x3f800000u, {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x3f800000u, 0x7f800001u, {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x00000000u, 0x80000000u, {1u, 0u, 0u, 1u, 0u, 1u}},
+      {0x7f800000u, 0x3f800000u, {0u, 1u, 0u, 0u, 1u, 1u}},
+      {0xff800000u, 0x3f800000u, {0u, 1u, 1u, 1u, 0u, 0u}}};
+  static const struct {
+    ctool_u32 left_low;
+    ctool_u32 left_high;
+    ctool_u32 right_low;
+    ctool_u32 right_high;
+    ctool_u32 expected[6];
+  } double_cases[] = {
+      {0u, 0x3ff00000u, 0u, 0x40000000u,
+       {0u, 1u, 1u, 1u, 0u, 0u}},
+      {0u, 0x40000000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 1u, 1u}},
+      {0u, 0x3ff00000u, 0u, 0x3ff00000u,
+       {1u, 0u, 0u, 1u, 0u, 1u}},
+      {1u, 0x7ff80000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0u, 0x3ff00000u, 1u, 0x7ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {1u, 0x7ff00000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0u, 0x3ff00000u, 1u, 0x7ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0u, 0x00000000u, 0u, 0x80000000u,
+       {1u, 0u, 0u, 1u, 0u, 1u}},
+      {0u, 0x7ff00000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 1u, 1u}},
+      {0u, 0xfff00000u, 0u, 0x3ff00000u,
+       {0u, 1u, 1u, 1u, 0u, 0u}}};
+  static const struct {
+    ctool_u32 left_float;
+    ctool_u32 left_double_low;
+    ctool_u32 left_double_high;
+    ctool_u32 right_float;
+    ctool_u32 right_double_low;
+    ctool_u32 right_double_high;
+    ctool_u32 expected[6];
+  } mixed_cases[] = {
+      {0x3f800000u, 0u, 0x3ff00000u,
+       0x40000000u, 0u, 0x40000000u,
+       {0u, 1u, 1u, 1u, 0u, 0u}},
+      {0x40000000u, 0u, 0x40000000u,
+       0x3f800000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 1u, 1u}},
+      {0x3f800000u, 0u, 0x3ff00000u,
+       0x3f800000u, 0u, 0x3ff00000u,
+       {1u, 0u, 0u, 1u, 0u, 1u}},
+      {0x7fc00001u, 1u, 0x7ff80000u,
+       0x3f800000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x3f800000u, 0u, 0x3ff00000u,
+       0x7fc00001u, 1u, 0x7ff80000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x7f800001u, 1u, 0x7ff00000u,
+       0x3f800000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x3f800000u, 0u, 0x3ff00000u,
+       0x7f800001u, 1u, 0x7ff00000u,
+       {0u, 1u, 0u, 0u, 0u, 0u}},
+      {0x00000000u, 0u, 0x00000000u,
+       0x80000000u, 0u, 0x80000000u,
+       {1u, 0u, 0u, 1u, 0u, 1u}},
+      {0x7f800000u, 0u, 0x7ff00000u,
+       0x3f800000u, 0u, 0x3ff00000u,
+       {0u, 1u, 0u, 0u, 1u, 1u}},
+      {0xff800000u, 0u, 0xfff00000u,
+       0x3f800000u, 0u, 0x3ff00000u,
+       {0u, 1u, 1u, 1u, 0u, 0u}}};
+  ctool_u32 case_index;
+  ctool_u32 operation_index;
+  for (case_index = 0u;
+       case_index <
+       (ctool_u32)(sizeof(float_cases) / sizeof(float_cases[0]));
+       case_index++) {
+    ctool_u32 arguments[2];
+    arguments[0] = float_cases[case_index].left;
+    arguments[1] = float_cases[case_index].right;
+    for (operation_index = 0u; operation_index < 6u;
+         operation_index++) {
+      if (!expect_wide_oracle_low_result(
+              job, object, text, float_names[operation_index],
+              arguments, 2u,
+              float_cases[case_index].expected[operation_index],
+              float_names[operation_index])) {
+        (void)fprintf(
+            stderr, "float comparison scenario %u failed\n",
+            (unsigned int)case_index);
+        return 0;
+      }
+    }
+  }
+  for (case_index = 0u;
+       case_index <
+       (ctool_u32)(sizeof(double_cases) / sizeof(double_cases[0]));
+       case_index++) {
+    ctool_u32 arguments[4];
+    arguments[0] = double_cases[case_index].left_low;
+    arguments[1] = double_cases[case_index].left_high;
+    arguments[2] = double_cases[case_index].right_low;
+    arguments[3] = double_cases[case_index].right_high;
+    for (operation_index = 0u; operation_index < 6u;
+         operation_index++) {
+      if (!expect_wide_oracle_low_result(
+              job, object, text, double_names[operation_index],
+              arguments, 4u,
+              double_cases[case_index].expected[operation_index],
+              double_names[operation_index])) {
+        (void)fprintf(
+            stderr, "double comparison scenario %u failed\n",
+            (unsigned int)case_index);
+        return 0;
+      }
+    }
+  }
+  for (case_index = 0u;
+       case_index <
+       (ctool_u32)(sizeof(mixed_cases) / sizeof(mixed_cases[0]));
+       case_index++) {
+    for (operation_index = 0u; operation_index < 6u;
+         operation_index++) {
+      ctool_u32 arguments[3];
+      if ((operation_index & 1u) == 0u) {
+        arguments[0] = mixed_cases[case_index].left_float;
+        arguments[1] = mixed_cases[case_index].right_double_low;
+        arguments[2] = mixed_cases[case_index].right_double_high;
+      } else {
+        arguments[0] = mixed_cases[case_index].left_double_low;
+        arguments[1] = mixed_cases[case_index].left_double_high;
+        arguments[2] = mixed_cases[case_index].right_float;
+      }
+      if (!expect_wide_oracle_low_result(
+              job, object, text, mixed_names[operation_index],
+              arguments, 3u,
+              mixed_cases[case_index].expected[operation_index],
+              mixed_names[operation_index])) {
+        (void)fprintf(
+            stderr, "mixed comparison scenario %u failed\n",
+            (unsigned int)case_index);
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int validate_floating_comparison_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const function_names[] = {
+      "float_equal", "float_not_equal", "float_less",
+      "float_less_equal", "float_greater", "float_greater_equal",
+      "double_equal", "double_not_equal", "double_less",
+      "double_less_equal", "double_greater", "double_greater_equal",
+      "mixed_equal", "mixed_not_equal", "mixed_less",
+      "mixed_less_equal", "mixed_greater", "mixed_greater_equal"};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 1524u ||
+      structure_text_fingerprint(text->contents) != 0x0dc63c53u ||
+      (bss != NULL && bss->size != 0u) ||
+      object->symbol_count != 19u || object->relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "floating comparison object inventory differs: "
+        "text=%u fingerprint=%08x bss=%u symbols=%u relocations=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index <
+       (ctool_u32)(sizeof(function_names) / sizeof(function_names[0]));
+       index++) {
+    if (!wide_function_symbol_is_valid(
+            object, text, find_symbol(object, function_names[index]))) {
+      (void)fprintf(stderr, "missing floating comparison symbol %s\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  return validate_floating_comparison_x86_inventory(job, text) &&
+                 validate_floating_comparison_semantics(job, object, text)
+             ? 1
+             : 0;
+}
+
+static int run_floating_comparison_object(const char *host_root) {
+  static const char source[] =
+      "int float_equal(float left, float right) { return left == right; }\n"
+      "int float_not_equal(float left, float right) { return left != right; }\n"
+      "int float_less(float left, float right) { return left < right; }\n"
+      "int float_less_equal(float left, float right) { return left <= right; }\n"
+      "int float_greater(float left, float right) { return left > right; }\n"
+      "int float_greater_equal(float left, float right) { return left >= right; }\n"
+      "int double_equal(double left, double right) { return left == right; }\n"
+      "int double_not_equal(double left, double right) { return left != right; }\n"
+      "int double_less(double left, double right) { return left < right; }\n"
+      "int double_less_equal(double left, double right) { return left <= right; }\n"
+      "int double_greater(double left, double right) { return left > right; }\n"
+      "int double_greater_equal(double left, double right) { return left >= right; }\n"
+      "int mixed_equal(float left, double right) { return left == right; }\n"
+      "int mixed_not_equal(double left, float right) { return left != right; }\n"
+      "int mixed_less(float left, double right) { return left < right; }\n"
+      "int mixed_less_equal(double left, float right) { return left <= right; }\n"
+      "int mixed_greater(float left, double right) { return left > right; }\n"
+      "int mixed_greater_equal(double left, float right) { return left >= right; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 comparison = CTOOL_C_AST_NONE;
+  ctool_u32 comparison_input_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-comparisons.c", source,
+                         CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 18u ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "floating comparison object setup failed\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    ctool_u32 left;
+    if (expression->kind != CTOOL_C_EXPRESSION_BINARY ||
+        floating_object_is_comparison_operation(
+            expression->operation) == CTOOL_FALSE ||
+        expression->child_count != 2u ||
+        expression->first_child >= unit.expression_child_count ||
+        2u > unit.expression_child_count - expression->first_child) {
+      continue;
+    }
+    left = unit.expression_children[expression->first_child];
+    if (left < unit.expression_count &&
+        unit.expressions[left].type < unit.graph.type_count &&
+        unit.graph.types[unit.expressions[left].type].kind ==
+            CTOOL_C_TYPE_FLOAT) {
+      comparison = index;
+      comparison_input_type = unit.expressions[left].type;
+      break;
+    }
+  }
+  if (comparison == CTOOL_C_AST_NONE ||
+      comparison_input_type == CTOOL_C_TYPE_NONE) {
+    (void)fprintf(stderr, "floating comparison mutation fixture differs\n");
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  invalid_expressions[comparison].type = comparison_input_type;
+  if (!check_status(status, CTOOL_OK, "floating comparison buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "floating comparison object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating comparison object") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "floating comparison with a floating result")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[comparison].operation =
+      CTOOL_C_EXPRESSION_OPERATOR_BITWISE_AND;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
+          "CupidC IR lowering does not yet support this expression",
+          "floating comparison changed to a bitwise operation")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "floating comparison objects are not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          NULL, "limited floating comparison object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered floating comparison object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "floating comparison recovery changed the object\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/floating-comparisons.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read floating comparison object") ||
+      !validate_floating_comparison_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-comparisons: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_arithmetic_x87_inventory(
     ctool_job_t *job, const ctool_elf32_section_t *text) {
   ctool_u32 cursor = 0u;
@@ -25877,20 +26493,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 213u, 225u, 337u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 213u, 226u, 337u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 410348u, 380601u, 695346u, 139612u, 70368u, 77981u,
+      190304u, 412390u, 382891u, 695409u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 438324u, 409788u, 822644u, 157796u, 79348u, 131848u,
+      226668u, 440492u, 412276u, 823000u, 157796u, 79348u, 131848u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x7d9a96f4u, 0x172dd726u, 0x406f16c0u, 0x3f69aac3u,
+      0xb80b9364u, 0x06854a35u, 0xe4a9210du, 0x3f69aac3u,
       0x34558a49u, 0x20934327u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -33392,6 +34008,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-arithmetic") == 0) {
     return run_floating_arithmetic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-comparisons") == 0) {
+    return run_floating_comparison_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversion_object(argv[2]);
   }
@@ -33458,7 +34077,8 @@ int main(int argc, char **argv) {
                 "structure-values|call-alignment|"
                 "compound-literals|old-style-empty-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
-                "floating-arithmetic|floating-conversions|"
+                "floating-arithmetic|floating-comparisons|"
+                "floating-conversions|"
                 "floating-scalars|"
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations|"

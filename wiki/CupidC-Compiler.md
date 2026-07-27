@@ -242,22 +242,25 @@ The shared path also carries signed and unsigned eight-byte integer values. Full
 The shared path carries `float` and `double` values through objects,
 assignment, calls, variadic reads, and returns. It supports conversion between
 the two widths, matching or mixed arithmetic, conditional values, compound
-arithmetic assignment, default argument promotion, and `va_arg(double)`.
-Decimal constants are published as exact IEEE bits. Static-duration scalar
-and aggregate leaves accept decimal floating constants with parentheses and
-unary signs. Direct conversion between `float` and `double` produces the
-target-width bits, including signed zero, before the object reaches
-`.rodata`, `.data`, or `.bss`. Represented
+arithmetic assignment, default argument promotion, `va_arg(double)`, and all
+six comparisons. A mixed `float` and `double` pair compares as `double`.
+`UCOMISS` and `UCOMISD` produce a normalized signed `int` and handle unordered
+operands so only `!=` is true for NaN. Decimal constants are published as
+exact IEEE bits. Static-duration scalar and aggregate leaves accept decimal
+floating constants with parentheses and unary signs. Direct conversion
+between `float` and `double` produces the target-width bits, including signed
+zero, before the object reaches `.rodata`, `.data`, or `.bss`. Represented
 integer-to-floating conversions, floating-to-signed conversions,
 floating-to-unsigned byte or word conversions, and mixed integer and floating
 arithmetic use the SSE object path. Unsigned four-byte input uses an exact
-split across the sign boundary. The x87 transport model and SSE conversion
-oracle check rounding, operand order, call alignment, and frame state.
-Floating comparisons and truth, hexadecimal and subnormal literals,
-`long double`, conversion to unsigned four-byte integers or `_Bool`,
-mixed integer and floating conditional arms, floating increment and
-decrement, static floating arithmetic, SIMD values, floating atomics, and
-over-aligned object emission remain unfinished.
+split across the sign boundary. The x87 transport model, SSE conversion
+oracle, and comparison execution oracle check rounding, operand order, signed
+zero, infinities, quiet and signaling NaNs, call alignment, and frame state.
+Direct floating truth, hexadecimal and subnormal literals, `long double`,
+conversion to unsigned four-byte integers or `_Bool`, mixed integer and
+floating conditional arms, floating increment and decrement, static floating
+arithmetic, SIMD values, floating atomics, and over-aligned object emission
+remain unfinished.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -305,7 +308,7 @@ Block-scope compound literals use one persistent unnamed automatic object per so
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported.
 
-The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. Static-duration scalar and aggregate leaves keep those target-width bits, including signed zero, and use ordinary read-only, writable, or zero-filled placement. The IR and SSE object path cover represented integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, and mixed integer and floating addition, subtraction, multiplication, and division. Unsigned four-byte input uses an exact split conversion across the sign boundary. Hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `bool`, floating comparisons and truth, mixed integer and floating conditional arms, floating increment and decrement, and static floating arithmetic remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
+The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. Static-duration scalar and aggregate leaves keep those target-width bits, including signed zero, and use ordinary read-only, writable, or zero-filled placement. The IR and SSE object path cover represented integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, mixed integer and floating addition, subtraction, multiplication, and division, and all six matching or mixed-width comparisons. Unsigned four-byte input uses an exact split conversion across the sign boundary. Hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `bool`, direct floating truth, mixed integer and floating conditional arms, floating increment and decrement, and static floating arithmetic remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
@@ -1291,7 +1294,7 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
 
-The private compiler implements a broader floating and SIMD language. The hosted self-hosting path converts between `float` and `double`, evaluates matching or mixed floating arithmetic, selects matching or mixed floating conditional arms, and stores `+=`, `-=`, `*=`, and `/=` results at the left width. It also carries existing `double` values and source `float` values promoted to `double` through ellipsis and unprototyped calls and supports `va_arg(double)`. Decimal constants, represented integer conversions, and mixed integer and floating arithmetic now use the public SSE conversion path. Comparisons, truth, mixed integer and floating conditional arms, increment and decrement, hexadecimal and subnormal literals, `long double`, and SIMD remain open in the hosted path.
+The private compiler implements a broader floating and SIMD language. The hosted self-hosting path converts between `float` and `double`, evaluates matching or mixed floating arithmetic and all six comparisons, selects matching or mixed floating conditional arms, and stores `+=`, `-=`, `*=`, and `/=` results at the left width. It also carries existing `double` values and source `float` values promoted to `double` through ellipsis and unprototyped calls and supports `va_arg(double)`. Decimal constants, represented integer conversions, mixed integer and floating arithmetic, and comparisons use the public SSE path. Direct floating truth, mixed integer and floating conditional arms, increment and decrement, hexadecimal and subnormal literals, `long double`, and SIMD remain open in the hosted path.
 
 ---
 

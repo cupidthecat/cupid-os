@@ -435,6 +435,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_FRONTEND_CONTRACT) wide-variadics ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-transport ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-arithmetic ..
+	$(CUPIDC_FRONTEND_CONTRACT) floating-comparisons ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-scalars ..
 	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
@@ -514,6 +515,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_IR_CONTRACT) wide-variadics ..
 	$(CUPIDC_IR_CONTRACT) floating-transport ..
 	$(CUPIDC_IR_CONTRACT) floating-arithmetic ..
+	$(CUPIDC_IR_CONTRACT) floating-comparisons ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
 	$(CUPIDC_IR_CONTRACT) floating-scalars ..
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
@@ -561,6 +563,7 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) wide-variadics ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-transport ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-arithmetic ..
+	$(CUPIDC_OBJECT_CONTRACT) floating-comparisons ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-scalars ..
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..

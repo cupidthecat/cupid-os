@@ -7367,12 +7367,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 213u, 6411u,
-       58097u, 821u, 299u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 225u, 5947u,
-       51246u, 721u, 361u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 213u, 6424u,
+       58351u, 822u, 299u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 226u, 6008u,
+       51744u, 734u, 367u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 337u,
-       13803u, 90768u, 2049u, 1345u, 0u, 0u},
+       13802u, 90782u, 2049u, 1345u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -23273,11 +23273,7 @@ static int run_floating_arithmetic(const char *host_root) {
         "float bad(_Atomic float value) { return -value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 41u,
-       "atomic floating arithmetic is outside this expression slice"},
-      {{"floating comparison boundary",
-        "int bad(float left, float right) { return left < right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 48u, "floating comparisons are outside this expression slice"}};
+       "atomic floating arithmetic is outside this expression slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -23313,6 +23309,184 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("floating-arithmetic: ok\n");
+  }
+  return failed;
+}
+
+static ctool_u32 floating_comparison_operation_index(
+    ctool_c_expression_operator_t operation) {
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_EQUAL) {
+    return 0u;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL) {
+    return 1u;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_LESS) {
+    return 2u;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL) {
+    return 3u;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER) {
+    return 4u;
+  }
+  if (operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL) {
+    return 5u;
+  }
+  return 6u;
+}
+
+static int validate_floating_comparisons(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 float_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  ctool_u32 double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  ctool_u32 widenings = 0u;
+  ctool_u32 index;
+  if (unit == NULL || unit->function_definition_count != 18u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+        underlying_type_kind(unit, expression->type, NULL) ==
+            CTOOL_C_TYPE_DOUBLE) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      if (expression->child_count != 1u ||
+          child >= unit->expression_count ||
+          underlying_type_kind(
+              unit, unit->expressions[child].type, NULL) !=
+              CTOOL_C_TYPE_FLOAT) {
+        return 1;
+      }
+      widenings++;
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
+      ctool_u32 operation_index =
+          floating_comparison_operation_index(expression->operation);
+      ctool_u32 left = expression_child(unit, expression, 0u);
+      ctool_u32 right = expression_child(unit, expression, 1u);
+      ctool_c_type_kind_t operand_kind;
+      ctool_u32 *counts;
+      if (operation_index >= 6u) {
+        continue;
+      }
+      if (expression->child_count != 2u ||
+          underlying_type_kind(unit, expression->type, NULL) !=
+              CTOOL_C_TYPE_SIGNED_INT ||
+          left >= unit->expression_count ||
+          right >= unit->expression_count ||
+          unit->expressions[left].type != unit->expressions[right].type ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE) {
+        return 1;
+      }
+      operand_kind = underlying_type_kind(
+          unit, unit->expressions[left].type, NULL);
+      if (operand_kind == CTOOL_C_TYPE_FLOAT) {
+        counts = float_counts;
+      } else if (operand_kind == CTOOL_C_TYPE_DOUBLE) {
+        counts = double_counts;
+      } else {
+        return 1;
+      }
+      counts[operation_index]++;
+    }
+  }
+  for (index = 0u; index < 6u; index++) {
+    if (float_counts[index] != 1u || double_counts[index] != 2u) {
+      (void)fprintf(
+          stderr,
+          "floating-comparisons: operator %u inventory differs: "
+          "float=%u double=%u\n",
+          (unsigned int)index, (unsigned int)float_counts[index],
+          (unsigned int)double_counts[index]);
+      return 1;
+    }
+  }
+  if (widenings != 6u) {
+    (void)fprintf(
+        stderr,
+        "floating-comparisons: widening inventory differs: %u\n",
+        (unsigned int)widenings);
+    return 1;
+  }
+  return 0;
+}
+
+static int run_floating_comparisons(const char *host_root) {
+  static const char source[] =
+      "int float_equal(float left, float right) { return left == right; }\n"
+      "int float_not_equal(float left, float right) { return left != right; }\n"
+      "int float_less(float left, float right) { return left < right; }\n"
+      "int float_less_equal(float left, float right) { return left <= right; }\n"
+      "int float_greater(float left, float right) { return left > right; }\n"
+      "int float_greater_equal(float left, float right) { return left >= right; }\n"
+      "int double_equal(double left, double right) { return left == right; }\n"
+      "int double_not_equal(double left, double right) { return left != right; }\n"
+      "int double_less(double left, double right) { return left < right; }\n"
+      "int double_less_equal(double left, double right) { return left <= right; }\n"
+      "int double_greater(double left, double right) { return left > right; }\n"
+      "int double_greater_equal(double left, double right) { return left >= right; }\n"
+      "int mixed_equal(float left, double right) { return left == right; }\n"
+      "int mixed_not_equal(double left, float right) { return left != right; }\n"
+      "int mixed_less(float left, double right) { return left < right; }\n"
+      "int mixed_less_equal(double left, float right) { return left <= right; }\n"
+      "int mixed_greater(float left, double right) { return left > right; }\n"
+      "int mixed_greater_equal(double left, float right) { return left >= right; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"long double comparison",
+        "int bad(long double left, long double right) { return left < right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "long double comparison is outside this expression slice"},
+      {{"atomic floating comparison",
+        "int bad(_Atomic float left, float right) { return left == right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic floating comparison is outside this expression slice"},
+      {{"wide integer and floating comparison",
+        "int bad(long long left, float right) { return left >= right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer and floating comparison conversion exceeds the represented 32-bit slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "floating-comparisons", host_root,
+                             4u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/floating-comparisons.c", source,
+                          &unit) != 0 ||
+      validate_floating_comparisons(&unit) != 0) {
+    (void)fprintf(stderr,
+                  "floating-comparisons: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/floating-comparisons-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_floating_comparisons(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("floating-comparisons: ok\n");
   }
   return failed;
 }
@@ -23618,10 +23792,6 @@ static int run_floating_conversions(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
-      {{"floating comparison",
-        "int bad(float left, double right) { return left < right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating comparisons are outside this expression slice"},
       {{"mixed conditional category",
         "double bad(int condition, float left, int right) { return condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -26920,7 +27090,8 @@ int main(int argc, char **argv) {
                    "static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
-                   "floating-conversions|floating-scalars|"
+                   "floating-comparisons|floating-conversions|"
+                   "floating-scalars|"
                    "variadic-callees|"
                    "atomic-builtins|"
                    "inline-assembly|port-io-assembly|"
@@ -26992,6 +27163,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "floating-arithmetic") == 0) {
     return run_floating_arithmetic(argv[2]);
+  }
+  if (strcmp(argv[1], "floating-comparisons") == 0) {
+    return run_floating_comparisons(argv[2]);
   }
   if (strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversions(argv[2]);

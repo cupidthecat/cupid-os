@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-07-10
+Verified against source on: 2026-07-27
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -42,21 +42,26 @@ language, assembler, libm, and printf.
   double2: 16 bytes, SSE packed (2 doubles).
 
 >h3 Shared Self-Hosting Path
-The shared compiler used for self-hosting has a separate i386 x87 backend.
-It carries non-atomic float and double values through objects, calls, variadic
-reads, and returns. Explicit casts and assignment conversion work in either
-direction. Matching floating conditional arms keep their width. Mixed
-arithmetic and conditional arms use double.
+The shared compiler used for self-hosting combines its i386 x87 transport and
+arithmetic path with SSE conversion and comparison emission. It carries
+non-atomic float and double values through objects, calls, variadic reads, and
+returns. Explicit casts and assignment conversion work in either direction.
+Matching floating conditional arms keep their width. Mixed arithmetic and
+conditional arms use double.
 
 The +=, -=, *=, and /= operators compute at the common width, convert the
 stored result back to the left type, and evaluate the left designator once.
 Each changed x87 result is stored at its C width before the next Linear IR
 instruction.
 
-Integer and floating conversion, floating comparisons and truth, a floating
-controlling expression, increment and decrement, floating literals, long
-double, SIMD, and atomic floating access remain outside this shared path. The
-SSE details below describe the private in-OS compiler.
+Decimal constants, represented integer conversions, mixed integer-and-floating
+arithmetic, and all six comparisons use the shared SSE path. A mixed floating
+comparison uses double, and only != is true for an unordered NaN input.
+
+Direct floating truth, a floating controlling expression, increment and
+decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic
+floating access remain outside this shared path. The SSE details below
+describe the private in-OS compiler.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE

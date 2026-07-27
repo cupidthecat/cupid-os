@@ -501,8 +501,10 @@ The hosted path carries `float` and `double` values through objects,
 initialization, assignment, discard, calls, parameters, results, and returns.
 It supports conversion between the two widths, arithmetic at matching or
 mixed widths, conditional values, compound arithmetic assignment, default
-argument promotion, and `va_arg(double)`. Decimal constants are published as
-exact IEEE bits. Static-duration scalar and aggregate leaves accept decimal
+argument promotion, `va_arg(double)`, and all six comparisons. Matching
+`float` and `double` operands compare at their own width, while a mixed pair
+compares as `double`. Decimal constants are published as exact IEEE bits.
+Static-duration scalar and aggregate leaves accept decimal
 floating constants with parentheses and unary signs. Assignment conversion
 between `float` and `double` is rounded with integer-only target arithmetic,
 and exact binary32 or binary64 bytes reach `.rodata`, `.data`, or `.bss`.
@@ -510,12 +512,14 @@ Represented integer-to-floating conversions,
 floating-to-signed conversions, floating-to-unsigned byte or word
 conversions, and mixed integer and floating arithmetic use the SSE object
 path. Unsigned four-byte input uses an exact split across the sign boundary.
-The x87 transport model and SSE conversion oracle check rounding, operand
-order, call alignment, and frame state. Floating comparisons and truth,
-hexadecimal and subnormal literals, `long double`, conversion to unsigned
-four-byte integers or `_Bool`, mixed integer and floating conditional arms,
-floating increment and decrement, static floating arithmetic, SIMD values,
-floating atomics, and over-aligned emission remain open.
+The x87 transport model, SSE conversion oracle, and `UCOMISS` or `UCOMISD`
+comparison oracle check rounding, operand order, ordered values, signed zero,
+infinities, quiet and signaling NaNs, call alignment, and frame state. Direct
+floating truth, hexadecimal and subnormal literals, `long double`,
+conversion to unsigned four-byte integers or `_Bool`, mixed integer and
+floating conditional arms, floating increment and decrement, static
+floating arithmetic, SIMD values, floating atomics, and over-aligned emission
+remain open.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
@@ -576,6 +580,7 @@ and the generated kernel symbol translation described above.
 [ADR 0135](docs/adr/0135-transfer-nuked-opl3-to-cupidc.md) records the Nuked OPL3 production ownership transfer and its image and runtime proof.
 
 [ADR 0136](docs/adr/0136-represent-static-floating-constant-data.md) records exact static `float` and `double` data, signed-zero placement, and direct width conversion.
+[ADR 0137](docs/adr/0137-emit-c-floating-comparisons.md) records all six floating comparisons, mixed-width conversion, and IEEE unordered behavior.
 
 [ADR 0083](docs/adr/0083-shared-x86-conditional-moves.md) records the shared i686 conditional-move family and its exact operand boundary. [ADR 0084](docs/adr/0084-cupidobj-canonical-text-wrapping.md) records canonical embedded text and the byte-exact binary boundary.
 

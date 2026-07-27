@@ -789,6 +789,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "floating-arithmetic: ok\n")
 
+    def test_floating_comparisons_preserve_c11_unordered_semantics(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-comparisons", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-comparisons: ok\n")
+
     def test_floating_width_conversions_emit_deterministic_x87_objects(self):
         result = subprocess.run(
             [str(self.contract_path), "floating-conversions", str(REPO_ROOT)],

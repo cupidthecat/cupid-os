@@ -11803,3 +11803,95 @@ initializer record, so the normal build remains at 92 host root objects and
 `kernel/gfx/jpeg.c` keeps its `.c` name until seed promotion.
 
 ADR 0136 records the representation and its remaining limits.
+
+## 2026-07-27: emit floating comparisons
+
+The next unchanged production probe reached
+`kernel/gfx/glyph_raster.c`. Its floor, ceiling, curve subdivision, and
+crossing sort paths compare `float` values with zero, converted integers,
+thresholds, and other computed values. The shared frontend still rejected
+every floating equality and relational operator.
+
+CupidC now publishes `==`, `!=`, `<`, `<=`, `>`, and `>=` with a signed
+`int` result when both operands convert to one non-atomic `float` or
+`double` type. A mixed-width pair uses the existing usual arithmetic
+conversion to `double`. Long double, atomic floating access, and a comparison
+that needs an unrepresented eight-byte integer conversion retain focused
+diagnostics.
+
+Linear IR keeps the ordinary binary instruction shape with matching operand
+types and an integer result. It rejects a forged floating result or a
+noncomparison operator on the same operands, leaves the input unit unchanged,
+and recovers in the same job. A constrained-arena case also fails without
+publishing a partial IR unit.
+
+The i386 emitter consumes the right and left semantic values into XMM1 and
+XMM0. It uses `UCOMISS` for binary32 and `UCOMISD` for binary64. Unordered
+inputs set zero, parity, and carry together, so equality, inequality,
+less-than, and less-than-or-equal take an explicit parity branch. This makes
+only `!=` true for NaN. The greater predicates already reject unordered
+inputs through `SETA` and `SETAE`.
+
+The focused frontend and IR contracts each cover all six operators for
+matching `float`, matching `double`, and mixed widths. The IR fixture has
+fingerprint `1952EE3C6E22EFE2`. The deterministic object contains 18
+functions in 1,524 text bytes with fingerprint `0DC63C53`, 19 symbols
+including the null symbol, and no relocations. Its decoder requires both
+comparison widths, the parity branches, and normalized predicates.
+
+The execution oracle covers ordinary values, positive and negative zero,
+positive and negative infinity, quiet NaN, and signaling NaN. Each NaN form
+appears on both the left and right. It also checks mixed-width execution,
+cdecl arguments, stack restoration, and callee-saved registers.
+
+Specification review found that the first object fixture executed only
+matching widths even though the frontend and IR covered mixed operands.
+Mixed execution cases now cover each operator. Standards review found that
+one right-hand signaling-NaN case repeated the quiet-NaN bits. The corrected
+case uses the signaling pattern and keeps the full left and right matrix.
+
+The static initializer and comparison changes combine at these source
+frontiers: `cupidc_ir.cc` publishes 213/6,424/58,351/822/299,
+`cupidc_emit.cc` publishes 226/6,008/51,744/734/367, and
+`cupidc_frontend.cc` publishes 337/13,802/90,782/2,049/1,345. Each tuple
+reports definitions, statements, expressions, block bindings, and
+initializers.
+
+Two-run self-host object determinism also passes for the combined sources.
+`cupidc_ir.cc` produces 412,390 text bytes in a 440,492-byte object with
+fingerprint `B80B9364`. `cupidc_emit.cc` produces 382,891 text bytes in a
+412,276-byte object with fingerprint `06854A35`. `cupidc_frontend.cc`
+produces 695,409 text bytes in an 823,000-byte object with fingerprint
+`E4A9210D`.
+
+The combined native Toolchain suite passes all 71 frontend, 59 IR, and 71
+object selectors, followed by the linked CupidC, CupidASM, CupidDis, CupidLD,
+CupidObj, and hosted runtime proofs.
+
+A single Python command that requested all three historical contract modules
+exceeded its 120-second command window before reporting a result. It printed
+no failure. The three new comparison test methods then passed directly in
+40.826 seconds; the native suite above had already completed every selector.
+
+The refreshed active-source audit records 114,239 contract lines and 65,116
+core Toolchain lines. `make check-bootstrap-audit` passes for the regenerated
+Markdown and JSON reports. `make verify-bootstrap-seed` still validates all
+five existing images; those images do not yet contain either capability from
+this branch.
+
+The unchanged glyph rasterizer compiles twice under the full native
+`KERNEL_I386` profile. Both outputs are valid 11,740-byte i386 `ET_REL`
+objects with SHA-256
+`880777180290245CB62F21AD799218CB9D3C8C3BA6D6449C2BE3352C48934B33`.
+This is compiler-head evidence. The checked seed still predates floating
+comparisons, so the normal build keeps `kernel/gfx/glyph_raster.c` under host
+ownership and retains its `.c` name.
+
+A complete `make -j2 all WAD_SRCS=` rebuild reached both kernel links,
+flattened the final ELF, and staged the 200 MiB disk image without an error.
+A repeated invocation outlived its three-minute command wrapper while the
+checked compiler rebuilt `toolchain/x86.cc`; the child process completed, and
+the final kernel and image remained current. `make test_usb_partitioned.img`
+then returned success with the partitioned image up to date.
+
+ADR 0137 records the comparison semantics and remaining limits.

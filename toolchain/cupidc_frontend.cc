@@ -9390,31 +9390,29 @@ static ctool_status_t cfront_prepare_floating_binary(
     return CTOOL_OK;
   }
   *handled_out = CTOOL_TRUE;
-  if (comparison == CTOOL_TRUE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "floating comparisons are outside this expression slice");
-  }
-  if (operation == CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token, "remainder requires integer operands");
-  }
-  if (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
-      operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
-      operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
-      operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token, "bitwise operators require integer operands");
+  if (comparison == CTOOL_FALSE) {
+    if (operation == CTOOL_C_EXPRESSION_OPERATOR_REMAINDER) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token, "remainder requires integer operands");
+    }
+    if (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+        operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
+        operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
+        operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token, "bitwise operators require integer operands");
+    }
   }
   if (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
       right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token,
-        "long double arithmetic is outside this expression slice");
+        comparison == CTOOL_TRUE
+            ? "long double comparison is outside this expression slice"
+            : "long double arithmetic is outside this expression slice");
   }
   if ((left_floating == CTOOL_TRUE &&
        ((left_qualifiers | left_node.qualifiers) &
@@ -9425,7 +9423,9 @@ static ctool_status_t cfront_prepare_floating_binary(
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token,
-        "atomic floating arithmetic is outside this expression slice");
+        comparison == CTOOL_TRUE
+            ? "atomic floating comparison is outside this expression slice"
+            : "atomic floating arithmetic is outside this expression slice");
   }
   if (left_floating != right_floating) {
     status = cfront_integer_type(
@@ -9447,7 +9447,9 @@ static ctool_status_t cfront_prepare_floating_binary(
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-          "integer and floating arithmetic conversion exceeds the represented 32-bit slice");
+          comparison == CTOOL_TRUE
+              ? "integer and floating comparison conversion exceeds the represented 32-bit slice"
+              : "integer and floating arithmetic conversion exceeds the represented 32-bit slice");
     }
     if (((left_qualifiers | left_node.qualifiers |
           right_qualifiers | right_node.qualifiers) &
@@ -9455,7 +9457,9 @@ static ctool_status_t cfront_prepare_floating_binary(
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-          "atomic mixed floating arithmetic is outside this expression slice");
+          comparison == CTOOL_TRUE
+              ? "atomic floating comparison is outside this expression slice"
+              : "atomic mixed floating arithmetic is outside this expression slice");
     }
   }
   status = cfront_apply_default_conversion(context, left);

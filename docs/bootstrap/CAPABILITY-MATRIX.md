@@ -64,12 +64,14 @@ The IR and SSE emitter cover represented integer-to-floating conversions,
 floating-to-signed conversions, floating-to-unsigned byte or word
 conversions, and mixed represented integer and floating arithmetic.
 Unsigned four-byte input uses an exact split across the sign boundary.
+All six matching or mixed-width comparisons use `UCOMISS` or `UCOMISD`.
+Parity handling gives the required ordered and unordered results.
 Hexadecimal and subnormal literals, `long double`, conversion to unsigned
-four-byte integers or `_Bool`, floating comparisons and truth, mixed integer
-and floating conditional arms, floating increment and decrement, and static
-floating arithmetic remain open. Matching or mixed-width floating
-conditional arms and the four arithmetic compound assignments retain their
-established x87 path.
+four-byte integers or `_Bool`, direct floating truth, mixed integer and
+floating conditional arms, floating increment and decrement, and static
+floating arithmetic remain open. Matching or mixed-width floating conditional
+arms and the four arithmetic compound assignments retain their established
+x87 path.
 
 The 147-transform normal cohort passes strict syntax, focused compiler and
 subsystem, repeat-emission, clean-image, and strong four-vCPU runtime gates.
@@ -180,18 +182,19 @@ aggregate leaves emit exact binary32 or binary64 data after direct width
 conversion. Parentheses and unary signs are supported, including negative
 zero. The SSE path converts
 represented integers to floating values, floating values to supported
-integer widths, and mixed integer and floating arithmetic. The existing x87
-transport model and the SSE execution oracle check rounding, boundary values,
-operand order, call alignment, and frame state. Comparisons and truth,
-hexadecimal and subnormal literals, `long double`, conversion to unsigned
-four-byte integers or `_Bool`, mixed integer and floating conditional arms,
-floating increment and decrement, static floating arithmetic, SIMD, floating
-atomic access, over-aligned object emission, and production ownership remain
-open.
+integer widths, mixed integer and floating arithmetic, and all six floating
+comparisons. Matching widths use `UCOMISS` or `UCOMISD`; mixed widths compare
+as `double`. Parity handling gives C's unordered result for quiet and
+signaling NaNs. The existing x87 transport model and the SSE execution oracle
+check rounding, boundary values, operand order, call alignment, and frame
+state. Direct floating truth, hexadecimal and subnormal literals,
+`long double`, conversion to unsigned four-byte integers or `_Bool`, mixed
+integer and floating conditional arms, floating increment and decrement,
+static floating arithmetic, SIMD, floating atomic access, over-aligned object
+emission, and production ownership remain open.
 
-In the broader rows below, an open reference to floating computation means
-work beyond ADR 0125's decimal constants, represented integer conversions,
-and mixed arithmetic boundary.
+In the broader rows below, an open reference to floating computation or
+comparison means work beyond ADR 0137's current boundary.
 
 Plain assignment to a represented non-atomic bit field now reaches deterministic i386 ELF32 output when the declared storage unit is four bytes and fits inside the record. The value-producing IR operation is exercised through pointer-derived and indexed record addresses. Partial stores retain neighboring bits and return a truncated, sign-correct field value. Full-width stores do not read the old unit. Character-sized, Boolean, atomic, compact packed, compound, and update forms remain outside this capability.
 
@@ -213,7 +216,7 @@ Empty identifier-list definitions and unprototyped calls now cross the same host
 
 The object operation now consumes static roots owned by file definitions and block bindings. Block-static declarations emit no runtime initializer instructions. Their `LOCAL_ADDRESS` identities map to local ELF symbols and `R_386_32` relocations instead of automatic frame slots. File objects retain first placement, block statics follow in absolute binding order, and functions come afterward.
 
-The generated active-source audit records the current lexical totals and build graph. All twelve hermetic hosted Toolchain implementation gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. The largest compiler units are `cupidc_pp.cc` at 143/3,932/25,287/479/286, `cupidc_ir.cc` at 213/6,411/58,097/821/299, `cupidc_emit.cc` at 225/5,947/51,246/721/361, and `cupidc_frontend.cc` at 337/13,803/90,768/2,049/1,345. The same gate includes `cupidasm.cc`, `elf32.cc`, and `x86.cc` without source changes.
+The generated active-source audit records the current lexical totals and build graph. All twelve hermetic hosted Toolchain implementation gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. The largest compiler units are `cupidc_pp.cc` at 143/3,932/25,287/479/286, `cupidc_ir.cc` at 213/6,424/58,351/822/299, `cupidc_emit.cc` at 226/6,008/51,744/734/367, and `cupidc_frontend.cc` at 337/13,802/90,782/2,049/1,345. The same gate includes `cupidasm.cc`, `elf32.cc`, and `x86.cc` without source changes.
 
 The deterministic object frontier contains those twelve implementation files plus `kernel/lang/as_elf.cc`. Hosted CupidC copies nested union storage inside supported structures, loads scalar members from structure rvalues, accepts a direct four-byte literal zero as a function-pointer null, converts object pointers to and from signed or unsigned eight-byte integers, and retains parenthesized static string addresses. In the detailed rows below, broad references to unsupported union values mean a union used directly as a value; nested union bytes inside a structure are represented. Checked four-byte i386 Linux profiles cover every C source in the static tool closure. Repository startup and runtime code link complete CupidC-built CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. The checked seed carries those five images and their exact plan into a clean staged build. Linux and WSL behavior checks cover both compared stages. Broader normal-build C ownership remains open beyond the 147-transform normal cohort.
 
@@ -237,7 +240,7 @@ Object-pointer qualification compares qualifiers carried by wrappers and immedia
 | C11 external inline definitions | Observed/Partial | CupidC finalizes compatible file-scope declaration sets after parsing the whole translation unit. A non-inline declaration paired with an inline definition, either order, and `extern inline` with effective external linkage provide an external definition. The canonical binding records that result while the definition keeps its exact spelling. Prior `static` linkage stays internal, and an external-linkage inline declaration without a definition fails at finalization. Pure external inline remains unsupported during lowering. Contracts cover the successful forms, reject the missing-definition constraint, malformed metadata, and conflicting or duplicate definitions, and prove same-job recovery. `kernel/audio/nuked_opl3.cc` compiles twice to the same validated 40,424-byte object, and CupidDis finds a defined global `OPL3_Generate4Ch` with only `memset` undefined. The checked seed carries the rule, and the closed production recipe, frontier, image, and runtime gates pass. ADR 0131 records the language boundary, ADR 0134 records the seed promotion, and ADR 0135 records the production transfer. |
 | Generated installation tables | Observed/Partial | The ramfs program table, homefs document table, and CupidASM demo table are generated as `.cc` files and compiled with the checked CupidC seed under the fixed kernel profile. The wrapper accepts only those three paths, freezes their source and header closure with the seed controls, validates i386 `ET_REL`, and publishes atomically. A deterministic frontier regenerates and compiles all three tables twice. Poisoned-host and build-graph contracts reject a return to GCC or Clang. Python still generates the source text and launches the checked seed. |
 | External ELF example programs | Observed/Partial | `hello.cc`, `ls.cc`, and `cat.cc` compile with CupidC and link with CupidLD. Linux runs the checked i386 seed. Windows prepares native hosted drivers, validates and snapshots the approved AMD64 PE32+ console images, and runs them without WSL. Before compilation, a checked ABI operation captures the exact bytes of the public header and five kernel declarations, compares their reviewed i386 contract, and rechecks all six inputs before success. It pins version 5, 103 ordered fields and their signatures, a 412-byte i386 table, 101 function providers, shared scalar types and constants, a 136-byte directory entry, and an 8-byte file status record. Closed wrappers bind the user profile, `_start`, the `0x00F00000` external base, and the two-MiB arena. They validate relocatable objects, executable headers, signed-seek program-table bounds, load ranges, executable file-backed entry bytes, immutable tool inputs, and live-input stability before atomic publication. The frontier repeats all six builds and requires every Windows object and executable to match the checked seed. A poisoned-path test rules out WSL, GCC, Clang, `ld`, and `cc` after the native drivers are prepared. `user/build/` is ignored by Git. Separate guest boots use private image copies and require PID-bound output and exit events for hello, ls, and cat. The cat copy also receives a marker-shaped FAT fixture at `/home/readme.txt`, preserving the program's normal path and the selected image without copying caller text into serial events. The Windows drivers still depend on a host compiler and linker, so native Windows fixed-point ownership remains open. |
-| Floating scalar values and i386 cdecl ABI | Observed/Partial | The hosted frontend, IR, and object emitter move `float` and `double` values through objects, initialization, assignment, discard, calls, parameters, results, returns, ellipsis, and unprototyped calls. They support conversion between the two widths, arithmetic at matching or mixed widths, conditional values, compound arithmetic assignment, default argument promotion, and `va_arg(double)`. Decimal constants become exact IEEE binary32 or binary64 bits through bounded integer arithmetic with round-to-nearest, ties-to-even behavior. Static-duration scalar and aggregate leaves keep target-width bits for decimal constants, parentheses, and unary signs. Direct `float` and `double` conversion rounds once, preserves signed zero, and emits exact little-endian bytes in `.rodata`, `.data`, or `.bss`. The SSE path covers represented integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, and mixed represented integer and floating arithmetic. Unsigned four-byte input uses an exact split across the sign boundary. Frontend, IR, object, decoder, and execution-oracle contracts cover exact literal and initializer bits, signed and unsigned boundary values, useful rejection, rounding, operand order, call alignment, and frame state. Comparisons and truth, hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `_Bool`, mixed integer and floating conditional arms, floating increment and decrement, static floating arithmetic, SIMD, floating atomic access, over-aligned emission, and production ownership remain open. ADRs 0076, 0077, 0079, 0091, 0125, and 0136 record this boundary. |
+| Floating scalar values and i386 cdecl ABI | Observed/Partial | The hosted frontend, IR, and object emitter move `float` and `double` values through objects, initialization, assignment, discard, calls, parameters, results, returns, ellipsis, and unprototyped calls. They support width conversion, matching or mixed arithmetic, conditional values, compound arithmetic assignment, default argument promotion, `va_arg(double)`, and all six comparisons. Decimal constants and static-duration leaves keep exact target IEEE bits with ties-to-even conversion and signed zero. The SSE path covers represented integer conversions and mixed arithmetic. Comparisons use `UCOMISS` or `UCOMISD`, widen a mixed pair to `double`, normalize the signed `int` result, and handle unordered inputs so only `!=` is true for NaN. Contracts cover exact bits, signed and unsigned conversion boundaries, ordered values, signed zero, infinities, quiet and signaling NaNs on either side, useful rejection, determinism, call alignment, and frame state. Direct floating truth, hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `_Bool`, mixed integer and floating conditional arms, floating increment and decrement, static floating arithmetic, SIMD, floating atomic access, over-aligned emission, and production ownership remain open. ADRs 0076, 0077, 0079, 0091, 0125, 0136, and 0137 record this boundary. |
 | In-OS JIT compilation and execution | Observed | Explicit `/bin/ls.cc` GUI smoke passed. The private compiler tags loop and switch frames. Switch-local `break` and `continue` through one or more switches remove saved selectors before jumping. Its small recursive dispatcher accepts 128 active controls and 1,024 active statement calls, rejects the next entry with a specific diagnostic, and restores both counters after a failed REPL evaluation. `/bin/feature25.cc` covers all three loop targets, nested switches, a nearest-inner-loop case, 600,000-iteration cleanup paths for both jump kinds, both accepted boundaries, both overflow failures, and recovery. It preserves `[feature25] PASS do=1 for=1 while=1 stack=1 reject=1 nearest=1` and adds `[feature25-depth] PASS control=1 overflow=1 recovery=1 statement=1 statement-overflow=1 statement-recovery=1`. |
 | In-OS AOT executable output | Observed/Partial | Writer emits fixed-address ELF32 `ET_EXEC` code/data segments. `ccc /bin/ls.cc -o /home/cctest` produced an image that `exec` loaded, ran, and reaped without panic; systematic executable parity remains open. |
 | Per-CPU pointer-output GNU assembly | Observed/Partial | GNU mode accepts one modifiable four-byte object or `void` pointer with `=r` for the exact `mov %%gs:0, %0` template. The frontend and IR preserve the pointer type and evaluate the destination once. The i386 emitter assigns EAX, asks the shared x86 model for an absolute GS load, and emits `65 A1 00 00 00 00` before the existing snapshot and store path. Positive contracts cover structure pointers, qualified referents, indirect destinations, and `void *`. Exact frontend failures cover top-level `const`, `_Atomic`, function pointers, unsupported constraints, matching pointer inputs, named operands, and clobbers. Two 54-byte object functions each decode 20 instructions, repeat byte for byte, roll back after partial template failure, and recover in the same job. The production `acpi.cc` and `mp_tables.cc` objects now use this path through the checked seed. ADR 0100 records the language boundary, ADR 0103 records their normal-build cutover, and ADR 0124 records their source rename. |
@@ -289,15 +292,16 @@ Object-pointer qualification compares qualifiers carried by wrappers and immedia
 
 ADRs 0067 through 0075 supersede the older wide limits in the broad ABI, IR, and object rows above. Declared eight-byte parameters, named arguments, ellipsis arguments, and unprototyped-call arguments use eight-byte cdecl slots. Every call carries a packed slice of its actual post-conversion types. Wide shifts, bitwise operations, addition, subtraction, multiplication, division, remainder, unary minus, and bitwise complement use private result snapshots; unary plus keeps its immutable input handle. Comparisons consume two snapshots and return a represented signed `int`; conditions test both words. Signed and unsigned switch dispatch duplicates the condition's snapshot handle and compares complete eight-byte case values. Compound assignment and prefix or postfix update reuse the same operation and snapshot paths after evaluating the destination once. A wide `va_arg` read also returns a private snapshot and advances the cursor by eight.
 
-ADR 0091 supersedes the older floating limits in the broad frontend, ABI, IR,
-and object rows above. Explicit casts and assignment conversion work between
-`float` and `double`. Matching floating conditional arms keep their width;
-mixed arithmetic and conditional arms use `double`.
+ADRs 0091, 0125, 0136, and 0137 supersede the older floating limits in the
+broad frontend, ABI, IR, and object rows above. Explicit casts and assignment
+conversion work between `float` and `double`. Matching floating conditional
+arms keep their width; mixed arithmetic and conditional arms use `double`.
 `+=`, `-=`, `*=`, and `/=` compute at the common width, convert back to the
-left width, and evaluate the lvalue once. Integer and floating conversion,
-floating comparisons and truth, a floating controlling expression, increment
-and decrement, literals, `long double`, floating atomic access, and production
-ownership remain open.
+left width, and evaluate the lvalue once. All six comparisons work for
+matching or mixed widths. Direct floating truth, remaining integer and
+floating conversion, hexadecimal and subnormal literals, increment and
+decrement, `long double`, floating atomic access, and production ownership
+remain open.
 
 ## CupidASM
 

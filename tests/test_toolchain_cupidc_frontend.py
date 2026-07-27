@@ -97,6 +97,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_same_kind_floating_values_support_arithmetic(self):
         self.run_contract("floating-arithmetic")
 
+    def test_floating_comparisons_follow_c11_ordering_rules(self):
+        self.run_contract("floating-comparisons")
+
     def test_floating_width_conversions_follow_c11_value_rules(self):
         self.run_contract("floating-conversions")
 

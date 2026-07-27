@@ -74,14 +74,16 @@ refreshed seed carries this path, so `kernel/lang/cupidc_lex.cc` now belongs
 to the normal CupidC cohort. Compiler head also retains target-width IEEE bits
 for decimal static-duration scalar and aggregate leaves. It supports
 parentheses, unary signs, direct `float` and `double` conversion, and signed
-zero, then writes exact `.rodata`, `.data`, or `.bss` bytes. Hexadecimal and
-subnormal literals, `long double`, conversion to unsigned four-byte integers
-or `_Bool`, floating comparisons and truth, mixed integer and floating
-conditional arms, floating increment and decrement, and static floating
-arithmetic remain open. Matching or mixed-width floating conditional arms and
-the four arithmetic compound assignments retain their established x87 path.
-Older detailed rows that list all floating literals, static floating data, or
-integer conversions as open are superseded by this boundary.
+zero, then writes exact `.rodata`, `.data`, or `.bss` bytes. Compiler head
+also emits all six matching or mixed-width comparisons with C's ordered and
+unordered behavior. Hexadecimal and subnormal literals, `long double`,
+conversion to unsigned four-byte integers or `_Bool`, direct floating truth,
+mixed integer and floating conditional arms, floating increment and
+decrement, and static floating arithmetic remain open. Matching or
+mixed-width floating conditional arms and the four arithmetic compound
+assignments retain their established x87 path. Older detailed rows that list
+all floating literals, static floating data, comparisons, or integer
+conversions as open are superseded by this boundary.
 
 Checked-seed CupidC owns the three generated installation tables, and CupidC
 owns the three example external ELF programs. These six translation units
@@ -259,7 +261,7 @@ transfer.
 
 ADRs 0067 through 0075 supersede the older wide limits in the `cupidc_ir` and `cupidc_emit` rows. Shared IR carries a declared wide parameter, each supported operation result, each mixed-width conversion, each scalar condition, each switch control, each mutation value, and each variadic read as one handle. A packed sequence holds every call's post-conversion actual types in emitted call order, while each call's slice preserves source argument order. One shared validator checks that sequence before the emitter reads it. Adversarial contracts cover missing entries, gaps, overlaps, invalid type indices and spans, non-call owners, trailing entries, and recovery. The emitter counts each argument's ABI width in the outgoing area, copies an open-position wide integer into adjacent low and high words, gives multiplication, division, remainder, and other value-producing operations their required snapshots, advances a wide variadic cursor by eight bytes, compares or tests both words, duplicates a snapshot handle for full-width case dispatch, and duplicates a destination address once for mutation. Copied-cursor and nested-call execution cases check snapshot independence, alignment, cleanup, and the returned bits. The checked-seed X25519, socket, and TCP objects now use parts of this path; the broader proof remains host-built.
 
-ADRs 0076, 0077, 0079, 0091, 0125, and 0136 supersede the older floating gaps in the `cupidc_frontend`, `cupidc_ir`, and `cupidc_emit` rows. Those modules transport exact `float` and `double` values, perform default `float` promotion, convert between floating widths, represent decimal constants, convert the supported represented integer widths, evaluate matching or mixed arithmetic, select matching or mixed floating conditional arms, store the four arithmetic compound assignments, and emit target-width static floating data. Comparisons, truth, hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `_Bool`, mixed integer and floating conditional arms, floating increment and decrement, static floating arithmetic, SIMD, floating atomic access, over-aligned emission, production integration, and self-hosting remain open.
+ADRs 0076, 0077, 0079, 0091, 0125, 0136, and 0137 supersede the older floating gaps in the `cupidc_frontend`, `cupidc_ir`, and `cupidc_emit` rows. Those modules transport exact `float` and `double` values, perform default `float` promotion, convert between floating widths, represent decimal constants, convert the supported represented integer widths, evaluate matching or mixed arithmetic, select matching or mixed floating conditional arms, store the four arithmetic compound assignments, emit target-width static floating data, and evaluate all six comparisons with IEEE unordered behavior. Direct floating truth, hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `_Bool`, mixed integer and floating conditional arms, floating increment and decrement, static floating arithmetic, SIMD, floating atomic access, over-aligned emission, production integration, and self-hosting remain open.
 
 ## Milestone gates
 

@@ -3656,6 +3656,7 @@ static ctool_status_t cir_lower_binary(
   ctool_bool is_wide_integer_comparison;
   ctool_bool has_floating_operand;
   ctool_bool is_floating_binary;
+  ctool_bool is_floating_comparison;
   ctool_u32 left_child;
   ctool_u32 right_child;
   ctool_status_t status;
@@ -3785,6 +3786,19 @@ static ctool_status_t cir_lower_binary(
                expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  is_floating_comparison =
+      is_comparison == CTOOL_TRUE &&
+              cir_type_is_plain_signed_int(context, expression->type) ==
+                  CTOOL_TRUE &&
+              cir_type_is_floating_value(context, left.type) == CTOOL_TRUE &&
+              cir_type_is_floating_value(context, right.type) == CTOOL_TRUE &&
+              cir_type_has_atomic_qualification(context, left.type) ==
+                  CTOOL_FALSE &&
+              cir_type_has_atomic_qualification(context, right.type) ==
+                  CTOOL_FALSE &&
+              left.type == right.type
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   if (is_pointer_arithmetic == CTOOL_TRUE) {
     return cir_append_pointer_binary(
         context, &left, &right, expression->type, expression->operation,
@@ -3798,11 +3812,29 @@ static ctool_status_t cir_lower_binary(
     return cir_invalid_unit(context, &expression->location);
   }
   if (has_floating_operand == CTOOL_TRUE &&
-      is_floating_binary == CTOOL_FALSE) {
+      is_floating_binary == CTOOL_FALSE &&
+      is_floating_comparison == CTOOL_FALSE) {
+    if (is_comparison == CTOOL_TRUE &&
+        cir_type_is_floating_value(context, left.type) == CTOOL_TRUE &&
+        cir_type_is_floating_value(context, right.type) == CTOOL_TRUE &&
+        cir_type_has_atomic_qualification(context, left.type) ==
+            CTOOL_FALSE &&
+        cir_type_has_atomic_qualification(context, right.type) ==
+            CTOOL_FALSE &&
+        left.type == right.type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
     if (cir_type_is_floating_value(context, expression->type) == CTOOL_TRUE &&
         cir_type_is_floating_value(context, left.type) == CTOOL_TRUE &&
         cir_type_is_floating_value(context, right.type) == CTOOL_TRUE &&
         expression->type == left.type && left.type == right.type) {
+      return cir_unsupported_expression(context, &expression->location);
+    }
+    if (cir_type_is_plain_signed_int(context, expression->type) ==
+            CTOOL_TRUE &&
+        cir_type_is_floating_value(context, left.type) == CTOOL_TRUE &&
+        cir_type_is_floating_value(context, right.type) == CTOOL_TRUE &&
+        left.type == right.type) {
       return cir_unsupported_expression(context, &expression->location);
     }
     return cir_unsupported_type(context, &expression->location);
@@ -3812,11 +3844,13 @@ static ctool_status_t cir_lower_binary(
        is_wide_integer_binary == CTOOL_FALSE &&
        is_wide_integer_comparison == CTOOL_FALSE &&
        is_floating_binary == CTOOL_FALSE &&
+       is_floating_comparison == CTOOL_FALSE &&
        cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE) ||
       (is_pointer_comparison == CTOOL_FALSE &&
        is_wide_integer_binary == CTOOL_FALSE &&
        is_wide_integer_comparison == CTOOL_FALSE &&
        is_floating_binary == CTOOL_FALSE &&
+       is_floating_comparison == CTOOL_FALSE &&
        (cir_type_is_i32_integer(context, left.type) == CTOOL_FALSE ||
         cir_type_is_i32_integer(context, right.type) == CTOOL_FALSE))) {
     return cir_emit_failure(
@@ -3840,6 +3874,12 @@ static ctool_status_t cir_lower_binary(
     }
   } else if (is_floating_binary == CTOOL_TRUE) {
     if (expression->type != left.type || left.type != right.type) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  } else if (is_floating_comparison == CTOOL_TRUE) {
+    if (cir_type_is_plain_signed_int(context, expression->type) ==
+            CTOOL_FALSE ||
+        left.type != right.type) {
       return cir_invalid_unit(context, &expression->location);
     }
   } else if (is_shift == CTOOL_TRUE) {

@@ -26,22 +26,28 @@ CupidASM, libm, and `printf`.
 
 ### Shared self-hosting path
 
-The shared compiler used for the self-hosting migration has a separate i386
-x87 backend. It carries non-atomic `float` and `double` values through
-objects, calls, variadic reads, and returns. Explicit casts and assignment
-conversion work in either direction between those widths. Mixed arithmetic
-and conditional arms use `double`. Matching floating conditional arms keep
-their width, and the condition may be a represented integer or pointer.
+The shared compiler used for the self-hosting migration combines its i386 x87
+transport and arithmetic path with SSE conversion and comparison emission. It
+carries non-atomic `float` and `double` values through objects, calls,
+variadic reads, and returns. Explicit casts and assignment conversion work in
+either direction between those widths. Mixed arithmetic and conditional arms
+use `double`. Matching floating conditional arms keep their width, and the
+condition may be a represented integer or pointer.
 
 `+=`, `-=`, `*=`, and `/=` compute at the common width and convert the stored
 result back to the left type. The compiler evaluates the left designator once.
 Each changed x87 result is stored at its C width before the next Linear IR
 instruction.
 
-This path does not yet support integer and floating conversion, floating
-comparisons or truth, a floating controlling expression, increment or
-decrement, floating literals, `long double`, SIMD, or atomic floating access.
-The SSE details below describe the private in-kernel compiler.
+Decimal constants, represented integer conversions, mixed
+integer-and-floating arithmetic, and all six comparisons use the shared SSE
+path. A mixed floating comparison uses `double`; only `!=` is true for an
+unordered NaN input.
+
+Direct floating truth, a floating controlling expression, increment or
+decrement, hexadecimal or subnormal constants, `long double`, SIMD, and
+atomic floating access remain unsupported. The SSE details below describe the
+private in-kernel compiler.
 
 ### Arithmetic
 

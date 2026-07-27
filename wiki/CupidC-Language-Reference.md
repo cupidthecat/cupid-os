@@ -22,11 +22,16 @@ the stored result back to the left operand's type. The left designator is
 evaluated once. A source `float` passed through an ellipsis or a function type
 without a prototype is promoted to `double`.
 
-The hosted path does not yet support conversion between integer and floating
-types, floating comparisons or truth, a floating controlling expression,
-floating increment or decrement, floating literals, `long double`, SIMD, or
-atomic floating access. The in-kernel compiler has a separate, broader
-floating and SIMD implementation.
+The hosted path accepts decimal floating constants and converts between
+represented integer and floating widths, apart from unsigned four-byte and
+Boolean results. Mixed integer-and-floating arithmetic is represented. All
+six comparisons work for matching or mixed floating widths, and only `!=`
+is true when either operand is NaN.
+
+Direct floating truth, a floating controlling expression, floating increment
+or decrement, hexadecimal or subnormal constants, `long double`, SIMD, and
+atomic floating access remain unsupported. The in-kernel compiler has a
+separate, broader floating and SIMD implementation.
 
 ## Hosted null pointers and external arrays
 

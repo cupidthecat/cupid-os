@@ -4854,6 +4854,91 @@ static ctool_status_t cemit_x86_load_floating_xmm_stack_value(
              : status;
 }
 
+static ctool_status_t cemit_x86_push_floating_comparison(
+    cemit_context_t *context, ctool_u32 type,
+    ctool_c_expression_operator_t operation) {
+  const ctool_c_type_layout_t *layout;
+  ctool_x86_mnemonic_t predicate;
+  ctool_x86_mnemonic_t comparison;
+  ctool_bool ordered_sensitive;
+  ctool_u32 unordered_patch = CTOOL_C_AST_NONE;
+  ctool_u32 unordered_after = CTOOL_C_AST_NONE;
+  ctool_u32 done_patch = CTOOL_C_AST_NONE;
+  ctool_u32 done_after = CTOOL_C_AST_NONE;
+  ctool_u32 unordered_target;
+  ctool_u32 done_target;
+  ctool_status_t status;
+  if (cemit_ir_type_is_floating_value(context, type) == CTOOL_FALSE ||
+      (operation != CTOOL_C_EXPRESSION_OPERATOR_EQUAL &&
+       operation != CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL &&
+       operation != CTOOL_C_EXPRESSION_OPERATOR_LESS &&
+       operation != CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL &&
+       operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER &&
+       operation != CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[type];
+  if (layout->size != 4u && layout->size != 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  comparison = layout->size == 4u ? CTOOL_X86_MN_UCOMISS
+                                  : CTOOL_X86_MN_UCOMISD;
+  predicate = cemit_comparison_predicate(operation, CTOOL_FALSE);
+  ordered_sensitive =
+      operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
+              operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL
+          ? CTOOL_FALSE
+          : CTOOL_TRUE;
+
+  status = cemit_x86_load_floating_xmm_stack_value(context, type, 1u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_load_floating_xmm_stack_value(context, type, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, comparison, CTOOL_X86_REG_XMM, 0u,
+        CTOOL_X86_REG_XMM, 1u, 32u);
+  }
+  if (status == CTOOL_OK && ordered_sensitive == CTOOL_TRUE) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JP, &unordered_patch, &unordered_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, predicate, CTOOL_X86_REG_GPR8, 0u, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOVZX, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR8, 0u, 32u);
+  }
+  if (status == CTOOL_OK && ordered_sensitive == CTOOL_TRUE) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JMP, &done_patch, &done_after);
+  }
+  unordered_target = ctool_buffer_view(context->active_text).size;
+  if (status == CTOOL_OK && ordered_sensitive == CTOOL_TRUE) {
+    status = cemit_patch_branch(
+        context->active_text, unordered_patch, unordered_after,
+        unordered_target);
+  }
+  if (status == CTOOL_OK && ordered_sensitive == CTOOL_TRUE) {
+    status = cemit_x86_move_register_constant(
+        context, 0u,
+        operation == CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL ? 1u : 0u);
+  }
+  done_target = ctool_buffer_view(context->active_text).size;
+  if (status == CTOOL_OK && ordered_sensitive == CTOOL_TRUE) {
+    status = cemit_patch_branch(
+        context->active_text, done_patch, done_after, done_target);
+  }
+  return status == CTOOL_OK
+             ? cemit_x86_one_register(
+                   context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32,
+                   0u, 32u)
+             : status;
+}
+
 static ctool_status_t cemit_x86_push_floating_xmm_result(
     cemit_context_t *context, ctool_u32 type,
     ctool_u32 temporary_offset, ctool_u8 xmm_register) {
@@ -8866,16 +8951,20 @@ static ctool_status_t cemit_emit_ir_instruction(
                     CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool comparison =
+        relational_comparison == CTOOL_TRUE ||
+                ir_instruction->operation ==
+                    CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
+                ir_instruction->operation ==
+                    CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool wide_comparison =
         cemit_ir_type_is_wide_integer(
             context, ir_instruction->input_type) == CTOOL_TRUE &&
                 cemit_ir_type_is_plain_signed_int(
                     context, ir_instruction->type) == CTOOL_TRUE &&
-                (relational_comparison == CTOOL_TRUE ||
-                 ir_instruction->operation ==
-                     CTOOL_C_EXPRESSION_OPERATOR_EQUAL ||
-                 ir_instruction->operation ==
-                     CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL)
+                comparison == CTOOL_TRUE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     ctool_bool pointer_comparison =
@@ -8917,7 +9006,25 @@ static ctool_status_t cemit_emit_ir_instruction(
                      CTOOL_C_EXPRESSION_OPERATOR_DIVIDE)
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool floating_comparison =
+        cemit_ir_type_is_floating_value(
+            context, ir_instruction->input_type) == CTOOL_TRUE &&
+                cemit_ir_type_is_plain_signed_int(
+                    context, ir_instruction->type) == CTOOL_TRUE &&
+                comparison == CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_u8 result_register = 0u;
+    if (floating_comparison == CTOOL_TRUE) {
+      if (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          ir_instruction->reference != CTOOL_C_AST_NONE ||
+          ir_instruction->integer_bits != 0u) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      return cemit_x86_push_floating_comparison(
+          context, ir_instruction->input_type,
+          ir_instruction->operation);
+    }
     if (floating_binary == CTOOL_TRUE) {
       ctool_x86_mnemonic_t mnemonic = CTOOL_X86_MN_FADDP;
       if (ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
