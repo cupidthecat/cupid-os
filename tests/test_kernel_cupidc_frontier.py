@@ -171,6 +171,7 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/gui/ed.cc",
     "kernel/lang/as.cc",
     "kernel/lang/cupidc.cc",
+    "kernel/lang/cupidc_lex.cc",
     "kernel/lang/cupidc_parse.cc",
     "kernel/lang/cupidc_string.cc",
     "kernel/lang/ssh_io.cc",
@@ -1768,7 +1769,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3514568,
+                3545724,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1818,6 +1819,14 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     20204,
                     "831f2a82687ab327f4b48b28fef69104"
                     "cc94af0770dc6caf7b8a8df5b87a7368",
+                ),
+            )
+            self.assertEqual(
+                object_records["toolchain/x86.cc"],
+                (
+                    131848,
+                    "564d7ca8c49895cd692fe79bfe12863ca"
+                    "832fb097bc4b57a4002d55817a907fd",
                 ),
             )
             port_io_object_records = {
@@ -1986,14 +1995,19 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "1b2ddef65c87e291f582c1d77b0cedfd",
                 ),
                 "kernel/lang/cupidc.cc": (
-                    288180,
-                    "4e8501e628a770b346bbe16e23d9549c"
-                    "4320f1f01f0ddcb9309b907a8c898046",
+                    288272,
+                    "056ac9a34697725d451ccb50d1f4bac5"
+                    "8a917f79b348411d665debe7faff8e93",
+                ),
+                "kernel/lang/cupidc_lex.cc": (
+                    32408,
+                    "b43874f8602b2ee4ffde6587fd1ff5cb"
+                    "586ee7804a401a5a44de786dbd95fec1",
                 ),
                 "kernel/lang/cupidc_parse.cc": (
-                    290084,
-                    "f5856f1ae536c7be8daadf913bd54a94"
-                    "9dd2b976e62fe1779e8e832453210375",
+                    288532,
+                    "eb0d024f21856da2c18a6b3cd0fd6a3"
+                    "f6d12173d9345ac3c76e02eb69253cec6",
                 ),
                 "kernel/lang/cupidc_string.cc": (
                     7332,
@@ -2048,11 +2062,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 432)
+            self.assertEqual(manifest["input_snapshot"]["count"], 433)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "938cee8dfd75ca09c1b16da6e107b811"
-                "d4edbe8482f63a52e04e61a85c7b647f",
+                "7a3fd38fec7fd220bce1ed18690088f55"
+                "3a7e6e7e7a613f7114a3db55a05c953",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

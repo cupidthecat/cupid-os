@@ -277,7 +277,7 @@ The repository runtime supplies the checked file, heap, memory, string, `errno`,
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Both forms accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,042,976-byte stage-three output from revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`, with SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`. Its updated plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. The old seed builds matching stage-two and stage-three objects and tools from that plan. Four seed tools already match stage two; CupidC differs because compiler head now includes decimal floating scalar support. Both new stages agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 94 normal Cupid OS root objects still come from a host compiler.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,080,288-byte stage-three output from revision `fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d`, with SHA-256 `e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 93 normal Cupid OS root objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -305,20 +305,23 @@ The shared frontend now publishes decimal `float` and `double` constants as exac
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-Across the root and supplemental builds, the checked CupidC seed owns 151 C
-transforms. Its normal cohort has 145 transforms: 144 checked-in sources plus
-the generated `kernel/cpu/ksyms_data.cc` source. All 145 sources use `.cc`.
+Across the root and supplemental builds, the checked CupidC seed owns 152 C
+transforms. Its normal cohort has 146 transforms: 145 checked-in sources plus
+the generated `kernel/cpu/ksyms_data.cc` source. All 146 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan, and native GCC or Clang rules select C with `-x c`. ADRs
-0124 and 0126 record the two naming steps. Ten strict checked-in roots remain
-host-owned.
+0124 and 0126 record the first two naming steps, and ADR 0129 records the
+lexer transfer. Nine strict checked-in roots remain host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
 `cat.cc` programs account for the other six CupidC transforms.
 
-The strict kernel frontier compiles all 144 approved checked-in sources
-twice. The renamed graph passes its path snapshot, byte-for-byte object
-comparison, clean normal image, symbol and memory checks, and four-vCPU
-runtime gate.
+The strict kernel frontier must compile all 145 approved checked-in sources
+twice. The full frontier now passes against a 433-file snapshot with SHA-256
+`7a3fd38fec7fd220bce1ed18690088f553a7e6e7e7a613f7114a3db55a05c953`.
+Both 145-object sets are byte-identical and total 3,545,724 bytes. The
+combined graph passes a clean normal image build and the strong four-vCPU
+runtime gate. That boot covers SMP, RDRAND, all 62 crypto checks, e1000
+traffic, the desktop, terminal, and in-OS CupidC execution.
 The generated symbol source stores a logical 104,185-byte blob as
 little-endian `unsigned int` words with three trailing pad bytes.
 
@@ -326,13 +329,24 @@ Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object
 may omit `.text` while its remaining sections and symbols still receive bounds
 checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through
-Cupid's x86 model while preserving EBX. The four-vCPU GUI gate reaches
+Cupid's x86 model while preserving EBX. The combined four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x00F00000`. ADR 0124 records the exact build and
-runtime evidence. The host C compiler owns 146
-transforms and 94 root objects. Host Python owns 163 transforms. The private
+runtime evidence. The host C compiler owns 145
+transforms and 93 root objects. Host Python owns 165 transforms. The private
 in-kernel CupidC compiler still handles embedded runtime compilation.
+
+Compiler head now decides C11 inline linkage from the complete file-scope
+declaration set. This covers the ordinary header declaration and inline
+definition of `OPL3_Generate4Ch` in unchanged
+`kernel/audio/nuked_opl3.c`. Two complete kernel-profile compiles produce the
+same validated 40,424-byte object. Prior `static` linkage stays internal,
+even when a later definition is spelled `extern inline`. An external-linkage
+inline declaration without a definition fails during finalization, while a
+pure external inline definition remains unsupported during lowering. The
+checked seed does not carry this rule yet, so Nuked OPL3 remains a host-built
+`.c` source.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects rather than only the earlier hybrid image.
 
@@ -392,7 +406,7 @@ shared x86 model. This brings the active non-Doom header gate to 154/154 at
 compiler head.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 144-source checked-in CupidC cohort. Earlier frontier evidence
+uses it in the 145-source checked-in CupidC cohort. Earlier frontier evidence
 measured the ACPI and MP-table objects at 5,708 and 4,156 bytes. Their current
 `.cc` paths must pass the shared validator and re-run the four-vCPU contract
 with both supported NIC paths.
@@ -512,7 +526,7 @@ switch (cmd) {
 
 The private compiler tags each breakable control as a loop or switch. `break` exits the innermost control. `continue` finds the nearest loop and removes the saved selector for each switch it crosses. `while` continues at its condition, `do-while` continues at its condition trampoline, and `for` continues at its iteration expression.
 
-CupidC reserves 128 loop-or-switch control frames and 64 `break` patches per frame. Deep recursive parsing has no separate fail-closed depth proof. The compiler resolves recorded jump patches when each construct ends.
+CupidC accepts 128 active loop-or-switch control frames and reserves 64 `break` patches per frame. It also accepts 1,024 active statement-parser calls. The next entry fails before further recursion with `control nesting too deep` or `statement nesting too deep`, and a failed REPL evaluation restores both counters. The recursive dispatcher keeps a four-byte checked CupidC frame, while token-heavy simple statements run in a helper that is no longer live across nested statement parsing. The compiler resolves recorded jump patches when each construct ends.
 
 ### Functions
 
@@ -1166,7 +1180,7 @@ Source (.cc)
     │
     ▼
 ┌─────────────────┐
-│  Lexer           │  cupidc_lex.c
+│  Lexer           │  cupidc_lex.cc
 │  (Tokenization)  │  Keywords, identifiers, literals, operators
 └────────┬────────┘
          │ token stream
@@ -1189,13 +1203,13 @@ Source (.cc)
 |------|-------|------|
 | `cupidc.h` | 459 | Tokens, types, limits, compiler state, and public API |
 | `cupidc.cc` | 3,963 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
-| `cupidc_lex.c` | 833 | Lexer for keywords, literals, operators, and delimiters |
+| `cupidc_lex.cc` | 833 | Lexer for keywords, literals, operators, and delimiters |
 | `cupidc_parse.cc` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
 | `cupidc_elf.cc` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer
 
-The lexer (`cupidc_lex.c`) recognizes a broader set than the short list below; these are representative groups:
+The lexer (`cupidc_lex.cc`) recognizes a broader set than the short list below; these are representative groups:
 
 - **Types and declarations:** C integer spellings, Cupid aliases, `float`, `double`, `float4`, `double2`, pointers, structures, classes, enums, qualifiers, storage classes, and function-pointer declarators
 - **Control and expressions:** selection and loop keywords, `switch`, `goto`, inline `asm`, `new`, `del`, the full operator token set, `?:`, member access, and ellipsis

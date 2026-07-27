@@ -10690,3 +10690,656 @@ ADR 0127 records the contract and the reason for the VFS correction.
   variables poisoned passes in 9.3 seconds.
 - `make -C user test-cupidc-frontier` passes in 22.0 seconds with identical
   objects and executables from both runs.
+
+## 2026-07-26: bound private CupidC parser recursion
+
+The in-kernel CupidC parser could exhaust the terminal task's 4 MiB stack
+while reading valid nesting near its documented limits. The generated
+`cc_parse_statement` frame was 86,504 bytes because token values and
+declaration scratch from unrelated statement forms stayed live across every
+recursive call. A real 128-switch input reached heap corruption and a kernel
+panic before the compiler could publish its result.
+
+The parser now keeps the existing 128-control capacity and rejects a 129th
+active loop or switch with `control nesting too deep`. A checked opener and
+one matching finisher own control depth, break patching, and restoration. The
+recursive statement entry point is now a small dispatcher. Token-heavy simple
+statements, `do`, `switch`, and the scratch-heavy parts of `for` run in
+helpers whose frames are not retained while a nested statement is parsed.
+
+General statement recursion has a separate limit. The parser accepts 1,024
+active statement calls and rejects the next call with `statement nesting too
+deep`. Compiler initialization, a fresh REPL evaluation, and failed-evaluation
+recovery all reset the count. Each rejected program is followed by a small
+successful evaluation so the contract also proves that recovery leaves the
+compiler usable.
+
+### Red evidence
+
+The first guest red test used the old parser and a dynamically generated
+128-switch program. Its 57,823-byte log has SHA-256
+`8faf5738e4368b080a87366a4ed7e8ae3f12c9bd0d6026ae1fa2c188e9e1b237`.
+The run reported heap corruption at `0x01c00000` and panicked in `kmalloc`
+without reaching the positive marker.
+
+The second guest red test ran after the dispatcher split and control guard,
+but before the general statement guard. Its 24,143-byte log has SHA-256
+`e3c86bd10d03fcb021cd611db414177d902ec66fb5b21394ae3394c568d4d6af`.
+It reported
+`control=1 overflow=1 recovery=1 statement=1 statement-overflow=0
+statement-recovery=1`, isolating the remaining unbounded statement path.
+
+### Stack evidence
+
+CupidDis reports these final native frame allocations:
+
+| Function | Frame bytes | Role |
+| --- | ---: | --- |
+| `cc_parse_statement` | 4 | Recursive dispatcher |
+| `cc_parse_if` | 1,056 | Repeatable statement frame |
+| `cc_parse_switch` | 4,204 | Repeatable control frame |
+| `cc_parse_simple_statement` | 64,452 | One-time leaf frame |
+
+An accepted 1,024-call `if` chain carries about 1.1 MiB of frame payload
+before normal call overhead. A 128-switch chain carries about 526 KiB of
+repeatable dispatcher and switch frames before the one-time leaf. Both remain
+within the terminal task's 4 MiB stack.
+
+### Verification
+
+| Command or check | Result | Evidence |
+| --- | --- | --- |
+| Focused kernel compile tests | PASS | Twenty-two command, Makefile, operation, and CLI tests pass. |
+| Checked CupidC object builds | PASS | `cupidc_parse.o` is 288,532 bytes with SHA-256 `eb0d024f21856da2c18a6b3cd0fd6a3f6d12173d9345ac3c76e02eb69253cec6`; `cupidc.o` is 288,272 bytes with SHA-256 `056ac9a34697725d451cccb50d1f4bac58a917f79b348411d665debe7faff8e93`. |
+| `make all` | PASS | The full image build finished in 846.8 seconds. Both CupidLD passes, CupidDis symbol generation, checked CupidC symbol compilation, CupidObj flattening, and image staging completed. |
+| Four-vCPU QEMU feature gate | PASS | The 72-second runner found both exact depth diagnostics, both recovery results, the original feature marker, and the new depth marker. The 22,622-byte log has SHA-256 `f441e83232d368de5743c00a3835528ebdf753c35466cfadd0916e8d84a73bff` and contains no panic or corruption report. |
+| `make check-bootstrap-audit` | Expected drift | The read-only check reports `active-build.json` and `ACTIVE-SOURCE-AUDIT.md` out of date because this slice changes active source. The generated audit files are left for the integrated branch to regenerate once. |
+
+The final 200 MiB image has SHA-256
+`4ba8368f7d83da0b6e4b85e5a4c8dea4ba40ee7a33722f8bf4537917706da84a`.
+ADR 0128 records the limits and their stack budget. This change transfers no
+build transform and removes no host dependency. Issue #31 remains open for
+the rest of Cupid-mode bootstrap work.
+
+## 2026-07-26: Promote the floating seed and transfer the CupidC lexer
+
+The stage-three tools from the fixed-point proof above now form the checked
+i386 Linux seed. CupidASM, CupidDis, CupidLD, and CupidObj are byte-identical
+to their previous seed files. CupidC changes to the 2,080,288-byte image with
+SHA-256
+`e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`.
+The manifest records commit
+`fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d` as its source revision. All 40
+seed inputs are byte-identical to candidate commit
+`b9332075e94916dbfcec561a2c1e42c1fafc2389`. The path-to-blob map has
+SHA-256
+`77cfea29f502c24605f10c7220af810ec10d49610036f17cac5757af25f42690`.
+
+The complete bootstrap was repeated from the promoted files with host
+code-generator commands poisoned. Every checked seed image matches stage two.
+All 19 C objects, startup, and five linked images match between stage two and
+stage three. Both stages pass five help cases, ten successful operations, and
+six useful failures. The source snapshot is
+`c3aaf91d6133d0382e5ddb7b33cca665a7344fb7f38688c467db2d28a1a82aa4`,
+and the report has SHA-256
+`ff1f5b1df59d2945542d47a578e8df27a0f7af816d4dd1dcc2a20b959adf88cc`.
+
+With that trust boundary in place, `kernel/lang/cupidc_lex.c` becomes
+`kernel/lang/cupidc_lex.cc`. Its normal Make recipe now uses the checked
+kernel wrapper and includes the shared seed controls. The wrapper and strict
+frontier allowlists both name the new path.
+
+Two independent full-profile compiles produce the same validated 32,408-byte
+i386 ELF32 object with SHA-256
+`b43874f8602b2ee4ffde6587fd1ff5cb586ee7804a401a5a44de786dbd95fec1`.
+This moves one production object without changing the lexer source or its
+ABI.
+
+A clean `make -j2 all` completes the normal image with the transferred
+recipe:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 7,970,256 | `3aa9d80609fc1f35b47b6020a0900d4f0cceeb4f6f33ca815f39d914cbe6be11` |
+| `kernel/kernel.elf` | 8,072,656 | `d4c1c5c846ad6a2b4be60f306e0a06ca08c12762c2fe7b10ccccb846f76773e6` |
+| `kernel/kernel.bin` | 7,880,008 | `55f40a4fdd4a65fbf0705a5a9e5fa06ff2ca761449c656bf78749bb485d9dd2a` |
+| `cupidos.img` | 209,715,200 | `b35eb263023a50627d8fe96250dd7bc3ba7f9cf62ada3489733fb7083568dbec` |
+
+The active graph now contains 108 host C inputs, 270 headers, and 293 Cupid C
+inputs. Across the root and supplemental builds, CupidC owns 152 transforms,
+the host C compiler owns 145, and host Python owns 165. Python's extra
+transform verifies the external-program syscall ABI. The normal CupidC cohort
+contains 145 checked-in roots and the generated symbol translation, all using
+`.cc`. The host compiler produces 93 normal root objects, leaving nine strict
+checked-in roots.
+
+### Verification
+
+- `make verify-bootstrap-seed` passes against the promoted files.
+- The complete checked-seed bootstrap reaches the five-tool fixed point and
+  passes all 21 behavior cases.
+- Two production-wrapper lexer compiles are byte-identical.
+- The normal image build completes with the transferred lexer recipe.
+- `make bootstrap-audit` passes with the transferred recipe and source path.
+
+ADR 0129 records the seed promotion, production handoff, and remaining host
+boundary.
+
+## 2026-07-26: run the user Cupid tools natively on Windows
+
+The external-program build no longer sends its compiler and linker work
+through WSL on Windows. `user/Makefile` now prepares the repository's native
+hosted CupidC and CupidLD drivers through one explicit prerequisite. The
+production wrappers run those drivers directly. Linux keeps the checked i386
+Linux seed path.
+
+The Windows handoff is deliberately narrow. It covers `hello.cc`, `ls.cc`,
+and `cat.cc`. The normal kernel cohort and generated installation tables
+still use the checked seed. The native drivers are also still built by Clang
+and its Windows linker. They are not checked Windows seeds and do not prove a
+Windows fixed point. A Cupid-built Windows runtime and PE/COFF executable
+output remain necessary.
+
+### Tool capture and publication
+
+The new native-tool boundary names exactly
+`toolchain/build/cupidc.exe` and `toolchain/build/cupidld.exe`. It rejects an
+alias or symlink, captures the complete bytes and SHA-256, checks for an
+AMD64 PE32+ console image, and runs a private copy. The wrapper checks the
+live executable again before publishing output. A tool change during a
+compile or link leaves the previous artifact untouched.
+
+The existing source, header, object, and linker-input snapshots remain in
+place. Native output still passes the i386 ELF32 relocatable or loader
+executable validator before atomic publication.
+
+Treating the host-built PE drivers as a new bootstrap seed was rejected. A
+seed must have Cupid-owned producer lineage. Expanding this switch to the
+kernel and generated-table cohorts was also rejected because those paths need
+separate ownership and runtime evidence.
+
+### Cross-tool agreement
+
+The Windows frontier now watches 46 inputs with SHA-256
+`3d73ce1475d3398dd7ea069e232663b6ab84e3a201d722e95453cee6028b37b0`.
+It repeats the native build, then compiles and links each program with the
+checked seed. All three objects and executables match:
+
+| Program | Object bytes | Object SHA-256 | Executable bytes | Executable SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| hello | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` | 13,992 | `dbef548d246e12a0933b95ec8349a97f542bd8cbecc253efc514b1483fcc9e0f` |
+| ls | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` | 18,112 | `6eb9d140dd126f74e2815a6836c8858e0d9ca8a1da837bd94784c3a1b7c5ec9d` |
+| cat | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` | 13,992 | `ffa5957fb58f0de81e564b3fbadadf60b7b8bc2beb0c50984cd1d4e9481f9367` |
+
+A direct Linux `make -C user` run uses no native-tool prerequisite. Its six
+files match the Windows results above. On Windows, another full user build
+passes after driver preparation with `wsl.exe`, `gcc.exe`, `clang.exe`,
+`ld.exe`, and `cc.exe` replaced by failing executables on `PATH`. The
+conventional Make code-generator variables are poisoned in the same run.
+
+### Build ownership
+
+The active graph grows from 501 to 502 transforms. `user:all` grows from eight
+to nine, and Make recursion grows from four to five. CupidC remains at 151
+translations, CupidLD remains at five links, the host C compiler remains at
+146 transforms, and host Python remains at 164.
+
+ADR 0130 records the platform boundary and the remaining fixed-point work.
+
+### Audit portability
+
+The build-graph audit now reads one canonical graph on Windows and Linux. It
+selects the Windows Make branch because that branch includes the native
+user-tool prerequisite, fixes wildcard ordering with the C locale, and binds
+JSON-emitting recipes to the Python interpreter running the audit. Direct
+Linux builds continue to test the separate Linux execution branch.
+
+The first WSL check selected Make's Windows `python` default, which resolved
+to an unusable app alias. Binding the active interpreter fixed that launch.
+The next check found locale-dependent ordering in browser and Doom wildcard
+lists. Setting the C locale made the WSL JSON byte-identical to the checked
+Windows JSON. These were audit portability faults and did not change an OS
+artifact.
+
+### Final regression pass
+
+- The production wrapper, compile-freeze, and syscall ABI group passes 51
+  tests in 20.573 seconds. It includes the private-tool, malformed PE,
+  unapproved-path, live-drift, checked-seed mismatch, off-Windows, and
+  poisoned-path cases.
+- The complete build-graph audit suite passes 62 tests in 546.591 seconds.
+- `make bootstrap-audit` and the Windows and WSL forms of
+  `make check-bootstrap-audit` pass against the same checked files.
+- `make -C user test-native-windows-equivalence` passes with the 46-input
+  digest recorded above. Every native object and executable matches its
+  checked-seed counterpart.
+- A direct WSL `make -C user` build takes the Linux seed path and produces the
+  same six sizes and SHA-256 values.
+- `make verify-bootstrap-seed` validates all five checked tools.
+
+## 2026-07-26: share immediate three-operand multiply
+
+### Census and instruction boundary
+
+CupidDis already decodes every checked Cupid-built seed image without a
+fallback row. A focused audit therefore moved to four active objects that are
+still built by the host compiler. LLVM found these real three-operand
+immediate multiply instructions:
+
+| Object | LLVM instructions |
+| --- | ---: |
+| `kernel/gfx/jpeg.o` | 7 |
+| `kernel/audio/nuked_opl3.o` | 18 |
+| `kernel/doom/src/r_main.o` | 2 |
+| `kernel/doom/src/m_fixed.o` | 0 |
+| Total | 27 |
+
+An initial raw CupidDis count appeared to find fifteen instances in
+`jpeg.o`. Eight of them started inside packed-SSE instructions that CupidDis
+does not yet recognize. Comparing exact LLVM instruction boundaries separated
+the seven real multiply instructions from that downstream decode drift. The
+27 source-grounded instructions, rather than the larger apparent count, set
+the evidence boundary.
+
+The shared catalogue now represents the complete 16-bit and 32-bit
+three-operand `IMUL` family. `69 /r` carries the full operand-width immediate,
+while `6B /r` carries a signed byte. The destination is a general-purpose
+register and the source is a same-width register or memory operand. Both
+operand widths work in 16-bit and 32-bit modes, including the ordinary
+operand-size override and both address-size families.
+
+Automatic encoding chooses `6B /r` only for values from -128 through 127.
+Boundary contracts pin 127 and -128 to the short form and 128 and -129 to the
+full form. Exact-form replay keeps the decoded `69` or `6B` choice. A memory
+destination, byte operands, width mismatches, incompatible serialized
+immediate widths, and `LOCK`, `REP`, or `REPNE` fail without partial output.
+Every nonempty truncated prefix of the longest focused instruction retains
+its available bytes and consumes none. Decoding then recovers at a valid
+instruction after a rejected prefix.
+
+CupidASM assembles exact register, SIB, and 16-bit-address forms for both
+opcodes. CupidDis renders the decoded semantic value and stable three-operand
+syntax. Its fallback rows across the four sampled objects fall from 540 to
+495:
+
+| Object | Before | After |
+| --- | ---: | ---: |
+| `kernel/gfx/jpeg.o` | 251 | 242 |
+| `kernel/audio/nuked_opl3.o` | 172 | 140 |
+| `kernel/doom/src/r_main.o` | 107 | 103 |
+| `kernel/doom/src/m_fixed.o` | 10 | 10 |
+
+The reduction exceeds 27 because recognizing one complete instruction can
+also restore alignment for the bytes that follow it.
+
+### Test-first and integration findings
+
+The first new shared x86 contract failed on the full `69` form. Adding that
+row made the full-width case pass, then the negative immediate still selected
+the full form. Adding the sign-extended `6B` row made shortest-form selection
+pass. The same sequence was repeated for the 16-bit rows before the
+assembler and disassembler contracts were expanded.
+
+The first complete Toolchain run reached the source-frontier lock and reported
+that `x86.cc` had 16,541 initializers instead of 16,441. The four flat rows
+account for the exact increase. The deterministic self-host object then
+measured 131,848 bytes with 77,981 text bytes and text fingerprint
+`20934327`. Updating those checked locks made the complete suite green.
+
+One audit generation ran while the new Toolchain Makefile test invocation was
+being added. Its immediate read-only check correctly reported drift. A fresh
+sequential generation and check now agree.
+
+### Verification
+
+| Command or check | Result | Evidence |
+| --- | --- | --- |
+| Focused shared contracts | PASS | `immediate-imul`, CupidASM `raw-basic` and `errors`, and CupidDis `raw` pass with exact bytes, rendering, failures, truncation, replay, and recovery. |
+| Public x86, CupidASM, CupidDis, and source-manifest suites | PASS | 31 tests pass in 104.942 seconds with the expected `/dev/full` platform skip. |
+| Complete hosted Toolchain | PASS | `make -C toolchain test` passes in 34.2 seconds. The Make target runs `immediate-imul` directly alongside every existing contract and all 22 assembly demos. |
+| Independent object census | PASS | LLVM identifies 27 real immediate multiply boundaries, and CupidDis renders the same 27 boundaries canonically. The refreshed four-object sample has 495 fallback rows. |
+| Checked seed inspection | PASS | CupidASM, CupidC, CupidDis, CupidLD, and CupidObj seed images each have zero `db` fallback rows. |
+| Checked kernel object | PASS | Checked-seed CupidC emits a valid 131,848-byte `toolchain/x86.o` with SHA-256 `564d7ca8c49895cd692fe79bfe12863ca832fb097bc4b57a4002d55817a907fd`; CupidDis reports no fallback row. |
+| Complete OS image | PASS | `make -j4 all` finishes the forced object rebuild and image creation in 357.8 seconds. |
+| Kernel runtime smoke | PASS | The 64-second GUI-terminal smoke requires the x86 model, CupidDis adapter, and 631-definition CupidASM adapter self-tests before a completed in-OS CupidC command. The 34,941-byte log has SHA-256 `8ad444b2196ccc44ae3282c566b92ec5c7613ea9fc0a03fd1d81d4f7c55637d4` and no panic, corruption, or illegal-instruction marker. |
+| Active-source audit | PASS | The graph records 698 active inputs, 253 feature IDs, 501 transforms, and 42 accounted unreachable files. Its active-source digest is `66a8765c3df5d125297211e4084b80b22c75a5646794f6e2d9b802245a33127f`; the JSON has SHA-256 `0655c35e6ce584cadbed955af65189d6f6f6f12c0eba2783a262f37a4223dbec`. |
+| Independent Standards review | PASS AFTER BOOKKEEPING | Review accepted the flat shared rows, coverage, prose, scope, and conservative census. It requested a fresh audit and this chronological record. Both are complete. |
+
+The rebuilt pass-one ELF is 7,970,588 bytes with SHA-256
+`75aa0e29f1c104b84844478b41d618b235458eb4ca3a973998904962671fc9ff`.
+The final ELF is 8,077,084 bytes with SHA-256
+`2b16eda121822a2a0827f58a46331ba3a5ed1d6b7378fa139cb398781ee2aa10`.
+The 7,882,352-byte flat kernel has SHA-256
+`e6dbb0659978e3df3b2ad136b8f49157a609dd8ebdd347a6fb93da593f457a85`,
+and the 209,715,200-byte image has SHA-256
+`ffdd4f83b1db1448711ac13e67b83b835119c3eba59460c2602b447a6edfc730`.
+
+The catalogue now has 583 rows, including 581 encodable forms and two
+decode-only invalid recognizers. It has 242 canonical mnemonics, 64 registers,
+and fingerprint `EE543CA5`. ADR 0132 records the instruction and failure
+boundary.
+
+This step moves no production source owner and removes no host dependency.
+The sampled kernel, Doom, and vendored objects remain host-built. Padding
+NOPs, packed-integer SSE2, repeated-prefix padding, code/data range typing,
+dynamic ELF, DWARF, and a generated every-form corpus remain open.
+
+## 2026-07-26: Finalize C11 external inline definitions
+
+The next compiler-head audit covered the nine strict host roots and the
+unchanged non-Doom Nuked OPL3 vendored root. Each root was tested under its
+real build profile:
+
+| Root | First compiler-head blocker |
+| --- | --- |
+| `kernel/core/kernel.c` | GNU assembly clobber |
+| `kernel/core/string.c` | GNU assembly output to an integer lvalue |
+| `kernel/cpu/fpu.c` | GNU target attribute |
+| `kernel/cpu/libm.c` | File-scope assembly |
+| `kernel/cpu/simd.c` | GNU `cc` clobber |
+| `kernel/gfx/glyph_raster.c` | Floating comparison |
+| `kernel/gfx/jpeg.c` | Static floating initializer |
+| `kernel/smp/percpu.c` | GNU assembly input constraint |
+| `kernel/smp/smp.c` | GNU naked attribute |
+| `kernel/audio/nuked_opl3.c` | C11 external-inline finalization |
+
+Nuked OPL3 was the narrowest source-driven boundary. Its header has an
+ordinary declaration of `OPL3_Generate4Ch`, and its source defines the same
+function with `inline`. C11 treats that declaration set as an external
+definition. The old Linear IR path rejected every inline definition with
+external linkage.
+
+The frontend now finalizes each canonical function binding after the whole
+translation unit has been parsed. A compatible inline and non-inline
+declaration mix, or an inline declaration with `extern` and effective
+external linkage, marks a real external definition when the unit also
+contains the function body. The definition record keeps its exact storage
+and `inline` spelling. An earlier `static` declaration keeps a later
+`extern inline` definition internal. An external-linkage function declared
+`inline` must have a definition in the same translation unit. A pure
+external inline definition receives a focused diagnostic that says emission
+is not yet supported.
+
+Linear IR and object emission validate the canonical marker before using it.
+The marker requires an inline declaration, external linkage, file-scope
+visibility, and a body in the same unit. It cannot appear on a definition
+record. Both boundaries reject external inline metadata without a body even
+when a malformed caller omits the marker. Invalid metadata leaves the
+caller's unit and output unchanged, and the next valid operation in the same
+job reproduces the original result.
+
+### Test-first evidence
+
+The first frontend test retained the old canonical flags and failed with
+`function-specifiers: retained declaration metadata differs`. After the
+frontend published the C11 result, the new IR success fixture still failed
+with the old external-inline finalization diagnostic. That second failure
+isolated the lowering rule before it was changed.
+
+The precommit C11 review added two more red fixtures before the implementation
+was finalized. One put `extern inline` after a `static` declaration and
+exposed a malformed external-definition marker on an internal binding. The
+other required an external-linkage inline declaration to have a definition
+in the same translation unit.
+
+Positive contracts now cover both declaration orders, `extern inline`,
+static inline, inherited internal linkage, and the exact ordinary-declaration
+plus inline-definition shape. A regression check proves that an ordinary
+block-scope declaration does not affect the file-scope rule. Useful negatives
+cover a missing external inline definition, a pure external inline
+definition, duplicate bodies, incompatible declarations, and malformed
+canonical metadata. Each lowering or emission failure is followed by a
+same-job recovery check.
+
+The complete compiler source gate now records:
+
+| Source | Functions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 211 | 6,367 | 57,701 | 813 | 297 |
+| `toolchain/cupidc_emit.cc` | 225 | 5,931 | 50,996 | 718 | 361 |
+| `toolchain/cupidc_frontend.cc` | 334 | 13,582 | 89,442 | 2,008 | 1,329 |
+
+The deterministic IR, emitter, and frontend self-objects contain 407,513,
+378,521, and 682,521 text bytes. Their complete object sizes are 435,300,
+407,676, and 808,516 bytes, with text fingerprints `A6848D3B`, `184D3A2F`,
+and `167B0DED`.
+
+### Full-root evidence
+
+The final native compiler compiled unchanged
+`kernel/audio/nuked_opl3.c` twice with the complete kernel i386 profile.
+Both outputs pass the shared relocatable-object validator and are
+byte-identical:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| First Nuked OPL3 object | 40,424 | `a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1` |
+| Second Nuked OPL3 object | 40,424 | `a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1` |
+
+CupidDis reads the result as i386 ELF32 `ET_REL`. It contains 36,082 text
+bytes, 1,160 read-only-data bytes, 120 text relocations, eight
+read-only-data relocations, and 52 symbols. `OPL3_Generate4Ch` is a defined
+global function at text offset `0x598C` with size 4,934 bytes. `memset` is
+the only undefined import.
+
+### Verification and ownership
+
+| Command or check | Result |
+| --- | --- |
+| Focused frontend, IR, and object contracts | PASS |
+| `make -C toolchain BUILD_DIR=build-next-strict test` | PASS |
+| Two complete Nuked OPL3 compiler-head builds | PASS, byte-identical |
+| Shared i386 `ET_REL` validation and CupidDis symbol check | PASS |
+| `make verify-bootstrap-seed` | PASS for all five checked tools |
+| `make bootstrap-audit` and `make check-bootstrap-audit` | PASS |
+| `make cupidos-txt/04CUPIDC.o` | PASS through CupidObj text wrapping |
+
+The regenerated audit remains at 698 active sources, 253 feature IDs, 502
+transforms, and 42 accounted unreachable files. Ownership remains 152
+CupidC transforms, 145 host C transforms, 165 host Python transforms, and
+five Make transforms.
+Its active-source digest is
+`cff621ffc08f8570ebc03c24aafd01ec29429a621b98b1eca01d5493fff0c1ef`;
+the generated JSON has SHA-256
+`8925d40f30e76bd837916937e2458e49d96c27ac4865713f48fda75130176d5a`.
+
+The checked seed predates this language rule. The normal Nuked OPL3 recipe
+therefore remains host-owned, and its source remains
+`kernel/audio/nuked_opl3.c`. Transfer and the `.cc` rename wait for a
+promoted seed, the deterministic production frontier, a clean image, and the
+relevant runtime gate. ADR 0131 records this boundary.
+
+## 2026-07-26: reprove the combined 145-root frontier
+
+The final integration combines the transferred CupidC lexer, bounded private
+parser, native Windows user-tool path, C11 external-inline finalization, and
+shared immediate `IMUL` model. The first four complete frontier attempts all
+compiled 145 sources twice. Three stopped only because the checked evidence
+still described an earlier source graph:
+
+- The first run took 1,451.6 seconds and measured a 3,545,516-byte aggregate
+  instead of the old 3,514,568-byte lock.
+- The next run took 1,534.9 seconds. Its aggregate passed, but the exact
+  CupidC lexer and parser object records were stale.
+- The third run took 1,388.1 seconds. Every object record passed, then the
+  input snapshot reported 433 files instead of 432.
+
+These results exposed stale oracles, not failed compilation. A focused
+nine-source refresh measured the transferred lexer and parser records. After
+the final integrations, two checked-seed compiles of `toolchain/x86.cc`
+produced the same 131,848-byte object with SHA-256
+`564d7ca8c49895cd692fe79bfe12863ca832fb097bc4b57a4002d55817a907fd`.
+The measured 208-byte increase moved the complete object aggregate to
+3,545,724 bytes.
+
+The final frontier freezes 433 input files with SHA-256
+`7a3fd38fec7fd220bce1ed18690088f553a7e6e7e7a613f7114a3db55a05c953`.
+`make test-kernel-cupidc-frontier` passes in 1,361.743 seconds. All 145
+approved roots compile twice, every pair is byte-identical, and the manifest
+accepts the exact aggregate and source-driven object records.
+
+The combined focused compiler run also passes `function-specifiers`,
+`block-functions`, IR `active-leaf`, object `static-data`, and the
+`self-host-frontier` lock. The public x86 suite passes all ten tests, and the
+complete hosted Toolchain suite accepts the 583-form catalogue and
+external-inline metadata. The regenerated graph records 698 active inputs,
+253 feature IDs, 502 transforms, and 42 accounted unreachable files. Its
+active-source digest is
+`cff621ffc08f8570ebc03c24aafd01ec29429a621b98b1eca01d5493fff0c1ef`;
+the JSON has SHA-256
+`8925d40f30e76bd837916937e2458e49d96c27ac4865713f48fda75130176d5a`.
+
+The 145-root frontier is now closed. A clean normal image and the four-vCPU
+runtime gate for this combined graph remain open.
+
+## 2026-07-26: repair the combined integration contracts
+
+The first canonical `make test` after the feature branches were combined
+finished all 762 tests in 3,660.221 seconds but reported nine failures. The
+compiler, assembler, linker, and generated objects were sound. The failures
+were test contracts that still described the graph before the integrations:
+
+- Six frontend inventory tests retained the old control-flow counts.
+- The build-graph audit retained 4,516 `sizeof` expressions. The immediate
+  `IMUL` contracts added 29, and the external-inline contracts added 12, for
+  a checked total of 4,557 across the same 168 files.
+- The memory-layout test expected the user link rule to stop at `Makefile`.
+  The rule now also depends on `NATIVE_USER_TOOL_GATE`, which prevents a user
+  executable from being linked before the native hosted tools pass their
+  equivalence check.
+- A register-snapshot negative fixture used `call 1f; 1: popl %0`. Call-next
+  assembly now owns templates that begin with `call`, and Linear IR rejects
+  that noncanonical separator before object emission. The fixture now lives
+  with the call-next object contract and checks the invalid-unit diagnostic.
+  The separate leading-instruction fixture still checks the unsupported
+  emitter path.
+
+Changing the register fixture added one `if` and one `goto` to the active
+contract source. The regenerated locks therefore record 31,783 `if`
+statements and 2,086 `goto` statements. Other updated control counts are
+19,221 `return`, 3,614 `for`, 2,633 `while`, 219 `switch`, 1,620 `case`,
+150 `default`, and 4,165 `else` occurrences.
+
+The first attempt to locate the last failure used global fail-fast discovery.
+It entered a long build-graph test before reaching the stale assertion, so
+the exact process tree was stopped. Smaller module groups found the
+`sizeof` lock without rerunning the complete frontier.
+
+### Verification
+
+| Command or check | Result |
+| --- | --- |
+| Memory-layout, complete frontend, register-snapshot, and call-next slice | PASS, 73 tests in 31.534 seconds |
+| Runtime, host-build, ABI, USB, network, and source-policy shard | PASS, 283 tests in 10.229 seconds |
+| Hosted tool and wrapper diagnostic shard | 177 pass, one stale `sizeof` lock fails, and one platform check skips |
+| Exact `sizeof` regression plus complete build-graph audit module | PASS, 63 tests in 590.042 seconds |
+| `make check-bootstrap-audit` | PASS |
+| Canonical `make test` | PASS in 3,461.6 seconds; both production frontiers pass, all 762 tests pass in 3,381.229 seconds, and one `/dev/full` check skips on Windows |
+
+The refreshed graph still has 698 active inputs, 253 feature IDs, 502
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`cb2781d5aa6900b15e4931c29e6f1b1699b51c46367af61f3c9248be4d9c7ddf`.
+The generated JSON has SHA-256
+`8085cecc86115b620a03fb8bac30d81aa434fdf73770c1c41ee97a9eba1ba687`.
+
+This repair changes no production source owner and introduces no new host
+dependency. The clean image and runtime gates remain the next integration
+step.
+
+## 2026-07-27: close the combined image and runtime gate
+
+The final image proof started by removing the kernel, boot, image, and user
+build outputs. A file check immediately after `make clean clean-image` and
+`make -C user clean` found none of the named artifacts. A clean
+`make -j2 all WAD_SRCS=` then completed in 401.5 seconds.
+
+The clean build produced these files:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc` |
+| `kernel/kernel.elf.pass1` | 7,974,684 | `b64422c01130f20d60cfdf2cc87763535f9d3f8bca040fcc2e0d18ccad08f9c8` |
+| `kernel/kernel.elf` | 8,077,084 | `89038edcf64d0743db3c1b4f33ba38a9e725cce9b3a646fc86115ea07ffc8f2d` |
+| `kernel/kernel.bin` | 7,883,716 | `d260cb8a9fbef767080c1ad40f72f8571a63c2fc5f71f367a94d5efaa94097dc` |
+| Pristine `cupidos.img` | 209,715,200 | `f2275ebfe144aebe058c55d12eb55be334df77483f488cdb34241ba3acb8a98e` |
+
+The flat kernel matches the image byte for byte at LBA 5. CupidDis reports
+4,351 text-symbol rows in both the pass-one and final kernels, with no row
+difference. `mp_tables_discover` is at `0x001D4AA6`, and `acpi_discover` is
+at `0x001D6097`. `_loaded_end` is `0x00884BC4`, which leaves 502,332 bytes
+below `0x008FF600`. `_kernel_end` is `0x00CA9A70`, which leaves 353,680
+bytes below `0x00D00000`.
+
+The in-OS CTXT file is part of the image input. Its status text was updated
+before this final clean build, so the committed source and the tested image
+describe the same graph. This avoids citing an image built from the earlier
+CTXT text.
+
+### External user programs
+
+`make test-user-cupidc-runtime WAD_SRCS=` passed in 905 seconds. It built
+each example with CupidC and CupidLD, staged the programs, and completed
+three private-image boots:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `user/build/hello.o` | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` |
+| `user/build/hello` | 13,992 | `dbef548d246e12a0933b95ec8349a97f542bd8cbecc253efc514b1483fcc9e0f` |
+| `user/build/ls.o` | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` |
+| `user/build/ls` | 18,112 | `6eb9d140dd126f74e2815a6836c8858e0d9ca8a1da837bd94784c3a1b7c5ec9d` |
+| `user/build/cat.o` | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` |
+| `user/build/cat` | 13,992 | `ffa5957fb58f0de81e564b3fbadadf60b7b8bc2beb0c50984cd1d4e9481f9367` |
+
+`hello` printed the required string and integers before its PID-bound exit.
+`ls` produced all five directory fingerprints. The `cat` boot first
+compiled and ran `/bin/cp.cc`, then read the 62-byte fixture through the
+program's normal `/home/readme.txt` path. The planted PID 999 exit marker
+was absent, while the real program exited under PID 4.
+
+| Runtime log | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `tests/user-cupidc-runtime.log` | 37,253 | `1ae47f657af77683483b53493c00ca22219926533e2f00150719037e520a2f4f` |
+| `tests/user-cupidc-runtime-ls.log` | 23,533 | `03ca2bd561ace1bef98c1efa7b51d11e78ab9024f37339dab53264acb9d1b838` |
+| `tests/user-cupidc-runtime-cat.log` | 49,508 | `b741ea589996d4084ef9d5f561231a020002c26bf4d8ab891c4fcda66d2d181c` |
+
+Every user log contains one desktop marker and one terminal marker. None
+contains a panic, failed self-test, CPU startup error, illegal instruction,
+network failure, block-cache error, FAT write error, or frontier rejection
+marker. The staged 209,715,200-byte image has SHA-256
+`70c8022c3aef5a462ca59b102606d5fbe4f6c00d2b74b320256d88f1abed3f0b`.
+Its filesystem content differs from the pristine clean image by design.
+
+### Four-CPU runtime
+
+The strong runtime gate booted a private copy of the staged image with four
+virtual CPUs, the `max` CPU model, and e1000. It passed in 49.805 seconds.
+Each of these events appeared exactly once:
+
+- RDRAND seeded the CSPRNG.
+- MP discovery found one bootstrap CPU and one IOAPIC, then ACPI found four
+  CPUs and one IOAPIC.
+- CPUs 1, 2, and 3 came online, followed by the four-of-four SMP report.
+- The scheduler started, all 62 crypto, ASN.1, and X.509 checks passed, and
+  e1000 initialized. DHCP bound `10.0.2.15`.
+- The desktop and terminal opened, and in-OS CupidC completed JIT execution.
+
+The 21,586-byte `tests/combined-145-smp-runtime.log` has SHA-256
+`1ea18a92777570f4ec7c190ff546fa5cf785153f7aec808e7c74fe196436d900`.
+All 17 rejected panic, exception, corruption, CPU, ATA, cache, home
+filesystem, and FAT markers have zero matches.
+
+### Integration status
+
+The canonical `make test` from the preceding integration step passed in
+3,461.6 seconds. Both production frontiers passed, and all 762 unit tests
+passed in 3,381.229 seconds with the expected Windows `/dev/full` skip. The
+active-source audit remains green with digest
+`cb2781d5aa6900b15e4931c29e6f1b1699b51c46367af61f3c9248be4d9c7ddf`.
+Its JSON has SHA-256
+`8085cecc86115b620a03fb8bac30d81aa434fdf73770c1c41ee97a9eba1ba687`.
+
+The combined 145-root graph now has clean image, symbol, memory, user
+program, and strong four-CPU runtime evidence. The remaining migration still
+includes 145 host C transforms, 165 host Python transforms, five Make
+transforms, the native Windows hosted-tool fixed point, the nine strict
+checked-in kernel roots, Doom, and other vendored sources.

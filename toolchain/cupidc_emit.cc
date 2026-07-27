@@ -422,6 +422,17 @@ static ctool_bool cemit_type_is_const(const cemit_context_t *context,
   return CTOOL_FALSE;
 }
 
+static ctool_bool cemit_binding_has_function_definition(
+    const ctool_c_translation_unit_t *unit, ctool_u32 binding) {
+  ctool_u32 index;
+  for (index = 0u; index < unit->function_definition_count; index++) {
+    if (unit->function_definitions[index].binding == binding) {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
 static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
   const ctool_c_translation_unit_t *unit = context->unit;
   ctool_u32 binding;
@@ -478,7 +489,29 @@ static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
         (candidate->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool external_definition =
+        (candidate->function_declaration_flags &
+         CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool inline_declaration =
+        (candidate->function_declaration_flags &
+         CTOOL_C_FUNCTION_DECL_INLINE) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     if ((candidate->attributes & ~CTOOL_C_DECL_ATTR_ALL) != 0u ||
+        (candidate->function_declaration_flags &
+         ~CTOOL_C_FUNCTION_DECL_ALL) != 0u ||
+        (candidate->function_declaration_flags != 0u &&
+         candidate->kind != CTOOL_C_BINDING_FUNCTION) ||
+        (inline_declaration == CTOOL_TRUE &&
+         candidate->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+         cemit_binding_has_function_definition(unit, binding) ==
+             CTOOL_FALSE) ||
+        (external_definition == CTOOL_TRUE &&
+         (inline_declaration == CTOOL_FALSE ||
+          candidate->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+          candidate->file_scope_visible == CTOOL_FALSE)) ||
         (weak == CTOOL_TRUE &&
          (candidate->kind != CTOOL_C_BINDING_OBJECT &&
           candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||

@@ -118,13 +118,15 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-The normal CupidC cohort has 144 checked-in roots and one generated symbol
-root. All 145 sources use `.cc`. Five shared Toolchain roots also belong to
+The normal CupidC cohort has 145 checked-in roots and one generated symbol
+root. All 146 sources use `.cc`. Five shared Toolchain roots also belong to
 the 19-source i386 Linux fixed point, and their native GCC or Clang rules
-select C with `-x c`. ADRs 0124 and 0126 record the two naming steps.
-Ownership and output counts do not change. The renamed graph passes the
-closed two-pass frontier, clean image build, symbol and memory checks, and
-four-vCPU runtime gate.
+select C with `-x c`. ADRs 0124 and 0126 record the first two naming steps,
+and ADR 0129 records the lexer transfer. The complete 145-root frontier now
+passes twice against a frozen 433-file snapshot; both object sets are
+byte-identical and total 3,545,724 bytes. The combined graph passes a clean
+normal image build and the strong four-vCPU runtime gate through SMP,
+RDRAND, all 62 crypto checks, e1000, the desktop, terminal, and in-OS CupidC.
 
 The module dependencies run from top to bottom and contain no cycles:
 

@@ -480,7 +480,7 @@ void draw_window(int x, int y, int w, int h, char *title) {
 | `kernel/fs/vfs_helpers.h` | High-level VFS convenience functions |
 | `kernel/fs/vfs_helpers.cc` | VFS helpers implementation |
 | `kernel/lang/cupidc.cc` | Binding registration (~100 entries) |
-| `cupidc_lex.c` | `unsigned`, `typedef`, `const` keywords |
+| `cupidc_lex.cc` | `unsigned`, `typedef`, `const` keywords |
 | `cupidc_parse.cc` | Type parsing for new keywords |
 
 ---

@@ -48,7 +48,14 @@ typedef enum {
    CTOOL_C_DECL_ATTR_USED)
 
 #define CTOOL_C_FUNCTION_DECL_INLINE 0x00000001u
-#define CTOOL_C_FUNCTION_DECL_ALL CTOOL_C_FUNCTION_DECL_INLINE
+/* Canonical function bindings add this summary when the translation unit
+ * contains an external definition under C11's inline rules. Definition
+ * records retain only their source-written function specifiers. */
+#define CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION 0x00000002u
+#define CTOOL_C_FUNCTION_DECL_ALL                                      \
+  (CTOOL_C_FUNCTION_DECL_INLINE |                                      \
+   CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION)
+#define CTOOL_C_FUNCTION_DEFINITION_DECL_ALL CTOOL_C_FUNCTION_DECL_INLINE
 
 typedef struct {
   ctool_string_t name;
@@ -70,8 +77,9 @@ typedef struct {
    * an empty string. */
   ctool_string_t section_name;
   /* OR-summary of standard function-declaration specifiers seen across
-   * compatible declarations. Definition-local inline/storage spelling must
-   * be retained separately when function definitions are represented. */
+   * compatible declarations. EXTERNAL_DEFINITION records the C11 result for
+   * a function that is also declared inline. Definition-local inline/storage
+   * spelling remains separate. */
   ctool_u32 function_declaration_flags;
   /* Minimum object/function entity alignment. Zero selects the declared
    * type's alignment; exact typedef/type alignment uses an ALIGNED node. */

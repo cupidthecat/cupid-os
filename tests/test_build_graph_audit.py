@@ -1,12 +1,14 @@
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -74,6 +76,95 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_make_readers_force_the_canonical_windows_graph(self):
+        module = _load_audit_module()
+        self.assertEqual(
+            module.CANONICAL_MAKE_VARIABLES,
+            ("OS=Windows_NT",),
+        )
+        completed = [
+            subprocess.CompletedProcess([], 0, stdout="database", stderr=""),
+            subprocess.CompletedProcess([], 0, stdout='["item"]\n', stderr=""),
+            subprocess.CompletedProcess(
+                [],
+                0,
+                stdout=(
+                    "__CUPID_AUDIT_VALUE_0 := value\n"
+                    "__CUPID_AUDIT_ORIGIN_0 := file\n"
+                ),
+                stderr="",
+            ),
+        ]
+        with mock.patch.object(
+            module.subprocess, "run", side_effect=completed
+        ) as run:
+            module._run_make_database(REPO_ROOT, "make", "all")
+            module._read_make_json_list(REPO_ROOT, "make", "list")
+            module._read_evaluated_make_variables(
+                REPO_ROOT, "make", ("PROFILE",)
+            )
+
+        self.assertEqual(run.call_count, 3)
+        for call in run.call_args_list:
+            self.assertEqual(
+                call.args[0][1 : 1 + len(module.CANONICAL_MAKE_VARIABLES)],
+                list(module.CANONICAL_MAKE_VARIABLES),
+            )
+            self.assertEqual(call.kwargs["env"]["LC_ALL"], "C")
+        self.assertIn(
+            module._audit_python_make_variable(),
+            run.call_args_list[1].args[0],
+        )
+
+    def test_make_database_uses_the_canonical_windows_graph(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "Makefile").write_text(
+                "ifeq ($(OS),Windows_NT)\n"
+                "all: windows\n"
+                "else\n"
+                "all: linux\n"
+                "endif\n"
+                "windows:\n"
+                "linux:\n",
+                encoding="utf-8",
+            )
+            rules = module._parse_make_rules(
+                module._run_make_database(root, make, "all")
+            )
+            reachable = module._reachable_rules(rules, "all")
+
+        self.assertIn("windows", reachable)
+        self.assertNotIn("linux", reachable)
+
+    def test_native_user_tools_are_an_explicit_recursive_build(self):
+        module = _load_audit_module()
+        transform = {
+            "output": "user/native-user-tools",
+            "inputs": [],
+            "tools": ["make"],
+            "operation": "recursive_make",
+            "recipe": [
+                "$(MAKE) -C ../toolchain "
+                "build/cupidc.exe build/cupidld.exe"
+            ],
+        }
+        module._validate_native_user_tools_transform("user", transform)
+
+        changed = {
+            **transform,
+            "recipe": ["$(MAKE) -C ../toolchain build/cupidc.exe"],
+        }
+        with self.assertRaisesRegex(
+            module.AuditError,
+            "native Windows user-tool prerequisite",
+        ):
+            module._validate_native_user_tools_transform("user", changed)
+
     def test_user_syscall_abi_verifier_is_a_first_class_transform(self):
         module = _load_audit_module()
         local_inputs = [
@@ -3998,7 +4089,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 698,
                     "features": 253,
-                    "transforms": 501,
+                    "transforms": 502,
                     "unreachable_sources": 42,
                 },
             )
@@ -4007,7 +4098,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4516, 168),
+                "c.expression.sizeof": (4557, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4054,7 +4145,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 148)
+            self.assertEqual(len(checked_cupidc_roots), 149)
             self.assertEqual(
                 {
                     path
@@ -4071,7 +4162,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                148,
+                149,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4392,9 +4483,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 151,
-                    "host_c_compiler": 146,
-                    "host_python": 164,
+                    "cupid_c_compiler": 152,
+                    "host_c_compiler": 145,
+                    "host_python": 165,
                 },
             )
 
@@ -4412,8 +4503,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(user_program_cohort["source_count"], 4)
             self.assertEqual(
                 user_program_cohort["rationale"],
-                "Keep the checked CupidC and CupidLD user build reproducible, "
-                "then stage its validated executables deliberately.",
+                "Keep the native Windows and checked-seed Linux CupidC and "
+                "CupidLD user build reproducible, then stage its validated "
+                "executables deliberately.",
             )
 
             source_by_path = {

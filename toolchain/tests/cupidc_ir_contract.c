@@ -7378,47 +7378,56 @@ static int validate_static_local_ir(const ctool_c_translation_unit_t *unit,
 
 static int validate_inline_ir(const ctool_c_translation_unit_t *unit,
                               const ctool_c_ir_unit_t *ir) {
-  const ctool_c_function_definition_t *local;
-  const ctool_c_function_definition_t *mixed;
-  const ctool_c_binding_t *local_binding;
-  const ctool_c_binding_t *mixed_binding;
-  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
-      ir->instruction_count != 4u) {
+  ctool_u32 declaration_only =
+      find_binding(unit, "declaration_only");
+  ctool_u32 index;
+  if (unit->function_definition_count != 6u || ir->function_count != 6u ||
+      ir->instruction_count != 12u ||
+      declaration_only == CTOOL_C_AST_NONE ||
+      unit->bindings[declaration_only].linkage !=
+          CTOOL_C_LINKAGE_EXTERNAL ||
+      unit->bindings[declaration_only].function_declaration_flags != 0u) {
     (void)fprintf(stderr, "inline IR inventory differs\n");
     return 0;
   }
-  local = &unit->function_definitions[0];
-  mixed = &unit->function_definitions[1];
-  if (local->binding >= unit->binding_count ||
-      mixed->binding >= unit->binding_count) {
-    return 0;
-  }
-  local_binding = &unit->bindings[local->binding];
-  mixed_binding = &unit->bindings[mixed->binding];
-  if (local->storage != CTOOL_C_STORAGE_STATIC ||
-      local->function_declaration_flags != CTOOL_C_FUNCTION_DECL_INLINE ||
-      local_binding->linkage != CTOOL_C_LINKAGE_INTERNAL ||
-      local_binding->function_declaration_flags !=
-          CTOOL_C_FUNCTION_DECL_INLINE ||
-      mixed->storage != CTOOL_C_STORAGE_NONE ||
-      mixed->function_declaration_flags != 0u ||
-      mixed_binding->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
-      mixed_binding->function_declaration_flags !=
-          CTOOL_C_FUNCTION_DECL_INLINE ||
-      ir->functions[0].binding != local->binding ||
-      ir->functions[0].instruction_count != 2u ||
-      ir->instructions[ir->functions[0].first_instruction].kind !=
-          CTOOL_C_IR_INSTRUCTION_INTEGER ||
-      ir->instructions[ir->functions[0].first_instruction].integer_bits !=
-          1u ||
-      ir->functions[1].binding != mixed->binding ||
-      ir->functions[1].instruction_count != 2u ||
-      ir->instructions[ir->functions[1].first_instruction].kind !=
-          CTOOL_C_IR_INSTRUCTION_INTEGER ||
-      ir->instructions[ir->functions[1].first_instruction].integer_bits !=
-          2u) {
-    (void)fprintf(stderr, "inline IR policy differs\n");
-    return 0;
+  for (index = 0u; index < 6u; index++) {
+    const ctool_c_function_definition_t *definition =
+        &unit->function_definitions[index];
+    const ctool_c_binding_t *binding;
+    const ctool_c_ir_function_t *function = &ir->functions[index];
+    ctool_u32 expected_definition_flags =
+        index == 1u ? 0u : CTOOL_C_FUNCTION_DECL_INLINE;
+    ctool_u32 expected_binding_flags =
+        index == 0u || index == 5u
+            ? CTOOL_C_FUNCTION_DECL_INLINE
+            : (CTOOL_C_FUNCTION_DECL_INLINE |
+               CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION);
+    ctool_c_storage_class_t expected_storage =
+        index == 0u
+            ? CTOOL_C_STORAGE_STATIC
+            : (index == 4u || index == 5u
+                   ? CTOOL_C_STORAGE_EXTERN
+                   : CTOOL_C_STORAGE_NONE);
+    if (definition->binding >= unit->binding_count) {
+      return 0;
+    }
+    binding = &unit->bindings[definition->binding];
+    if (definition->storage != expected_storage ||
+        definition->function_declaration_flags !=
+            expected_definition_flags ||
+        binding->linkage !=
+            (index == 0u || index == 5u ? CTOOL_C_LINKAGE_INTERNAL
+                                        : CTOOL_C_LINKAGE_EXTERNAL) ||
+        binding->function_declaration_flags != expected_binding_flags ||
+        function->binding != definition->binding ||
+        function->instruction_count != 2u ||
+        ir->instructions[function->first_instruction].kind !=
+            CTOOL_C_IR_INSTRUCTION_INTEGER ||
+        ir->instructions[function->first_instruction].integer_bits !=
+            (ctool_u64)(index + 1u)) {
+      (void)fprintf(stderr, "inline IR policy differs at %u\n", index);
+      return 0;
+    }
   }
   return 1;
 }
@@ -7926,11 +7935,17 @@ static int run_active_leaf(const char *host_root) {
   static const char inline_success_source[] =
       "static inline int local_inline(void) { return 1; }\n"
       "inline int mixed_inline(void);\n"
-      "int mixed_inline(void) { return 2; }\n";
+      "int mixed_inline(void) { return 2; }\n"
+      "int prior_declaration(void);\n"
+      "inline int prior_declaration(void) { return 3; }\n"
+      "inline int later_declaration(void) { return 4; }\n"
+      "int later_declaration(void);\n"
+      "extern inline int explicit_extern(void) { return 5; }\n"
+      "static int inherited_internal(void);\n"
+      "extern inline int inherited_internal(void) { return 6; }\n"
+      "int declaration_only(void);\n";
   static const char external_inline_source[] =
       "inline int external_inline(void) { return 1; }\n";
-  static const char extern_inline_source[] =
-      "extern inline int extern_inline(void) { return 1; }\n";
   static const char wide_call_source[] =
       "int wide_target(long long value);\n"
       "int call_wide(void) { return wide_target(1LL); }\n";
@@ -8062,7 +8077,6 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_translation_unit_t abi_unit;
   ctool_c_translation_unit_t inline_success_unit;
   ctool_c_translation_unit_t external_inline_unit;
-  ctool_c_translation_unit_t extern_inline_unit;
   ctool_c_translation_unit_t conversion_unit;
   ctool_c_translation_unit_t signed_bits_unit;
   ctool_c_translation_unit_t call_unit;
@@ -8119,6 +8133,8 @@ static int run_active_leaf(const char *host_root) {
   ctool_c_member_layout_t *bit_field_layouts = NULL;
   ctool_c_record_member_t *bit_field_members = NULL;
   ctool_c_binding_t *file_bindings = NULL;
+  ctool_c_binding_t *inline_bindings = NULL;
+  ctool_c_function_definition_t *inline_definitions = NULL;
   ctool_c_type_layout_t *invalid_layouts = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
   ctool_c_ir_unit_t ir;
@@ -9281,23 +9297,105 @@ static int run_active_leaf(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  fingerprint = unit_fingerprint(&inline_success_unit);
+  inline_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)inline_success_unit.binding_count * sizeof(*inline_bindings));
+  inline_definitions = (ctool_c_function_definition_t *)malloc(
+      (size_t)inline_success_unit.function_definition_count *
+      sizeof(*inline_definitions));
+  if (inline_bindings == NULL || inline_definitions == NULL) {
+    (void)fprintf(stderr, "inline invalid-unit allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(inline_bindings, inline_success_unit.bindings,
+               (size_t)inline_success_unit.binding_count *
+                   sizeof(*inline_bindings));
+  invalid_unit = inline_success_unit;
+  invalid_unit.bindings = inline_bindings;
+  index = inline_success_unit.function_definitions[1].binding;
+  inline_bindings[index].function_declaration_flags =
+      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "external definition metadata without inline") ||
+      unit_fingerprint(&inline_success_unit) != fingerprint) {
+    goto cleanup;
+  }
+  (void)memcpy(inline_bindings, inline_success_unit.bindings,
+               (size_t)inline_success_unit.binding_count *
+                   sizeof(*inline_bindings));
+  index = inline_success_unit.function_definitions[0].binding;
+  inline_bindings[index].function_declaration_flags |=
+      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "internal external-definition inline metadata") ||
+      unit_fingerprint(&inline_success_unit) != fingerprint) {
+    goto cleanup;
+  }
+  (void)memcpy(inline_bindings, inline_success_unit.bindings,
+               (size_t)inline_success_unit.binding_count *
+                   sizeof(*inline_bindings));
+  index = find_binding(&inline_success_unit, "declaration_only");
+  if (index == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  inline_bindings[index].function_declaration_flags =
+      CTOOL_C_FUNCTION_DECL_INLINE;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "external inline declaration metadata without a definition") ||
+      unit_fingerprint(&inline_success_unit) != fingerprint) {
+    goto cleanup;
+  }
+  (void)memcpy(inline_bindings, inline_success_unit.bindings,
+               (size_t)inline_success_unit.binding_count *
+                   sizeof(*inline_bindings));
+  inline_bindings[index].function_declaration_flags =
+      CTOOL_C_FUNCTION_DECL_INLINE |
+      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "external-definition metadata without a definition") ||
+      unit_fingerprint(&inline_success_unit) != fingerprint) {
+    goto cleanup;
+  }
+  (void)memcpy(inline_definitions,
+               inline_success_unit.function_definitions,
+               (size_t)inline_success_unit.function_definition_count *
+                   sizeof(*inline_definitions));
+  invalid_unit = inline_success_unit;
+  invalid_unit.function_definitions = inline_definitions;
+  inline_definitions[0].function_declaration_flags |=
+      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "definition-local external-definition metadata") ||
+      unit_fingerprint(&inline_success_unit) != fingerprint ||
+      !expect_ir_success_preserves_unit(
+          job, &inline_success_unit,
+          "external-definition inline metadata recovery")) {
+    goto cleanup;
+  }
 
   if (!parse_source(job, "/external-inline.c", external_inline_source,
                     &external_inline_unit) ||
       !expect_ir_failure(
           job, &external_inline_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_EXTERNAL_INLINE,
-          "CupidC IR lowering requires external-inline finalization before "
-          "lowering this definition",
-          "external inline definition") ||
-      !parse_source(job, "/extern-inline.c", extern_inline_source,
-                    &extern_inline_unit) ||
-      !expect_ir_failure(
-          job, &extern_inline_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_EXTERNAL_INLINE,
-          "CupidC IR lowering requires external-inline finalization before "
-          "lowering this definition",
-          "extern inline definition")) {
+          "CupidC IR lowering does not yet emit a pure external inline "
+          "definition",
+          "pure external inline definition")) {
     goto cleanup;
   }
   diagnostic_count = ctool_job_diagnostic_count(job);
@@ -10287,6 +10385,8 @@ cleanup:
   free(bit_field_layouts);
   free(bit_field_members);
   free(file_bindings);
+  free(inline_bindings);
+  free(inline_definitions);
   free(invalid_layouts);
   free(invalid_block_bindings);
   if (passed != 0) {

@@ -259,7 +259,7 @@ kfree(bytes);
 ## Limitations
 
 - Maximum 64 `break` statements at one loop or switch level
-- Storage for 128 loop-or-switch control frames; deep recursive parsing has no separate fail-closed depth proof
+- The private compiler accepts 128 active loop-or-switch control frames and 1,024 active statement calls. It rejects the next entry before further recursion and restores both counters after a failed REPL evaluation.
 - Object-like preprocessor macros are supported; function-like macros and general `#if` expressions are not
 - A `continue` inside one or more switches targets the nearest enclosing loop. The compiler removes the saved switch selectors before taking that jump.
 - Not full hosted GCC C; accepted wide integer spellings still target the

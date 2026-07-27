@@ -187,7 +187,7 @@ The checked i386 Linux seed includes CupidASM and binds it to the complete
 toolchain build plan. Checked CupidASM assembles stage-two startup, and the
 stage-two assembler produces the byte-identical stage-three startup. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
-The native oracle, contract runners, hosted development commands, and 94
+The native oracle, contract runners, hosted development commands, and 93
 normal Cupid OS C root objects still use a host compiler. Native Windows
 tooling and the remaining production handoff stay open.
 
@@ -275,12 +275,14 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. It contains 579 forms,
+CupidASM uses the shared Cupid Toolchain x86 catalogue. It contains 583 forms,
 242 canonical mnemonics, and 64 register names. The same catalogue drives
 instruction encoding and decoding. All sixteen i686 conditional moves accept
 16-bit or 32-bit same-width register and memory sources in either mode. Common
 alias spellings assemble to the same bytes, while CupidDis prints canonical
-names.
+names. Three-operand `IMUL` accepts a 16-bit or 32-bit register destination,
+a same-width register or memory source, and an immediate. CupidASM uses
+`6B /r` when the value fits a signed byte and `69 /r` otherwise.
 
 ### Data Movement
 
@@ -302,7 +304,7 @@ names.
 | `add` | Add | `add eax, ebx` / `add eax, 10` |
 | `sub` | Subtract | `sub eax, 1` |
 | `mul` | Unsigned multiply (EDX:EAX) | `mul ebx` |
-| `imul` | Signed multiply | `imul ebx` |
+| `imul` | Signed multiply | `imul ebx` / `imul eax, ecx, 0x228` |
 | `div` | Unsigned divide (EAX/reg) | `div ecx` |
 | `idiv` | Signed divide | `idiv ecx` |
 | `inc` | Increment by 1 | `inc eax` |

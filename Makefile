@@ -34,6 +34,7 @@ CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
 CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
 	tools/cupidc_production_compile.py \
 	tools/cupidc_kernel_compile.py \
+	tools/native_user_toolchain.py \
 	tools/bootstrap_toolchain.py \
 	bootstrap/seeds/i386-linux/manifest.json \
 	bootstrap/seeds/i386-linux/cupidasm.elf \
@@ -1001,8 +1002,8 @@ kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
 kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc_string.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o
 
-kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.c kernel/lang/cupidc.h
-	$(CC) $(CFLAGS) kernel/lang/cupidc_lex.c -o kernel/lang/cupidc_lex.o
+kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc.h kernel/lang/dis.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o
 
 kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/cupidc.h kernel/lang/dis.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o
@@ -1348,13 +1349,16 @@ user-programs:
 test-user-cupidc-frontier:
 	$(MAKE) -C user test-cupidc-frontier
 
-# Copy the checked-seed user executables into FAT. A fresh image imports these
+test-user-native-windows-equivalence:
+	$(MAKE) -C user test-native-windows-equivalence
+
+# Copy the validated user executables into FAT. A fresh image imports these
 # files into HomeFS on first boot. An existing image exposes them under /disk.
 sync-user: $(OS_IMAGE) user-programs
 	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) \
 		--fat-start-lba $(FAT_START_LBA) \
 		user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
-	@echo "Synced checked-seed user programs -> $(OS_IMAGE):/"
+	@echo "Synced validated user programs -> $(OS_IMAGE):/"
 
 # This fixture contains a marker-shaped second line. The cat gate proves that
 # user text cannot break the serial event boundary.
@@ -1423,4 +1427,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier test-generated-cupidc-frontier test-user-cupidc-frontier test-user-cupidc-runtime verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-user sync-user-runtime user-programs sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier test-generated-cupidc-frontier test-user-cupidc-frontier test-user-native-windows-equivalence test-user-cupidc-runtime verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-user sync-user-runtime user-programs sync-iso stage-wads clean clean-image distclean

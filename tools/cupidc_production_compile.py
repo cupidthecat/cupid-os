@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile approved Cupid OS production sources with the checked CupidC seed."""
+"""Compile approved Cupid OS production sources with a frozen CupidC tool."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Sequence
 
@@ -20,6 +21,11 @@ try:
         SeedExecutor,
         validate_i386_relocatable,
     )
+    from tools.native_user_toolchain import (
+        NativeToolError,
+        NativeToolExecutor,
+        capture_native_tool,
+    )
 except ModuleNotFoundError:
     from bootstrap_toolchain import BootstrapError, freeze_seed_inputs
     from cupidc_kernel_compile import (
@@ -27,6 +33,11 @@ except ModuleNotFoundError:
         KernelCompileError,
         SeedExecutor,
         validate_i386_relocatable,
+    )
+    from native_user_toolchain import (
+        NativeToolError,
+        NativeToolExecutor,
+        capture_native_tool,
     )
 
 
@@ -63,10 +74,11 @@ GENERATED_INCLUDE_CLOSURE = (
 )
 
 DEFAULT_TIMEOUT_SECONDS = 180
+TOOL_MODES = ("auto", "checked-seed", "native-windows")
 
 
 class ProductionCompileError(RuntimeError):
-    """A checked production compilation could not publish an object."""
+    """A production compilation could not publish an object."""
 
 
 def profile_arguments(cohort: str) -> tuple[str, ...]:
@@ -235,7 +247,10 @@ def _write_frozen_closure(
         target.write_bytes(payload)
 
 
-def _compiler_root_for(executor: SeedExecutor, path: Path) -> str:
+def _compiler_root_for(
+    executor: SeedExecutor | NativeToolExecutor,
+    path: Path,
+) -> str:
     mapper = getattr(executor, "compiler_root_for", None)
     if callable(mapper):
         return str(mapper(path))
@@ -249,7 +264,9 @@ def compile_production_source(
     output: Path,
     *,
     manifest: Path | None = None,
-    executor: SeedExecutor | None = None,
+    native_compiler: Path | None = None,
+    tool_mode: str = "auto",
+    executor: SeedExecutor | NativeToolExecutor | None = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> None:
     """Compile one approved source and publish its object atomically."""
@@ -261,6 +278,35 @@ def compile_production_source(
         raise ProductionCompileError("output may not replace its source")
     if timeout <= 0:
         raise ProductionCompileError("compiler timeout must be positive")
+    if tool_mode not in TOOL_MODES:
+        raise ProductionCompileError(
+            f"unknown production compiler mode: {tool_mode}"
+        )
+    if native_compiler is not None and tool_mode == "checked-seed":
+        raise ProductionCompileError(
+            "a native compiler cannot be used in checked-seed mode"
+        )
+    if manifest is not None and (
+        native_compiler is not None or tool_mode == "native-windows"
+    ):
+        raise ProductionCompileError(
+            "a checked-seed manifest cannot be combined with a native compiler"
+        )
+    use_native = (
+        native_compiler is not None
+        or tool_mode == "native-windows"
+        or (
+            tool_mode == "auto"
+            and cohort == "user"
+            and executor is None
+            and manifest is None
+            and os.name == "nt"
+        )
+    )
+    if use_native and cohort != "user":
+        raise ProductionCompileError(
+            "native Windows compilation is limited to the user cohort"
+        )
 
     closure = _closure_paths(root, cohort, source)
     captured = _capture(closure)
@@ -268,95 +314,133 @@ def compile_production_source(
         path: hashlib.sha256(payload).hexdigest()
         for path, payload in captured.items()
     }
-    manifest_path = (
-        manifest.resolve()
-        if manifest is not None
-        else root
-        / "bootstrap"
-        / "seeds"
-        / "i386-linux"
-        / "manifest.json"
-    )
     try:
-        active_executor = executor if executor is not None else SeedExecutor(root)
-    except KernelCompileError as error:
-        raise ProductionCompileError(
-            f"checked seed executor is unavailable: {error}"
-        ) from error
+        with ExitStack() as stack:
+            native_snapshot = None
+            if use_native:
+                try:
+                    native_snapshot = capture_native_tool(
+                        root, "cupidc", native_compiler
+                    )
+                    tool_directory = Path(
+                        stack.enter_context(
+                            tempfile.TemporaryDirectory(
+                                prefix="cupidc-production-native-"
+                            )
+                        )
+                    )
+                    compiler = native_snapshot.stage(tool_directory)
+                    active_executor = (
+                        executor
+                        if executor is not None
+                        else NativeToolExecutor(root)
+                    )
+                except NativeToolError as error:
+                    raise ProductionCompileError(str(error)) from error
+            else:
+                manifest_path = (
+                    manifest.resolve()
+                    if manifest is not None
+                    else root
+                    / "bootstrap"
+                    / "seeds"
+                    / "i386-linux"
+                    / "manifest.json"
+                )
+                try:
+                    active_executor = (
+                        executor
+                        if executor is not None
+                        else SeedExecutor(root)
+                    )
+                except KernelCompileError as error:
+                    raise ProductionCompileError(
+                        f"checked seed executor is unavailable: {error}"
+                    ) from error
+                seed_directory = Path(
+                    stack.enter_context(
+                        tempfile.TemporaryDirectory(
+                            prefix="cupidc-production-seed-"
+                        )
+                    )
+                )
+                try:
+                    seed_inputs = freeze_seed_inputs(
+                        manifest_path, seed_directory
+                    )
+                except (BootstrapError, OSError) as error:
+                    raise ProductionCompileError(
+                        f"checked seed verification failed: {error}"
+                    ) from error
+                compiler = seed_inputs.tools.get("cupidc")
+                if compiler is None:
+                    raise ProductionCompileError(
+                        "checked seed verification did not return CupidC"
+                    )
 
-    try:
-        with tempfile.TemporaryDirectory(
-            prefix="cupidc-production-seed-"
-        ) as seed_temporary:
+            temporary = stack.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix=f".{output.name}.cupidc-inputs-",
+                    dir=output.parent,
+                )
+            )
+            frozen_root = Path(temporary)
+            _write_frozen_closure(root, frozen_root, captured)
+            frozen_output = frozen_root / ".output" / output.name
+            frozen_output.parent.mkdir()
+            logical_temporary = "/.output/" + output.name
+            arguments = build_compile_arguments(
+                cohort,
+                logical_source,
+                logical_temporary,
+                _compiler_root_for(active_executor, frozen_root),
+            )
             try:
-                seed_inputs = freeze_seed_inputs(
-                    manifest_path, Path(seed_temporary)
+                result = active_executor.run(
+                    compiler, arguments, timeout
                 )
-            except (BootstrapError, OSError) as error:
+            except subprocess.TimeoutExpired as error:
                 raise ProductionCompileError(
-                    f"checked seed verification failed: {error}"
+                    f"CupidC timed out after {timeout} seconds for "
+                    f"{logical_source.lstrip('/')}"
                 ) from error
-            seed = seed_inputs.tools.get("cupidc")
-            if seed is None:
+            except OSError as error:
                 raise ProductionCompileError(
-                    "checked seed verification did not return CupidC"
+                    f"CupidC could not run for "
+                    f"{logical_source.lstrip('/')}: {error}"
+                ) from error
+            if result.returncode != 0:
+                details = (result.stderr or result.stdout or "").strip()
+                suffix = f": {details}" if details else ""
+                raise ProductionCompileError(
+                    f"CupidC failed for {logical_source.lstrip('/')} "
+                    f"with status {result.returncode}{suffix}"
                 )
-
-            with tempfile.TemporaryDirectory(
-                prefix=f".{output.name}.cupidc-inputs-",
-                dir=output.parent,
-            ) as temporary:
-                frozen_root = Path(temporary)
-                _write_frozen_closure(root, frozen_root, captured)
-                frozen_output = frozen_root / ".output" / output.name
-                frozen_output.parent.mkdir()
-                logical_temporary = "/.output/" + output.name
-                arguments = build_compile_arguments(
-                    cohort,
-                    logical_source,
-                    logical_temporary,
-                    _compiler_root_for(active_executor, frozen_root),
+            if frozen_output.is_symlink() or not frozen_output.is_file():
+                raise ProductionCompileError(
+                    f"CupidC did not write an object for "
+                    f"{logical_source.lstrip('/')}"
                 )
+            try:
+                validate_i386_relocatable(frozen_output)
+            except Exception as error:
+                raise ProductionCompileError(
+                    f"invalid object for "
+                    f"{logical_source.lstrip('/')}: {error}"
+                ) from error
+            if native_snapshot is not None:
                 try:
-                    result = active_executor.run(seed, arguments, timeout)
-                except subprocess.TimeoutExpired as error:
-                    raise ProductionCompileError(
-                        f"CupidC timed out after {timeout} seconds for "
-                        f"{logical_source.lstrip('/')}"
-                    ) from error
-                except OSError as error:
-                    raise ProductionCompileError(
-                        f"CupidC could not run for "
-                        f"{logical_source.lstrip('/')}: {error}"
-                    ) from error
-                if result.returncode != 0:
-                    details = (result.stderr or result.stdout or "").strip()
-                    suffix = f": {details}" if details else ""
-                    raise ProductionCompileError(
-                        f"CupidC failed for {logical_source.lstrip('/')} "
-                        f"with status {result.returncode}{suffix}"
+                    native_snapshot.require_unchanged(
+                        "compiling with native CupidC"
                     )
-                if (
-                    frozen_output.is_symlink()
-                    or not frozen_output.is_file()
-                ):
-                    raise ProductionCompileError(
-                        f"CupidC did not write an object for "
-                        f"{logical_source.lstrip('/')}"
-                    )
-                try:
-                    validate_i386_relocatable(frozen_output)
-                except Exception as error:
-                    raise ProductionCompileError(
-                        f"invalid object for "
-                        f"{logical_source.lstrip('/')}: {error}"
-                    ) from error
-                if _snapshot(closure) != before:
-                    raise ProductionCompileError(
-                        f"production inputs changed while compiling "
-                        f"{logical_source.lstrip('/')}"
-                    )
-                os.replace(frozen_output, output)
+                except NativeToolError as error:
+                    raise ProductionCompileError(str(error)) from error
+            if _snapshot(closure) != before:
+                raise ProductionCompileError(
+                    f"production inputs changed while compiling "
+                    f"{logical_source.lstrip('/')}"
+                )
+            os.replace(frozen_output, output)
     except OSError as error:
         raise ProductionCompileError(
             f"could not publish production object {output}: {error}"
@@ -365,7 +449,7 @@ def compile_production_source(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Compile an approved production source with checked CupidC."
+        description="Compile an approved production source with CupidC."
     )
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument(
@@ -376,6 +460,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument(
+        "--tool-mode",
+        choices=TOOL_MODES,
+        default="auto",
+    )
     parser.add_argument(
         "--timeout",
         type=int,
@@ -393,6 +482,7 @@ def main(argv: list[str] | None = None) -> int:
             arguments.source,
             arguments.output,
             manifest=arguments.manifest,
+            tool_mode=arguments.tool_mode,
             timeout=arguments.timeout,
         )
     except ProductionCompileError as error:

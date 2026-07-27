@@ -206,7 +206,14 @@ static int run_raw_basic(void) {
       "    cmovpo eax, ecx\n"
       "    cmovnge eax, ecx\n"
       "    cmovnl eax, ecx\n"
-      "    cmovng eax, ecx\n";
+      "    cmovng eax, ecx\n"
+      "BITS 16\n"
+      "    imul ax, cx, 0x1234\n"
+      "    imul eax, [bx + si + 0x7f], 0x12345678\n"
+      "BITS 32\n"
+      "    imul eax, ecx, 0x228\n"
+      "    imul esi, [ebx + ecx * 4 + 0x12345678], -7\n"
+      "    imul dx, [ebx + 0x7f], -2\n";
   static const ctool_u8 expected[] = {
       0xebu, 0x03u, 0xb8u, 0x34u, 0x12u, 0x88u,
       0x16u, 0x09u, 0x7cu, 0x00u, 0x55u, 0xaau,
@@ -219,7 +226,12 @@ static int run_raw_basic(void) {
       0x0fu, 0x44u, 0xc1u, 0x0fu, 0x46u, 0xc1u,
       0x0fu, 0x47u, 0xc1u, 0x0fu, 0x4au, 0xc1u,
       0x0fu, 0x4bu, 0xc1u, 0x0fu, 0x4cu, 0xc1u,
-      0x0fu, 0x4du, 0xc1u, 0x0fu, 0x4eu, 0xc1u};
+      0x0fu, 0x4du, 0xc1u, 0x0fu, 0x4eu, 0xc1u,
+      0x69u, 0xc1u, 0x34u, 0x12u,
+      0x66u, 0x69u, 0x40u, 0x7fu, 0x78u, 0x56u, 0x34u, 0x12u,
+      0x69u, 0xc1u, 0x28u, 0x02u, 0x00u, 0x00u,
+      0x6bu, 0xb4u, 0x8bu, 0x78u, 0x56u, 0x34u, 0x12u, 0xf9u,
+      0x66u, 0x6bu, 0x53u, 0x7fu, 0xfeu};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job;
@@ -1198,6 +1210,33 @@ static int run_error_contracts(void) {
           "/cmov-repne.asm", "BITS 32\nrepne cmovne eax, ecx\n", &raw,
           CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
           "/cmov-repne.asm") ||
+      !expect_assembly_failure(
+          "immediate IMUL memory destination", config,
+          "/imul-memory-destination.asm",
+          "BITS 32\nimul dword [eax], ecx, 2\n", &raw,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
+          "/imul-memory-destination.asm") ||
+      !expect_assembly_failure(
+          "immediate IMUL byte operands", config, "/imul-byte.asm",
+          "BITS 32\nimul al, cl, 2\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/imul-byte.asm") ||
+      !expect_assembly_failure(
+          "immediate IMUL width mismatch", config, "/imul-width.asm",
+          "BITS 32\nimul eax, cx, 2\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/imul-width.asm") ||
+      !expect_assembly_failure(
+          "immediate IMUL lock prefix", config, "/imul-lock.asm",
+          "BITS 32\nlock imul eax, ecx, 2\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/imul-lock.asm") ||
+      !expect_assembly_failure(
+          "immediate IMUL repeat prefix", config, "/imul-rep.asm",
+          "BITS 32\nrep imul eax, ecx, 2\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/imul-rep.asm") ||
+      !expect_assembly_failure(
+          "immediate IMUL repeat-not-equal prefix", config,
+          "/imul-repne.asm", "BITS 32\nrepne imul eax, ecx, 2\n", &raw,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
+          "/imul-repne.asm") ||
       !expect_assembly_failure(
           "instruction in bss", config, "/bss-instruction.asm",
           "BITS 32\nsection .bss\nmain: ret\n", &fixed,

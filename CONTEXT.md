@@ -65,8 +65,12 @@ A non-atomic `float` or `double` carried through hosted Linear IR as one logical
 _Avoid_: general floating-point support, an exposed snapshot pointer
 
 **Private compiler control frame**:
-A tagged loop or switch entry used by the in-kernel CupidC emitter. `break` selects the nearest control frame. `continue` selects the nearest loop and removes the saved selector for each switch crossed on the way.
-_Avoid_: loop-only depth stack
+A tagged loop or switch entry used by the in-kernel CupidC emitter. `break` selects the nearest control frame. `continue` selects the nearest loop and removes the saved selector for each switch crossed on the way. The parser accepts 128 active control frames and fails before entering a 129th.
+_Avoid_: loop-only depth stack, silent capacity exhaustion
+
+**Private compiler statement depth**:
+The number of active recursive statement-parser calls in the in-kernel CupidC compiler. The parser accepts 1,024 active calls and rejects the next call before it recurses. A failed REPL evaluation restores this count with the other committed parser state.
+_Avoid_: relying on the terminal task's native stack as a language limit
 
 **Represented bit-field assignment**:
 A plain Cupid C assignment to a non-atomic integer bit field whose declared storage unit is four bytes and fits inside its record. Linear IR retains the graph member, while i386 emission preserves neighboring bits and returns the value represented by the stored field.
@@ -87,6 +91,10 @@ _Avoid_: automatic local, block-static object
 **Block function alias**:
 A lexical block declaration that names a canonical linked function. It owns no storage or runtime work. Uses keep the type visible at the declaration and retain the canonical function identity even when no ordinary file-scope name is visible.
 _Avoid_: nested function, automatic local
+
+**External inline definition**:
+A file-scope function definition whose external declaration set contains `inline` but does not consist entirely of `inline` declarations without `extern`. A prior or later ordinary declaration and an `extern inline` definition with effective external linkage both provide the external definition. An earlier `static` declaration keeps the function internal, even when its definition is spelled `extern inline`. CupidC records the translation-unit result on the canonical binding while the definition keeps its exact source spelling. Any external-linkage function declared `inline` must have a definition in the same translation unit.
+_Avoid_: pure external inline definition, static inline function
 
 **Block typedef**:
 A type alias whose name lives in one C block scope. It keeps a stable frontend type identity, shares the ordinary identifier namespace, and owns no runtime storage.
@@ -125,7 +133,7 @@ All 20 `kernel/crypto` translation units built by checked-seed CupidC in the nor
 _Avoid_: compiler-head frontier, partial crypto cohort
 
 **Production CupidC kernel cohort**:
-The 144 checked-in normal-build translation units owned by checked-seed CupidC, plus the generated kernel symbol-table translation unit. All 145 sources now use `.cc`. The five shared Toolchain roots are also part of the 19-source i386 Linux fixed-point plan; their native GCC and Clang rules select C explicitly with `-x c`. The symbol generator runs private snapshots of the pass-one kernel and CupidDis, validates the complete symbol view, rejects live input drift, and publishes the source atomically. The checked compiler wrapper then freezes that source and its two-header closure before it validates and publishes the data-only object. ADR 0124 records the first 111-root naming transfer, and ADR 0126 completes the fixed-point naming boundary. The strict frontier compiles all 144 checked-in sources twice before atomic publication, and poisoned-host rebuilds and exact recursive header closures cover every recipe. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The renamed graph passes its path snapshot, repeated object comparison, clean image build, two-pass symbol comparison, memory checks, and four-vCPU runtime gate; values in earlier ADRs describe the graphs they measured.
+The 145 checked-in normal-build translation units owned by checked-seed CupidC, plus the generated kernel symbol-table translation unit. All 146 sources use `.cc`. The five shared Toolchain roots are also part of the 19-source i386 Linux fixed-point plan; their native GCC and Clang rules select C explicitly with `-x c`. The symbol generator runs private snapshots of the pass-one kernel and CupidDis, validates the complete symbol view, rejects live input drift, and publishes the source atomically. The checked compiler wrapper then freezes that source and its two-header closure before it validates and publishes the data-only object. ADR 0124 records the first 111-root naming transfer, ADR 0126 completes the fixed-point naming boundary, and ADR 0129 transfers the in-kernel CupidC lexer. The strict frontier compiles all 145 checked-in sources twice before atomic publication, and poisoned-host rebuilds and exact recursive header closures cover every recipe. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The full frontier passes against a 433-file snapshot with SHA-256 `7a3fd38fec7fd220bce1ed18690088f553a7e6e7e7a613f7114a3db55a05c953`; both 145-object passes are byte-identical and total 3,545,724 bytes. The same combined graph passes a clean normal image build and the strong four-vCPU runtime contract through SMP, RDRAND, all 62 crypto checks, e1000, the desktop, terminal, and in-OS CupidC execution.
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Production generated-install cohort**:
@@ -133,7 +141,7 @@ The ramfs program table, homefs document table, and CupidASM demo table generate
 _Avoid_: every generated C file, Python-free generation, kernel source cohort
 
 **Production external-program cohort**:
-The `hello.cc`, `ls.cc`, and `cat.cc` examples compiled by checked-seed CupidC and linked by checked-seed CupidLD. Before compilation, the user build checks the shared i386 syscall contract across the kernel types, table, initializer, VFS, socket, and public user headers. The reviewed contract is version 5 with 103 fields in 412 bytes, a 136-byte directory entry, an 8-byte file status record, and 101 pinned function providers. The build fixes the freestanding user profile, `_start`, and the `[0x00F00000, 0x01100000)` arena, then validates the same ELF program-header rules enforced by the kernel loader. `user/build/` contains ignored local outputs. The guest gate boots each program separately, binds syscall evidence to the loaded PID, checks output by byte count and FNV-1a fingerprint, copies the hostile cat fixture over the normal `/home/readme.txt` path in a private image copy, and requires the same PID to exit cleanly. ADR 0127 records the ABI gate and the corrected VFS record layout.
+The `hello.cc`, `ls.cc`, and `cat.cc` examples compiled by CupidC and linked by CupidLD. Linux runs the checked i386 Linux seed directly. Windows builds and runs native hosted CupidC and CupidLD drivers, captures approved PE32+ images in private snapshots, and requires their six outputs to match the checked seed byte for byte. The native drivers still depend on a host C compiler and Windows linker, so this is not a native Windows fixed point. Before compilation, the user build checks the shared i386 syscall contract across the kernel types, table, initializer, VFS, socket, and public user headers. The reviewed contract is version 5 with 103 fields in 412 bytes, a 136-byte directory entry, an 8-byte file status record, and 101 pinned function providers. The build fixes the freestanding user profile, `_start`, and the `[0x00F00000, 0x01100000)` arena, then validates the same ELF program-header rules enforced by the kernel loader. `user/build/` contains ignored local outputs. The guest gate boots each program separately, binds syscall evidence to the loaded PID, checks output by byte count and FNV-1a fingerprint, copies the hostile cat fixture over the normal `/home/readme.txt` path in a private image copy, and requires the same PID to exit cleanly. ADR 0127 records the ABI gate and corrected VFS record layout. ADR 0130 records the native Windows driver handoff.
 _Avoid_: every external program, hosted GCC examples, user-mode isolation
 
 **Hosted i386 ABI profile**:
@@ -236,6 +244,10 @@ _Avoid_: Cupid disassembler when naming the tool
 The sixteen i686 `CMOVcc` operations represented by one shared x86 encoding and decoding rule. A canonical mnemonic names each condition, while conventional alternative spellings remain aliases.
 _Avoid_: conditional jump, `SETcc`, separate assembler and disassembler definitions
 
+**Immediate multiply family**:
+The three-operand `IMUL` operation represented by the shared `69 /r` full-immediate and `6B /r` sign-extended-immediate encodings. Its destination is a 16-bit or 32-bit register, its source is a same-width register or memory operand, and the encoder chooses the shorter form only when the value fits a signed byte.
+_Avoid_: one-operand multiply, two-operand `IMUL`, decoder-only instruction support
+
 **Raw mode map**:
 An ordered set of borrowed byte ranges that assigns 16-bit or 32-bit x86 decoding to one flat image. The first range starts at offset zero. Later offsets increase within the source, and the caller places each transition at an instruction boundary.
 _Avoid_: automatic mode detection, one mode per retained instruction
@@ -251,7 +263,7 @@ A checked-in Cupid Toolchain executable that starts a bootstrap without an exter
 _Avoid_: oracle toolchain
 
 **Checked i386 Linux bootstrap seed**:
-The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed is the stage-three output of a checked-seed bootstrap at revision `32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`. Its CupidC image is 2,042,976 bytes with SHA-256 `e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`. With all normal host code-generator commands poisoned, all five seed images match stage two; all 19 stage-two C objects, startup, and five images then match stage three. Both stages pass all 21 tool behavior cases over the 40-input snapshot `8afdfbe4917adbe43d0c97a5b158b70220ab7f973b6b6293f284d3dc80a727ba`. The recorded seed revision remains separate from a later live source snapshot.
+The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed is the stage-three output of a checked-seed bootstrap at revision `fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d`. Its CupidC image is 2,080,288 bytes with SHA-256 `e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`. With all normal host code-generator commands poisoned, all five seed images match stage two; all 19 stage-two C objects, startup, and five images then match stage three. Both stages pass all 21 tool behavior cases over the 40-input snapshot `c3aaf91d6133d0382e5ddb7b33cca665a7344fb7f38688c467db2d28a1a82aa4`. The recorded seed revision remains separate from a later live source snapshot.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Bootstrap stage**:

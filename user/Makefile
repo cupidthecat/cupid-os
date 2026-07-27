@@ -4,7 +4,8 @@
 #   make -C user              # Build all example programs
 #   make -C user clean        # Clean all build artifacts
 #
-# Checked CupidC and CupidLD seeds build static i386 ELF executables.
+# CupidC and CupidLD build static i386 ELF executables. Linux runs the checked
+# seed directly, while Windows prepares and runs the native hosted drivers.
 # Stage them at FAT root before a fresh image's first boot to import them into
 # homefs, then run `exec /home/<program>`.  On an already-booted image, staged
 # FAT files appear under `/disk` until copied into `/home` in the guest.
@@ -35,10 +36,12 @@ CHECKED_SEED_INPUTS := ../bootstrap/seeds/i386-linux/manifest.json \
 CUPIDC_PRODUCTION_COMPILE_INPUTS := \
 	../tools/cupidc_production_compile.py \
 	../tools/cupidc_kernel_compile.py \
+	../tools/native_user_toolchain.py \
 	../tools/bootstrap_toolchain.py \
 	$(CHECKED_SEED_INPUTS)
 CUPIDLD_USER_LINK_INPUTS := ../tools/cupidld_user_link.py \
 	../tools/cupidc_kernel_compile.py \
+	../tools/native_user_toolchain.py \
 	../tools/bootstrap_toolchain.py \
 	$(CHECKED_SEED_INPUTS)
 USER_SYSCALL_ABI_INPUTS := ../tools/user_syscall_abi.py \
@@ -53,6 +56,19 @@ USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
 	$(USER_SYSCALL_ABI_INPUTS)
 USER_TEXT_ADDRESS ?= 0x00F00000
 
+ifeq ($(OS),Windows_NT)
+NATIVE_USER_TOOL_GATE := native-user-tools
+USER_FRONTIER_COMPARISON := --compare-checked-seed
+
+# The Windows user build runs the native Cupid drivers. Their host build is
+# explicit until CupidC can emit a self-hosted Windows executable.
+native-user-tools:
+	$(MAKE) -C ../toolchain build/cupidc.exe build/cupidld.exe
+else
+NATIVE_USER_TOOL_GATE :=
+USER_FRONTIER_COMPARISON :=
+endif
+
 # List of programs to build
 PROGRAMS = hello ls cat
 
@@ -62,7 +78,7 @@ USER_SOURCES := $(addprefix examples/,$(addsuffix .cc,$(PROGRAMS)))
 USER_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix .o,$(PROGRAMS)))
 BOOTSTRAP_ARTIFACTS := $(addprefix $(BUILD)/,$(PROGRAMS))
 
-all: test-syscall-abi $(BUILD) $(BOOTSTRAP_ARTIFACTS)
+all: test-syscall-abi $(NATIVE_USER_TOOL_GATE) $(BUILD) $(BOOTSTRAP_ARTIFACTS)
 
 .PRECIOUS: $(USER_OBJECTS) $(BOOTSTRAP_ARTIFACTS)
 .SECONDARY: $(USER_OBJECTS)
@@ -70,11 +86,11 @@ all: test-syscall-abi $(BUILD) $(BOOTSTRAP_ARTIFACTS)
 $(BUILD):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
 
-$(BUILD)/%: $(BUILD)/%.o $(CUPIDLD_USER_LINK_INPUTS) Makefile
+$(BUILD)/%: $(BUILD)/%.o $(CUPIDLD_USER_LINK_INPUTS) Makefile $(NATIVE_USER_TOOL_GATE)
 	$(CUPIDLD_USER_LINK) --input user/$< --output user/$@ \
 		--text-address $(USER_TEXT_ADDRESS) --entry _start
 
-$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile | $(BUILD) test-syscall-abi
+$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile $(NATIVE_USER_TOOL_GATE) | $(BUILD) test-syscall-abi
 	$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@
 
 test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile
@@ -82,7 +98,14 @@ test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile
 
 test-cupidc-frontier: all test-syscall-abi $(USER_SOURCES) cupid.h $(USER_FRONTIER_INPUTS) Makefile
 	$(PYTHON) ../tools/cupidc_production_frontier.py \
-		--root .. --cohort user
+		--root .. --cohort user $(USER_FRONTIER_COMPARISON)
+
+ifeq ($(OS),Windows_NT)
+test-native-windows-equivalence: test-cupidc-frontier
+else
+test-native-windows-equivalence:
+	$(PYTHON) -c "raise SystemExit('The native Windows equivalence check requires Windows.')"
+endif
 
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD)', ignore_errors=True)"
@@ -90,4 +113,4 @@ clean:
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
-.PHONY: all clean print-bootstrap-artifacts test-cupidc-frontier test-syscall-abi
+.PHONY: all clean native-user-tools print-bootstrap-artifacts test-cupidc-frontier test-native-windows-equivalence test-syscall-abi

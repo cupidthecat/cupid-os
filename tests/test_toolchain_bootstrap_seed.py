@@ -250,7 +250,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 frozen.manifest["build_plan_sha256"],
-                "7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0",
+                "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc",
             )
             self.assertNotEqual(
                 frozen.tools["cupidc"].read_bytes(),
@@ -260,7 +260,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41",
+                "e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -633,12 +633,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb",
+                "fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
                 report["build_plan_sha256"],
-                "7fa10ec56ee33b3e3fbc6d2320a6338909cd51c0fcf9c6f9170acb1081f50ec0",
+                "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc",
             )
             self.assertEqual(
                 report["comparisons"],

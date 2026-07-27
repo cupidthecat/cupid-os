@@ -129,7 +129,7 @@ byte-identical stage-three startup. The complete seed build also compares all
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static
 Linux tools through WSL. Native contract runners, hosted development commands,
-and 94 normal Cupid OS root objects still use a host compiler.
+and 93 normal Cupid OS root objects still use a host compiler.
 
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.
@@ -173,7 +173,7 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The shared x86 catalogue has 579 rows, 242 canonical mnemonics, and 64
+The shared x86 catalogue has 583 rows, 242 canonical mnemonics, and 64
 register names. The active-source contracts cover every instruction in all 22
 demos and the four boot/kernel assembly sources. Common families include:
 - mov, lea, xchg
@@ -187,6 +187,9 @@ demos and the four boot/kernel assembly sources. Common families include:
 - jcc aliases including parity aliases: jp/jpe and jnp/jpo
 - all sixteen i686 conditional moves with 16-bit or 32-bit register and memory
   sources, plus conventional aliases
+- three-operand IMUL with a 16-bit or 32-bit register destination, a
+  same-width register or memory source, and either a full or signed-byte
+  immediate
 - privileged/system opcodes: lgdt/lidt/sgdt/sidt, invlpg, ltr/str/sldt,
   smsw/lmsw, cpuid, rdtsc, rdmsr/wrmsr, wbinvd/invd, clts,
   sysenter/sysexit/syscall, iretd/retf

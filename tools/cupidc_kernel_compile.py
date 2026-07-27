@@ -178,6 +178,7 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "kernel/gui/ed.cc",
     "kernel/lang/as.cc",
     "kernel/lang/cupidc.cc",
+    "kernel/lang/cupidc_lex.cc",
     "kernel/lang/cupidc_parse.cc",
     "kernel/lang/cupidc_string.cc",
     "kernel/lang/ssh_io.cc",

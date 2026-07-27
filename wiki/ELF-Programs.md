@@ -1,9 +1,11 @@
 # ELF Programs
 
-CupidOS loads and runs static **ELF32 i386** executables. The checked CupidC
-seed compiles the three repository examples, and the checked CupidLD seed
-links them. Programs run as ring-0 kernel threads and receive a **syscall
-table**, a struct of function pointers passed to `_start()`.
+Cupid OS loads and runs static **ELF32 i386** executables. CupidC compiles the
+three repository examples, and CupidLD links them. Linux runs the checked
+i386 Linux seed directly. Windows runs native hosted CupidC and CupidLD
+drivers and requires their output to match the checked seed. Programs run as
+ring-0 kernel threads and receive a **syscall table**, a struct of function
+pointers passed to `_start()`.
 
 ---
 
@@ -37,11 +39,19 @@ make -C user
 
 # Verify the deterministic object and executable frontier:
 make test-user-cupidc-frontier
+
+# On Windows, compare every native result with the checked seed:
+make test-user-native-windows-equivalence
 ```
+
+The Windows build prepares the native drivers with Clang and its native
+linker, then runs the drivers without WSL. This is a native user build, but it
+is not a Windows self-hosting fixed point. A Cupid-built Windows runtime and
+PE/COFF executable output remain open.
 
 ### 3. Deploy to Disk
 
-Build the image and stage the checked executables at the FAT16 root:
+Build the image and stage the validated executables at the FAT16 root:
 
 ```bash
 # Build a fresh, never-booted image
@@ -57,9 +67,9 @@ The checked build is deliberately closed over `hello.cc`, `ls.cc`, and
 `cat.cc`. Adding another build-time ELF program means adding it to the
 `user/Makefile` program list and the production allowlist, then extending the
 frontier tests. This keeps a changed source or tool from bypassing the checked
-seed and ELF validators.
+tool snapshot and ELF validators.
 
-### 4. Run in CupidOS
+### 4. Run in Cupid OS
 
 ```
 /home> exec /home/hello
@@ -109,7 +119,7 @@ Hello from an ELF program!
 
 ### Memory Model
 
-CupidOS uses a **flat 512 MB identity-mapped** address space. The loader places ELF segments at the virtual addresses in their program headers without address translation.
+Cupid OS uses a **flat 512 MB identity-mapped** address space. The loader places ELF segments at the virtual addresses in their program headers without address translation.
 
 ```
 Physical / Virtual Memory (512 MB identity-mapped):
@@ -133,7 +143,7 @@ arena and loads at the same address.
 
 ### Syscall Table
 
-Since CupidOS runs everything in ring 0 (TempleOS-style), there is no privilege boundary. Instead of traditional `int 0x80` syscalls, the kernel passes a **function pointer table** directly to each ELF program. The program calls kernel functions through this table.
+Since Cupid OS runs everything in ring 0 (TempleOS-style), there is no privilege boundary. Instead of traditional `int 0x80` syscalls, the kernel passes a **function pointer table** directly to each ELF program. The program calls kernel functions through this table.
 
 ```c
 void _start(cupid_syscall_table_t *sys) {
@@ -190,6 +200,9 @@ The provided `user/Makefile` builds all example programs:
 make -C user          # Build all programs
 make -C user clean    # Clean build artifacts
 ```
+
+On Windows, the first command prepares and runs the native hosted CupidC and
+CupidLD drivers. On Linux, it runs the checked seed directly.
 
 To add a new program:
 
@@ -575,7 +588,7 @@ programs before staging them instead of committing local executables.
 On an already-booted image these staged files are visible under `/disk`; copy
 them into `/home` in the guest if persistent homefs placement is required.
 
-Then in CupidOS:
+Then in Cupid OS:
 
 ```
 /home> exec /home/hello

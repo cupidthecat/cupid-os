@@ -1590,6 +1590,19 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "the active integer mask helper changed", active_integer_mask,
              NULL) &&
          active_source_contains(
+             job, "/kernel/audio/nuked_opl3.h",
+             "load active Nuked OPL3 header",
+             "the active Nuked OPL3 declaration changed",
+             "void OPL3_Generate4Ch(opl3_chip *chip, int16_t *buf4);",
+             NULL) &&
+         active_source_contains(
+             job, "/kernel/audio/nuked_opl3.c",
+             "load active Nuked OPL3 source",
+             "the active Nuked OPL3 inline definition changed",
+             "inline void OPL3_Generate4Ch(opl3_chip *chip, int16_t "
+             "*buf4)",
+             NULL) &&
+         active_source_contains(
              job, "/kernel/core/kernel.c",
              "load active CPU frequency source",
              "the active CPU frequency helper changed",
@@ -1959,6 +1972,59 @@ static int symbol_matches(const ctool_elf32_symbol_t *symbol,
                  symbol->placement == placement &&
                  symbol->section_file_index == section_file_index &&
                  symbol->value == value && symbol->size == size
+             ? 1
+             : 0;
+}
+
+static int validate_external_definition_inline_object(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_elf32_object_t *object) {
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_binding_t *binding;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_symbol_t *symbol;
+  ctool_u32 declaration_only = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  if (unit == NULL || object == NULL ||
+      unit->function_definition_count != 1u) {
+    return 0;
+  }
+  for (index = 0u; index < unit->binding_count; index++) {
+    if (string_equal(unit->bindings[index].name,
+                     "declaration_only") != 0) {
+      declaration_only = index;
+      break;
+    }
+  }
+  text = find_section(object, ".text");
+  symbol = find_symbol(object, "external_definition_inline");
+  definition = &unit->function_definitions[0];
+  if (definition->binding >= unit->binding_count) {
+    return 0;
+  }
+  binding = &unit->bindings[definition->binding];
+  return string_equal(binding->name, "external_definition_inline") != 0 &&
+                 binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+                 binding->function_declaration_flags ==
+                     (CTOOL_C_FUNCTION_DECL_INLINE |
+                      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) &&
+                 definition->storage == CTOOL_C_STORAGE_NONE &&
+                 definition->function_declaration_flags ==
+                     CTOOL_C_FUNCTION_DECL_INLINE &&
+                 declaration_only != CTOOL_C_AST_NONE &&
+                 unit->bindings[declaration_only].linkage ==
+                     CTOOL_C_LINKAGE_EXTERNAL &&
+                 unit->bindings[declaration_only].function_declaration_flags ==
+                     0u &&
+                 text != (const ctool_elf32_section_t *)0 &&
+                 symbol != (const ctool_elf32_symbol_t *)0 &&
+                 symbol->binding == CTOOL_ELF32_BIND_GLOBAL &&
+                 symbol->type == CTOOL_ELF32_SYMBOL_FUNCTION &&
+                 symbol->visibility == CTOOL_ELF32_VIS_DEFAULT &&
+                 symbol->placement == CTOOL_ELF32_SYMBOL_DEFINED &&
+                 symbol->section_file_index == text->file_index &&
+                 symbol->size != 0u && symbol->value <= text->contents.size &&
+                 symbol->size <= text->contents.size - symbol->value
              ? 1
              : 0;
 }
@@ -6858,6 +6924,10 @@ static int run_static_data(const char *host_root) {
       "int set_both(int value) { return first_state = second_state = value; }\n";
   static const char external_inline_text[] =
       "inline int external_inline(void) { return 1; }\n";
+  static const char external_definition_inline_text[] =
+      "int external_definition_inline(void);\n"
+      "inline int external_definition_inline(void) { return 7; }\n"
+      "int declaration_only(void);\n";
   static const char external_object_text[] =
       "extern unsigned int external_clock;\n"
       "unsigned int read_external_clock(void) { return external_clock; }\n";
@@ -6923,8 +6993,10 @@ static int run_static_data(const char *host_root) {
   ctool_c_translation_unit_t wide_selection_unit;
   ctool_c_translation_unit_t wide_logical_not_unit;
   ctool_c_translation_unit_t external_inline_unit;
+  ctool_c_translation_unit_t external_definition_inline_unit;
   ctool_c_translation_unit_t layout_unit;
   ctool_c_translation_unit_t invalid_unit;
+  ctool_c_binding_t *invalid_inline_bindings = NULL;
   ctool_c_object_definition_t *invalid_definitions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
@@ -7000,6 +7072,8 @@ static int run_static_data(const char *host_root) {
   ctool_u32 bit_field_object_size = 0u;
   ctool_u8 *chained_assignment_object = NULL;
   ctool_u32 chained_assignment_object_size = 0u;
+  ctool_u8 *external_definition_inline_object = NULL;
+  ctool_u32 external_definition_inline_object_size = 0u;
   ctool_status_t status;
   size_t invalid_binding_bytes;
   size_t invalid_definition_bytes;
@@ -7008,6 +7082,7 @@ static int run_static_data(const char *host_root) {
   size_t invalid_element_bytes;
   ctool_u32 diagnostic_count;
   ctool_u32 definition_index;
+  ctool_u32 inline_declaration_binding = CTOOL_C_AST_NONE;
   ctool_u32 duplicate_initializer = CTOOL_C_AST_NONE;
   ctool_u32 initializer_index;
   ctool_u32 expression_index;
@@ -7064,6 +7139,8 @@ static int run_static_data(const char *host_root) {
   (void)memset(&wide_logical_not_unit, 0,
                sizeof(wide_logical_not_unit));
   (void)memset(&external_inline_unit, 0, sizeof(external_inline_unit));
+  (void)memset(&external_definition_inline_unit, 0,
+               sizeof(external_definition_inline_unit));
   (void)memset(&layout_unit, 0, sizeof(layout_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
   (void)memset(&function_snapshot, 0, sizeof(function_snapshot));
@@ -8685,6 +8762,123 @@ static int run_static_data(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_EXPRESSION,
           "CupidC IR lowering does not yet support this expression",
           "unsupported function expression") ||
+      !parse_source(job, "/external-definition-inline.c",
+                    external_definition_inline_text,
+                    &external_definition_inline_unit) ||
+      !expect_object_success_preserves_unit(
+          job, &external_definition_inline_unit, second,
+          "external-definition inline object")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(second);
+  external_definition_inline_object_size = bytes.size;
+  external_definition_inline_object =
+      (ctool_u8 *)malloc((size_t)external_definition_inline_object_size);
+  if (external_definition_inline_object == NULL) {
+    (void)fprintf(
+        stderr,
+        "external-definition inline object snapshot allocation failed\n");
+    goto cleanup;
+  }
+  (void)memcpy(external_definition_inline_object, bytes.data,
+               (size_t)bytes.size);
+  object_source.path.text =
+      ctool_string("/external-definition-inline.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read external-definition inline object") ||
+      !validate_external_definition_inline_object(
+          &external_definition_inline_unit, &object)) {
+    (void)fprintf(stderr,
+                  "external-definition inline object metadata differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (copy_array(external_definition_inline_unit.bindings,
+                 external_definition_inline_unit.binding_count,
+                 sizeof(*external_definition_inline_unit.bindings),
+                 (void **)&invalid_inline_bindings) == 0) {
+    (void)fprintf(stderr,
+                  "external-definition inline invalid binding copy failed\n");
+    goto cleanup;
+  }
+  invalid_unit = external_definition_inline_unit;
+  invalid_unit.bindings = invalid_inline_bindings;
+  inline_declaration_binding =
+      external_definition_inline_unit.function_definitions[0].binding;
+  invalid_inline_bindings[inline_declaration_binding]
+      .function_declaration_flags =
+      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "external-definition inline metadata without inline")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_inline_bindings,
+               external_definition_inline_unit.bindings,
+               (size_t)external_definition_inline_unit.binding_count *
+                   sizeof(*invalid_inline_bindings));
+  inline_declaration_binding = CTOOL_C_AST_NONE;
+  for (definition_index = 0u;
+       definition_index <
+       external_definition_inline_unit.binding_count;
+       definition_index++) {
+    if (string_equal(
+            external_definition_inline_unit
+                .bindings[definition_index]
+                .name,
+            "declaration_only") != 0) {
+      inline_declaration_binding = definition_index;
+      break;
+    }
+  }
+  if (inline_declaration_binding == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  invalid_inline_bindings[inline_declaration_binding]
+      .function_declaration_flags = CTOOL_C_FUNCTION_DECL_INLINE;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "external inline declaration metadata without a definition")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_inline_bindings,
+               external_definition_inline_unit.bindings,
+               (size_t)external_definition_inline_unit.binding_count *
+                   sizeof(*invalid_inline_bindings));
+  invalid_inline_bindings[inline_declaration_binding]
+      .function_declaration_flags =
+      CTOOL_C_FUNCTION_DECL_INLINE |
+      CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, second, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "external-definition metadata without a definition") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &external_definition_inline_unit, second,
+          "external-definition inline object recovery")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(second);
+  if (bytes.size != external_definition_inline_object_size ||
+      memcmp(bytes.data, external_definition_inline_object,
+             (size_t)bytes.size) != 0) {
+    (void)fprintf(stderr,
+                  "external-definition inline emission is not "
+                  "deterministic\n");
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
       !parse_source(job, "/wide-selection.c", wide_selection_text,
                      &wide_selection_unit) ||
       !expect_object_success_preserves_unit(
@@ -8747,9 +8941,9 @@ static int run_static_data(const char *host_root) {
       !expect_object_failure(
           job, &external_inline_unit, second, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_EXTERNAL_INLINE,
-          "CupidC IR lowering requires external-inline finalization before "
-          "lowering this definition",
-          "external inline object") ||
+          "CupidC IR lowering does not yet emit a pure external inline "
+          "definition",
+          "pure external inline object") ||
       !expect_object_failure(job, &function_unit, limited, CTOOL_ERR_LIMIT,
                              CTOOL_C_EMIT_DIAG_LIMIT, NULL,
                              "limited function object")) {
@@ -9019,6 +9213,7 @@ static int run_static_data(const char *host_root) {
 
 cleanup:
   free(unsupported_expressions);
+  free(invalid_inline_bindings);
   free(invalid_elements);
   free(invalid_layout_initializers);
   free(invalid_bindings);
@@ -9046,6 +9241,7 @@ cleanup:
   free(file_member_object);
   free(bit_field_object);
   free(chained_assignment_object);
+  free(external_definition_inline_object);
   dispose_unit_snapshot(&layout_snapshot);
   dispose_unit_snapshot(&bit_field_snapshot);
   dispose_unit_snapshot(&file_member_snapshot);
@@ -25359,21 +25555,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 210u, 224u, 332u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 211u, 225u, 334u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 406411u, 377405u, 679950u, 139612u, 70368u, 77981u,
+      190304u, 407513u, 378521u, 682521u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 434156u, 406500u, 805600u, 157796u, 79348u, 131640u,
+      226668u, 435300u, 407676u, 808516u, 157796u, 79348u, 131848u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x263f978bu, 0xeb15e46fu, 0x365ad44cu, 0x3f69aac3u,
-      0x34558a49u, 0x7dcb4208u, 0x8774de7du};
+      0xa6848d3bu, 0x184d3a2fu, 0x167b0dedu, 0x3f69aac3u,
+      0x34558a49u, 0x20934327u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   for (index = 0u; index <
@@ -30986,7 +31182,7 @@ static int run_register_snapshot_assembly_object(
       "  return value;\n"
       "}\n";
   static const ctool_u32 invalid_template_assemblies[] = {
-      0u, 0u, 0u, 0u, 0u, 0u, 9u, 10u, 10u, 11u, 11u, 10u};
+      0u, 0u, 0u, 0u, 0u, 0u, 9u, 10u, 10u, 11u, 11u};
   static const char *const invalid_templates[] = {
       "movw %%esp, %0",
       "movl %0, %%esp",
@@ -30998,8 +31194,7 @@ static int run_register_snapshot_assembly_object(
       "pushfl; popw %0",
       "pushfl popl %0",
       "pushf; pop %0; sti",
-      "pushf; pop %0; cli; nop",
-      "call 1f; 1: popl %0"};
+      "pushf; pop %0; cli; nop"};
   static const char *const invalid_template_contexts[] = {
       "word register snapshot",
       "reversed register snapshot",
@@ -31011,8 +31206,7 @@ static int run_register_snapshot_assembly_object(
       "word flags destination",
       "flags snapshot without an instruction separator",
       "flags snapshot followed by STI",
-      "flags snapshot with a trailing instruction",
-      "local-label instruction pointer snapshot"};
+      "flags snapshot with a trailing instruction"};
   static const char extra_output_source[] =
       "void bad(void) {\n"
       "  unsigned first;\n"
@@ -31547,6 +31741,20 @@ static int run_call_next_assembly_object(const char *host_root) {
   }
 
   mutant = unit;
+  mutant_assembly = unit.assemblies[0];
+  mutant_assembly.template_text =
+      ctool_string("call 1f; 1: popl %0");
+  mutant.assemblies = &mutant_assembly;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "call-next assembly with a noncanonical separator") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
   mutant_assembly = unit.assemblies[0];
   mutant_assembly.template_text =
       ctool_string("nop; call 1f\n1: popl %0");

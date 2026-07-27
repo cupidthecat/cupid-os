@@ -4837,6 +4837,15 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   cc_expect(cc, CC_TOK_SEMICOLON);
 }
 
+static cc_token_type_t cc_statement_token_type(cc_state_t *cc) {
+  cc_token_t tok = cc_peek(cc);
+  return tok.type;
+}
+
+static void cc_consume_statement_keyword(cc_state_t *cc) {
+  cc_next(cc);
+}
+
 static void cc_parse_if(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_LPAREN);
   cc_parse_expression(cc, 1);
@@ -4848,7 +4857,7 @@ static void cc_parse_if(cc_state_t *cc) {
 
   cc_parse_statement(cc);
 
-  if (cc_peek(cc).type == CC_TOK_ELSE) {
+  if (cc_statement_token_type(cc) == CC_TOK_ELSE) {
     cc_next(cc);
     uint32_t end_patch = emit_jmp_placeholder(cc);
     patch_jump(cc, else_patch);
@@ -4859,17 +4868,39 @@ static void cc_parse_if(cc_state_t *cc) {
   }
 }
 
+static int cc_begin_control(cc_state_t *cc, cc_control_kind_t kind,
+                            uint32_t continue_target) {
+  int depth = cc->control_depth;
+
+  if (depth >= CC_MAX_CONTROL_DEPTH) {
+    cc_error(cc, "control nesting too deep");
+    return 0;
+  }
+
+  cc->break_counts[depth] = 0;
+  cc->control_kinds[depth] = kind;
+  cc->continue_targets[depth] = continue_target;
+  cc->control_depth = depth + 1;
+  return 1;
+}
+
+static void cc_finish_control(cc_state_t *cc, int depth) {
+  if (depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > depth) {
+    for (int i = 0; i < cc->break_counts[depth]; i++) {
+      patch_jump(cc, cc->break_patches[depth][i]);
+    }
+    cc->break_counts[depth] = 0;
+  }
+  cc->control_depth = depth;
+}
+
 static void cc_parse_while(cc_state_t *cc) {
   uint32_t loop_start = cc->code_pos;
 
   /* Push loop context */
   int old_depth = cc->control_depth;
-  if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
-    cc->break_counts[cc->control_depth] = 0;
-    cc->control_kinds[cc->control_depth] = CC_CONTROL_LOOP;
-    cc->continue_targets[cc->control_depth] = loop_start;
-    cc->control_depth++;
-  }
+  if (!cc_begin_control(cc, CC_CONTROL_LOOP, loop_start))
+    return;
 
   cc_expect(cc, CC_TOK_LPAREN);
   cc_parse_expression(cc, 1);
@@ -4888,19 +4919,10 @@ static void cc_parse_while(cc_state_t *cc) {
   patch_jump(cc, exit_patch);
 
   /* Patch all break targets */
-  if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
-    for (int i = 0; i < cc->break_counts[old_depth]; i++) {
-      patch_jump(cc, cc->break_patches[old_depth][i]);
-    }
-    cc->break_counts[old_depth] = 0;
-  }
-  cc->control_depth = old_depth;
+  cc_finish_control(cc, old_depth);
 }
 
-static void cc_parse_for(cc_state_t *cc) {
-  cc_expect(cc, CC_TOK_LPAREN);
-
-  /* Initializer */
+static void cc_parse_for_initializer(cc_state_t *cc) {
   if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
     if (cc_is_type_or_typedef(cc, cc_peek(cc))) {
       cc_type_t type = cc_parse_type(cc);
@@ -4923,34 +4945,9 @@ static void cc_parse_for(cc_state_t *cc) {
   } else {
     cc_next(cc); /* consume ';' */
   }
+}
 
-  uint32_t cond_start = cc->code_pos;
-
-  /* Push loop context */
-  int old_depth = cc->control_depth;
-
-  /* Condition */
-  uint32_t exit_patch = 0;
-  if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
-    cc_parse_expression(cc, 1);
-    emit_cmp_eax_zero(cc);
-    exit_patch = emit_jcc_placeholder(cc, 0x84); /* je */
-  }
-  cc_expect(cc, CC_TOK_SEMICOLON);
-
-  /* Save increment expression position - we'll emit a jmp over it */
-  uint32_t inc_jump = emit_jmp_placeholder(cc);
-  uint32_t inc_start = cc->code_pos;
-
-  /* Set continue target to increment */
-  if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
-    cc->break_counts[cc->control_depth] = 0;
-    cc->control_kinds[cc->control_depth] = CC_CONTROL_LOOP;
-    cc->continue_targets[cc->control_depth] = inc_start;
-    cc->control_depth++;
-  }
-
-  /* Increment */
+static void cc_parse_for_increment(cc_state_t *cc) {
   if (cc_peek(cc).type != CC_TOK_RPAREN) {
     cc_token_t id = cc_next(cc);
     if (id.type == CC_TOK_IDENT && cc_is_assignment_op(cc_peek(cc).type)) {
@@ -4991,6 +4988,39 @@ static void cc_parse_for(cc_state_t *cc) {
       cc_parse_expression(cc, 1);
     }
   }
+}
+
+static void cc_parse_for(cc_state_t *cc) {
+  cc_expect(cc, CC_TOK_LPAREN);
+  int old_depth = cc->control_depth;
+  if (old_depth >= CC_MAX_CONTROL_DEPTH) {
+    cc_error(cc, "control nesting too deep");
+    return;
+  }
+
+  cc_parse_for_initializer(cc);
+
+  uint32_t cond_start = cc->code_pos;
+
+  /* Push loop context */
+  /* Condition */
+  uint32_t exit_patch = 0;
+  if (cc_statement_token_type(cc) != CC_TOK_SEMICOLON) {
+    cc_parse_expression(cc, 1);
+    emit_cmp_eax_zero(cc);
+    exit_patch = emit_jcc_placeholder(cc, 0x84); /* je */
+  }
+  cc_expect(cc, CC_TOK_SEMICOLON);
+
+  /* Save increment expression position - we'll emit a jmp over it */
+  uint32_t inc_jump = emit_jmp_placeholder(cc);
+  uint32_t inc_start = cc->code_pos;
+
+  /* Set continue target to increment */
+  if (!cc_begin_control(cc, CC_CONTROL_LOOP, inc_start))
+    return;
+
+  cc_parse_for_increment(cc);
   cc_expect(cc, CC_TOK_RPAREN);
 
   /* Jump back to condition */
@@ -5019,13 +5049,7 @@ static void cc_parse_for(cc_state_t *cc) {
   }
 
   /* Patch all break targets */
-  if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
-    for (int i = 0; i < cc->break_counts[old_depth]; i++) {
-      patch_jump(cc, cc->break_patches[old_depth][i]);
-    }
-    cc->break_counts[old_depth] = 0;
-  }
-  cc->control_depth = old_depth;
+  cc_finish_control(cc, old_depth);
 }
 
 static void cc_parse_return(cc_state_t *cc) {
@@ -5048,7 +5072,153 @@ static void cc_parse_return(cc_state_t *cc) {
   emit_epilogue(cc);
 }
 
+static void cc_parse_do(cc_state_t *cc) {
+  /* The condition follows the body, so continue uses a patched trampoline. */
+  uint32_t body_entry_patch = emit_jmp_placeholder(cc);
+  uint32_t continue_target = cc->code_pos;
+  uint32_t condition_patch = emit_jmp_placeholder(cc);
+  uint32_t loop_start = cc->code_pos;
+  int old_depth = cc->control_depth;
+
+  patch_jump(cc, body_entry_patch);
+  if (!cc_begin_control(cc, CC_CONTROL_LOOP, continue_target))
+    return;
+
+  cc_parse_statement(cc);
+  if (!cc->error) {
+    cc_expect(cc, CC_TOK_WHILE);
+    cc_expect(cc, CC_TOK_LPAREN);
+    patch_jump(cc, condition_patch);
+    cc_parse_expression(cc, 1);
+    cc_expect(cc, CC_TOK_RPAREN);
+    cc_expect(cc, CC_TOK_SEMICOLON);
+    emit_cmp_eax_zero(cc);
+    emit8(cc, 0x0F);
+    emit8(cc, 0x85); /* jne rel32 */
+    {
+      int32_t rel = (int32_t)(loop_start - (cc->code_pos + 4));
+      emit32(cc, (uint32_t)rel);
+    }
+  }
+
+  cc_finish_control(cc, old_depth);
+}
+
+static void cc_parse_switch(cc_state_t *cc) {
+  int old_depth = cc->control_depth;
+  uint32_t next_case_patch = 0;
+  int had_default = 0;
+
+  if (!cc_begin_control(cc, CC_CONTROL_SWITCH, 0))
+    return;
+
+  cc_expect(cc, CC_TOK_LPAREN);
+  cc_parse_expression(cc, 1);
+  cc_expect(cc, CC_TOK_RPAREN);
+  emit_push_eax(cc);
+  cc_expect(cc, CC_TOK_LBRACE);
+
+  while (!cc->error && cc_statement_token_type(cc) != CC_TOK_RBRACE &&
+         cc_statement_token_type(cc) != CC_TOK_EOF) {
+    if (cc_statement_token_type(cc) == CC_TOK_CASE) {
+      cc_next(cc);
+      if (next_case_patch)
+        patch_jump(cc, next_case_patch);
+
+      emit8(cc, 0x8B);
+      emit8(cc, 0x04);
+      emit8(cc, 0x24); /* mov eax, [esp] */
+      {
+        cc_token_t cval = cc_next(cc);
+        if (cval.type == CC_TOK_NUMBER || cval.type == CC_TOK_CHAR_LIT) {
+          emit8(cc, 0x3D); /* cmp eax, imm32 */
+          emit32(cc, (uint32_t)cval.int_value);
+        } else {
+          cc_error(cc, "case: expected constant");
+          break;
+        }
+      }
+      cc_expect(cc, CC_TOK_COLON);
+      next_case_patch = emit_jcc_placeholder(cc, 0x85); /* jne */
+      while (!cc->error && cc_statement_token_type(cc) != CC_TOK_CASE &&
+             cc_statement_token_type(cc) != CC_TOK_DEFAULT &&
+             cc_statement_token_type(cc) != CC_TOK_RBRACE &&
+             cc_statement_token_type(cc) != CC_TOK_EOF) {
+        cc_parse_statement(cc);
+      }
+    } else if (cc_statement_token_type(cc) == CC_TOK_DEFAULT) {
+      cc_next(cc);
+      cc_expect(cc, CC_TOK_COLON);
+      if (next_case_patch)
+        patch_jump(cc, next_case_patch);
+      next_case_patch = 0;
+      had_default = 1;
+      while (!cc->error && cc_statement_token_type(cc) != CC_TOK_CASE &&
+             cc_statement_token_type(cc) != CC_TOK_RBRACE &&
+             cc_statement_token_type(cc) != CC_TOK_EOF) {
+        cc_parse_statement(cc);
+      }
+    } else {
+      cc_error(cc, "expected case or default");
+    }
+  }
+
+  if (!cc->error) {
+    cc_expect(cc, CC_TOK_RBRACE);
+    if (next_case_patch && !had_default)
+      patch_jump(cc, next_case_patch);
+    emit_add_esp(cc, 4);
+  }
+  cc_finish_control(cc, old_depth);
+}
+
+static void cc_parse_simple_statement(cc_state_t *cc);
+
 static void cc_parse_statement(cc_state_t *cc) {
+  cc_token_type_t type;
+
+  if (cc->error)
+    return;
+  if (cc->statement_depth >= CC_MAX_STATEMENT_DEPTH) {
+    cc_error(cc, "statement nesting too deep");
+    return;
+  }
+
+  cc->statement_depth++;
+  type = cc_statement_token_type(cc);
+  switch (type) {
+  case CC_TOK_IF:
+    cc_consume_statement_keyword(cc);
+    cc_parse_if(cc);
+    break;
+  case CC_TOK_WHILE:
+    cc_consume_statement_keyword(cc);
+    cc_parse_while(cc);
+    break;
+  case CC_TOK_FOR:
+    cc_consume_statement_keyword(cc);
+    cc_parse_for(cc);
+    break;
+  case CC_TOK_DO:
+    cc_consume_statement_keyword(cc);
+    cc_parse_do(cc);
+    break;
+  case CC_TOK_SWITCH:
+    cc_consume_statement_keyword(cc);
+    cc_parse_switch(cc);
+    break;
+  case CC_TOK_LBRACE:
+    cc_consume_statement_keyword(cc);
+    cc_parse_block(cc);
+    break;
+  default:
+    cc_parse_simple_statement(cc);
+    break;
+  }
+  cc->statement_depth--;
+}
+
+static void cc_parse_simple_statement(cc_state_t *cc) {
   if (cc->error)
     return;
 
@@ -5129,152 +5299,6 @@ static void cc_parse_statement(cc_state_t *cc) {
   }
 
   switch (tok.type) {
-  case CC_TOK_IF:
-    cc_next(cc);
-    cc_parse_if(cc);
-    break;
-
-  case CC_TOK_WHILE:
-    cc_next(cc);
-    cc_parse_while(cc);
-    break;
-
-  case CC_TOK_FOR:
-    cc_next(cc);
-    cc_parse_for(cc);
-    break;
-
-  case CC_TOK_DO: {
-    /* do { body } while (cond); */
-    cc_next(cc);
-    /* The condition follows the body in source, so its code address is not
-     * known when a continue inside the body is emitted. Enter the body by
-     * jumping over a small trampoline. Continue targets the trampoline,
-     * whose jump is patched to the condition once the body is complete. */
-    uint32_t body_entry_patch = emit_jmp_placeholder(cc);
-    uint32_t continue_target = cc->code_pos;
-    uint32_t condition_patch = emit_jmp_placeholder(cc);
-    uint32_t loop_start = cc->code_pos;
-    patch_jump(cc, body_entry_patch);
-    int old_depth = cc->control_depth;
-    if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
-      cc->break_counts[cc->control_depth] = 0;
-      cc->control_kinds[cc->control_depth] = CC_CONTROL_LOOP;
-      cc->continue_targets[cc->control_depth] = continue_target;
-      cc->control_depth++;
-    }
-    cc_parse_statement(cc);
-    cc_expect(cc, CC_TOK_WHILE);
-    cc_expect(cc, CC_TOK_LPAREN);
-    patch_jump(cc, condition_patch);
-    cc_parse_expression(cc, 1);
-    cc_expect(cc, CC_TOK_RPAREN);
-    cc_expect(cc, CC_TOK_SEMICOLON);
-    /* If condition is true (non-zero), jump back to loop_start */
-    emit_cmp_eax_zero(cc);
-    emit8(cc, 0x0F);
-    emit8(cc, 0x85); /* jne rel32 */
-    {
-      int32_t rel = (int32_t)(loop_start - (cc->code_pos + 4));
-      emit32(cc, (uint32_t)rel);
-    }
-    /* Patch all break targets */
-    if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
-      for (int i = 0; i < cc->break_counts[old_depth]; i++) {
-        patch_jump(cc, cc->break_patches[old_depth][i]);
-      }
-      cc->break_counts[old_depth] = 0;
-    }
-    cc->control_depth = old_depth;
-    break;
-  }
-
-  case CC_TOK_SWITCH: {
-    /* switch (expr) { case N: ... break; default: ... } */
-    cc_next(cc);
-    cc_expect(cc, CC_TOK_LPAREN);
-    cc_parse_expression(cc, 1);
-    cc_expect(cc, CC_TOK_RPAREN);
-    /* Save switch value on stack */
-    emit_push_eax(cc);
-
-    /* Use break mechanism for 'break' inside switch */
-    int old_depth = cc->control_depth;
-    if (cc->control_depth < CC_MAX_CONTROL_DEPTH) {
-      cc->break_counts[cc->control_depth] = 0;
-      cc->control_kinds[cc->control_depth] = CC_CONTROL_SWITCH;
-      cc->continue_targets[cc->control_depth] = 0;
-      cc->control_depth++;
-    }
-
-    cc_expect(cc, CC_TOK_LBRACE);
-
-    uint32_t next_case_patch = 0; /* patch for jne to next case */
-    int had_default = 0;
-
-    while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
-           cc_peek(cc).type != CC_TOK_EOF) {
-      if (cc_peek(cc).type == CC_TOK_CASE) {
-        cc_next(cc);
-        /* Patch previous case's skip jump to here */
-        if (next_case_patch)
-          patch_jump(cc, next_case_patch);
-        /* Compare switch value with case constant */
-        emit8(cc, 0x8B);
-        emit8(cc, 0x04);
-        emit8(cc, 0x24);
-        /* mov eax, [esp] - reload switch val */
-        cc_token_t cval = cc_next(cc);
-        if (cval.type == CC_TOK_NUMBER || cval.type == CC_TOK_CHAR_LIT) {
-          emit8(cc, 0x3D); /* cmp eax, imm32 */
-          emit32(cc, (uint32_t)cval.int_value);
-        } else {
-          cc_error(cc, "case: expected constant");
-          break;
-        }
-        cc_expect(cc, CC_TOK_COLON);
-        next_case_patch = emit_jcc_placeholder(cc, 0x85); /* jne */
-        /* Parse case body statements */
-        while (!cc->error && cc_peek(cc).type != CC_TOK_CASE &&
-               cc_peek(cc).type != CC_TOK_DEFAULT &&
-               cc_peek(cc).type != CC_TOK_RBRACE &&
-               cc_peek(cc).type != CC_TOK_EOF) {
-          cc_parse_statement(cc);
-        }
-      } else if (cc_peek(cc).type == CC_TOK_DEFAULT) {
-        cc_next(cc);
-        cc_expect(cc, CC_TOK_COLON);
-        if (next_case_patch)
-          patch_jump(cc, next_case_patch);
-        next_case_patch = 0;
-        had_default = 1;
-        while (!cc->error && cc_peek(cc).type != CC_TOK_CASE &&
-               cc_peek(cc).type != CC_TOK_RBRACE &&
-               cc_peek(cc).type != CC_TOK_EOF) {
-          cc_parse_statement(cc);
-        }
-      } else {
-        cc_error(cc, "expected case or default");
-        break;
-      }
-    }
-    cc_expect(cc, CC_TOK_RBRACE);
-    /* Patch final case skip if no default */
-    if (next_case_patch && !had_default)
-      patch_jump(cc, next_case_patch);
-    /* Pop switch value */
-    emit_add_esp(cc, 4);
-    /* Patch all break targets to here */
-    if (old_depth < CC_MAX_CONTROL_DEPTH && cc->control_depth > old_depth) {
-      for (int i = 0; i < cc->break_counts[old_depth]; i++) {
-        patch_jump(cc, cc->break_patches[old_depth][i]);
-      }
-      cc->break_counts[old_depth] = 0;
-    }
-    cc->control_depth = old_depth;
-    break;
-  }
-
   case CC_TOK_RETURN:
     cc_next(cc);
     cc_parse_return(cc);
@@ -5385,11 +5409,6 @@ static void cc_parse_statement(cc_state_t *cc) {
   case CC_TOK_ASM:
     cc_next(cc);
     cc_parse_asm_block(cc);
-    break;
-
-  case CC_TOK_LBRACE:
-    cc_next(cc);
-    cc_parse_block(cc);
     break;
 
   case CC_TOK_SEMICOLON:
@@ -5787,8 +5806,8 @@ static void cc_parse_block(cc_state_t *cc) {
   int saved_scope = cc->sym_count;
   int saved_offset = cc->local_offset;
 
-  while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
-         cc_peek(cc).type != CC_TOK_EOF) {
+  while (!cc->error && cc_statement_token_type(cc) != CC_TOK_RBRACE &&
+         cc_statement_token_type(cc) != CC_TOK_EOF) {
     cc_parse_statement(cc);
   }
 

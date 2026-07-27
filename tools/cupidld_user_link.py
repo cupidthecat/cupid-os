@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link approved Cupid OS user programs with the checked CupidLD seed."""
+"""Link approved Cupid OS user programs with a frozen CupidLD tool."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 
 try:
@@ -19,9 +20,19 @@ try:
         freeze_seed_inputs,
     )
     from tools.cupidc_kernel_compile import validate_i386_relocatable
+    from tools.native_user_toolchain import (
+        NativeToolError,
+        NativeToolExecutor,
+        capture_native_tool,
+    )
 except ModuleNotFoundError:
     from bootstrap_toolchain import BootstrapError, ToolRunner, freeze_seed_inputs
     from cupidc_kernel_compile import validate_i386_relocatable
+    from native_user_toolchain import (
+        NativeToolError,
+        NativeToolExecutor,
+        capture_native_tool,
+    )
 
 
 USER_PROGRAMS = ("cat", "hello", "ls")
@@ -33,10 +44,11 @@ ELF_PT_LOAD = 1
 ELF_PT_GNU_STACK = 0x6474E551
 ELF_PF_KNOWN = 7
 DEFAULT_TIMEOUT_SECONDS = 60
+TOOL_MODES = ("auto", "checked-seed", "native-windows")
 
 
 class UserLinkError(RuntimeError):
-    """A checked user-program link could not publish an executable."""
+    """A user-program link could not publish an executable."""
 
 
 def _checked_add(left: int, right: int, label: str) -> int:
@@ -268,7 +280,9 @@ def link_user_program(
     text_address: int = USER_TEXT_ADDRESS,
     entry: str = "_start",
     manifest: Path | None = None,
-    runner: ToolRunner | None = None,
+    native_linker: Path | None = None,
+    tool_mode: str = "auto",
+    runner: ToolRunner | NativeToolExecutor | None = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> None:
     """Link one approved user object and publish its executable atomically."""
@@ -282,32 +296,104 @@ def link_user_program(
         raise UserLinkError("user entry symbol must be _start")
     if timeout <= 0:
         raise UserLinkError("linker timeout must be positive")
+    if tool_mode not in TOOL_MODES:
+        raise UserLinkError(f"unknown user linker mode: {tool_mode}")
+    if native_linker is not None and tool_mode == "checked-seed":
+        raise UserLinkError(
+            "a native linker cannot be used in checked-seed mode"
+        )
+    if manifest is not None and (
+        native_linker is not None or tool_mode == "native-windows"
+    ):
+        raise UserLinkError(
+            "a checked-seed manifest cannot be combined with a native linker"
+        )
+    use_native = (
+        native_linker is not None
+        or tool_mode == "native-windows"
+        or (
+            tool_mode == "auto"
+            and runner is None
+            and manifest is None
+            and os.name == "nt"
+        )
+    )
     try:
         source_payload = source.read_bytes()
     except OSError as error:
         raise UserLinkError(f"input object is invalid: {error}") from error
     before = hashlib.sha256(source_payload).hexdigest()
 
-    manifest_path = (
-        manifest.resolve()
-        if manifest is not None
-        else root
-        / "bootstrap"
-        / "seeds"
-        / "i386-linux"
-        / "manifest.json"
-    )
     try:
-        active_runner = runner if runner is not None else ToolRunner(root)
-    except BootstrapError as error:
-        raise UserLinkError(
-            f"checked seed runner is unavailable: {error}"
-        ) from error
-    try:
-        with tempfile.TemporaryDirectory(
-            prefix=f".{output.name}.cupidld-",
-            dir=output.parent,
-        ) as temporary:
+        with ExitStack() as stack:
+            native_snapshot = None
+            if use_native:
+                try:
+                    native_snapshot = capture_native_tool(
+                        root, "cupidld", native_linker
+                    )
+                    tool_directory = Path(
+                        stack.enter_context(
+                            tempfile.TemporaryDirectory(
+                                prefix="cupidld-user-native-"
+                            )
+                        )
+                    )
+                    linker = native_snapshot.stage(tool_directory)
+                    active_runner = (
+                        runner
+                        if runner is not None
+                        else NativeToolExecutor(root)
+                    )
+                except NativeToolError as error:
+                    raise UserLinkError(str(error)) from error
+            else:
+                manifest_path = (
+                    manifest.resolve()
+                    if manifest is not None
+                    else root
+                    / "bootstrap"
+                    / "seeds"
+                    / "i386-linux"
+                    / "manifest.json"
+                )
+                try:
+                    active_runner = (
+                        runner
+                        if runner is not None
+                        else ToolRunner(root)
+                    )
+                except BootstrapError as error:
+                    raise UserLinkError(
+                        f"checked seed runner is unavailable: {error}"
+                    ) from error
+                seed_directory = Path(
+                    stack.enter_context(
+                        tempfile.TemporaryDirectory(
+                            prefix="cupidld-user-seed-"
+                        )
+                    )
+                )
+                try:
+                    seed_inputs = freeze_seed_inputs(
+                        manifest_path, seed_directory
+                    )
+                except (BootstrapError, OSError) as error:
+                    raise UserLinkError(
+                        f"checked seed verification failed: {error}"
+                    ) from error
+                linker = seed_inputs.tools.get("cupidld")
+                if linker is None:
+                    raise UserLinkError(
+                        "checked seed verification did not return CupidLD"
+                    )
+
+            temporary = stack.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix=f".{output.name}.cupidld-",
+                    dir=output.parent,
+                )
+            )
             temporary_root = Path(temporary)
             temporary_input = temporary_root / source.name
             temporary_output = temporary_root / output.name
@@ -319,72 +405,59 @@ def link_user_program(
                     f"input object is invalid: {error}"
                 ) from error
 
-            with tempfile.TemporaryDirectory(
-                prefix="cupidld-user-seed-"
-            ) as seed_temporary:
-                try:
-                    seed_inputs = freeze_seed_inputs(
-                        manifest_path, Path(seed_temporary)
-                    )
-                except (BootstrapError, OSError) as error:
-                    raise UserLinkError(
-                        f"checked seed verification failed: {error}"
-                    ) from error
-                seed = seed_inputs.tools.get("cupidld")
-                if seed is None:
-                    raise UserLinkError(
-                        "checked seed verification did not return CupidLD"
-                    )
-
-                arguments: tuple[str | Path, ...] = (
-                    "-m",
-                    "elf_i386",
-                    "--text-address",
-                    f"0x{text_address:08X}",
-                    "--entry",
-                    entry,
-                    "-o",
-                    temporary_output,
-                    temporary_input,
+            arguments: tuple[str | Path, ...] = (
+                "-m",
+                "elf_i386",
+                "--text-address",
+                f"0x{text_address:08X}",
+                "--entry",
+                entry,
+                "-o",
+                temporary_output,
+                temporary_input,
+            )
+            try:
+                result = active_runner.run(linker, arguments, timeout)
+            except subprocess.TimeoutExpired as error:
+                raise UserLinkError(
+                    f"CupidLD timed out after {timeout} seconds for "
+                    f"{source.name}"
+                ) from error
+            except OSError as error:
+                raise UserLinkError(
+                    f"CupidLD could not run for {source.name}: {error}"
+                ) from error
+            if result.returncode != 0:
+                details = (result.stderr or result.stdout or "").strip()
+                suffix = f": {details}" if details else ""
+                raise UserLinkError(
+                    f"CupidLD failed for {source.name} with status "
+                    f"{result.returncode}{suffix}"
                 )
+            if temporary_output.is_symlink() or not temporary_output.is_file():
+                raise UserLinkError(
+                    f"CupidLD did not write an executable for {source.name}"
+                )
+            validate_user_executable(temporary_output)
+            if native_snapshot is not None:
                 try:
-                    result = active_runner.run(seed, arguments, timeout)
-                except subprocess.TimeoutExpired as error:
-                    raise UserLinkError(
-                        f"CupidLD timed out after {timeout} seconds for "
-                        f"{source.name}"
-                    ) from error
-                except OSError as error:
-                    raise UserLinkError(
-                        f"CupidLD could not run for {source.name}: {error}"
-                    ) from error
-                if result.returncode != 0:
-                    details = (result.stderr or result.stdout or "").strip()
-                    suffix = f": {details}" if details else ""
-                    raise UserLinkError(
-                        f"CupidLD failed for {source.name} with status "
-                        f"{result.returncode}{suffix}"
+                    native_snapshot.require_unchanged(
+                        "linking with native CupidLD"
                     )
-                if (
-                    temporary_output.is_symlink()
-                    or not temporary_output.is_file()
-                ):
-                    raise UserLinkError(
-                        f"CupidLD did not write an executable for {source.name}"
-                    )
-                validate_user_executable(temporary_output)
-                try:
-                    after = hashlib.sha256(source.read_bytes()).hexdigest()
-                except OSError as error:
-                    raise UserLinkError(
-                        f"input object changed while linking {source.name}: "
-                        f"{error}"
-                    ) from error
-                if after != before:
-                    raise UserLinkError(
-                        f"input object changed while linking {source.name}"
-                    )
-                os.replace(temporary_output, output)
+                except NativeToolError as error:
+                    raise UserLinkError(str(error)) from error
+            try:
+                after = hashlib.sha256(source.read_bytes()).hexdigest()
+            except OSError as error:
+                raise UserLinkError(
+                    f"input object changed while linking {source.name}: "
+                    f"{error}"
+                ) from error
+            if after != before:
+                raise UserLinkError(
+                    f"input object changed while linking {source.name}"
+                )
+            os.replace(temporary_output, output)
     except OSError as error:
         raise UserLinkError(
             f"could not publish user executable {output}: {error}"
@@ -402,7 +475,7 @@ def _parse_address(value: str) -> int:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Link an approved user program with checked CupidLD."
+        description="Link an approved user program with CupidLD."
     )
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--input", required=True, type=Path)
@@ -414,6 +487,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--entry", default="_start")
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument(
+        "--tool-mode",
+        choices=TOOL_MODES,
+        default="auto",
+    )
     parser.add_argument(
         "--timeout",
         type=int,
@@ -432,6 +510,7 @@ def main(argv: list[str] | None = None) -> int:
             text_address=arguments.text_address,
             entry=arguments.entry,
             manifest=arguments.manifest,
+            tool_mode=arguments.tool_mode,
             timeout=arguments.timeout,
         )
     except UserLinkError as error:

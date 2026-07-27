@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Check deterministic checked-seed ownership for small production cohorts."""
+"""Check deterministic CupidC ownership for small production cohorts."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,7 @@ try:
         link_user_program,
         validate_user_executable,
     )
+    from tools.native_user_toolchain import NATIVE_USER_TOOL_SOURCES
     from tools.user_syscall_abi import ABI_INPUTS
 except ModuleNotFoundError:
     from cupidc_production_compile import (
@@ -41,6 +43,7 @@ except ModuleNotFoundError:
         link_user_program,
         validate_user_executable,
     )
+    from native_user_toolchain import NATIVE_USER_TOOL_SOURCES
     from user_syscall_abi import ABI_INPUTS
 
 
@@ -58,6 +61,7 @@ CONTROL_FILES = (
     "tools/cupidc_kernel_compile.py",
     "tools/cupidc_production_compile.py",
     "tools/cupidc_production_frontier.py",
+    "tools/native_user_toolchain.py",
 )
 USER_CONTROL_FILES = (
     "user/Makefile",
@@ -72,6 +76,10 @@ GENERATED_CONTROL_FILES = (
 
 class FrontierError(RuntimeError):
     """A production frontier did not reproduce its declared outputs."""
+
+
+def _native_windows_host() -> bool:
+    return os.name == "nt"
 
 
 def _sha256(payload: bytes) -> str:
@@ -129,6 +137,7 @@ def _user_inputs() -> tuple[str, ...]:
                 *CONTROL_FILES,
                 *USER_CONTROL_FILES,
                 *SEED_FILES,
+                *NATIVE_USER_TOOL_SOURCES,
             }
         )
     )
@@ -257,10 +266,23 @@ def _object_record(payload: bytes) -> dict[str, object]:
     return {"bytes": len(payload), "sha256": _sha256(payload)}
 
 
-def run_user_frontier(root: Path) -> dict[str, object]:
+def run_user_frontier(
+    root: Path,
+    *,
+    compare_checked_seed: bool = False,
+) -> dict[str, object]:
     root = root.resolve(strict=True)
+    if compare_checked_seed and not _native_windows_host():
+        raise FrontierError(
+            "native Windows checked-seed comparison requires Windows"
+        )
     closure = _user_inputs()
     before = _snapshot(root, closure)
+    native_options = (
+        {"tool_mode": "native-windows"}
+        if compare_checked_seed
+        else {}
+    )
     records = {}
     with tempfile.TemporaryDirectory(
         prefix=".user-cupidc-frontier-",
@@ -286,8 +308,14 @@ def run_user_frontier(root: Path) -> dict[str, object]:
                         "user",
                         root / source_relative,
                         object_path,
+                        **native_options,
                     )
-                    link_user_program(root, object_path, executable_path)
+                    link_user_program(
+                        root,
+                        object_path,
+                        executable_path,
+                        **native_options,
+                    )
                 except (ProductionCompileError, UserLinkError) as error:
                     raise FrontierError(
                         f"user frontier failed for {source_relative}: {error}"
@@ -326,10 +354,46 @@ def run_user_frontier(root: Path) -> dict[str, object]:
                     f"production user executable differs from the frontier: "
                     f"user/build/{name}"
                 )
-            records[source_relative] = {
+            record = {
                 "object": _object_record(installed_object),
                 "executable": _object_record(executable_payloads[0]),
             }
+            if compare_checked_seed:
+                checked_directory = temporary_root / "checked-seed"
+                checked_directory.mkdir(exist_ok=True)
+                checked_object = checked_directory / f"{name}.o"
+                checked_executable = checked_directory / name
+                try:
+                    compile_production_source(
+                        root,
+                        "user",
+                        root / source_relative,
+                        checked_object,
+                        tool_mode="checked-seed",
+                    )
+                    link_user_program(
+                        root,
+                        checked_object,
+                        checked_executable,
+                        tool_mode="checked-seed",
+                    )
+                except (ProductionCompileError, UserLinkError) as error:
+                    raise FrontierError(
+                        f"checked-seed comparison failed for "
+                        f"{source_relative}: {error}"
+                    ) from error
+                if checked_object.read_bytes() != object_payloads[0]:
+                    raise FrontierError(
+                        "native Windows object differs from the checked seed: "
+                        f"{source_relative}"
+                    )
+                if checked_executable.read_bytes() != executable_payloads[0]:
+                    raise FrontierError(
+                        "native Windows executable differs from the checked "
+                        f"seed: {source_relative}"
+                    )
+                record["checked_seed_match"] = True
+            records[source_relative] = record
 
     after = _snapshot(root, closure)
     if after != before or _user_inputs() != closure:
@@ -339,6 +403,7 @@ def run_user_frontier(root: Path) -> dict[str, object]:
         "cohort": "user",
         "input_count": len(closure),
         "input_sha256": _aggregate(before),
+        "checked_seed_comparison": compare_checked_seed,
         "sources": records,
     }
 
@@ -439,13 +504,21 @@ def run_generated_frontier(root: Path) -> dict[str, object]:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Check deterministic checked-seed production ownership."
+        description="Check deterministic CupidC production ownership."
     )
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument(
         "--cohort",
         required=True,
         choices=("user", "generated-install"),
+    )
+    parser.add_argument(
+        "--compare-checked-seed",
+        action="store_true",
+        help=(
+            "compare the native Windows user artifacts with the checked "
+            "i386 Linux seed"
+        ),
     )
     return parser
 
@@ -454,7 +527,10 @@ def main(argv: list[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
     try:
         report = (
-            run_user_frontier(arguments.root)
+            run_user_frontier(
+                arguments.root,
+                compare_checked_seed=arguments.compare_checked_seed,
+            )
             if arguments.cohort == "user"
             else run_generated_frontier(arguments.root)
         )

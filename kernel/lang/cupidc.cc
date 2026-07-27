@@ -3262,6 +3262,7 @@ static int cc_init_state(cc_state_t *cc, int jit_mode) {
   cc->has_entry = 0;
   cc->patch_count = 0;
   cc->control_depth = 0;
+  cc->statement_depth = 0;
   cc->local_offset = 0;
 
   /* Allocate code and data buffers */
@@ -3420,6 +3421,7 @@ static void repl_restore_committed_state(void) {
   repl_state.cc->max_local_offset = 0;
   repl_state.cc->param_count = 0;
   repl_state.cc->control_depth = 0;
+  repl_state.cc->statement_depth = 0;
   repl_state.cc->error = 0;
   repl_state.cc->error_msg[0] = '\0';
 }
@@ -3527,6 +3529,7 @@ int repl_eval(const char *line) {
   cc->max_local_offset = 0;
   cc->param_count = 0;
   cc->control_depth = 0;
+  cc->statement_depth = 0;
 
   cc_lex_init(cc, source);
   int is_expr = 0;

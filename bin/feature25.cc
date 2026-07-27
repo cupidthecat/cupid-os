@@ -2,6 +2,48 @@
 //help: Usage: feature25
 
 int condition_calls;
+char nested_statement_source[8192];
+
+int append_nested_text(int offset, char *text) {
+    int i = 0;
+
+    while (text[i]) {
+        nested_statement_source[offset] = text[i];
+        offset = offset + 1;
+        i = i + 1;
+    }
+
+    return offset;
+}
+
+void build_nested_switch_source(int depth) {
+    int i = 0;
+    int offset = 0;
+
+    while (i < depth) {
+        offset = append_nested_text(offset, "switch (0) { default: ");
+        i = i + 1;
+    }
+    offset = append_nested_text(offset, ";");
+    i = 0;
+    while (i < depth) {
+        offset = append_nested_text(offset, " }");
+        i = i + 1;
+    }
+    nested_statement_source[offset] = 0;
+}
+
+void build_nested_if_source(int depth) {
+    int i = 0;
+    int offset = 0;
+
+    while (i < depth) {
+        offset = append_nested_text(offset, "if (1) ");
+        i = i + 1;
+    }
+    offset = append_nested_text(offset, ";");
+    nested_statement_source[offset] = 0;
+}
 
 int keep_going(int value) {
     condition_calls = condition_calls + 1;
@@ -105,6 +147,34 @@ int test_continue_without_loop_rejected() {
     return repl_eval("switch (1) { default: continue; }") == -1;
 }
 
+int test_control_depth_limit() {
+    build_nested_switch_source(128);
+    return repl_eval(nested_statement_source) == 0;
+}
+
+int test_control_depth_overflow_rejected() {
+    build_nested_switch_source(129);
+    return repl_eval(nested_statement_source) == -1;
+}
+
+int test_control_depth_recovery() {
+    return repl_eval("1 + 1;") == 0;
+}
+
+int test_statement_depth_limit() {
+    build_nested_if_source(1023);
+    return repl_eval(nested_statement_source) == 0;
+}
+
+int test_statement_depth_overflow_rejected() {
+    build_nested_if_source(1024);
+    return repl_eval(nested_statement_source) == -1;
+}
+
+int test_statement_depth_recovery() {
+    return repl_eval("2 + 2;") == 0;
+}
+
 int test_nearest_loop_continue() {
     int outer = 0;
     int inner = 0;
@@ -139,15 +209,29 @@ void main() {
     int while_ok = test_while_switch_continue();
     int stack_ok = test_switch_stack_cleanup();
     int reject_ok = test_continue_without_loop_rejected();
+    int depth_ok = test_control_depth_limit();
+    int overflow_ok = test_control_depth_overflow_rejected();
+    int recover_ok = test_control_depth_recovery();
+    int statement_ok = test_statement_depth_limit();
+    int statement_overflow_ok = test_statement_depth_overflow_rejected();
+    int statement_recovery_ok = test_statement_depth_recovery();
     int nearest_ok = test_nearest_loop_continue();
 
-    if (do_ok && for_ok && while_ok && stack_ok && reject_ok && nearest_ok) {
+    if (do_ok && for_ok && while_ok && stack_ok && reject_ok &&
+        depth_ok && overflow_ok && recover_ok && statement_ok &&
+        statement_overflow_ok && statement_recovery_ok && nearest_ok) {
         println("feature25: PASS");
         serial_printf("[feature25] PASS do=%d for=%d while=%d stack=%d reject=%d nearest=%d\n",
                       do_ok, for_ok, while_ok, stack_ok, reject_ok, nearest_ok);
+        serial_printf("[feature25-depth] PASS control=%d overflow=%d recovery=%d statement=%d statement-overflow=%d statement-recovery=%d\n",
+                      depth_ok, overflow_ok, recover_ok, statement_ok,
+                      statement_overflow_ok, statement_recovery_ok);
     } else {
         println("feature25: FAIL");
         serial_printf("[feature25] FAIL do=%d for=%d while=%d stack=%d reject=%d nearest=%d\n",
                       do_ok, for_ok, while_ok, stack_ok, reject_ok, nearest_ok);
+        serial_printf("[feature25-depth] FAIL control=%d overflow=%d recovery=%d statement=%d statement-overflow=%d statement-recovery=%d\n",
+                      depth_ok, overflow_ok, recover_ok, statement_ok,
+                      statement_overflow_ok, statement_recovery_ok);
     }
 }

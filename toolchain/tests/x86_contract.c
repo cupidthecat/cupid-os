@@ -233,9 +233,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 579u && info.mnemonic_count == 242u &&
+  if (!check_true(info.form_count == 583u && info.mnemonic_count == 242u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x063baf16u,
+                      info.fingerprint == 0xee543ca5u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -487,6 +487,359 @@ static int run_integer(void) {
   }
   ctool_job_close(job);
   (void)printf("integer: ok\n");
+  return 0;
+}
+
+static int run_immediate_imul(void) {
+  static const ctool_u8 full32[] = {
+      0x69u, 0xc1u, 0x28u, 0x02u, 0x00u, 0x00u};
+  static const ctool_u8 short32[] = {0x6bu, 0xc1u, 0xf9u};
+  static const ctool_u8 full16[] = {0x69u, 0xc1u, 0x34u, 0x12u};
+  static const ctool_u8 short16_memory32[] = {
+      0x66u, 0x6bu, 0x53u, 0x7fu, 0xfeu};
+  static const ctool_u8 full32_memory16[] = {
+      0x66u, 0x69u, 0x40u, 0x7fu, 0x78u, 0x56u, 0x34u, 0x12u};
+  static const struct {
+    ctool_u32 value;
+    ctool_u8 bytes[6];
+    ctool_u8 size;
+    const char *name;
+  } signed_byte_boundaries[] = {
+      {0x7fu, {0x6bu, 0xc1u, 0x7fu, 0u, 0u, 0u}, 3u,
+       "immediate IMUL positive signed-byte boundary"},
+      {0xffffff80u, {0x6bu, 0xc1u, 0x80u, 0u, 0u, 0u}, 3u,
+       "immediate IMUL negative signed-byte boundary"},
+      {0x80u, {0x69u, 0xc1u, 0x80u, 0u, 0u, 0u}, 6u,
+       "immediate IMUL positive full-width boundary"},
+      {0xffffff7fu, {0x69u, 0xc1u, 0x7fu, 0xffu, 0xffu, 0xffu}, 6u,
+       "immediate IMUL negative full-width boundary"}};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_x86_instruction_t insn;
+  ctool_x86_encoding_t encoding;
+  ctool_x86_encoding_t replay;
+  ctool_x86_decoded_t decoded;
+  ctool_status_t status;
+  ctool_u32 cut;
+  ctool_u32 boundary_index;
+  ctool_u32 prefix_index;
+  static const ctool_u8 prefix_bytes[] = {0xf0u, 0xf3u, 0xf2u};
+  static const ctool_u8 semantic_prefixes[] = {
+      CTOOL_X86_PREFIX_LOCK, CTOOL_X86_PREFIX_REP,
+      CTOOL_X86_PREFIX_REPNE};
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_IMUL, 32u, 32u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 1u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(0x228u));
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "immediate IMUL full-width encode") ||
+      !bytes_equal(&encoding, full32, (ctool_u8)sizeof(full32),
+                   "immediate IMUL full-width bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(0xfffffff9u));
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "immediate IMUL short encode") ||
+      !bytes_equal(&encoding, short32, (ctool_u8)sizeof(short32),
+                   "immediate IMUL short bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  for (boundary_index = 0u;
+       boundary_index <
+       (ctool_u32)(sizeof(signed_byte_boundaries) /
+                   sizeof(signed_byte_boundaries[0]));
+       boundary_index++) {
+    insn.operands[2] = value_operand(
+        CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u,
+        constant(signed_byte_boundaries[boundary_index].value));
+    if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+                signed_byte_boundaries[boundary_index].name) ||
+        !bytes_equal(&encoding,
+                     signed_byte_boundaries[boundary_index].bytes,
+                     signed_byte_boundaries[boundary_index].size,
+                     signed_byte_boundaries[boundary_index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_IMUL, 16u, 16u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR16, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR16, 1u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 16u, 0u, constant(0x1234u));
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "16-bit immediate IMUL full-width encode") ||
+      !bytes_equal(&encoding, full16, (ctool_u8)sizeof(full16),
+                   "16-bit immediate IMUL full-width bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_IMUL, 16u, 32u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR16, 2u);
+  insn.operands[1] = memory_operand(
+      16u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 3u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0x7f, 8u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 16u, 0u, constant(0xfffffffeu));
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "16-bit immediate IMUL memory encode") ||
+      !bytes_equal(&encoding, short16_memory32,
+                   (ctool_u8)sizeof(short16_memory32),
+                   "16-bit immediate IMUL memory bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_IMUL, 32u, 16u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  insn.operands[1] = memory_operand(
+      32u, 16u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR16, 3u), reg(CTOOL_X86_REG_GPR16, 6u),
+      1u, 0x7f, 8u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(0x12345678u));
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "32-bit immediate IMUL 16-bit address encode") ||
+      !bytes_equal(&encoding, full32_memory16,
+                   (ctool_u8)sizeof(full32_memory16),
+                   "32-bit immediate IMUL 16-bit address bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(full32, (ctool_u32)sizeof(full32)), 0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "immediate IMUL full decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.consumed == sizeof(full32) &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_IMUL &&
+                      decoded.instruction.operand_bits == 32u &&
+                      decoded.instruction.operand_count == 3u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[0].as.reg.class_id ==
+                          CTOOL_X86_REG_GPR32 &&
+                      decoded.instruction.operands[0].as.reg.index == 0u &&
+                      decoded.instruction.operands[1].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[1].as.reg.index == 1u &&
+                      decoded.instruction.operands[2].kind ==
+                          CTOOL_X86_OPERAND_IMMEDIATE &&
+                      decoded.instruction.operands[2].width_bits == 32u &&
+                      decoded.instruction.operands[2].encoding_bits == 32u &&
+                      decoded.instruction.operands[2].as.value.bits ==
+                          0x228u &&
+                      decoded.encoding.field_count == 1u &&
+                      decoded.encoding.fields[0].kind ==
+                          CTOOL_X86_FIELD_IMMEDIATE &&
+                      decoded.encoding.fields[0].operand_index == 2u &&
+                      decoded.encoding.fields[0].byte_offset == 2u &&
+                      decoded.encoding.fields[0].byte_width == 4u &&
+                      decoded.encoding.fields[0].encoded_addend == 0x228,
+                  "immediate IMUL full decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                            &decoded.instruction, decoded.encoding.form,
+                            &replay);
+  if (!check_status(status, CTOOL_OK,
+                    "immediate IMUL full requested-form replay") ||
+      !bytes_equal(&replay, full32, (ctool_u8)sizeof(full32),
+                   "immediate IMUL full replay bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(short32, (ctool_u32)sizeof(short32)), 0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "immediate IMUL short decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.consumed == sizeof(short32) &&
+                      decoded.instruction.operand_bits == 32u &&
+                      decoded.instruction.operands[2].width_bits == 32u &&
+                      decoded.instruction.operands[2].encoding_bits == 8u &&
+                      decoded.instruction.operands[2].as.value.bits ==
+                          0xfffffff9u &&
+                      decoded.encoding.fields[0].byte_offset == 2u &&
+                      decoded.encoding.fields[0].byte_width == 1u &&
+                      decoded.encoding.fields[0].encoded_addend == -7,
+                  "immediate IMUL short decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                            &decoded.instruction, decoded.encoding.form,
+                            &replay);
+  if (!check_status(status, CTOOL_OK,
+                    "immediate IMUL short requested-form replay") ||
+      !bytes_equal(&replay, short32, (ctool_u8)sizeof(short32),
+                   "immediate IMUL short replay bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(short16_memory32,
+                  (ctool_u32)sizeof(short16_memory32)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "immediate IMUL memory decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.consumed == sizeof(short16_memory32) &&
+                      decoded.instruction.operand_bits == 16u &&
+                      decoded.instruction.address_bits == 32u &&
+                      decoded.instruction.operands[0].as.reg.class_id ==
+                          CTOOL_X86_REG_GPR16 &&
+                      decoded.instruction.operands[0].as.reg.index == 2u &&
+                      decoded.instruction.operands[1].kind ==
+                          CTOOL_X86_OPERAND_MEMORY &&
+                      decoded.instruction.operands[1].width_bits == 16u &&
+                      decoded.instruction.operands[1].as.memory.base.index ==
+                          3u &&
+                      decoded.instruction.operands[1]
+                              .as.memory.displacement.bits == 0x7fu &&
+                      decoded.instruction.operands[2].as.value.bits ==
+                          0xfffffffeu,
+                  "immediate IMUL memory decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  for (cut = 1u; cut < (ctool_u32)sizeof(full32_memory16); cut++) {
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_16, ctool_bytes(full32_memory16, cut),
+        0u, &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "immediate IMUL every-byte truncation") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                        decoded.consumed == 0u &&
+                        decoded.encoding.size == cut &&
+                        memcmp(decoded.encoding.bytes, full32_memory16,
+                               (size_t)cut) == 0,
+                    "immediate IMUL truncation retention")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_IMUL, 32u, 32u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 1u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(2u));
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "immediate IMUL memory destination") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "immediate IMUL memory destination rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR16, 1u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "immediate IMUL source width mismatch") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "immediate IMUL source width rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 1u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 16u, constant(2u));
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "immediate IMUL serialized width mismatch") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "immediate IMUL serialized width rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(2u));
+  for (prefix_index = 0u;
+       prefix_index <
+       (ctool_u32)(sizeof(prefix_bytes) / sizeof(prefix_bytes[0]));
+       prefix_index++) {
+    ctool_u8 prefixed[4];
+    prefixed[0] = prefix_bytes[prefix_index];
+    prefixed[1] = short32[0];
+    prefixed[2] = short32[1];
+    prefixed[3] = 2u;
+    insn.prefixes = semantic_prefixes[prefix_index];
+    (void)memset(&encoding, 0xa5, sizeof(encoding));
+    status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                              CTOOL_X86_FORM_AUTO, &encoding);
+    if (!check_status(status, CTOOL_ERR_INPUT,
+                      "immediate IMUL semantic prefix") ||
+        !check_true(encoding_is_zero(&encoding),
+                    "immediate IMUL semantic prefix rollback")) {
+      ctool_job_close(job);
+      return 1;
+    }
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32,
+                              ctool_bytes(prefixed, 4u), 0u, &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "immediate IMUL illegal prefix decode") ||
+        !check_true(decoded.kind ==
+                            (prefix_index == 0u
+                                 ? CTOOL_X86_DECODE_INVALID
+                                 : CTOOL_X86_DECODE_UNKNOWN) &&
+                        decoded.consumed == 1u &&
+                        decoded.encoding.size == 1u &&
+                        decoded.encoding.bytes[0] == prefixed[0],
+                    "immediate IMUL illegal prefix classification")) {
+      ctool_job_close(job);
+      return 1;
+    }
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32,
+                              ctool_bytes(prefixed, 4u), 1u, &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "immediate IMUL post-prefix recovery") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                        decoded.instruction.mnemonic == CTOOL_X86_MN_IMUL &&
+                        decoded.instruction.operands[2].as.value.bits == 2u,
+                    "immediate IMUL recovered decode")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  ctool_job_close(job);
+  (void)puts("immediate-imul: ok");
   return 0;
 }
 
@@ -1996,7 +2349,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|integer|conditional-moves|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|integer|conditional-moves|immediate-imul|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -2010,6 +2363,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "conditional-moves") == 0) {
     return run_conditional_moves();
+  }
+  if (strcmp(argv[1], "immediate-imul") == 0) {
+    return run_immediate_imul();
   }
   if (strcmp(argv[1], "addressing") == 0) {
     return run_addressing();

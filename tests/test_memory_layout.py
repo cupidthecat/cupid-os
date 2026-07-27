@@ -93,7 +93,8 @@ class MemoryLayoutContractTests(unittest.TestCase):
         self.assertRegex(
             logical_user_makefile,
             r"(?m)^\$\(BUILD\)/%: \$\(BUILD\)/%\.o "
-            r"\$\(CUPIDLD_USER_LINK_INPUTS\) Makefile$",
+            r"\$\(CUPIDLD_USER_LINK_INPUTS\) Makefile "
+            r"\$\(NATIVE_USER_TOOL_GATE\)$",
         )
         self.assertIn(
             "$(CUPIDLD_USER_LINK) --input user/$< --output user/$@",

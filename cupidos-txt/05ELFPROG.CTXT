@@ -15,8 +15,9 @@ Verified against source on: 2026-07-26
 
 >h2 Overview
 >tree open Overview
-The checked CupidC and CupidLD ELF path is separate from the CupidC source
-JIT.
+The CupidC and CupidLD ELF path is separate from the CupidC source JIT.
+Linux runs the checked i386 Linux seed. Windows runs native hosted CupidC and
+CupidLD drivers and checks that their output matches the seed.
 
 kernel/lang/exec.cc currently supports:
 - ELF32 executables
@@ -75,9 +76,13 @@ Build them with:
 The current user/Makefile writes outputs to:
   user/build/
 
-The build freezes and runs the checked CupidC and CupidLD seeds, validates the
-object and executable, and publishes only complete files. Use
-`make test-user-cupidc-frontier` to repeat the deterministic build check.
+The build freezes its CupidC and CupidLD tool images, validates each object
+and executable, and publishes only complete files. Linux runs the checked
+seed directly. Windows prepares native hosted drivers and runs private PE
+snapshots without WSL. Use `make test-user-cupidc-frontier` to repeat the
+deterministic build check. On Windows,
+`make test-user-native-windows-equivalence` also compares all six files with
+checked-seed output.
 
 Run `make sync-user` to build the image and stage the examples at FAT root.
 A fresh image imports them into /home on first boot. Once HOMEFS.SYS exists,
@@ -147,11 +152,14 @@ run in one shared ring-0 address space.
 >tree open Checked Build Reference
 The production path accepts the three tracked example sources and their exact
 header closure. It uses the USER_I386 profile, then links with entry symbol
-_start at the fixed external base. Source, header, seed, or control-file drift
-stops publication.
+_start at the fixed external base. Source, header, tool-image, or control-file
+drift stops publication.
 
 Build and check all three examples:
   make test-user-cupidc-frontier
+
+Compare native Windows output with the checked seed:
+  make test-user-native-windows-equivalence
 
 The local user/build directory is generated and ignored by Git. Rebuild the
 programs before staging an image.

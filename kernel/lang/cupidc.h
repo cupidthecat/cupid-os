@@ -32,6 +32,7 @@
 #define CC_MAX_PARAMS 32             /* max function parameters */
 #define CC_MAX_PATCHES 4096          /* max forward-ref patches */
 #define CC_MAX_CONTROL_DEPTH 128     /* max nested breakable controls */
+#define CC_MAX_STATEMENT_DEPTH 1024  /* max active statement parser calls */
 #define CC_MAX_BREAKS_PER_CONTROL 64 /* max breaks per control */
 #define CC_MAX_IDENT 96              /* max identifier length */
 #define CC_MAX_STRING 1024           /* max string literal length */
@@ -328,6 +329,7 @@ typedef struct {
   cc_control_kind_t control_kinds[CC_MAX_CONTROL_DEPTH];
   uint32_t continue_targets[CC_MAX_CONTROL_DEPTH];
   int control_depth;
+  int statement_depth;
 
   /* Error state */
   int error;

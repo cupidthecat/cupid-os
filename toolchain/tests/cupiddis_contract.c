@@ -288,6 +288,15 @@ static int run_raw(void) {
       "cmovg eax, ecx"};
   static const ctool_u8 conditional16[] = {
       0x0fu, 0x45u, 0xc1u, 0x66u, 0x0fu, 0x4fu, 0xc1u};
+  static const ctool_u8 immediate_imul32[] = {
+      0x69u, 0xc1u, 0x28u, 0x02u, 0x00u, 0x00u,
+      0x6bu, 0xb4u, 0x8bu, 0x78u, 0x56u, 0x34u, 0x12u, 0xf9u,
+      0x66u, 0x69u, 0xc1u, 0x34u, 0x12u};
+  static const ctool_u8 immediate_imul16[] = {
+      0x69u, 0xc1u, 0x34u, 0x12u,
+      0x66u, 0x69u, 0x40u, 0x7fu, 0x78u, 0x56u, 0x34u, 0x12u};
+  static const ctool_u8 immediate_imul_recovery[] = {
+      0xf0u, 0x6bu, 0xc1u, 0x02u, 0x69u, 0xc1u, 0x34u};
   static const ctool_u8 mixed_mode[] = {
       0xb8u, 0x34u, 0x12u,
       0xb8u, 0x78u, 0x56u, 0x34u, 0x12u,
@@ -402,6 +411,81 @@ static int run_raw(void) {
                 "16-bit conditional move") ||
       !contains(&capture, "cmovg eax, ecx",
                 "16-bit wide conditional move")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/immediate-imul32.bin");
+  source.contents = ctool_bytes(
+      immediate_imul32, (ctool_u32)sizeof(immediate_imul32));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00402000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  (void)memset(&repeat, 0, sizeof(repeat));
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&repeat));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "immediate IMUL raw32 inspection") ||
+      !contains(&capture, "imul eax, ecx, 0x228",
+                "immediate IMUL full-width rendering") ||
+      !contains(
+          &capture,
+          "imul esi, dword [ebx+ecx*4+0x12345678], 0xFFFFFFF9",
+          "immediate IMUL sign-extended memory rendering") ||
+      !contains(&capture, "imul ax, cx, 0x1234",
+                "immediate IMUL 16-bit override rendering") ||
+      capture.size != repeat.size ||
+      memcmp(capture.bytes, repeat.bytes, (size_t)capture.size) != 0) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/immediate-imul16.bin");
+  source.contents = ctool_bytes(
+      immediate_imul16, (ctool_u32)sizeof(immediate_imul16));
+  request = raw_request(CTOOL_X86_MODE_16, 0x00007e00u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "immediate IMUL raw16 inspection") ||
+      !contains(&capture, "imul ax, cx, 0x1234",
+                "immediate IMUL 16-bit default rendering") ||
+      !contains(&capture,
+                "imul eax, dword [bx+si+0x7F], 0x12345678",
+                "immediate IMUL 32-bit override rendering")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/immediate-imul-recovery.bin");
+  source.contents =
+      ctool_bytes(immediate_imul_recovery,
+                  (ctool_u32)sizeof(immediate_imul_recovery));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00403000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "immediate IMUL recovery inspection") ||
+      !contains(&capture, "db 0xF0",
+                "immediate IMUL illegal prefix rendering") ||
+      !contains(&capture, "imul eax, ecx, 0x2",
+                "immediate IMUL recovery rendering") ||
+      !contains(&capture, "db 0x69, 0xC1, 0x34",
+                "immediate IMUL truncated tail rendering")) {
     ctool_job_close(job);
     return 1;
   }

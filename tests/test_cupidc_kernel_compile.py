@@ -171,6 +171,7 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/gui/ed.cc",
     "kernel/lang/as.cc",
     "kernel/lang/cupidc.cc",
+    "kernel/lang/cupidc_lex.cc",
     "kernel/lang/cupidc_parse.cc",
     "kernel/lang/cupidc_string.cc",
     "kernel/lang/ssh_io.cc",
@@ -783,8 +784,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 144)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 144)
+        self.assertEqual(len(KERNEL_SOURCES), 145)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 145)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -821,11 +822,11 @@ class KernelCompileCommandTests(unittest.TestCase):
                 for source in KERNEL_SOURCES
                 if Path(source).suffix == ".c"
             ),
-            TOOLCHAIN_KERNEL_SOURCES,
+            (),
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            139,
+            145,
         )
 
         for source in renamed_sources:

@@ -1,9 +1,12 @@
+import os
 import re
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -143,6 +146,18 @@ def _valid_user_executable(entry=0x00F00004):
     return bytes(image)
 
 
+def _minimal_pe64_console_image():
+    image = bytearray(0x200)
+    image[0:2] = b"MZ"
+    struct.pack_into("<I", image, 0x3C, 0x80)
+    image[0x80:0x84] = b"PE\0\0"
+    struct.pack_into("<H", image, 0x84, 0x8664)
+    struct.pack_into("<H", image, 0x94, 0xF0)
+    struct.pack_into("<H", image, 0x98, 0x20B)
+    struct.pack_into("<H", image, 0xDC, 3)
+    return bytes(image)
+
+
 class FakeCompilerExecutor:
     def __init__(self, root, payload=None, result=None, mutate=None):
         self.root = root
@@ -273,6 +288,108 @@ class ProductionCompileTests(unittest.TestCase):
             )
         self.assertEqual(output.read_bytes(), _valid_elf32_object())
         self.assertEqual(len(executor.calls), 1)
+
+    def test_native_compile_uses_a_private_tool_snapshot_without_seed_access(self):
+        output = self.root / "user/build/hello.o"
+        native = self.root / "toolchain/build/cupidc.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(_minimal_pe64_console_image())
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+        with mock.patch.object(
+            production_compile,
+            "freeze_seed_inputs",
+            side_effect=AssertionError("native compile read the Linux seed"),
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                native_compiler=native,
+                executor=executor,
+            )
+
+        invoked = Path(executor.calls[0][0])
+        self.assertNotEqual(invoked, native)
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+
+    def test_native_compile_rejects_a_non_pe_tool_and_preserves_output(self):
+        output = self.root / "user/build/hello.o"
+        output.write_bytes(b"previous object")
+        native = self.root / "toolchain/build/cupidc.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(b"not a Windows executable")
+
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "not a PE executable",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                native_compiler=native,
+                executor=FakeCompilerExecutor(
+                    self.root, payload=_valid_elf32_object()
+                ),
+            )
+        self.assertEqual(output.read_bytes(), b"previous object")
+
+    def test_native_compile_rejects_a_checked_seed_manifest(self):
+        output = self.root / "user/build/hello.o"
+        output.write_bytes(b"previous object")
+        native = self.root / "toolchain/build/cupidc.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(_minimal_pe64_console_image())
+
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "manifest cannot be combined with a native compiler",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                manifest=self.root / "manifest.json",
+                native_compiler=native,
+                executor=FakeCompilerExecutor(
+                    self.root, payload=_valid_elf32_object()
+                ),
+            )
+        self.assertEqual(output.read_bytes(), b"previous object")
+
+    def test_native_compile_rejects_tool_drift_and_preserves_output(self):
+        output = self.root / "user/build/hello.o"
+        output.write_bytes(b"previous object")
+        native = self.root / "toolchain/build/cupidc.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(_minimal_pe64_console_image())
+
+        def mutate_tool():
+            native.write_bytes(_minimal_pe64_console_image() + b"changed")
+
+        executor = FakeCompilerExecutor(
+            self.root,
+            payload=_valid_elf32_object(),
+            mutate=mutate_tool,
+        )
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "native CupidC changed while compiling",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                native_compiler=native,
+                executor=executor,
+            )
+        self.assertEqual(output.read_bytes(), b"previous object")
 
     def test_compile_failure_preserves_the_previous_object(self):
         output = self.root / "user/build/hello.o"
@@ -501,6 +618,95 @@ class UserLinkTests(unittest.TestCase):
         self.assertIn("0x00F00000", arguments)
         self.assertIn("_start", arguments)
 
+    def test_native_link_uses_a_private_tool_snapshot_without_seed_access(self):
+        native = self.root / "toolchain/build/cupidld.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(_minimal_pe64_console_image())
+        runner = FakeLinkRunner(payload=_valid_user_executable())
+        with mock.patch.object(
+            user_link,
+            "freeze_seed_inputs",
+            side_effect=AssertionError("native link read the Linux seed"),
+        ):
+            user_link.link_user_program(
+                self.root,
+                Path("user/build/hello.o"),
+                Path("user/build/hello"),
+                native_linker=native,
+                runner=runner,
+            )
+
+        invoked = Path(runner.calls[0][0])
+        self.assertNotEqual(invoked, native)
+        self.assertEqual(
+            self.output.read_bytes(), _valid_user_executable()
+        )
+
+    def test_native_link_rejects_an_unapproved_tool_path(self):
+        self.output.write_bytes(b"previous executable")
+        native = self.root / "other/cupidld.exe"
+        native.parent.mkdir()
+        native.write_bytes(_minimal_pe64_console_image())
+        runner = FakeLinkRunner(payload=_valid_user_executable())
+        with self.assertRaisesRegex(
+            user_link.UserLinkError,
+            "native CupidLD must be",
+        ):
+            user_link.link_user_program(
+                self.root,
+                Path("user/build/hello.o"),
+                Path("user/build/hello"),
+                native_linker=native,
+                runner=runner,
+            )
+        self.assertEqual(self.output.read_bytes(), b"previous executable")
+
+    def test_native_link_rejects_tool_drift_and_preserves_output(self):
+        self.output.write_bytes(b"previous executable")
+        native = self.root / "toolchain/build/cupidld.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(_minimal_pe64_console_image())
+
+        def mutate_tool():
+            native.write_bytes(_minimal_pe64_console_image() + b"changed")
+
+        runner = FakeLinkRunner(
+            payload=_valid_user_executable(),
+            mutate=mutate_tool,
+        )
+        with self.assertRaisesRegex(
+            user_link.UserLinkError,
+            "native CupidLD changed while linking",
+        ):
+            user_link.link_user_program(
+                self.root,
+                Path("user/build/hello.o"),
+                Path("user/build/hello"),
+                native_linker=native,
+                runner=runner,
+            )
+        self.assertEqual(self.output.read_bytes(), b"previous executable")
+
+    def test_native_link_rejects_a_checked_seed_manifest(self):
+        self.output.write_bytes(b"previous executable")
+        native = self.root / "toolchain/build/cupidld.exe"
+        native.parent.mkdir(parents=True)
+        native.write_bytes(_minimal_pe64_console_image())
+
+        with self.assertRaisesRegex(
+            user_link.UserLinkError,
+            "manifest cannot be combined with a native linker",
+        ):
+            user_link.link_user_program(
+                self.root,
+                Path("user/build/hello.o"),
+                Path("user/build/hello"),
+                manifest=self.root / "manifest.json",
+                native_linker=native,
+                runner=FakeLinkRunner(payload=_valid_user_executable()),
+            )
+        self.assertEqual(self.output.read_bytes(), b"previous executable")
+
     def test_link_failure_preserves_the_previous_executable(self):
         self.output.write_bytes(b"previous executable")
         runner = FakeLinkRunner(
@@ -620,6 +826,109 @@ class UserLinkTests(unittest.TestCase):
 
 
 class ProductionFrontierTests(unittest.TestCase):
+    def test_user_frontier_rejects_native_and_checked_seed_drift(self):
+        for mismatch, expected in (
+            (
+                "object",
+                "native Windows object differs from the checked seed",
+            ),
+            (
+                "executable",
+                "native Windows executable differs from the checked seed",
+            ),
+        ):
+            with self.subTest(mismatch=mismatch):
+                with tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    closure = production_frontier._user_inputs()
+                    for relative in closure:
+                        path = root / relative
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(b"input")
+
+                    native_object = _valid_elf32_object()
+                    executable = _valid_user_executable()
+                    for relative in production_compile.USER_SOURCES:
+                        name = Path(relative).stem
+                        (root / relative).write_bytes(b"source")
+                        build = root / "user" / "build"
+                        build.mkdir(parents=True, exist_ok=True)
+                        (build / f"{name}.o").write_bytes(native_object)
+                        (build / name).write_bytes(executable)
+
+                    def compile_source(
+                        _root,
+                        _cohort,
+                        _source,
+                        output,
+                        *,
+                        tool_mode="auto",
+                    ):
+                        output.parent.mkdir(parents=True, exist_ok=True)
+                        payload = (
+                            native_object + b"seed drift"
+                            if mismatch == "object"
+                            and tool_mode == "checked-seed"
+                            else native_object
+                        )
+                        output.write_bytes(payload)
+
+                    def link_source(
+                        _root,
+                        _source,
+                        output,
+                        *,
+                        tool_mode="auto",
+                    ):
+                        payload = (
+                            executable + b"seed drift"
+                            if mismatch == "executable"
+                            and tool_mode == "checked-seed"
+                            else executable
+                        )
+                        output.write_bytes(payload)
+
+                    with (
+                        mock.patch.object(
+                            production_frontier,
+                            "compile_production_source",
+                            compile_source,
+                        ),
+                        mock.patch.object(
+                            production_frontier,
+                            "link_user_program",
+                            link_source,
+                        ),
+                        mock.patch.object(
+                            production_frontier,
+                            "_native_windows_host",
+                            return_value=True,
+                        ),
+                    ):
+                        with self.assertRaisesRegex(
+                            production_frontier.FrontierError,
+                            expected,
+                        ):
+                            production_frontier.run_user_frontier(
+                                root, compare_checked_seed=True
+                            )
+
+    def test_user_frontier_rejects_checked_seed_comparison_off_windows(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.object(
+                production_frontier,
+                "_native_windows_host",
+                return_value=False,
+            ):
+                with self.assertRaisesRegex(
+                    production_frontier.FrontierError,
+                    "requires Windows",
+                ):
+                    production_frontier.run_user_frontier(
+                        Path(temporary),
+                        compare_checked_seed=True,
+                    )
+
     def test_user_frontier_rejects_an_installed_object_that_differs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -768,7 +1077,23 @@ class ProductionBuildContractTests(unittest.TestCase):
         makefile = (REPO_ROOT / "user/Makefile").read_text(encoding="utf-8")
         logical = makefile.replace("\\\n", " ")
         self.assertNotIn("$(CC)", makefile)
-        self.assertNotIn("toolchain/build/cupidld", makefile)
+        self.assertIn(
+            "$(MAKE) -C ../toolchain build/cupidc.exe build/cupidld.exe",
+            logical,
+        )
+        self.assertIn(
+            "all: test-syscall-abi $(NATIVE_USER_TOOL_GATE)",
+            logical,
+        )
+        self.assertIn(
+            "USER_FRONTIER_COMPARISON := --compare-checked-seed",
+            makefile,
+        )
+        self.assertIn(
+            "--root .. --cohort user $(USER_FRONTIER_COMPARISON)",
+            logical,
+        )
+        self.assertNotIn("../toolchain/build/cupidld.exe -m", logical)
         self.assertIn("examples/%.cc", logical)
         self.assertIn(
             "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< "
@@ -826,6 +1151,25 @@ class ProductionBuildContractTests(unittest.TestCase):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
+        if os.name == "nt":
+            native_tools = subprocess.run(
+                [
+                    make,
+                    "-C",
+                    "toolchain",
+                    "build/cupidc.exe",
+                    "build/cupidld.exe",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=600,
+            )
+            self.assertEqual(
+                native_tools.returncode,
+                0,
+                msg=(native_tools.stderr + native_tools.stdout)[-4000:],
+            )
         poisons = {
             "CC": "host-cc-must-not-run",
             "CXX": "host-cxx-must-not-run",
@@ -835,31 +1179,59 @@ class ProductionBuildContractTests(unittest.TestCase):
             "NM": "host-nm-must-not-run",
             "OBJCOPY": "host-objcopy-must-not-run",
         }
-        with tempfile.TemporaryDirectory(
-            prefix=".poison-user-build-",
-            dir=REPO_ROOT / "user",
-        ) as temporary:
+        poison_context = (
+            tempfile.TemporaryDirectory(prefix="poison-wsl-")
+            if os.name == "nt"
+            else nullcontext(None)
+        )
+        with (
+            tempfile.TemporaryDirectory(
+                prefix=".poison-user-build-",
+                dir=REPO_ROOT / "user",
+            ) as temporary,
+            poison_context as poison_directory,
+        ):
             build = Path(temporary).name
+            environment = os.environ.copy()
+            if poison_directory is not None:
+                poison = Path(poison_directory)
+                for executable in (
+                    "wsl.exe",
+                    "gcc.exe",
+                    "clang.exe",
+                    "ld.exe",
+                    "cc.exe",
+                ):
+                    shutil.copyfile(sys.executable, poison / executable)
+                environment["PATH"] = (
+                    str(poison)
+                    + os.pathsep
+                    + environment.get("PATH", "")
+                )
             result = subprocess.run(
                 [
                     make,
                     "-C",
                     "user",
-                    "-B",
+                    *(("-B",) if os.name != "nt" else ()),
                     f"BUILD={build}",
                     *(f"{name}={value}" for name, value in poisons.items()),
                     "all",
                 ],
                 cwd=REPO_ROOT,
+                env=environment,
                 text=True,
                 capture_output=True,
                 timeout=600,
             )
-        self.assertEqual(
-            result.returncode,
-            0,
-            msg=(result.stderr + result.stdout)[-4000:],
-        )
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=(result.stderr + result.stdout)[-4000:],
+            )
+            for name in ("hello", "ls", "cat"):
+                self.assertTrue((Path(temporary) / f"{name}.o").is_file())
+                user_link.validate_user_executable(Path(temporary) / name)
         output = result.stdout + result.stderr
         for poison in poisons.values():
             self.assertNotIn(poison, output)

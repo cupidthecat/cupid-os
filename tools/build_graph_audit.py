@@ -8,6 +8,7 @@ import bisect
 import collections
 import hashlib
 import json
+import os
 import posixpath
 import re
 import shlex
@@ -27,6 +28,12 @@ SOURCE_SUFFIXES = {
     ".asm": "assembly",
     ".s": "assembly",
 }
+
+# Keep the checked graph independent of the host running the audit. The
+# Windows branch is the canonical superset because it includes the native
+# user-tool prerequisite. The C locale also keeps Make wildcard ordering
+# stable. Linux execution remains covered by direct build tests.
+CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
 TOOL_MARKERS = (
     ("$(CUPIDDIS)", "cupid_disassembler"),
     ("$(CUPIDASM)", "cupid_assembler"),
@@ -66,6 +73,7 @@ CUPIDC_PRODUCTION_CONTROL_FILES = (
     "tools/cupidc_production_compile.py",
     "tools/cupidc_production_frontier.py",
     "tools/cupidld_user_link.py",
+    "tools/native_user_toolchain.py",
 )
 EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 
@@ -75,7 +83,7 @@ EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 # active graph before reporting one.
 KNOWN_SOURCE_RELATIONS = {
     "bin/cupidc.c": ("historical_copy_of", "kernel/lang/cupidc.cc"),
-    "bin/cupidc_lex.c": ("historical_copy_of", "kernel/lang/cupidc_lex.c"),
+    "bin/cupidc_lex.c": ("historical_copy_of", "kernel/lang/cupidc_lex.cc"),
     "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.cc"),
     "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.cc"),
     "bin/fat16_vfs.c": ("historical_copy_of", "kernel/fs/fat16_vfs.cc"),
@@ -522,18 +530,32 @@ def _language(path: str) -> str | None:
     return SOURCE_SUFFIXES.get(Path(path).suffix.lower())
 
 
+def _canonical_make_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    environment["LC_ALL"] = "C"
+    return environment
+
+
 def _run_make_database(root: Path, make: str, target: str) -> str:
     # GNU Make executes recipes containing $(MAKE) even under -n.  Replace the
     # recursive command while printing the database so a missing hosted Cupid
     # tool cannot append a nested Makefile database and overwrite this root's
     # `all` rule during parsing.  Recipes remain unexpanded in `-p` output.
     result = subprocess.run(
-        [make, "MAKE=:", "--no-print-directory", "-prRn", target],
+        [
+            make,
+            *CANONICAL_MAKE_VARIABLES,
+            "MAKE=:",
+            "--no-print-directory",
+            "-prRn",
+            target,
+        ],
         cwd=root,
         text=True,
         encoding="utf-8",
         errors="replace",
         capture_output=True,
+        env=_canonical_make_environment(),
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
@@ -543,14 +565,32 @@ def _run_make_database(root: Path, make: str, target: str) -> str:
     return result.stdout
 
 
+def _audit_python_make_variable() -> str:
+    executable = str(Path(sys.executable).resolve())
+    shell_word = (
+        subprocess.list2cmdline([executable])
+        if sys.platform == "win32"
+        else shlex.quote(executable)
+    )
+    return f"PYTHON={shell_word}"
+
+
 def _read_make_json_list(root: Path, make: str, target: str) -> list[str]:
     result = subprocess.run(
-        [make, "--no-print-directory", "-s", target],
+        [
+            make,
+            *CANONICAL_MAKE_VARIABLES,
+            _audit_python_make_variable(),
+            "--no-print-directory",
+            "-s",
+            target,
+        ],
         cwd=root,
         text=True,
         encoding="utf-8",
         errors="replace",
         capture_output=True,
+        env=_canonical_make_environment(),
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
@@ -793,6 +833,7 @@ def _read_evaluated_make_variables(
     result = subprocess.run(
         [
             make,
+            *CANONICAL_MAKE_VARIABLES,
             "MAKE=:",
             "--no-print-directory",
             "-prRn",
@@ -808,6 +849,7 @@ def _read_evaluated_make_variables(
         encoding="utf-8",
         errors="replace",
         capture_output=True,
+        env=_canonical_make_environment(),
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
@@ -1635,7 +1677,7 @@ def _roadmap(
         (
             "user_programs",
             ("user_program", "user_runtime_interface"),
-            "Keep the checked CupidC and CupidLD user build reproducible, then stage its validated executables deliberately.",
+            "Keep the native Windows and checked-seed Linux CupidC and CupidLD user build reproducible, then stage its validated executables deliberately.",
         ),
         (
             "embedded_cupid_sources",
@@ -5020,6 +5062,27 @@ def _validate_user_syscall_abi_transform(
         )
 
 
+def _validate_native_user_tools_transform(
+    directory: str,
+    transform: dict[str, object],
+) -> None:
+    expected_recipe = [
+        "$(MAKE) -C ../toolchain build/cupidc.exe build/cupidld.exe"
+    ]
+    if (
+        directory != "user"
+        or transform.get("output") != "user/native-user-tools"
+        or transform.get("operation") != "recursive_make"
+        or transform.get("tools") != ["make"]
+        or transform.get("inputs") != []
+        or transform.get("recipe") != expected_recipe
+    ):
+        raise AuditError(
+            "native Windows user-tool prerequisite differs from its checked "
+            "recursive build contract"
+        )
+
+
 def _c_preprocessor_active_cases_manifest(
     audit: dict[str, object],
 ) -> CPreprocessorActiveCasesManifest:
@@ -5162,6 +5225,12 @@ def _c_preprocessor_active_cases_manifest(
                 continue
             if operation == "verify_user_syscall_abi":
                 _validate_user_syscall_abi_transform(directory, transform)
+                continue
+            if (
+                directory == "user"
+                and output == "user/native-user-tools"
+            ):
+                _validate_native_user_tools_transform(directory, transform)
                 continue
             if operation in {
                 "compile_c_to_elf32_object",
@@ -5598,6 +5667,9 @@ def _render_markdown(audit: dict[str, object]) -> str:
         f"- Unreachable source-like files: {audit['summary']['unreachable_sources']}",
         f"- Reachable output transforms: {audit['summary']['transforms']}",
         f"- Distinct feature requirements: {audit['summary']['features']}",
+        "- Make conditionals use the canonical `OS=Windows_NT` graph and the "
+        "C locale fixes wildcard order on every host. Direct Linux build "
+        "tests cover the Linux execution branch.",
         "- The `TempleOS/` reference tree is excluded.",
         "- Source and control-file SHA-256 values use canonical LF text bytes.",
         "",

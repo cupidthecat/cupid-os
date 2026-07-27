@@ -5117,7 +5117,8 @@ static int run_block_functions(const char *host_root) {
       "struct Net *get_net(void) {\n"
       "  extern struct Net *net_primary(void);\n"
       "  return net_primary();\n"
-      "}\n";
+      "}\n"
+      "int helper(int value) { return value; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"static block function",
         "void bad(void) { static void local(void); }\n", CTOOL_ERR_INPUT,
@@ -5166,6 +5167,12 @@ static int run_block_functions(const char *host_root) {
         "void bad(void) { inline int local; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
        1u, 18u, "inline function specifier requires a function declaration"},
+      {{"inline block function without definition",
+        "void bad(void) { inline int missing(void); }\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
+       1u, 29u,
+       "external-linkage inline function requires a definition in this "
+       "translation unit"},
       {{"block function attribute boundary",
         "void bad(void) { int local(void) __attribute__((noreturn)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -5344,7 +5351,7 @@ static int run_block_functions(const char *host_root) {
       block->initializer != CTOOL_C_AST_NONE ||
       linked->kind != CTOOL_C_BINDING_FUNCTION ||
       linked->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
-      linked->file_scope_visible != CTOOL_FALSE ||
+      linked->file_scope_visible != CTOOL_TRUE ||
       (linked->function_declaration_flags & CTOOL_C_FUNCTION_DECL_INLINE) ==
           0u ||
       linked_references != 1u || visible_internal == CTOOL_C_AST_NONE ||
@@ -7360,18 +7367,18 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 210u, 6356u,
-       57554u, 810u, 295u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 224u, 5920u,
-       50859u, 715u, 359u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 332u,
-       13534u, 89124u, 2000u, 1324u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 211u, 6367u,
+       57701u, 813u, 297u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 225u, 5931u,
+       50996u, 718u, 361u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 334u,
+       13582u, 89442u, 2008u, 1329u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1683u,
-       11376u, 173u, 16441u, 3u, 0u}};
+       11376u, 173u, 16541u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -19440,10 +19447,28 @@ static int run_function_specifiers(const char *host_root) {
       "inline inline int repeated(int value);\n"
       "extern int repeated(int renamed);\n"
       "int later_inline(void);\n"
-      "int inline later_inline(void);\n"
+      "int inline later_inline(void) { return 4; }\n"
       "__attribute__((noreturn)) inline void inline_fatal(void);\n"
       "int ordinary(void);\n"
-      "static inline int body(void) { return 1; }\n";
+      "static inline int body(void) { return 1; }\n"
+      "extern inline int explicit_extern(void) { return 2; }\n"
+      "inline int pure_external_inline(void) { return 3; }\n"
+      "void block_owner(void) { int block_only(void); }\n"
+      "inline int block_only(void) { return 5; }\n"
+      "int file_before_block_inline(void);\n"
+      "void middle_inline_owner(void) {\n"
+      "  inline int file_before_block_inline(void);\n"
+      "}\n"
+      "inline int file_before_block_inline(void) { return 6; }\n"
+      "void first_inline_owner(void) {\n"
+      "  inline int block_inline_before_file(void);\n"
+      "}\n"
+      "int block_inline_before_file(void);\n"
+      "inline int block_inline_before_file(void) { return 7; }\n"
+      "static int inherited_internal(void);\n"
+      "extern inline int inherited_internal(void) { return 8; }\n"
+      "int repeated(int value) { return value; }\n"
+      "void inline_fatal(void) { for (;;) {} }\n";
   static const frontend_exact_failure_case_t invalid_cases[] = {
       {{"inline object", "inline int object;\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
@@ -19471,7 +19496,24 @@ static int run_function_specifiers(const char *host_root) {
        1u, 23u, "function specifier cannot appear in a type name"},
       {{"mixed inline declarators", "inline int function(void), object;\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
-       1u, 1u, "inline function specifier requires a function declaration"}};
+       1u, 1u, "inline function specifier requires a function declaration"},
+      {{"external inline declaration without definition",
+        "inline int missing(void);\n"
+        "int missing(void);\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
+       1u, 12u,
+       "external-linkage inline function requires a definition in this "
+       "translation unit"},
+      {{"duplicate inline definitions",
+        "inline int duplicate(void) { return 1; }\n"
+        "inline int duplicate(void) { return 2; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION},
+       2u, 12u, "function already has a definition"},
+      {{"conflicting mixed inline definition",
+        "int conflict(int value);\n"
+        "inline int conflict(void) { return 1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_REDEFINITION},
+       2u, 12u, "ordinary identifier has a conflicting declaration"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   const ctool_c_binding_t *local_helper;
@@ -19480,7 +19522,18 @@ static int run_function_specifiers(const char *host_root) {
   const ctool_c_binding_t *inline_fatal;
   const ctool_c_binding_t *ordinary;
   const ctool_c_binding_t *body_binding;
+  const ctool_c_binding_t *explicit_extern;
+  const ctool_c_binding_t *pure_external_inline;
+  const ctool_c_binding_t *block_only;
+  const ctool_c_binding_t *file_before_block_inline;
+  const ctool_c_binding_t *block_inline_before_file;
+  const ctool_c_binding_t *inherited_internal;
   const ctool_c_function_definition_t *body_definition;
+  const ctool_c_function_definition_t *later_inline_definition;
+  const ctool_c_function_definition_t *inline_fatal_definition;
+  const ctool_c_function_definition_t *explicit_extern_definition;
+  const ctool_c_function_definition_t *pure_external_inline_definition;
+  const ctool_c_function_definition_t *inherited_internal_definition;
   const ctool_c_statement_t *body_return;
   ctool_u32 body_value;
   ctool_u32 index;
@@ -19500,26 +19553,59 @@ static int run_function_specifiers(const char *host_root) {
   inline_fatal = find_binding(&unit, "inline_fatal");
   ordinary = find_binding(&unit, "ordinary");
   body_binding = find_binding(&unit, "body");
+  explicit_extern = find_binding(&unit, "explicit_extern");
+  pure_external_inline = find_binding(&unit, "pure_external_inline");
+  block_only = find_binding(&unit, "block_only");
+  file_before_block_inline =
+      find_binding(&unit, "file_before_block_inline");
+  block_inline_before_file =
+      find_binding(&unit, "block_inline_before_file");
+  inherited_internal = find_binding(&unit, "inherited_internal");
   body_definition = find_function_definition(&unit, "body");
+  later_inline_definition =
+      find_function_definition(&unit, "later_inline");
+  inline_fatal_definition =
+      find_function_definition(&unit, "inline_fatal");
+  explicit_extern_definition =
+      find_function_definition(&unit, "explicit_extern");
+  pure_external_inline_definition =
+      find_function_definition(&unit, "pure_external_inline");
+  inherited_internal_definition =
+      find_function_definition(&unit, "inherited_internal");
   body_return = find_single_return_statement(&unit, "body");
   body_value = scalar_return_value(&unit, "body", CTOOL_C_TYPE_SIGNED_INT);
   body_value = unwrap_conversions(&unit, body_value);
   if (local_helper == NULL || repeated == NULL || later_inline == NULL ||
       inline_fatal == NULL || ordinary == NULL || body_binding == NULL ||
+      explicit_extern == NULL || pure_external_inline == NULL ||
+      block_only == NULL || file_before_block_inline == NULL ||
+      block_inline_before_file == NULL || inherited_internal == NULL ||
       local_helper->kind != CTOOL_C_BINDING_FUNCTION ||
       local_helper->linkage != CTOOL_C_LINKAGE_INTERNAL ||
       local_helper->function_declaration_flags !=
           CTOOL_C_FUNCTION_DECL_INLINE ||
       repeated->kind != CTOOL_C_BINDING_FUNCTION ||
       repeated->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
-      repeated->function_declaration_flags != CTOOL_C_FUNCTION_DECL_INLINE ||
+      repeated->function_declaration_flags !=
+          (CTOOL_C_FUNCTION_DECL_INLINE |
+           CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) ||
       later_inline->function_declaration_flags !=
-          CTOOL_C_FUNCTION_DECL_INLINE ||
+          (CTOOL_C_FUNCTION_DECL_INLINE |
+           CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) ||
       later_inline->storage != CTOOL_C_STORAGE_NONE ||
       later_inline->location.line != 5u ||
-      inline_fatal->function_declaration_flags !=
+      later_inline_definition == NULL ||
+      later_inline_definition->storage != CTOOL_C_STORAGE_NONE ||
+      later_inline_definition->function_declaration_flags !=
           CTOOL_C_FUNCTION_DECL_INLINE ||
+      inline_fatal->function_declaration_flags !=
+          (CTOOL_C_FUNCTION_DECL_INLINE |
+           CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) ||
+      inline_fatal->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
       inline_fatal->attributes != CTOOL_C_DECL_ATTR_NORETURN ||
+      inline_fatal_definition == NULL ||
+      inline_fatal_definition->storage != CTOOL_C_STORAGE_NONE ||
+      inline_fatal_definition->function_declaration_flags != 0u ||
       ordinary->function_declaration_flags != 0u ||
       body_binding->linkage != CTOOL_C_LINKAGE_INTERNAL ||
       body_binding->function_declaration_flags !=
@@ -19527,6 +19613,38 @@ static int run_function_specifiers(const char *host_root) {
       body_definition == NULL ||
       body_definition->storage != CTOOL_C_STORAGE_STATIC ||
       body_definition->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      explicit_extern->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      explicit_extern->function_declaration_flags !=
+          (CTOOL_C_FUNCTION_DECL_INLINE |
+           CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) ||
+      explicit_extern_definition == NULL ||
+      explicit_extern_definition->storage != CTOOL_C_STORAGE_EXTERN ||
+      explicit_extern_definition->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      pure_external_inline->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      pure_external_inline->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      pure_external_inline_definition == NULL ||
+      pure_external_inline_definition->storage != CTOOL_C_STORAGE_NONE ||
+      pure_external_inline_definition->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      block_only->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      block_only->file_scope_visible != CTOOL_TRUE ||
+      block_only->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      file_before_block_inline->function_declaration_flags !=
+          (CTOOL_C_FUNCTION_DECL_INLINE |
+           CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) ||
+      block_inline_before_file->function_declaration_flags !=
+          (CTOOL_C_FUNCTION_DECL_INLINE |
+           CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION) ||
+      inherited_internal->linkage != CTOOL_C_LINKAGE_INTERNAL ||
+      inherited_internal->function_declaration_flags !=
+          CTOOL_C_FUNCTION_DECL_INLINE ||
+      inherited_internal_definition == NULL ||
+      inherited_internal_definition->storage != CTOOL_C_STORAGE_EXTERN ||
+      inherited_internal_definition->function_declaration_flags !=
           CTOOL_C_FUNCTION_DECL_INLINE ||
       body_return == NULL || body_return->expression == CTOOL_C_AST_NONE ||
       body_value == CTOOL_C_AST_NONE ||

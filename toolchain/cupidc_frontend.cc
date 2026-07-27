@@ -779,6 +779,21 @@ static ctool_status_t cfront_emit_failure_string(
   return emitted == CTOOL_OK ? status : emitted;
 }
 
+static ctool_status_t cfront_emit_location_failure(
+    cfront_context_t *context, ctool_status_t status, ctool_u32 code,
+    const ctool_c_pp_location_t *location, const char *message) {
+  ctool_c_pp_token_t token = {0};
+  if (location != (const ctool_c_pp_location_t *)0) {
+    token.location = *location;
+  }
+  return cfront_emit_failure_string(
+      context, status, code,
+      location != (const ctool_c_pp_location_t *)0
+          ? &token
+          : (const ctool_c_pp_token_t *)0,
+      ctool_string(message));
+}
+
 static ctool_status_t cfront_emit_failure(
     cfront_context_t *context, ctool_status_t status, ctool_u32 code,
     const ctool_c_pp_token_t *token, const char *message) {
@@ -2612,6 +2627,11 @@ static ctool_status_t cfront_append_binding(
   ctool_c_binding_t binding;
   ctool_u32 existing_index = CFRONT_NONE;
   ctool_bool duplicate = CTOOL_FALSE;
+  ctool_bool declaration_inline =
+      (semantics.function_declaration_flags &
+       CTOOL_C_FUNCTION_DECL_INLINE) != 0u
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   ctool_bool publishes_file_name =
       context->prototype_scope_depth == 0u &&
               context->in_function_body == CTOOL_FALSE
@@ -2681,6 +2701,34 @@ static ctool_status_t cfront_append_binding(
       duplicate = cfront_find_external_linkage_binding_index(
           context, name, &existing, &existing_index);
     }
+  }
+  if (kind == CTOOL_C_BINDING_FUNCTION &&
+      publishes_file_name == CTOOL_TRUE &&
+      declaration_inline == CTOOL_TRUE &&
+      storage == CTOOL_C_STORAGE_EXTERN &&
+      (duplicate == CTOOL_FALSE ||
+       (existing.kind == CTOOL_C_BINDING_FUNCTION &&
+        existing.linkage == CTOOL_C_LINKAGE_EXTERNAL))) {
+    semantics.function_declaration_flags |=
+        CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
+  }
+  /* Retain the provisional result once a file-scope non-inline declaration
+   * and any inline declaration have both appeared. Finalization rejects the
+   * declaration set when the translation unit has no function body. */
+  if (duplicate == CTOOL_TRUE &&
+      kind == CTOOL_C_BINDING_FUNCTION &&
+      existing.kind == CTOOL_C_BINDING_FUNCTION &&
+      existing.linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+      ((declaration_inline == CTOOL_FALSE &&
+        publishes_file_name == CTOOL_TRUE &&
+        (existing.function_declaration_flags &
+         CTOOL_C_FUNCTION_DECL_INLINE) != 0u) ||
+       (declaration_inline == CTOOL_TRUE &&
+        existing.file_scope_visible == CTOOL_TRUE &&
+        (existing.function_declaration_flags &
+         CTOOL_C_FUNCTION_DECL_INLINE) == 0u))) {
+    semantics.function_declaration_flags |=
+        CTOOL_C_FUNCTION_DECL_EXTERNAL_DEFINITION;
   }
   if (duplicate == CTOOL_TRUE) {
     if (context->prototype_scope_depth == 0u &&
@@ -14898,6 +14946,50 @@ static ctool_status_t cfront_finalize_object_definitions(
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_finalize_function_declarations(
+    cfront_context_t *context) {
+  ctool_u32 binding_index;
+  for (binding_index = 0u; binding_index < context->bindings.count;
+       binding_index++) {
+    ctool_c_binding_t binding;
+    ctool_bool has_definition = CTOOL_FALSE;
+    ctool_u32 definition_index;
+    ctool_status_t status =
+        cfront_binding_get(context, binding_index, &binding);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (binding.kind != CTOOL_C_BINDING_FUNCTION ||
+        binding.linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+        (binding.function_declaration_flags &
+         CTOOL_C_FUNCTION_DECL_INLINE) == 0u) {
+      continue;
+    }
+    for (definition_index = 0u;
+         definition_index < context->function_definitions.count;
+         definition_index++) {
+      ctool_c_function_definition_t definition;
+      status = cfront_vector_get(&context->function_definitions,
+                                 definition_index, &definition);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (definition.binding == binding_index) {
+        has_definition = CTOOL_TRUE;
+        break;
+      }
+    }
+    if (has_definition == CTOOL_FALSE) {
+      return cfront_emit_location_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_FUNCTION_DEFINITION,
+          &binding.location,
+          "external-linkage inline function requires a definition in this "
+          "translation unit");
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_parse_block_declaration(
     cfront_context_t *context, ctool_bool is_for_initializer,
     ctool_u32 *statement_out) {
@@ -19775,6 +19867,10 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
       if (status == CTOOL_OK) {
         stage = "file-object finalization";
         status = cfront_finalize_object_definitions(&context);
+      }
+      if (status == CTOOL_OK) {
+        stage = "function-declaration finalization";
+        status = cfront_finalize_function_declarations(&context);
       }
       if (status == CTOOL_OK) {
         stage = "semantic graph freeze";

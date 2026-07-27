@@ -50,7 +50,7 @@ executables are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean checkout.
 It does not complete the normal OS build migration. Native contract runners,
-hosted development commands, and 94 normal C root objects still use a host C
+hosted development commands, and 93 normal C root objects still use a host C
 compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
@@ -58,15 +58,15 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00F00000` boot-stack layout.
 
-The checked seed includes the active CSPRNG assembly, operand-free
-function assembly, per-CPU pointer output, integer atomics through fetch-or, and
-width-aware port I/O. Its stage-three CupidC image is 2,042,976 bytes with
-SHA-256
-`e30e51550326f4e74de9095c1256a3d4b40b734e060b896be89433d3518ffd41`.
+The checked seed includes decimal floating scalars, the active CSPRNG
+assembly, operand-free function assembly, per-CPU pointer output, integer
+atomics through fetch-or, and width-aware port I/O. Its stage-three CupidC
+image is 2,080,288 bytes with SHA-256
+`e4eb5b0846a580bb5a2826c97ce646eedec1a077581cb6e87dada6845806761b`.
 It came from stage three of the checked bootstrap at revision
-`32b0f65d8cb31dc6e5a3fd5b6a2837b7e30bf9fb`, not from the native compiler
-candidate. It also carries GNU `used`, privileged-register inputs, FXSAVE,
-call-next capture, GNU `Nd`, and machine-state memory outputs. With host
+`fe3bdfe451d7e019a052c7c8ba53f1f9f3f1fb3d`. It also carries GNU `used`,
+privileged-register inputs, FXSAVE, call-next capture, GNU `Nd`, and
+machine-state memory outputs. With host
 code-generator commands poisoned, all five seed images match stage two. All
 19 stage-two C objects, startup, and five images then match stage three, and
 both stages pass all 21 tool behavior cases.
@@ -122,31 +122,46 @@ count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 154/154 at compiler head.
 
-The normal image has 145 checked CupidC C transforms: 144 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. All 145 sources use
+The normal image has 146 checked CupidC C transforms: 145 checked-in sources
+and the generated `kernel/cpu/ksyms_data.cc` source. All 146 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386
 Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
-records the first 111-root transfer, and ADR 0126 records the complete
-fixed-point rename and old-seed proof. Ten strict checked-in roots remain
-host-owned.
+records the first 111-root transfer, ADR 0126 records the complete
+fixed-point rename and old-seed proof, and ADR 0129 records the lexer
+transfer. Nine strict checked-in roots remain host-owned.
 
-The strict frontier must compile each of its 144 approved sources twice.
+Compiler head now resolves the C11 inline declaration set in unchanged
+`kernel/audio/nuked_opl3.c`. The ordinary declaration in its header means
+the later inline body provides a global `OPL3_Generate4Ch` definition. Two
+kernel-profile compiles produce the same validated 40,424-byte object with
+SHA-256
+`a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1`.
+Prior `static` linkage remains internal, and an external-linkage inline
+declaration now requires a definition in the same translation unit.
+The checked seed predates this rule, so the normal recipe stays host-owned
+and the source stays `.c` until seed promotion and the production gates pass.
+
+The strict frontier must compile each of its 145 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe, and each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
-and symbols pass validation. The renamed graph passes its path snapshot,
-byte-for-byte object comparison, clean normal image, symbol and memory checks,
-and four-vCPU runtime gate.
+and symbols pass validation. The complete frontier now compiles all 145 roots
+twice against a 433-file snapshot. Both object sets are byte-identical and
+total 3,545,724 bytes. The combined graph passes the two-link symbol and
+memory checks, a clean normal image build, and the strong four-vCPU runtime
+gate.
 
-The checked seed also compiles three generated installation tables and the
-three example external ELF programs. All six use `.cc` source names. The
-generated tables keep the kernel profile, while `hello.cc`, `ls.cc`, and
-`cat.cc` use the closed user profile and checked CupidLD link. Both wrappers
-freeze their source and control inputs, validate every ELF result, and replace
-an artifact only after the operation succeeds. Deterministic frontiers and
-poisoned-host builds protect both paths.
+The checked seed compiles three generated installation tables. CupidC also
+compiles the three example external ELF programs. All six use `.cc` source
+names. The generated tables keep the kernel profile. `hello.cc`, `ls.cc`, and
+`cat.cc` use the closed user profile and CupidLD link. Linux runs the checked
+seed directly. Windows prepares native hosted CupidC and CupidLD drivers and
+runs private PE snapshots without WSL. Both wrappers freeze their source and
+control inputs, validate every ELF result, and replace an artifact only after
+the operation succeeds. The Windows frontier also requires all six files to
+match checked-seed output.
 
-The external-program runtime gate boots the checked hello, ls, and cat
+The external-program runtime gate boots the validated hello, ls, and cat
 executables separately through the ordinary loader. Serial events carry the
 running PID. Print events record a byte count and FNV-1a fingerprint instead
 of caller text, which keeps newline and marker-shaped file contents inside
@@ -199,9 +214,11 @@ source. Two full kernel-profile compiles produce the same validated
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
 user executables have no unsupported instruction fallback. The remaining gap
-is concentrated in host-built kernel and Doom objects. Padding NOPs,
-packed-integer SSE2, and immediate three-operand `IMUL` account for 4,008 of
-the 4,164 missing instruction starts. Those groups set the next decoder work.
+is concentrated in host-built kernel and Doom objects. The shared catalogue
+now covers 16-bit and 32-bit three-operand `IMUL` through both `69 /r` and
+`6B /r`. A focused LLVM census found 27 real instances in four host-built
+objects, while CupidDis fallback rows in that sample fell from 540 to 495.
+Padding NOPs and packed-integer SSE2 remain the largest measured decoder gaps.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 traffic,
 passes all 62 crypto checks, opens the desktop and terminal, and completes
@@ -214,8 +231,12 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 151
-transforms to CupidC, 146 to the host C compiler, and 163 to host Python.
-CupidC's total is the 145 normal transforms plus three generated installation
+Across the root and supplemental builds, the current audit assigns 152
+transforms to CupidC, 145 to the host C compiler, 165 to host Python, and five
+to Make.
+CupidC's total is the 146 normal transforms plus three generated installation
 tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The host compiler
-still produces 94 root objects.
+still produces 93 root objects and still builds the native user drivers.
+The fifth Make transform prepares those drivers.
+The checked audit uses the canonical Windows Make branch and C locale on
+every host. Direct Linux builds test the separate Linux execution branch.

@@ -8,8 +8,9 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 698
 - Unreachable source-like files: 42
-- Reachable output transforms: 501
+- Reachable output transforms: 502
 - Distinct feature requirements: 253
+- Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
 
@@ -20,9 +21,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 109 |
+| `c` | 108 |
 | `c_header` | 270 |
-| `cupid_c` | 292 |
+| `cupid_c` | 293 |
 
 ## Source cohorts
 
@@ -31,10 +32,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 301 |
 | `cupid_asm_demo` | 22 | 1469 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
-| `cupid_c_program` | 105 | 18605 |
+| `cupid_c_program` | 105 | 18689 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6682 |
-| `cupidc` | 7 | 13109 |
+| `cupidc` | 7 | 13133 |
 | `cupiddis` | 5 | 2905 |
 | `doom_port` | 7 | 2631 |
 | `driver` | 22 | 3861 |
@@ -55,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 15 | 111357 |
-| `toolchain_core` | 31 | 64312 |
+| `toolchain_contract` | 15 | 112262 |
+| `toolchain_core` | 31 | 64500 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -68,7 +69,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
 | `.` | `all` | 439 | 20 |
-| `user` | `all` | 8 | 0 |
+| `user` | `all` | 9 | 0 |
 | `toolchain` | `all` | 54 | 2 |
 
 ## Current output ownership
@@ -76,13 +77,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 151 |
+| `cupid_c_compiler` | 152 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 146 |
-| `host_python` | 164 |
-| `make` | 4 |
+| `host_c_compiler` | 145 |
+| `host_python` | 165 |
+| `make` | 5 |
 
 ## Feature inventory
 
@@ -99,23 +100,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 68273 |
+| `c.control` | 12 | 68422 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3110 |
-| `c.expression` | 2 | 4558 |
+| `c.declarator` | 4 | 3121 |
+| `c.expression` | 2 | 4599 |
 | `c.extension` | 18 | 387 |
-| `c.initializer` | 1 | 640 |
-| `c.output` | 1 | 94 |
-| `c.preprocessor` | 18 | 6665 |
-| `c.qualifier` | 2 | 12462 |
-| `c.storage` | 4 | 8204 |
-| `c.type` | 14 | 45227 |
+| `c.initializer` | 1 | 643 |
+| `c.output` | 1 | 93 |
+| `c.preprocessor` | 18 | 6668 |
+| `c.qualifier` | 2 | 12499 |
+| `c.storage` | 4 | 8231 |
+| `c.type` | 14 | 45293 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 151 |
+| `cupid_c.output` | 1 | 152 |
 | `cupid_c.storage` | 2 | 118 |
 | `cupid_c.type` | 12 | 152 |
 
@@ -151,7 +152,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 281 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 282 |
 
 ## Source-cohort migration order
 
@@ -161,7 +162,7 @@ It is also a declared Make prerequisite.
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 276 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 190 | Preserve upstream behavior under a deliberate compatibility mode. |
-| 5 | `user_programs` | 4 | Keep the checked CupidC and CupidLD user build reproducible, then stage its validated executables deliberately. |
+| 5 | `user_programs` | 4 | Keep the native Windows and checked-seed Linux CupidC and CupidLD user build reproducible, then stage its validated executables deliberately. |
 | 6 | `embedded_cupid_sources` | 151 | Keep runtime CupidC/CupidASM regression corpora active through the host migration. |
 
 ## Unreachable source classification
@@ -183,7 +184,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/browser/gen_media_features.h` | `c_header` | `not_reached` | 50 | not reachable from the supported Make target or include closure |
 | `bin/build.cup` | `cupid_script` | `not_reached` | 46 | not reachable from the supported Make target or include closure |
 | `bin/cupidc.c` | `c` | `historical_copy` | 1955 | historical_copy_of: `kernel/lang/cupidc.cc` |
-| `bin/cupidc_lex.c` | `c` | `historical_copy` | 647 | historical_copy_of: `kernel/lang/cupidc_lex.c` |
+| `bin/cupidc_lex.c` | `c` | `historical_copy` | 647 | historical_copy_of: `kernel/lang/cupidc_lex.cc` |
 | `bin/cupidc_parse.c` | `c` | `historical_copy` | 4111 | historical_copy_of: `kernel/lang/cupidc_parse.cc` |
 | `bin/fat16.c` | `c` | `historical_copy` | 1468 | historical_copy_of: `kernel/fs/fat16.cc` |
 | `bin/fat16_vfs.c` | `c` | `historical_copy` | 423 | historical_copy_of: `kernel/fs/fat16_vfs.cc` |
