@@ -30,6 +30,7 @@ typedef struct {
   ctool_u32 macro_action_count;
   ctool_bool hosted_environment;
   ctool_bool gnu_extensions;
+  ctool_bool doom_compatibility;
 } cupidc_cli_t;
 
 typedef struct {
@@ -44,6 +45,7 @@ typedef struct {
   ctool_u32 macro_action_count;
   ctool_bool hosted_environment;
   ctool_bool gnu_extensions;
+  ctool_bool doom_compatibility;
 } cupidc_invocation_context_t;
 
 static void cupidc_usage(FILE *stream) {
@@ -51,7 +53,8 @@ static void cupidc_usage(FILE *stream) {
       stream,
       "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
       "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-      "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n");
+      "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+      "[--root NATIVE_ROOT]\n");
 }
 
 static ctool_bool cupidc_string_equal_literal(ctool_string_t value,
@@ -120,6 +123,7 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
   int index;
   ctool_bool have_compile = CTOOL_FALSE;
   ctool_bool have_gnu = CTOOL_FALSE;
+  ctool_bool have_doom_compatibility = CTOOL_FALSE;
   ctool_bool have_freestanding = CTOOL_FALSE;
   size_t slot_count;
   if (argc < 0) {
@@ -166,6 +170,14 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
       }
       cli->gnu_extensions = CTOOL_TRUE;
       have_gnu = CTOOL_TRUE;
+      continue;
+    }
+    if (strcmp(argument, "--doom-compat") == 0) {
+      if (have_doom_compatibility == CTOOL_TRUE) {
+        return 0;
+      }
+      cli->doom_compatibility = CTOOL_TRUE;
+      have_doom_compatibility = CTOOL_TRUE;
       continue;
     }
     if (strcmp(argument, "--freestanding") == 0) {
@@ -449,6 +461,8 @@ static ctool_status_t cupidc_compile_body(ctool_invocation_t *invocation,
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
   parse_request.gnu_extensions = context->gnu_extensions;
+  parse_request.implicit_function_declarations =
+      context->doom_compatibility;
   (void)memset(&unit, 0, sizeof(unit));
   if (status == CTOOL_OK) {
     status = ctool_c_parse(invocation->job, &tape, &parse_request, &unit);
@@ -608,6 +622,7 @@ int main(int argc, char **argv) {
   context.macro_action_count = cli.macro_action_count;
   context.hosted_environment = cli.hosted_environment;
   context.gnu_extensions = cli.gnu_extensions;
+  context.doom_compatibility = cli.doom_compatibility;
   request.input_path = ctool_string(logical_input);
   request.output_path = ctool_string(logical_output);
   (void)memset(&result, 0, sizeof(result));

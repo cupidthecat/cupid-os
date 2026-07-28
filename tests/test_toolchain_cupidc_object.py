@@ -134,10 +134,6 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
     ),
 )
 DOOM_TREE_FRONTIER_FAILURES = {
-    "/kernel/doom/src/i_system.c": (
-        "/kernel/doom/src/i_system.c:172:9: error CTB000010: "
-        "expression identifier is not declared\n"
-    ),
     "/kernel/doom/src/i_video.c": (
         "/kernel/doom/src/i_video.c:144:27: error CTD000002: "
         "CupidC IR lowering received an invalid translation unit\n"
@@ -753,6 +749,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertTrue(profile["gnu_extensions"])
         self.assertFalse(profile["hosted_environment"])
+        self.assertFalse(profile["implicit_function_declarations"])
         self.assertEqual(profile["forced_includes"], [])
 
         arguments = [
@@ -986,6 +983,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "old-style-empty-functions: ok\n")
+
+    def test_doom_implicit_functions_emit_one_stable_external_identity(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "doom-implicit-functions",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "doom-implicit-functions: ok\n")
 
     def test_block_record_tags_emit_deterministic_i386_objects(self):
         result = subprocess.run(
@@ -1890,6 +1901,88 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
             self.assertFalse(reserved_undef_output.exists())
 
+    def test_doom_compatibility_is_explicit_and_self_hosted(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-doom-compat-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            source = root / "implicit.c"
+            source.write_text(
+                "int invoke(void) { return missing(3); }\n",
+                encoding="utf-8",
+            )
+            expected = (
+                "/implicit.c:1:27: error CTB000010: "
+                "expression identifier is not declared\n"
+            )
+            for name, extra in (("strict", []), ("gnu", ["--gnu"])):
+                output = root / f"{name}.o"
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        "--root",
+                        str(root),
+                        *extra,
+                        "-c",
+                        "/implicit.c",
+                        "-o",
+                        f"/{name}.o",
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                with self.subTest(profile=name):
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, expected)
+                    self.assertFalse(output.exists())
+
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "--doom-compat",
+                    "-c",
+                    "/implicit.c",
+                    "-o",
+                    "/hosted.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "--doom-compat",
+                    "-c",
+                    "/implicit.c",
+                    "-o",
+                    "/cupid.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(cupid.returncode, hosted.returncode, cupid.stderr)
+            self.assertEqual(cupid.stdout, hosted.stdout)
+            self.assertEqual(cupid.stderr, hosted.stderr)
+            self.assertEqual(
+                (root / "cupid.o").read_bytes(),
+                (root / "hosted.o").read_bytes(),
+            )
+            self.assertEqual(
+                (root / "hosted.o").read_bytes()[:7],
+                b"\x7fELF\x01\x01\x01",
+            )
+
     def test_cupidc_angle_only_roots_do_not_change_quoted_lookup(self):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
@@ -2109,6 +2202,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(profile["tracked_translation_units"], 80)
         self.assertTrue(profile["gnu_extensions"])
         self.assertFalse(profile["hosted_environment"])
+        self.assertTrue(profile["implicit_function_declarations"])
         self.assertEqual(
             profile["forced_includes"],
             ["/kernel/doom/dglibc_compat.h"],
@@ -2118,6 +2212,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             "--root",
             str(REPO_ROOT),
             "--gnu",
+            "--doom-compat",
             "--freestanding",
         ]
         both_forms = (
@@ -2189,7 +2284,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
-            self.assertEqual(len(results) - len(failures), 74)
+            self.assertEqual(len(results) - len(failures), 75)
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()
@@ -2197,7 +2292,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
+            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[--root NATIVE_ROOT]\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-forced-include-errors-", dir=REPO_ROOT
@@ -2373,7 +2469,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
+            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[--root NATIVE_ROOT]\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-include-errors-", dir=REPO_ROOT
@@ -2508,7 +2605,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
+            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[--root NATIVE_ROOT]\n"
         )
         hosted_help = subprocess.run(
             [str(self.hosted_cupidc_path), "--help"],
@@ -2718,7 +2816,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
+            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[--root NATIVE_ROOT]\n"
         )
         generation_one_tools = {
             "cupidasm": self.cupid_cupidasm_path,

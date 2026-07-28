@@ -7945,6 +7945,7 @@ static ctool_status_t cir_validate_block_enumerator(
   }
   binding = &context->unit->block_bindings[binding_index];
   if (binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
+      binding->implicit_function_declaration != CTOOL_FALSE ||
       binding->storage != CTOOL_C_STORAGE_NONE ||
       binding->type >= context->unit->layout.type_count ||
       binding->linkage_binding != CTOOL_C_AST_NONE ||
@@ -7966,6 +7967,69 @@ static ctool_status_t cir_validate_block_enumerator(
            binding->integer_unsigned == CTOOL_FALSE ? CTOOL_TRUE
                                                      : CTOOL_FALSE) ==
            CTOOL_FALSE)) {
+    return cir_invalid_unit(context, &binding->location);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_validate_implicit_function_binding(
+    cir_context_t *context, ctool_u32 binding_index,
+    ctool_u32 activation_expression,
+    const ctool_c_pp_location_t *owner_location) {
+  const ctool_c_block_binding_t *binding;
+  const ctool_c_binding_t *linked;
+  const ctool_c_expression_t *identifier;
+  const ctool_c_type_node_t *block_function;
+  const ctool_c_type_node_t *result;
+  ctool_bool compatible;
+  if (binding_index >= context->unit->block_binding_count ||
+      activation_expression >= context->unit->expression_count) {
+    return cir_invalid_unit(context, owner_location);
+  }
+  binding = &context->unit->block_bindings[binding_index];
+  if (binding->implicit_function_declaration != CTOOL_TRUE ||
+      binding->kind != CTOOL_C_BINDING_FUNCTION ||
+      binding->storage != CTOOL_C_STORAGE_NONE ||
+      binding->type >= context->unit->graph.type_count ||
+      binding->linkage_binding >= context->unit->binding_count ||
+      binding->initializer != CTOOL_C_AST_NONE ||
+      binding->integer_bits != 0ull ||
+      binding->integer_unsigned != CTOOL_FALSE ||
+      binding->activation_expression != activation_expression ||
+      binding->activation_initializer != CTOOL_C_AST_NONE) {
+    return cir_invalid_unit(context, &binding->location);
+  }
+  linked = &context->unit->bindings[binding->linkage_binding];
+  identifier = &context->unit->expressions[activation_expression];
+  block_function = cir_unwrapped_type(context, binding->type);
+  result =
+      block_function == (const ctool_c_type_node_t *)0
+          ? (const ctool_c_type_node_t *)0
+          : cir_unwrapped_type(context, block_function->referenced_type);
+  compatible = linked->type < context->unit->graph.type_count
+                   ? cir_types_compatible(
+                         context, binding->type, linked->type)
+                   : CTOOL_FALSE;
+  if (context->relation_status != CTOOL_OK) {
+    return context->relation_status;
+  }
+  if (binding->name.size == 0u ||
+      linked->kind != CTOOL_C_BINDING_FUNCTION ||
+      linked->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      (linked->file_scope_visible != CTOOL_FALSE &&
+       linked->file_scope_visible != CTOOL_TRUE) ||
+      cir_string_equal(binding->name, linked->name) == CTOOL_FALSE ||
+      block_function == (const ctool_c_type_node_t *)0 ||
+      block_function->kind != CTOOL_C_TYPE_FUNCTION ||
+      block_function->has_prototype != CTOOL_FALSE ||
+      block_function->variadic != CTOOL_FALSE ||
+      block_function->parameter_count != 0u ||
+      result == (const ctool_c_type_node_t *)0 ||
+      result->kind != CTOOL_C_TYPE_SIGNED_INT ||
+      compatible == CTOOL_FALSE ||
+      identifier->kind != CTOOL_C_EXPRESSION_IDENTIFIER ||
+      identifier->type != binding->type ||
+      identifier->reference != binding->linkage_binding) {
     return cir_invalid_unit(context, &binding->location);
   }
   return CTOOL_OK;
@@ -8070,14 +8134,17 @@ static ctool_status_t cir_lower_declaration(
     if (binding->kind < CTOOL_C_BINDING_TYPEDEF ||
         binding->kind > CTOOL_C_BINDING_ENUMERATOR ||
         binding->storage < CTOOL_C_STORAGE_NONE ||
-        binding->storage > CTOOL_C_STORAGE_REGISTER) {
+        binding->storage > CTOOL_C_STORAGE_REGISTER ||
+        (binding->implicit_function_declaration != CTOOL_FALSE &&
+         binding->implicit_function_declaration != CTOOL_TRUE)) {
       return cir_invalid_unit(context, &binding->location);
     }
-    if (binding->kind != CTOOL_C_BINDING_ENUMERATOR &&
+    if (binding->implicit_function_declaration == CTOOL_TRUE ||
+        (binding->kind != CTOOL_C_BINDING_ENUMERATOR &&
         (binding->integer_bits != 0ull ||
          binding->integer_unsigned != CTOOL_FALSE ||
          binding->activation_expression != CTOOL_C_AST_NONE ||
-         binding->activation_initializer != CTOOL_C_AST_NONE)) {
+         binding->activation_initializer != CTOOL_C_AST_NONE))) {
       return cir_invalid_unit(context, &binding->location);
     }
     if (binding->kind == CTOOL_C_BINDING_ENUMERATOR) {
@@ -10181,9 +10248,22 @@ static ctool_status_t cir_scan_expression_bindings(
       for (binding_offset = 0u;
            binding_offset < expression->block_binding_count;
            binding_offset++) {
-        ctool_status_t status = cir_validate_block_enumerator(
-            context, expression->first_block_binding + binding_offset,
-            expression_index, CTOOL_C_AST_NONE, &expression->location);
+        ctool_u32 binding_index =
+            expression->first_block_binding + binding_offset;
+        const ctool_c_block_binding_t *binding;
+        ctool_status_t status;
+        if (binding_index >= context->unit->block_binding_count) {
+          return cir_invalid_unit(context, &expression->location);
+        }
+        binding = &context->unit->block_bindings[binding_index];
+        status =
+            binding->kind == CTOOL_C_BINDING_ENUMERATOR
+                ? cir_validate_block_enumerator(
+                      context, binding_index, expression_index,
+                      CTOOL_C_AST_NONE, &expression->location)
+                : cir_validate_implicit_function_binding(
+                      context, binding_index, expression_index,
+                      &expression->location);
         if (status != CTOOL_OK) {
           return status;
         }

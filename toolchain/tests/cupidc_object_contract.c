@@ -1308,10 +1308,10 @@ static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
   return check_status(status, CTOOL_OK, "job open");
 }
 
-static int parse_source_mode(ctool_job_t *job, const char *path,
-                             const char *text,
-                             ctool_bool gnu_extensions,
-                             ctool_c_translation_unit_t *unit_out) {
+static int parse_source_features(
+    ctool_job_t *job, const char *path, const char *text,
+    ctool_bool gnu_extensions, ctool_bool implicit_function_declarations,
+    ctool_c_translation_unit_t *unit_out) {
   ctool_source_t source;
   ctool_c_pp_request_t pp_request;
   ctool_c_pp_result_t tape;
@@ -1344,6 +1344,8 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
   parse_request.gnu_extensions = gnu_extensions;
+  parse_request.implicit_function_declarations =
+      implicit_function_declarations;
   (void)memset(unit_out, 0xa5, sizeof(*unit_out));
   status = ctool_c_parse(job, &tape, &parse_request, unit_out);
   if (status != CTOOL_OK ||
@@ -1354,6 +1356,14 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
     return 0;
   }
   return 1;
+}
+
+static int parse_source_mode(ctool_job_t *job, const char *path,
+                             const char *text,
+                             ctool_bool gnu_extensions,
+                             ctool_c_translation_unit_t *unit_out) {
+  return parse_source_features(job, path, text, gnu_extensions, CTOOL_FALSE,
+                               unit_out);
 }
 
 static int parse_source(ctool_job_t *job, const char *path, const char *text,
@@ -16415,6 +16425,173 @@ cleanup:
   return 1;
 }
 
+static int doom_implicit_function_call_offset(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, ctool_u32 *offset_out) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 calls = 0u;
+  ctool_u32 returns = 0u;
+  ctool_u32 call_offset = CTOOL_C_AST_NONE;
+  if (text == NULL || function == NULL ||
+      function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      function->section_file_index != text->file_index ||
+      function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      call_offset = function->value + cursor + 1u;
+      calls++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RET) {
+      returns++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != function->size || calls != 1u || returns != 1u ||
+      call_offset == CTOOL_C_AST_NONE) {
+    return 0;
+  }
+  *offset_out = call_offset;
+  return 1;
+}
+
+static int validate_doom_implicit_function_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text = find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *before = find_symbol(object, "before");
+  const ctool_elf32_symbol_t *after = find_symbol(object, "after");
+  const ctool_elf32_symbol_t *legacy = find_symbol(object, "legacy");
+  ctool_u32 before_call;
+  ctool_u32 after_call;
+  ctool_u32 matched = 0u;
+  ctool_u32 relocation;
+  if (text == NULL || rel_text == NULL || before == NULL || after == NULL ||
+      legacy == NULL ||
+      before->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      before->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      after->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      after->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      legacy->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      legacy->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      legacy->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      legacy->section_file_index != CTOOL_ELF32_NO_SECTION ||
+      legacy->value != 0u || legacy->size != 0u ||
+      text->relocation_count != 2u || object->relocation_count != 2u ||
+      !doom_implicit_function_call_offset(job, text, before, &before_call) ||
+      !doom_implicit_function_call_offset(job, text, after, &after_call)) {
+    return 0;
+  }
+  for (relocation = 0u; relocation < object->relocation_count;
+       relocation++) {
+    const ctool_elf32_relocation_t *entry =
+        &object->relocations[relocation];
+    if (entry->relocation_section_file_index != rel_text->file_index ||
+        entry->target_section_file_index != text->file_index ||
+        entry->symbol_file_index != legacy->file_index ||
+        entry->type != CTOOL_ELF32_R_386_PC32 ||
+        entry->addend_known != CTOOL_TRUE || entry->addend != -4 ||
+        (entry->offset != before_call && entry->offset != after_call)) {
+      return 0;
+    }
+    matched++;
+  }
+  return matched == 2u && before_call != after_call ? 1 : 0;
+}
+
+static int run_doom_implicit_function_object(const char *host_root) {
+  static const char source[] =
+      "int before(signed char small, float ratio) {\n"
+      "  return legacy(small, ratio);\n"
+      "}\n"
+      "int legacy(int value, double ratio);\n"
+      "int after(void) {\n"
+      "  return legacy(3, 4.0);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_features(job, "/doom-implicit-object.c", source,
+                             CTOOL_FALSE, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.block_binding_count != 1u ||
+      unit.block_bindings[0].implicit_function_declaration != CTOOL_TRUE) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "Doom implicit object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first Doom implicit object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat Doom implicit object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data, first_bytes.size) != 0) {
+    (void)fprintf(stderr, "Doom implicit object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/doom-implicit-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read Doom implicit object") ||
+      !validate_doom_implicit_function_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("doom-implicit-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_block_record_object(
     const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_rodata[] = {
@@ -26771,20 +26948,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 218u, 236u, 364u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 219u, 236u, 364u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 423687u, 393864u, 761399u, 139646u, 70368u, 80478u,
+      190304u, 427428u, 393864u, 765053u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 453020u, 424764u, 897996u, 157828u, 79348u, 134656u,
+      226668u, 456892u, 424764u, 902112u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xedf302cau, 0xcc867238u, 0x43485bfeu, 0x239f52c7u,
+      0xdecf7263u, 0xdc95e874u, 0x8129a254u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -35434,6 +35611,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "old-style-empty-functions") == 0) {
     return run_old_style_empty_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "doom-implicit-functions") == 0) {
+    return run_doom_implicit_function_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
     return run_block_record_object(argv[2]);
   }
@@ -35519,7 +35699,8 @@ int main(int argc, char **argv) {
                 "pointer-output-assembly|"
                 "operand-free-assembly|"
                 "structure-values|call-alignment|"
-                "compound-literals|old-style-empty-functions|block-records|"
+                "compound-literals|old-style-empty-functions|"
+                "doom-implicit-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
                 "floating-arithmetic|floating-comparisons|"
                 "floating-conversions|"

@@ -92,6 +92,10 @@ _Avoid_: automatic local, block-static object
 A lexical block declaration that names a canonical linked function. It owns no storage or runtime work. Uses keep the type visible at the declaration and retain the canonical function identity even when no ordinary file-scope name is visible.
 _Avoid_: nested function, automatic local
 
+**Implicit function alias**:
+A block function alias introduced only by the explicit Doom compatibility profile when a bare undeclared identifier is called. It owns the identifier expression that triggered the old-style `extern int name()` declaration and keeps one canonical external function identity across blocks. Calls parsed before a later prototype retain default argument promotions.
+_Avoid_: general undeclared identifier support, forward declaration
+
 **External inline definition**:
 A file-scope function definition whose external declaration set contains `inline` but does not consist entirely of `inline` declarations without `extern`. A prior or later ordinary declaration and an `extern inline` definition with effective external linkage both provide the external definition. An earlier `static` declaration keeps the function internal, even when its definition is spelled `extern inline`. CupidC records the translation-unit result on the canonical binding while the definition keeps its exact source spelling. Any external-linkage function declared `inline` must have a definition in the same translation unit.
 _Avoid_: pure external inline definition, static inline function
@@ -213,6 +217,10 @@ _Avoid_: host `va_list`, argument array
 **C mode**:
 The CupidC language mode for freestanding C source.
 _Avoid_: Cupid mode
+
+**Doom compatibility profile**:
+The explicit compiler profile for source requirements audited in the vendored Doom cohort. It currently adds old-style implicit function declarations to the exact Doom preprocessing and GNU-extension profile. It does not change ordinary C or plain GNU mode.
+_Avoid_: GNU mode, ordinary C mode
 
 **Cupid mode**:
 The CupidC language mode for Cupid C source and its native extensions.

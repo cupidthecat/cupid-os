@@ -1840,10 +1840,10 @@ static int open_limited_job(const char *host_root,
   return check_status(status, CTOOL_OK, "limited job open");
 }
 
-static int parse_source_mode(ctool_job_t *job, const char *path,
-                             const char *text,
-                             ctool_bool gnu_extensions,
-                             ctool_c_translation_unit_t *unit_out) {
+static int parse_source_features(
+    ctool_job_t *job, const char *path, const char *text,
+    ctool_bool gnu_extensions, ctool_bool implicit_function_declarations,
+    ctool_c_translation_unit_t *unit_out) {
   ctool_source_t source;
   ctool_c_pp_request_t pp_request;
   ctool_c_pp_result_t tape;
@@ -1875,6 +1875,8 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
   parse_request.gnu_extensions = gnu_extensions;
+  parse_request.implicit_function_declarations =
+      implicit_function_declarations;
   (void)memset(unit_out, 0xa5, sizeof(*unit_out));
   status = ctool_c_parse(job, &tape, &parse_request, unit_out);
   if (status != CTOOL_OK ||
@@ -1885,6 +1887,14 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
     return 0;
   }
   return 1;
+}
+
+static int parse_source_mode(ctool_job_t *job, const char *path,
+                             const char *text,
+                             ctool_bool gnu_extensions,
+                             ctool_c_translation_unit_t *unit_out) {
+  return parse_source_features(job, path, text, gnu_extensions, CTOOL_FALSE,
+                               unit_out);
 }
 
 static int parse_source(ctool_job_t *job, const char *path, const char *text,
@@ -22467,6 +22477,179 @@ cleanup:
   return 1;
 }
 
+static int run_doom_implicit_functions(const char *host_root) {
+  static const char source[] =
+      "int before(signed char small, float ratio) {\n"
+      "  return legacy(small, ratio);\n"
+      "}\n"
+      "int legacy(int value, double ratio) {\n"
+      "  return value + (int)ratio;\n"
+      "}\n"
+      "int after(void) {\n"
+      "  return legacy(3, 4.0);\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_block_binding_t *invalid_blocks = NULL;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t first;
+  ctool_c_ir_unit_t second;
+  ctool_u64 frontend_fingerprint;
+  ctool_u64 ir_fingerprint;
+  ctool_u32 legacy;
+  ctool_u32 call_count = 0u;
+  ctool_u32 old_style_calls = 0u;
+  ctool_u32 prototyped_calls = 0u;
+  ctool_u32 integer_promotions = 0u;
+  ctool_u32 float_promotions = 0u;
+  ctool_u32 instruction;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first, 0xa5, sizeof(first));
+  (void)memset(&second, 0xa5, sizeof(second));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_features(job, "/doom-implicit-ir.c", source,
+                             CTOOL_FALSE, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  legacy = find_binding(&unit, "legacy");
+  frontend_fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first);
+  if (!check_status(status, CTOOL_OK, "Doom implicit function lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != frontend_fingerprint ||
+      legacy == CTOOL_C_AST_NONE || unit.block_binding_count != 1u ||
+      unit.block_bindings[0].implicit_function_declaration != CTOOL_TRUE ||
+      first.function_count != 3u) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (instruction = 0u; instruction < first.instruction_count;
+       instruction++) {
+    const ctool_c_ir_instruction_t *candidate =
+        &first.instructions[instruction];
+    if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+        candidate->reference == legacy) {
+      const ctool_c_type_node_t *call_type =
+          candidate->input_type < unit.graph.type_count
+              ? &unit.graph.types[candidate->input_type]
+              : NULL;
+      call_count++;
+      if (call_type == NULL ||
+          call_type->kind != CTOOL_C_TYPE_FUNCTION) {
+        goto cleanup;
+      }
+      if (call_type->has_prototype == CTOOL_TRUE) {
+        prototyped_calls++;
+      } else {
+        old_style_calls++;
+      }
+    } else if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               candidate->conversion ==
+                   CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+      integer_promotions++;
+    } else if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               candidate->conversion == CTOOL_C_CONVERSION_FLOAT_PROMOTION) {
+      float_promotions++;
+    }
+  }
+  if (call_count != 2u || old_style_calls != 1u ||
+      prototyped_calls != 1u || integer_promotions == 0u ||
+      float_promotions == 0u) {
+    (void)fprintf(stderr,
+                  "Doom implicit function IR call inventory differs\n");
+    goto cleanup;
+  }
+  ir_fingerprint = ir_instruction_fingerprint(&first);
+  status = ctool_c_lower_ir(job, &unit, &second);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat Doom implicit function lowering") ||
+      unit_fingerprint(&unit) != frontend_fingerprint ||
+      second.function_count != first.function_count ||
+      second.instruction_count != first.instruction_count ||
+      ir_instruction_fingerprint(&second) != ir_fingerprint) {
+    (void)fprintf(stderr,
+                  "Doom implicit function IR is not deterministic\n");
+    goto cleanup;
+  }
+  invalid_blocks = (ctool_c_block_binding_t *)malloc(
+      (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  if (invalid_blocks == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.block_bindings = invalid_blocks;
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].implicit_function_declaration = CTOOL_FALSE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "Doom implicit function ownership flag")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].activation_expression = CTOOL_C_AST_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "Doom implicit function activation")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_blocks, unit.block_bindings,
+               (size_t)unit.block_binding_count * sizeof(*invalid_blocks));
+  invalid_blocks[0].linkage_binding = CTOOL_C_AST_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "Doom implicit function linkage")) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL ||
+      unit.block_bindings[0].activation_expression >= unit.expression_count) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  invalid_expressions[unit.block_bindings[0].activation_expression]
+      .first_block_binding = unit.block_binding_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "Doom implicit function expression binding range")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  free(invalid_blocks);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("doom-implicit-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_variadic_callee_ir(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
@@ -33805,6 +33988,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "old-style-empty-functions") == 0) {
     return run_old_style_empty_functions(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "doom-implicit-functions") == 0) {
+    return run_doom_implicit_functions(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

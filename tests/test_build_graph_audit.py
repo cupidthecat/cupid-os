@@ -2921,7 +2921,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
         profile_pattern = re.compile(
             r"^CUPIDC_PP_PROFILE\(([A-Z0-9_]+), ([A-Z0-9_]+), "
-            r"(CTOOL_(?:TRUE|FALSE)), (CTOOL_(?:TRUE|FALSE))\)$"
+            r"(CTOOL_(?:TRUE|FALSE)), (CTOOL_(?:TRUE|FALSE)), "
+            r"(CTOOL_(?:TRUE|FALSE))\)$"
         )
         active_pattern = re.compile(
             r'^CUPIDC_PP_ACTIVE_CASE\(([A-Z0-9_]+), "([^"]+)"\)$'
@@ -2953,28 +2954,33 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "DOOM_COMPAT_I386",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_TRUE",
                 ),
                 (
                     "DOOM_TREE_I386",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_TRUE",
                 ),
                 (
                     "USER_I386",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "CUPID_RUNTIME",
                     "CTOOL_C_PP_MODE_CUPID",
+                    "CTOOL_FALSE",
                     "CTOOL_FALSE",
                     "CTOOL_FALSE",
                 ),
@@ -2983,30 +2989,34 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "HOSTED_KERNEL_BRIDGE_64",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "HOSTED_I386_LINUX",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "HOSTED_I386_LINUX_GNU",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                 ),
             ],
         )
         self.assertEqual(
             {name: sum(case_name == name for case_name, _ in active)
-             for name, _, _, _ in profiles},
+            for name, _, _, _, _ in profiles},
             {
                 "KERNEL_I386": 155,
                 "DOOM_COMPAT_I386": 3,
@@ -4045,6 +4055,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     mode="CTOOL_C_PP_MODE_C11",
                     gnu_extensions="CTOOL_TRUE",
                     hosted_environment="CTOOL_FALSE",
+                    implicit_function_declarations="CTOOL_FALSE",
                 ),
             ),
             include_roots=(
@@ -4066,6 +4077,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         first = module._render_c_preprocessor_active_cases(manifest)
         second = module._render_c_preprocessor_active_cases(manifest)
         self.assertEqual(first, second)
+        self.assertIn(
+            "CUPIDC_PP_PROFILE(SYNTH, CTOOL_C_PP_MODE_C11, CTOOL_TRUE, "
+            "CTOOL_FALSE, CTOOL_FALSE)",
+            first,
+        )
         self.assertIn(
             'CUPIDC_PP_INCLUDE_ROOT(SYNTH, '
             '"/root/\\?\\?/\\\"quoted\\\"\\\\tab\\012\\316\\251", '
@@ -4190,6 +4206,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(
+                {
+                    profile["name"]:
+                        profile["implicit_function_declarations"]
+                    for profile in contract["profiles"]
+                },
+                {
+                    "KERNEL_I386": False,
+                    "DOOM_COMPAT_I386": True,
+                    "DOOM_TREE_I386": True,
+                    "USER_I386": False,
+                    "CUPID_RUNTIME": False,
+                    "HOSTED_TOOLCHAIN_64": False,
+                    "HOSTED_KERNEL_BRIDGE_64": False,
+                    "HOSTED_I386_LINUX": False,
+                    "HOSTED_I386_LINUX_GNU": False,
+                },
+            )
+            self.assertEqual(
                 audit_payload["summary"],
                 {
                     "active_sources": 698,
@@ -4203,7 +4237,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4762, 168),
+                "c.expression.sizeof": (4782, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4974,6 +5008,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             simd_extra="",
             opt_extra="",
             roots_extra="",
+            doom_implicit_flag="-Wno-implicit-function-declaration",
             hosted_cppflags_extra="",
             hosted_cflags_extra="",
         ):
@@ -4985,7 +5020,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                        $(KERNEL_INCLUDES) -DDEBUG {cflags_extra}
                 CFLAGS_DOOM=-m32 -ffreestanding -nostdinc -msse2 \\
                             $(KERNEL_INCLUDES) -I./kernel/doom/src \\
-                            -I./kernel/doom/src/include_stubs
+                            -I./kernel/doom/src/include_stubs \\
+                            {doom_implicit_flag}
                 CFLAGS_DOOM_TREE=$(CFLAGS_DOOM) \\
                     -include kernel/doom/dglibc_compat.h \\
                     -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" \\
@@ -5033,6 +5069,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "alternate language mode": (
                 {"cflags_extra": "-xc++"},
                 r"unmodeled preprocessor flag.*-xc\+\+",
+            ),
+            "missing Doom implicit-call policy": (
+                {"doom_implicit_flag": ""},
+                r"DOOM_COMPAT_I386 implicit-function policy differs",
             ),
             "unsigned character mode": (
                 {"cflags_extra": "-funsigned-char"},

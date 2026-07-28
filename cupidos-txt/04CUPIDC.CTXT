@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-26
+Verified against source on: 2026-07-28
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -494,11 +494,13 @@ Compiler head can reproduce the exact audited Doom-tree profile without
 editing its source. It keeps the sound driver's empty volatile memory barrier
 as a compiler ordering point and emits no instruction for it. Its static
 scalar evaluator folds the unchanged fixed-point table in
-kernel/doom/src/am_map.c. A one-active-member union initializer emits unchanged
-kernel/doom/src/info.c. Compiler head emits 74 of the 80 Doom-tree objects.
-A checked frontier pins the other six failures at IR, an implicit call, and
-callback or pointer conversions. The checked seed does
-not carry these capabilities yet, so Doom build ownership is unchanged.
+kernel/doom/src/am_map.c. The explicit --doom-compat profile represents the
+five old-style calls in i_system.c without changing strict C or plain GNU
+mode. A one-active-member union initializer emits unchanged
+kernel/doom/src/info.c. Compiler head emits 75 of the 80 Doom-tree objects. A
+checked frontier pins the other five failures at IR and callback or pointer
+conversions. The checked seed does not carry these capabilities yet, so Doom
+build ownership is unchanged.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,

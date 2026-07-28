@@ -6485,12 +6485,14 @@ static ctool_status_t cfront_attach_expression_block_bindings(
     ctool_c_block_binding_t binding;
     status = cfront_block_binding_get(context, binding_index, &binding);
     if (status != CTOOL_OK ||
-        binding.kind != CTOOL_C_BINDING_ENUMERATOR ||
+        (binding.kind != CTOOL_C_BINDING_ENUMERATOR &&
+         (binding.kind != CTOOL_C_BINDING_FUNCTION ||
+          binding.implicit_function_declaration != CTOOL_TRUE)) ||
         binding.activation_expression != CTOOL_C_AST_NONE ||
         binding.activation_initializer != CTOOL_C_AST_NONE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
-          "expression enumerator binding is invalid");
+          "expression block binding is invalid");
     }
     binding.activation_expression = expression_index;
     status = cfront_vector_replace(
@@ -8247,6 +8249,7 @@ static ctool_status_t cfront_parse_body_primary(
   ctool_c_block_binding_t block_binding;
   ctool_u32 reference;
   ctool_u32 type;
+  ctool_u32 implicit_binding = CTOOL_C_AST_NONE;
   ctool_bool enumerator_constant = CTOOL_FALSE;
   cfront_integer_t enumerator_value = {0ull, CFRONT_INTEGER_SIGNED_32};
   ctool_status_t status;
@@ -8411,6 +8414,57 @@ static ctool_status_t cfront_parse_body_primary(
           cfront_integer_convert_to_type(enumerator_value, &integer);
       enumerator_constant = CTOOL_TRUE;
     }
+  } else if (context->request->implicit_function_declarations == CTOOL_TRUE &&
+             cfront_peek_is(context, "(") == CTOOL_TRUE) {
+    ctool_c_type_node_t function;
+    cfront_binding_semantics_t semantics;
+    ctool_u32 result_type;
+    if (context->constant_evaluation_suppression_depth != 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          token,
+          "implicit function declaration in an unevaluated expression is "
+          "outside the compatibility slice");
+    }
+    status = cfront_scalar_type(context, CTOOL_C_TYPE_SIGNED_INT, token,
+                                &result_type);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    cfront_node_init(&function, CTOOL_C_TYPE_FUNCTION, token);
+    function.referenced_type = result_type;
+    function.has_prototype = CTOOL_FALSE;
+    status = cfront_type_append(context, &function, &type);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    cfront_zero(&semantics, (ctool_u32)sizeof(semantics));
+    status = cfront_append_binding(
+        context, CTOOL_C_BINDING_FUNCTION, CTOOL_C_STORAGE_NONE,
+        token->spelling, type, semantics, token, &token->location,
+        &token->physical_location, 0ull, CTOOL_FALSE, &reference);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    cfront_block_binding_init(
+        &block_binding, token->spelling, type, CFRONT_STORAGE_NONE,
+        &token->location, &token->physical_location);
+    block_binding.kind = CTOOL_C_BINDING_FUNCTION;
+    block_binding.linkage_binding = reference;
+    block_binding.implicit_function_declaration = CTOOL_TRUE;
+    status = cfront_append_block_binding(
+        context, &block_binding, token, CTOOL_FALSE, &implicit_binding);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    cfront_expression_init(&expression, CTOOL_C_EXPRESSION_IDENTIFIER,
+                           &token->location, &token->physical_location);
+    expression.type = type;
+    expression.reference = reference;
+    value_out->is_lvalue = CTOOL_FALSE;
+    value_out->is_bit_field = CTOOL_FALSE;
+    value_out->bit_width = 0u;
+    value_out->address_forbidden = CTOOL_FALSE;
   } else {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
@@ -8423,6 +8477,10 @@ static ctool_status_t cfront_parse_body_primary(
     if (enumerator_constant == CTOOL_TRUE) {
       cfront_constant_integer_set(value_out, enumerator_value);
     }
+  }
+  if (status == CTOOL_OK && implicit_binding != CTOOL_C_AST_NONE) {
+    status = cfront_attach_expression_block_bindings(
+        context, value_out->expression, implicit_binding, 1u, 0u, token);
   }
   return status;
 }
@@ -20816,7 +20874,15 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             ? &initializers[binding->initializer]
             : (const ctool_c_initializer_t *)0;
     ctool_bool linked_compatible = CTOOL_FALSE;
+    if (cfront_bool_valid(binding->implicit_function_declaration) ==
+        CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "frozen block implicit-function flag is invalid");
+    }
     if (binding->kind != CTOOL_C_BINDING_ENUMERATOR &&
+        binding->implicit_function_declaration == CTOOL_FALSE &&
         (binding->integer_bits != 0ull ||
          binding->integer_unsigned != CTOOL_FALSE ||
          binding->activation_expression != CTOOL_C_AST_NONE ||
@@ -20834,7 +20900,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         enum_status = cfront_integer_type(context, binding->type, &integer,
                                           &is_integer);
       }
-      if (binding->storage != CTOOL_C_STORAGE_NONE ||
+      if (binding->implicit_function_declaration != CTOOL_FALSE ||
+          binding->storage != CTOOL_C_STORAGE_NONE ||
           binding->type >= context->types.count || binding->name.size == 0u ||
           binding->linkage_binding != CTOOL_C_AST_NONE ||
           binding->initializer != CTOOL_C_AST_NONE ||
@@ -20880,7 +20947,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       continue;
     }
     if (binding->kind == CTOOL_C_BINDING_TYPEDEF) {
-      if (binding->storage != CTOOL_C_STORAGE_TYPEDEF ||
+      if (binding->implicit_function_declaration != CTOOL_FALSE ||
+          binding->storage != CTOOL_C_STORAGE_TYPEDEF ||
           binding->type >= context->types.count || binding->name.size == 0u ||
           binding->linkage_binding != CTOOL_C_AST_NONE ||
           binding->initializer != CTOOL_C_AST_NONE) {
@@ -20944,14 +21012,22 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           (linked->linkage != CTOOL_C_LINKAGE_INTERNAL &&
            linked->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
           cfront_string_equal(binding->name, linked->name) == CTOOL_FALSE ||
-          linked_compatible == CTOOL_FALSE) {
+          linked_compatible == CTOOL_FALSE ||
+          (binding->implicit_function_declaration == CTOOL_TRUE &&
+           (binding->storage != CTOOL_C_STORAGE_NONE ||
+            linked->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+            binding->integer_bits != 0ull ||
+            binding->integer_unsigned != CTOOL_FALSE ||
+            binding->activation_expression >= context->expressions.count ||
+            binding->activation_initializer != CTOOL_C_AST_NONE))) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
             cfront_peek(context), "frozen block function is invalid");
       }
       continue;
     }
-    if (binding->kind != CTOOL_C_BINDING_OBJECT ||
+    if (binding->implicit_function_declaration != CTOOL_FALSE ||
+        binding->kind != CTOOL_C_BINDING_OBJECT ||
         (binding->storage != CTOOL_C_STORAGE_NONE &&
          binding->storage != CTOOL_C_STORAGE_AUTO &&
          binding->storage != CTOOL_C_STORAGE_REGISTER &&
@@ -21488,13 +21564,15 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         const ctool_c_block_binding_t *binding =
             &block_bindings[expression->first_block_binding +
                             binding_offset];
-        if (binding->kind != CTOOL_C_BINDING_ENUMERATOR ||
+        if ((binding->kind != CTOOL_C_BINDING_ENUMERATOR &&
+             (binding->kind != CTOOL_C_BINDING_FUNCTION ||
+              binding->implicit_function_declaration != CTOOL_TRUE)) ||
             binding->activation_expression != index ||
             binding->activation_initializer != CTOOL_C_AST_NONE) {
           return cfront_emit_failure(
               context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
               cfront_peek(context),
-              "frozen expression enumerator ownership is invalid");
+              "frozen expression block-binding ownership is invalid");
         }
       }
     }
@@ -21989,6 +22067,13 @@ static ctool_status_t cfront_validate_input(cfront_context_t *context) {
         context, CTOOL_ERR_INVALID_ARGUMENT,
         CTOOL_C_PARSE_DIAG_INVALID_REQUEST, cfront_peek(context),
         "declaration frontend GNU-extension flag is invalid");
+  }
+  if (cfront_bool_valid(
+          context->request->implicit_function_declarations) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INVALID_ARGUMENT,
+        CTOOL_C_PARSE_DIAG_INVALID_REQUEST, cfront_peek(context),
+        "declaration frontend implicit-function flag is invalid");
   }
   if (context->tape->tokens == (const ctool_c_pp_token_t *)0 &&
       context->tape->token_count != 0u) {

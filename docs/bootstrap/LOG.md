@@ -13011,3 +13011,86 @@ remains host-owned, and the normal image does not consume the new emitter.
 No `.c` file is renamed, no production recipe changes owner, and no host
 dependency is retired. `TempleOS/` remains untouched. ADR 0153 records the
 language and ownership boundary.
+## 2026-07-28: gate Doom's old-style undeclared calls
+
+The exact Doom profile found five calls with no declaration in scope. Three
+call `putchar` in `kernel/doom/src/i_system.c` at lines 172, 183, and 186.
+Two call `system` at lines 274 and 342. They were the only active examples,
+and both names need the old C rule: an undeclared call behaves as if the
+current block had declared an external function returning `int` with no
+prototype.
+
+The first focused frontend contract failed to compile because the public
+parse request and block binding did not yet have fields for this behavior.
+CupidC now exposes an explicit `implicit_function_declarations` request
+setting. The command-line driver enables it only for `--doom-compat`, and the
+build audit enables it only for the two Doom profiles. Strict C and plain
+`--gnu` continue to reject the same calls.
+
+Each accepted call receives a lexical old-style `extern int name()` alias in
+the block where it appears. The aliases share one canonical external binding
+per name, so object output still has only one `putchar` symbol and one
+`system` symbol. A prototype declared later refines that canonical binding
+for later calls without changing the type or default argument promotions of
+an earlier call. Conflicting declarations still fail. An undeclared call in
+an unevaluated expression is rejected with a focused diagnostic because a
+rewound expression tree cannot safely own the lexical activation.
+
+Frontend freezing checks the request flag, activation, owner, linkage, and
+old-style type. Linear IR verifies the exact alias-to-canonical relationship
+and emits no instruction for the declaration itself. The object path then
+uses the existing cdecl call and ELF symbol machinery. A rollback review also
+found that the IR binding scan read a binding before checking its range. The
+scan now checks the index first, and an adversarial contract covers that
+failure path and a successful parse in the same job.
+
+The frozen source gates report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 216 | 6,518 | 59,703 | 839 | 304 |
+| `toolchain/cupidc_emit.cc` | 231 | 6,078 | 52,515 | 743 | 371 |
+| `toolchain/cupidc_frontend.cc` | 361 | 14,893 | 97,600 | 2,230 | 1,393 |
+
+The deterministic self-host objects have these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 216 | 422,469 | 451,344 | `950BDDC1` |
+| `toolchain/cupidc_emit.cc` | 231 | 388,555 | 418,724 | `E2963AD5` |
+| `toolchain/cupidc_frontend.cc` | 361 | 757,405 | 892,808 | `8B9B45B3` |
+
+The complete frontend module passes 75 tests in 11.916 seconds. The complete
+Linear IR module passes 63 tests in 12.315 seconds, and the complete
+preprocessor module passes 39 tests in 6.200 seconds. Focused contracts cover
+lexical activation, canonical reuse, later prototypes, default promotions,
+conflicts, rollback, deterministic source and object reproduction, native
+and Cupid-built driver parity, and strict, GNU, and Doom command-line modes.
+The complete object module passes 80 tests in 890.928 seconds, including the
+19-object closure and all five tools at the stage-two to stage-three fixed
+point.
+
+Audit regeneration now records 698 active sources, 253 feature requirements,
+504 transforms, and 42 accounted unreachable files. The active-source digest
+is `02cb82ce9a968634cd7c7a5c6702a40d45525358d35d61ee9ff5c0869d7bdca1`.
+The 1,524,509-byte JSON has SHA-256
+`4f4b6bf8777f47a5d0ad3eb953777855d18e33878a2b1da6bc605946f0058e07`.
+The first full audit run caught one stale lexical lock: real source changes
+moved `sizeof` from 4,726 to 4,746 occurrences while the file count remained
+168. After that source-driven expectation was corrected, all 62 audit tests
+passed in 574.511 seconds.
+
+The exact Doom-tree profile now emits 74 of 80 objects. The new success is
+the unchanged `kernel/doom/src/i_system.c`. The remaining failures are:
+
+- `kernel/doom/src/i_video.c:144`: invalid Linear IR unit
+- `kernel/doom/src/info.c:128`: positional union or class initializer list
+- `kernel/doom/src/m_menu.c:701`: call argument conversion
+- `kernel/doom/src/p_ceilng.c:316`: unsupported conversion
+- `kernel/doom/src/p_plats.c:274`: unsupported conversion
+- `kernel/doom/src/p_saveg.c:251`: assignment conversion
+
+This compiler-head change does not refresh the checked seed or move a
+production source to Cupid ownership. No `.c` file is renamed, no host
+dependency is retired, and no image or boot result is attributed to it.
+Issue 29 remains open. ADR 0149 records the language and ownership boundary.

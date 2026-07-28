@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-07-26
+Verified against source on: 2026-07-28
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -98,6 +98,18 @@ Example style:
 
 Demo: bin/feature4_forward_calls.cc
 [Run feature4_forward_calls](shell:feature4_forward_calls)
+>endtree
+
+>h2 Hosted Doom Compatibility
+>tree open Hosted Doom Compatibility
+The hosted bootstrap compiler has an explicit --doom-compat profile for the
+vendored Doom source. It represents a bare call made before any declaration
+as an old-style external int() function. Calls parsed before a later prototype
+keep the usual default argument promotions.
+
+Strict C and plain GNU mode still reject undeclared calls. Compiler head emits
+74 of the 80 audited Doom-tree objects. The checked seed does not carry this
+profile yet, so the normal Doom build still uses its host recipe.
 >endtree
 
 >h2 Feature 5: Print Builtin

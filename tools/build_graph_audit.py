@@ -146,6 +146,7 @@ class CPreprocessorProfile:
     mode: str
     gnu_extensions: str
     hosted_environment: str
+    implicit_function_declarations: str
 
 
 @dataclass(frozen=True)
@@ -172,54 +173,63 @@ _C_PP_PROFILE_ROWS = (
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="DOOM_COMPAT_I386",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
+        implicit_function_declarations="CTOOL_TRUE",
     ),
     CPreprocessorProfile(
         name="DOOM_TREE_I386",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
+        implicit_function_declarations="CTOOL_TRUE",
     ),
     CPreprocessorProfile(
         name="USER_I386",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="CUPID_RUNTIME",
         mode="CTOOL_C_PP_MODE_CUPID",
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_FALSE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_TOOLCHAIN_64",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_KERNEL_BRIDGE_64",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_I386_LINUX",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_I386_LINUX_GNU",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
     ),
 )
 _C_PP_HOSTED_PROFILES = frozenset(
@@ -5019,6 +5029,21 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
                 f"CupidC profile {profile} lost target flag(s) in Make "
                 f"{variable}: {missing_flags!r}"
             )
+        implicit_function_flag = (
+            "-Wno-implicit-function-declaration" in flags
+        )
+        expects_implicit_functions = next(
+            policy.implicit_function_declarations == "CTOOL_TRUE"
+            for policy in _C_PP_PROFILE_ROWS
+            if policy.name == profile
+        )
+        if implicit_function_flag != expects_implicit_functions:
+            raise AuditError(
+                f"CupidC profile {profile} implicit-function policy differs "
+                f"from Make {variable}: expected="
+                f"{expects_implicit_functions!r}, "
+                f"actual={implicit_function_flag!r}"
+            )
         profile_flags = (
             {"-std=c11"}
             if hosted_profile
@@ -5548,6 +5573,10 @@ def _c_preprocessor_translation_unit_contract(
                 "hosted_environment": (
                     profile_policy.hosted_environment == "CTOOL_TRUE"
                 ),
+                "implicit_function_declarations": (
+                    profile_policy.implicit_function_declarations
+                    == "CTOOL_TRUE"
+                ),
                 "tracked_translation_units": sum(
                     profile == name
                     for profile, _ in manifest.active_cases
@@ -5608,7 +5637,8 @@ def _render_c_preprocessor_active_cases(
     groups = (
         [
             f"CUPIDC_PP_PROFILE({profile.name}, {profile.mode}, "
-            f"{profile.gnu_extensions}, {profile.hosted_environment})"
+            f"{profile.gnu_extensions}, {profile.hosted_environment}, "
+            f"{profile.implicit_function_declarations})"
             for profile in manifest.profiles
         ],
         [

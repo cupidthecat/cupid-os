@@ -11,6 +11,10 @@
 typedef struct {
   ctool_c_pp_mode_t mode;
   ctool_bool gnu_extensions;
+  /* Deliberate legacy-C gate for a bare undeclared identifier used as a
+   * direct call. The frontend publishes an external int-returning
+   * no-prototype function declaration in the call's block. */
+  ctool_bool implicit_function_declarations;
 } ctool_c_parse_request_t;
 
 typedef enum {
@@ -143,9 +147,14 @@ typedef struct {
   /* ENUMERATOR only: evaluated target bit pattern and unsignedness. */
   ctool_u64 integer_bits;
   ctool_bool integer_unsigned;
-  /* ENUMERATOR only: a type-name definition names the expression or
-   * initializer that activates it. Declaration and function-prefix
-   * enumerators use AST_NONE for both fields. */
+  /* True only for an opt-in legacy-C function declaration introduced by a
+   * direct call. Its expression owner records the exact source activation
+   * point while linkage_binding preserves the canonical external identity. */
+  ctool_bool implicit_function_declaration;
+  /* ENUMERATOR: a type-name definition names the expression or initializer
+   * that activates it. An implicit function declaration names its identifier
+   * expression. Declaration and function-prefix enumerators use AST_NONE for
+   * both fields. */
   ctool_u32 activation_expression;
   ctool_u32 activation_initializer;
   ctool_c_pp_location_t location;
