@@ -231,7 +231,7 @@ The five static commands now share one complete checked-seed gate. The manifest 
 
 The harness copies the exact 40-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. This tighter source and publication boundary does not retire another host dependency. A clean checkout can rebuild the static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
 
-Two active-source fragments anchor the wide call requirement. `toolchain/tests/cupidc_object_contract.c::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.c::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover those call fragments only. They do not establish whole-function CupidC ownership. No active-source guard covers a wide `va_arg` or an unprototyped wide call, so those paths have focused ABI fixture evidence only. Current public modules contain 76 frontend tests, 64 IR tests, and 80 object tests. The neighboring `variadic-callees`, `old-style-empty-functions`, `wide-returns`, and `floating-transport` modes remain part of the full gate. The `js_push_num` guard covers its declaration and assignment lines only, not the full browser interpreter function.
+Two active-source fragments anchor the wide call requirement. `toolchain/tests/cupidc_object_contract.c::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.c::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover those call fragments only. They do not establish whole-function CupidC ownership. No active-source guard covers a wide `va_arg` or an unprototyped wide call, so those paths have focused ABI fixture evidence only. Current public modules contain 77 frontend tests, 65 IR tests, and 83 object tests. The neighboring `variadic-callees`, `old-style-empty-functions`, `wide-returns`, and `floating-transport` modes remain part of the full gate. The `js_push_num` guard covers its declaration and assignment lines only, not the full browser interpreter function.
 
 Cast-to-void support now serves production e1000, desktop, and TCP code. The shared path evaluates the operand once, emits `DISCARD` for a represented integer, object pointer, or function pointer, and leaves a `void` operand off the abstract stack. The complete unchanged `ctool_host_allocate` and `ctool_host_release` helpers guard the focused requirement. A deterministic 52-byte object proves the existing discard and direct-call emission paths. GCC or Clang and the native host linker still build the focused proof, while checked-seed CupidC emits the production uses.
 
@@ -344,16 +344,27 @@ These hosted semantics do not retire a host dependency. GCC or Clang still build
 
 Compiler-head `noinline` and `target("general-regs-only")` semantics narrow
 that GNU gap without changing the dependency count. Compiler head now also
-accepts the exact LDMXCSR memory input at line 28 and all three MOVSS
-float-memory forms in `fpu_boot_smoke()`. It also accepts the exact balanced
-x87 `fldl`, `fsin`, and `fstpl` block in `stress_sin()`. Two complete
+accepts the exact LDMXCSR memory input at line 28, all three MOVSS
+float-memory forms in `fpu_boot_smoke()`, and the exact balanced x87
+`fldl`, `fsin`, and `fstpl` block in `stress_sin()`. Two complete
 compiler-head builds of unchanged `kernel/cpu/fpu.c` produce the same
-validated 6,620-byte object. The checked seed carries none of these
-increments, so the host compiler still owns that root and the dependency
-count does not change. The next measured GNU assembly frontier is the larger
-x87 control-word block in `kernel/core/string.c`, which first stops on its
-`"ax"` clobber at line 146. ADRs 0141, 0146, 0148, and 0150 record the
-boundaries.
+validated 6,620-byte object.
+
+Compiler head also accepts the complete unchanged x87 control-word block in
+`str_floor()`, including its exact AX and memory clobbers. The emitter reuses
+the consumed input-address slot for the two stack scratch words, restores the
+incoming x87 control word, and leaves the pending output address intact. Two
+compiles of the extracted active helper produce the same 420-byte object with
+SHA-256
+`448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
+The full unchanged `kernel/core/string.c` source now stops at its independent
+double-to-`uint64_t` cast on line 190.
+
+The checked seed carries none of these compiler-head increments. The host
+compiler still owns both roots, and the dependency count does not change.
+`kernel/core/string.c` keeps its `.c` name until the complete translation
+unit and production gate pass. ADRs 0141, 0146, 0148, 0150, and 0154 record
+the boundaries.
 
 The private compiler now bounds the parser work behind that smoke. It accepts
 128 active loop-or-switch controls and 1,024 active statement calls, rejects

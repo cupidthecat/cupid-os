@@ -150,6 +150,21 @@ temporary. Two complete compiler-head builds of unchanged
 `kernel/cpu/fpu.c` produce the same validated 6,620-byte object. The checked
 seed and normal ownership graph are unchanged.
 
+The next compiler-head slice represents the complete x87 round-down statement
+in unchanged `str_floor()`. It requires one modifiable `double` output, one
+addressable `double` input, and the exact `ax` plus `memory` clobber set.
+After loading the input, emission reuses its consumed address slot below ESP
+for the saved and temporary control words. The pending output address stays
+intact. The sequence selects round toward negative infinity for `FRNDINT`,
+then restores the incoming x87 control word before storing the result.
+
+Two exact compiles of the extracted active helper produce the same 420-byte
+ELF32 object with SHA-256
+`448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
+Full unchanged `kernel/core/string.c` now reaches the separate
+double-to-`uint64_t` cast on line 190. The checked seed does not carry this
+increment, so the root remains host-owned and keeps its `.c` name.
+
 The normal image has 149 checked CupidC C transforms: 148 checked-in sources
 and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386

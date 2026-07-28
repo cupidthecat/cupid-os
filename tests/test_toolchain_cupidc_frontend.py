@@ -144,6 +144,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_x87_sine_assembly_keeps_double_memory_operands(self):
         self.run_contract("x87-sine-memory-assembly")
 
+    def test_x87_round_down_assembly_keeps_control_and_memory_metadata(self):
+        self.run_contract("x87-round-down-memory-assembly")
+
     def test_legacy_port_constraints_keep_the_dx_fallback(self):
         self.run_contract("legacy-port-assembly")
 
@@ -338,11 +341,11 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.switch"]["occurrences"], 220)
+        self.assertEqual(features["c.control.switch"]["occurrences"], 221)
         self.assertEqual(len(features["c.control.switch"]["files"]), 69)
-        self.assertEqual(features["c.control.case"]["occurrences"], 1627)
+        self.assertEqual(features["c.control.case"]["occurrences"], 1639)
         self.assertEqual(len(features["c.control.case"]["files"]), 69)
-        self.assertEqual(features["c.control.default"]["occurrences"], 151)
+        self.assertEqual(features["c.control.default"]["occurrences"], 152)
         self.assertEqual(len(features["c.control.default"]["files"]), 56)
 
     def test_active_if_else_inventory_is_drift_gated(self):

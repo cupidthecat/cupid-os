@@ -725,6 +725,22 @@ x87 depth and no frame temporary. Unchanged kernel/cpu/fpu.c now produces a
 complete compiler-head object. The checked seed does not carry these
 compiler-head increments.
 
+Compiler head also accepts the exact volatile x87 round-down block in
+str_floor. It keeps one modifiable, non-atomic double =m output, one
+addressable, non-atomic double m input, and the exact ax plus memory clobber
+set. Linear IR evaluates the output address before the input address. After
+FLD, the emitter reuses the consumed input-address slot below ESP for the
+saved and temporary x87 control words. The pending output address remains
+intact. The sequence selects round toward negative infinity for FRNDINT,
+restores the incoming control word, and stores the result with balanced x87
+depth. A bounded shared-decoder oracle checks eight binary64 inputs under all
+four incoming rounding modes without executing native x87 code.
+
+Two exact compiles of the unchanged str_floor helper produce the same
+420-byte object. Full unchanged kernel/core/string.c now reaches the separate
+double-to-uint64_t cast on line 190. The checked seed and production owner are
+unchanged, so the source keeps its .c name.
+
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc
 and kernel/lang/cupidc.cc. It takes one modifiable four-byte integer =r

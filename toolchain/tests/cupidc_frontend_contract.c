@@ -27822,6 +27822,318 @@ cleanup:
   return failed;
 }
 
+static int validate_x87_round_down_memory_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 lines[] = {2u, 5u};
+  static const char *const constraints[] = {"=m", "m", "=m", "m"};
+  ctool_u32 index;
+  ctool_u32 assembly_statement_count = 0u;
+  if (unit->function_definition_count != ARRAY_COUNT(lines) ||
+      unit->assembly_count != ARRAY_COUNT(lines) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(lines); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(
+            assembly->template_text,
+            "fldl %1\n\t"
+            "fnstcw -2(%%esp)\n\t"
+            "movw  -2(%%esp), %%ax\n\t"
+            "movw  %%ax, -4(%%esp)\n\t"
+            "andw  $0xF3FF, -4(%%esp)\n\t"
+            "orw   $0x0400, -4(%%esp)\n\t"
+            "fldcw -4(%%esp)\n\t"
+            "frndint\n\t"
+            "fldcw -2(%%esp)\n\t"
+            "fstpl %0\n\t") == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_VOLATILE |
+             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+             CTOOL_C_ASSEMBLY_AX_CLOBBER) ||
+        assembly->first_operand != index * 2u ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 1u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/x87-round-down-memory-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(constraints); index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->expressions[operand->expression].type != operand->type ||
+        underlying_type_kind(unit, operand->type, NULL) !=
+            CTOOL_C_TYPE_DOUBLE ||
+        unit->layout.types[operand->type].is_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != 8u) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(lines) ? 0 : 1;
+}
+
+static int run_x87_round_down_memory_assembly(const char *host_root) {
+  static const char source[] =
+      "void round_down_local(double in) { double out;\n"
+      "  __asm__ volatile("
+      "\"fldl %1\\n\\t\""
+      "\"fnstcw -2(%%esp)\\n\\t\""
+      "\"movw  -2(%%esp), %%ax\\n\\t\""
+      "\"movw  %%ax, -4(%%esp)\\n\\t\""
+      "\"andw  $0xF3FF, -4(%%esp)\\n\\t\""
+      "\"orw   $0x0400, -4(%%esp)\\n\\t\""
+      "\"fldcw -4(%%esp)\\n\\t\""
+      "\"frndint\\n\\t\""
+      "\"fldcw -2(%%esp)\\n\\t\""
+      "\"fstpl %0\\n\\t\""
+      " : \"=m\"(out) : \"m\"(in) : \"ax\", \"memory\");\n"
+      "}\n"
+      "void round_down_indirect(volatile double *out, "
+      "const volatile double *in) {\n"
+      "  __asm__ volatile("
+      "\"fldl %1\\n\\t\""
+      "\"fnstcw -2(%%esp)\\n\\t\""
+      "\"movw  -2(%%esp), %%ax\\n\\t\""
+      "\"movw  %%ax, -4(%%esp)\\n\\t\""
+      "\"andw  $0xF3FF, -4(%%esp)\\n\\t\""
+      "\"orw   $0x0400, -4(%%esp)\\n\\t\""
+      "\"fldcw -4(%%esp)\\n\\t\""
+      "\"frndint\\n\\t\""
+      "\"fldcw -2(%%esp)\\n\\t\""
+      "\"fstpl %0\\n\\t\""
+      " : \"=m\"(*out) : \"m\"(*in) : \"memory\", \"ax\");\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"float x87 round-down output",
+        "void bad(float *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly =m output requires a modifiable "
+       "non-atomic double lvalue"},
+      {{"constant x87 round-down output",
+        "void bad(const double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly =m output requires a modifiable "
+       "non-atomic double lvalue"},
+      {{"atomic x87 round-down output",
+        "void bad(_Atomic double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
+      {{"register x87 round-down output",
+        "void bad(double in) { register double out; __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output cannot name a register object"},
+      {{"float x87 round-down input",
+        "void bad(double *out, float in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly m input requires an addressable "
+       "non-atomic double lvalue"},
+      {{"rvalue x87 round-down input",
+        "void bad(double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in + 1.0) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly m input requires an addressable "
+       "non-atomic double lvalue"},
+      {{"register x87 round-down input",
+        "void bad(double *out) { register double in = 0.0; "
+        "__asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly m input requires an addressable "
+       "non-atomic double lvalue"},
+      {{"atomic x87 round-down input",
+        "void bad(double *out, _Atomic double *in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(*in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly m input requires an addressable "
+       "non-atomic double lvalue"},
+      {{"nonvolatile x87 round-down assembly",
+        "void bad(double *out, double in) { __asm__("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly requires one volatile double =m output, "
+       "one double m input, ax and memory clobbers"},
+      {{"missing ax clobber",
+        "void bad(double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly requires one volatile double =m output, "
+       "one double m input, ax and memory clobbers"},
+      {{"missing memory clobber",
+        "void bad(double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : \"ax\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly requires one volatile double =m output, "
+       "one double m input, ax and memory clobbers"},
+      {{"extra xmm0 clobber",
+        "void bad(double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\", \"xmm0\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 round-down assembly requires one volatile double =m output, "
+       "one double m input, ax and memory clobbers"},
+      {{"duplicate ax clobber",
+        "void bad(double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF3FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\", \"ax\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly ax clobber is listed twice"},
+      {{"altered round-down control mask",
+        "void bad(double *out, double in) { __asm__ volatile("
+        "\"fldl %1\\n\\tfnstcw -2(%%esp)\\n\\t"
+        "movw  -2(%%esp), %%ax\\n\\tmovw  %%ax, -4(%%esp)\\n\\t"
+        "andw  $0xF7FF, -4(%%esp)\\n\\torw   $0x0400, -4(%%esp)\\n\\t"
+        "fldcw -4(%%esp)\\n\\tfrndint\\n\\tfldcw -2(%%esp)\\n\\t"
+        "fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(in) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly ax clobber template is outside this slice"},
+      {{"unrelated ax clobber",
+        "void bad(void) { __asm__ volatile(\"nop\" : : : \"ax\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly ax clobber template is outside this slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(
+          &fixture, "x87-round-down-memory-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/x87-round-down-memory-assembly.c", source,
+          &unit) != 0 ||
+      validate_x87_round_down_memory_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "x87-round-down-memory-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/x87-round-down-memory-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_x87_round_down_memory_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("x87-round-down-memory-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_port_io_assembly(const char *host_root) {
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"narrow read-write counter",
@@ -29083,6 +29395,7 @@ int main(int argc, char **argv) {
                    "ldmxcsr-memory-input|"
                    "movss-memory-assembly|"
                    "x87-sine-memory-assembly|"
+                   "x87-round-down-memory-assembly|"
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
                    "pointer-output-assembly|"
@@ -29194,6 +29507,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "x87-sine-memory-assembly") == 0) {
     return run_x87_sine_memory_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "x87-round-down-memory-assembly") == 0) {
+    return run_x87_round_down_memory_assembly(argv[2]);
   }
   if (strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly(argv[2]);

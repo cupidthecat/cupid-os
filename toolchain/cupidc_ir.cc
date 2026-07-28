@@ -520,6 +520,32 @@ static ctool_bool cir_x87_sine_memory_template(
       ctool_string("fldl %1\n\tfsin\n\tfstpl %0\n\t"));
 }
 
+static ctool_bool cir_x87_round_down_memory_template(
+    ctool_string_t template_text) {
+  return cir_string_equal(
+      template_text,
+      ctool_string(
+          "fldl %1\n\t"
+          "fnstcw -2(%%esp)\n\t"
+          "movw  -2(%%esp), %%ax\n\t"
+          "movw  %%ax, -4(%%esp)\n\t"
+          "andw  $0xF3FF, -4(%%esp)\n\t"
+          "orw   $0x0400, -4(%%esp)\n\t"
+          "fldcw -4(%%esp)\n\t"
+          "frndint\n\t"
+          "fldcw -2(%%esp)\n\t"
+          "fstpl %0\n\t"));
+}
+
+static ctool_bool cir_x87_double_memory_template(
+    ctool_string_t template_text) {
+  return cir_x87_sine_memory_template(template_text) == CTOOL_TRUE ||
+                 cir_x87_round_down_memory_template(
+                     template_text) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_movss_memory_operand_is_float(
     const cir_context_t *context,
     const ctool_c_assembly_operand_t *operand, ctool_bool output) {
@@ -565,7 +591,7 @@ static ctool_bool cir_movss_memory_operand_is_float(
              : CTOOL_FALSE;
 }
 
-static ctool_bool cir_x87_sine_memory_operand_is_double(
+static ctool_bool cir_x87_double_memory_operand_is_valid(
     const cir_context_t *context,
     const ctool_c_assembly_operand_t *operand, ctool_bool output) {
   const ctool_c_type_node_t *node;
@@ -684,11 +710,50 @@ static ctool_bool cir_x87_sine_memory_assembly_metadata_is_valid(
                ->assembly_operands[assembly->first_operand + 1u];
   return cir_string_equal(
              output->constraint, ctool_string("=m")) == CTOOL_TRUE &&
-                 cir_x87_sine_memory_operand_is_double(
+                 cir_x87_double_memory_operand_is_valid(
                      context, output, CTOOL_TRUE) == CTOOL_TRUE &&
                  cir_string_equal(
                      input->constraint, ctool_string("m")) == CTOOL_TRUE &&
-                 cir_x87_sine_memory_operand_is_double(
+                 cir_x87_double_memory_operand_is_valid(
+                     context, input, CTOOL_FALSE) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_x87_round_down_memory_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *output;
+  const ctool_c_assembly_operand_t *input;
+  if (cir_x87_round_down_memory_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return (assembly->flags & CTOOL_C_ASSEMBLY_AX_CLOBBER) == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+           CTOOL_C_ASSEMBLY_AX_CLOBBER) ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      2u > context->unit->assembly_operand_count -
+               assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  output = &context->unit->assembly_operands[assembly->first_operand];
+  input = &context->unit
+               ->assembly_operands[assembly->first_operand + 1u];
+  return cir_string_equal(
+             output->constraint, ctool_string("=m")) == CTOOL_TRUE &&
+                 cir_x87_double_memory_operand_is_valid(
+                     context, output, CTOOL_TRUE) == CTOOL_TRUE &&
+                 cir_string_equal(
+                     input->constraint, ctool_string("m")) == CTOOL_TRUE &&
+                 cir_x87_double_memory_operand_is_valid(
                      context, input, CTOOL_FALSE) == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
@@ -708,7 +773,7 @@ static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
   if (exact_template == CTOOL_FALSE) {
     if (cir_movss_memory_template_kind(
             assembly->template_text) != CIR_MOVSS_MEMORY_NONE ||
-        cir_x87_sine_memory_template(
+        cir_x87_double_memory_template(
             assembly->template_text) == CTOOL_TRUE) {
       return CTOOL_TRUE;
     }
@@ -786,7 +851,7 @@ static ctool_bool cir_state_memory_assembly_metadata_is_valid(
   ctool_bool has_memory_output = CTOOL_FALSE;
   if (cir_movss_memory_template_kind(
           assembly->template_text) != CIR_MOVSS_MEMORY_NONE ||
-      cir_x87_sine_memory_template(
+      cir_x87_double_memory_template(
           assembly->template_text) == CTOOL_TRUE) {
     return CTOOL_TRUE;
   }
@@ -854,7 +919,8 @@ static ctool_status_t cir_validate_assembly_slices(
         (assembly->flags &
          ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
            CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
-           CTOOL_C_ASSEMBLY_XMM0_CLOBBER)) != 0u ||
+           CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+           CTOOL_C_ASSEMBLY_AX_CLOBBER)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -955,6 +1021,10 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     if (cir_x87_sine_memory_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_x87_round_down_memory_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -8739,7 +8809,7 @@ static ctool_bool cir_assembly_output_type_is_valid(
   if (cir_string_equal(
           operand->constraint, ctool_string("=m")) == CTOOL_TRUE &&
       node->kind == CTOOL_C_TYPE_DOUBLE) {
-    return cir_x87_sine_memory_template(
+    return cir_x87_double_memory_template(
                assembly->template_text) == CTOOL_TRUE &&
                    size == 8u
                ? CTOOL_TRUE
@@ -8840,8 +8910,8 @@ static ctool_status_t cir_lower_assembly_statement(
                   CIR_MOVSS_MEMORY_NONE
               ? CTOOL_TRUE
               : CTOOL_FALSE;
-      ctool_bool x87_sine_memory =
-          cir_x87_sine_memory_template(assembly->template_text);
+      ctool_bool x87_double_memory =
+          cir_x87_double_memory_template(assembly->template_text);
       ctool_bool valid_memory_input = CTOOL_FALSE;
       ctool_u32 input_size;
       if ((memory_input == CTOOL_TRUE &&
@@ -8854,9 +8924,9 @@ static ctool_status_t cir_lower_assembly_statement(
       input_size = context->unit->layout.types[operand->type].size;
       if (memory_input == CTOOL_TRUE) {
         valid_memory_input =
-            x87_sine_memory == CTOOL_TRUE
+            x87_double_memory == CTOOL_TRUE
                 ? input_size == 8u &&
-                      cir_x87_sine_memory_operand_is_double(
+                      cir_x87_double_memory_operand_is_valid(
                           context, operand, CTOOL_FALSE) == CTOOL_TRUE
                 : movss_memory == CTOOL_TRUE
                       ? input_size == 4u &&

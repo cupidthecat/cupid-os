@@ -79,6 +79,21 @@ temporary is used. Unchanged kernel/cpu/fpu.c now produces a complete
 compiler-head object. The checked seed does not carry these compiler-head
 increments.
 
+Compiler head also represents the exact x87 round-down statement in
+str_floor. It takes one double memory output and one double memory input with
+the exact ax and memory clobbers. Emission saves the incoming x87 control word
+below ESP, selects round toward negative infinity, executes FRNDINT, restores
+the saved word, and stores the result. It reuses the consumed input-address
+slot for scratch, leaves the pending output address intact, and needs no frame
+temporary.
+
+A bounded shared-decoder oracle checks eight binary64 inputs under all four
+incoming rounding modes. It verifies exact results, balanced x87 depth, and
+control-word restoration without executing native x87 code. Two exact
+compiles of the unchanged helper produce the same 420-byte object. Full
+unchanged kernel/core/string.c still stops at its separate
+double-to-uint64_t cast on line 190, so production ownership does not move.
+
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic
 floating access remain outside this shared path. The SSE details below

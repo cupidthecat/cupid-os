@@ -338,6 +338,24 @@ no frame temporary. Unchanged `kernel/cpu/fpu.c` now emits as a complete
 compiler-head object. The checked seed does not carry these compiler-head
 increments.
 
+Compiler head also accepts the exact volatile x87 round-down block in
+`str_floor()`. It requires one modifiable, non-atomic `double` `=m` output,
+one addressable, non-atomic `double` `m` input, and the exact `ax` plus
+`memory` clobber set. Linear IR evaluates the output address before the input
+address. After `FLD`, the emitter reuses the consumed input-address slot
+below ESP for the saved and temporary x87 control words, without touching the
+pending output address. It selects round toward negative infinity for
+`FRNDINT`, restores the incoming control word, and stores the result with
+balanced x87 depth.
+
+The shared decoder checks the exact 44-byte direct sequence. A bounded state
+oracle runs eight binary64 inputs under all four incoming rounding modes and
+checks the rounded bits, scratch memory, register state, and restored control
+word without executing native x87 code. The exact unchanged helper compiles
+twice to the same 420-byte object. Full unchanged `kernel/core/string.c`
+continues to line 190, where its separate double-to-`uint64_t` cast remains
+unsupported. The checked seed and production ownership are unchanged.
+
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
 Across the root and supplemental builds, the checked CupidC seed owns 155 C

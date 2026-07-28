@@ -64,6 +64,23 @@ through the shared encoder, with balanced x87 depth and no frame temporary.
 Unchanged `kernel/cpu/fpu.c` now produces a deterministic compiler-head
 object. The checked seed does not carry these compiler-head increments.
 
+The exact x87 round-down statement in `str_floor()` is represented at
+compiler head as well. It takes one `double` memory output and one `double`
+memory input, with the exact `ax` and `memory` clobbers. The emitted sequence
+saves the incoming x87 control word below ESP, changes its rounding-control
+field to round toward negative infinity, executes `FRNDINT`, restores the
+saved word, and stores the result. It reuses the consumed input-address slot
+for scratch, so the pending output address is not overwritten and no frame
+temporary is needed.
+
+A bounded shared-decoder oracle checks eight binary64 values under all four
+incoming rounding modes. It verifies exact results and control-word
+restoration without executing native x87 code. Two exact compiles of the
+unchanged helper produce the same 420-byte object. The complete
+`kernel/core/string.c` file still stops at its independent
+double-to-`uint64_t` cast on line 190, so this compiler-head increment does
+not move production ownership.
+
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static
 floating data, while glyph rasterization exercises the comparison path. The

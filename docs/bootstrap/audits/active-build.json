@@ -15885,7 +15885,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.case",
-      "occurrences": 1627
+      "occurrences": 1639
     },
     {
       "category": "control",
@@ -16131,7 +16131,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.default",
-      "occurrences": 151
+      "occurrences": 152
     },
     {
       "category": "control",
@@ -17656,7 +17656,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.switch",
-      "occurrences": 220
+      "occurrences": 221
     },
     {
       "category": "control",
@@ -19570,7 +19570,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2896
+      "occurrences": 2897
     },
     {
       "category": "preprocessor",
@@ -22521,7 +22521,7 @@
         "toolchain/tests/cupidc_object_contract.c"
       ],
       "id": "c.type.double",
-      "occurrences": 408
+      "occurrences": 410
     },
     {
       "category": "type",
@@ -23247,7 +23247,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 213
+      "occurrences": 214
     },
     {
       "category": "type",

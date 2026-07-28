@@ -493,6 +493,26 @@ and no frame temporary. The deterministic two-function contract object is
 builds of unchanged `kernel/cpu/fpu.c` produce the same validated 6,620-byte
 object. The checked seed and production ownership remain unchanged.
 
+ADR 0154 represents the complete unchanged x87 round-down statement in
+`str_floor()`. It requires one modifiable `double` `=m` output, one
+addressable `double` `m` input, and the exact `ax` plus `memory` clobber set.
+Linear IR evaluates the output address before the input address, once each.
+After loading the input, the emitter reuses its consumed address slot below
+ESP for the saved and temporary control words. The pending output address at
+`[ESP]` remains intact. The 44-byte direct sequence saves the caller's x87
+control word, selects round toward negative infinity, executes `FRNDINT`,
+restores the original word, and stores the result with balanced x87 depth.
+The two 71-byte fixture functions form a 524-byte object with 142 text bytes
+and no relocations.
+
+The exact unchanged `str_floor()` definition compiles twice to the same
+420-byte object with SHA-256
+`448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
+The complete unchanged `kernel/core/string.c` translation unit now passes
+that statement and stops at the separate double-to-`uint64_t` cast on line
+190. The checked seed and production ownership remain unchanged, so the
+source keeps its `.c` name.
+
 ADR 0121 adds the three machine-state memory outputs used by the FPU panic
 path. Exact volatile `fnstsw %0` and `fnstcw %0` templates accept one
 modifiable 16-bit `=m` output, while `stmxcsr %0` accepts one modifiable

@@ -766,6 +766,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "x87-sine-memory-assembly: ok\n")
 
+    def test_x87_round_down_memory_assembly_emits_exact_control_sequence(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-round-down-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-round-down-memory-assembly: ok\n")
+
     def test_unchanged_fpu_source_emits_a_deterministic_object(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
@@ -846,6 +860,148 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 ),
                 f"FPU object lock changed: {len(objects[0])} {digest}",
             )
+
+    def test_active_str_floor_block_emits_a_deterministic_object(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        for include_root in profile["include_roots"]:
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        active_source = (
+            REPO_ROOT / "kernel/core/string.c"
+        ).read_text(encoding="utf-8")
+        start = active_source.index("static double str_floor(double x) {")
+        end = active_source.index("\n}\n", start) + 3
+        floor_source = active_source[start:end]
+        self.assertEqual(active_source[:start].count("\n") + 1, 131)
+        self.assertEqual(floor_source.count("\n"), 18)
+        self.assertIn(': "ax", "memory");', floor_source)
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-active-str-floor-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            source = output_root / "str_floor.c"
+            source.write_text(floor_source, encoding="utf-8", newline="\n")
+            logical_source = "/" + source.relative_to(
+                REPO_ROOT
+            ).as_posix()
+            objects = []
+            for index in range(2):
+                output = output_root / f"str-floor-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        logical_source,
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+                self.assertEqual(int.from_bytes(image[16:18], "little"), 1)
+                self.assertEqual(int.from_bytes(image[18:20], "little"), 3)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    420,
+                    "448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf"
+                    "25e4b839763f14e",
+                ),
+                (
+                    "active str_floor object lock changed: "
+                    f"{len(objects[0])} {digest}"
+                ),
+            )
+
+    def test_unchanged_string_source_reaches_the_next_frontier(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        for include_root in profile["include_roots"]:
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+        expected = (
+            "/kernel/core/string.c:190:25: error CTB000010: "
+            "floating cast is outside this expression slice\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-string-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            for index in range(2):
+                output = output_root / f"string-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        "/kernel/core/string.c",
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, expected)
+                self.assertFalse(output.exists())
 
     def test_legacy_port_constraints_emit_through_dx(self):
         result = subprocess.run(

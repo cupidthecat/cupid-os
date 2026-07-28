@@ -33289,6 +33289,815 @@ cleanup:
   return 1;
 }
 
+static int validate_x87_round_down_memory_operand(
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_u8 base_register, ctool_i32 displacement) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->width_bits == width_bits &&
+                 operand->as.memory.address_bits == 32u &&
+                 operand->as.memory.segment.class_id == CTOOL_X86_REG_NONE &&
+                 operand->as.memory.base.class_id == CTOOL_X86_REG_GPR32 &&
+                 operand->as.memory.base.index == base_register &&
+                 operand->as.memory.index.class_id == CTOOL_X86_REG_NONE &&
+                 operand->as.memory.scale == 1u &&
+                 operand->as.memory.displacement.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.memory.displacement.bits ==
+                     (ctool_u32)displacement &&
+                 operand->as.memory.displacement.addend == 0
+             ? 1
+             : 0;
+}
+
+static int validate_x87_round_down_register_operand(
+    const ctool_x86_operand_t *operand,
+    ctool_x86_reg_class_t class_id, ctool_u8 index) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 operand->as.reg.class_id == class_id &&
+                 operand->as.reg.index == index
+             ? 1
+             : 0;
+}
+
+static int validate_x87_round_down_immediate_operand(
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_u32 bits) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+                 operand->width_bits == width_bits &&
+                 operand->encoding_bits == width_bits &&
+                 operand->as.value.kind == CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.value.bits == bits &&
+                 operand->as.value.addend == 0
+             ? 1
+             : 0;
+}
+
+static int validate_x87_round_down_decoded_instruction(
+    const ctool_x86_instruction_t *instruction, ctool_u32 index) {
+  if (instruction == NULL) {
+    return 0;
+  }
+  switch (index) {
+    case 0u:
+    case 10u:
+      return instruction->mnemonic == CTOOL_X86_MN_POP &&
+                     instruction->operand_bits == 32u &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR32, NARROW_ORACLE_EAX)
+                 ? 1
+                 : 0;
+    case 1u:
+      return instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 64u,
+                         NARROW_ORACLE_EAX, 0)
+                 ? 1
+                 : 0;
+    case 2u:
+      return instruction->mnemonic == CTOOL_X86_MN_FNSTCW &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, -2)
+                 ? 1
+                 : 0;
+    case 3u:
+      return instruction->mnemonic == CTOOL_X86_MN_MOV &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX) &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[1], 16u,
+                         NARROW_ORACLE_ESP, -2)
+                 ? 1
+                 : 0;
+    case 4u:
+      return instruction->mnemonic == CTOOL_X86_MN_MOV &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, -4) &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[1],
+                         CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX)
+                 ? 1
+                 : 0;
+    case 5u:
+      return instruction->mnemonic == CTOOL_X86_MN_AND &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, -4) &&
+                     validate_x87_round_down_immediate_operand(
+                         &instruction->operands[1], 16u, 0xf3ffu)
+                 ? 1
+                 : 0;
+    case 6u:
+      return instruction->mnemonic == CTOOL_X86_MN_OR &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, -4) &&
+                     validate_x87_round_down_immediate_operand(
+                         &instruction->operands[1], 16u, 0x0400u)
+                 ? 1
+                 : 0;
+    case 7u:
+      return instruction->mnemonic == CTOOL_X86_MN_FLDCW &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, -4)
+                 ? 1
+                 : 0;
+    case 8u:
+      return instruction->mnemonic == CTOOL_X86_MN_FRNDINT &&
+                     instruction->operand_count == 0u
+                 ? 1
+                 : 0;
+    case 9u:
+      return instruction->mnemonic == CTOOL_X86_MN_FLDCW &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, -2)
+                 ? 1
+                 : 0;
+    case 11u:
+      return instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 64u,
+                         NARROW_ORACLE_EAX, 0)
+                 ? 1
+                 : 0;
+    default:
+      return 0;
+  }
+}
+
+static int validate_x87_round_down_memory_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u8 expected[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xddu, 0x00u,
+      0xd9u, 0x7cu, 0x24u, 0xfeu,
+      0x66u, 0x8bu, 0x44u, 0x24u, 0xfeu,
+      0x66u, 0x89u, 0x44u, 0x24u, 0xfcu,
+      0x66u, 0x81u, 0x64u, 0x24u, 0xfcu, 0xffu, 0xf3u,
+      0x66u, 0x81u, 0x4cu, 0x24u, 0xfcu, 0x00u, 0x04u,
+      0xd9u, 0x6cu, 0x24u, 0xfcu,
+      0xd9u, 0xfcu,
+      0xd9u, 0x6cu, 0x24u, 0xfeu,
+      0x58u, 0xddu, 0x18u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 direct[] = {
+      0x58u, 0xddu, 0x00u,
+      0xd9u, 0x7cu, 0x24u, 0xfeu,
+      0x66u, 0x8bu, 0x44u, 0x24u, 0xfeu,
+      0x66u, 0x89u, 0x44u, 0x24u, 0xfcu,
+      0x66u, 0x81u, 0x64u, 0x24u, 0xfcu, 0xffu, 0xf3u,
+      0x66u, 0x81u, 0x4cu, 0x24u, 0xfcu, 0x00u, 0x04u,
+      0xd9u, 0x6cu, 0x24u, 0xfcu,
+      0xd9u, 0xfcu,
+      0xd9u, 0x6cu, 0x24u, 0xfeu,
+      0x58u, 0xddu, 0x18u};
+  static const ctool_u32 instruction_sizes[] = {
+      1u, 2u, 4u, 5u, 5u, 7u, 7u, 4u, 2u, 4u, 1u, 2u};
+  ctool_u32 cursor = 0u;
+  ctool_u32 instruction = 0u;
+  ctool_u32 instruction_count =
+      (ctool_u32)(sizeof(instruction_sizes) /
+                  sizeof(instruction_sizes[0]));
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != (ctool_u32)sizeof(expected) ||
+      memcmp(text->contents.data + symbol->value, expected,
+             sizeof(expected)) != 0) {
+    return 0;
+  }
+  while (cursor < (ctool_u32)sizeof(direct) &&
+         instruction < instruction_count) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        direct + cursor, (ctool_u32)sizeof(direct) - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed != instruction_sizes[instruction] ||
+        !validate_x87_round_down_decoded_instruction(
+            &decoded.instruction, instruction)) {
+      return 0;
+    }
+    cursor += decoded.consumed;
+    instruction++;
+  }
+  return cursor == (ctool_u32)sizeof(direct) &&
+                 instruction == instruction_count
+             ? 1
+             : 0;
+}
+
+static int x87_round_down_oracle_step(
+    narrow_oracle_machine_t *machine,
+    const ctool_x86_instruction_t *instruction,
+    ctool_u16 *control_word, ctool_bool *handled) {
+  static const struct {
+    ctool_u64 input;
+    ctool_u64 output;
+  } cases[] = {
+      {UINT64_C(0x0000000000000000), UINT64_C(0x0000000000000000)},
+      {UINT64_C(0x8000000000000000), UINT64_C(0x8000000000000000)},
+      {UINT64_C(0x3ffc000000000000), UINT64_C(0x3ff0000000000000)},
+      {UINT64_C(0xbff4000000000000), UINT64_C(0xc000000000000000)},
+      {UINT64_C(0x3fe8000000000000), UINT64_C(0x0000000000000000)},
+      {UINT64_C(0xbfd0000000000000), UINT64_C(0xbff0000000000000)},
+      {UINT64_C(0x4000000000000000), UINT64_C(0x4000000000000000)},
+      {UINT64_C(0xc000000000000000), UINT64_C(0xc000000000000000)}};
+  const ctool_x86_operand_t *operand;
+  ctool_u32 address;
+  ctool_u32 value;
+  ctool_u32 index;
+  if (machine == NULL || instruction == NULL ||
+      control_word == NULL || handled == NULL) {
+    return 0;
+  }
+  *handled = CTOOL_FALSE;
+  if (instruction->mnemonic == CTOOL_X86_MN_FNSTCW ||
+      instruction->mnemonic == CTOOL_X86_MN_FLDCW) {
+    if (instruction->operand_count != 1u) {
+      return 0;
+    }
+    operand = &instruction->operands[0];
+    if (operand->kind != CTOOL_X86_OPERAND_MEMORY ||
+        operand->width_bits != 16u ||
+        !narrow_oracle_memory_address(
+            machine, &operand->as.memory, &address)) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_FNSTCW) {
+      if (!narrow_oracle_write_memory(
+              machine, address, 16u, *control_word)) {
+        return 0;
+      }
+    } else {
+      if (!narrow_oracle_read_memory(
+              machine, address, 16u, &value)) {
+        return 0;
+      }
+      *control_word = (ctool_u16)value;
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if (instruction->mnemonic != CTOOL_X86_MN_FRNDINT) {
+    return 1;
+  }
+  if (instruction->operand_count != 0u ||
+      machine->x87_depth != 1u ||
+      machine->x87_bits_valid[0] == CTOOL_FALSE ||
+      machine->x87_width_bits[0] != 64u ||
+      ((*control_word >> 10u) & 3u) != 1u) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0])); index++) {
+    if (machine->x87_bits[0] == cases[index].input) {
+      double output;
+      machine->x87_bits[0] = cases[index].output;
+      (void)memcpy(&output, &cases[index].output, sizeof(output));
+      machine->x87_values[0] = (long double)output;
+      *handled = CTOOL_TRUE;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_x87_round_down_execution_oracle(ctool_job_t *job) {
+  static const ctool_u8 sequence[] = {
+      0x58u, 0xddu, 0x00u,
+      0xd9u, 0x7cu, 0x24u, 0xfeu,
+      0x66u, 0x8bu, 0x44u, 0x24u, 0xfeu,
+      0x66u, 0x89u, 0x44u, 0x24u, 0xfcu,
+      0x66u, 0x81u, 0x64u, 0x24u, 0xfcu, 0xffu, 0xf3u,
+      0x66u, 0x81u, 0x4cu, 0x24u, 0xfcu, 0x00u, 0x04u,
+      0xd9u, 0x6cu, 0x24u, 0xfcu,
+      0xd9u, 0xfcu,
+      0xd9u, 0x6cu, 0x24u, 0xfeu,
+      0x58u, 0xddu, 0x18u};
+  static const struct {
+    ctool_u64 input;
+    ctool_u64 output;
+  } cases[] = {
+      {UINT64_C(0x0000000000000000), UINT64_C(0x0000000000000000)},
+      {UINT64_C(0x8000000000000000), UINT64_C(0x8000000000000000)},
+      {UINT64_C(0x3ffc000000000000), UINT64_C(0x3ff0000000000000)},
+      {UINT64_C(0xbff4000000000000), UINT64_C(0xc000000000000000)},
+      {UINT64_C(0x3fe8000000000000), UINT64_C(0x0000000000000000)},
+      {UINT64_C(0xbfd0000000000000), UINT64_C(0xbff0000000000000)},
+      {UINT64_C(0x4000000000000000), UINT64_C(0x4000000000000000)},
+      {UINT64_C(0xc000000000000000), UINT64_C(0xc000000000000000)}};
+  static const ctool_u16 original_control_words[] = {
+      0x037fu, 0x077fu, 0x0b7fu, 0x0f7fu};
+  const ctool_u32 input_address = 32u;
+  const ctool_u32 output_address = 64u;
+  const ctool_u32 stack_address = 160u;
+  const ctool_u32 register_sentinels[] = {
+      0xa0a0a0a0u, 0xc1c1c1c1u, 0xd2d2d2d2u, 0xb3b3b3b3u,
+      0u, 0xe5e5e5e5u, 0xe6e6e6e6u, 0xd7d7d7d7u};
+  ctool_u32 case_index;
+  ctool_u32 control_index;
+  if (job == NULL) {
+    return 0;
+  }
+  for (case_index = 0u;
+       case_index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       case_index++) {
+    for (control_index = 0u;
+         control_index <
+             (ctool_u32)(sizeof(original_control_words) /
+                         sizeof(original_control_words[0]));
+         control_index++) {
+      narrow_oracle_machine_t machine;
+      ctool_u16 control_word = original_control_words[control_index];
+      ctool_u16 temporary_control_word =
+          (ctool_u16)((control_word & 0xf3ffu) | 0x0400u);
+      ctool_u32 cursor = 0u;
+      ctool_u32 observed;
+      ctool_u32 register_index;
+      (void)memset(&machine, 0xa5, sizeof(machine));
+      machine.x87_depth = 0u;
+      for (register_index = 0u; register_index < 8u; register_index++) {
+        machine.registers[register_index] =
+            register_sentinels[register_index];
+      }
+      machine.registers[NARROW_ORACLE_ESP] = stack_address;
+      if (!narrow_oracle_write_memory(
+              &machine, input_address, 32u,
+              (ctool_u32)cases[case_index].input) ||
+          !narrow_oracle_write_memory(
+              &machine, input_address + 4u, 32u,
+              (ctool_u32)(cases[case_index].input >> 32u)) ||
+          !narrow_oracle_write_memory(
+              &machine, output_address, 32u, 0xdeadbeefu) ||
+          !narrow_oracle_write_memory(
+              &machine, output_address + 4u, 32u, 0xcafebabeu) ||
+          !narrow_oracle_write_memory(
+              &machine, stack_address, 32u, input_address) ||
+          !narrow_oracle_write_memory(
+              &machine, stack_address + 4u, 32u, output_address)) {
+        return 0;
+      }
+      while (cursor < (ctool_u32)sizeof(sequence)) {
+        ctool_x86_decoded_t decoded;
+        ctool_bytes_t remaining = ctool_bytes(
+            sequence + cursor, (ctool_u32)sizeof(sequence) - cursor);
+        ctool_bool handled = CTOOL_FALSE;
+        ctool_bool returned = CTOOL_FALSE;
+        ctool_status_t status;
+        (void)memset(&decoded, 0xa5, sizeof(decoded));
+        status = ctool_x86_decode(
+            job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+        if (status != CTOOL_OK ||
+            decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+            decoded.consumed == 0u ||
+            !x87_round_down_oracle_step(
+                &machine, &decoded.instruction, &control_word, &handled) ||
+            (handled == CTOOL_FALSE &&
+             !floating_oracle_step(
+                 &machine, &decoded.instruction, &handled)) ||
+            (handled == CTOOL_FALSE &&
+             !narrow_oracle_step(
+                 &machine, &decoded.instruction, &returned)) ||
+            returned != CTOOL_FALSE) {
+          return 0;
+        }
+        cursor += decoded.consumed;
+      }
+      if (cursor != (ctool_u32)sizeof(sequence) ||
+          machine.x87_depth != 0u ||
+          control_word != original_control_words[control_index] ||
+          machine.registers[NARROW_ORACLE_ESP] != stack_address + 8u ||
+          machine.registers[NARROW_ORACLE_EAX] != output_address) {
+        return 0;
+      }
+      for (register_index = NARROW_ORACLE_ECX;
+           register_index < 8u; register_index++) {
+        if (register_index != NARROW_ORACLE_ESP &&
+            machine.registers[register_index] !=
+                register_sentinels[register_index]) {
+          return 0;
+        }
+      }
+      if (!narrow_oracle_read_memory(
+              &machine, output_address, 32u, &observed) ||
+          observed != (ctool_u32)cases[case_index].output ||
+          !narrow_oracle_read_memory(
+              &machine, output_address + 4u, 32u, &observed) ||
+          observed != (ctool_u32)(cases[case_index].output >> 32u) ||
+          !narrow_oracle_read_memory(
+              &machine, input_address, 32u, &observed) ||
+          observed != (ctool_u32)cases[case_index].input ||
+          !narrow_oracle_read_memory(
+              &machine, input_address + 4u, 32u, &observed) ||
+          observed != (ctool_u32)(cases[case_index].input >> 32u) ||
+          !narrow_oracle_read_memory(
+              &machine, stack_address, 32u, &observed) ||
+          observed !=
+              (((ctool_u32)original_control_words[control_index] << 16u) |
+               temporary_control_word) ||
+          !narrow_oracle_read_memory(
+              &machine, stack_address + 4u, 32u, &observed) ||
+          observed != output_address ||
+          !narrow_oracle_read_memory(
+              &machine, stack_address - 4u, 32u, &observed) ||
+          observed != 0xa5a5a5a5u ||
+          !narrow_oracle_read_memory(
+              &machine, stack_address + 8u, 32u, &observed) ||
+          observed != 0xa5a5a5a5u ||
+          !narrow_oracle_read_memory(
+              &machine, output_address - 4u, 32u, &observed) ||
+          observed != 0xa5a5a5a5u ||
+          !narrow_oracle_read_memory(
+              &machine, output_address + 8u, 32u, &observed) ||
+          observed != 0xa5a5a5a5u) {
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int validate_x87_round_down_memory_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !validate_x87_round_down_memory_function(
+          job, text, find_symbol(object, "round_down_store")) ||
+      !validate_x87_round_down_memory_function(
+          job, text,
+          find_symbol(object, "round_down_store_qualified")) ||
+      !validate_x87_round_down_execution_oracle(job)) {
+    (void)fprintf(
+        stderr, "x87 round-down memory assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_x87_round_down_memory_assembly_object(
+    const char *host_root) {
+  static const char source[] =
+      "void round_down_store(double *out, const double *in) {\n"
+      "  __asm__ volatile("
+      "\"fldl %1\\n\\t\""
+      "\"fnstcw -2(%%esp)\\n\\t\""
+      "\"movw  -2(%%esp), %%ax\\n\\t\""
+      "\"movw  %%ax, -4(%%esp)\\n\\t\""
+      "\"andw  $0xF3FF, -4(%%esp)\\n\\t\""
+      "\"orw   $0x0400, -4(%%esp)\\n\\t\""
+      "\"fldcw -4(%%esp)\\n\\t\""
+      "\"frndint\\n\\t\""
+      "\"fldcw -2(%%esp)\\n\\t\""
+      "\"fstpl %0\\n\\t\""
+      " : \"=m\"(*out) : \"m\"(*in) : \"ax\", \"memory\");\n"
+      "}\n"
+      "void round_down_store_qualified(volatile double *out,\n"
+      "                                const volatile double *in) {\n"
+      "  __asm__ volatile("
+      "\"fldl %1\\n\\t\""
+      "\"fnstcw -2(%%esp)\\n\\t\""
+      "\"movw  -2(%%esp), %%ax\\n\\t\""
+      "\"movw  %%ax, -4(%%esp)\\n\\t\""
+      "\"andw  $0xF3FF, -4(%%esp)\\n\\t\""
+      "\"orw   $0x0400, -4(%%esp)\\n\\t\""
+      "\"fldcw -4(%%esp)\\n\\t\""
+      "\"frndint\\n\\t\""
+      "\"fldcw -2(%%esp)\\n\\t\""
+      "\"fstpl %0\\n\\t\""
+      " : \"=m\"(*out) : \"m\"(*in) : \"memory\", \"ax\");\n"
+      "}\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[2];
+  ctool_c_assembly_operand_t mutant_operands[4];
+  ctool_c_type_layout_t *mutant_layouts = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/x87-round-down-memory-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 4u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(
+          status, CTOOL_OK, "x87 round-down memory assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first x87 round-down memory assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second,
+          "repeat x87 round-down memory assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr,
+        "x87 round-down memory assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/x87-round-down-memory-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK,
+          "read x87 round-down memory assembly object") ||
+      !validate_x87_round_down_memory_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 524u ||
+      find_section(&object, ".text")->contents.size != 142u ||
+      object.section_count != 5u || object.symbol_count != 3u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "x87-round-down-memory-assembly: object metrics differ: object=%u "
+        "text=%u sections=%u symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string(
+          "fldl %1\n\t"
+          "fnstcw -2(%%esp)\n\t"
+          "movw  -2(%%esp), %%ax\n\t"
+          "movw  %%ax, -4(%%esp)\n\t"
+          "andw  $0xF7FF, -4(%%esp)\n\t"
+          "orw   $0x0400, -4(%%esp)\n\t"
+          "fldcw -4(%%esp)\n\t"
+          "frndint\n\t"
+          "fldcw -2(%%esp)\n\t"
+          "fstpl %0\n\t");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down control mask") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_AX_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down missing ax clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down missing memory clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down extra xmm0 clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down volatile flag") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].output_count = 0u;
+  mutant_assemblies[0].input_count = 2u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down operand counts") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[0].constraint = ctool_string("=r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down register output") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_operands[1].constraint = ctool_string("r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down register input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[1] = unit.assembly_operands[1];
+
+  mutant_operands[1].matching_output = 0u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down matching input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[1] = unit.assembly_operands[1];
+
+  mutant_operands[0].type = unit.assembly_operands[1].type;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down output type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  if (mutant_layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      mutant_layouts, unit.layout.types,
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  mutant_layouts[unit.assembly_operands[0].type].size = 4u;
+  mutant.layout.types = mutant_layouts;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 round-down operand layout") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant.layout.types = unit.layout.types;
+
+  if (!expect_object_failure(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited x87 round-down memory assembly object") ||
+      ctool_buffer_rewind(limited, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure,
+          "x87 round-down memory assembly recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(recovered_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr,
+        "x87 round-down memory assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_layouts);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("x87-round-down-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_state_memory_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol,
@@ -36759,6 +37568,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "x87-sine-memory-assembly") == 0) {
     return run_x87_sine_memory_assembly_object(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "x87-round-down-memory-assembly") == 0) {
+    return run_x87_round_down_memory_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly_object(argv[2]);
   }
@@ -36881,6 +37694,7 @@ int main(int argc, char **argv) {
                 "ldmxcsr-memory-input|"
                 "movss-memory-assembly|"
                 "x87-sine-memory-assembly|"
+                "x87-round-down-memory-assembly|"
                 "legacy-port-assembly|state-memory-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"
