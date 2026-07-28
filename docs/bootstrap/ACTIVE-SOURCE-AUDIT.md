@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 698
 - Unreachable source-like files: 42
-- Reachable output transforms: 502
+- Reachable output transforms: 504
 - Distinct feature requirements: 253
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
@@ -21,9 +21,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 107 |
+| `c` | 105 |
 | `c_header` | 270 |
-| `cupid_c` | 294 |
+| `cupid_c` | 296 |
 
 ## Source cohorts
 
@@ -32,7 +32,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 301 |
 | `cupid_asm_demo` | 22 | 1469 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
-| `cupid_c_program` | 105 | 18689 |
+| `cupid_c_program` | 105 | 18782 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6682 |
 | `cupidc` | 7 | 13133 |
@@ -68,7 +68,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
-| `.` | `all` | 439 | 20 |
+| `.` | `all` | 441 | 20 |
 | `user` | `all` | 9 | 0 |
 | `toolchain` | `all` | 54 | 2 |
 
@@ -77,12 +77,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 153 |
+| `cupid_c_compiler` | 155 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 144 |
-| `host_python` | 166 |
+| `host_c_compiler` | 142 |
+| `host_python` | 170 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -100,23 +100,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 68892 |
+| `c.control` | 12 | 68917 |
 | `c.declaration` | 1 | 28 |
 | `c.declarator` | 4 | 3137 |
 | `c.expression` | 2 | 4661 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 643 |
-| `c.output` | 1 | 92 |
+| `c.output` | 1 | 90 |
 | `c.preprocessor` | 18 | 6668 |
 | `c.qualifier` | 2 | 12606 |
 | `c.storage` | 4 | 8268 |
-| `c.type` | 14 | 45480 |
+| `c.type` | 14 | 45495 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 153 |
+| `cupid_c.output` | 1 | 155 |
 | `cupid_c.storage` | 2 | 129 |
 | `cupid_c.type` | 12 | 152 |
 
@@ -152,7 +152,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 283 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 285 |
 
 ## Source-cohort migration order
 

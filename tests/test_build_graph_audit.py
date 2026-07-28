@@ -4089,7 +4089,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 698,
                     "features": 253,
-                    "transforms": 502,
+                    "transforms": 504,
                     "unreachable_sources": 42,
                 },
             )
@@ -4098,7 +4098,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4557, 168),
+                "c.expression.sizeof": (4619, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4122,6 +4122,38 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 transform["output"]: transform
                 for transform in audit_payload["build"]["transforms"]
             }
+            iso_transform = root_transform_by_output["test_iso/hello.iso"]
+            self.assertEqual(iso_transform["tools"], ["host_python"])
+            self.assertEqual(
+                iso_transform["operation"],
+                "host_orchestration",
+            )
+            self.assertIn(
+                "test_iso/fixtures/jpeg_baseline_8x8.jpg",
+                iso_transform["inputs"],
+            )
+            big_fixture_transform = root_transform_by_output[
+                "test_iso/fixtures/big.bin"
+            ]
+            self.assertEqual(
+                big_fixture_transform["tools"],
+                ["host_python"],
+            )
+            self.assertEqual(
+                big_fixture_transform["operation"],
+                "generate_binary_fixture",
+            )
+            system_image_transform = root_transform_by_output[
+                "cupidos.img"
+            ]
+            self.assertEqual(
+                system_image_transform["operation"],
+                "package_disk_image",
+            )
+            self.assertIn(
+                "test_iso/hello.iso",
+                system_image_transform["inputs"],
+            )
             checked_cupidc_roots = []
             for transform in root_transform_by_output.values():
                 if (
@@ -4145,7 +4177,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 150)
+            self.assertEqual(len(checked_cupidc_roots), 152)
             self.assertEqual(
                 {
                     path
@@ -4162,7 +4194,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                150,
+                152,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4424,6 +4456,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ),
             }
             self.assertEqual(len(port_io_header_closures), 14)
+            floating_gfx_header_closures = {
+                "kernel/gfx/glyph_raster.cc": (
+                    "kernel/core/string.h",
+                    "kernel/core/types.h",
+                    "kernel/gfx/glyph_raster.h",
+                    "kernel/mm/memory.h",
+                ),
+                "kernel/gfx/jpeg.cc": (
+                    "kernel/core/types.h",
+                    "kernel/cpu/libm.h",
+                    "kernel/gfx/jpeg.h",
+                    "kernel/mm/memory.h",
+                ),
+            }
             cupidc_control_inputs = (
                 "Makefile",
                 "tools/cupidc_kernel_compile.py",
@@ -4436,7 +4482,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap/seeds/i386-linux/cupidld.elf",
                 "bootstrap/seeds/i386-linux/cupidobj.elf",
             )
-            for source_path, headers in port_io_header_closures.items():
+            closed_header_closures = {
+                **port_io_header_closures,
+                **floating_gfx_header_closures,
+            }
+            for source_path, headers in closed_header_closures.items():
                 output_path = Path(source_path).with_suffix(".o").as_posix()
                 with self.subTest(port_io_closure=source_path):
                     self.assertEqual(
@@ -4447,6 +4497,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             cupidc_kernel_sources = (
                 *established_cupidc_kernel_sources,
                 *port_io_header_closures,
+                *floating_gfx_header_closures,
             )
             for source_path in cupidc_kernel_sources:
                 output_path = Path(source_path).with_suffix(".o").as_posix()
@@ -4483,9 +4534,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 153,
-                    "host_c_compiler": 144,
-                    "host_python": 166,
+                    "cupid_c_compiler": 155,
+                    "host_c_compiler": 142,
+                    "host_python": 170,
                 },
             )
 

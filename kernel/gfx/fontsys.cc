@@ -1,6 +1,6 @@
 /* fontsys.cc - see fontsys.h.
  *
- * Layered on top of kernel/gfx/ttf.cc and kernel/gfx/glyph_raster.c.
+ * Layered on top of kernel/gfx/ttf.cc and kernel/gfx/glyph_raster.cc.
  * Owns:
  *   - face registry (parallel arrays, cap FONTSYS_MAX_FACES)
  *   - generic family fallback table (serif/sans/mono/default)

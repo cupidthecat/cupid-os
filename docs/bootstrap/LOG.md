@@ -11958,3 +11958,120 @@ No production object changes owner in this commit. JPEG and glyph
 rasterization keep their `.c` names and host recipes until a separate transfer
 proves their closed inputs, renamed-source objects, normal image, and runtime
 behavior. ADR 0138 records the promotion and trust boundary.
+
+## 2026-07-27: move JPEG and glyph rasterization to checked CupidC
+
+The promoted seed from ADR 0138 carries the two floating capabilities needed
+by the next host-owned graphics sources. The normal build now compiles
+`kernel/gfx/jpeg.cc` and `kernel/gfx/glyph_raster.cc` through checked CupidC.
+Their object names and final-link order are unchanged.
+
+The wrapper freezes each source with its exact recursive header set. JPEG
+uses `types.h`, `libm.h`, `jpeg.h`, and `memory.h`. Glyph rasterization uses
+`string.h`, `types.h`, `glyph_raster.h`, and `memory.h`. The old glyph rule
+listed `libm.h` even though the source did not include it, and omitted the
+transitive `types.h` edge. The production rule and wrapper now agree on the
+closed inputs.
+
+Positive tests require both new source names, closures, recipes, and checked
+object fingerprints. Negative tests reject the old `.c` names, an undeclared
+source, a changed frozen input, a changed live input, a missing dependency,
+and host-tool fallback. Both a forced dry run and a real two-object build pass
+with `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `NM`,
+and `OBJCOPY` set to commands that do not exist.
+
+The checked objects repeat byte for byte:
+
+| Source | Bytes | SHA-256 | Definitions and imports |
+| --- | ---: | --- | --- |
+| `kernel/gfx/jpeg.cc` | 21,120 | `ccabae9e3b979031079f1ed72189c990f3aee4aa773c6ec742b5ccc263570851` | Defines `jpeg_decode_mem`; imports `kmalloc_debug` and `kfree` |
+| `kernel/gfx/glyph_raster.cc` | 11,744 | `83d2f4cac28abbc5bb8a92020ab7fb57251b1b927b4fdbc40981f29556aa1e80` | Defines `glyph_rasterize`; imports `kmalloc_debug`, `kfree`, and `memset` |
+
+The first complete frontier run found a source-sensitive detail in the glyph
+file. Shortening a stale host-C comment moved the `kmalloc` calls. That macro
+passes `__LINE__` to `kmalloc_debug`, so the edit changed the object even
+though it changed no executable branch. The comment now describes checked
+CupidC while keeping the original line depth. The isolated glyph hash then
+returned to the expected value.
+
+The strict frontier compiles all 148 checked-in roots twice in 1,260.652
+seconds. It sees 436 frozen inputs with SHA-256
+`5e0a69e1ac12e6acec0edf9c21fe09ce1b0e3ca399a545614f58dfa9e0b3fec7`.
+Both object sets are byte-identical, contain no boundary file, and total
+3,619,012 bytes per pass.
+
+The ISO fixture is a 331-byte, 8-bit, one-component SOF0 JPEG with SHA-256
+`76aac1d6ee61f230d47cd6fef3ba1ea50fe55f1a32634c109489cb3b8d931957`.
+It contains no SOF2 marker. The guest reads it from `/iso`, decodes it with
+`jpeg_decode_mem`, verifies an 8-by-8 image and all 64 gray RGB pixels, frees
+the allocation, and prints `PASS jpeg_decode_mem baseline 8x8 gray128`.
+The same guest command matches Liberation Mono and requests an otherwise
+unused size-37 `Q` twice. The first width reaches `glyph_rasterize`; the
+second must return the same cached width. Both NICs report
+`width=22 cache=22`. The runtime harness requires the JPEG and glyph markers
+before `PASS feature17_iso` and rejects either failure marker.
+
+`cupidos.img` now depends on the generated ISO, so a fixture change makes the
+normal image stale. The audit records that transform as disk-image packaging
+and records non-C `gen-*` outputs such as `big.bin` as binary generation.
+
+The focused wrapper, frontend, and runtime modules pass 170 tests in 93.493
+seconds. The complete `make test` target passes 775 tests in 3,466.546
+seconds, with one expected skip. That run includes both supplemental
+production frontiers, all discovered Python contracts, and a checked audit
+replay. After the runtime-reachability and classifier review, 233 focused
+wrapper, frontend, audit, and smoke tests pass in 546.226 seconds. A separate
+checked audit replay also passes.
+
+The final active-source audit records 698 sources, 253 feature IDs, 504
+reachable transforms, and 42 accounted unreachable files. CupidC owns 155
+transforms, the host C compiler owns 142, Python owns 170, and Make owns five.
+The active-source digest is
+`7663be0ec9c4c36c8d05ac5162f4bb990c3a215324bce20fb10cf2b179fdbde4`.
+The JSON report has SHA-256
+`44343864a55835c6f787a92ca6358f09394ea67dac211f0065e8401ea21617dc`.
+
+The clean final `make -j2 all WAD_SRCS=` build completes in 447.0 seconds.
+The independent partitioned USB fixture is also rebuilt.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,024,896 | `5e4d10f9ad7fcd3ce96288bc65089263e62ab31f253a312675e36d95d6e49c04` |
+| `kernel/cpu/ksyms_data.o` | 105,656 | `af3ef76b05fb0eacea8925177671e8fe06e1424887fced598d2876d187cd8ed2` |
+| `kernel/kernel.elf` | 8,131,392 | `0affba20843a1fa01d3bd7a1a648e377e3ab28bb777df5711dc3740b663ac01a` |
+| `kernel/kernel.bin` | 7,934,664 | `3ba60890a2d0b14709c3a4570b60ab7ae8456caa6e7ea90b5a791febb80daa80` |
+| `cupidos.img` | 209,715,200 | `543c8744c306268207414ede73bd6d8589bd734f1ebab4c106c5b2e8504fba73` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+| `test_iso/hello.iso` | 389,120 | `f3878646cc77e075dccef3b4e19be843f37d9550c35f289976976e749a87f4e0` |
+
+CupidDis returns the same 4,384 accepted text-symbol rows from both kernel
+passes, with no row or address drift. The generated symbol source holds a
+105,242-byte logical blob with two zero pad bytes. `_loaded_end` is
+`0x008912C8`, `_bss_start` is `0x00892000`, and `_kernel_end` is
+`0x00CB6A70`. The final image leaves 451,384 bytes in the bootloader's
+reserved disk area and 300,432 bytes below the fixed stack base at
+`0x00D00000`.
+
+The four-vCPU `cpu=max` frontier passes through both supported NICs. E1000
+finishes in 191.7 seconds with 126,232 changed framebuffer pixels. RTL8139
+finishes in 189.4 seconds with 94,438 changed pixels. Both runs reach all
+four CPUs, RDRAND seeding, all 62 crypto checks, DHCP, the desktop and
+terminal, the ordered JPEG and glyph proofs, the graphics commands, AC'97 and
+PC-speaker audio, UHCI keyboard and mouse reattachment, and six EHCI storage
+lifetimes. The e1000 log is 71,568 bytes with SHA-256
+`f2a8c00a9275fec6b363bf53493e406ebeac2803120c3daa2e9b2cae790a16d2`.
+The RTL8139 log is 68,135 bytes with SHA-256
+`4deefc0d86f33ef8f43c51f244e37dd6604249059da1062bafb8f7d680536bac`.
+
+An initial parallel run put both four-vCPU guests on the same host. The
+e1000 harness then missed the unrelated `godsong` deadline while RTL8139
+reached both new markers. Uncontended reruns completed through both NICs
+under the normal per-command timeout, so the parallel result is not part of
+the passing evidence.
+
+The normal cohort now has 148 checked-in roots plus the generated kernel
+symbol translation. All 149 normal CupidC sources use `.cc`. The host compiler
+still produces 90 root objects. Seven strict roots remain:
+`kernel/core/kernel.c`, `kernel/core/string.c`, `kernel/cpu/fpu.c`,
+`kernel/cpu/libm.c`, `kernel/cpu/simd.c`, `kernel/smp/percpu.c`, and
+`kernel/smp/smp.c`. ADR 0139 records the transfer and its limits.

@@ -2303,9 +2303,10 @@
       {
         "inputs": [
           "boot/boot.bin",
-          "kernel/kernel.bin"
+          "kernel/kernel.bin",
+          "test_iso/hello.iso"
         ],
-        "operation": "host_orchestration",
+        "operation": "package_disk_image",
         "output": "cupidos.img",
         "recipe": [
           "$(PYTHON) tools/hostbuild.py image --image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) --hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) --stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)"
@@ -6087,19 +6088,30 @@
       },
       {
         "inputs": [
-          "kernel/gfx/glyph_raster.c",
+          "kernel/gfx/glyph_raster.cc",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
           "kernel/gfx/glyph_raster.h",
           "kernel/mm/memory.h",
-          "kernel/core/string.h",
-          "kernel/cpu/libm.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/glyph_raster.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/glyph_raster.c -o kernel/gfx/glyph_raster.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -6136,18 +6148,30 @@
       },
       {
         "inputs": [
-          "kernel/gfx/jpeg.c",
+          "kernel/gfx/jpeg.cc",
+          "kernel/core/types.h",
+          "kernel/cpu/libm.h",
           "kernel/gfx/jpeg.h",
           "kernel/mm/memory.h",
-          "kernel/cpu/libm.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/gfx/jpeg.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -9987,6 +10011,36 @@
         ],
         "tools": [
           "cupid_object"
+        ]
+      },
+      {
+        "inputs": [],
+        "operation": "generate_binary_fixture",
+        "output": "test_iso/fixtures/big.bin",
+        "recipe": [
+          "$(PYTHON) tools/hostbuild.py gen-big $@"
+        ],
+        "tools": [
+          "host_python"
+        ]
+      },
+      {
+        "inputs": [
+          "test_iso/fixtures/big.bin",
+          "test_iso/fixtures/gen_big.sh",
+          "test_iso/fixtures/jpeg_baseline_8x8.jpg",
+          "test_iso/fixtures/long_named_file.txt",
+          "test_iso/fixtures/readme.txt",
+          "test_iso/fixtures/sub",
+          "test_iso/fixtures/sub/nested.txt"
+        ],
+        "operation": "host_orchestration",
+        "output": "test_iso/hello.iso",
+        "recipe": [
+          "$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures --out test_iso/hello.iso"
+        ],
+        "tools": [
+          "host_python"
         ]
       },
       {
@@ -15657,7 +15711,7 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ctxt_image_worker.cc",
@@ -15910,9 +15964,9 @@
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
         "kernel/gui/ctxt_image_worker.cc",
@@ -16336,8 +16390,8 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/glyph_raster.c",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/glyph_raster.cc",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -16420,7 +16474,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4205
+      "occurrences": 4206
     },
     {
       "category": "control",
@@ -16587,9 +16641,9 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -17016,9 +17070,9 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -17129,7 +17183,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 32019
+      "occurrences": 32031
     },
     {
       "category": "control",
@@ -17377,9 +17431,9 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -17488,7 +17542,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 19340
+      "occurrences": 19351
     },
     {
       "category": "control",
@@ -17775,9 +17829,9 @@
         "kernel/gfx/fontsys.cc",
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_icons.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -17865,7 +17919,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2635
+      "occurrences": 2636
     },
     {
       "category": "declaration",
@@ -18308,7 +18362,7 @@
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gui/clipboard.cc",
         "kernel/gui/ctxt_image_worker.cc",
         "kernel/gui/desktop.cc",
@@ -19059,13 +19113,11 @@
         "kernel/doom/src/w_wad.c",
         "kernel/doom/src/wi_stuff.c",
         "kernel/doom/src/z_zone.c",
-        "kernel/gfx/glyph_raster.c",
-        "kernel/gfx/jpeg.c",
         "kernel/smp/percpu.c",
         "kernel/smp/smp.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 92
+      "occurrences": 90
     },
     {
       "category": "preprocessor",
@@ -19345,7 +19397,7 @@
         "kernel/gfx/gfx2d_effects.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.h",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/glyph_raster.h",
         "kernel/gfx/graphics.h",
         "kernel/gfx/jpeg.h",
@@ -20750,11 +20802,11 @@
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/gfx2d_transform.h",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/glyph_raster.h",
         "kernel/gfx/graphics.cc",
         "kernel/gfx/graphics.h",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/jpeg.h",
         "kernel/gfx/png.cc",
         "kernel/gfx/png.h",
@@ -21317,11 +21369,11 @@
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/gfx2d_transform.h",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/glyph_raster.h",
         "kernel/gfx/graphics.cc",
         "kernel/gfx/graphics.h",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/jpeg.h",
         "kernel/gfx/png.cc",
         "kernel/gfx/png.h",
@@ -21720,7 +21772,7 @@
         "kernel/doom/doomgeneric_cupidos.c",
         "kernel/doom/src/i_scale.c",
         "kernel/doom/src/i_swap.h",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/mm/memory.cc",
         "kernel/smp/percpu.h",
         "kernel/usb/ehci.cc",
@@ -21897,9 +21949,9 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -22403,7 +22455,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 7688
+      "occurrences": 7689
     },
     {
       "category": "type",
@@ -22600,8 +22652,8 @@
         "kernel/doom/src/m_config.h",
         "kernel/doom/src/p_maputl.c",
         "kernel/doom/src/r_main.c",
-        "kernel/gfx/glyph_raster.c",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/glyph_raster.cc",
+        "kernel/gfx/jpeg.cc",
         "kernel/lang/cupidc.cc",
         "kernel/lang/cupidc_parse.cc",
         "toolchain/tests/cupidc_object_contract.c"
@@ -22973,11 +23025,11 @@
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/gfx2d_transform.h",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/glyph_raster.h",
         "kernel/gfx/graphics.cc",
         "kernel/gfx/graphics.h",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/jpeg.h",
         "kernel/gfx/png.cc",
         "kernel/gfx/png.h",
@@ -23126,7 +23178,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 20330
+      "occurrences": 20344
     },
     {
       "category": "type",
@@ -23438,7 +23490,7 @@
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gui/ansi.h",
         "kernel/gui/clipboard.h",
@@ -23696,7 +23748,7 @@
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gui/ansi.h",
         "kernel/gui/clipboard.h",
@@ -24406,10 +24458,10 @@
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/gfx2d_transform.h",
-        "kernel/gfx/glyph_raster.c",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
         "kernel/gfx/graphics.h",
-        "kernel/gfx/jpeg.c",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -24942,7 +24994,9 @@
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
+        "kernel/gfx/glyph_raster.cc",
         "kernel/gfx/graphics.cc",
+        "kernel/gfx/jpeg.cc",
         "kernel/gfx/png.cc",
         "kernel/gfx/ttf.cc",
         "kernel/gui/ansi.cc",
@@ -25026,7 +25080,7 @@
         "user/examples/ls.cc"
       ],
       "id": "cupid_c.output.elf32_relocatable",
-      "occurrences": 153
+      "occurrences": 155
     },
     {
       "category": "storage",
@@ -25382,11 +25436,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "f07d5a295cfb47870934f88cff800348417588cf4bf3d824553bc9a698168b02",
+    "active_source_digest": "7663be0ec9c4c36c8d05ac5162f4bb990c3a215324bce20fb10cf2b179fdbde4",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "b63e2e6b57f019cd28a832edd5fbc92ae359e6b1afba45f6de338745087a143e"
+        "sha256": "c6103b7896c89eed7ea3ef3c6e824cea22d09d11104cde790bffa9483b8045e7"
       },
       {
         "path": "user/Makefile",
@@ -25398,7 +25452,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "bbe0c3c71ec1fece9b4e7b2fed02f6c9679b80ffa6f99a4189649c6f27850052"
+        "sha256": "5cb8670b3f85e13089ed57db1abe0755705ffe8e512fb215ee556873d96f53a3"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -25431,7 +25485,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "09098a834057600dcbfafe21bb7eae1db36d0596bba93aa8db58d631a3487c94"
+      "sha256": "67d1505945e8730a19ec0e160469d89e25c53e6efa93f70e12febb2d2eb7d5c7"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -25972,7 +26026,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 283,
+        "source_count": 285,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -27762,12 +27816,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 185,
+      "lines": 278,
       "origin": "tracked",
       "path": "bin/feature17_iso.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "73a3410d6d7cb4ff5568a0c6eef168e1034aac817be5750526a1e4e033237c5f"
+      "sha256": "427a649fa4c3c08571a8524062463acd60932d46283e761b08ad2848c00c8be5"
     },
     {
       "build_owners": [
@@ -42485,7 +42539,7 @@
       "path": "kernel/gfx/fontsys.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3d7620ef2c621efa0f93bc325e89c91277dfd9e9e9529ec2221b36cf044c488d"
+      "sha256": "c86d683f6b6b0c2878b4a95c00eaddaecb88ad80108078a0b3fef4546e6820d6"
     },
     {
       "build_owners": [
@@ -42915,7 +42969,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -42929,7 +42984,6 @@
         "c.control.return",
         "c.control.while",
         "c.expression.sizeof",
-        "c.output.elf32_relocatable",
         "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.const",
@@ -42937,25 +42991,25 @@
         "c.storage.static",
         "c.type.float",
         "c.type.int",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "kernel/core/string.h",
         "kernel/gfx/glyph_raster.h",
         "kernel/mm/memory.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 318,
       "origin": "tracked",
-      "path": "kernel/gfx/glyph_raster.c",
+      "path": "kernel/gfx/glyph_raster.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "acacdf803a160345ded4540c2ffef64c4aa7dfe643733819e2210c93adbbcd7f"
+      "runtime_owner": "CupidC",
+      "sha256": "fe5af8e8b55176a8fdf2fadb98824efb29fb0f32634184ce103008b2e0c9dc8b"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -43055,7 +43109,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -43069,7 +43124,6 @@
         "c.control.if",
         "c.control.return",
         "c.control.while",
-        "c.output.elf32_relocatable",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.storage.static",
@@ -43077,25 +43131,25 @@
         "c.type.int",
         "c.type.struct",
         "c.type.typedef",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "kernel/cpu/libm.h",
         "kernel/gfx/jpeg.h",
         "kernel/mm/memory.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 534,
       "origin": "tracked",
-      "path": "kernel/gfx/jpeg.c",
+      "path": "kernel/gfx/jpeg.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
-      "sha256": "03d4aa71d7cf0628f27ebac3621758eaf5fc2567b1a9e06848268eccb93dfe90"
+      "runtime_owner": "CupidC",
+      "sha256": "df43222c6e334cf309ad3997e018b44fc911a66dea6f40fb04a2f661a77a8995"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -50751,7 +50805,7 @@
   "summary": {
     "active_sources": 698,
     "features": 253,
-    "transforms": 502,
+    "transforms": 504,
     "unreachable_sources": 42
   },
   "supplemental_builds": [

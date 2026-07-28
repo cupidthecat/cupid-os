@@ -1,5 +1,5 @@
 /**
- * jpeg.c - Minimal baseline JPEG decoder for cupid-os
+ * jpeg.cc - Minimal baseline JPEG decoder for cupid-os
  *
  * Decodes SOF0/SOF1 baseline JPEGs into 32bpp XRGB pixel buffers.
  * Uses two-pass O(N^2) IDCT in single-precision float (FPU enabled

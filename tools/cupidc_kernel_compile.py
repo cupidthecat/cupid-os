@@ -175,6 +175,8 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "kernel/fs/loopdev.cc",
     "kernel/gfx/deflate.cc",
     "kernel/gfx/gfx2d.cc",
+    "kernel/gfx/glyph_raster.cc",
+    "kernel/gfx/jpeg.cc",
     "kernel/gfx/png.cc",
     "kernel/gui/ed.cc",
     "kernel/lang/as.cc",
@@ -199,6 +201,18 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/audio/nuked_opl3.h",
         "kernel/core/string.h",
         "kernel/core/types.h",
+    ),
+    "kernel/gfx/glyph_raster.cc": (
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/gfx/glyph_raster.h",
+        "kernel/mm/memory.h",
+    ),
+    "kernel/gfx/jpeg.cc": (
+        "kernel/core/types.h",
+        "kernel/cpu/libm.h",
+        "kernel/gfx/jpeg.h",
+        "kernel/mm/memory.h",
     ),
     "kernel/cpu/ksyms_data.cc": (
         "kernel/cpu/ksyms.h",

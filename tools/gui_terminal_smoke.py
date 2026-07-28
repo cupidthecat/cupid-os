@@ -149,6 +149,10 @@ FRONTIER_RUNTIME_COMMANDS = (
         "/bin/feature17_iso.cc",
         (
             r"\[cupidc\] JIT compile: /bin/feature17_iso\.cc"
+            r".*?PASS jpeg_decode_mem baseline 8x8 gray128"
+            r".*?PASS glyph_rasterize Liberation Mono Q size37 "
+            r"width=(?P<glyph_width>[1-9][0-9]*) "
+            r"cache=(?P=glyph_width)"
             rf".*?PASS feature17_iso.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
     ),
@@ -288,6 +292,8 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[FAIL] kbdsub",
     "[cupidc] error",
     "[asm] error",
+    "FAIL jpeg_decode_mem",
+    "FAIL glyph_rasterize",
     "FAIL feature17_iso",
     "FAIL feature18_swap",
     "extended SYS VFS calls: FAIL",

@@ -1283,10 +1283,15 @@ def _operation_for_recipe(
             return "extract_raw_binary"
         return "transform_object"
     if "host_python" in tools:
-        if " hostbuild.py image " in joined:
+        if "hostbuild.py image " in joined:
             return "package_disk_image"
-        if " gen-" in joined or " mksyms " in joined:
+        if " mksyms " in joined or (
+            " gen-" in joined
+            and output.lower().endswith((".c", ".cc"))
+        ):
             return "generate_c_source"
+        if " gen-" in joined:
+            return "generate_binary_fixture"
         return "host_orchestration"
     if "make" in tools:
         return "recursive_make"

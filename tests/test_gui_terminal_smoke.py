@@ -1,3 +1,4 @@
+import hashlib
 import re
 import tempfile
 import unittest
@@ -6,6 +7,10 @@ from pathlib import Path
 from unittest import mock
 
 from tools import gui_terminal_smoke
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+JPEG_FIXTURE = REPO_ROOT / "test_iso" / "fixtures" / "jpeg_baseline_8x8.jpg"
 
 
 def _smp_runtime_log():
@@ -97,6 +102,9 @@ def _frontier_command_outputs():
         ),
         (
             "[cupidc] JIT compile: /bin/feature17_iso.cc\n"
+            "PASS jpeg_decode_mem baseline 8x8 gray128\n"
+            "PASS glyph_rasterize Liberation Mono Q size37 "
+            "width=22 cache=22\n"
             "PASS feature17_iso\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -1039,6 +1047,81 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_iso_jpeg_fixture_is_a_byte_fixed_baseline_image(self):
+        data = JPEG_FIXTURE.read_bytes()
+        self.assertEqual(len(data), 331)
+        self.assertEqual(
+            hashlib.sha256(data).hexdigest(),
+            "76aac1d6ee61f230d47cd6fef3ba1ea5"
+            "0fe55f1a32634c109489cb3b8d931957",
+        )
+        sof0 = data.index(b"\xff\xc0")
+        self.assertEqual(
+            data[sof0:sof0 + 13],
+            b"\xff\xc0\x00\x0b\x08\x00\x08\x00\x08\x01\x01\x11\x00",
+        )
+        self.assertNotIn(b"\xff\xc2", data)
+
+    def test_system_image_tracks_the_iso_runtime_fixture(self):
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        rule = re.search(
+            r"^\$\(OS_IMAGE\): ([^\n]+)$",
+            makefile,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(rule)
+        self.assertIn("test_iso/hello.iso", rule.group(1).split())
+
+    def test_iso_command_requires_the_jpeg_and_glyph_markers(self):
+        expected = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
+            4
+        ].expected_pattern
+        for marker in (
+            "PASS jpeg_decode_mem baseline 8x8 gray128\n",
+            (
+                "PASS glyph_rasterize Liberation Mono Q size37 "
+                "width=22 cache=22\n"
+            ),
+        ):
+            with self.subTest(marker=marker):
+                output = _frontier_command_outputs()[4].replace(marker, "")
+                self.assertIsNone(
+                    re.search(expected, output, re.S | re.M)
+                )
+        mismatched_cache = _frontier_command_outputs()[4].replace(
+            "width=22 cache=22",
+            "width=22 cache=23",
+        )
+        self.assertIsNone(
+            re.search(expected, mismatched_cache, re.S | re.M)
+        )
+        self.assertIn(
+            "FAIL jpeg_decode_mem",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+        self.assertIn(
+            "FAIL glyph_rasterize",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+    def test_iso_guest_source_calls_the_production_glyph_path(self):
+        source = (
+            REPO_ROOT / "bin" / "feature17_iso.cc"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            'fontsys_match("Liberation Mono", 3, 400, 0)',
+            source,
+        )
+        self.assertEqual(
+            source.count('fontsys_run_width(face, 37, "Q", 1)'),
+            2,
+        )
+        self.assertIn(
+            "PASS glyph_rasterize Liberation Mono Q size37",
+            source,
+        )
 
     def test_command_sequence_waits_for_each_marker_before_continuing(self):
         with tempfile.TemporaryDirectory() as temporary:

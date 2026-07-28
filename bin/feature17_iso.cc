@@ -73,6 +73,93 @@ int read_and_check(const char *path, const char *expected, int expected_len) {
     return 1;
 }
 
+int check_baseline_jpeg() {
+    char encoded[512];
+    int fd = vfs_open("/iso/jpeg_baseline_8x8.jpg", 0);
+    if (fd < 0) {
+        serial_printf("[feature17] FAIL jpeg fixture open fd=%d\n", fd);
+        return 0;
+    }
+
+    int n = vfs_read(fd, encoded, 512);
+    vfs_close(fd);
+    if (n != 331) {
+        serial_printf("[feature17] FAIL jpeg fixture length=%d\n", n);
+        return 0;
+    }
+
+    int *pixels = 0;
+    int width = 0;
+    int height = 0;
+    int rc = jpeg_decode_mem(encoded, n, &pixels, &width, &height);
+    if (rc != 0 || pixels == 0) {
+        serial_printf("[feature17] FAIL jpeg_decode_mem rc=%d\n", rc);
+        return 0;
+    }
+
+    if (width != 8 || height != 8) {
+        serial_printf("[feature17] FAIL jpeg size=%dx%d\n", width, height);
+        kfree(pixels);
+        return 0;
+    }
+
+    int bad = -1;
+    int i = 0;
+    while (i < 64) {
+        if ((pixels[i] & 0x00FFFFFF) != 0x00808080) {
+            bad = i;
+            i = 64;
+        } else {
+            i = i + 1;
+        }
+    }
+
+    if (bad >= 0) {
+        serial_printf("[feature17] FAIL jpeg pixel=%d rgb=%x\n",
+                      bad, pixels[bad] & 0x00FFFFFF);
+        kfree(pixels);
+        return 0;
+    }
+
+    kfree(pixels);
+    serial_printf("PASS jpeg_decode_mem baseline 8x8 gray128\n");
+    return 1;
+}
+
+int check_glyph_raster() {
+    int faces = fontsys_face_count();
+    if (faces < 4) {
+        serial_printf("[feature17] FAIL glyph_rasterize faces=%d\n", faces);
+        return 0;
+    }
+
+    int face = fontsys_match("Liberation Mono", 3, 400, 0);
+    if (face < 0 || face >= faces) {
+        serial_printf("[feature17] FAIL glyph_rasterize face=%d\n", face);
+        return 0;
+    }
+
+    /* Size 37 and Q avoid every normal UI cache entry. The first width
+     * request must decode and rasterize the outline; the second checks the
+     * cache entry produced by that path. */
+    int width = fontsys_run_width(face, 37, "Q", 1);
+    if (width <= 0) {
+        serial_printf("[feature17] FAIL glyph_rasterize width=%d\n", width);
+        return 0;
+    }
+    int cached = fontsys_run_width(face, 37, "Q", 1);
+    if (cached != width) {
+        serial_printf("[feature17] FAIL glyph_rasterize cache=%d width=%d\n",
+                      cached, width);
+        return 0;
+    }
+
+    serial_printf(
+        "PASS glyph_rasterize Liberation Mono Q size37 width=%d cache=%d\n",
+        width, cached);
+    return 1;
+}
+
 void main() {
     int ok = 1;
 
@@ -125,14 +212,20 @@ void main() {
         vfs_close(fd);
     }
 
-    /* 7. Unmount */
+    /* 7. Decode a byte-fixed baseline JPEG through the production path. */
+    if (!check_baseline_jpeg()) ok = 0;
+
+    /* 8. Rasterize an uncached bundled TrueType glyph and reuse its cache. */
+    if (!check_glyph_raster()) ok = 0;
+
+    /* 9. Unmount */
     shell_execute_line("umount /iso");
     if (is_mounted("/iso")) {
         serial_printf("[feature17] FAIL umount /iso still active\n");
         ok = 0;
     }
 
-    /* 8. Multi-mount: 2 concurrent */
+    /* 10. Multi-mount: 2 concurrent */
     shell_execute_line("mount /disk/hello.iso /iso_a iso9660");
     shell_execute_line("mount /disk/hello.iso /iso_b iso9660");
     if (!is_mounted("/iso_a") || !is_mounted("/iso_b")) {
@@ -151,7 +244,7 @@ void main() {
     shell_execute_line("umount /iso_a");
     shell_execute_line("umount /iso_b");
 
-    /* 9. Pool exhaustion: mount 4 then try a 5th.  iso9660 loopdev pool
+    /* 11. Pool exhaustion: mount 4 then try a 5th.  iso9660 loopdev pool
      * is size 4; 5th should be rejected.  We verify by counting /iso_N
      * slots before and after the 5th mount attempt.*/
     shell_execute_line("mount /disk/hello.iso /iso_1 iso9660");

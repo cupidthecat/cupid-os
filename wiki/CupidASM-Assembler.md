@@ -187,7 +187,7 @@ The checked i386 Linux seed includes CupidASM and binds it to the complete
 toolchain build plan. Checked CupidASM assembles stage-two startup, and the
 stage-two assembler produces the byte-identical stage-three startup. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
-The native oracle, contract runners, hosted development commands, and 92
+The native oracle, contract runners, hosted development commands, and 90
 normal Cupid OS C root objects still use a host compiler. Native Windows
 tooling and the remaining production handoff stay open.
 

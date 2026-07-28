@@ -59,7 +59,9 @@ arithmetic, and all six comparisons use the shared SSE path. A mixed floating
 comparison uses double, and only != is true for an unordered NaN input.
 
 The checked i386 Linux seed now carries static floating constant data and this
-complete comparison path.
+complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
+and kernel/gfx/glyph_raster.cc. Their deterministic checked objects and guest
+JPEG and glyph paths pass. ADR 0139 records the production transfer.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

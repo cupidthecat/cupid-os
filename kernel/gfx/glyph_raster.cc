@@ -1,4 +1,4 @@
-/* glyph_raster.c - see glyph_raster.h.
+/* glyph_raster.cc - see glyph_raster.h.
  *
  * Pipeline:
  *   1. Walk every contour, emitting line segments into a flat seg[] array.
@@ -12,18 +12,18 @@
  *      coverage. After 4 sub-rows, write coverage * 16 (clamped) to
  *      the alpha buffer.
  *
- * Floating-point work is kept inside this file. Public API takes/returns
- * ints only - matches the warning in bin/feature15_libm.cc:3 about
- * CupidC FP-in-user-function edge cases (kernel side is plain C and
- * doesn't hit that, but we keep the rule for symmetry).*/
+ * Floating-point work stays inside this checked CupidC root. The public
+ * API remains integer-only, so callers do not inherit FP representation
+ * or rounding details. That boundary keeps rasterization choices private
+ * to this translation unit and its integer-only callers.*/
 
 #include "glyph_raster.h"
 #include "../mm/memory.h"
 #include "string.h"
 
-/* libm's floor/ceil use a CupidC-internal ABI (return in xmm0, not ST(0)),
- * so plain kernel C cannot call them - see kernel/cpu/libm.h:17. We do all
- * the rounding work locally with these inline helpers.*/
+/* Keep the required floor and ceiling behavior local and explicit.
+ * These helpers avoid an external libm call while preserving the exact
+ * rounding rules used by the rasterizer. */
 static inline int float_floor_int(float v) {
     int i = (int)v;                     /* truncation toward zero */
     if (v < 0.0f && (float)i != v) i--; /* adjust for negative non-integer */

@@ -47,6 +47,12 @@ unordered NaN input.
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
 
+The normal build now compiles `kernel/gfx/jpeg.cc` and
+`kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static
+floating data, while glyph rasterization exercises the comparison path. The
+strong guest gate checks the TrueType path and every pixel of a byte-fixed
+baseline JPEG. ADR 0139 records the production transfer.
+
 Direct floating truth, a floating controlling expression, increment or
 decrement, hexadecimal or subnormal constants, `long double`, SIMD, and
 atomic floating access remain unsupported. The SSE details below describe the

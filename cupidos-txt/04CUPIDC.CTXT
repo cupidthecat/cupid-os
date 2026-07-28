@@ -120,9 +120,9 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 146 checked-in sources in the normal image
+The checked CupidC seed compiles 148 checked-in sources in the normal image
 build. The generated kernel symbol source adds one checked transform, bringing
-the normal total to 147 CupidC transforms. All 147 sources use .cc. The
+the normal total to 149 CupidC transforms. All 149 sources use .cc. The
 19-source i386 Linux fixed point uses the same names, including its five roots
 shared with the normal image. Native GCC or Clang rules select C explicitly
 with -x c, while the checked seed compiles those paths under its fixed target
@@ -145,15 +145,16 @@ utility code. The shared ctool.cc, cupidasm.cc, cupiddis.cc, elf32.cc, and x86.c
 implementations complete the established 116-source group. ADRs 0115 and 0123
 transferred the first 28 source-driven roots. ADR 0124 renames another 111
 roots used only by production CupidC. ADR 0126 completes the fixed-point
-naming work, ADR 0129 transfers the lexer, and ADR 0135 transfers Nuked OPL3.
+naming work, ADR 0129 transfers the lexer, ADR 0135 transfers Nuked OPL3, and
+ADR 0139 transfers JPEG decoding and glyph rasterization.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
-compile all 146 checked-in roots twice. The full frontier now passes with a
-434-input path snapshot whose SHA-256 is
-4bf3bca0564df68e1049e496ac990691023c4ccb5d8815e419c98bf6a11d2b53.
-Both 146-object sets are byte-identical and total 3,586,148 bytes. The combined
+compile all 148 checked-in roots twice. The full frontier now passes with a
+436-input path snapshot whose SHA-256 is
+5e0a69e1ac12e6acec0edf9c21fe09ce1b0e3ca399a545614f58dfa9e0b3fec7.
+Both 148-object sets are byte-identical and total 3,619,012 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
 delays. A persistent lock leaves the frontier unpublished. The input scan
@@ -166,17 +167,26 @@ the desktop and terminal, and complete in-OS CupidC execution.
 The production path generates kernel/cpu/ksyms_data.cc after the pass-one
 link. Its normal recipe uses the checked CupidC wrapper. The source stores the
 packed symbol blob as little-endian unsigned int words and records a logical
-size of 104,933 bytes. The last word supplies 3 zero padding bytes outside that
+size of 105,242 bytes. The last word supplies 2 zero padding bytes outside that
 size. Generation runs private snapshots of the pass-one kernel and CupidDis.
 It rejects malformed symbol rows, missing text symbols, or live input drift
 before it replaces the source. The compiler wrapper freezes the source and
 its two-header closure before object validation and publication.
-The pass-one and final kernels each project 4,369 symbols, with no pass drift.
+The pass-one and final kernels each project 4,384 symbols, with no pass drift.
 
-Across root and supplemental builds, the ownership audit reports 153 CupidC
-transforms, 144 host C transforms, and 166 host Python transforms. Host C
-still creates 92 root objects. Nine strict checked-in roots remain outside
+Across root and supplemental builds, the ownership audit reports 155 CupidC
+transforms, 142 host C transforms, and 170 host Python transforms. Host C
+still creates 90 root objects. Seven strict checked-in roots remain outside
 production CupidC ownership.
+
+The normal build compiles kernel/gfx/jpeg.cc and
+kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
+produce deterministic 21,120-byte and 11,744-byte objects. A byte-fixed
+baseline JPEG in the ISO exercises jpeg_decode_mem inside Cupid OS, checks
+its 8-by-8 dimensions and all 64 pixels, and frees the decoded allocation.
+A second guest check matches Liberation Mono, requests an unused size-37 Q
+glyph twice, and requires a positive cached width. The strong e1000 and
+RTL8139 smokes require both success markers.
 
 The checked seed finalizes C11 inline linkage after reading the complete
 translation unit. The ordinary header declaration and inline definition of
@@ -273,7 +283,7 @@ FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
 header gate is 155/155 at compiler head.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
-the 146-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
+the 148-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
 and kernel/smp/mp_tables.cc with the checked seed. Their 5,708-byte and
 4,156-byte objects are deterministic and validated. Exact recursive header
 closures and poisoned host recipes protect each transferred build rule.
@@ -498,7 +508,7 @@ make verify-bootstrap-seed checks the seed without executing it.
 make bootstrap-from-seed writes both stages and a report under
 build/bootstrap/checked-seed. Linux runs the static tools directly. Windows
 uses WSL. Native contract runners, hosted development commands, and the
-92 remaining normal Cupid OS root objects still use a host compiler.
+90 remaining normal Cupid OS root objects still use a host compiler.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before
@@ -634,9 +644,9 @@ aggregate variadic reads, wide strings, literal pooling, and block-static
 addresses in other
 block-static initializers remain unfinished in the shared path.
 
-The shared path builds 146 checked-in normal kernel and toolchain objects. It
-also owns the generated kernel symbol source as the 147th normal CupidC
-transform. All 147 normal sources use .cc. The checked seed also
+The shared path builds 148 checked-in normal kernel and toolchain objects. It
+also owns the generated kernel symbol source as the 149th normal CupidC
+transform. All 149 normal sources use .cc. The checked seed also
 compiles the three generated installation tables and the three example ELF
 programs. Checked CupidLD links those example programs. The host compiler
 still owns the remaining C transforms, while the private in-kernel CupidC

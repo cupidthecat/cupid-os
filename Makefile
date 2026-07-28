@@ -903,15 +903,20 @@ kernel/gfx/png.o: kernel/gfx/png.cc kernel/core/types.h kernel/gfx/png.h kernel/
 kernel/gfx/deflate.o: kernel/gfx/deflate.cc kernel/core/types.h kernel/gfx/deflate.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o
 
-kernel/gfx/jpeg.o: kernel/gfx/jpeg.c kernel/gfx/jpeg.h kernel/mm/memory.h kernel/cpu/libm.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/jpeg.c -o kernel/gfx/jpeg.o
+kernel/gfx/jpeg.o: kernel/gfx/jpeg.cc kernel/core/types.h \
+	kernel/cpu/libm.h kernel/gfx/jpeg.h kernel/mm/memory.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o
 
 # TrueType font system: parser, rasterizer, registry/cache.
 kernel/gfx/ttf.o: kernel/gfx/ttf.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gfx/ttf.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/ttf.cc --output kernel/gfx/ttf.o
 
-kernel/gfx/glyph_raster.o: kernel/gfx/glyph_raster.c kernel/gfx/glyph_raster.h kernel/mm/memory.h kernel/core/string.h kernel/cpu/libm.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gfx/glyph_raster.c -o kernel/gfx/glyph_raster.o
+kernel/gfx/glyph_raster.o: kernel/gfx/glyph_raster.cc \
+	kernel/core/string.h kernel/core/types.h \
+	kernel/gfx/glyph_raster.h kernel/mm/memory.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o
 
 kernel/gfx/fontsys.o: kernel/gfx/fontsys.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/glyph_raster.h kernel/gfx/ttf.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/fontsys.cc --output kernel/gfx/fontsys.o
@@ -1270,7 +1275,7 @@ $(KERNEL): kernel/kernel.elf $(CUPIDOBJ)
 	$(CUPIDOBJ) flat $< -o $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
-$(OS_IMAGE): $(BOOTLOADER) $(KERNEL)
+$(OS_IMAGE): $(BOOTLOADER) $(KERNEL) test_iso/hello.iso
 	$(PYTHON) tools/hostbuild.py image --image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) --hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) --stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
