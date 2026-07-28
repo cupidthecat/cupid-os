@@ -71,13 +71,15 @@ fixture emits the twelve opening x87/SSE floating wrappers from `libm.c` in
 248 text bytes through Cupid's x86 encoder, with twelve global function
 symbols and no relocations.
 Compiler head resolves named function-body operands without invoking GAS.
-It now emits the exact double-precision x87 statement in `libm_pow_impl()`
-with one output, four inputs, and a memory clobber. The 116-byte focused
-function uses no relocations and returns the x87 stack to its incoming depth.
-The complete unchanged source reaches the mixed-width `libm_powf_impl()`
-statement at line 807. The checked seed predates named operands and this
-double-power form, so GCC or Clang continues to own the normal `libm.c`
-transform. No dependency or production ownership count changes.
+It now emits the exact x87 statements in `libm_pow_impl()` and
+`libm_powf_impl()`. The double form has five `double` memory operands. The
+mixed form has a `float` output, two `float` inputs, and two `double` inputs.
+Each 116-byte focused function uses no relocations and returns the x87 stack
+to its incoming depth. The complete unchanged source reaches the `=x` output
+of `sqrtsd %1, %0` in `libm_sqrt_impl()` at line 914. The checked seed
+predates named operands and both power forms, so GCC or Clang continues to
+own the normal `libm.c` transform. No dependency or production ownership
+count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

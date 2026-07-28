@@ -240,17 +240,19 @@ shared x86 encoder. The fixture has 248 text bytes and no relocations. The
 compiler head accepts named operands on function-body GNU assembly and
 resolves %[name] to the existing numeric operand before IR.
 
-Compiler head emits the complete double-precision x87 statement in
-libm_pow_impl. It accepts one double output, four double inputs, and a memory
-clobber. Linear IR evaluates the five addresses once in source order. The
-focused function has 116 exact text bytes, no relocations, a maximum x87
-depth of three, and balanced depth on return. FSUBR ST(1), ST(0) uses the
-canonical DC E1 encoding. The full source now stops at the mixed-width
-libm_powf_impl statement on line 807.
+Compiler head emits the complete x87 statements in libm_pow_impl and
+libm_powf_impl. The double form accepts one double output and four double
+inputs. The mixed form accepts one float output, two float inputs, and two
+double inputs. Both use a memory clobber. Linear IR evaluates each set of
+five addresses once in source order. Each focused function has 116 exact
+text bytes, no relocations, a maximum x87 depth of three, and balanced depth
+on return. FSUBR ST(1), ST(0) uses the canonical DC E1 encoding. The full
+source now stops at the =x output of sqrtsd %1, %0 in libm_sqrt_impl on line
+914.
 
 General GAS input and other file-scope templates remain unsupported. The
-checked seed predates named operands and the double-power statement, and the
-normal libm.c recipe still uses the host compiler.
+checked seed predates named operands and both power statements, and the normal
+libm.c recipe still uses the host compiler.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the

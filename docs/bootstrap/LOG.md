@@ -14308,3 +14308,76 @@ named operands and the new x87 statement. The normal `kernel/cpu/libm.c`
 transform stays with the host compiler and keeps its `.c` suffix. No normal
 object, ABI, image, runtime path, or ownership count changes. ADR 0161 records
 the decision, and `TempleOS/` remains untouched reference material.
+
+## 2026-07-28: emit the mixed-width libm powf statement
+
+Compiler-head CupidC now represents the unchanged volatile x87 statement in
+`libm_powf_impl()`. Although it follows the same calculation as the
+double-precision form, its operand widths differ. The frontend requires one
+modifiable, non-atomic `float` `=m` output, two addressable, non-atomic
+`float` `m` inputs, two addressable, non-atomic `double` `m` inputs, one
+`memory` clobber, and no other clobber.
+
+The active named spelling resolves to the numeric template before the public
+translation unit freezes. Linear IR evaluates the result, `x`, `y`, `ln(2)`,
+and `log2(e)` addresses once each in source order. The i386 emitter uses the
+shared power sequence with 32-bit loads for `x` and `y`, 64-bit loads for the
+constants, and a 32-bit result store. The 116-byte focused function has no
+relocations. Its 56-byte direct sequence contains seventeen decoded x87
+instructions, reaches a maximum stack depth of three, and returns with a
+balanced x87 stack. The canonical `FSUBR ST(1), ST(0)` encoding remains
+`DC E1`.
+
+Positive contracts cover the exact source, named normalization, source-order
+evaluation, unreachable validation, shared decoding, determinism, and
+same-job recovery. Negative contracts distinguish the three float operands
+from the two double constants and reject incorrect types, constraints,
+counts, matching metadata, templates, layouts, flags, clobbers, and
+non-addressable operands. They also cover constrained output and rollback.
+
+The first integrated frontend negative received a generic diagnostic because
+operand semantics are checked before named operands are normalized. As with
+the double-precision statement, the exact classifier now recognizes both the
+raw named spelling and the normalized numeric spelling. The public graph
+still records numeric operand indexes only.
+
+The unchanged `kernel/cpu/libm.c` probe now passes both power statements and
+stops at the next independent boundary:
+
+```text
+/kernel/cpu/libm.c:914:44: error CTB00000F: GNU inline assembly output constraint is outside this slice
+```
+
+This is the `=x` result of `sqrtsd %1, %0` in `libm_sqrt_impl()`.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused frontend, IR, object, and unchanged-source loop | 4 tests passed in 43.789 seconds |
+| Final complete frontend and Linear IR modules | 160 tests passed in 30.955 seconds |
+| Refreshed self-host object lock | 1 test passed in 21.496 seconds |
+| Strict hosted Toolchain build | All native contracts passed; six static i386 artifacts linked |
+| Five-tool static fixed point | 1 test passed in 710.167 seconds |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and drift check | Passed |
+
+The refreshed self-host records are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 245 | 458,189 | 491,988 | `30e1c016` |
+| `toolchain/cupidc_emit.cc` | 279 | 440,295 | 480,880 | `d86d07b1` |
+| `toolchain/cupidc_frontend.cc` | 394 | 802,473 | 950,984 | `0065e4cb` |
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`8f39568dc9e6bb39711ec06153182e2c6722cc6757a3758f273692b074a32c76`.
+The 1,526,996-byte JSON has SHA-256
+`f414a50988663dbeb5132917fc3c38c670e91e8c122ce9ed0ff3b87c95a8fde3`.
+
+This remains a compiler-head capability. The checked seed has not moved, and
+the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
+suffix. No production object, ABI, image, runtime path, or ownership count
+changes in this increment. ADR 0162 records the decision. `TempleOS/` remains
+untouched reference material.

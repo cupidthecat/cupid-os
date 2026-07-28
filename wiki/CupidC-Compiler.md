@@ -453,16 +453,18 @@ GNU statement inputs and outputs, then resolves `%[identifier]` to the
 existing numeric operand index before IR. Named and numeric operands share
 the same semantic checks, and `%%` stays escaped text.
 
-Compiler head also emits the exact double-precision x87 program in
-`libm_pow_impl()`. The statement has one `double` output, four `double`
-inputs, and a memory clobber. Linear IR evaluates all five addresses once in
-source order. The emitter produces 116 exact text bytes with no relocations,
-uses `DC E1` for `FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three,
-and returns to the incoming depth. The full source now proceeds to the
-mixed-width `libm_powf_impl()` statement at line 807.
+Compiler head emits the exact x87 programs in `libm_pow_impl()` and
+`libm_powf_impl()`. The double form has one `double` output and four `double`
+inputs. The mixed form has one `float` output, two `float` inputs, and two
+`double` inputs. Both use a memory clobber. Linear IR evaluates each set of
+five addresses once in source order. Each emitter proof produces 116 exact
+text bytes with no relocations, uses `DC E1` for
+`FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three, and returns to the
+incoming depth. The full source now proceeds to the `=x` output of
+`sqrtsd %1, %0` in `libm_sqrt_impl()` at line 914.
 
 General GAS syntax and other file-scope templates remain unsupported. The
-checked seed predates named operands and the double-power statement, and the
+checked seed predates named operands and both power statements, and the
 normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer

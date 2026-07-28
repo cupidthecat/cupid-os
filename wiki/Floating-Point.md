@@ -86,14 +86,15 @@ unchanged helper produce the same 420-byte object. The complete
 double-to-`uint64_t` cast on line 190, so this compiler-head increment does
 not move production ownership.
 
-Compiler head also represents the double-precision x87 power statement in
-`libm_pow_impl()`. It requires one `double` memory output, four `double`
-memory inputs, and one memory clobber. Linear IR evaluates all five addresses
-once in source order. The 116-byte focused function contains seventeen x87
-instructions, uses `DC E1` for `FSUBR ST(1), ST(0)`, reaches stack depth
-three, and returns to its incoming depth without a relocation. The unchanged
-file now stops at the mixed-width `libm_powf_impl()` statement on line 807.
-The checked seed does not yet carry this compiler-head capability, so
+Compiler head represents the x87 power statements in `libm_pow_impl()` and
+`libm_powf_impl()`. The double form has five `double` memory operands. The
+mixed form has a `float` output, two `float` inputs, and two `double` inputs.
+Each requires one memory clobber. Linear IR evaluates each set of five
+addresses once in source order. Both 116-byte focused functions contain
+seventeen x87 instructions, use `DC E1` for `FSUBR ST(1), ST(0)`, reach
+stack depth three, and return to their incoming depth without a relocation.
+The unchanged file now stops at the `=x` output of `sqrtsd %1, %0` on line
+914. The checked seed does not yet carry these compiler-head capabilities, so
 `kernel/cpu/libm.c` remains host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and

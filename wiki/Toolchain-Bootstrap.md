@@ -356,19 +356,23 @@ lvalue. Both forms keep the numeric path's type, qualifier, and constraint
 checks. Doubled percent signs remain escaped text. Malformed, duplicate,
 unterminated, and unresolved labels fail during parsing.
 
-### Double-precision x87 power statement
+### x87 power statements
 
-Compiler head now accepts the complete volatile assembly statement in
-`libm_pow_impl()`. It requires one modifiable `double` output, four
-addressable `double` inputs, one memory clobber, and no other clobber. Linear
-IR evaluates all five addresses once in source order.
+Compiler head accepts the complete volatile assembly statements in
+`libm_pow_impl()` and `libm_powf_impl()`. The double form requires one
+modifiable `double` output and four addressable `double` inputs. The mixed
+form requires one modifiable `float` output, two addressable `float` inputs,
+and two addressable `double` inputs. Both require one memory clobber and no
+other clobber. Linear IR evaluates each statement's five addresses once in
+source order.
 
-The focused function has 116 exact text bytes and no relocations. Shared
+Each focused function has 116 exact text bytes and no relocations. Shared
 decoding checks all seventeen x87 instructions, the canonical `DC E1`
 reverse-subtract bytes, maximum stack depth three, balanced depth on return,
 deterministic output, rollback, and same-job recovery. The unchanged source
-now reaches the mixed-width `libm_powf_impl()` statement at line 807.
+now reaches the `=x` output of `sqrtsd %1, %0` in `libm_sqrt_impl()` at line
+914.
 
-Named matching constraints, operand modifiers, and the float-power form
+Named matching constraints, operand modifiers, and the `sqrtsd` register form
 remain separate work. The checked seed and normal host-owned `libm.c` recipe
 do not change in this increment.

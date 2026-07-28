@@ -204,7 +204,11 @@ _Avoid_: public operand-name metadata, named matching constraint, general GNU te
 
 **Represented GNU x87 double-power memory assembly**:
 The exact volatile statement in `libm_pow_impl()` that consumes one modifiable `double` `=m` output, four addressable `double` `m` inputs, and one `memory` clobber. Compiler-head CupidC resolves its named operands to numeric indexes, evaluates all five addresses once in source order, and emits the complete `FYL2X`, `FRNDINT`, `F2XM1`, and `FSCALE` sequence with balanced x87 depth. The reverse subtraction uses the shared model's canonical `DC E1` encoding for `FSUBR ST(1), ST(0)`.
-_Avoid_: the separate mixed-width `libm_powf_impl()` form, arbitrary x87 stack programs, host-assembler escape
+_Avoid_: treating the mixed-width `libm_powf_impl()` form as all-double operands, arbitrary x87 stack programs, host-assembler escape
+
+**Represented GNU x87 mixed-width float-power memory assembly**:
+The exact volatile statement in `libm_powf_impl()` that consumes one modifiable `float` `=m` output, two addressable `float` `m` inputs, two addressable `double` `m` inputs, and one `memory` clobber. Compiler-head CupidC resolves its named operands to numeric indexes and evaluates all five addresses once in source order. The emitter shares the power sequence while selecting 32-bit loads and store for the float values and 64-bit loads for the constants.
+_Avoid_: treating every operand as `double`, the separate `sqrtsd` register form, arbitrary x87 stack programs, host-assembler escape
 
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper deterministically, but unchanged `kernel/core/string.c` still stops at its separate double-to-`uint64_t` cast.

@@ -436,13 +436,15 @@ floating wrappers at the start of unchanged `kernel/cpu/libm.c`. Cupid's
 shared x86 encoder produces 248 text bytes, twelve global function symbols,
 and no relocations. Compiler head accepts named operands on function-body GNU
 assembly and resolves `%[name]` to the existing numeric operand before Linear
-IR. It now emits the complete double-precision `libm_pow_impl` statement with
-one output, four inputs, and a memory clobber. The focused function has 116
-exact text bytes, no relocations, a maximum x87 depth of three, and balanced
-depth on return. The complete source reaches the separate mixed-width
-`libm_powf_impl` statement at line 807. The checked seed carries the
-file-scope wrappers but predates named operands and the new `pow` block, so
-`libm.c` stays on its host-owned recipe and keeps its `.c` name.
+IR. It emits the complete `libm_pow_impl` and `libm_powf_impl` statements.
+The double form has five `double` memory operands. The mixed form has a
+`float` output, two `float` inputs, and two `double` inputs. Each focused
+function has 116 exact text bytes, no relocations, a maximum x87 depth of
+three, and balanced depth on return. The complete source now reaches the
+`=x` output of `sqrtsd %1, %0` in `libm_sqrt_impl()` at line 914. The checked
+seed carries the file-scope wrappers but predates named operands and both
+power blocks, so `libm.c` stays on its host-owned recipe and keeps its `.c`
+name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -666,6 +668,8 @@ and the generated kernel symbol translation described above.
 [ADR 0160](docs/adr/0160-transfer-fpu-and-smp-roots-to-cupidc.md) records the checked FPU and SMP production handoff, `.cc` rename, image proof, and dual-NIC runtime gate.
 
 [ADR 0161](docs/adr/0161-represent-x87-double-pow-memory-assembly.md) records the exact double-precision `pow` assembly boundary and the resulting `libm.c` frontier.
+
+[ADR 0162](docs/adr/0162-represent-x87-mixed-width-powf-memory-assembly.md) records the mixed-width `powf` assembly boundary and the following `sqrtsd` frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 
