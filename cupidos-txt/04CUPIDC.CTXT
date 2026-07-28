@@ -741,6 +741,20 @@ Two exact compiles of the unchanged str_floor helper produce the same
 double-to-uint64_t cast on line 190. The checked seed and production owner are
 unchanged, so the source keeps its .c name.
 
+Compiler head also accepts the four exact descriptor-table and
+segment-register statements in unchanged kernel/smp/percpu.c. A packed
+six-byte object supplies LGDT through m. The two data-segment templates
+require the exact ax plus memory clobbers, the standalone CS reload keeps its
+memory clobber, and the GS form takes one represented 16-bit selector
+through r.
+
+Linear IR carries the GDTR address or selector value. The shared x86 emitter
+writes LGDT, DS, ES, SS, and GS. It reloads CS through a relative CALL, JMP,
+and RETF trampoline, so the object needs no compiler-local label relocation.
+Two complete compiles of unchanged percpu.c produce the same 6,760-byte
+object. The checked seed predates this capability, so the source remains
+host-owned and keeps its .c suffix.
+
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc
 and kernel/lang/cupidc.cc. It takes one modifiable four-byte integer =r

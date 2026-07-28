@@ -110,6 +110,14 @@ BSP uses slot 5 (selector 0x28). AP n uses slot 5+n. The descriptor base
 points to the `per_cpu_t` allocated for that CPU; limit = 127; DPL = 0;
 type = data, writable.
 
+Compiler-head CupidC represents the unchanged GDT setup directly. Its typed
+GNU assembly boundary accepts the packed six-byte GDTR, the exact AX and
+memory clobbers, and a 16-bit GS selector. CS reload uses a relative
+call-and-RETF trampoline, so the emitted object needs no local-label
+relocation. Two full compiles of `kernel/smp/percpu.c` produce the same
+6,760-byte object. The checked seed predates this capability, so the normal
+recipe remains host-owned until seed promotion and runtime proof pass.
+
 ---
 
 ## CPU Discovery

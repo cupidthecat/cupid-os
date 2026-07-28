@@ -8,6 +8,8 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from tools.cupidc_kernel_compile import validate_i386_relocatable_bytes
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
@@ -779,6 +781,118 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "x87-round-down-memory-assembly: ok\n")
+
+    def test_descriptor_table_assembly_emits_exact_segment_transitions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "descriptor-table-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "descriptor-table-assembly: ok\n")
+
+    def test_unchanged_percpu_source_emits_a_deterministic_object(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        self.assertTrue(profile["gnu_extensions"])
+        self.assertFalse(profile["hosted_environment"])
+        self.assertFalse(profile["implicit_function_declarations"])
+        self.assertFalse(profile["compatibility_pointer_conversions"])
+        self.assertEqual(profile["forced_includes"], [])
+
+        source_path = REPO_ROOT / "kernel/smp/percpu.c"
+        source_image = source_path.read_bytes()
+        source_digest = hashlib.sha256(source_image).hexdigest()
+        self.assertEqual(
+            (len(source_image), source_digest),
+            (
+                5175,
+                "d4b1a87ee6b8efab71a40263e3ed29104855326b35a15de2"
+                "c253920e35010da7",
+            ),
+            (
+                "percpu source lock changed: "
+                f"{len(source_image)} {source_digest}"
+            ),
+        )
+
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-percpu-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            objects = []
+            for index in range(2):
+                output = output_root / f"percpu-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        "/kernel/smp/percpu.c",
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                validate_i386_relocatable_bytes(image)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    6760,
+                    "3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd"
+                    "3591e5f574fb0dd772",
+                ),
+                (
+                    "percpu object lock changed: "
+                    f"{len(objects[0])} {digest}"
+                ),
+            )
 
     def test_unchanged_fpu_source_emits_a_deterministic_object(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"

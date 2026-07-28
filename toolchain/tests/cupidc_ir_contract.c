@@ -32762,6 +32762,336 @@ cleanup:
   return 1;
 }
 
+static const char descriptor_table_assembly_source[] =
+    "typedef unsigned short u16;\n"
+    "typedef unsigned int u32;\n"
+    "typedef struct __attribute__((packed)) { u16 limit; u32 base; } "
+    "gdtr_t;\n"
+    "gdtr_t *next_gdtr(void);\n"
+    "u16 next_selector(void);\n"
+    "void load_data_call(void) {\n"
+    "  __asm__ volatile(\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, "
+    "%%ds\\nmov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : "
+    "\"m\"(*next_gdtr()) : \"ax\", \"memory\");\n"
+    "}\n"
+    "void reload_code(void) {\n"
+    "  __asm__ volatile(\"pushl $0x08\\npushl $1f\\nlretl\\n1:\\n\" "
+    ": : : \"memory\");\n"
+    "}\n"
+    "void load_all_parameter(gdtr_t *value) {\n"
+    "  __asm__ volatile(\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, "
+    "%%ds\\nmov %%ax, %%es\\nmov %%ax, %%ss\\nljmp $0x08, "
+    "$1f\\n1:\\n\" : : \"m\"(*value) : \"ax\", \"memory\");\n"
+    "}\n"
+    "void load_gs_call(void) {\n"
+    "  __asm__ volatile(\"mov %0, %%gs\" : : \"r\"(next_selector()));\n"
+    "}\n"
+    "void unreachable_load_gs(void) {\n"
+    "  return;\n"
+    "  __asm__ volatile(\"mov %0, %%gs\" : : \"r\"(next_selector()));\n"
+    "}\n";
+
+static int descriptor_table_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u32 flags[] = {
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_AX_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_AX_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE};
+  static const ctool_u32 first_operands[] = {0u, 1u, 1u, 2u, 3u};
+  static const ctool_u32 input_counts[] = {1u, 0u, 1u, 1u, 1u};
+  static const ctool_u32 expected_assembly_counts[] = {1u, 1u, 1u, 1u, 0u};
+  static const ctool_u32 expected_depths[] = {1u, 0u, 1u, 1u, 0u};
+  ctool_u32 next_gdtr;
+  ctool_u32 next_selector;
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL) {
+    return 0;
+  }
+  next_gdtr = find_binding(unit, "next_gdtr");
+  next_selector = find_binding(unit, "next_selector");
+  if (next_gdtr == CTOOL_C_AST_NONE ||
+      next_selector == CTOOL_C_AST_NONE ||
+      unit->assembly_count != 5u ||
+      unit->assembly_operand_count != 4u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL ||
+      ir->function_count != 5u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (function_index = 0u;
+       function_index < 5u; function_index++) {
+    const ctool_c_assembly_t *assembly =
+        &unit->assemblies[function_index];
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 assembly_instruction = CTOOL_C_AST_NONE;
+    ctool_u32 assembly_count = 0u;
+    ctool_u32 offset;
+    if (assembly->flags != flags[function_index] ||
+        assembly->first_operand != first_operands[function_index] ||
+        assembly->output_count != 0u ||
+        assembly->input_count != input_counts[function_index] ||
+        function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->maximum_stack_depth !=
+            expected_depths[function_index]) {
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      ctool_u32 instruction_index =
+          function->first_instruction + offset;
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+        if (!inline_assembly_instruction_matches(
+                instruction, function_index,
+                "/descriptor-table-assembly.c")) {
+          return 0;
+        }
+        assembly_instruction = instruction_index;
+        assembly_count++;
+      }
+    }
+    if (assembly_count != expected_assembly_counts[function_index] ||
+        (function_index == 0u &&
+         (assembly_instruction < function->first_instruction + 2u ||
+          ir->instructions[assembly_instruction - 2u].kind !=
+              CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+          ir->instructions[assembly_instruction - 2u].reference !=
+              next_gdtr ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
+        (function_index == 2u &&
+         (assembly_instruction < function->first_instruction + 3u ||
+          ir->instructions[assembly_instruction - 3u].kind !=
+              CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+          ir->instructions[assembly_instruction - 2u].kind !=
+              CTOOL_C_IR_INSTRUCTION_LOAD ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
+        (function_index == 3u &&
+         (assembly_instruction < function->first_instruction + 1u ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+          ir->instructions[assembly_instruction - 1u].reference !=
+              next_selector)) ||
+        (function_index == 4u &&
+         (function->instruction_count != 1u ||
+          ir->instructions[function->first_instruction].kind !=
+              CTOOL_C_IR_INSTRUCTION_RETURN_VOID))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_descriptor_table_assembly(const char *host_root) {
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[5];
+  ctool_c_assembly_operand_t operands[4];
+  ctool_c_type_layout_t *layouts = NULL;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/descriptor-table-assembly.c",
+          descriptor_table_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(
+          status, CTOOL_OK, "descriptor-table assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !descriptor_table_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK,
+          "repeat descriptor-table assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !descriptor_table_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr, "descriptor-table-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_count != 5u ||
+      unit.assembly_operand_count != 4u ||
+      unit.layout.types == NULL ||
+      sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  invalid_unit.assembly_operands = operands;
+
+  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_AX_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table missing ax clobber")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[1].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table missing code-reload memory clobber")) {
+    goto cleanup;
+  }
+  assemblies[1] = unit.assemblies[1];
+
+  assemblies[4].flags = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "unreachable descriptor-table assembly flags")) {
+    goto cleanup;
+  }
+  assemblies[4] = unit.assemblies[4];
+
+  assemblies[0].first_operand = unit.assembly_operand_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged operand slice")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  operands[0].expression = unit.assembly_operands[2].expression;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged expression type")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  assemblies[2].template_text = ctool_string(
+      "lgdt %0\n"
+      "mov $0x18, %%ax\n"
+      "mov %%ax, %%ds\n"
+      "mov %%ax, %%es\n"
+      "mov %%ax, %%ss\n"
+      "ljmp $0x08, $1f\n"
+      "1:\n");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged data selector")) {
+    goto cleanup;
+  }
+  assemblies[2] = unit.assemblies[2];
+
+  operands[0].constraint = ctool_string("r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged register GDTR")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[2].constraint = ctool_string("m");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged memory selector")) {
+    goto cleanup;
+  }
+  operands[2] = unit.assembly_operands[2];
+
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  if (layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  invalid_unit.layout.types = layouts;
+  layouts[unit.assembly_operands[0].type].size = 4u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged GDTR width")) {
+    goto cleanup;
+  }
+  layouts[unit.assembly_operands[0].type] =
+      unit.layout.types[unit.assembly_operands[0].type];
+  layouts[unit.assembly_operands[2].type].size = 4u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "descriptor-table forged selector width")) {
+    goto cleanup;
+  }
+  invalid_unit.layout.types = unit.layout.types;
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(
+          status, CTOOL_OK, "descriptor-table assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !descriptor_table_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "descriptor-table-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("descriptor-table-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static const char legacy_port_assembly_source[] =
     "typedef unsigned char port_u8;\n"
     "typedef unsigned short port_u16;\n"
@@ -35484,6 +35814,10 @@ int main(int argc, char **argv) {
     return run_x87_round_down_memory_assembly(argv[2]);
   }
   if (argc == 3 &&
+      strcmp(argv[1], "descriptor-table-assembly") == 0) {
+    return run_descriptor_table_assembly(argv[2]);
+  }
+  if (argc == 3 &&
       strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);
   }
@@ -35534,6 +35868,7 @@ int main(int argc, char **argv) {
                 "movss-memory-assembly|"
                 "x87-sine-memory-assembly|"
                 "x87-round-down-memory-assembly|"
+                "descriptor-table-assembly|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"

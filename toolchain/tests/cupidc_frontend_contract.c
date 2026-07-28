@@ -7530,12 +7530,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 223u, 6716u,
-       61950u, 881u, 314u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 240u, 6188u,
-       53729u, 760u, 375u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 373u,
-       15198u, 100019u, 2286u, 1410u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 231u, 6794u,
+       62847u, 892u, 320u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 256u, 6420u,
+       55543u, 788u, 392u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 379u,
+       15330u, 101044u, 2305u, 1420u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -28134,6 +28134,234 @@ cleanup:
   return failed;
 }
 
+static int validate_descriptor_table_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      "lgdt %0\n"
+      "mov $0x10, %%ax\n"
+      "mov %%ax, %%ds\n"
+      "mov %%ax, %%es\n"
+      "mov %%ax, %%ss\n",
+      "pushl $0x08\n"
+      "pushl $1f\n"
+      "lretl\n"
+      "1:\n",
+      "lgdt %0\n"
+      "mov $0x10, %%ax\n"
+      "mov %%ax, %%ds\n"
+      "mov %%ax, %%es\n"
+      "mov %%ax, %%ss\n"
+      "ljmp $0x08, $1f\n"
+      "1:\n",
+      "mov %0, %%gs",
+      "mov %0, %%gs"};
+  static const ctool_u32 flags[] = {
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_AX_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_AX_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE};
+  static const ctool_u32 first_operands[] = {0u, 1u, 1u, 2u, 3u};
+  static const ctool_u32 input_counts[] = {1u, 0u, 1u, 1u, 1u};
+  static const ctool_u32 lines[] = {5u, 8u, 11u, 14u, 18u};
+  ctool_u32 index;
+  ctool_u32 assembly_statement_count = 0u;
+  if (unit->function_definition_count != ARRAY_COUNT(templates) ||
+      unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != 4u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(templates); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(
+            assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != flags[index] ||
+        assembly->first_operand != first_operands[index] ||
+        assembly->output_count != 0u ||
+        assembly->input_count != input_counts[index] ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/descriptor-table-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->assembly_operand_count; index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    const ctool_c_type_layout_t *layout;
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->expressions[operand->expression].type != operand->type ||
+        string_equal(
+            operand->constraint, index >= 2u ? "r" : "m") == 0) {
+      return 1;
+    }
+    layout = &unit->layout.types[operand->type];
+    if (layout->is_object != CTOOL_TRUE ||
+        layout->is_complete_object != CTOOL_TRUE ||
+        (index >= 2u
+             ? layout->is_integer != CTOOL_TRUE || layout->size != 2u
+             : underlying_type_kind(unit, operand->type, NULL) !=
+                       CTOOL_C_TYPE_RECORD ||
+                   layout->size != 6u)) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(templates) ? 0 : 1;
+}
+
+static int run_descriptor_table_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "typedef struct __attribute__((packed)) { u16 limit; u32 base; } "
+      "gdtr_t;\n"
+      "void load_data(gdtr_t gdtr) {\n"
+      "  __asm__ volatile(\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, "
+      "%%ds\\nmov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : \"m\"(gdtr) : "
+      "\"ax\", \"memory\");\n"
+      "}\n"
+      "void reload_code(void) {\n"
+      "  __asm__ volatile(\"pushl $0x08\\npushl $1f\\nlretl\\n1:\\n\" "
+      ": : : \"memory\");\n"
+      "}\n"
+      "void load_all(gdtr_t gdtr) {\n"
+      "  __asm__ volatile(\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, "
+      "%%ds\\nmov %%ax, %%es\\nmov %%ax, %%ss\\nljmp $0x08, "
+      "$1f\\n1:\\n\" : : \"m\"(gdtr) : \"ax\", \"memory\");\n"
+      "}\n"
+      "void load_gs(u16 selector) {\n"
+      "  __asm__ volatile(\"mov %0, %%gs\" : : \"r\"(selector));\n"
+      "}\n"
+      "void unreachable_load_gs(u16 selector) {\n"
+      "  return;\n"
+      "  __asm__ volatile(\"mov %0, %%gs\" : : \"r\"(selector));\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"wrong GDTR width",
+        "void bad(unsigned int value) { __asm__ volatile("
+        "\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, %%ds\\n"
+        "mov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : \"m\"(value) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU descriptor-table assembly m input requires a complete "
+       "six-byte object"},
+      {{"incomplete GDTR",
+        "typedef struct gdtr gdtr_t; void bad(gdtr_t *value) { "
+        "__asm__ volatile("
+        "\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, %%ds\\n"
+        "mov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : \"m\"(*value) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU descriptor-table assembly m input requires a complete "
+       "six-byte object"},
+      {{"rvalue GDTR",
+        "typedef unsigned short u16; typedef unsigned int u32; "
+        "typedef struct __attribute__((packed)) { u16 l; u32 b; } gdtr_t; "
+        "gdtr_t make(void); void bad(void) { __asm__ volatile("
+        "\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, %%ds\\n"
+        "mov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : \"m\"(make()) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU descriptor-table assembly m input requires an addressable "
+       "non-atomic complete six-byte object lvalue"},
+      {{"missing AX clobber",
+        "typedef unsigned short u16; typedef unsigned int u32; "
+        "typedef struct __attribute__((packed)) { u16 l; u32 b; } gdtr_t; "
+        "void bad(gdtr_t value) { __asm__ volatile("
+        "\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, %%ds\\n"
+        "mov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : \"m\"(value) : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU descriptor-table assembly requires its exact operands and "
+       "clobbers"},
+      {{"missing code-reload memory clobber",
+        "void bad(void) { __asm__ volatile("
+        "\"pushl $0x08\\npushl $1f\\nlretl\\n1:\\n\" : : : ); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU descriptor-table assembly requires its exact operands and "
+       "clobbers"},
+      {{"wide GS selector",
+        "void bad(unsigned int value) { __asm__ volatile("
+        "\"mov %0, %%gs\" : : \"r\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU segment-selector assembly r input requires a represented "
+       "16-bit integer"},
+      {{"altered data selector",
+        "void bad(unsigned int value) { __asm__ volatile("
+        "\"lgdt %0\\nmov $0x18, %%ax\\nmov %%ax, %%ds\\n"
+        "mov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : \"m\"(value) : "
+        "\"ax\", \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly ax clobber template is outside this slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(
+          &fixture, "descriptor-table-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/descriptor-table-assembly.c", source, &unit) != 0 ||
+      validate_descriptor_table_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "descriptor-table-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/descriptor-table-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_descriptor_table_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("descriptor-table-assembly: ok");
+  }
+  return failed;
+}
+
 static int run_port_io_assembly(const char *host_root) {
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"narrow read-write counter",
@@ -29396,6 +29624,7 @@ int main(int argc, char **argv) {
                    "movss-memory-assembly|"
                    "x87-sine-memory-assembly|"
                    "x87-round-down-memory-assembly|"
+                   "descriptor-table-assembly|"
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
                    "pointer-output-assembly|"
@@ -29510,6 +29739,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "x87-round-down-memory-assembly") == 0) {
     return run_x87_round_down_memory_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "descriptor-table-assembly") == 0) {
+    return run_descriptor_table_assembly(argv[2]);
   }
   if (strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly(argv[2]);

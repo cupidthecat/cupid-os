@@ -356,6 +356,20 @@ twice to the same 420-byte object. Full unchanged `kernel/core/string.c`
 continues to line 190, where its separate double-to-`uint64_t` cast remains
 unsupported. The checked seed and production ownership are unchanged.
 
+Compiler head also accepts the four exact descriptor-table and
+segment-register statements in unchanged `kernel/smp/percpu.c`. A packed
+six-byte object supplies LGDT through `m`; the two data-segment templates
+require the exact `ax` plus `memory` clobbers. The standalone CS reload keeps
+its `memory` clobber, and the GS form takes one represented 16-bit selector
+through `r`.
+
+Linear IR carries either the GDTR address or the selector value. The shared
+x86 emitter writes LGDT, DS, ES, SS, and GS directly. It reloads CS through a
+relative `CALL`, `JMP`, and `RETF` trampoline, so the object needs no
+compiler-local label relocation. Two complete compiles of unchanged
+`percpu.c` produce the same 6,760-byte object. The checked seed predates this
+work, so the source remains host-owned and keeps its `.c` suffix.
+
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
 Across the root and supplemental builds, the checked CupidC seed owns 155 C

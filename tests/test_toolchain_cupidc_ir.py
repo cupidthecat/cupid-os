@@ -304,6 +304,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "x87-round-down-memory-assembly: ok\n")
 
+    def test_descriptor_table_assembly_lowers_address_and_selector_values(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "descriptor-table-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "descriptor-table-assembly: ok\n")
+
     def test_direct_forward_goto_lowers_to_function_relative_ir(self):
         result = subprocess.run(
             [str(self.contract_path), "forward-goto", str(REPO_ROOT)],

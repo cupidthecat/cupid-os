@@ -13283,6 +13283,7 @@ the 1,524,509-byte JSON has SHA-256
 This integration changes no checked seed, Make owner, ABI, runtime path, or
 host dependency. Doom remains host-built, no `.c` source is renamed, and
 `TempleOS/` remains untouched.
+
 ## 2026-07-28: gate Doom's function and data pointer conversions
 
 After the implicit-call work, four of the six remaining Doom failures came
@@ -13609,3 +13610,125 @@ The 1,524,993-byte JSON has SHA-256
 This integration does not refresh the checked seed or move the FPU or Doom
 recipes. No `.c` file is renamed, no host dependency is retired, and
 `TempleOS/` remains untouched.
+
+## 2026-07-28: represent descriptor-table and segment assembly
+
+Unchanged `kernel/smp/percpu.c` contains four GNU assembly forms that load a
+packed GDTR, reload DS, ES, SS, and CS, and select a per-CPU GS descriptor.
+Compiler head previously stopped before the translation unit could reach
+object output.
+
+### Language and IR boundary
+
+The two LGDT templates accept one addressable, non-atomic, complete six-byte
+object through `m`, no outputs, and the exact `ax` plus `memory` clobbers.
+The standalone far-return template has no operands and requires its
+`memory` clobber. The GS template accepts one represented 16-bit integer
+through `r` and no clobbers. Other templates, widths, constraints, flags,
+outputs, or clobbers still fail with a focused diagnostic.
+
+The frontend publishes the exact template and packed operand slice. Linear
+IR repeats that metadata check before lowering a GDTR input as one address
+or a selector as one two-byte value. Parameter, pointer-dereference, and
+call-produced forms are covered. Unreachable statements take the same
+metadata validation path but emit no unreachable assembly instruction.
+
+### i386 emission
+
+Cupid's shared x86 model emits `LGDT m48`, `MOV AX, 0x10`, and the DS, ES,
+SS, and GS moves. The two code-segment forms avoid an absolute relocation
+against a compiler-local label. They use:
+
+```text
+PUSH 0x08
+CALL trampoline
+continuation:
+JMP done
+trampoline:
+RETF
+done:
+```
+
+The call pushes the continuation address below the selector. RETF consumes
+both words and resumes with the original ESP. The following jump skips the
+trampoline, and every control transfer stays relative.
+
+An earlier absolute-label approach was discarded because the current object
+model does not publish local inline-assembly label relocations. A private
+opcode path was also unnecessary because the shared encoder already owns
+the required instructions.
+
+### Contracts and active source
+
+Frontend, Linear IR, and object selectors cover all four templates,
+one-time value evaluation, deterministic repeats, frozen-unit mutations,
+constrained output, rollback, and recovery. Their negative cases include
+wrong-sized and incomplete GDTR objects, rvalues, wrong constraints,
+missing clobbers, altered templates, wide selectors, mismatched expression
+types, and forged layouts.
+
+The four fixture functions are 30, 21, 46, and 20 bytes. Their deterministic
+ELF32 object is 528 bytes with 117 text bytes, five sections, five symbols,
+and no relocations. Shared decoding checks the 48-bit LGDT operand, AX
+immediate, every segment-register lane, the local branch targets, and RETF.
+
+An unchanged-source selector locks the 5,175-byte input, validates both
+ELF32 relocatable outputs through the production object validator, and
+checks their byte identity. The two complete compiler-head compiles of
+`kernel/smp/percpu.c` produce the same 6,760-byte object with SHA-256
+`3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`.
+The source SHA-256 is
+`d4b1a87ee6b8efab71a40263e3ed29104855326b35a15de2c253920e35010da7`.
+
+The hosted source locks are:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 379 | 15,330 | 101,044 | 2,305 | 1,420 |
+| `toolchain/cupidc_ir.cc` | 231 | 6,794 | 62,847 | 892 | 320 |
+| `toolchain/cupidc_emit.cc` | 256 | 6,420 | 55,543 | 788 | 392 |
+
+Their deterministic self-host objects are:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 379 | 783,947 | 926,264 | `B971EDF4` |
+| `toolchain/cupidc_ir.cc` | 231 | 446,163 | 477,724 | `7FD888A7` |
+| `toolchain/cupidc_emit.cc` | 256 | 412,063 | 445,920 | `8E274177` |
+
+The four focused selectors pass together in 34.582 seconds. The complete
+frontend and Linear IR modules pass 151 tests in 21.691 seconds. The strict
+hosted CupidC command rebuilds with every warning gate enabled, and the
+self-host source and object frontier checks pass with the updated locks.
+The complete object module passes all 90 tests in 834.462 seconds, including
+the 19-object compiler closure and five-tool static fixed point.
+Standards and specification review both pass after the unchanged-source
+lock, incomplete-object negative, dead-statement metadata case, frozen
+operand mutations, and decoded trampoline targets were added.
+Bootstrap audit regeneration and the deterministic replay both pass. The
+graph contains 698 active inputs, 253 feature requirements, 504 transforms,
+and 42 accounted unreachable files. Its active-source digest is
+`80f7538d43100b2bc75de4ae7c250576256a87f2138550fa3ebfc1df58fa66f5`.
+The 1,524,993-byte JSON has SHA-256
+`7df2bba091d9bca22bc2003875a6f12b868c9a82843e97e916cf78dcae509667`.
+
+The normal `make -j2 all WAD_SRCS=` build also completes with the final CTXT
+pages in the image. The source page was written at 10:11, wrapped at 10:14,
+and linked into the final artifacts at 10:15:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 8,143,724 | `a4417c2b7c90ea9e79060aac7436618ddb6a82dcc1c87823d56a0741d0c9eb15` |
+| `kernel/kernel.bin` | 7,946,996 | `28e0658c5229360eafa2c22e6ad0864fc17244bde225a3a2ec3c0dedc8847545` |
+| `cupidos.img` | 209,715,200 | `77c97af4fad683bac6c950fbd3ec3652ec705b418532e33acfef82cd8b9f3f64` |
+
+The private-image GUI terminal smoke passes in 52.1 seconds. Two redundant
+foreground rebuilds are excluded from the evidence: their command wrappers
+stopped after 124 and 304 seconds before replacing any final artifact. The
+completed background build and its timestamp chain provide the image result
+recorded above.
+
+This increment changes compiler head only. The checked seed does not carry
+the capability, so `kernel/smp/percpu.c` remains host-owned and keeps its
+`.c` suffix. No ABI, runtime path, normal object, or host dependency moves.
+`TempleOS/` remains untouched reference material.

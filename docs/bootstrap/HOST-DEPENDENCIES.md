@@ -366,6 +366,16 @@ compiler still owns both roots, and the dependency count does not change.
 unit and production gate pass. ADRs 0141, 0146, 0148, 0150, and 0154 record
 the boundaries.
 
+Compiler head also emits unchanged `kernel/smp/percpu.c` completely. Its
+exact GNU assembly forms load a packed six-byte GDTR, reload the code and
+data segments, and write a represented 16-bit selector to GS. Two validated
+compiles produce the same 6,760-byte object with SHA-256
+`3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`.
+The checked seed predates this capability, so the host compiler still owns
+the normal object and the source keeps its `.c` suffix. This frontier retires
+no dependency until seed promotion and the production gates pass. ADR 0157
+records the boundary.
+
 The private compiler now bounds the parser work behind that smoke. It accepts
 128 active loop-or-switch controls and 1,024 active statement calls, rejects
 the next entry before further recursion, and restores both counters after a

@@ -12873,6 +12873,58 @@ static ctool_bool cfront_x87_round_down_memory_template(
       "fstpl %0\n\t");
 }
 
+typedef enum {
+  CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_NONE = 0,
+  CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA,
+  CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE,
+  CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL,
+  CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+} cfront_descriptor_table_assembly_kind_t;
+
+static cfront_descriptor_table_assembly_kind_t
+cfront_descriptor_table_assembly_kind(ctool_string_t template_text) {
+  if (cfront_string_literal(
+          template_text,
+          "lgdt %0\n"
+          "mov $0x10, %%ax\n"
+          "mov %%ax, %%ds\n"
+          "mov %%ax, %%es\n"
+          "mov %%ax, %%ss\n") == CTOOL_TRUE) {
+    return CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA;
+  }
+  if (cfront_string_literal(
+          template_text,
+          "pushl $0x08\n"
+          "pushl $1f\n"
+          "lretl\n"
+          "1:\n") == CTOOL_TRUE) {
+    return CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE;
+  }
+  if (cfront_string_literal(
+          template_text,
+          "lgdt %0\n"
+          "mov $0x10, %%ax\n"
+          "mov %%ax, %%ds\n"
+          "mov %%ax, %%es\n"
+          "mov %%ax, %%ss\n"
+          "ljmp $0x08, $1f\n"
+          "1:\n") == CTOOL_TRUE) {
+    return CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL;
+  }
+  return cfront_string_literal(
+             template_text, "mov %0, %%gs") == CTOOL_TRUE
+             ? CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+             : CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_NONE;
+}
+
+static ctool_bool cfront_descriptor_table_assembly_uses_gdtr(
+    cfront_descriptor_table_assembly_kind_t kind) {
+  return kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA ||
+                 kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cfront_x87_double_memory_template(
     ctool_string_t template_text) {
   return cfront_x87_sine_memory_template(template_text) == CTOOL_TRUE ||
@@ -13263,6 +13315,15 @@ static ctool_status_t cfront_parse_assembly_input(
       cfront_x87_round_down_memory_template(template_text);
   ctool_bool x87_double_memory =
       cfront_x87_double_memory_template(template_text);
+  cfront_descriptor_table_assembly_kind_t descriptor_kind =
+      cfront_descriptor_table_assembly_kind(template_text);
+  ctool_bool descriptor_memory =
+      cfront_descriptor_table_assembly_uses_gdtr(descriptor_kind);
+  ctool_bool descriptor_selector =
+      descriptor_kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_c_type_layout_t input_layout;
   ctool_u32 fixed_register = 0u;
   ctool_u32 input_base;
   ctool_u32 input_qualifiers;
@@ -13374,6 +13435,22 @@ static ctool_status_t cfront_parse_assembly_input(
     status = cfront_integer_type(context, output.type, &output_integer,
                                  &output_is_integer);
   }
+  if (status == CTOOL_OK && memory_input == CTOOL_TRUE &&
+      descriptor_memory == CTOOL_TRUE) {
+    status = cfront_layout_query_now(
+        context, value.type, (const cfront_vector_t *)0,
+        constraint_token, CTOOL_C_PARSE_DIAG_STATEMENT,
+        "GNU descriptor-table assembly m input requires a complete "
+        "six-byte object",
+        &input_layout, (ctool_u32 *)0, (ctool_u32 *)0);
+    if (status == CTOOL_OK && input_layout.size != 6u) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          constraint_token,
+          "GNU descriptor-table assembly m input requires a complete "
+          "six-byte object");
+    }
+  }
   if (status != CTOOL_OK) {
     return ctool_job_diagnostic_count(context->job) == 0u
                ? cfront_storage_failure(context, status)
@@ -13383,7 +13460,9 @@ static ctool_status_t cfront_parse_assembly_input(
       (value.is_lvalue == CTOOL_FALSE ||
        value.is_bit_field == CTOOL_TRUE ||
        value.address_forbidden == CTOOL_TRUE ||
-       (x87_double_memory == CTOOL_TRUE
+       (descriptor_memory == CTOOL_TRUE
+            ? input_layout.size != 6u
+        : x87_double_memory == CTOOL_TRUE
             ? input_node.kind != CTOOL_C_TYPE_DOUBLE
         : (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
          movss_kind == CFRONT_MOVSS_MEMORY_LOAD)
@@ -13396,7 +13475,10 @@ static ctool_status_t cfront_parse_assembly_input(
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        x87_double_memory == CTOOL_TRUE
+        descriptor_memory == CTOOL_TRUE
+            ? "GNU descriptor-table assembly m input requires an "
+              "addressable non-atomic complete six-byte object lvalue"
+        : x87_double_memory == CTOOL_TRUE
             ? x87_round_down_memory == CTOOL_TRUE
                   ? "GNU x87 round-down assembly m input requires an "
                     "addressable non-atomic double lvalue"
@@ -13411,9 +13493,12 @@ static ctool_status_t cfront_parse_assembly_input(
   }
   if (independent == CTOOL_TRUE &&
       cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
-      !((input_is_integer == CTOOL_TRUE &&
-         input_integer.width == 32u) ||
-        input_is_data_pointer == CTOOL_TRUE)) {
+      !(descriptor_selector == CTOOL_TRUE
+            ? input_is_integer == CTOOL_TRUE &&
+                  input_integer.width == 16u
+            : (input_is_integer == CTOOL_TRUE &&
+               input_integer.width == 32u) ||
+                  input_is_data_pointer == CTOOL_TRUE)) {
     return cfront_emit_failure(
         context,
         cfront_string_literal(
@@ -13426,6 +13511,9 @@ static ctool_status_t cfront_parse_assembly_input(
         cfront_string_literal(
             template_text, "fxsave (%0)") == CTOOL_TRUE
             ? "GNU inline assembly r input requires an object or void pointer"
+            : descriptor_selector == CTOOL_TRUE
+                  ? "GNU segment-selector assembly r input requires a "
+                    "represented 16-bit integer"
             : "GNU inline assembly r input requires a represented 32-bit "
               "integer or data pointer");
   }
@@ -13441,6 +13529,8 @@ static ctool_status_t cfront_parse_assembly_input(
   if ((input_is_integer == CTOOL_FALSE &&
        !(memory_input == CTOOL_TRUE &&
          input_is_floating == CTOOL_TRUE) &&
+       !(memory_input == CTOOL_TRUE &&
+         descriptor_memory == CTOOL_TRUE) &&
        !(independent == CTOOL_TRUE &&
          cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
          input_is_data_pointer == CTOOL_TRUE)) ||
@@ -13579,7 +13669,10 @@ static ctool_status_t cfront_validate_ldmxcsr_assembly(
         cfront_x87_sine_memory_template(
             assembly->template_text) == CTOOL_TRUE ||
         cfront_x87_round_down_memory_template(
-            assembly->template_text) == CTOOL_TRUE) {
+            assembly->template_text) == CTOOL_TRUE ||
+        cfront_descriptor_table_assembly_kind(
+            assembly->template_text) !=
+            CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
       return CTOOL_OK;
     }
     for (input = 0u; input < assembly->input_count; input++) {
@@ -13809,7 +13902,10 @@ static ctool_status_t cfront_validate_x87_round_down_memory_assembly(
   ctool_status_t status = CTOOL_OK;
   if (cfront_x87_round_down_memory_template(
           assembly->template_text) == CTOOL_FALSE) {
-    if ((assembly->flags & CTOOL_C_ASSEMBLY_AX_CLOBBER) != 0u) {
+    if ((assembly->flags & CTOOL_C_ASSEMBLY_AX_CLOBBER) != 0u &&
+        cfront_descriptor_table_assembly_kind(
+            assembly->template_text) ==
+            CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           keyword,
@@ -13859,6 +13955,89 @@ static ctool_status_t cfront_validate_x87_round_down_memory_assembly(
       keyword,
       "GNU x87 round-down assembly requires one volatile double =m output, "
       "one double m input, ax and memory clobbers");
+}
+
+static ctool_status_t cfront_validate_descriptor_table_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  cfront_descriptor_table_assembly_kind_t kind =
+      cfront_descriptor_table_assembly_kind(assembly->template_text);
+  ctool_c_assembly_operand_t operand;
+  cfront_integer_type_t integer;
+  ctool_c_type_layout_t layout;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_u32 expected_flags;
+  ctool_u32 expected_inputs;
+  ctool_status_t status;
+  if (kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
+    return CTOOL_OK;
+  }
+  expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+  expected_inputs = 0u;
+  if (kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA ||
+      kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_AX_CLOBBER;
+    expected_inputs = 1u;
+  } else if (kind ==
+             CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  } else if (kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS) {
+    expected_inputs = 1u;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->assembly_operands.count ||
+      expected_inputs >
+          context->assembly_operands.count - assembly->first_operand) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU descriptor-table assembly requires its exact operands and "
+        "clobbers");
+  }
+  if (expected_inputs == 0u) {
+    return CTOOL_OK;
+  }
+  status = cfront_vector_get(
+      &context->assembly_operands, assembly->first_operand, &operand);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS) {
+    status = cfront_integer_type(
+        context, operand.type, &integer, &is_integer);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (cfront_string_literal(
+            operand.constraint, "r") == CTOOL_TRUE &&
+        is_integer == CTOOL_TRUE && integer.width == 16u) {
+      return CTOOL_OK;
+    }
+  } else if (cfront_string_literal(
+                 operand.constraint, "m") == CTOOL_TRUE) {
+    status = cfront_layout_query_now(
+        context, operand.type, (const cfront_vector_t *)0, keyword,
+        CTOOL_C_PARSE_DIAG_STATEMENT,
+        "GNU descriptor-table assembly requires a complete six-byte "
+        "memory operand",
+        &layout, (ctool_u32 *)0, (ctool_u32 *)0);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (layout.is_object == CTOOL_TRUE &&
+        layout.is_complete_object == CTOOL_TRUE &&
+        layout.size == 6u) {
+      return CTOOL_OK;
+    }
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+      keyword,
+      "GNU descriptor-table assembly operand does not match the exact "
+      "template");
 }
 
 static ctool_status_t cfront_validate_call_next_assembly(
@@ -14219,6 +14398,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_x87_round_down_memory_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_descriptor_table_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {

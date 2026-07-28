@@ -30,7 +30,7 @@ floating truth and the limits listed in the current summary remain open.
 
 Each direct or indirect call instruction owns a packed, source-ordered slice of every actual post-conversion argument type. The shared IR validator requires those slices to form one complete partition in call-instruction order, rejects metadata on non-call instructions, and checks every packed type index. The i386 emitter uses the same validator before it reads a slice. A signed or unsigned eight-byte integer, an existing `double`, or a source `float` promoted to `double` at an ellipsis or unprototyped position occupies eight bytes in the shared outgoing area. ESP remains aligned to a sixteen-byte boundary before `CALL`. Four-byte integer and pointer transport is unchanged. Atomic and aggregate values remain outside the undeclared-parameter and variadic-read boundaries. ADRs 0075 through 0077 record the IR metadata, ABI rules, and floating promotion.
 
-The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
+The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
 
 The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text bytes, 6,944 object bytes, fingerprint `28739C3F`, 25 symbols, and 38 relocations; `cupidasm_main.cc` at 13 functions, 9,455 text bytes, 12,384 object bytes, fingerprint `561BBC22`, 56 symbols, and 88 relocations; and `cupiddis_main.cc` at 13 functions, 13,816 text bytes, 17,420 object bytes, fingerprint `E33C130C`, 67 symbols, and 106 relocations. Their exact undefined import counts are 10, 31, and 31. Every relocation targets `.text` and has the checked `R_386_PC32/-4` or `R_386_32/0` shape. An independent `gcc -m32 -nostdinc` syntax pass accepts all three unchanged sources against the declarations.
 
@@ -512,6 +512,23 @@ The complete unchanged `kernel/core/string.c` translation unit now passes
 that statement and stops at the separate double-to-`uint64_t` cast on line
 190. The checked seed and production ownership remain unchanged, so the
 source keeps its `.c` name.
+
+ADR 0157 carries the four descriptor-table and segment-register assembly
+forms in unchanged `kernel/smp/percpu.c`. The LGDT forms require one
+addressable, non-atomic, complete six-byte `m` input and the exact `ax` plus
+`memory` clobbers. The code-segment reload keeps its `memory` clobber. The GS
+form requires one represented 16-bit `r` input. Linear IR lowers the packed
+GDTR as an address and the selector as a two-byte value.
+
+The shared x86 emitter writes the 48-bit LGDT operand, the AX immediate, and
+the DS, ES, SS, and GS moves. Code-segment reloads use a relative
+call-and-RETF trampoline instead of an absolute compiler-local label. The
+fixture object is 528 bytes with 117 text bytes, five sections, five symbols,
+and no relocations. Two complete compiler-head compiles of unchanged
+`kernel/smp/percpu.c` produce the same 6,760-byte object with SHA-256
+`3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`.
+The checked seed still predates the capability, so the normal source remains
+host-owned and keeps its `.c` suffix.
 
 ADR 0121 adds the three machine-state memory outputs used by the FPU panic
 path. Exact volatile `fnstsw %0` and `fnstcw %0` templates accept one

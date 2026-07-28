@@ -1934,6 +1934,52 @@ static ctool_status_t cemit_x86_ldmxcsr_memory(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_lgdt_memory(
+    cemit_context_t *context, ctool_u8 base_register) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_LGDT, 32u);
+  instruction.operand_count = 1u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, base_register),
+      0, 0u);
+  instruction.operands[0].width_bits = 48u;
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_move_ax_immediate(
+    cemit_context_t *context, ctool_u16 immediate) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_MOV, 16u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR16, 0u);
+  instruction.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 16u, 16u, immediate);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_move_segment_ax(
+    cemit_context_t *context, ctool_u8 segment_register) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_MOV, 16u);
+  if (segment_register >= 6u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(
+          CTOOL_X86_REG_SEGMENT, segment_register);
+  instruction.operands[1] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR16, 0u);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_state_memory(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u8 base_register, ctool_u16 width_bits) {
@@ -6817,6 +6863,246 @@ static ctool_status_t cemit_emit_x87_round_down_memory_assembly(
   return status;
 }
 
+typedef enum {
+  CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_NONE = 0,
+  CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA,
+  CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE,
+  CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL,
+  CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+} cemit_descriptor_table_assembly_kind_t;
+
+static cemit_descriptor_table_assembly_kind_t
+cemit_descriptor_table_assembly_kind(ctool_string_t template_text) {
+  if (cemit_string_equals_literal(
+          template_text,
+          "lgdt %0\n"
+          "mov $0x10, %%ax\n"
+          "mov %%ax, %%ds\n"
+          "mov %%ax, %%es\n"
+          "mov %%ax, %%ss\n") == CTOOL_TRUE) {
+    return CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA;
+  }
+  if (cemit_string_equals_literal(
+          template_text,
+          "pushl $0x08\n"
+          "pushl $1f\n"
+          "lretl\n"
+          "1:\n") == CTOOL_TRUE) {
+    return CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE;
+  }
+  if (cemit_string_equals_literal(
+          template_text,
+          "lgdt %0\n"
+          "mov $0x10, %%ax\n"
+          "mov %%ax, %%ds\n"
+          "mov %%ax, %%es\n"
+          "mov %%ax, %%ss\n"
+          "ljmp $0x08, $1f\n"
+          "1:\n") == CTOOL_TRUE) {
+    return CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL;
+  }
+  return cemit_string_equals_literal(
+             template_text, "mov %0, %%gs") == CTOOL_TRUE
+             ? CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+             : CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_NONE;
+}
+
+static ctool_bool cemit_assembly_uses_descriptor_table_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_descriptor_table_assembly_kind(
+                     assembly->template_text) !=
+                     CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_NONE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_descriptor_table_memory_operand_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  const ctool_c_type_node_t *node;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type !=
+          operand->type ||
+      cemit_string_equals_literal(
+          operand->constraint, "m") == CTOOL_FALSE ||
+      cemit_underlying_type(
+          context, operand->type, &qualifiers, &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)node;
+  layout = &context->unit->layout.types[operand->type];
+  return layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 6u &&
+                 (qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_descriptor_table_selector_operand_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  const ctool_c_type_layout_t *layout;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type !=
+          operand->type ||
+      cemit_string_equals_literal(
+          operand->constraint, "r") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return layout->is_integer == CTOOL_TRUE && layout->size == 2u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_descriptor_table_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    cemit_descriptor_table_assembly_kind_t kind) {
+  const ctool_c_assembly_operand_t *operand;
+  ctool_u32 expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+  ctool_u32 expected_inputs = 0u;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
+    return CTOOL_FALSE;
+  }
+  if (kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA ||
+      kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_AX_CLOBBER;
+    expected_inputs = 1u;
+  } else if (kind ==
+             CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  } else if (kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS) {
+    expected_inputs = 1u;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      expected_inputs >
+          context->unit->assembly_operand_count - assembly->first_operand ||
+      (expected_inputs != 0u &&
+       context->unit->assembly_operands ==
+           (const ctool_c_assembly_operand_t *)0)) {
+    return CTOOL_FALSE;
+  }
+  if (expected_inputs == 0u) {
+    return CTOOL_TRUE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  return kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+             ? cemit_descriptor_table_selector_operand_is_valid(
+                   context, operand)
+             : cemit_descriptor_table_memory_operand_is_valid(
+                   context, operand);
+}
+
+static ctool_status_t cemit_emit_far_code_reload(
+    cemit_context_t *context) {
+  ctool_u32 call_patch = 0u;
+  ctool_u32 call_after = 0u;
+  ctool_u32 jump_patch = 0u;
+  ctool_u32 jump_after = 0u;
+  ctool_u32 continuation;
+  ctool_u32 trampoline;
+  ctool_u32 done;
+  ctool_status_t status = cemit_x86_push_integer(context, 0x08u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_CALL, &call_patch, &call_after);
+  }
+  continuation = ctool_buffer_mark(context->active_text);
+  if (status == CTOOL_OK && continuation != call_after) {
+    status = CTOOL_ERR_INTERNAL;
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JMP, &jump_patch, &jump_after);
+  }
+  trampoline = ctool_buffer_mark(context->active_text);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_RETF);
+  }
+  done = ctool_buffer_mark(context->active_text);
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->active_text, call_patch, call_after, trampoline);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->active_text, jump_patch, jump_after, done);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_descriptor_table_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  cemit_descriptor_table_assembly_kind_t kind =
+      cemit_descriptor_table_assembly_kind(assembly->template_text);
+  ctool_status_t status = CTOOL_OK;
+  if (temporary_offset != 0u ||
+      cemit_descriptor_table_metadata_is_valid(
+          context, assembly, kind) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+        &assembly->location,
+        "GNU descriptor-table assembly is outside this i386 emission "
+        "slice");
+  }
+  if (kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA ||
+      kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_lgdt_memory(context, 0u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_move_ax_immediate(context, 0x10u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_move_segment_ax(context, 3u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_move_segment_ax(context, 0u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_move_segment_ax(context, 2u);
+    }
+  } else if (kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_move_segment_ax(context, 5u);
+    }
+  }
+  if (status == CTOOL_OK &&
+      (kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE ||
+       kind == CEMIT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL)) {
+    status = cemit_emit_far_code_reload(context);
+  }
+  return status;
+}
+
 static ctool_bool cemit_port_io_operand_matches(
     const cemit_context_t *context,
     const ctool_c_assembly_operand_t *operand,
@@ -7806,6 +8092,11 @@ static ctool_status_t cemit_emit_assembly(
   if (cemit_assembly_uses_x87_round_down_memory_path(
           assembly) == CTOOL_TRUE) {
     return cemit_emit_x87_round_down_memory_assembly(
+        context, assembly, temporary_offset);
+  }
+  if (cemit_assembly_uses_descriptor_table_path(
+          assembly) == CTOOL_TRUE) {
+    return cemit_emit_descriptor_table_assembly(
         context, assembly, temporary_offset);
   }
   if (cemit_assembly_uses_state_memory_path(
@@ -10594,6 +10885,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           continue;
         }
         if (cemit_assembly_uses_x87_round_down_memory_path(
+                assembly) == CTOOL_TRUE) {
+          continue;
+        }
+        if (cemit_assembly_uses_descriptor_table_path(
                 assembly) == CTOOL_TRUE) {
           continue;
         }

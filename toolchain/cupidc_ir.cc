@@ -537,6 +537,61 @@ static ctool_bool cir_x87_round_down_memory_template(
           "fstpl %0\n\t"));
 }
 
+typedef enum {
+  CIR_DESCRIPTOR_TABLE_ASSEMBLY_NONE = 0,
+  CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA,
+  CIR_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE,
+  CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL,
+  CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+} cir_descriptor_table_assembly_kind_t;
+
+static cir_descriptor_table_assembly_kind_t
+cir_descriptor_table_assembly_kind(ctool_string_t template_text) {
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "lgdt %0\n"
+              "mov $0x10, %%ax\n"
+              "mov %%ax, %%ds\n"
+              "mov %%ax, %%es\n"
+              "mov %%ax, %%ss\n")) == CTOOL_TRUE) {
+    return CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA;
+  }
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "pushl $0x08\n"
+              "pushl $1f\n"
+              "lretl\n"
+              "1:\n")) == CTOOL_TRUE) {
+    return CIR_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE;
+  }
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "lgdt %0\n"
+              "mov $0x10, %%ax\n"
+              "mov %%ax, %%ds\n"
+              "mov %%ax, %%es\n"
+              "mov %%ax, %%ss\n"
+              "ljmp $0x08, $1f\n"
+              "1:\n")) == CTOOL_TRUE) {
+    return CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL;
+  }
+  return cir_string_equal(
+             template_text, ctool_string("mov %0, %%gs")) == CTOOL_TRUE
+             ? CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+             : CIR_DESCRIPTOR_TABLE_ASSEMBLY_NONE;
+}
+
+static ctool_bool cir_descriptor_table_assembly_uses_gdtr(
+    cir_descriptor_table_assembly_kind_t kind) {
+  return kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA ||
+                 kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_x87_double_memory_template(
     ctool_string_t template_text) {
   return cir_x87_sine_memory_template(template_text) == CTOOL_TRUE ||
@@ -727,7 +782,10 @@ static ctool_bool cir_x87_round_down_memory_assembly_metadata_is_valid(
   const ctool_c_assembly_operand_t *input;
   if (cir_x87_round_down_memory_template(
           assembly->template_text) == CTOOL_FALSE) {
-    return (assembly->flags & CTOOL_C_ASSEMBLY_AX_CLOBBER) == 0u
+    return (assembly->flags & CTOOL_C_ASSEMBLY_AX_CLOBBER) == 0u ||
+                   cir_descriptor_table_assembly_kind(
+                       assembly->template_text) !=
+                       CIR_DESCRIPTOR_TABLE_ASSEMBLY_NONE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
@@ -759,6 +817,98 @@ static ctool_bool cir_x87_round_down_memory_assembly_metadata_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_descriptor_table_memory_operand_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  const ctool_c_type_layout_t *layout;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type !=
+          operand->type ||
+      cir_string_equal(
+          operand->constraint, ctool_string("m")) == CTOOL_FALSE ||
+      cir_type_has_atomic_qualification(
+          context, operand->type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 6u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_descriptor_table_selector_operand_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  const ctool_c_type_layout_t *layout;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type !=
+          operand->type ||
+      cir_string_equal(
+          operand->constraint, ctool_string("r")) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return layout->is_integer == CTOOL_TRUE && layout->size == 2u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_descriptor_table_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  cir_descriptor_table_assembly_kind_t kind =
+      cir_descriptor_table_assembly_kind(assembly->template_text);
+  const ctool_c_assembly_operand_t *operand;
+  ctool_u32 expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+  ctool_u32 expected_inputs = 0u;
+  if (kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
+    return CTOOL_TRUE;
+  }
+  if (kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_DATA ||
+      kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_ALL) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_AX_CLOBBER;
+    expected_inputs = 1u;
+  } else if (kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_RELOAD_CODE) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  } else if (kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS) {
+    expected_inputs = 1u;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      expected_inputs >
+          context->unit->assembly_operand_count - assembly->first_operand ||
+      (expected_inputs != 0u &&
+       context->unit->assembly_operands ==
+           (const ctool_c_assembly_operand_t *)0)) {
+    return CTOOL_FALSE;
+  }
+  if (expected_inputs == 0u) {
+    return CTOOL_TRUE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  return kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+             ? cir_descriptor_table_selector_operand_is_valid(
+                   context, operand)
+             : cir_descriptor_table_memory_operand_is_valid(
+                   context, operand);
+}
+
 static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
     const cir_context_t *context,
     const ctool_c_assembly_t *assembly) {
@@ -774,7 +924,10 @@ static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
     if (cir_movss_memory_template_kind(
             assembly->template_text) != CIR_MOVSS_MEMORY_NONE ||
         cir_x87_double_memory_template(
-            assembly->template_text) == CTOOL_TRUE) {
+            assembly->template_text) == CTOOL_TRUE ||
+        cir_descriptor_table_assembly_kind(
+            assembly->template_text) !=
+            CIR_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
       return CTOOL_TRUE;
     }
     if (context->unit->assembly_operands ==
@@ -1025,6 +1178,10 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     if (cir_x87_round_down_memory_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_descriptor_table_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -8912,6 +9069,14 @@ static ctool_status_t cir_lower_assembly_statement(
               : CTOOL_FALSE;
       ctool_bool x87_double_memory =
           cir_x87_double_memory_template(assembly->template_text);
+      cir_descriptor_table_assembly_kind_t descriptor_kind =
+          cir_descriptor_table_assembly_kind(assembly->template_text);
+      ctool_bool descriptor_memory =
+          cir_descriptor_table_assembly_uses_gdtr(descriptor_kind);
+      ctool_bool descriptor_selector =
+          descriptor_kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
       ctool_bool valid_memory_input = CTOOL_FALSE;
       ctool_u32 input_size;
       if ((memory_input == CTOOL_TRUE &&
@@ -8924,7 +9089,11 @@ static ctool_status_t cir_lower_assembly_statement(
       input_size = context->unit->layout.types[operand->type].size;
       if (memory_input == CTOOL_TRUE) {
         valid_memory_input =
-            x87_double_memory == CTOOL_TRUE
+            descriptor_memory == CTOOL_TRUE
+                ? input_size == 6u &&
+                      cir_descriptor_table_memory_operand_is_valid(
+                          context, operand) == CTOOL_TRUE
+            : x87_double_memory == CTOOL_TRUE
                 ? input_size == 8u &&
                       cir_x87_double_memory_operand_is_valid(
                           context, operand, CTOOL_FALSE) == CTOOL_TRUE
@@ -8944,11 +9113,15 @@ static ctool_status_t cir_lower_assembly_statement(
                   context, operand->type) == CTOOL_TRUE)) ||
             (memory_input == CTOOL_FALSE &&
              (operand->constraint.data[0] == 'r'
-                 ? input_size != 4u ||
+                 ? (descriptor_selector == CTOOL_TRUE
+                        ? input_size != 2u ||
+                              cir_type_is_represented_integer(
+                                  context, operand->type) == CTOOL_FALSE
+                        : input_size != 4u ||
                        (cir_type_is_represented_integer(
                             context, operand->type) == CTOOL_FALSE &&
                         cir_type_is_i32_pointer(
-                            context, operand->type) == CTOOL_FALSE)
+                            context, operand->type) == CTOOL_FALSE))
                  : operand->constraint.data[0] == 'c'
                        ? input_size != 4u ||
                              cir_type_is_represented_integer(

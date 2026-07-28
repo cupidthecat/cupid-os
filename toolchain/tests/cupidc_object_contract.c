@@ -27640,20 +27640,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 223u, 240u, 373u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 231u, 256u, 379u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 438520u, 397971u, 775120u, 139646u, 70368u, 80478u,
+      190304u, 446163u, 412063u, 783947u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 468660u, 429440u, 914292u, 157828u, 79348u, 134656u,
+      226668u, 477724u, 445920u, 926264u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xe60cefdau, 0xc30282ccu, 0x6b7dd4f9u, 0x239f52c7u,
+      0x7fd888a7u, 0x8e274177u, 0xb971edf4u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -34098,6 +34098,501 @@ cleanup:
   return 1;
 }
 
+static int validate_descriptor_table_instruction_shapes(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u32 expected_segments,
+    ctool_u32 expected_lgdt, ctool_u32 expected_retf,
+    ctool_u32 expected_ax_immediate) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 segments = 0u;
+  ctool_u32 lgdt_count = 0u;
+  ctool_u32 retf_count = 0u;
+  ctool_u32 ax_immediate_count = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 jump_count = 0u;
+  ctool_u32 call_target = CTOOL_C_AST_NONE;
+  ctool_u32 jump_target = CTOOL_C_AST_NONE;
+  ctool_u32 retf_offset = CTOOL_C_AST_NONE;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_LGDT) {
+      const ctool_x86_operand_t *operand;
+      const ctool_x86_memory_t *memory;
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_MEMORY) {
+        return 0;
+      }
+      operand = &decoded.instruction.operands[0];
+      memory = &operand->as.memory;
+      if (operand->width_bits != 48u ||
+          memory->address_bits != 32u ||
+          memory->segment.class_id != CTOOL_X86_REG_NONE ||
+          memory->base.class_id != CTOOL_X86_REG_GPR32 ||
+          memory->base.index != 0u ||
+          memory->index.class_id != CTOOL_X86_REG_NONE ||
+          memory->scale != 1u ||
+          memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+          memory->displacement.bits != 0u) {
+        return 0;
+      }
+      lgdt_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL ||
+               decoded.instruction.mnemonic == CTOOL_X86_MN_JMP) {
+      const ctool_x86_operand_t *operand;
+      int64_t target;
+      int32_t displacement;
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_RELATIVE ||
+          decoded.encoding.field_count != 1u ||
+          decoded.encoding.fields[0].kind !=
+              CTOOL_X86_FIELD_RELATIVE ||
+          decoded.encoding.fields[0].byte_width != 4u) {
+        return 0;
+      }
+      operand = &decoded.instruction.operands[0];
+      if (operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
+        return 0;
+      }
+      displacement = (int32_t)operand->as.value.bits;
+      target = (int64_t)cursor + (int64_t)decoded.consumed +
+               (int64_t)displacement;
+      if (target < 0 || target > (int64_t)symbol->size ||
+          decoded.encoding.fields[0].encoded_addend != displacement) {
+        return 0;
+      }
+      if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+        if (call_count != 0u) {
+          return 0;
+        }
+        call_target = (ctool_u32)target;
+        call_count++;
+      } else {
+        if (jump_count != 0u) {
+          return 0;
+        }
+        jump_target = (ctool_u32)target;
+        jump_count++;
+      }
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_RETF) {
+      if (decoded.instruction.operand_count != 0u ||
+          retf_offset != CTOOL_C_AST_NONE) {
+        return 0;
+      }
+      retf_offset = cursor;
+      retf_count++;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_MOV &&
+               decoded.instruction.operand_count == 2u &&
+               decoded.instruction.operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               decoded.instruction.operands[0].as.reg.class_id ==
+                   CTOOL_X86_REG_SEGMENT) {
+      const ctool_x86_operand_t *source =
+          &decoded.instruction.operands[1];
+      ctool_u32 segment =
+          decoded.instruction.operands[0].as.reg.index;
+      if (segment >= 6u ||
+          source->kind != CTOOL_X86_OPERAND_REGISTER ||
+          source->as.reg.class_id != CTOOL_X86_REG_GPR16 ||
+          source->as.reg.index != 0u || source->width_bits != 16u ||
+          (segments & (1u << segment)) != 0u) {
+        return 0;
+      }
+      segments |= 1u << segment;
+    } else if (decoded.instruction.mnemonic == CTOOL_X86_MN_MOV &&
+               decoded.instruction.operand_count == 2u &&
+               decoded.instruction.operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               decoded.instruction.operands[0].as.reg.class_id ==
+                   CTOOL_X86_REG_GPR16 &&
+               decoded.instruction.operands[0].as.reg.index == 0u &&
+               decoded.instruction.operands[1].kind ==
+                   CTOOL_X86_OPERAND_IMMEDIATE) {
+      const ctool_x86_operand_t *immediate =
+          &decoded.instruction.operands[1];
+      if (immediate->width_bits != 16u ||
+          immediate->as.value.kind != CTOOL_X86_VALUE_CONSTANT ||
+          immediate->as.value.bits != 0x10u) {
+        return 0;
+      }
+      ax_immediate_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && segments == expected_segments &&
+                 lgdt_count == expected_lgdt &&
+                 retf_count == expected_retf &&
+                 ax_immediate_count == expected_ax_immediate &&
+                 (expected_retf == 0u
+                      ? call_count == 0u && jump_count == 0u
+                      : expected_retf == 1u && call_count == 1u &&
+                            jump_count == 1u &&
+                            call_target == retf_offset &&
+                            jump_target == retf_offset + 1u)
+             ? 1
+             : 0;
+}
+
+static int validate_descriptor_table_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 load_data_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x0fu,
+      0x01u, 0x10u, 0x66u, 0xb8u, 0x10u, 0x00u, 0x8eu, 0xd8u,
+      0x8eu, 0xc0u, 0x8eu, 0xd0u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t load_data_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LGDT,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u8 reload_code_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x68u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0xe8u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0xcbu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t reload_code_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_CALL, CTOOL_X86_MN_JMP,  CTOOL_X86_MN_RETF,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u32 reload_code_targets[] = {19u};
+  static const ctool_u8 load_all_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x0fu,
+      0x01u, 0x10u, 0x66u, 0xb8u, 0x10u, 0x00u, 0x8eu, 0xd8u,
+      0x8eu, 0xc0u, 0x8eu, 0xd0u, 0x68u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0xe8u, 0x05u, 0x00u, 0x00u, 0x00u, 0xe9u, 0x01u,
+      0x00u, 0x00u, 0x00u, 0xcbu, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t load_all_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LGDT,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_MOV,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_JMP,   CTOOL_X86_MN_RETF,  CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u32 load_all_targets[] = {44u};
+  static const ctool_u8 load_gs_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x0fu, 0xb7u, 0x00u, 0x50u, 0x58u,
+      0x8eu, 0xe8u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t load_gs_instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOVZX,
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *load_data = find_symbol(object, "load_data");
+  const ctool_elf32_symbol_t *reload_code =
+      find_symbol(object, "reload_code");
+  const ctool_elf32_symbol_t *load_all = find_symbol(object, "load_all");
+  const ctool_elf32_symbol_t *load_gs = find_symbol(object, "load_gs");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !decode_function(
+          job, text, load_data, load_data_instructions,
+          (ctool_u32)(sizeof(load_data_instructions) /
+                      sizeof(load_data_instructions[0])),
+          load_data_bytes, (ctool_u32)sizeof(load_data_bytes),
+          NULL, 0u, "descriptor-table load data") ||
+      !decode_function(
+          job, text, reload_code, reload_code_instructions,
+          (ctool_u32)(sizeof(reload_code_instructions) /
+                      sizeof(reload_code_instructions[0])),
+          reload_code_bytes, (ctool_u32)sizeof(reload_code_bytes),
+          reload_code_targets, 1u, "descriptor-table reload code") ||
+      !decode_function(
+          job, text, load_all, load_all_instructions,
+          (ctool_u32)(sizeof(load_all_instructions) /
+                      sizeof(load_all_instructions[0])),
+          load_all_bytes, (ctool_u32)sizeof(load_all_bytes),
+          load_all_targets, 1u, "descriptor-table load all") ||
+      !decode_function(
+          job, text, load_gs, load_gs_instructions,
+          (ctool_u32)(sizeof(load_gs_instructions) /
+                      sizeof(load_gs_instructions[0])),
+          load_gs_bytes, (ctool_u32)sizeof(load_gs_bytes),
+          NULL, 0u, "descriptor-table load gs") ||
+      !validate_descriptor_table_instruction_shapes(
+          job, text, load_data, (1u << 0u) | (1u << 2u) | (1u << 3u),
+          1u, 0u, 1u) ||
+      !validate_descriptor_table_instruction_shapes(
+          job, text, reload_code, 0u, 0u, 1u, 0u) ||
+      !validate_descriptor_table_instruction_shapes(
+          job, text, load_all, (1u << 0u) | (1u << 2u) | (1u << 3u),
+          1u, 1u, 1u) ||
+      !validate_descriptor_table_instruction_shapes(
+          job, text, load_gs, 1u << 5u, 0u, 0u, 0u)) {
+    (void)fprintf(stderr, "descriptor-table assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_descriptor_table_assembly_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned short u16;\n"
+      "typedef unsigned int u32;\n"
+      "typedef struct __attribute__((packed)) { u16 limit; u32 base; } "
+      "gdtr_t;\n"
+      "void load_data(gdtr_t *gdtr) {\n"
+      "  __asm__ volatile(\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, "
+      "%%ds\\nmov %%ax, %%es\\nmov %%ax, %%ss\\n\" : : "
+      "\"m\"(*gdtr) : \"ax\", \"memory\");\n"
+      "}\n"
+      "void reload_code(void) {\n"
+      "  __asm__ volatile(\"pushl $0x08\\npushl $1f\\nlretl\\n1:\\n\" "
+      ": : : \"memory\");\n"
+      "}\n"
+      "void load_all(gdtr_t *gdtr) {\n"
+      "  __asm__ volatile(\"lgdt %0\\nmov $0x10, %%ax\\nmov %%ax, "
+      "%%ds\\nmov %%ax, %%es\\nmov %%ax, %%ss\\nljmp $0x08, "
+      "$1f\\n1:\\n\" : : \"m\"(*gdtr) : \"ax\", \"memory\");\n"
+      "}\n"
+      "void load_gs(u16 selector) {\n"
+      "  __asm__ volatile(\"mov %0, %%gs\" : : \"r\"(selector));\n"
+      "}\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t assemblies[4];
+  ctool_c_assembly_operand_t operands[3];
+  ctool_c_type_layout_t *layouts = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/descriptor-table-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 4u ||
+      unit.assembly_count != 4u ||
+      unit.assembly_operand_count != 3u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(
+          status, CTOOL_OK, "descriptor-table assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first descriptor-table assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat descriptor-table assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "descriptor-table assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/descriptor-table-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK, "read descriptor-table assembly object") ||
+      !validate_descriptor_table_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 528u ||
+      find_section(&object, ".text") == NULL ||
+      find_section(&object, ".text")->contents.size != 117u ||
+      object.section_count != 5u || object.symbol_count != 5u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "descriptor-table metrics differ: object=%u text=%u sections=%u "
+        "symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)(find_section(&object, ".text") == NULL
+                           ? 0u
+                           : find_section(&object, ".text")->contents.size),
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  mutant = unit;
+  mutant.assemblies = assemblies;
+  mutant.assembly_operands = operands;
+
+  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_AX_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged descriptor-table missing ax clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[1].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged descriptor-table reload clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  assemblies[1] = unit.assemblies[1];
+
+  assemblies[0].first_operand = unit.assembly_operand_count;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged descriptor-table operand slice") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  operands[0].expression = unit.assembly_operands[2].expression;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged descriptor-table expression type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[0].constraint = ctool_string("r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged descriptor-table register GDTR") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  if (layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  mutant.layout.types = layouts;
+  layouts[unit.assembly_operands[2].type].size = 4u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged descriptor-table selector width") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant.layout.types = unit.layout.types;
+
+  if (!expect_object_failure(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited descriptor-table assembly object") ||
+      ctool_buffer_rewind(limited, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "descriptor-table assembly recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(recovered_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "descriptor-table assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(layouts);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("descriptor-table-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_state_memory_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol,
@@ -37572,6 +38067,10 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "x87-round-down-memory-assembly") == 0) {
     return run_x87_round_down_memory_assembly_object(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "descriptor-table-assembly") == 0) {
+    return run_descriptor_table_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly_object(argv[2]);
   }
@@ -37695,6 +38194,7 @@ int main(int argc, char **argv) {
                 "movss-memory-assembly|"
                 "x87-sine-memory-assembly|"
                 "x87-round-down-memory-assembly|"
+                "descriptor-table-assembly|"
                 "legacy-port-assembly|state-memory-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"
