@@ -8485,9 +8485,10 @@ static ctool_status_t cfront_parse_body_primary(
   return status;
 }
 
-static ctool_status_t cfront_append_conversion(
+static ctool_status_t cfront_append_conversion_with_reference(
     cfront_context_t *context, ctool_c_conversion_kind_t conversion,
-    ctool_u32 target_type, cfront_expression_value_t *value) {
+    ctool_u32 target_type, ctool_u32 reference,
+    cfront_expression_value_t *value) {
   ctool_c_expression_t child;
   ctool_c_expression_t expression;
   ctool_bool preserve_static_address =
@@ -8526,6 +8527,7 @@ static ctool_status_t cfront_append_conversion(
   expression.first_child = first_child;
   expression.child_count = 1u;
   expression.conversion = conversion;
+  expression.reference = reference;
   if (conversion == CTOOL_C_CONVERSION_NULL_POINTER &&
       cfront_is_null_pointer_constant(value) == CTOOL_TRUE) {
     expression.semantic_flags =
@@ -8558,6 +8560,13 @@ static ctool_status_t cfront_append_conversion(
     }
   }
   return status;
+}
+
+static ctool_status_t cfront_append_conversion(
+    cfront_context_t *context, ctool_c_conversion_kind_t conversion,
+    ctool_u32 target_type, cfront_expression_value_t *value) {
+  return cfront_append_conversion_with_reference(
+      context, conversion, target_type, CTOOL_C_AST_NONE, value);
 }
 
 static ctool_status_t cfront_append_one_child_expression(
@@ -9315,6 +9324,23 @@ static ctool_status_t cfront_append_integer_conversion_if_needed(
                                         value);
 }
 
+static ctool_status_t
+cfront_append_integer_conversion_with_reference_if_needed(
+    cfront_context_t *context, ctool_c_conversion_kind_t conversion,
+    ctool_u32 target_type, ctool_u32 reference,
+    cfront_expression_value_t *value) {
+  ctool_bool same = CTOOL_FALSE;
+  ctool_status_t status = cfront_types_same(
+      context, value->type, target_type, &same);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  return same == CTOOL_TRUE
+             ? CTOOL_OK
+             : cfront_append_conversion_with_reference(
+                   context, conversion, target_type, reference, value);
+}
+
 static ctool_status_t cfront_integer_promotion_type(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     ctool_u32 source_type, ctool_bool is_bit_field, ctool_u32 bit_width,
@@ -9342,14 +9368,67 @@ static ctool_status_t cfront_integer_promotion_type(
 static ctool_status_t cfront_apply_integer_promotion(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     cfront_expression_value_t *value) {
+  cfront_integer_type_t bit_field_integer;
   ctool_c_type_node_t node;
+  ctool_c_expression_t bit_field_expression;
+  ctool_c_expression_t bit_field_member_expression;
+  ctool_bool bit_field_is_integer = CTOOL_FALSE;
   ctool_bool is_integer = CTOOL_FALSE;
   ctool_bool was_bit_field = value->is_bit_field;
   ctool_u32 base;
   ctool_u32 bit_width = value->bit_width;
+  ctool_u32 bit_field_member = CTOOL_C_AST_NONE;
   ctool_u32 qualifiers;
   ctool_u32 target;
-  ctool_status_t status = cfront_apply_default_conversion(context, value);
+  ctool_status_t status;
+  if (was_bit_field == CTOOL_TRUE) {
+    status = cfront_integer_type(
+        context, value->type, &bit_field_integer,
+        &bit_field_is_integer);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (bit_field_is_integer == CTOOL_TRUE &&
+        bit_field_integer.kind == CTOOL_C_TYPE_UNSIGNED_INT &&
+        bit_width < bit_field_integer.width) {
+      status = cfront_vector_get(
+          &context->expressions, value->expression,
+          &bit_field_expression);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            token, "bit-field promotion provenance is unavailable");
+      }
+      if (bit_field_expression.kind ==
+              CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+          bit_field_expression.conversion ==
+              CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
+          bit_field_expression.child_count == 1u) {
+        ctool_u32 member_expression_index;
+        status = cfront_vector_get(
+            &context->expression_children,
+            bit_field_expression.first_child, &member_expression_index);
+        if (status == CTOOL_OK) {
+          status = cfront_vector_get(
+              &context->expressions, member_expression_index,
+              &bit_field_member_expression);
+        }
+      } else {
+        bit_field_member_expression = bit_field_expression;
+      }
+      if (status != CTOOL_OK ||
+          bit_field_member_expression.kind !=
+              CTOOL_C_EXPRESSION_MEMBER ||
+          bit_field_member_expression.reference >=
+              context->members.count) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            token, "bit-field promotion provenance is unavailable");
+      }
+      bit_field_member = bit_field_member_expression.reference;
+    }
+  }
+  status = cfront_apply_default_conversion(context, value);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -9376,8 +9455,25 @@ static ctool_status_t cfront_apply_integer_promotion(
             ? "pointer arithmetic is outside this expression slice"
             : "non-integer operators are outside this body slice");
   }
-  return cfront_append_integer_conversion_if_needed(
-      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target, value);
+  return cfront_append_integer_conversion_with_reference_if_needed(
+      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target,
+      bit_field_member, value);
+}
+
+static ctool_status_t cfront_apply_default_or_integer_promotion(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    cfront_expression_value_t *value, ctool_bool *is_integer_out) {
+  ctool_u32 target = CTOOL_C_TYPE_NONE;
+  ctool_status_t status = cfront_integer_promotion_type(
+      context, token, value->type, value->is_bit_field,
+      value->bit_width, &target, is_integer_out);
+  (void)target;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  return *is_integer_out == CTOOL_TRUE
+             ? cfront_apply_integer_promotion(context, token, value)
+             : cfront_apply_default_conversion(context, value);
 }
 
 static ctool_status_t cfront_apply_default_argument_promotions(
@@ -12200,8 +12296,6 @@ static ctool_status_t cfront_prepare_compound_assignment(
   ctool_u32 right_base;
   ctool_u32 right_qualifiers;
   ctool_u32 right_original_type = right->type;
-  ctool_bool right_was_bit_field = right->is_bit_field;
-  ctool_u32 right_bit_width = right->bit_width;
   ctool_status_t status = cfront_integer_promotion_type(
       context, operator_token, result_type, left->is_bit_field,
       left->bit_width, &left_promoted, &left_is_integer);
@@ -12222,12 +12316,9 @@ static ctool_status_t cfront_prepare_compound_assignment(
       ctool_c_type_node_t right_original_node;
       ctool_u32 right_original_base;
       ctool_u32 right_original_qualifiers;
-      status = cfront_apply_default_conversion(context, right);
-      if (status == CTOOL_OK) {
-        status = cfront_integer_promotion_type(
-            context, operator_token, right->type, right_was_bit_field,
-            right_bit_width, &right_promoted, &right_is_integer);
-      }
+      status = cfront_apply_default_or_integer_promotion(
+          context, operator_token, right, &right_is_integer);
+      right_promoted = right->type;
       if (status == CTOOL_OK && right_is_integer == CTOOL_FALSE) {
         status = cfront_floating_type(context, right->type,
                                       &right_is_floating);
@@ -12321,12 +12412,9 @@ static ctool_status_t cfront_prepare_compound_assignment(
           operator_token,
           "pointer compound assignment requires a pointer to a complete object type");
     }
-    status = cfront_apply_default_conversion(context, right);
-    if (status == CTOOL_OK) {
-      status = cfront_integer_promotion_type(
-          context, operator_token, right->type, right_was_bit_field,
-          right_bit_width, &right_promoted, &right_is_integer);
-    }
+    status = cfront_apply_default_or_integer_promotion(
+        context, operator_token, right, &right_is_integer);
+    right_promoted = right->type;
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
@@ -12336,22 +12424,12 @@ static ctool_status_t cfront_prepare_compound_assignment(
           operator_token,
           "pointer compound assignment requires an integer right operand");
     }
-    status = cfront_append_integer_conversion_if_needed(
-        context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, right_promoted,
-        right);
-    if (status != CTOOL_OK) {
-      return status;
-    }
     *computation_type_out = result_type;
     return CTOOL_OK;
   }
-  status = cfront_apply_default_conversion(context, right);
-  if (status != CTOOL_OK) {
-    return status;
-  }
-  status = cfront_integer_promotion_type(
-      context, operator_token, right->type, right_was_bit_field,
-      right_bit_width, &right_promoted, &right_is_integer);
+  status = cfront_apply_default_or_integer_promotion(
+      context, operator_token, right, &right_is_integer);
+  right_promoted = right->type;
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
@@ -12384,8 +12462,6 @@ static ctool_status_t cfront_prepare_compound_assignment(
             ? "compound assignment requires arithmetic operands"
             : "compound assignment operator requires integer operands");
   }
-  status = cfront_append_integer_conversion_if_needed(
-      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, right_promoted, right);
   if (status == CTOOL_OK) {
     status = cfront_integer_type(context, left_promoted, &left_integer,
                                  &left_is_integer);
@@ -17927,16 +18003,10 @@ static ctool_status_t cfront_require_switch_value(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     cfront_expression_value_t *value) {
   cfront_integer_type_t integer;
-  ctool_u32 target = CTOOL_C_TYPE_NONE;
-  ctool_u32 bit_width = value->bit_width;
-  ctool_bool is_bit_field = value->is_bit_field;
   ctool_bool is_integer = CTOOL_FALSE;
-  ctool_status_t status = cfront_apply_default_conversion(context, value);
-  if (status == CTOOL_OK) {
-    status = cfront_integer_promotion_type(
-        context, token, value->type, is_bit_field, bit_width, &target,
-        &is_integer);
-  }
+  ctool_status_t status =
+      cfront_apply_default_or_integer_promotion(
+          context, token, value, &is_integer);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -17945,14 +18015,14 @@ static ctool_status_t cfront_require_switch_value(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
         "switch controlling expression requires integer type");
   }
-  status = cfront_integer_type(context, target, &integer, &is_integer);
+  status = cfront_integer_type(
+      context, value->type, &integer, &is_integer);
   if (status != CTOOL_OK || is_integer == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
         "promoted switch controlling type is unavailable");
   }
-  return cfront_append_integer_conversion_if_needed(
-      context, CTOOL_C_CONVERSION_INTEGER_PROMOTION, target, value);
+  return CTOOL_OK;
 }
 
 static ctool_status_t cfront_current_switch_context(
@@ -19929,6 +19999,72 @@ static ctool_status_t cfront_copy_location_owned(
   return status;
 }
 
+static ctool_bool cfront_frozen_conversion_reference_is_valid(
+    const cfront_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression,
+    const ctool_c_expression_t *expressions,
+    const ctool_u32 *expression_children,
+    const ctool_c_record_member_t *members) {
+  const ctool_c_expression_t *load;
+  const ctool_c_expression_t *member_expression;
+  const ctool_c_record_member_t *member;
+  cfront_integer_type_t source_integer;
+  cfront_integer_type_t target_integer;
+  ctool_bool source_is_integer = CTOOL_FALSE;
+  ctool_bool target_is_integer = CTOOL_FALSE;
+  ctool_u32 load_index;
+  ctool_u32 member_expression_index;
+  ctool_bool narrow_unsigned_bit_field = CTOOL_FALSE;
+  ctool_status_t status;
+  if (expression->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+    return expression->reference == CTOOL_C_AST_NONE ? CTOOL_TRUE
+                                                      : CTOOL_FALSE;
+  }
+  if (expression->child_count != 1u ||
+      expression->first_child >= context->expression_children.count) {
+    return CTOOL_FALSE;
+  }
+  load_index = expression_children[expression->first_child];
+  if (load_index >= expression_index) {
+    return CTOOL_FALSE;
+  }
+  load = &expressions[load_index];
+  if (load->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+      load->conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
+      load->reference == CTOOL_C_AST_NONE && load->child_count == 1u &&
+      load->first_child < context->expression_children.count) {
+    member_expression_index = expression_children[load->first_child];
+    if (member_expression_index < load_index) {
+      member_expression = &expressions[member_expression_index];
+      if (member_expression->kind == CTOOL_C_EXPRESSION_MEMBER &&
+          member_expression->reference < context->members.count) {
+        member = &members[member_expression->reference];
+        status = cfront_integer_type(
+            context, load->type, &source_integer, &source_is_integer);
+        if (status == CTOOL_OK && source_is_integer == CTOOL_TRUE &&
+            source_integer.kind == CTOOL_C_TYPE_UNSIGNED_INT &&
+            member->is_bit_field == CTOOL_TRUE &&
+            member->bit_width != 0u &&
+            member->bit_width < source_integer.width) {
+          narrow_unsigned_bit_field = CTOOL_TRUE;
+        }
+      }
+    }
+  }
+  if (narrow_unsigned_bit_field == CTOOL_FALSE) {
+    return expression->reference == CTOOL_C_AST_NONE ? CTOOL_TRUE
+                                                      : CTOOL_FALSE;
+  }
+  status = cfront_integer_type(
+      context, expression->type, &target_integer, &target_is_integer);
+  return status == CTOOL_OK && target_is_integer == CTOOL_TRUE &&
+                 target_integer.kind == CTOOL_C_TYPE_SIGNED_INT &&
+                 expression->reference ==
+                     member_expression->reference
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_status_t cfront_freeze(cfront_context_t *context,
                                     ctool_c_translation_unit_t *unit) {
   ctool_c_type_node_t *types = (ctool_c_type_node_t *)0;
@@ -21849,7 +21985,9 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       break;
     case CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION:
       if (expression->child_count != 1u ||
-          expression->reference != CTOOL_C_AST_NONE ||
+          cfront_frozen_conversion_reference_is_valid(
+              context, index, expression, expressions,
+              expression_children, members) == CTOOL_FALSE ||
           expression->conversion == CTOOL_C_CONVERSION_NONE ||
           expression->conversion > CTOOL_C_CONVERSION_FLOAT_PROMOTION ||
           expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||

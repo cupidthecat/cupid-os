@@ -355,6 +355,19 @@ static const char bit_field_volatile_whole_source[] =
     "  return state->value++;\n"
     "}\n";
 
+static const char bit_field_promotion_source[] =
+    "struct color {\n"
+    "  unsigned int b : 8;\n"
+    "  unsigned int g : 8;\n"
+    "  unsigned int r : 8;\n"
+    "  unsigned int a : 8;\n"
+    "};\n"
+    "struct whole { unsigned int value : 32; };\n"
+    "int shift_red(struct color *value) { return value->r >> 3; }\n"
+    "unsigned int preserve_whole(struct whole *value) {\n"
+    "  return +value->value;\n"
+    "}\n";
+
 static const char narrow_update_source[] =
     "unsigned short state;\n"
     "unsigned int update_narrow(void) { return ++state; }\n";
@@ -1686,6 +1699,14 @@ static const char active_doom_alpha_member[] = "    uint32_t a:8;";
 static const char active_doom_red_read[] = "c.r >> 3";
 static const char active_doom_green_read[] = "c.g >> 2";
 static const char active_doom_blue_read[] = "c.b >> 3";
+static const char active_doom_red_mask_read[] = "(c.r & 0xF8) << 8";
+static const char active_doom_green_mask_read[] = "(c.g & 0xFC) << 3";
+static const char active_doom_red_offset_read[] =
+    "c.r << s_Fb.red.offset";
+static const char active_doom_green_offset_read[] =
+    "c.g << s_Fb.green.offset";
+static const char active_doom_blue_offset_read[] =
+    "c.b << s_Fb.blue.offset";
 
 static const char local_fixture[] =
     "typedef unsigned int uint32_t;\n"
@@ -2513,6 +2534,17 @@ static int active_source_is_unchanged(ctool_job_t *job) {
       strstr((const char *)source.contents.data, active_doom_green_read) ==
           NULL ||
       strstr((const char *)source.contents.data, active_doom_blue_read) ==
+          NULL ||
+      strstr((const char *)source.contents.data,
+             active_doom_red_mask_read) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_doom_green_mask_read) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_doom_red_offset_read) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_doom_green_offset_read) == NULL ||
+      strstr((const char *)source.contents.data,
+             active_doom_blue_offset_read) ==
           NULL) {
     (void)fprintf(stderr, "the active Doom color reads changed\n");
     return 0;
@@ -13174,6 +13206,346 @@ static int validate_volatile_whole_bit_field_ir(
                     (unsigned)function_index);
       return 0;
     }
+  }
+  return 1;
+}
+
+static int bit_field_promotion_instruction_matches(
+    const ctool_c_ir_instruction_t *instruction,
+    ctool_c_ir_instruction_kind_t kind, ctool_u32 type,
+    ctool_u32 input_type, ctool_c_expression_operator_t operation,
+    ctool_c_conversion_kind_t conversion, ctool_u32 reference,
+    ctool_u64 integer_bits) {
+  return instruction->kind == kind && instruction->type == type &&
+                 instruction->input_type == input_type &&
+                 instruction->operation == operation &&
+                 instruction->conversion == conversion &&
+                 instruction->reference == reference &&
+                 instruction->integer_bits == integer_bits
+             ? 1
+             : 0;
+}
+
+static int validate_bit_field_promotion_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const names[] = {"shift_red", "preserve_whole"};
+  const ctool_c_function_definition_t *definition;
+  const ctool_c_type_node_t *function_type;
+  const ctool_c_type_node_t *pointer_type;
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instructions;
+  ctool_u32 parameter;
+  ctool_u32 pointer;
+  ctool_u32 record;
+  ctool_u32 member_type;
+  ctool_u32 result;
+  ctool_u32 member;
+  ctool_u32 function_index;
+  ctool_u32 instruction_index;
+  if (unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 14u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "bit-field promotion IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 2u; function_index++) {
+    ctool_u32 first = function_index == 0u ? 0u : 8u;
+    ctool_u32 count = function_index == 0u ? 8u : 6u;
+    const char *member_name = function_index == 0u ? "r" : "value";
+    definition = &unit->function_definitions[function_index];
+    function = &ir->functions[function_index];
+    if (definition->binding >= unit->binding_count ||
+        definition->declared_type >= unit->graph.type_count ||
+        !string_equal(unit->bindings[definition->binding].name,
+                      names[function_index])) {
+      (void)fprintf(stderr, "bit-field promotion definition differs\n");
+      return 0;
+    }
+    function_type = &unit->graph.types[definition->declared_type];
+    if (function_type->kind != CTOOL_C_TYPE_FUNCTION ||
+        function_type->parameter_count != 1u ||
+        function_type->first_parameter >= unit->parameter_count) {
+      (void)fprintf(stderr, "bit-field promotion function type differs\n");
+      return 0;
+    }
+    parameter = function_type->first_parameter;
+    pointer = unit->parameters[parameter].type;
+    if (pointer >= unit->graph.type_count) {
+      return 0;
+    }
+    pointer_type = &unit->graph.types[pointer];
+    record = pointer_type->referenced_type;
+    member = find_member(unit, member_name);
+    result = function_type->referenced_type;
+    if (pointer_type->kind != CTOOL_C_TYPE_POINTER ||
+        record >= unit->graph.type_count ||
+        member == CTOOL_C_AST_NONE ||
+        member >= unit->graph.member_count ||
+        unit->graph.members[member].type >= unit->graph.type_count ||
+        unit->graph.members[member].is_bit_field != CTOOL_TRUE ||
+        unit->graph.members[member].bit_width !=
+            (function_index == 0u ? 8u : 32u) ||
+        function->binding != definition->binding ||
+        function->declared_type != definition->declared_type ||
+        function->first_instruction != first ||
+        function->instruction_count != count ||
+        function->maximum_stack_depth !=
+            (function_index == 0u ? 2u : 1u)) {
+      (void)fprintf(stderr, "bit-field promotion metadata differs\n");
+      return 0;
+    }
+    member_type = unit->graph.members[member].type;
+    instructions = &ir->instructions[first];
+    if (!bit_field_promotion_instruction_matches(
+            &instructions[0],
+            CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS, pointer,
+            CTOOL_C_TYPE_NONE, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_NONE, parameter, 0u) ||
+        !bit_field_promotion_instruction_matches(
+            &instructions[1], CTOOL_C_IR_INSTRUCTION_LOAD, pointer,
+            pointer, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, CTOOL_C_AST_NONE, 0u) ||
+        !bit_field_promotion_instruction_matches(
+            &instructions[2], CTOOL_C_IR_INSTRUCTION_DEREFERENCE, record,
+            pointer, CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+        !bit_field_promotion_instruction_matches(
+            &instructions[3], CTOOL_C_IR_INSTRUCTION_BIT_FIELD_LOAD,
+            member_type, record, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+            CTOOL_C_CONVERSION_LVALUE_TO_VALUE, member, 0u)) {
+      (void)fprintf(stderr,
+                    "bit-field promotion address or load differs\n");
+      return 0;
+    }
+    if (function_index == 0u) {
+      if (!bit_field_promotion_instruction_matches(
+              &instructions[4], CTOOL_C_IR_INSTRUCTION_CONVERT,
+              result, member_type, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+              CTOOL_C_CONVERSION_INTEGER_PROMOTION, member, 0u) ||
+          !bit_field_promotion_instruction_matches(
+              &instructions[5], CTOOL_C_IR_INSTRUCTION_INTEGER,
+              result, CTOOL_C_TYPE_NONE,
+              CTOOL_C_EXPRESSION_OPERATOR_NONE,
+              CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 3u) ||
+          !bit_field_promotion_instruction_matches(
+              &instructions[6], CTOOL_C_IR_INSTRUCTION_BINARY,
+              result, result,
+              CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT,
+              CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+          !bit_field_promotion_instruction_matches(
+              &instructions[7], CTOOL_C_IR_INSTRUCTION_RETURN_VALUE,
+              result, result, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+              CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+        (void)fprintf(stderr,
+                      "narrow bit-field promotion instructions differ\n");
+        return 0;
+      }
+    } else if (!bit_field_promotion_instruction_matches(
+                   &instructions[4], CTOOL_C_IR_INSTRUCTION_UNARY,
+                   result, member_type,
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS,
+                   CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u) ||
+               !bit_field_promotion_instruction_matches(
+                   &instructions[5],
+                   CTOOL_C_IR_INSTRUCTION_RETURN_VALUE, result,
+                   result, CTOOL_C_EXPRESSION_OPERATOR_NONE,
+                   CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE, 0u)) {
+      (void)fprintf(stderr,
+                    "full-width bit-field instructions differ\n");
+      return 0;
+    }
+    for (instruction_index = 0u; instruction_index < count;
+         instruction_index++) {
+      if (!string_equal(instructions[instruction_index].location.path,
+                        "/bit-field-promotions.c") ||
+          !string_equal(
+              instructions[instruction_index].physical_location.path,
+              "/bit-field-promotions.c")) {
+        (void)fprintf(stderr,
+                      "bit-field promotion source location differs\n");
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int run_bit_field_promotions(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeated_ir;
+  ctool_c_ir_unit_t recovery_ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_record_member_t *invalid_members = NULL;
+  ctool_c_member_layout_t *invalid_layouts = NULL;
+  ctool_u64 fingerprint;
+  ctool_u64 ir_fingerprint;
+  ctool_u32 diagnostic_count;
+  ctool_u32 green_member;
+  ctool_u32 red_member;
+  ctool_u32 red_promotion = CTOOL_C_AST_NONE;
+  ctool_u32 expression_index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !active_source_is_unchanged(job) ||
+      !parse_source(job, "/bit-field-promotions.c",
+                    bit_field_promotion_source, &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "bit-field promotion lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_bit_field_promotion_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_fingerprint = ir_instruction_fingerprint(&ir);
+  (void)memset(&repeated_ir, 0xa5, sizeof(repeated_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeated_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat bit-field promotion lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      ir_instruction_fingerprint(&repeated_ir) != ir_fingerprint ||
+      !validate_bit_field_promotion_ir(&unit, &repeated_ir)) {
+    (void)fprintf(
+        stderr, "bit-field promotion lowering is not deterministic\n");
+    goto cleanup;
+  }
+  red_member = find_member(&unit, "r");
+  green_member = find_member(&unit, "g");
+  for (expression_index = 0u; expression_index < unit.expression_count;
+       expression_index++) {
+    const ctool_c_expression_t *expression =
+        &unit.expressions[expression_index];
+    if (expression->kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion ==
+            CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+        expression->reference == red_member) {
+      red_promotion = expression_index;
+      break;
+    }
+  }
+  if (red_member == CTOOL_C_AST_NONE ||
+      green_member == CTOOL_C_AST_NONE ||
+      red_member == green_member ||
+      red_promotion == CTOOL_C_AST_NONE ||
+      unit.expression_count == 0u || unit.graph.member_count == 0u ||
+      unit.layout.member_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count ||
+      sizeof(*invalid_members) >
+          SIZE_MAX / (size_t)unit.graph.member_count ||
+      sizeof(*invalid_layouts) >
+          SIZE_MAX / (size_t)unit.layout.member_count) {
+    (void)fprintf(
+        stderr, "bit-field promotion metadata fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_members = (ctool_c_record_member_t *)malloc(
+      (size_t)unit.graph.member_count * sizeof(*invalid_members));
+  invalid_layouts = (ctool_c_member_layout_t *)malloc(
+      (size_t)unit.layout.member_count * sizeof(*invalid_layouts));
+  if (invalid_expressions == NULL || invalid_members == NULL ||
+      invalid_layouts == NULL) {
+    (void)fprintf(
+        stderr, "bit-field promotion metadata allocation failed\n");
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[red_promotion].reference = CTOOL_C_AST_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrow bit-field promotion without provenance")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[red_promotion].reference = green_member;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrow bit-field promotion with sibling provenance")) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.graph.members = invalid_members;
+  invalid_unit.layout.members = invalid_layouts;
+  (void)memcpy(invalid_members, unit.graph.members,
+               (size_t)unit.graph.member_count *
+                   sizeof(*invalid_members));
+  (void)memcpy(invalid_layouts, unit.layout.members,
+               (size_t)unit.layout.member_count *
+                   sizeof(*invalid_layouts));
+  invalid_members[red_member].bit_width = 32u;
+  invalid_layouts[red_member].bit_width = 32u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrow bit-field promotion with forged full width")) {
+    goto cleanup;
+  }
+  invalid_unit = unit;
+  invalid_unit.layout.members = invalid_layouts;
+  (void)memcpy(invalid_layouts, unit.layout.members,
+               (size_t)unit.layout.member_count *
+                   sizeof(*invalid_layouts));
+  invalid_layouts[red_member].bit_width = 7u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "narrow bit-field promotion with forged layout width")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&recovery_ir, 0xa5, sizeof(recovery_ir));
+  status = ctool_c_lower_ir(job, &unit, &recovery_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "bit-field promotion recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      ir_instruction_fingerprint(&recovery_ir) != ir_fingerprint ||
+      !validate_bit_field_promotion_ir(&unit, &recovery_ir)) {
+    (void)fprintf(
+        stderr, "bit-field promotion lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  free(invalid_members);
+  free(invalid_layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("bit-field-promotions: ok");
+    return 0;
   }
   return 1;
 }
@@ -34022,6 +34394,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "bit-field-stores") == 0) {
     return run_bit_field_stores(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "bit-field-promotions") == 0) {
+    return run_bit_field_promotions(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "bit-field-mutations") == 0) {
     return run_bit_field_mutations(argv[2]);
   }
@@ -34110,7 +34485,8 @@ int main(int argc, char **argv) {
                 "floating-comparisons|floating-conversions|"
                 "floating-scalars|"
                 "block-records|"
-                "block-enums|bit-field-stores|bit-field-mutations|"
+                "block-enums|bit-field-stores|bit-field-promotions|"
+                "bit-field-mutations|"
                 "narrow-values|void-casts|wide-returns|wide-conditions|"
                 "wide-objects|wide-mutations|self-host-frontier|"
                 "inline-assembly|port-io-assembly|legacy-port-assembly|"

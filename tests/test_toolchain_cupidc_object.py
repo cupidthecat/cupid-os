@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import shutil
@@ -134,10 +135,6 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
     ),
 )
 DOOM_TREE_FRONTIER_FAILURES = {
-    "/kernel/doom/src/i_video.c": (
-        "/kernel/doom/src/i_video.c:144:27: error CTD000002: "
-        "CupidC IR lowering received an invalid translation unit\n"
-    ),
     "/kernel/doom/src/m_menu.c": (
         "/kernel/doom/src/m_menu.c:701:31: error CTB000010: "
         "function call argument is not convertible to parameter type\n"
@@ -155,6 +152,11 @@ DOOM_TREE_FRONTIER_FAILURES = {
         "assignment right operand is not convertible to left operand type\n"
     ),
 }
+DOOM_I_VIDEO_OBJECT_SIZE = 9312
+DOOM_I_VIDEO_OBJECT_SHA256 = (
+    "8e9fcb59120cac9e8237a8243003fe169"
+    "6a7841096aca7af360c89fec173336f"
+)
 
 
 class ToolchainCupidCObjectContractTests(unittest.TestCase):
@@ -527,6 +529,21 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "bit-field-stores: ok\n")
+
+    def test_narrow_unsigned_bit_field_promotions_emit_exact_code(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "bit-field-promotions",
+                str(REPO_ROOT),
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-promotions: ok\n")
 
     def test_bit_field_mutations_execute_with_single_designator_evaluation(self):
         result = subprocess.run(
@@ -2268,23 +2285,67 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 with self.subTest(source=source):
                     self.assertEqual(result.stdout, "")
                     if expected is None:
+                        object_bytes = output.read_bytes()
                         self.assertEqual(
                             result.returncode, 0, result.stderr
                         )
                         self.assertEqual(result.stderr, "")
                         self.assertEqual(
-                            output.read_bytes()[:7],
+                            object_bytes[:7],
                             b"\x7fELF\x01\x01\x01",
                         )
                         if source == "/kernel/doom/src/info.c":
                             self.assertEqual(output.stat().st_size, 51268)
+                        if source == "/kernel/doom/src/i_video.c":
+                            self.assertEqual(
+                                len(object_bytes),
+                                DOOM_I_VIDEO_OBJECT_SIZE,
+                            )
+                            self.assertEqual(
+                                hashlib.sha256(object_bytes).hexdigest(),
+                                DOOM_I_VIDEO_OBJECT_SHA256,
+                            )
+                            repeated_output = output.with_suffix(
+                                ".repeat.o"
+                            )
+                            repeated_logical_output = (
+                                "/"
+                                + repeated_output.relative_to(
+                                    REPO_ROOT
+                                ).as_posix()
+                            )
+                            repeated = subprocess.run(
+                                [
+                                    str(self.hosted_cupidc_path),
+                                    *arguments,
+                                    "-c",
+                                    source,
+                                    "-o",
+                                    repeated_logical_output,
+                                ],
+                                cwd=REPO_ROOT,
+                                text=True,
+                                capture_output=True,
+                                timeout=180,
+                            )
+                            self.assertEqual(
+                                repeated.returncode,
+                                0,
+                                repeated.stderr,
+                            )
+                            self.assertEqual(repeated.stdout, "")
+                            self.assertEqual(repeated.stderr, "")
+                            self.assertEqual(
+                                repeated_output.read_bytes(),
+                                object_bytes,
+                            )
                         continue
                     failures[source] = result.stderr
                     self.assertEqual(result.returncode, 1, result.stderr)
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
-            self.assertEqual(len(results) - len(failures), 75)
+            self.assertEqual(len(results) - len(failures), 76)
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()

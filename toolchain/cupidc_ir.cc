@@ -3365,15 +3365,96 @@ static ctool_status_t cir_lower_bit_field_store_value(
   return cir_push(context, CIR_STACK_VALUE, assignment->type);
 }
 
+static ctool_status_t cir_require_bit_field_promotion_provenance(
+    cir_context_t *context, ctool_u32 expression_index,
+    const ctool_c_expression_t *expression, ctool_u32 child,
+    ctool_u32 *bit_width_out) {
+  const ctool_c_expression_t *load;
+  const ctool_c_expression_t *member_expression;
+  const ctool_c_record_member_t *member;
+  const ctool_c_member_layout_t *member_layout;
+  const ctool_c_type_node_t *source_type;
+  ctool_u32 expected_type;
+  ctool_u32 member_expression_index;
+  ctool_u32 source_base;
+  ctool_u32 source_qualifiers;
+  ctool_status_t status;
+  if (expression->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      expression->reference >= context->unit->graph.member_count ||
+      expression->reference >= context->unit->layout.member_count ||
+      child >= expression_index ||
+      child >= context->unit->expression_count) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  load = &context->unit->expressions[child];
+  if (load->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      load->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      load->reference != CTOOL_C_AST_NONE || load->child_count != 1u) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  status = cir_expression_child(
+      context, child, load, 0u, &member_expression_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (member_expression_index >= child) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  member_expression =
+      &context->unit->expressions[member_expression_index];
+  member = &context->unit->graph.members[expression->reference];
+  member_layout = &context->unit->layout.members[expression->reference];
+  if (cir_underlying_type(
+          context, load->type, &source_base, &source_qualifiers,
+          &source_type) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  (void)source_base;
+  (void)source_qualifiers;
+  if (source_type->kind == CTOOL_C_TYPE_ENUM &&
+      cir_underlying_type(
+          context, source_type->referenced_type, &source_base,
+          &source_qualifiers, &source_type) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  if (member_expression->kind != CTOOL_C_EXPRESSION_MEMBER ||
+      member_expression->reference != expression->reference ||
+      member->is_bit_field != CTOOL_TRUE || member->bit_width == 0u ||
+      member->bit_width >= 32u ||
+      member_layout->bit_width != member->bit_width ||
+      source_type->kind != CTOOL_C_TYPE_UNSIGNED_INT ||
+      cir_unwrapped_type(context, load->type) !=
+          cir_unwrapped_type(context, member->type) ||
+      cir_represented_bit_field_promotion_type(
+          context, load->type, member->bit_width,
+          &expected_type) == CTOOL_FALSE ||
+      expected_type != expression->type) {
+    return cir_invalid_unit(context, &expression->location);
+  }
+  *bit_width_out = member->bit_width;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_lower_conversion(
     cir_context_t *context, ctool_u32 expression_index,
     const ctool_c_expression_t *expression, ctool_u32 depth) {
   cir_stack_entry_t source;
+  ctool_bool bit_field_promotion = CTOOL_FALSE;
+  ctool_u32 bit_field_width = 0u;
   ctool_u32 child;
   ctool_status_t status = cir_expression_child(
       context, expression_index, expression, 0u, &child);
   if (status != CTOOL_OK) {
     return status;
+  }
+  if (expression->reference != CTOOL_C_AST_NONE) {
+    status = cir_require_bit_field_promotion_provenance(
+        context, expression_index, expression, child,
+        &bit_field_width);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    bit_field_promotion = CTOOL_TRUE;
   }
   if (expression->conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
       context->unit->expressions[child].kind ==
@@ -3390,6 +3471,12 @@ static ctool_status_t cir_lower_conversion(
   status = cir_lower_expression(context, child, depth + 1u);
   if (status != CTOOL_OK) {
     return status;
+  }
+  if (bit_field_promotion == CTOOL_TRUE) {
+    return cir_convert_top_bit_field_promotion(
+        context, context->unit->expressions[child].type,
+        expression->type, bit_field_width, expression->reference,
+        &expression->location, &expression->physical_location);
   }
   status = cir_pop(context, &source);
   if (status != CTOOL_OK) {

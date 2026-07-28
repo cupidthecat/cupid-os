@@ -80,6 +80,10 @@ _Avoid_: bit-field address, ordinary member store
 A compound assignment or prefix or postfix update to a represented bit field. Linear IR evaluates the record address once, applies target-width promotion, and keeps the extracted old value when postfix semantics require it. Partial fields are nonvolatile because their current store path needs a second complete-unit read. A volatile 32-bit field uses one read and one direct store.
 _Avoid_: bit-field address, reconstructing a postfix value after truncation
 
+**Represented ordinary bit-field promotion**:
+The integer promotion of a narrow `unsigned int` bit-field read in an ordinary expression. On Cupid i386, every value of a field narrower than 32 bits fits signed `int`. The frozen expression and Linear IR keep the direct graph-member reference so this field-specific same-rank conversion cannot be mistaken for a general unsigned-to-signed promotion.
+_Avoid_: generic same-rank signedness conversion, bit-field mutation
+
 **Block-static object**:
 A block-scope object with static storage duration. It keeps its absolute frontend block-binding identity, receives a local ELF object symbol, and never consumes an automatic frame slot.
 _Avoid_: automatic local, file-scope object

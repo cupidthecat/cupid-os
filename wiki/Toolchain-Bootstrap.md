@@ -165,8 +165,10 @@ fixed-point table in `kernel/doom/src/am_map.c` without a host floating
 operation. A one-active-member union initializer also emits unchanged
 `kernel/doom/src/info.c`. An explicit `--doom-compat` switch represents the five calls in
 `i_system.c` that precede a declaration. Strict C and plain GNU mode still
-reject them. Compiler head emits 75 of the 80 Doom-tree objects, while a
-checked frontier pins the five remaining failures. The current checked seed
+reject them. Compiler head also retains member provenance while narrow
+`unsigned int` color fields promote to signed `int` in unchanged
+`kernel/doom/src/i_video.c`. It emits 76 of the 80 Doom-tree objects, while a
+checked frontier pins the four remaining failures. The current checked seed
 predates these capabilities, so no Doom recipe moves until a later five-tool
 promotion and the remaining language work are complete.
 

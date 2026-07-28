@@ -17822,6 +17822,430 @@ cleanup:
   return 1;
 }
 
+static ctool_u32 text_occurrence_count(const char *text,
+                                       const char *fragment) {
+  ctool_u32 count = 0u;
+  size_t fragment_size;
+  if (text == NULL || fragment == NULL || fragment[0] == '\0') {
+    return 0u;
+  }
+  fragment_size = strlen(fragment);
+  while ((text = strstr(text, fragment)) != NULL) {
+    count++;
+    text += fragment_size;
+  }
+  return count;
+}
+
+static int bit_field_promotion_active_sources_are_unchanged(
+    ctool_job_t *job) {
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_status_t status;
+  path.text = ctool_string("/kernel/doom/src/i_video.h");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active Doom color declaration") ||
+      source.contents.data == NULL ||
+      strstr((const char *)source.contents.data, "    uint32_t b:8;") ==
+          NULL ||
+      strstr((const char *)source.contents.data, "    uint32_t g:8;") ==
+          NULL ||
+      strstr((const char *)source.contents.data, "    uint32_t r:8;") ==
+          NULL ||
+      strstr((const char *)source.contents.data, "    uint32_t a:8;") ==
+          NULL) {
+    (void)fprintf(stderr, "the active Doom color declaration changed\n");
+    return 0;
+  }
+  path.text = ctool_string("/kernel/doom/src/i_video.c");
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  if (!check_status(status, CTOOL_OK,
+                    "load active Doom color promotions") ||
+      source.contents.data == NULL ||
+      text_occurrence_count(
+          (const char *)source.contents.data, "c.r >> 3") != 1u ||
+      text_occurrence_count(
+          (const char *)source.contents.data, "c.g >> 2") != 1u ||
+      text_occurrence_count(
+          (const char *)source.contents.data, "c.b >> 3") != 2u ||
+      text_occurrence_count(
+          (const char *)source.contents.data, "(c.r & 0xF8) << 8") !=
+          1u ||
+      text_occurrence_count(
+          (const char *)source.contents.data, "(c.g & 0xFC) << 3") !=
+          1u ||
+      text_occurrence_count(
+          (const char *)source.contents.data,
+          "c.r << s_Fb.red.offset") != 1u ||
+      text_occurrence_count(
+          (const char *)source.contents.data,
+          "c.g << s_Fb.green.offset") != 1u ||
+      text_occurrence_count(
+          (const char *)source.contents.data,
+          "c.b << s_Fb.blue.offset") != 1u) {
+    (void)fprintf(stderr, "the active Doom color promotions changed\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int bit_field_promotion_oracle_execute(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u32 initial_storage,
+    ctool_u32 second_argument, ctool_u32 *result) {
+  narrow_oracle_machine_t machine;
+  const ctool_u32 object_address = 32u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 observed;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == NULL || text == NULL || symbol == NULL || result == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  (void)memset(&machine, 0xcd, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = NARROW_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = 64u;
+  if (!narrow_oracle_write_memory(
+          &machine, object_address, 32u, initial_storage) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, 0x13579bdfu) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u,
+          object_address) ||
+      !narrow_oracle_write_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u,
+          second_argument)) {
+    return 0;
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        !narrow_oracle_step(
+            &machine, &decoded.instruction, &returned)) {
+      (void)fprintf(
+          stderr, "bit-field promotion oracle stopped at %u on %s\n",
+          (unsigned)cursor,
+          status == CTOOL_OK && decoded.kind == CTOOL_X86_DECODE_KNOWN
+              ? ctool_x86_mnemonic_name(
+                    decoded.instruction.mnemonic)
+                    .data
+              : "invalid instruction");
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      machine.registers[NARROW_ORACLE_ESP] !=
+          NARROW_ORACLE_INITIAL_ESP ||
+      machine.registers[NARROW_ORACLE_EBP] != 64u ||
+      machine.registers[NARROW_ORACLE_EBX] != 0xcdcdcdcdu ||
+      machine.registers[NARROW_ORACLE_ESI] != 0xcdcdcdcdu ||
+      machine.registers[NARROW_ORACLE_EDI] != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(
+          &machine, object_address, 32u, &observed) ||
+      observed != initial_storage ||
+      !narrow_oracle_read_memory(
+          &machine, object_address - 4u, 32u, &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(
+          &machine, object_address + 4u, 32u, &observed) ||
+      observed != 0xcdcdcdcdu ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP, 32u, &observed) ||
+      observed != 0x13579bdfu ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 4u, 32u, &observed) ||
+      observed != object_address ||
+      !narrow_oracle_read_memory(
+          &machine, NARROW_ORACLE_INITIAL_ESP + 8u, 32u, &observed) ||
+      observed != second_argument) {
+    return 0;
+  }
+  *result = machine.registers[NARROW_ORACLE_EAX];
+  return 1;
+}
+
+static int validate_bit_field_promotion_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  typedef struct {
+    const char *name;
+    const ctool_u8 *bytes;
+    ctool_u32 byte_count;
+    const ctool_x86_mnemonic_t *instructions;
+    ctool_u32 instruction_count;
+    ctool_u32 offset;
+  } bit_field_promotion_function_t;
+  typedef struct {
+    const char *name;
+    ctool_u32 storage;
+    ctool_u32 second_argument;
+    ctool_u32 expected;
+  } bit_field_promotion_case_t;
+  static const ctool_u8 shift_red_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0xc1u, 0xe0u, 0x08u, 0xc1u, 0xe8u, 0x18u, 0x50u,
+      0x68u, 0x03u, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0xd3u,
+      0xf8u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t shift_red_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_SAR,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const ctool_u8 mask_green_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0xc1u, 0xe0u, 0x10u, 0xc1u, 0xe8u, 0x18u, 0x50u,
+      0x68u, 0xfcu, 0x00u, 0x00u, 0x00u, 0x59u, 0x58u, 0x21u,
+      0xc8u, 0x50u, 0x68u, 0x03u, 0x00u, 0x00u, 0x00u, 0x59u,
+      0x58u, 0xd3u, 0xe0u, 0x50u, 0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t mask_green_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_AND,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE,
+      CTOOL_X86_MN_RET};
+  static const ctool_u8 shift_blue_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x8bu,
+      0x00u, 0xc1u, 0xe0u, 0x18u, 0xc1u, 0xe8u, 0x18u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u,
+      0x8bu, 0x00u, 0x50u, 0x59u, 0x58u, 0xd3u, 0xe0u, 0x50u,
+      0x58u, 0xc9u, 0xc3u};
+  static const ctool_x86_mnemonic_t shift_blue_instructions[] = {
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_MOV,   CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,   CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_SHL,   CTOOL_X86_MN_SHR,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_LEA,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_MOV,   CTOOL_X86_MN_PUSH,  CTOOL_X86_MN_POP,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_SHL,   CTOOL_X86_MN_PUSH,
+      CTOOL_X86_MN_POP,   CTOOL_X86_MN_LEAVE, CTOOL_X86_MN_RET};
+  static const bit_field_promotion_function_t functions[] = {
+      {"shift_red", shift_red_bytes,
+       (ctool_u32)sizeof(shift_red_bytes), shift_red_instructions,
+       (ctool_u32)(sizeof(shift_red_instructions) /
+                   sizeof(shift_red_instructions[0])),
+       0u},
+      {"mask_green", mask_green_bytes,
+       (ctool_u32)sizeof(mask_green_bytes), mask_green_instructions,
+       (ctool_u32)(sizeof(mask_green_instructions) /
+                   sizeof(mask_green_instructions[0])),
+       37u},
+      {"shift_blue", shift_blue_bytes,
+       (ctool_u32)sizeof(shift_blue_bytes), shift_blue_instructions,
+       (ctool_u32)(sizeof(shift_blue_instructions) /
+                   sizeof(shift_blue_instructions[0])),
+       84u}};
+  static const bit_field_promotion_case_t cases[] = {
+      {"shift_red", 0x00ff0000u, 0u, 31u},
+      {"shift_red", 0x00800000u, 0u, 16u},
+      {"shift_red", 0x00000000u, 0u, 0u},
+      {"mask_green", 0x0000ff00u, 0u, 0x7e0u},
+      {"mask_green", 0x00000300u, 0u, 0u},
+      {"shift_blue", 0x0000007eu, 4u, 0x7e0u},
+      {"shift_blue", 0x00000001u, 30u, 0x40000000u},
+      {"shift_blue", 0x00000000u, 31u, 0u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 127u ||
+      text->relocation_count != 0u || object->relocation_count != 0u ||
+      object->symbol_count != 4u) {
+    (void)fprintf(
+        stderr,
+        "bit-field promotion ELF inventory differs: text=%u "
+        "symbols=%u relocations=%u\n",
+        text == NULL ? 0u : (unsigned)text->contents.size,
+        object == NULL ? 0u : (unsigned)object->symbol_count,
+        object == NULL ? 0u : (unsigned)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(functions) / sizeof(functions[0]));
+       index++) {
+    const bit_field_promotion_function_t *expected =
+        &functions[index];
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, expected->name);
+    if (symbol == NULL ||
+        !symbol_matches(
+            symbol, symbol->file_index, CTOOL_ELF32_BIND_GLOBAL,
+            CTOOL_ELF32_SYMBOL_FUNCTION,
+            CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+            expected->offset, expected->byte_count) ||
+        !decode_function(
+            job, text, symbol, expected->instructions,
+            expected->instruction_count, expected->bytes,
+            expected->byte_count, NULL, 0u, expected->name)) {
+      (void)fprintf(
+          stderr, "bit-field promotion function %s differs\n",
+          expected->name);
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, cases[index].name);
+    ctool_u32 result = 0u;
+    if (symbol == NULL ||
+        !bit_field_promotion_oracle_execute(
+            job, text, symbol, cases[index].storage,
+            cases[index].second_argument, &result) ||
+        result != cases[index].expected) {
+      (void)fprintf(
+          stderr,
+          "bit-field promotion result %s case %u differs: "
+          "eax=%08x\n",
+          cases[index].name, (unsigned)index, (unsigned)result);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_bit_field_promotion_object(const char *host_root) {
+  static const char source[] =
+      "struct color {\n"
+      "  unsigned int b : 8;\n"
+      "  unsigned int g : 8;\n"
+      "  unsigned int r : 8;\n"
+      "  unsigned int a : 8;\n"
+      "};\n"
+      "int shift_red(struct color *state) {\n"
+      "  return state->r >> 3;\n"
+      "}\n"
+      "int mask_green(struct color *state) {\n"
+      "  return (state->g & 0xFC) << 3;\n"
+      "}\n"
+      "int shift_blue(struct color *state, int offset) {\n"
+      "  return state->b << offset;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_object = NULL;
+  ctool_u32 first_object_size = 0u;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !bit_field_promotion_active_sources_are_unchanged(job) ||
+      !parse_source(
+          job, "/bit-field-promotion-object.c", source, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &output);
+  if (!check_status(
+          status, CTOOL_OK, "bit-field promotion object buffer") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output,
+          "bit-field promotion object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  first_object_size = bytes.size;
+  first_object = (ctool_u8 *)malloc((size_t)first_object_size);
+  if (first_object == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_object, bytes.data, (size_t)bytes.size);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output,
+          "repeat bit-field promotion object emission")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  if (bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "bit-field promotion object is not deterministic\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  if (!check_status(
+          status, CTOOL_OK, "limited bit-field promotion buffer") ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT,
+          "CupidC object emission exceeded a configured resource limit",
+          "limited bit-field promotion object") ||
+      ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output,
+          "recovered bit-field promotion object emission")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  if (bytes.size != first_object_size ||
+      memcmp(bytes.data, first_object, (size_t)bytes.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "bit-field promotion recovery changed the object\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/bit-field-promotion-object.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK, "read bit-field promotion object") ||
+      !validate_bit_field_promotion_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_object);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("bit-field-promotions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int bit_field_store_oracle_execute(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol, ctool_u32 initial_storage,
@@ -26948,20 +27372,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 219u, 236u, 364u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 220u, 236u, 368u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 427428u, 393864u, 765053u, 139646u, 70368u, 80478u,
+      190304u, 430758u, 393864u, 768000u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 456892u, 424764u, 902112u, 157828u, 79348u, 134656u,
+      226668u, 460388u, 424764u, 905548u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xdecf7263u, 0xdc95e874u, 0x8129a254u, 0x239f52c7u,
+      0x288bfa53u, 0xdc95e874u, 0x8b9d7621u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -35536,6 +35960,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "bit-field-stores") == 0) {
     return run_bit_field_store_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "bit-field-promotions") == 0) {
+    return run_bit_field_promotion_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "bit-field-mutations") == 0) {
     return run_bit_field_mutation_object(argv[2]);
   }
@@ -35684,7 +36111,8 @@ int main(int argc, char **argv) {
                 "pointer-arithmetic|function-pointers|"
                 "function-pointer-casts|automatic-objects|"
                 "block-externs|block-functions|block-typedefs|block-enums|"
-                "bit-field-stores|bit-field-mutations|"
+                "bit-field-stores|bit-field-promotions|"
+                "bit-field-mutations|"
                 "aggregate-initializers|union-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"

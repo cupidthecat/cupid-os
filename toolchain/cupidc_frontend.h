@@ -438,6 +438,8 @@ typedef struct {
 
   /* IDENTIFIER: file-binding index. PARAMETER: parameter index.
    * BLOCK_BINDING: block-binding index. MEMBER: direct graph-member index.
+   * IMPLICIT_CONVERSION: direct graph-member index only for the target-width
+   * integer promotion of a narrow unsigned-int bit field.
    * COMPOUND_LITERAL: initializer-root index for the unnamed automatic
    * object. The expression's own absolute index is that object's identity. */
   ctool_u32 reference;

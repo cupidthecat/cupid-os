@@ -438,6 +438,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "bit-field-mutations: ok\n")
 
+    def test_narrow_unsigned_bit_fields_keep_promotion_provenance(self):
+        result = subprocess.run(
+            [str(self.contract_path), "bit-field-promotions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "bit-field-promotions: ok\n")
+
     def test_object_pointer_parameters_reach_indirect_members(self):
         result = subprocess.run(
             [

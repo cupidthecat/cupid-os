@@ -497,10 +497,12 @@ scalar evaluator folds the unchanged fixed-point table in
 kernel/doom/src/am_map.c. The explicit --doom-compat profile represents the
 five old-style calls in i_system.c without changing strict C or plain GNU
 mode. A one-active-member union initializer emits unchanged
-kernel/doom/src/info.c. Compiler head emits 75 of the 80 Doom-tree objects. A
-checked frontier pins the other five failures at IR and callback or pointer
-conversions. The checked seed does not carry these capabilities yet, so Doom
-build ownership is unchanged.
+kernel/doom/src/info.c. Narrow unsigned int color fields keep their member
+identity when they promote to signed int in ordinary expressions, which
+compiles all nine guarded reads in unchanged kernel/doom/src/i_video.c.
+Compiler head emits 76 of the 80 Doom-tree objects. A checked frontier pins
+the other four failures at callback or pointer conversions. The checked seed
+does not carry these capabilities yet, so Doom build ownership is unchanged.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,

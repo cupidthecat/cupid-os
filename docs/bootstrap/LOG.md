@@ -12967,17 +12967,124 @@ runtime functions, and byte-identical repeat emission. The exact
 object. The checked whole-tree frontier advances from 73 to 74 successful
 objects.
 
+This remained a compiler-head capability. The checked seed and production
+ownership did not change, and no `.c` source was renamed. ADR 0153 records
+the language and ownership boundary.
+
+## 2026-07-28: retain narrow ordinary bit-field promotion provenance
+
+The next exact Doom-tree failure was the first color read in unchanged
+`kernel/doom/src/i_video.c`:
+
+```c
+blue = (c.r >> 3) << 11 | (c.g >> 2) << 5 | c.b >> 3;
+```
+
+The four color channels are declared as eight-bit `uint32_t` bit fields in
+`kernel/doom/src/i_video.h`. On Cupid's i386 target, each field's values fit
+in signed `int`, so C integer promotion changes the effective
+`unsigned int` value to signed `int`. The frontend selected that type but
+discarded the reason for the same-rank signedness change. Linear IR then
+rejected the conversion as invalid generic metadata.
+
+The frontend now retains the direct member index on this exact conversion.
+The reference is present only when an lvalue-to-value conversion reads a
+nonzero-width `unsigned int` bit field that is narrower than its declared
+integer type and then promotes it to signed `int`. An `unsigned char` bit
+field follows the ordinary lower-rank rule without a reference. A full-width
+`unsigned int` field stays unsigned. Ordinary operators, switch conditions,
+and compound-assignment right operands now use the same promotion helper.
+
+The frozen-unit validator accepts the reference only on that direct
+member-load-promotion chain. Linear IR independently checks the graph member,
+the layout member, both field widths, the loaded and declared types, the
+direct expression ancestry, and the signed `int` result before lowering a
+referenced `CONVERT`. Removing the reference still reaches the generic
+same-rank check and fails. The narrow rule therefore does not weaken other
+unsigned-to-signed conversions.
+
+The first frontend test failed because the ordinary shift promotion carried
+no member reference. A broader draft then tagged an `unsigned char` bit field
+and failed the frozen-unit check. That draft was narrowed to effective
+`unsigned int`. A separate switch-only promotion path also failed the frozen
+check, which exposed a duplicated conversion seam. Switch and compound
+assignment now call the shared helper instead.
+
+### Focused proof
+
+The frontend contract covers an ordinary shift, a switch condition, and a
+compound-assignment right operand. It also fixes the unreferenced
+`unsigned char` promotion and the unpromoted full-width unsigned field.
+
+The Linear IR fixture has two functions and 14 exact instructions. Its narrow
+field emits a referenced integer-promotion `CONVERT`; its 32-bit field emits
+no conversion. Four frozen-unit mutations remove the reference, select a
+sibling field, forge matching full-width graph and layout metadata, or make
+the layout width disagree with the graph. Each reports `CTD000002`, preserves
+the input unit, arena, and output, and is followed by byte-for-byte same-job
+recovery.
+
+The deterministic object fixture has three functions:
+
+| Function | Offset | Bytes | Covered operation |
+| --- | ---: | ---: | --- |
+| `shift_red` | 0 | 37 | extraction and signed right shift |
+| `mask_green` | 37 | 47 | extraction, mask, and left shift |
+| `shift_blue` | 84 | 43 | extraction and variable left shift |
+
+The complete text is 127 bytes. The ELF32 object has four symbols and no
+relocations. Shared decoding fixes every instruction. Eight i386 executions
+check the result, unchanged packed storage, memory canaries, incoming
+arguments, ESP, EBP, and all callee-saved registers. A 64-byte output limit
+fails without publishing a partial object, and the same job then reproduces
+the original object.
+
+### Active-source frontier
+
+The generated audit finds four active bit-field declarations in one
+production file: the `b`, `g`, `r`, and `a` channels in
+`kernel/doom/src/i_video.h`. Source guards account for all nine ordinary
+color reads in `kernel/doom/src/i_video.c`:
+
+- lines 144 through 146 read red, green, and blue while packing a color;
+- lines 169 through 171 read red, green, and blue while applying masks;
+- lines 184 through 186 read red, green, and blue while applying offsets.
+
+There is no active alpha read. The guard also fixes both occurrences of
+`c.b >> 3`, so a duplicate expression cannot disappear unnoticed.
+
+Two exact-profile compiles of unchanged `kernel/doom/src/i_video.c` produce
+the same object:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `i_video.o` | 9,312 | `8e9fcb59120cac9e8237a8243003fe1696a7841096aca7af360c89fec173336f` |
+
+The exact Doom-tree frontier now emits 74 of 80 objects. The six remaining
+failures are:
+
+| Source | Diagnostic |
+| --- | --- |
+| `kernel/doom/src/i_system.c:172:9` | `CTB000010`: expression identifier is not declared |
+| `kernel/doom/src/info.c:128:20` | `CTB000007`: union and class initializer lists await active-member semantics |
+| `kernel/doom/src/m_menu.c:701:31` | `CTB000010`: function call argument is not convertible to parameter type |
+| `kernel/doom/src/p_ceilng.c:316:48` | `CTD000006`: CupidC IR lowering does not yet support this conversion |
+| `kernel/doom/src/p_plats.c:274:47` | `CTD000006`: CupidC IR lowering does not yet support this conversion |
+| `kernel/doom/src/p_saveg.c:251:17` | `CTB000010`: assignment right operand is not convertible to left operand type |
+
 ### Self-host locks
 
 The hosted source gate now reports:
 
 | Source | Definitions | Statements | Expressions | Block bindings | Initializers |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `toolchain/cupidc_frontend.cc` | 364 | 14,946 | 97,977 | 2,241 | 1,399 |
-| `toolchain/cupidc_ir.cc` | 218 | 6,549 | 59,853 | 842 | 308 |
-| `toolchain/cupidc_emit.cc` | 236 | 6,143 | 53,198 | 754 | 375 |
+| `toolchain/cupidc_frontend.cc` | 368 | 15,009 | 98,406 | 2,257 | 1,402 |
+| `toolchain/cupidc_ir.cc` | 219 | 6,602 | 60,340 | 854 | 310 |
+| `toolchain/cupidc_emit.cc` | 236 | 6,140 | 53,141 | 754 | 375 |
 
-Their deterministic self-host objects have these locks:
+The log preserves the previously integrated union and implicit-call evidence
+here because the three branches were developed in parallel. The earlier union
+slice retained these isolated object locks:
 
 | Source | Functions | Text bytes | Object bytes | Text fingerprint |
 | --- | ---: | ---: | ---: | --- |
@@ -13094,3 +13201,85 @@ This compiler-head change does not refresh the checked seed or move a
 production source to Cupid ownership. No `.c` file is renamed, no host
 dependency is retired, and no image or boot result is attributed to it.
 Issue 29 remains open. ADR 0149 records the language and ownership boundary.
+
+### Bit-field object locks and verification
+
+The bit-field slice's deterministic self-host objects had these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 368 | 763,638 | 900,564 | `AC5BB195` |
+| `toolchain/cupidc_ir.cc` | 219 | 426,809 | 456,316 | `BB0A86E2` |
+| `toolchain/cupidc_emit.cc` | 236 | 393,470 | 424,364 | `28005B0C` |
+
+The regenerated graph still contains 698 active sources, 253 feature IDs,
+504 transforms, and 42 accounted unreachable files. The active-source digest
+is
+`2c8aa02978b0a1c3012140458dd0111a4ffa08b2d606058907edbf8f89a0ac36`.
+The 1,524,052-byte JSON has SHA-256
+`63a157a55d11e2e7a427e9ae9619a58e3842bcbb2adfcb13e92342bd6329947a`.
+
+### Verification
+
+The focused source gate, Linear IR selector, object selector, and self-host
+frontier pass together: 4 tests in 43.177 seconds. The exact Doom-tree
+frontier passes independently: 1 test in 21.930 seconds.
+
+The complete frontend module passes 75 tests in 15.080 seconds. The complete
+Linear IR module passes 64 tests in 15.625 seconds. The complete object module
+passes 80 tests in 847.479 seconds. Its five-tool fixed-point member also
+passes independently in 604.245 seconds, rebuilding all 19 C objects and
+linking CupidC, CupidASM, CupidDis, CupidLD, and CupidObj at stages two and
+three.
+
+The strict native Toolchain build, including its contract run, passes in
+59.401 seconds.
+`make bootstrap-audit` regenerates the graph in 54.4 seconds, and
+`make check-bootstrap-audit` verifies it in 63.660 seconds. All 62
+mutation-based audit tests pass in 580.831 seconds. Python bytecode checks
+also pass for the four changed test modules.
+
+This is a compiler-head change. The checked seed is unchanged, Doom remains
+host-built, and no production object owner, output format, ABI, runtime path,
+or host dependency changes. No `.c` file is renamed. The updated CTXT page
+records the new capability, but the normal image would still use the older
+checked compiler. Because production output ownership is unchanged, an image
+or boot result would not exercise this compiler-head capability and is not
+part of this proof. ADR 0152 records the language and trust-boundary decision.
+
+## 2026-07-28: integrate the three parallel Doom compiler slices
+
+The union initializer, explicit old-style call policy, and narrow bit-field
+promotion branches now coexist in compiler head. Their exact Doom profile
+emits 76 of 80 objects without changing vendored source. The remaining four
+files stop only at the pinned callback and object/function-pointer conversion
+boundary.
+
+The combined source gates report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 368 | 15,065 | 98,985 | 2,261 | 1,403 |
+| `toolchain/cupidc_ir.cc` | 220 | 6,635 | 60,903 | 862 | 310 |
+| `toolchain/cupidc_emit.cc` | 236 | 6,143 | 53,198 | 754 | 375 |
+
+Their combined deterministic self-host objects report:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 368 | 768,000 | 905,548 | `8B9D7621` |
+| `toolchain/cupidc_ir.cc` | 220 | 430,758 | 460,388 | `288BFA53` |
+| `toolchain/cupidc_emit.cc` | 236 | 393,864 | 424,764 | `DC95E874` |
+
+The combined frontend source gate and self-host object gate pass. The focused
+bit-field IR selector, exact object selector, and 80-source Doom frontier also
+pass together. Audit regeneration and deterministic checking pass with 698
+active sources, 253 feature IDs, 504 transforms, and 42 accounted unreachable
+files. The active-source digest is
+`554fbb7c93069d7afec378158ad68bf3e5309a4ba1b2c35433af44f3ae296f84`;
+the 1,524,509-byte JSON has SHA-256
+`5ccbe00b33243784798c6126e23ebce3af4ba3a645ef29f36065b8f4746548c8`.
+
+This integration changes no checked seed, Make owner, ABI, runtime path, or
+host dependency. Doom remains host-built, no `.c` source is renamed, and
+`TempleOS/` remains untouched.

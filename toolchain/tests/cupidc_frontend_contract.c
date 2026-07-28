@@ -7522,12 +7522,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 219u, 6582u,
-       60388u, 850u, 308u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 220u, 6635u,
+       60903u, 862u, 310u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 236u, 6143u,
        53198u, 754u, 375u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 364u,
-       14995u, 98461u, 2245u, 1400u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u,
+       15065u, 98985u, 2261u, 1403u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -13961,6 +13961,50 @@ static int default_statement_shape(const ctool_c_translation_unit_t *unit,
              : 1;
 }
 
+static int switch_bit_field_promotion_has_reference(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression) {
+  const ctool_c_expression_t *promotion;
+  const ctool_c_expression_t *load;
+  ctool_u32 child;
+  while (expression < unit->expression_count &&
+         unit->expressions[expression].kind ==
+             CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+         unit->expressions[expression].conversion !=
+             CTOOL_C_CONVERSION_INTEGER_PROMOTION) {
+    expression =
+        expression_child(unit, &unit->expressions[expression], 0u);
+  }
+  promotion = expression < unit->expression_count
+                  ? &unit->expressions[expression]
+                  : NULL;
+  child = promotion == NULL
+              ? CTOOL_C_AST_NONE
+              : expression_child(unit, promotion, 0u);
+  load = child < unit->expression_count
+             ? &unit->expressions[child]
+             : NULL;
+  child = load == NULL ? CTOOL_C_AST_NONE
+                       : expression_child(unit, load, 0u);
+  return promotion != NULL &&
+                 promotion->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 promotion->conversion ==
+                     CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+                 promotion->reference != CTOOL_C_AST_NONE &&
+                 load != NULL &&
+                 load->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 load->conversion ==
+                     CTOOL_C_CONVERSION_LVALUE_TO_VALUE &&
+                 child < unit->expression_count &&
+                 unit->expressions[child].kind ==
+                     CTOOL_C_EXPRESSION_MEMBER &&
+                 unit->expressions[child].reference ==
+                     promotion->reference
+             ? 0
+             : 1;
+}
+
 static int validate_switch_statement_unit(
     const ctool_c_translation_unit_t *unit) {
   ctool_u32 first_switch = function_top_level_statement_index(
@@ -14182,6 +14226,8 @@ static int validate_switch_statement_unit(
       conversion_chain_has(unit, unit->statements[bitfield_switch].condition,
                            CTOOL_C_CONVERSION_INTEGER_PROMOTION) ==
           CTOOL_FALSE ||
+      switch_bit_field_promotion_has_reference(
+          unit, unit->statements[bitfield_switch].condition) != 0 ||
       case_statement_shape(unit, bitfield_case, CTOOL_C_TYPE_SIGNED_INT, 7ull,
                            CTOOL_C_STATEMENT_BREAK) != 0) {
     (void)fprintf(stderr, "switch-statements: bit-field promotion differs\n");
@@ -15937,6 +15983,7 @@ static int validate_pointer_expression_unit(
       node == NULL ||
       node->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
       node->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      node->reference != bits_index ||
       underlying_type_kind(unit, node->type, NULL) != CTOOL_C_TYPE_SIGNED_INT) {
     (void)fprintf(stderr,
                   "pointer-expressions: bit-field promotion differs\n");
@@ -16144,6 +16191,68 @@ static int validate_pointer_expression_unit(
   return 0;
 }
 
+static int validate_byte_bit_field_promotion(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *binding = find_binding(unit, "byte_bits_t");
+  const ctool_c_type_node_t *record =
+      binding == NULL ? NULL : type_node(unit, binding->type);
+  const ctool_c_record_member_t *member;
+  const ctool_c_expression_t *promotion;
+  const ctool_c_expression_t *load;
+  ctool_u32 member_index = CTOOL_C_AST_NONE;
+  ctool_u32 root = pointer_return_root(unit, "promote_byte");
+  ctool_u32 child = scalar_operator_child(unit, root, 0u);
+  ctool_u32 member_expression;
+  ctool_u32 specialized_promotions = 0u;
+  ctool_u32 index;
+  member = record == NULL
+               ? NULL
+               : find_record_member(unit, record, "bits", &member_index);
+  promotion =
+      child < unit->expression_count ? &unit->expressions[child] : NULL;
+  child = promotion == NULL
+              ? CTOOL_C_AST_NONE
+              : expression_child(unit, promotion, 0u);
+  load = child < unit->expression_count ? &unit->expressions[child] : NULL;
+  member_expression =
+      load == NULL ? CTOOL_C_AST_NONE : expression_child(unit, load, 0u);
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion ==
+            CTOOL_C_CONVERSION_INTEGER_PROMOTION &&
+        expression->reference != CTOOL_C_AST_NONE) {
+      specialized_promotions++;
+    }
+  }
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
+      record == NULL || record->kind != CTOOL_C_TYPE_RECORD ||
+      member == NULL || member->is_bit_field != CTOOL_TRUE ||
+      member->bit_width != 3u || promotion == NULL ||
+      promotion->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      promotion->conversion != CTOOL_C_CONVERSION_INTEGER_PROMOTION ||
+      promotion->reference != CTOOL_C_AST_NONE ||
+      underlying_type_kind(unit, promotion->type, NULL) !=
+          CTOOL_C_TYPE_SIGNED_INT ||
+      load == NULL ||
+      load->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION ||
+      load->conversion != CTOOL_C_CONVERSION_LVALUE_TO_VALUE ||
+      underlying_type_kind(unit, load->type, NULL) !=
+          CTOOL_C_TYPE_UNSIGNED_CHAR ||
+      member_expression >= unit->expression_count ||
+      unit->expressions[member_expression].kind !=
+          CTOOL_C_EXPRESSION_MEMBER ||
+      unit->expressions[member_expression].reference != member_index ||
+      specialized_promotions != 1u) {
+    (void)fprintf(
+        stderr,
+        "pointer-expressions: byte bit-field promotion differs\n");
+    return 1;
+  }
+  return 0;
+}
+
 static char *build_unevaluated_string_scale(void) {
   static const char define_prefix[] = "#define QUERY_STRING \"";
   static const char define_suffix[] = "\"\n";
@@ -16270,6 +16379,13 @@ static int run_pointer_expressions(const char *host_root) {
       "unsigned int named_alignment(aggregate_t *value) { return __alignof__(value->named.named_value); }\n"
       "unsigned int aligned_member_alignment(void) { return __alignof__(aligned_object.direct); }\n"
       "unsigned int aligned_object_alignment(void) { return __alignof__(aligned_object); }\n";
+  static const char byte_bit_field_source[] =
+      "typedef struct { unsigned char bits : 3; } byte_bits_t;\n"
+      "typedef struct { unsigned int bits : 3; } word_bits_t;\n"
+      "int promote_byte(byte_bits_t value) { return +value.bits; }\n"
+      "int add_bits(int left, word_bits_t value) {\n"
+      "  return left += value.bits;\n"
+      "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"dot scalar operand",
         "int bad(int value) { return value.member; }\n", CTOOL_ERR_INPUT,
@@ -16367,6 +16483,7 @@ static int run_pointer_expressions(const char *host_root) {
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       0u, 0u, "GNU alignment queries require GNU extensions"};
   frontend_fixture_t fixture;
+  ctool_c_translation_unit_t byte_bit_field_unit;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
   int failed = 1;
@@ -16377,7 +16494,11 @@ static int run_pointer_expressions(const char *host_root) {
   }
   if (parse_valid_fixture(&fixture, "/pointer-expressions.c", source, &unit) !=
           0 ||
-      validate_pointer_expression_unit(&unit) != 0) {
+      validate_pointer_expression_unit(&unit) != 0 ||
+      parse_valid_fixture(
+          &fixture, "/byte-bit-field-promotion.c",
+          byte_bit_field_source, &byte_bit_field_unit) != 0 ||
+      validate_byte_bit_field_promotion(&byte_bit_field_unit) != 0) {
     goto cleanup;
   }
   for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
