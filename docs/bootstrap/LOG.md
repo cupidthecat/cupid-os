@@ -12417,3 +12417,81 @@ this increment, so `kernel/cpu/fpu.c` remains host-built and keeps its `.c`
 name. No production object, image, ABI, or runtime path changes. An OS build
 or boot smoke is therefore not attributed to this compiler-only increment.
 ADR 0141 records the decision.
+## 2026-07-27: freeze the checked fixed-point source closure
+
+The checked-seed bootstrap used to hash 40 live source inputs and compile
+from the same live repository root. A lasting change failed at the next
+boundary, but a file could change and return to its original bytes while
+CupidC was reading it. The same run also wrote stage directories and behavior
+evidence into the requested output before the complete gate had passed.
+
+The harness now reads each approved source input once and copies those bytes
+into a private compiler root. Both stages use that root as CupidC's `--root`
+and as the tool runner's working directory. Stage two, stage three, and the
+behavior workspace also stay below it. The relative paths and report schema
+remain unchanged.
+
+The harness rehashes the private closure and the live closure before stage
+two, after stage two, after stage three, and after the behavior suite. A
+changed private file fails as a frozen-source mutation. A lasting live change
+still fails with the original live-source diagnostic. A live edit that is
+restored during a compile cannot change the bytes consumed by the compiler.
+
+The requested output must now be absent or empty. The harness inventories all
+artifacts and writes the report under the private root, then moves both stages,
+behavior evidence, and the report into one complete bundle. One directory
+replacement publishes that bundle. An incomplete bundle publishes nothing,
+and a nonempty output is rejected without modification.
+
+The first focused tests failed because the source-freeze and publication
+operations did not exist. The audit mutation tests then showed that the active
+graph did not pin the checked bootstrap's source root. The implementation adds
+both contracts. The generated audit now records a private captured root, four
+source-boundary checks, and complete-bundle publication. Its fail-closed
+checks pin the private stage, behavior, report, and bundle roots.
+
+| Check | Result |
+| --- | --- |
+| Seed tests except the complete rebuild | PASS, 21 tests in 5.100 seconds |
+| Complete checked-seed fixed point | PASS in 613.942 seconds |
+| Complete fixed-point evidence | PASS, 19 C object pairs, startup, five tool images, and 21 behavior cases |
+| Captured source closure | PASS, 40 inputs with SHA-256 `230bffbf41d645e50b9944a179febd1d7920e1cfbc92b98e24a752d93192a7b8` |
+| Build-audit suite | PASS, 62 tests in 639.964 seconds |
+| `make check-bootstrap-audit` | PASS |
+| Active build audit | PASS, 1,524,052 bytes with SHA-256 `ca042223fdce0bf0e535c6ab6eee5ec8540b4e951c6179bc9dd943e1b3edf9c8` |
+| `make test` | PASS, 782 tests in 4,034.429 seconds with one expected skip |
+| `make -j2 all WAD_SRCS=` | PASS in 429.537 seconds |
+| Updated `/docs` GUI smoke | PASS in 57.265 seconds with no panic |
+
+The focused tests include a real checked CupidC compile while the live source
+is changed and restored. They also cover a mutated private closure, symlinked
+inputs, an incomplete publication bundle, preservation of an occupied output,
+and successful publication over an empty output. The publication failure case
+also proves that a removed empty destination is restored when the final
+directory replacement fails. A forced stage-three failure confirms that a
+completed first stage stays private and the empty output remains untouched.
+
+The normal build produced these affected packaging artifacts:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `cupidos-txt/04CUPIDC.o` | 46,312 | `5fc92be4e2a9b2e82af0b6e1bbe3eab3fdd0778209d0f7717d5d6e1023617f80` |
+| `cupidos-txt/10ASM.o` | 13,488 | `5ad49384a00ca1a32b7a46c6be6cde3bab4e28330d4c961d7213a05e4a0e91c2` |
+| `kernel/kernel.bin` | 7,935,128 | `e723e0f8f2189b0bab4dcc62eeac77d6ba6acaa24f5f6fa090fe48a0ae89f38b` |
+| `cupidos.img` | 209,715,200 | `178472aafcf264edf7085c58945154eea21482257fb3d57de0df74117a945eb3` |
+
+The first `/docs` smoke looked for the manual filename after `ls /docs`.
+Cupid OS draws that filename in the terminal framebuffer but sends only the
+entry sizes to serial, so the filename pattern timed out and that run was
+discarded. The repeated smoke required a fresh
+`[print_int] num=45843` event from the command. Its boot log contains exactly
+one `[kernel] Installed /docs/04CUPIDC.ctxt (45843 bytes)` line and no panic.
+
+The compiler, assembler, linker, object, and ABI behavior do not change in
+this slice. The updated CTXT pages do change their embedded documentation
+payload and therefore the generated documentation object and image bytes. The
+normal build and `/docs` smoke check that packaging and runtime installation
+path. The boot does not exercise the Python bootstrap transaction or a changed
+executable path, so the complete two-stage rebuild and behavior suite remain
+the runtime gate for that change. ADR 0142 records the decision. Issue #32
+remains open for its remaining fixed-point work.

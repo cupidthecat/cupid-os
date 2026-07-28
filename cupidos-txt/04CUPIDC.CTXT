@@ -512,17 +512,20 @@ and its source revision is 7e7029637ef22a4f18c382ffb225fd6a2ea84b85.
 It carries exact static floating data, all six floating comparisons, GNU used,
 privileged-register inputs, FXSAVE, call-next capture, GNU Nd, machine-state
 memory outputs, and C11 external inline finalization.
-The harness freezes the verified manifest and binaries and captures 40 current
-inputs, including link.ld. The seed producer trio builds stage two from that
-snapshot, and the stage-two trio builds stage three. All 19 C objects, startup,
-and five linked images match byte for byte. Five help checks, ten successful
-operations, and six failure cases pass at both stages.
+The harness freezes the verified manifest and binaries and copies the exact
+bytes of 40 current inputs, including link.ld, into a private compiler root.
+The seed producer trio builds stage two below that root, and the stage-two trio
+builds stage three there. The private and live closures are checked before the
+first stage, after each stage, and after the behavior checks. All 19 C objects,
+startup, and five linked images match byte for byte. Five help checks, ten
+successful operations, and six failure cases pass at both stages.
 
 make verify-bootstrap-seed checks the seed without executing it.
-make bootstrap-from-seed writes both stages and a report under
-build/bootstrap/checked-seed. Linux runs the static tools directly. Windows
-uses WSL. Native contract runners, hosted development commands, and the
-90 remaining normal Cupid OS root objects still use a host compiler.
+make bootstrap-from-seed publishes both stages, behavior evidence, and a report
+under build/bootstrap/checked-seed only after the full gate passes. The output
+must start absent or empty. Linux runs the static tools directly. Windows uses
+WSL. Native contract runners, hosted development commands, and the 90 remaining
+normal Cupid OS root objects still use a host compiler.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

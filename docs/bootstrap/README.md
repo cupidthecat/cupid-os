@@ -40,6 +40,17 @@ The current checked artifacts are CupidASM at 433,060 bytes, CupidDis at 366,968
 
 The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,109,488-byte CupidC image carries exact static floating data, all six floating comparisons, decimal floating scalars, and C11 external inline finalization. Its SHA-256 is `39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e`, and its source revision is `7e7029637ef22a4f18c382ffb225fd6a2ea84b85`. CupidASM and CupidDis retain the shared immediate multiply family. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 90 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
 
+The checked-seed bootstrap copies the exact bytes of its 40 source inputs into
+a private compiler root before it starts either stage. CupidC receives that
+root through `--root`, and both stage directories and the behavior workspace
+stay below it. The harness rehashes the private closure and the live closure
+before stage two, after each stage, and after behavior checks. A temporary live
+edit that is restored during a compile cannot affect the captured input.
+Stage two, stage three, behavior evidence, and the report are published as one
+complete directory only after every gate succeeds. A failed run leaves an
+absent or empty output unchanged, and a nonempty output is rejected without
+modification. ADR 0142 records this trust boundary.
+
 The normal root build gives checked-seed CupidC ownership of 148 checked-in
 sources and the generated kernel symbol source. All 149 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux fixed

@@ -121,6 +121,12 @@ EXPECTED_LINKS = {
     ),
 }
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
+BOOTSTRAP_PUBLICATION_NAMES = (
+    "stage-two",
+    "stage-three",
+    "behavior",
+    "bootstrap-report.json",
+)
 WSL_PRIVATE_RUN_SCRIPT = (
     "umask 077; "
     'private="$(mktemp -d '
@@ -146,6 +152,12 @@ class SeedInputs:
     manifest: dict[str, object]
     manifest_sha256: str
     tools: dict[str, Path]
+
+
+@dataclass(frozen=True)
+class SourceInputs:
+    root: Path
+    inventory: dict[str, dict[str, object]]
 
 
 class ToolRunner:
@@ -357,6 +369,55 @@ def capture_source_snapshot(
     return inventory
 
 
+def freeze_source_inputs(
+    source_root: Path,
+    plan: dict[str, object],
+    snapshot_directory: Path,
+) -> SourceInputs:
+    """Copy one exact source closure into a private compiler root."""
+    if snapshot_directory.is_symlink():
+        raise BootstrapError("frozen source directory may not be a symlink")
+    if snapshot_directory.exists():
+        if not snapshot_directory.is_dir():
+            raise BootstrapError("frozen source path is not a directory")
+        if any(snapshot_directory.iterdir()):
+            raise BootstrapError("frozen source directory is not empty")
+    else:
+        snapshot_directory.mkdir(mode=0o700)
+    snapshot_directory.chmod(0o700)
+    snapshot_root = snapshot_directory.resolve()
+
+    inventory: dict[str, dict[str, object]] = {}
+    for name, path in sorted(_source_input_paths(source_root, plan).items()):
+        try:
+            data = path.read_bytes()
+        except OSError as error:
+            raise BootstrapError(
+                f"cannot read source input {name}: {error}"
+            ) from error
+        destination = snapshot_root / name
+        try:
+            destination.parent.mkdir(
+                mode=0o700, parents=True, exist_ok=True
+            )
+            destination.write_bytes(data)
+            destination.chmod(0o600)
+            frozen_data = destination.read_bytes()
+        except OSError as error:
+            raise BootstrapError(
+                f"cannot freeze source input {name}: {error}"
+            ) from error
+        if frozen_data != data:
+            raise BootstrapError(f"frozen source input differs: {name}")
+        inventory[name] = {
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "size": len(data),
+        }
+    frozen = SourceInputs(root=snapshot_root, inventory=inventory)
+    require_frozen_source_snapshot(frozen, plan)
+    return frozen
+
+
 def _source_snapshot_sha256(
     inventory: dict[str, dict[str, object]],
 ) -> str:
@@ -366,12 +427,12 @@ def _source_snapshot_sha256(
     return hashlib.sha256(encoded).hexdigest()
 
 
-def require_source_snapshot(
+def _require_source_snapshot(
     source_root: Path,
     plan: dict[str, object],
     expected: dict[str, dict[str, object]],
+    label: str,
 ) -> None:
-    """Reject a build whose active source inputs changed after capture."""
     current = capture_source_snapshot(source_root, plan)
     if current == expected:
         return
@@ -384,7 +445,41 @@ def require_source_snapshot(
     if len(changed) > 3:
         visible += f", and {len(changed) - 3} more"
     raise BootstrapError(
-        f"source inputs changed during bootstrap: {visible}"
+        f"{label} changed during bootstrap: {visible}"
+    )
+
+
+def require_source_snapshot(
+    source_root: Path,
+    plan: dict[str, object],
+    expected: dict[str, dict[str, object]],
+) -> None:
+    """Reject a build whose live source inputs changed after capture."""
+    _require_source_snapshot(source_root, plan, expected, "source inputs")
+
+
+def require_frozen_source_snapshot(
+    source_inputs: SourceInputs,
+    plan: dict[str, object],
+) -> None:
+    """Reject mutation of the private source closure."""
+    _require_source_snapshot(
+        source_inputs.root,
+        plan,
+        source_inputs.inventory,
+        "frozen source inputs",
+    )
+
+
+def require_source_closures(
+    source_inputs: SourceInputs,
+    live_source_root: Path,
+    plan: dict[str, object],
+) -> None:
+    """Rehash the private compiler root and the live source closure."""
+    require_frozen_source_snapshot(source_inputs, plan)
+    require_source_snapshot(
+        live_source_root, plan, source_inputs.inventory
     )
 
 
@@ -1518,6 +1613,88 @@ def _artifact_inventory(paths: dict[str, Path]) -> dict[str, object]:
     }
 
 
+def _require_bootstrap_output_available(output_root: Path) -> None:
+    if output_root.is_symlink():
+        raise BootstrapError("bootstrap output may not be a symlink")
+    if not output_root.exists():
+        return
+    if not output_root.is_dir():
+        raise BootstrapError("bootstrap output path is not a directory")
+    occupied = sorted(path.name for path in output_root.iterdir())
+    if occupied:
+        visible = ", ".join(occupied[:3])
+        if len(occupied) > 3:
+            visible += f", and {len(occupied) - 3} more"
+        raise BootstrapError(
+            f"bootstrap output directory is not empty: {visible}"
+        )
+
+
+def _require_complete_publication(publication_root: Path) -> None:
+    if publication_root.is_symlink() or not publication_root.is_dir():
+        raise BootstrapError("bootstrap publication is not a directory")
+    missing = [
+        name
+        for name in BOOTSTRAP_PUBLICATION_NAMES
+        if not (publication_root / name).exists()
+    ]
+    if missing:
+        raise BootstrapError(
+            "bootstrap publication is incomplete: " + ", ".join(missing)
+        )
+    for name in ("stage-two", "stage-three", "behavior"):
+        path = publication_root / name
+        if path.is_symlink() or not path.is_dir():
+            raise BootstrapError(
+                f"bootstrap publication directory is invalid: {name}"
+            )
+    report_path = publication_root / "bootstrap-report.json"
+    if report_path.is_symlink() or not report_path.is_file():
+        raise BootstrapError("bootstrap publication report is invalid")
+    unexpected = sorted(
+        path.name
+        for path in publication_root.iterdir()
+        if path.name not in BOOTSTRAP_PUBLICATION_NAMES
+    )
+    if unexpected:
+        raise BootstrapError(
+            "bootstrap publication contains unexpected entries: "
+            + ", ".join(unexpected)
+        )
+
+
+def publish_bootstrap_outputs(
+    publication_root: Path,
+    output_root: Path,
+) -> None:
+    """Publish one complete fixed-point evidence bundle."""
+    _require_complete_publication(publication_root)
+    output_root.parent.mkdir(parents=True, exist_ok=True)
+    _require_bootstrap_output_available(output_root)
+    restore_empty_output = output_root.exists()
+    if restore_empty_output:
+        try:
+            output_root.rmdir()
+        except OSError as error:
+            raise BootstrapError(
+                f"cannot prepare bootstrap output publication: {error}"
+            ) from error
+    try:
+        publication_root.replace(output_root)
+    except OSError as error:
+        if restore_empty_output and not output_root.exists():
+            try:
+                output_root.mkdir()
+            except OSError as restore_error:
+                raise BootstrapError(
+                    "cannot publish bootstrap output and cannot restore "
+                    f"its empty directory: {restore_error}"
+                ) from error
+        raise BootstrapError(
+            f"cannot publish bootstrap output: {error}"
+        ) from error
+
+
 def _bootstrap_from_frozen_seed(
     seed_inputs: SeedInputs,
     source_root: Path,
@@ -1527,115 +1704,136 @@ def _bootstrap_from_frozen_seed(
     manifest = seed_inputs.manifest
     plan = _require_object(manifest.get("build_plan"), "build_plan")
     source_root = source_root.resolve()
+    if output_root.is_symlink():
+        raise BootstrapError("bootstrap output may not be a symlink")
     output_root = output_root.resolve()
     if not (source_root / "toolchain").is_dir():
         raise BootstrapError(f"source root has no toolchain: {source_root}")
     _logical_path(source_root, output_root)
-    output_root.mkdir(parents=True, exist_ok=True)
-    stage_two_directory = output_root / "stage-two"
-    stage_three_directory = output_root / "stage-three"
-    behavior_directory = output_root / "behavior"
-    report_path = output_root / "bootstrap-report.json"
-    occupied = [
-        path
-        for path in (
-            stage_two_directory,
-            stage_three_directory,
-            behavior_directory,
-            report_path,
+    if output_root == source_root:
+        raise BootstrapError(
+            "bootstrap output may not replace the source root"
         )
-        if path.exists()
-    ]
-    if occupied:
-        names = ", ".join(path.name for path in occupied)
-        raise BootstrapError(f"bootstrap output already exists: {names}")
+    output_root.parent.mkdir(parents=True, exist_ok=True)
+    _require_bootstrap_output_available(output_root)
 
-    source_snapshot = capture_source_snapshot(source_root, plan)
-    source_snapshot_digest = _source_snapshot_sha256(source_snapshot)
-    runner = ToolRunner(source_root)
-    seed_producers = {
-        name: seed_tools[name] for name in PRODUCER_NAMES
-    }
-    stage_two = _build_stage(
-        runner,
-        source_root,
-        stage_two_directory,
-        seed_producers,
-        plan,
-        "stage two",
-    )
-    require_source_snapshot(source_root, plan, source_snapshot)
-    stage_two_producers = {
-        name: stage_two.tools[name] for name in PRODUCER_NAMES
-    }
-    stage_three = _build_stage(
-        runner,
-        source_root,
-        stage_three_directory,
-        stage_two_producers,
-        plan,
-        "stage three",
-    )
-    require_source_snapshot(source_root, plan, source_snapshot)
-    raw_sources = _require_list(plan.get("sources"), "build_plan.sources")
-    source_names = [
-        str(_require_object(source, "build source")["name"])
-        for source in raw_sources
-    ]
-    comparisons = _compare_stages(
-        stage_two, stage_three, source_names
-    )
-    behavior = _run_behavior_checks(
-        runner,
-        source_root,
-        output_root,
-        stage_two,
-        stage_three,
-    )
-    require_source_snapshot(source_root, plan, source_snapshot)
-    seed_matches_stage_two = {
-        name: seed_tools[name].read_bytes()
-        == stage_two.tools[name].read_bytes()
-        for name in TOOL_NAMES
-    }
-    report: dict[str, object] = {
-        "behavior": behavior,
-        "build_plan_sha256": manifest["build_plan_sha256"],
-        "comparisons": comparisons,
-        "initial_seed_matches_stage_two": seed_matches_stage_two,
-        "platform": runner.platform_name,
-        "schema": REPORT_SCHEMA,
-        "seed_manifest_sha256": seed_inputs.manifest_sha256,
-        "seed_source_revision": SEED_SOURCE_REVISION,
-        "source_inputs": {
-            "count": len(source_snapshot),
-            "files": source_snapshot,
-            "sha256": source_snapshot_digest,
-        },
-        "source_snapshot_sha256": source_snapshot_digest,
-        "stages": {
-            "stage-three": {
-                "objects": _artifact_inventory(stage_three.objects),
-                "producer_generation": "stage-two",
-                "tools": _artifact_inventory(stage_three.tools),
+    with tempfile.TemporaryDirectory(
+        prefix=f".{output_root.name}-private-",
+        dir=output_root.parent,
+    ) as temporary:
+        private_workspace = Path(temporary)
+        source_inputs = freeze_source_inputs(
+            source_root,
+            plan,
+            private_workspace / "source",
+        )
+        private_source_root = source_inputs.root
+        require_source_closures(source_inputs, source_root, plan)
+        source_snapshot = source_inputs.inventory
+        source_snapshot_digest = _source_snapshot_sha256(
+            source_snapshot
+        )
+        runner = ToolRunner(private_source_root)
+        seed_producers = {
+            name: seed_tools[name] for name in PRODUCER_NAMES
+        }
+        stage_two = _build_stage(
+            runner,
+            private_source_root,
+            private_source_root / "stage-two",
+            seed_producers,
+            plan,
+            "stage two",
+        )
+        require_source_closures(source_inputs, source_root, plan)
+        stage_two_producers = {
+            name: stage_two.tools[name] for name in PRODUCER_NAMES
+        }
+        stage_three = _build_stage(
+            runner,
+            private_source_root,
+            private_source_root / "stage-three",
+            stage_two_producers,
+            plan,
+            "stage three",
+        )
+        require_source_closures(source_inputs, source_root, plan)
+        raw_sources = _require_list(
+            plan.get("sources"), "build_plan.sources"
+        )
+        source_names = [
+            str(_require_object(source, "build source")["name"])
+            for source in raw_sources
+        ]
+        comparisons = _compare_stages(
+            stage_two, stage_three, source_names
+        )
+        behavior = _run_behavior_checks(
+            runner,
+            private_source_root,
+            private_source_root,
+            stage_two,
+            stage_three,
+        )
+        require_source_closures(source_inputs, source_root, plan)
+        seed_matches_stage_two = {
+            name: seed_tools[name].read_bytes()
+            == stage_two.tools[name].read_bytes()
+            for name in TOOL_NAMES
+        }
+        report: dict[str, object] = {
+            "behavior": behavior,
+            "build_plan_sha256": manifest["build_plan_sha256"],
+            "comparisons": comparisons,
+            "initial_seed_matches_stage_two": seed_matches_stage_two,
+            "platform": runner.platform_name,
+            "schema": REPORT_SCHEMA,
+            "seed_manifest_sha256": seed_inputs.manifest_sha256,
+            "seed_source_revision": SEED_SOURCE_REVISION,
+            "source_inputs": {
+                "count": len(source_snapshot),
+                "files": source_snapshot,
+                "sha256": source_snapshot_digest,
             },
-            "stage-two": {
-                "objects": _artifact_inventory(stage_two.objects),
-                "producer_generation": "checked-seed",
-                "tools": _artifact_inventory(stage_two.tools),
+            "source_snapshot_sha256": source_snapshot_digest,
+            "stages": {
+                "stage-three": {
+                    "objects": _artifact_inventory(
+                        stage_three.objects
+                    ),
+                    "producer_generation": "stage-two",
+                    "tools": _artifact_inventory(stage_three.tools),
+                },
+                "stage-two": {
+                    "objects": _artifact_inventory(stage_two.objects),
+                    "producer_generation": "checked-seed",
+                    "tools": _artifact_inventory(stage_two.tools),
+                },
             },
-        },
-        "status": "pass",
-        "target": EXPECTED_TARGET,
-    }
-    encoded_report = (
-        json.dumps(report, indent=2, sort_keys=True, ensure_ascii=True)
-        + "\n"
-    ).encode("ascii")
-    temporary_report = output_root / "bootstrap-report.json.tmp"
-    temporary_report.write_bytes(encoded_report)
-    temporary_report.replace(report_path)
-    return report
+            "status": "pass",
+            "target": EXPECTED_TARGET,
+        }
+        encoded_report = (
+            json.dumps(
+                report, indent=2, sort_keys=True, ensure_ascii=True
+            )
+            + "\n"
+        ).encode("ascii")
+        report_path = private_source_root / "bootstrap-report.json"
+        temporary_report = (
+            private_source_root / "bootstrap-report.json.tmp"
+        )
+        temporary_report.write_bytes(encoded_report)
+        temporary_report.replace(report_path)
+
+        publication_root = private_workspace / "publication"
+        publication_root.mkdir(mode=0o755)
+        for name in BOOTSTRAP_PUBLICATION_NAMES:
+            (private_source_root / name).replace(
+                publication_root / name
+            )
+        publish_bootstrap_outputs(publication_root, output_root)
+        return report
 
 
 def bootstrap_from_seed(

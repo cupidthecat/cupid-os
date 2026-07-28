@@ -121,10 +121,13 @@ useful failures.
 The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
 assembler image to the target ABI, source revision, producer lineage, source
 plan, and link order. The bootstrap freezes the verified manifest and binaries
-and includes link.ld in its 40-input source snapshot. Checked CupidASM
-assembles stage-two startup, then the stage-two assembler produces
-byte-identical stage-three startup. The complete seed build also compares all
-19 C objects and five linked tools and runs 21 behavior checks.
+and copies its 40-input source closure, including link.ld, into a private root.
+Checked CupidASM assembles stage-two startup there, then the stage-two
+assembler produces byte-identical stage-three startup below the same root.
+The harness checks both the private and live closures at each stage and
+behavior boundary. The complete seed build also compares all 19 C objects and
+five linked tools and runs 21 behavior checks. All evidence is published
+together only after the gate passes.
 
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static

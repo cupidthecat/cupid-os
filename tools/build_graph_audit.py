@@ -4486,9 +4486,11 @@ def _cupid_toolchain_fixed_point_contract(
 ) -> dict[str, object]:
     test_path = root / "tests" / "test_toolchain_cupidc_object.py"
     driver_path = root / "toolchain" / "cupidc_main.cc"
+    bootstrap_path = root / "tools" / "bootstrap_toolchain.py"
     try:
         test_source = test_path.read_text(encoding="utf-8")
         driver_source = driver_path.read_text(encoding="utf-8")
+        bootstrap_source = bootstrap_path.read_text(encoding="utf-8")
         test_tree = ast.parse(test_source, filename=str(test_path))
     except (OSError, SyntaxError) as exc:
         raise AuditError(
@@ -4756,6 +4758,45 @@ def _cupid_toolchain_fixed_point_contract(
             f"{missing_test_fragments!r}"
         )
 
+    required_bootstrap_fragments = (
+        "def freeze_source_inputs(",
+        "destination = snapshot_root / name",
+        "if frozen_data != data:",
+        "def require_source_closures(",
+        "require_frozen_source_snapshot(source_inputs, plan)",
+        "live_source_root, plan, source_inputs.inventory",
+        "source_inputs = freeze_source_inputs(",
+        "private_source_root = source_inputs.root",
+        "runner = ToolRunner(private_source_root)",
+        'private_source_root / "stage-two",',
+        'private_source_root / "stage-three",',
+        "behavior = _run_behavior_checks(\n"
+        "            runner,\n"
+        "            private_source_root,\n"
+        "            private_source_root,",
+        'report_path = private_source_root / "bootstrap-report.json"',
+        'publication_root = private_workspace / "publication"',
+        "for name in BOOTSTRAP_PUBLICATION_NAMES:",
+        "(private_source_root / name).replace(",
+        "publish_bootstrap_outputs(publication_root, output_root)",
+    )
+    missing_bootstrap_fragments = [
+        fragment
+        for fragment in required_bootstrap_fragments
+        if bootstrap_source.count(fragment) != 1
+    ]
+    boundary_fragment = (
+        "require_source_closures(source_inputs, source_root, plan)"
+    )
+    if (
+        missing_bootstrap_fragments
+        or bootstrap_source.count(boundary_fragment) != 4
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point source freeze differs: "
+            f"{missing_bootstrap_fragments!r}"
+        )
+
     return {
         "status": "pass",
         "platform": "i386-linux",
@@ -4797,6 +4838,9 @@ def _cupid_toolchain_fixed_point_contract(
         "success_behavior_cases": 10,
         "failure_behavior_cases": 6,
         "stages": ["generation-one", "stage-two", "stage-three"],
+        "checked_seed_source_root": "private-captured",
+        "checked_seed_source_boundary_checks": 4,
+        "checked_seed_publication": "complete-bundle",
     }
 
 

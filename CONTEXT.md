@@ -274,6 +274,10 @@ _Avoid_: oracle toolchain
 The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed is the stage-three output of a checked-seed bootstrap at revision `7e7029637ef22a4f18c382ffb225fd6a2ea84b85`. Its CupidC image is 2,109,488 bytes with SHA-256 `39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e`. It carries exact static floating data and all six floating comparisons. The seed also carries the shared immediate multiply family in CupidASM and CupidDis. With all normal host code-generator commands poisoned, all five seed images match stage two; all 19 stage-two C objects, startup, and five images then match stage three. Both stages pass all 21 tool behavior cases over the 40-input snapshot `230bffbf41d645e50b9944a179febd1d7920e1cfbc92b98e24a752d93192a7b8`. The recorded seed revision remains separate from a later live source snapshot.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
+**Frozen fixed-point source closure**:
+The exact 40 source inputs copied into one private compiler root before a checked-seed bootstrap runs. Both stages and their behavior checks consume that root. The harness rehashes the private and live closures at each boundary, then publishes the two stages, behavior evidence, and report as one complete directory only after every gate passes.
+_Avoid_: live source root, source hash alone, public staging directory
+
 **Bootstrap stage**:
 One toolchain generation produced by the preceding generation during a bootstrap.
 _Avoid_: build phase

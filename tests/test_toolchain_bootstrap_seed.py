@@ -7,12 +7,19 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.bootstrap_toolchain import (
     BootstrapError,
+    Stage,
+    ToolRunner,
     WSL_PRIVATE_RUN_SCRIPT,
+    bootstrap_from_seed,
     capture_source_snapshot,
+    freeze_source_inputs,
     freeze_seed_inputs,
+    publish_bootstrap_outputs,
+    require_frozen_source_snapshot,
     require_source_snapshot,
 )
 
@@ -29,6 +36,50 @@ SEED_MANIFEST = (
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def _write_tiny_source_root(
+        self, source_root: Path
+    ) -> tuple[dict[str, object], Path]:
+        toolchain = source_root / "toolchain"
+        include = toolchain / "hosted" / "i386-linux" / "include"
+        include.mkdir(parents=True)
+        source = toolchain / "tiny.cc"
+        source.write_text(
+            "int tiny(void) { return 1; }\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (toolchain / "tiny.h").write_text(
+            "int tiny(void);\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (include / "stddef.h").write_text(
+            "typedef unsigned int size_t;\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (toolchain / "hosted" / "i386-linux" / "start.asm").write_text(
+            "bits 32\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (source_root / "link.ld").write_text(
+            "SECTIONS {}\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        plan: dict[str, object] = {
+            "sources": [
+                {
+                    "gnu_extensions": False,
+                    "name": "tiny",
+                    "path": "/toolchain/tiny.cc",
+                }
+            ],
+            "startup": "/toolchain/hosted/i386-linux/start.asm",
+        }
+        return plan, source
+
     def test_changed_source_is_rejected_by_the_snapshot_guard(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-source-"
@@ -73,6 +124,280 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "^source inputs changed during bootstrap: link.ld$",
             ):
                 require_source_snapshot(source_root, plan, snapshot)
+
+    def test_frozen_compiler_root_survives_a_live_change_and_restore(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-source-freeze-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "live"
+            plan, source = self._write_tiny_source_root(source_root)
+            original = source.read_bytes()
+            frozen = freeze_source_inputs(
+                source_root, plan, root / "private"
+            )
+            seed = freeze_seed_inputs(
+                SEED_MANIFEST, root / "private-seed"
+            )
+
+            source.write_text(
+                "int tiny(void) { return 99; }\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            try:
+                changed_result = ToolRunner(source_root).run(
+                    seed.tools["cupidc"],
+                    [
+                        "--root",
+                        source_root,
+                        "-c",
+                        "/toolchain/tiny.cc",
+                        "-I",
+                        "/toolchain",
+                        "--include-angle",
+                        "/toolchain/hosted/i386-linux/include",
+                        "-o",
+                        "/changed.o",
+                    ],
+                    60,
+                )
+                compile_result = ToolRunner(frozen.root).run(
+                    seed.tools["cupidc"],
+                    [
+                        "--root",
+                        frozen.root,
+                        "-c",
+                        "/toolchain/tiny.cc",
+                        "-I",
+                        "/toolchain",
+                        "--include-angle",
+                        "/toolchain/hosted/i386-linux/include",
+                        "-o",
+                        "/tiny.o",
+                    ],
+                    60,
+                )
+            finally:
+                source.write_bytes(original)
+
+            self.assertEqual(
+                compile_result.returncode, 0, compile_result.stderr
+            )
+            self.assertEqual(
+                changed_result.returncode, 0, changed_result.stderr
+            )
+            self.assertEqual(compile_result.stdout, "")
+            self.assertEqual(compile_result.stderr, "")
+            self.assertEqual(
+                (frozen.root / "tiny.o").read_bytes()[:7],
+                b"\x7fELF\x01\x01\x01",
+            )
+            self.assertNotEqual(
+                (frozen.root / "tiny.o").read_bytes(),
+                (source_root / "changed.o").read_bytes(),
+            )
+            require_source_snapshot(
+                source_root, plan, frozen.inventory
+            )
+            require_frozen_source_snapshot(frozen, plan)
+
+    def test_private_source_mutation_is_rejected(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-private-mutation-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "live"
+            plan, _source = self._write_tiny_source_root(source_root)
+            frozen = freeze_source_inputs(
+                source_root, plan, root / "private"
+            )
+            (frozen.root / "link.ld").write_text(
+                "SECTIONS { . = 1; }\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^frozen source inputs changed during bootstrap: link.ld$",
+            ):
+                require_frozen_source_snapshot(frozen, plan)
+
+    def test_symlinked_source_input_is_rejected_before_freeze(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-source-link-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "live"
+            plan, source = self._write_tiny_source_root(source_root)
+            external = root / "external.cc"
+            external.write_text(
+                "int tiny(void) { return 7; }\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            source.unlink()
+            source.symlink_to(external)
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                r"^source input may not be a symlink: .*tiny\.cc$",
+            ):
+                freeze_source_inputs(
+                    source_root, plan, root / "private"
+                )
+
+    def test_incomplete_publication_never_exposes_a_partial_stage(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-publication-"
+        ) as temporary:
+            root = Path(temporary)
+            bundle = root / "bundle"
+            stage_two = bundle / "stage-two"
+            stage_two.mkdir(parents=True)
+            (stage_two / "marker").write_text("complete stage two")
+            output = root / "published"
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^bootstrap publication is incomplete: "
+                "stage-three, behavior, bootstrap-report.json$",
+            ):
+                publish_bootstrap_outputs(bundle, output)
+
+            self.assertFalse(output.exists())
+            self.assertEqual(
+                (stage_two / "marker").read_text(),
+                "complete stage two",
+            )
+
+    def test_publication_preserves_an_occupied_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-publication-"
+        ) as temporary:
+            root = Path(temporary)
+            bundle = root / "bundle"
+            for name in ("stage-two", "stage-three", "behavior"):
+                (bundle / name).mkdir(parents=True)
+            (bundle / "bootstrap-report.json").write_text("{}\n")
+            output = root / "published"
+            output.mkdir()
+            sentinel = output / "sentinel.txt"
+            sentinel.write_text("keep me")
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^bootstrap output directory is not empty: sentinel.txt$",
+            ):
+                publish_bootstrap_outputs(bundle, output)
+
+            self.assertEqual(sentinel.read_text(), "keep me")
+            self.assertTrue(bundle.is_dir())
+
+    def test_complete_publication_replaces_an_empty_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-publication-"
+        ) as temporary:
+            root = Path(temporary)
+            bundle = root / "bundle"
+            for name in ("stage-two", "stage-three", "behavior"):
+                (bundle / name).mkdir(parents=True)
+            (bundle / "bootstrap-report.json").write_text("{}\n")
+            output = root / "published"
+            output.mkdir()
+
+            publish_bootstrap_outputs(bundle, output)
+
+            self.assertFalse(bundle.exists())
+            self.assertEqual(
+                {path.name for path in output.iterdir()},
+                {
+                    "behavior",
+                    "bootstrap-report.json",
+                    "stage-three",
+                    "stage-two",
+                },
+            )
+
+    def test_failed_directory_replacement_restores_an_empty_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-publication-"
+        ) as temporary:
+            root = Path(temporary)
+            bundle = root / "bundle"
+            for name in ("stage-two", "stage-three", "behavior"):
+                (bundle / name).mkdir(parents=True)
+            (bundle / "bootstrap-report.json").write_text("{}\n")
+            output = root / "published"
+            output.mkdir()
+
+            with mock.patch.object(
+                Path, "replace", side_effect=OSError("publication blocked")
+            ):
+                with self.assertRaisesRegex(
+                    BootstrapError,
+                    "^cannot publish bootstrap output: "
+                    "publication blocked$",
+                ):
+                    publish_bootstrap_outputs(bundle, output)
+
+            self.assertTrue(bundle.is_dir())
+            self.assertTrue(output.is_dir())
+            self.assertEqual(list(output.iterdir()), [])
+
+    def test_failed_second_stage_keeps_completed_first_stage_private(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-bootstrap-stage-failure-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            root = Path(temporary)
+            output = root / "published"
+            output.mkdir()
+            private_stage_directories: list[Path] = []
+
+            def fail_after_first_stage(
+                _runner: ToolRunner,
+                _source_root: Path,
+                stage_directory: Path,
+                _producers: dict[str, Path],
+                _plan: dict[str, object],
+                stage_name: str,
+            ) -> Stage:
+                if stage_name == "stage three":
+                    raise BootstrapError("forced stage-three failure")
+                stage_directory.mkdir()
+                marker = stage_directory / "complete.marker"
+                marker.write_text("completed first stage")
+                private_stage_directories.append(stage_directory)
+                return Stage(
+                    objects={"marker": marker},
+                    tools={
+                        name: marker
+                        for name in ("cupidc", "cupidasm", "cupidld")
+                    },
+                )
+
+            with mock.patch(
+                "tools.bootstrap_toolchain._build_stage",
+                side_effect=fail_after_first_stage,
+            ):
+                with self.assertRaisesRegex(
+                    BootstrapError,
+                    "^forced stage-three failure$",
+                ):
+                    bootstrap_from_seed(
+                        SEED_MANIFEST, REPO_ROOT, output
+                    )
+
+            self.assertTrue(output.is_dir())
+            self.assertEqual(list(output.iterdir()), [])
+            self.assertEqual(
+                {path.name for path in root.iterdir()},
+                {"published"},
+            )
+            self.assertEqual(len(private_stage_directories), 1)
+            self.assertFalse(private_stage_directories[0].exists())
 
     def test_recomputed_digest_cannot_change_the_source_plan(self):
         original = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))

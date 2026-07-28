@@ -184,8 +184,12 @@ scripted linking, binary and canonical-text wrapping, executable flattening,
 help, and useful failures.
 
 The checked i386 Linux seed includes CupidASM and binds it to the complete
-toolchain build plan. Checked CupidASM assembles stage-two startup, and the
-stage-two assembler produces the byte-identical stage-three startup. See
+toolchain build plan. The bootstrap copies all 40 source inputs into a private
+root. Checked CupidASM assembles stage-two startup there, and the stage-two
+assembler produces the byte-identical stage-three startup below the same root.
+The private and live closures are checked after each stage and after behavior
+tests. Startup objects and the rest of the fixed-point evidence are published
+together only after the full gate passes. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
 The native oracle, contract runners, hosted development commands, and 90
 normal Cupid OS C root objects still use a host compiler. Native Windows

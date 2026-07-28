@@ -24,25 +24,32 @@ This command validates the seed without executing it.
 make bootstrap-from-seed
 ```
 
-The full command captures the hashes of all 40 current source inputs: 19 C
-sources, startup, 19 project headers, and `link.ld`. Checked CupidC compiles
-stage two, checked CupidASM assembles its startup, and checked CupidLD links all
-five tools. The stage-two producer trio repeats the build for stage three.
+The full command reads all 40 current source inputs once: 19 C sources,
+startup, 19 project headers, and `link.ld`. It copies those exact bytes into a
+private compiler root. Checked CupidC compiles stage two below that root,
+checked CupidASM assembles its startup, and checked CupidLD links all five
+tools. The stage-two producer trio repeats the build for stage three below the
+same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
 images. It also runs five help checks, ten successful operations, and six
 failure cases across compilation, assembly, disassembly, symbol inspection,
-linking, wrapping, and flattening. A source edit during either stage stops the
-build instead of publishing mixed evidence.
+linking, wrapping, and flattening. The harness rehashes both the private
+closure and the live closure before stage two, after each stage, and after the
+behavior suite. A live edit that is made and restored during a compile cannot
+change the captured compiler input.
 
 Before execution, the harness reads the manifest and each seed binary once. It
 verifies those captured bytes, keeps the manifest hash, and runs private copies
 of the five binaries. A later replacement of a checked-in file cannot change
 that run.
 
-The default output is `build/bootstrap/checked-seed/`. It contains both stages,
-the behavior fixtures, and `bootstrap-report.json`. The report keeps the
-historical seed source revision separate from the current source snapshot.
+The default output is `build/bootstrap/checked-seed/`. It must be absent or
+empty at the start. The harness keeps both stages, behavior fixtures, and the
+report private until every check succeeds, then publishes them as one complete
+directory. A nonempty output is rejected without modification. The report
+keeps the historical seed source revision separate from the captured source
+snapshot. ADR 0142 records this source and publication boundary.
 
 Linux runs private copies of the static tools directly. Windows stages each
 copy in a mode-0700 WSL directory created by `mktemp`. Native Windows seed

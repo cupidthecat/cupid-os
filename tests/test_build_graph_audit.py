@@ -3294,6 +3294,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         test = (
             REPO_ROOT / "tests" / "test_toolchain_cupidc_object.py"
         ).read_text(encoding="utf-8")
+        bootstrap = (
+            REPO_ROOT / "tools" / "bootstrap_toolchain.py"
+        ).read_text(encoding="utf-8")
         mutations = {
             "angle root widened": (
                 "driver",
@@ -3408,6 +3411,88 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "run_stage_pair(",
                 r"fixed-point staged comparison differs",
             ),
+            "checked source closure is not frozen": (
+                "bootstrap",
+                "        source_inputs = freeze_source_inputs(\n",
+                "        source_inputs = capture_source_inputs(\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked stage runs from the live root": (
+                "bootstrap",
+                "        runner = ToolRunner(private_source_root)\n",
+                "        runner = ToolRunner(source_root)\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked private root aliases the live root": (
+                "bootstrap",
+                "        private_source_root = source_inputs.root\n",
+                "        private_source_root = source_root\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked stage output leaves the private root": (
+                "bootstrap",
+                "            private_source_root / \"stage-two\",\n",
+                "            output_root / \"stage-two\",\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked closure boundary rehash disappears": (
+                "bootstrap",
+                "        require_source_closures("
+                "source_inputs, source_root, plan)\n",
+                "        require_source_snapshot(\n"
+                "            source_root, plan, source_inputs.inventory\n"
+                "        )\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked closure stops rehashing the private root": (
+                "bootstrap",
+                "    require_frozen_source_snapshot(source_inputs, plan)\n",
+                "    require_source_snapshot(\n"
+                "        live_source_root, plan, source_inputs.inventory\n"
+                "    )\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked behavior returns to the live root": (
+                "bootstrap",
+                "        behavior = _run_behavior_checks(\n"
+                "            runner,\n"
+                "            private_source_root,\n"
+                "            private_source_root,",
+                "        behavior = _run_behavior_checks(\n"
+                "            runner,\n"
+                "            source_root,\n"
+                "            private_source_root,",
+                r"fixed-point source freeze differs",
+            ),
+            "checked report leaves the private root": (
+                "bootstrap",
+                "        report_path = "
+                "private_source_root / \"bootstrap-report.json\"\n",
+                "        report_path = "
+                "output_root / \"bootstrap-report.json\"\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked bundle leaves the private workspace": (
+                "bootstrap",
+                "        publication_root = "
+                "private_workspace / \"publication\"\n",
+                "        publication_root = "
+                "output_root / \"publication\"\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked bundle moves public stage paths": (
+                "bootstrap",
+                "            (private_source_root / name).replace(\n",
+                "            (output_root / name).replace(\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked output bypasses gated publication": (
+                "bootstrap",
+                "        publish_bootstrap_outputs("
+                "publication_root, output_root)\n",
+                "        publication_root.replace(output_root)\n",
+                r"fixed-point source freeze differs",
+            ),
         }
         for name, (target_name, old, new, message) in mutations.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
@@ -3416,18 +3501,31 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 test_target = (
                     root / "tests" / "test_toolchain_cupidc_object.py"
                 )
+                bootstrap_target = (
+                    root / "tools" / "bootstrap_toolchain.py"
+                )
                 driver_target.parent.mkdir(parents=True)
                 test_target.parent.mkdir(parents=True)
+                bootstrap_target.parent.mkdir(parents=True)
                 driver_payload = driver
                 test_payload = test
+                bootstrap_payload = bootstrap
                 if target_name == "driver":
                     driver_payload = driver_payload.replace(old, new, 1)
                     self.assertNotEqual(driver_payload, driver)
-                else:
+                elif target_name == "test":
                     test_payload = test_payload.replace(old, new, 1)
                     self.assertNotEqual(test_payload, test)
+                else:
+                    bootstrap_payload = bootstrap_payload.replace(
+                        old, new, 1
+                    )
+                    self.assertNotEqual(bootstrap_payload, bootstrap)
                 driver_target.write_text(driver_payload, encoding="utf-8")
                 test_target.write_text(test_payload, encoding="utf-8")
+                bootstrap_target.write_text(
+                    bootstrap_payload, encoding="utf-8"
+                )
                 with self.assertRaisesRegex(module.AuditError, message):
                     module._cupid_toolchain_fixed_point_contract(root)
 
