@@ -57,9 +57,14 @@ typedef enum {
  * lowering must extend the same check. Explicit source assembly remains
  * under its own validated contract. */
 #define CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY 0x00000040u
+/* NAKED suppresses compiler-managed entry and return sequences. IR lowering
+ * and object emission accept only represented control-transfer assembly in
+ * the function body. */
+#define CTOOL_C_DECL_ATTR_NAKED 0x00000080u
 #define CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN                                \
   (CTOOL_C_DECL_ATTR_NOINLINE |                                           \
-   CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY)
+   CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY |                            \
+   CTOOL_C_DECL_ATTR_NAKED)
 #define CTOOL_C_DECL_ATTR_ALL                                                \
   (CTOOL_C_DECL_ATTR_NORETURN | CTOOL_C_DECL_ATTR_WEAK |                     \
    CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_UNUSED |                    \
@@ -286,6 +291,9 @@ typedef struct {
 typedef struct {
   ctool_string_t template_text;
   ctool_u32 flags;
+  /* Exact direct-call templates retain a one-based canonical function
+   * binding. Zero means that the template has no direct binding reference. */
+  ctool_u32 direct_call_binding_plus_one;
   /* Outputs precede inputs in this packed operand slice. */
   ctool_u32 first_operand;
   ctool_u32 output_count;
@@ -635,7 +643,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
  * arrays, prototypes, compatible file-scope redeclarations, composite array
  * and function types, C linkage, layout, and normalized GNU packed, aligned,
- * noreturn, weak, section, unused, used, noinline, and
+ * noreturn, weak, section, unused, used, noinline, naked, and
  * target("general-regs-only") attributes at their contracted placements.
  * Other attributes fail closed instead of being skipped. Type
  * compatibility uses checked iterative graph walks; the public nesting limit

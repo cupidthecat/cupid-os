@@ -165,6 +165,16 @@ Full unchanged `kernel/core/string.c` now reaches the separate
 double-to-`uint64_t` cast on line 190. The checked seed does not carry this
 increment, so the root remains host-owned and keeps its `.c` name.
 
+The same compiler head retains GNU `naked` and `__naked__` for the exact IPI
+entries in unchanged `kernel/smp/smp.c`. A naked definition must be
+`void (void)` and contain one complete wrapper or panic-loop assembly
+statement. The emitter adds no C frame or return instruction. Its direct call
+uses one typed `R_386_PC32` relocation, and the panic loop uses a local
+relative jump. Two exact-profile compiles reproduce an 8,444-byte object with
+SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The checked seed and normal ownership graph remain unchanged.
+
 The normal image has 149 checked CupidC C transforms: 148 checked-in sources
 and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386

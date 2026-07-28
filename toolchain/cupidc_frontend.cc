@@ -125,6 +125,8 @@ typedef struct {
   const ctool_c_pp_token_t *used_token;
   ctool_bool noinline;
   const ctool_c_pp_token_t *noinline_token;
+  ctool_bool naked;
+  const ctool_c_pp_token_t *naked_token;
   ctool_bool target_general_regs_only;
   const ctool_c_pp_token_t *target_token;
 } cfront_attributes_t;
@@ -4169,6 +4171,7 @@ static ctool_bool cfront_attributes_any(
                  attributes->unused == CTOOL_TRUE ||
                  attributes->used == CTOOL_TRUE ||
                  attributes->noinline == CTOOL_TRUE ||
+                 attributes->naked == CTOOL_TRUE ||
                  attributes->target_general_regs_only == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
@@ -4196,6 +4199,9 @@ static const ctool_c_pp_token_t *cfront_first_attribute_token(
   }
   if (attributes->noinline_token != (const ctool_c_pp_token_t *)0) {
     return attributes->noinline_token;
+  }
+  if (attributes->naked_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->naked_token;
   }
   if (attributes->target_token != (const ctool_c_pp_token_t *)0) {
     return attributes->target_token;
@@ -4240,6 +4246,12 @@ static ctool_status_t cfront_validate_record_attributes(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
         attributes->noinline_token,
         "noinline attribute cannot apply to a record type");
+  }
+  if (attributes->naked == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->naked_token,
+        "naked attribute cannot apply to a record type");
   }
   if (attributes->target_general_regs_only == CTOOL_TRUE) {
     return cfront_emit_failure(
@@ -4599,6 +4611,24 @@ static ctool_status_t cfront_parse_attributes(
                 context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
                 cfront_peek(context),
                 "noinline attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "naked") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__naked__") == CTOOL_TRUE) {
+        attributes->naked = CTOOL_TRUE;
+        if (attributes->naked_token ==
+            (const ctool_c_pp_token_t *)0) {
+          attributes->naked_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "naked attribute does not accept arguments");
           }
           (void)cfront_advance(context);
         }
@@ -6373,6 +6403,12 @@ static ctool_status_t cfront_parse_member_declaration(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
           declarator_attributes.noinline_token,
           "noinline attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.naked == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.naked_token,
+          "naked attribute cannot apply to a record member");
     }
     if (declarator_attributes.target_general_regs_only == CTOOL_TRUE) {
       return cfront_emit_failure(
@@ -13592,6 +13628,106 @@ static ctool_bool cfront_assembly_template_starts_call(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cfront_identifier_first_character(char character) {
+  return (character >= 'a' && character <= 'z') ||
+                 (character >= 'A' && character <= 'Z') ||
+                 character == '_'
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_identifier_character(char character) {
+  return cfront_identifier_first_character(character) == CTOOL_TRUE ||
+                 (character >= '0' && character <= '9')
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_naked_ipi_wrapper_template(
+    ctool_string_t template_text, ctool_string_t *callee_out) {
+  static const char prefix[] = "pushal\ncall ";
+  static const char suffix[] = "\npopal\niret\n";
+  const ctool_u32 prefix_size = (ctool_u32)sizeof(prefix) - 1u;
+  const ctool_u32 suffix_size = (ctool_u32)sizeof(suffix) - 1u;
+  ctool_u32 callee_size;
+  ctool_u32 index;
+  if (template_text.data == (const char *)0 ||
+      template_text.size <= prefix_size + suffix_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < prefix_size; index++) {
+    if (template_text.data[index] != prefix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (template_text.data[template_text.size - suffix_size + index] !=
+        suffix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  callee_size = template_text.size - prefix_size - suffix_size;
+  if (cfront_identifier_first_character(
+          template_text.data[prefix_size]) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  for (index = 1u; index < callee_size; index++) {
+    if (cfront_identifier_character(
+            template_text.data[prefix_size + index]) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  if (callee_out != (ctool_string_t *)0) {
+    callee_out->data = template_text.data + prefix_size;
+    callee_out->size = callee_size;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cfront_naked_panic_template(
+    ctool_string_t template_text) {
+  return cfront_string_literal(
+      template_text, "cli\n1: hlt\njmp 1b\n");
+}
+
+static ctool_status_t cfront_validate_naked_control_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    ctool_c_assembly_t *assembly) {
+  ctool_string_t callee = {0};
+  ctool_c_binding_t binding;
+  ctool_u32 binding_index = CTOOL_C_AST_NONE;
+  ctool_bool wrapper =
+      cfront_naked_ipi_wrapper_template(assembly->template_text, &callee);
+  ctool_bool panic =
+      cfront_naked_panic_template(assembly->template_text);
+  if (wrapper == CTOOL_FALSE && panic == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+      assembly->output_count != 0u || assembly->input_count != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU naked control assembly requires volatile basic assembly "
+        "without operands");
+  }
+  if (panic == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  if (cfront_find_file_binding_index(
+          context, callee, &binding, &binding_index) == CTOOL_FALSE ||
+      binding.kind != CTOOL_C_BINDING_FUNCTION ||
+      binding_index == CTOOL_C_AST_NONE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU naked IPI wrapper call requires a declared file-scope "
+        "function");
+  }
+  assembly->direct_call_binding_plus_one = binding_index + 1u;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_validate_fxsave_assembly(
     cfront_context_t *context, const ctool_c_pp_token_t *keyword,
     const ctool_c_assembly_t *assembly) {
@@ -14425,6 +14561,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_state_memory_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_naked_control_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
@@ -20005,6 +20145,15 @@ static ctool_status_t cfront_parse_external_declaration(
       }
       binding_semantics.attributes |= CTOOL_C_DECL_ATTR_NOINLINE;
     }
+    if (declarator_attributes.naked == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.naked_token,
+            "naked attribute requires a file-scope function");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_NAKED;
+    }
     if (declarator_attributes.target_general_regs_only == CTOOL_TRUE) {
       if (kind != CTOOL_C_BINDING_FUNCTION) {
         return cfront_emit_failure(
@@ -21169,12 +21318,34 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     ctool_u32 operand_cursor = 0u;
     for (index = 0u; index < context->assemblies.count; index++) {
       const ctool_c_assembly_t *assembly = &assemblies[index];
+      ctool_string_t direct_callee = {0};
+      ctool_bool direct_wrapper = cfront_naked_ipi_wrapper_template(
+          assembly->template_text, &direct_callee);
+      ctool_bool direct_binding_valid = CTOOL_TRUE;
       ctool_u32 operand_offset;
+      if (direct_wrapper == CTOOL_TRUE) {
+        if (assembly->direct_call_binding_plus_one == 0u ||
+            assembly->direct_call_binding_plus_one >
+                context->bindings.count) {
+          direct_binding_valid = CTOOL_FALSE;
+        } else {
+          const ctool_c_binding_t *direct_binding =
+              &bindings[assembly->direct_call_binding_plus_one - 1u];
+          if (direct_binding->kind != CTOOL_C_BINDING_FUNCTION ||
+              cfront_string_equal(
+                  direct_binding->name, direct_callee) == CTOOL_FALSE) {
+            direct_binding_valid = CTOOL_FALSE;
+          }
+        }
+      } else if (assembly->direct_call_binding_plus_one != 0u) {
+        direct_binding_valid = CTOOL_FALSE;
+      }
       if ((assembly->flags &
            ~(CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_BASIC |
              CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
              CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
              CTOOL_C_ASSEMBLY_AX_CLOBBER)) != 0u ||
+          direct_binding_valid == CTOOL_FALSE ||
           (assembly->template_text.data == (const char *)0 &&
            assembly->template_text.size != 0u) ||
           assembly->first_operand != operand_cursor ||

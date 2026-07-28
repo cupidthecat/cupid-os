@@ -389,6 +389,110 @@ static ctool_bool cir_assembly_template_starts_call(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cir_identifier_first_character(char character) {
+  return (character >= 'a' && character <= 'z') ||
+                 (character >= 'A' && character <= 'Z') ||
+                 character == '_'
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_identifier_character(char character) {
+  return cir_identifier_first_character(character) == CTOOL_TRUE ||
+                 (character >= '0' && character <= '9')
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_naked_ipi_wrapper_template(
+    ctool_string_t template_text, ctool_string_t *callee_out) {
+  static const char prefix[] = "pushal\ncall ";
+  static const char suffix[] = "\npopal\niret\n";
+  const ctool_u32 prefix_size = (ctool_u32)sizeof(prefix) - 1u;
+  const ctool_u32 suffix_size = (ctool_u32)sizeof(suffix) - 1u;
+  ctool_u32 callee_size;
+  ctool_u32 index;
+  if (template_text.data == (const char *)0 ||
+      template_text.size <= prefix_size + suffix_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < prefix_size; index++) {
+    if (template_text.data[index] != prefix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (template_text.data[template_text.size - suffix_size + index] !=
+        suffix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  callee_size = template_text.size - prefix_size - suffix_size;
+  if (cir_identifier_first_character(
+          template_text.data[prefix_size]) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  for (index = 1u; index < callee_size; index++) {
+    if (cir_identifier_character(
+            template_text.data[prefix_size + index]) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  if (callee_out != (ctool_string_t *)0) {
+    callee_out->data = template_text.data + prefix_size;
+    callee_out->size = callee_size;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cir_naked_panic_template(
+    ctool_string_t template_text) {
+  return cir_string_equal(
+      template_text, ctool_string("cli\n1: hlt\njmp 1b\n"));
+}
+
+static ctool_bool cir_naked_control_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  ctool_string_t callee = {0};
+  ctool_bool wrapper =
+      cir_naked_ipi_wrapper_template(assembly->template_text, &callee);
+  ctool_bool panic =
+      cir_naked_panic_template(assembly->template_text);
+  if (wrapper == CTOOL_FALSE && panic == CTOOL_FALSE) {
+    return assembly->direct_call_binding_plus_one == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+      assembly->output_count != 0u || assembly->input_count != 0u) {
+    return CTOOL_FALSE;
+  }
+  if (panic == CTOOL_TRUE) {
+    return assembly->direct_call_binding_plus_one == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (assembly->direct_call_binding_plus_one == 0u ||
+      assembly->direct_call_binding_plus_one >
+          context->unit->binding_count ||
+      context->unit->bindings ==
+          (const ctool_c_binding_t *)0) {
+    return CTOOL_FALSE;
+  }
+  {
+    const ctool_c_binding_t *binding =
+        &context->unit->bindings[
+            assembly->direct_call_binding_plus_one - 1u];
+    return binding->kind == CTOOL_C_BINDING_FUNCTION &&
+                   binding->file_scope_visible == CTOOL_TRUE &&
+                   cir_string_equal(binding->name, callee) == CTOOL_TRUE
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+}
+
 static ctool_bool cir_call_next_output_type_is_valid(
     const cir_context_t *context, ctool_u32 type) {
   const ctool_c_type_layout_t *layout;
@@ -1190,6 +1294,10 @@ static ctool_status_t cir_validate_assembly_slices(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
+    if (cir_naked_control_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
     operand_cursor += operand_count;
   }
   return operand_cursor == context->unit->assembly_operand_count
@@ -1379,6 +1487,10 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
         (candidate->attributes & CTOOL_C_DECL_ATTR_NOINLINE) != 0u
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool naked =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_NAKED) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool general_regs_only =
         (candidate->attributes &
          CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) != 0u
@@ -1442,7 +1554,7 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
           candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
         (used == CTOOL_TRUE &&
          candidate->file_scope_visible == CTOOL_FALSE) ||
-        ((noinline == CTOOL_TRUE ||
+        ((noinline == CTOOL_TRUE || naked == CTOOL_TRUE ||
           general_regs_only == CTOOL_TRUE) &&
          (candidate->kind != CTOOL_C_BINDING_FUNCTION ||
           candidate->type >= unit->graph.type_count ||
@@ -11688,6 +11800,120 @@ static ctool_status_t cir_validate_general_regs_only_codegen(
   return CTOOL_OK;
 }
 
+static ctool_bool cir_assembly_is_naked_control(
+    const ctool_c_assembly_t *assembly) {
+  return cir_naked_ipi_wrapper_template(
+             assembly->template_text, (ctool_string_t *)0) == CTOOL_TRUE ||
+                 cir_naked_panic_template(
+                     assembly->template_text) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cir_validate_naked_source(
+    cir_context_t *context,
+    const ctool_c_function_definition_t *definition,
+    const ctool_c_binding_t *binding,
+    const ctool_c_type_node_t *function_type) {
+  const ctool_c_statement_t *body;
+  const ctool_c_statement_t *statement;
+  ctool_u32 statement_index;
+  if ((binding->attributes & CTOOL_C_DECL_ATTR_NAKED) == 0u) {
+    return CTOOL_OK;
+  }
+  if (function_type->has_prototype == CTOOL_FALSE ||
+      function_type->parameter_count != 0u ||
+      function_type->variadic == CTOOL_TRUE ||
+      cir_type_is_void(
+          context, function_type->referenced_type) == CTOOL_FALSE) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+        &definition->location,
+        "naked function requires a non-variadic void(void) prototype");
+  }
+  body = &context->unit->statements[definition->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->first_child > context->unit->statement_child_count ||
+      body->child_count >
+          context->unit->statement_child_count - body->first_child) {
+    return cir_invalid_unit(context, &definition->location);
+  }
+  if (body->child_count != 1u) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, &body->location,
+        "naked function requires one represented control-transfer assembly "
+        "statement");
+  }
+  statement_index =
+      context->unit->statement_children[body->first_child];
+  if (statement_index >= context->unit->statement_count) {
+    return cir_invalid_unit(context, &body->location);
+  }
+  statement = &context->unit->statements[statement_index];
+  if (statement->kind != CTOOL_C_STATEMENT_ASSEMBLY ||
+      statement->assembly >= context->unit->assembly_count ||
+      cir_assembly_is_naked_control(
+          &context->unit->assemblies[statement->assembly]) == CTOOL_FALSE) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, &statement->location,
+        "naked function requires one represented control-transfer assembly "
+        "statement");
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cir_validate_naked_codegen(
+    cir_context_t *context,
+    const ctool_c_function_definition_t *definition,
+    const ctool_c_binding_t *binding) {
+  ctool_u32 instruction_index;
+  if (context->instructions == (ctool_c_ir_instruction_t *)0) {
+    return CTOOL_OK;
+  }
+  if ((binding->attributes & CTOOL_C_DECL_ATTR_NAKED) == 0u) {
+    for (instruction_index = context->function_first_instruction;
+         instruction_index < context->instruction_count;
+         instruction_index++) {
+      const ctool_c_ir_instruction_t *instruction =
+          &context->instructions[instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY &&
+          instruction->reference < context->unit->assembly_count &&
+          cir_assembly_is_naked_control(
+              &context->unit->assemblies[instruction->reference]) ==
+              CTOOL_TRUE) {
+        return cir_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+            &instruction->location,
+            "naked control-transfer assembly requires a naked function");
+      }
+    }
+    return CTOOL_OK;
+  }
+  if (context->instruction_count -
+              context->function_first_instruction !=
+          2u ||
+      context->maximum_stack_depth != 0u ||
+      context->instructions[context->function_first_instruction].kind !=
+          CTOOL_C_IR_INSTRUCTION_ASSEMBLY ||
+      context->instructions[context->function_first_instruction].reference >=
+          context->unit->assembly_count ||
+      cir_assembly_is_naked_control(
+          &context->unit->assemblies[
+              context->instructions[context->function_first_instruction]
+                  .reference]) == CTOOL_FALSE ||
+      context->instructions[context->function_first_instruction + 1u].kind !=
+          CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    return cir_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, &definition->location,
+        "naked function cannot contain compiler-managed work");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_lower_function(
     cir_context_t *context, ctool_u32 function_index) {
   const ctool_c_function_definition_t *definition =
@@ -11750,6 +11976,11 @@ static ctool_status_t cir_lower_function(
         &definition->location,
         "CupidC IR lowering supports old-style definitions only when their "
         "identifier list is empty");
+  }
+  status = cir_validate_naked_source(
+      context, definition, binding, function_type);
+  if (status != CTOOL_OK) {
+    return status;
   }
   if (cir_type_is_void(context, function_type->referenced_type) ==
           CTOOL_FALSE &&
@@ -11837,6 +12068,10 @@ static ctool_status_t cir_lower_function(
   if (status == CTOOL_OK) {
     status = cir_validate_general_regs_only_codegen(
         context, binding, &definition->location);
+  }
+  if (status == CTOOL_OK) {
+    status = cir_validate_naked_codegen(
+        context, definition, binding);
   }
   if (status != CTOOL_OK) {
     return status;

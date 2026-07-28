@@ -27652,20 +27652,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 232u, 265u, 380u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 240u, 272u, 385u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 447293u, 424243u, 788449u, 139646u, 70368u, 80478u,
+      190304u, 454453u, 432955u, 790654u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 478920u, 462568u, 931880u, 157828u, 79348u, 134656u,
+      226668u, 487272u, 472060u, 935340u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x1d982ce6u, 0x242361d9u, 0xaf2efc96u, 0x239f52c7u,
+      0xd96ad67eu, 0xfb6e6dfeu, 0x54751273u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -36550,6 +36550,299 @@ cleanup:
   return 1;
 }
 
+static int validate_naked_function_decoding(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    const ctool_x86_mnemonic_t *expected,
+    ctool_u32 expected_count) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 instruction = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      expected == NULL || expected_count == 0u ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u || instruction >= expected_count ||
+        decoded.instruction.mnemonic != expected[instruction]) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL ||
+        decoded.instruction.mnemonic == CTOOL_X86_MN_JMP) {
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_RELATIVE ||
+          decoded.consumed != 5u) {
+        return 0;
+      }
+    } else if (decoded.instruction.operand_count != 0u ||
+               decoded.consumed != 1u) {
+      return 0;
+    }
+    instruction++;
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && instruction == expected_count ? 1 : 0;
+}
+
+static int validate_naked_functions_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 wrapper_bytes[] = {
+      0x60u, 0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0x61u, 0xcfu};
+  static const ctool_u8 panic_bytes[] = {
+      0xfau, 0xf4u, 0xe9u, 0xfau, 0xffu, 0xffu, 0xffu};
+  static const ctool_x86_mnemonic_t wrapper_instructions[] = {
+      CTOOL_X86_MN_PUSHA, CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_POPA, CTOOL_X86_MN_IRET};
+  static const ctool_x86_mnemonic_t panic_instructions[] = {
+      CTOOL_X86_MN_CLI, CTOOL_X86_MN_HLT, CTOOL_X86_MN_JMP};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *handler =
+      find_symbol(object, "ipi_handler");
+  const ctool_elf32_symbol_t *wrapper =
+      find_symbol(object, "wrapper");
+  const ctool_elf32_symbol_t *panic =
+      find_symbol(object, "panic");
+  const ctool_elf32_relocation_t *relocation =
+      object->relocation_count == 1u ? &object->relocations[0] : NULL;
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size !=
+          (ctool_u32)(sizeof(wrapper_bytes) + sizeof(panic_bytes)) ||
+      handler == NULL || wrapper == NULL || panic == NULL ||
+      handler->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      handler->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      handler->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      wrapper->binding != CTOOL_ELF32_BIND_LOCAL ||
+      wrapper->section_file_index != text->file_index ||
+      wrapper->value != 0u ||
+      wrapper->size != (ctool_u32)sizeof(wrapper_bytes) ||
+      panic->binding != CTOOL_ELF32_BIND_LOCAL ||
+      panic->section_file_index != text->file_index ||
+      panic->value != (ctool_u32)sizeof(wrapper_bytes) ||
+      panic->size != (ctool_u32)sizeof(panic_bytes) ||
+      memcmp(text->contents.data + wrapper->value, wrapper_bytes,
+             sizeof(wrapper_bytes)) != 0 ||
+      memcmp(text->contents.data + panic->value, panic_bytes,
+             sizeof(panic_bytes)) != 0 ||
+      relocation == NULL ||
+      relocation->target_section_file_index != text->file_index ||
+      relocation->offset != wrapper->value + 2u ||
+      relocation->symbol_file_index != handler->file_index ||
+      relocation->type != CTOOL_ELF32_R_386_PC32 ||
+      relocation->addend_known != CTOOL_TRUE ||
+      relocation->addend != -4 ||
+      !validate_naked_function_decoding(
+          job, text, wrapper, wrapper_instructions,
+          (ctool_u32)(sizeof(wrapper_instructions) /
+                      sizeof(wrapper_instructions[0]))) ||
+      !validate_naked_function_decoding(
+          job, text, panic, panic_instructions,
+          (ctool_u32)(sizeof(panic_instructions) /
+                      sizeof(panic_instructions[0])))) {
+    (void)fprintf(stderr, "naked function ELF, bytes, or ABI differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_naked_functions_object(const char *host_root) {
+  static const char source[] =
+      "typedef int scalar_t;\n"
+      "void ipi_handler(void);\n"
+      "__attribute__((naked)) static void wrapper(void) {\n"
+      "  __asm__ volatile(\"pushal\\ncall ipi_handler\\npopal\\niret\\n\");\n"
+      "}\n"
+      "__attribute__((naked)) static void panic(void) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_binding_t *mutant_bindings = NULL;
+  ctool_c_assembly_t *mutant_assemblies = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 scalar = CTOOL_C_AST_NONE;
+  ctool_u32 handler = CTOOL_C_AST_NONE;
+  ctool_u32 wrapper = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/naked-functions-object.c", source, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 0u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "naked function object setup failed\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "scalar_t") != 0) {
+      scalar = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "ipi_handler") != 0) {
+      handler = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "wrapper") != 0) {
+      wrapper = index;
+    }
+  }
+  if (scalar >= unit.binding_count || handler >= unit.binding_count ||
+      wrapper >= unit.binding_count ||
+      unit.assemblies[0].direct_call_binding_plus_one != handler + 1u) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "naked function object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first naked function object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat naked function object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size == 0u ||
+      first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "naked function object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/naked-functions-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read naked function object") ||
+      !validate_naked_functions_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*mutant_bindings) >
+          SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  mutant_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*mutant_bindings));
+  mutant_assemblies = (ctool_c_assembly_t *)malloc(
+      (size_t)unit.assembly_count * sizeof(*mutant_assemblies));
+  if (mutant_bindings == NULL || mutant_assemblies == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  mutant.assemblies = mutant_assemblies;
+  (void)memcpy(mutant_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*mutant_bindings));
+  (void)memcpy(mutant_assemblies, unit.assemblies,
+               (size_t)unit.assembly_count * sizeof(*mutant_assemblies));
+
+  mutant_bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_NAKED;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "naked attribute forged onto a typedef") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*mutant_bindings));
+  mutant_bindings[wrapper].attributes &= ~CTOOL_C_DECL_ATTR_NAKED;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT,
+          "naked control-transfer assembly requires a naked function",
+          "naked control bytes without naked metadata") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*mutant_bindings));
+  mutant_assemblies[0].direct_call_binding_plus_one = wrapper + 1u;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "forged naked direct-call object metadata") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_assemblies, unit.assemblies,
+               (size_t)unit.assembly_count * sizeof(*mutant_assemblies));
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "naked function object recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_assemblies);
+  free(mutant_bindings);
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("naked-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int operand_free_assembly_is_target(
     ctool_x86_mnemonic_t mnemonic) {
   return mnemonic == CTOOL_X86_MN_PAUSE ||
@@ -38356,6 +38649,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "call-next-assembly") == 0) {
     return run_call_next_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "naked-functions") == 0) {
+    return run_naked_functions_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly_object(argv[2]);
   }
@@ -38467,6 +38763,7 @@ int main(int argc, char **argv) {
                 "atomic-builtins|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
+                "naked-functions|"
                 "pointer-output-assembly|"
                 "operand-free-assembly|file-scope-assembly|"
                 "structure-values|call-alignment|"

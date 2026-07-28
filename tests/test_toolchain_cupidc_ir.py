@@ -100,6 +100,16 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
             result.stdout, "function-codegen-attributes: ok\n"
         )
 
+    def test_naked_functions_lower_only_typed_ipi_control_assembly(self):
+        result = subprocess.run(
+            [str(self.contract_path), "naked-functions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "naked-functions: ok\n")
+
     def test_weak_attributes_require_external_object_or_function_bindings(self):
         result = subprocess.run(
             [str(self.contract_path), "weak-attributes", str(REPO_ROOT)],

@@ -136,7 +136,8 @@ typedef struct {
 typedef struct {
   ctool_u32 binding;
   ctool_u32 declared_type;
-  /* Canonical noinline and target policy retained for later IR consumers. */
+  /* Canonical noinline, target, and naked policy retained for later IR
+   * consumers. */
   ctool_u32 function_codegen_attributes;
   /* Decoded section override copied from the canonical function binding.
    * An ordinary function owns an empty string. */

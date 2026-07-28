@@ -35523,6 +35523,252 @@ cleanup:
   return 1;
 }
 
+static int run_naked_functions(const char *host_root) {
+  static const char source[] =
+      "void ipi_handler(void);\n"
+      "__attribute__((naked)) static void wrapper(void) {\n"
+      "  __asm__ volatile(\"pushal\\ncall ipi_handler\\npopal\\niret\\n\");\n"
+      "}\n"
+      "__attribute__((naked)) static void panic(void) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  static const char managed_source[] =
+      "__attribute__((naked)) static void bad(void) { ; }\n";
+  static const char result_source[] =
+      "__attribute__((naked)) static int bad(void) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  static const char parameter_source[] =
+      "__attribute__((naked)) static void bad(int value) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  static const char variadic_source[] =
+      "__attribute__((naked)) static void bad(int value, ...) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  static const char old_style_source[] =
+      "__attribute__((naked)) static void bad() {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  static const char extra_source[] =
+      "__attribute__((naked)) static void bad(void) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "  ;\n"
+      "}\n";
+  static const char ordinary_source[] =
+      "void ipi_handler(void);\n"
+      "static void bad(void) {\n"
+      "  __asm__ volatile(\"pushal\\ncall ipi_handler\\npopal\\niret\\n\");\n"
+      "}\n";
+  static const char invalid_unit_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  static const char managed_message[] =
+      "naked function requires one represented control-transfer assembly "
+      "statement";
+  static const char result_message[] =
+      "naked function requires a non-variadic void(void) prototype";
+  static const char ordinary_message[] =
+      "naked control-transfer assembly requires a naked function";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t managed_unit;
+  ctool_c_translation_unit_t result_unit;
+  ctool_c_translation_unit_t parameter_unit;
+  ctool_c_translation_unit_t variadic_unit;
+  ctool_c_translation_unit_t old_style_unit;
+  ctool_c_translation_unit_t extra_unit;
+  ctool_c_translation_unit_t ordinary_unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeated_ir;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_c_assembly_t *assemblies = NULL;
+  ctool_u32 handler;
+  ctool_u32 wrapper;
+  ctool_u32 panic;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/naked-functions-ir.c", source, CTOOL_TRUE, &unit) ||
+      !parse_source_mode(
+          job, "/naked-managed-ir.c", managed_source, CTOOL_TRUE,
+          &managed_unit) ||
+      !parse_source_mode(
+          job, "/naked-result-ir.c", result_source, CTOOL_TRUE,
+          &result_unit) ||
+      !parse_source_mode(
+          job, "/naked-parameter-ir.c", parameter_source, CTOOL_TRUE,
+          &parameter_unit) ||
+      !parse_source_mode(
+          job, "/naked-variadic-ir.c", variadic_source, CTOOL_TRUE,
+          &variadic_unit) ||
+      !parse_source_mode(
+          job, "/naked-old-style-ir.c", old_style_source, CTOOL_TRUE,
+          &old_style_unit) ||
+      !parse_source_mode(
+          job, "/naked-extra-ir.c", extra_source, CTOOL_TRUE,
+          &extra_unit) ||
+      !parse_source_mode(
+          job, "/ordinary-control-ir.c", ordinary_source, CTOOL_TRUE,
+          &ordinary_unit)) {
+    goto cleanup;
+  }
+  handler = find_binding(&unit, "ipi_handler");
+  wrapper = find_binding(&unit, "wrapper");
+  panic = find_binding(&unit, "panic");
+  if (handler >= unit.binding_count || wrapper >= unit.binding_count ||
+      panic >= unit.binding_count ||
+      unit.bindings[wrapper].attributes != CTOOL_C_DECL_ATTR_NAKED ||
+      unit.bindings[panic].attributes != CTOOL_C_DECL_ATTR_NAKED ||
+      unit.assembly_count != 2u || unit.assemblies == NULL ||
+      unit.assemblies[0].direct_call_binding_plus_one != handler + 1u ||
+      unit.assemblies[1].direct_call_binding_plus_one != 0u) {
+    (void)fprintf(stderr, "naked function IR fixture differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "naked function lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      ir.function_count != 2u || ir.functions == NULL ||
+      ir.instruction_count != 4u || ir.instructions == NULL ||
+      ir.functions[0].binding != wrapper ||
+      ir.functions[0].function_codegen_attributes !=
+          CTOOL_C_DECL_ATTR_NAKED ||
+      ir.functions[0].first_instruction != 0u ||
+      ir.functions[0].instruction_count != 2u ||
+      ir.functions[0].maximum_stack_depth != 0u ||
+      ir.instructions[0].kind != CTOOL_C_IR_INSTRUCTION_ASSEMBLY ||
+      ir.instructions[0].reference != 0u ||
+      ir.instructions[1].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      ir.functions[1].binding != panic ||
+      ir.functions[1].function_codegen_attributes !=
+          CTOOL_C_DECL_ATTR_NAKED ||
+      ir.functions[1].first_instruction != 2u ||
+      ir.functions[1].instruction_count != 2u ||
+      ir.functions[1].maximum_stack_depth != 0u ||
+      ir.instructions[2].kind != CTOOL_C_IR_INSTRUCTION_ASSEMBLY ||
+      ir.instructions[2].reference != 1u ||
+      ir.instructions[3].kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+    (void)ctool_job_render_diagnostics(job);
+    (void)fprintf(stderr, "naked function IR shape differs\n");
+    goto cleanup;
+  }
+  (void)memset(&repeated_ir, 0xa5, sizeof(repeated_ir));
+  status = ctool_c_lower_ir(job, &unit, &repeated_ir);
+  if (!check_status(status, CTOOL_OK, "repeat naked function lowering") ||
+      repeated_ir.function_count != ir.function_count ||
+      repeated_ir.instruction_count != ir.instruction_count ||
+      ir_instruction_fingerprint(&repeated_ir) !=
+          ir_instruction_fingerprint(&ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  if (unit.assembly_count != 0u &&
+      sizeof(*assemblies) > SIZE_MAX / (size_t)unit.assembly_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  assemblies = (ctool_c_assembly_t *)malloc(
+      (size_t)unit.assembly_count * sizeof(*assemblies));
+  if (bindings == NULL || assemblies == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+  mutant.assemblies = assemblies;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  (void)memcpy(assemblies, unit.assemblies,
+               (size_t)unit.assembly_count * sizeof(*assemblies));
+  bindings[wrapper].attributes &= ~CTOOL_C_DECL_ATTR_NAKED;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, ordinary_message,
+          "naked control assembly without naked metadata")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  assemblies[0].direct_call_binding_plus_one = panic + 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_unit_message, "mismatched naked direct-call metadata")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(assemblies, unit.assemblies,
+               (size_t)unit.assembly_count * sizeof(*assemblies));
+  assemblies[1].direct_call_binding_plus_one = handler + 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_unit_message, "forged panic direct-call metadata")) {
+    goto cleanup;
+  }
+
+  if (!expect_ir_failure_preserves_unit(
+          job, &managed_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, managed_message,
+          "compiler-managed naked body") ||
+      !expect_ir_failure_preserves_unit(
+          job, &result_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI, result_message,
+          "value-returning naked function") ||
+      !expect_ir_failure_preserves_unit(
+          job, &parameter_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI, result_message,
+          "parameterized naked function") ||
+      !expect_ir_failure_preserves_unit(
+          job, &variadic_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI, result_message,
+          "variadic naked function") ||
+      !expect_ir_failure_preserves_unit(
+          job, &old_style_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_ABI, result_message,
+          "old-style naked function") ||
+      !expect_ir_failure_preserves_unit(
+          job, &extra_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, managed_message,
+          "naked function with extra statement") ||
+      !expect_ir_failure_preserves_unit(
+          job, &ordinary_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_STATEMENT, ordinary_message,
+          "ordinary function with naked control assembly") ||
+      !expect_ir_success_preserves_unit(
+          job, &unit, "naked function same-job recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(assemblies);
+  free(bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("naked-functions: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_weak_attributes(const char *host_root) {
   static const char source[] =
       "extern int unused_weak __attribute__((weak));\n"
@@ -35832,6 +36078,9 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "function-codegen-attributes") == 0) {
     return run_function_codegen_attributes(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "naked-functions") == 0) {
+    return run_naked_functions(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "weak-attributes") == 0) {
     return run_weak_attributes(argv[2]);
   }
@@ -36031,6 +36280,7 @@ int main(int argc, char **argv) {
                 "switch-control|constant-true-loops|comma-expressions|"
                 "section-attributes|unused-attributes|used-attributes|"
                 "function-codegen-attributes|"
+                "naked-functions|"
                 "weak-attributes|"
                 "switch-nesting|"
                 "integer-compounds|integer-compound-conversions|"

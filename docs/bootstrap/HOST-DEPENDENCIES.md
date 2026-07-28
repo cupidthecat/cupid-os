@@ -348,7 +348,7 @@ Eight-byte integer and exact floating object access use those existing storage i
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. Static initializer addresses based on another block static remain a frontend boundary.
 
-The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 155/155 at compiler head. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 223/6,716/61,950/881/314. `cupidc_emit.cc` publishes 240/6,188/53,729/760/375, while `cupidc_frontend.cc` publishes 373/15,198/100,019/2,286/1,410. The generated audit records the current active-source totals and source graph.
+The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 155/155 at compiler head. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 240/6,938/64,075/912/333. `cupidc_emit.cc` publishes 272/6,794/58,493/845/451, while `cupidc_frontend.cc` publishes 385/15,526/102,378/2,328/1,440. The generated audit records the current active-source totals and source graph.
 
 These hosted semantics do not retire a host dependency. GCC or Clang still builds the shared frontend, emitter, and contracts, the host linker still links the hosted tools, and the host C compiler still owns 90 normal OS root objects and 142 active transforms, while the private kernel compiler owns embedded runtime JIT and AOT compilation. The open host-bound work includes chained and overriding designators, promoted anonymous-member designators, repeated union-member overrides, Cupid class lists, static member-address constants, explicit address casts, broader runtime values and addresses, deferred automatic initializer forms, aggregate categories outside the supported structure slice, Boolean mutation, character-sized bit-field storage, non-four-byte storage units, partial volatile bit-field mutation, pointer and eight-byte atomics, computed `goto`, GNU label addresses, the remaining GNU surface, hexadecimal floating literals, `long double`, unrepresented runtime floating and integer conversions, runtime floating truth and controlling expressions, runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, broader local and function code generation, whole-unit emission, and production integration. The private compiler's tagged loop and switch frames change production JIT output and pass the expanded in-OS `feature25` smoke. It transfers no build ownership.
 
@@ -385,6 +385,15 @@ The checked seed predates this capability, so the host compiler still owns
 the normal object and the source keeps its `.c` suffix. This frontier retires
 no dependency until seed promotion and the production gates pass. ADR 0157
 records the boundary.
+
+Compiler head also represents the three exact naked IPI entries in unchanged
+`kernel/smp/smp.c`. The two call wrappers emit without a C frame and retain a
+typed direct-call relocation. The panic entry emits its complete halt loop.
+Two full kernel-profile compiles reproduce an 8,444-byte object with SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The checked seed does not carry this compiler-head increment, so the host
+compiler still owns the root and the dependency count does not change. ADR
+0156 records the boundary.
 
 The private compiler now bounds the parser work behind that smoke. It accepts
 128 active loop-or-switch controls and 1,024 active statement calls, rejects

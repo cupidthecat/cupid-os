@@ -765,6 +765,15 @@ Two complete compiles of unchanged percpu.c produce the same 6,760-byte
 object. The checked seed predates this capability, so the source remains
 host-owned and keeps its .c suffix.
 
+Compiler head also retains naked and __naked__ on a canonical file-scope
+void (void) function. The represented body is one complete IPI entry
+statement. The reschedule and call forms emit PUSHAL, a direct call to a
+declared C function, POPAL, and IRET. The panic form emits CLI, HLT, and a
+backward jump. The emitter adds no C prologue, local frame, epilogue, or
+synthetic return. Two kernel-profile compiles of unchanged kernel/smp/smp.c
+produce the same validated 8,444-byte ELF32 object. The checked seed does not
+yet carry this support, so the normal SMP object remains host-built.
+
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc
 and kernel/lang/cupidc.cc. It takes one modifiable four-byte integer =r
@@ -783,7 +792,8 @@ Accepted for source compatibility:
   long, short, signed, unsigned, long long
   extern, inline, register, restrict
   private compatibility attributes; shared weak, section, unused, used,
-  noinline, and general-regs-only target semantics at compiler head
+  noinline, general-regs-only target, and exact naked IPI semantics at
+  compiler head
   labels and goto
   constant integer expressions in enum/array bounds
 

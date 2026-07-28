@@ -370,6 +370,18 @@ compiler-local label relocation. Two complete compiles of unchanged
 `percpu.c` produce the same 6,760-byte object. The checked seed predates this
 work, so the source remains host-owned and keeps its `.c` suffix.
 
+Compiler head also retains GNU `naked` and `__naked__` on a canonical
+file-scope `void (void)` function. The represented body is one complete IPI
+entry statement. The reschedule and call forms emit exact `pushal`, a direct
+C-function call, `popal`, and `iret` instructions. The panic form emits
+`cli`, `hlt`, and a backward jump. CupidC adds no prologue, local storage,
+epilogue, or synthetic return. Two kernel-profile compiles of unchanged
+`kernel/smp/smp.c` produce the same validated 8,444-byte ELF32 object with
+SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The checked seed still lacks this support, so the normal SMP object remains
+host-built.
+
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
 Across the root and supplemental builds, the checked CupidC seed owns 155 C

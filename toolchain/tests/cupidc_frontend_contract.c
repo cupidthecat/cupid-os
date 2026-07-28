@@ -3263,8 +3263,8 @@ static int run_unused_attributes(const char *host_root) {
        "void bad(void) { extern void helper(void) "
        "__attribute__((unused)); }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-      {"naked remains unsupported",
-       "int bad(void) __attribute__((naked));\n",
+      {"hot remains unsupported",
+       "int bad(void) __attribute__((hot));\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
   static const frontend_failure_case_t disabled_case = {
       "disabled unused attribute",
@@ -3653,6 +3653,130 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("function-codegen-attributes: ok\n");
+  }
+  return failed;
+}
+
+static int run_naked_functions(const char *host_root) {
+  static const char source[] =
+      "void ipi_reschedule_c(void);\n"
+      "__attribute__((naked)) static void wrapper(void);\n"
+      "static void wrapper(void) {\n"
+      "  __asm__ volatile(\"pushal\\ncall ipi_reschedule_c\\n"
+      "popal\\niret\\n\");\n"
+      "}\n"
+      "static void panic(void);\n"
+      "static void panic(void) __attribute__((__naked__)) {\n"
+      "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\");\n"
+      "}\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"naked argument",
+       "void bad(void) __attribute__((naked(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"naked object",
+       "int bad __attribute__((naked));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"naked typedef",
+       "typedef void bad_t(void) __attribute__((naked));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"naked record",
+       "struct bad { int value; } __attribute__((naked));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"naked record member",
+       "struct bad { int value __attribute__((naked)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"naked parameter",
+       "void bad(int value __attribute__((naked)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"naked block declaration",
+       "void outer(void) {\n"
+       "  extern void bad(void) __attribute__((naked));\n"
+       "}\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"undeclared IPI target",
+       "__attribute__((naked)) static void bad(void) {\n"
+       "  __asm__ volatile(\"pushal\\ncall missing\\npopal\\niret\\n\");\n"
+       "}\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"object IPI target",
+       "static int target;\n"
+       "__attribute__((naked)) static void bad(void) {\n"
+       "  __asm__ volatile(\"pushal\\ncall target\\npopal\\niret\\n\");\n"
+       "}\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"clobbered naked control assembly",
+       "__attribute__((naked)) static void bad(void) {\n"
+       "  __asm__ volatile(\"cli\\n1: hlt\\njmp 1b\\n\" : : : "
+       "\"memory\");\n"
+       "}\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled naked attribute",
+      "void disabled(void) __attribute__((naked));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 target;
+  ctool_u32 wrapper;
+  ctool_u32 panic;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "naked-functions", host_root,
+                             32u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/naked-functions.c", source, &unit) !=
+          0 ||
+      unit.binding_count != 3u ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 0u ||
+      unit.assemblies == NULL) {
+    goto cleanup;
+  }
+  target = find_binding_index(&unit, "ipi_reschedule_c");
+  wrapper = find_binding_index(&unit, "wrapper");
+  panic = find_binding_index(&unit, "panic");
+  if (target >= unit.binding_count || wrapper >= unit.binding_count ||
+      panic >= unit.binding_count ||
+      unit.bindings[wrapper].attributes != CTOOL_C_DECL_ATTR_NAKED ||
+      unit.bindings[panic].attributes != CTOOL_C_DECL_ATTR_NAKED ||
+      unit.assemblies[0].flags !=
+          (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+      unit.assemblies[0].direct_call_binding_plus_one != target + 1u ||
+      unit.assemblies[1].flags !=
+          (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+      unit.assemblies[1].direct_call_binding_plus_one != 0u) {
+    (void)fprintf(stderr, "naked function metadata differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    if (expect_frontend_failure(
+            &fixture, &failure_cases[index],
+            "/naked-functions-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(
+          &fixture, &disabled_case,
+          "/naked-functions-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("naked-functions: ok\n");
   }
   return failed;
 }
@@ -7530,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 232u, 6818u,
-       63046u, 896u, 322u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 265u, 6634u,
-       57241u, 822u, 435u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 380u,
-       15415u, 101716u, 2313u, 1426u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 240u, 6938u,
+       64075u, 912u, 333u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 272u, 6794u,
+       58493u, 845u, 451u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 385u,
+       15526u, 102378u, 2328u, 1440u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -29765,6 +29889,7 @@ int main(int argc, char **argv) {
                    "fat16|redeclarations|attributes|weak-attributes|"
                    "section-attributes|unused-attributes|used-attributes|"
                    "function-codegen-attributes|"
+                   "naked-functions|"
                    "static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
@@ -29834,6 +29959,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "function-codegen-attributes") == 0) {
     return run_function_codegen_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "naked-functions") == 0) {
+    return run_naked_functions(argv[2]);
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);

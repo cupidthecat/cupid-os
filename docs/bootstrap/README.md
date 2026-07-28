@@ -432,7 +432,7 @@ ADR 0149 adds a separate Doom compatibility switch for old C implicit function d
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
-All twelve hermetic hosted Toolchain source gates parse their files completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 240/6,188/53,729/760/375, `cupidc_frontend.cc` 373/15,198/100,019/2,286/1,410, `cupidc_ir.cc` 223/6,716/61,950/881/314, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,756/11,850/180/16,652. The generated audit records the current lexical totals and source graph. The hosted source and object gates change no production artifact, runtime path, ownership, or host dependency.
+All twelve hermetic hosted Toolchain source gates parse their files completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 272/6,794/58,493/845/451, `cupidc_frontend.cc` 385/15,526/102,378/2,328/1,440, `cupidc_ir.cc` 240/6,938/64,075/912/333, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,756/11,850/180/16,652. The generated audit records the current lexical totals and source graph. The hosted source and object gates change no production artifact, runtime path, ownership, or host dependency.
 
 The shared frontend treats C11 `<:` and `:>` spellings as canonical brackets across array declarators, subscripts, and the explicit unsupported `__builtin_offsetof` array-designator seam while leaving the immutable preprocessing tape's original token spelling untouched. Strict-C contracts cover mixed and full digraph forms plus malformed and non-pointer subscripts. Compound/update diagnostics distinguish valid but deferred floating `*=`, `/=`, `+=`, `-=`, and updates from invalid floating remainder, shift, bitwise, or aggregate compound/update operands. Compatible aggregate plain assignment is represented without weakening those constraints.
 
@@ -538,6 +538,19 @@ has no relocations. The full source now reaches named operands in a
 function-body assembly statement at line 782. This proof advances the
 compiler head only: the checked seed, `libm.c` name, production recipe, and
 host-dependency inventory are unchanged.
+
+ADR 0156 represents the naked interrupt entries in unchanged
+`kernel/smp/smp.c`. A naked function must have type `void (void)` and contain
+one complete assembly statement. The reschedule and call wrappers accept
+exact `pushal`, a direct canonical C-function call, `popal`, and `iret`
+sequences. The panic wrapper accepts exact `cli`, `hlt`, and a relative jump
+back to the halt instruction. The i386 emitter omits every compiler-managed
+frame and return instruction. Cupid's shared x86 model emits each eight-byte
+call wrapper with one `R_386_PC32` relocation and the seven-byte panic loop
+without a relocation. Two complete compiler-head builds produce the same
+validated 8,444-byte object with SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The checked seed and production ownership remain unchanged.
 
 ADR 0121 adds the three machine-state memory outputs used by the FPU panic
 path. Exact volatile `fnstsw %0` and `fnstcw %0` templates accept one

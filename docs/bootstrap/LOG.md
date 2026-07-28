@@ -13848,3 +13848,141 @@ translation-unit table, `libm.c` remains host-built with its `.c` suffix,
 and no production object owner, ABI, output format, runtime path, or host
 dependency moves. ADR 0155 records the representation and ownership
 boundary.
+
+## 2026-07-28: represent naked SMP interrupt entries
+
+Compiler head now compiles the three naked interrupt entries in unchanged
+`kernel/smp/smp.c`. It used to stop at the first `naked` attribute on line
+134. The first focused frontend test failed as intended because the contract
+runner did not yet expose a naked-function mode.
+
+ADR 0156 fixes a deliberately narrow but complete boundary. A represented
+naked definition is a canonical file-scope `void (void)` function with one
+complete control-transfer assembly statement. The two IPI wrappers have this
+shape:
+
+```text
+pushal
+call <declared C function>
+popal
+iret
+```
+
+The panic entry has this shape:
+
+```text
+cli
+1: hlt
+jmp 1b
+```
+
+The frontend resolves the wrapper's call target to one canonical function
+binding and records its one-based index in immutable assembly metadata. Zero
+continues to mean that an assembly statement has no direct callee. Linear IR
+requires exactly one assembly instruction followed by its structural void
+return and reserves no stack storage. The emitter omits the C prologue,
+local frame, synthetic return, and epilogue.
+
+Cupid's shared x86 model emits each call wrapper as:
+
+```text
+60 E8 FC FF FF FF 61 CF
+```
+
+The displacement owns one `.text` `R_386_PC32` relocation with addend `-4`.
+The panic entry is:
+
+```text
+FA F4 E9 FA FF FF FF
+```
+
+Its relative jump returns to the halt instruction. Frontend, Linear IR, and
+emitter validation independently check the exact template, signature,
+placement, attribute mask, direct binding, and frozen metadata.
+
+Positive contracts cover both attribute spellings, compatible
+redeclarations, both call wrappers, the panic loop, exact IR, exact symbols
+and relocations, shared decoding, repeat emission, and same-job recovery.
+Useful failures cover attribute arguments; invalid object, record, member,
+typedef, parameter, and block placement; undeclared or non-function callees;
+altered statement shapes and clobbers; non-void, parameterized, variadic, and
+old-style functions; extra compiler-managed work; ordinary functions using
+the control templates; forged bindings; constrained output; rollback; and
+recovery.
+
+Two complete `KERNEL_I386` compiles preserve the unchanged source and produce
+byte-identical, valid i386 `ET_REL` objects:
+
+| Property | Value |
+| --- | --- |
+| Object bytes | 8,444 |
+| SHA-256 | `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54` |
+| Call wrapper | eight bytes, no C frame, one direct-call relocation |
+| Panic wrapper | seven bytes, no relocation |
+
+### Integrated self-host locks
+
+The naked implementation was reconciled with the x87 sine, x87 round-down,
+descriptor-table, segment-register, and Task 23 file-assembly increments.
+The final hosted source locks are:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 385 | 15,526 | 102,378 | 2,328 | 1,440 |
+| `toolchain/cupidc_ir.cc` | 240 | 6,938 | 64,075 | 912 | 333 |
+| `toolchain/cupidc_emit.cc` | 272 | 6,794 | 58,493 | 845 | 451 |
+
+Their deterministic self-host objects are:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 385 | 790,654 | 935,340 | `54751273` |
+| `toolchain/cupidc_ir.cc` | 240 | 454,453 | 487,272 | `D96AD67E` |
+| `toolchain/cupidc_emit.cc` | 272 | 432,955 | 472,060 | `FB6E6DFE` |
+
+The six overlapping assembly and naked selectors pass together in 58.107
+seconds. The complete frontend and Linear IR modules pass all 155 tests in
+21.426 seconds. A separate unchanged-source selector reproduces the SMP
+object in 15.650 seconds. The strict hosted Toolchain build and self-host
+link gate pass, and the checked i386 Linux seed still verifies as five
+intact tools.
+
+The complete object module passes all 94 tests in 838.395 seconds. This run
+includes exact decoding and relocations, two full unchanged-source compiles,
+the three compiler self-host object locks, the 19-source compiler closure,
+and the five-tool stage-two to stage-three static fixed point.
+
+Bootstrap audit regeneration and deterministic checking both pass. The graph
+contains 698 active sources, 253 feature IDs, 504 transforms, and 42
+accounted unreachable files. Its active-source digest is
+`439de8c3bd3fcf86c702edddabba1b955ce8338f6776891bd5a719bd1473422e`.
+The 1,525,139-byte JSON has SHA-256
+`5016241f770ae5bc7921e56d678d41c31663df0971d13f39a32d033ab9526caf`.
+
+The first staged-bootstrap command correctly refused to reuse
+`build/bootstrap/checked-seed`, which already held accepted evidence. That
+was an output-tree precondition, not a compiler failure, and no prior
+evidence was removed. A second run uses a fresh output tree so the old
+checked seed can prove whether it reaches this combined compiler fixed
+point.
+
+That preparatory run passes in about 605 seconds. It freezes 40 inputs with
+source-snapshot SHA-256
+`e90771d9cb9429b15f136f008ba9c5d8d982f3fd867a57bb520b5aa7b6b32535`.
+All 19 C objects, the startup object, and all five tool images match between
+stages two and three. Both generations pass five help cases, ten successful
+operations, and six useful failures. The 14,881-byte report has SHA-256
+`3522f6ed4baabf91e160db457c5c66f4478253c78f39cb384673de474ed86879`.
+CupidLD and CupidObj still match the old seed; CupidASM, CupidDis, and CupidC
+change as expected. This run started before the capability commit existed,
+so it is evidence for the combined fixed point, not a promotable provenance
+record. The promotion run must start from the clean committed revision with
+every host code-generator command poisoned.
+
+This increment still changes compiler head only. The checked seed predates
+the capability, so the normal `kernel/smp/smp.c` recipe remains host-owned
+and keeps its `.c` suffix. No production object, normal image, ABI, runtime
+path, or host-dependency count moves yet. The exact compiler-head object is
+not part of the normal image, so this checkpoint makes no boot or runtime
+claim. Seed promotion must precede production ownership, the `.cc` rename,
+and a four-vCPU SMP gate. `TempleOS/` remains untouched reference material.

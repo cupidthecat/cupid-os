@@ -436,9 +436,9 @@ the wrong `per_cpu_t`.
 
 | Vector | Purpose |
 |---|---|
-| 0xF0 | Reschedule - target CPU calls `schedule()` on next tick |
+| 0xF0 | Reschedule - target consumes its published reschedule request |
 | 0xF1 | Cross-CPU function call - target runs `fn(arg)` atomically |
-| 0xFE | Panic - target halts and prints its CPU id |
+| 0xFE | Panic - target disables interrupts and stays halted |
 
 ### Handler skeleton
 
@@ -448,7 +448,18 @@ ipi_reschedule_stub:
     call   ipi_reschedule_c   ; EOI, then consume the published request
     popal
     iret
+
+ipi_panic_stub:
+    cli
+.halt:
+    hlt
+    jmp    .halt
 ```
+
+The reschedule and cross-CPU-call entries are naked `void (void)` functions.
+Their assembly owns the complete register save, handler call, restore, and
+interrupt return. The panic entry owns its complete halt loop. No entry has a
+C prologue, epilogue, local frame, or `RET`.
 
 The sender stores `target.reschedule_pending` before raising the IPI. The
 handler does not re-arm the request: it sends EOI and calls the process safe
@@ -505,6 +516,13 @@ CupidC. The wrapper freezes and verifies the seed, uses the fixed kernel
 profile, validates each i386 ELF32 object, and only then replaces the
 production output. A forced build with an invalid host compiler proves that
 none of these recipes falls back to Clang or GCC.
+
+Compiler head can also compile unchanged `kernel/smp/smp.c`, including all
+three naked IPI entries. Two exact kernel-profile compiles produce the same
+validated 8,444-byte object with SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The checked seed does not yet carry that support, so the normal `smp.c`
+object remains host-built.
 
 The strong QEMU gate uses four vCPUs, the `max` CPU, and e1000. It requires
 MP fallback discovery, a four-CPU ACPI MADT, CPUs 1 through 3 online, and the
@@ -573,7 +591,7 @@ Fine-grained locking would be required to remove this serialization.
 | `kernel/smp/ioapic.h` | IOAPIC register layout, API |
 | `kernel/smp/ioapic.cc` | Redirection table init, GSI routing, ISA remap |
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
-| `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop |
+| `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop, and naked IPI entries |
 | `kernel/smp/bkl.h` | `bkl_lock` / `bkl_unlock` and target-stack handoff declarations |
 | `kernel/smp/bkl.cc` | Ticket spinlock implementation |
 | `kernel/smp/mp_tables.h` | MP table parser API |

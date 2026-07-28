@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 SMP Tier 2
-Verified against source on: 2026-07-26
+Verified against source on: 2026-07-28
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -426,7 +426,7 @@ linear address zero and turn the first per-CPU access into a recursive fault.
 
   0xF0  Reschedule: consume a pre-published CPU-local pending request
   0xF1  Cross-CPU call: target runs fn(arg) atomically
-  0xFE  Panic: target halts and prints its CPU id
+  0xFE  Panic: target disables interrupts and stays halted
 
 >h3 Reschedule handler skeleton
 
@@ -435,6 +435,17 @@ linear address zero and turn the first per-CPU access into a recursive fault.
       call   ipi_reschedule_c   ; EOI, then switch now or at outer BKL unlock
       popal
       iret
+
+  ipi_panic:
+      cli
+  .halt:
+      hlt
+      jmp    .halt
+
+The reschedule and cross-CPU-call entries are naked void (void) functions.
+Their assembly owns the complete register save, handler call, restore, and
+interrupt return. The panic entry owns its complete halt loop. No entry has a
+C prologue, epilogue, local frame, or RET.
 
 The sender stores target.reschedule_pending before raising the IPI. The
 handler never re-arms it: a target that already consumed the request at an
@@ -527,6 +538,13 @@ failures.
 The normal LAPIC recipe compiles kernel/smp/lapic.cc with the checked CupidC
 seed. Its checked wrapper validates the ELF32 object and blocks host compiler
 fallback.
+
+Compiler head can compile unchanged kernel/smp/smp.c, including all three
+naked IPI entries. Two exact kernel-profile compiles produce the same
+validated 8,444-byte object with SHA-256
+806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54.
+The checked seed does not carry that support yet, so the normal smp.c object
+remains host-built.
 >endtree
 
 >h2 Source File Index
@@ -538,7 +556,7 @@ fallback.
   kernel/smp/ioapic.h   IOAPIC register layout, API
   kernel/smp/ioapic.cc   Redirection table init, GSI routing, ISA remap
   kernel/smp/smp.h      cpu_table_t, AP trampoline API
-  kernel/smp/smp.c      Trampoline placement, INIT/SIPI sequence, idle loop
+  kernel/smp/smp.c      Trampoline placement, INIT/SIPI, idle loop, IPI entries
   kernel/smp/bkl.h      bkl_lock / bkl_unlock and switch handoff declarations
   kernel/smp/bkl.cc     Ticket spinlock implementation
   kernel/smp/mp_tables.h MP table parser API

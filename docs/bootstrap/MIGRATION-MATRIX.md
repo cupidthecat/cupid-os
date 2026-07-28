@@ -278,9 +278,11 @@ transfer.
 | Linked kernel ELF to raw kernel binary | CupidObj | CupidObj | Production-owned: physical-address-ordered file-backed `PT_LOAD` bytes, zero-filled gaps, and BSS exclusion are contracted; the cutover reproduced the exact prior kernel binary hash and passed the GUI/JIT boot smoke |
 | Disk/FAT image construction and fixture staging | Python `tools/hostbuild.py` | Python orchestration using Cupid-produced inputs | Accepted non-code-producing host dependency; keep cross-platform and deterministic where practical |
 | Emulator verification | QEMU plus Python test harnesses | Same, augmented with staged bootstrap and tool parity tests | Retained test dependency; stabilize the observed GUI-terminal flake |
+| `kernel/smp/smp.c` naked IPI frontier | GCC/Clang freestanding compilation | Checked-seed CupidC through the verified kernel wrapper | Compiler head emits all three exact naked entries in unchanged source. The two call wrappers have no C frame and keep one typed `R_386_PC32` relocation; the panic entry is a complete local halt loop. Two complete compiles reproduce a validated 8,444-byte object with SHA-256 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`. The checked seed predates the capability, so the root remains host-owned with its `.c` suffix. Seed promotion, wrapper integration, image proof, and runtime proof remain before transfer. ADR 0156 records the compiler boundary. |
 
 ADR 0141 records compiler-head `noinline` and
-`target("general-regs-only")` semantics. Both facts survive compatible
+`target("general-regs-only")` semantics. ADR 0156 adds exact naked IPI
+semantics. All three facts survive compatible
 function redeclarations and remain visible on the published IR function. The
 checked seed does not carry the increment, so this capability changes no
 owner, recipe, source suffix, object, or normal image yet.

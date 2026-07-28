@@ -1262,6 +1262,97 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "file-scope-assembly: ok\n")
 
+    def test_naked_ipi_wrappers_emit_exact_i386_without_a_c_frame(self):
+        result = subprocess.run(
+            [str(self.contract_path), "naked-functions", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "naked-functions: ok\n")
+
+    def test_unchanged_smp_source_emits_a_deterministic_object(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        self.assertTrue(profile["gnu_extensions"])
+        self.assertFalse(profile["hosted_environment"])
+        self.assertFalse(profile["implicit_function_declarations"])
+        self.assertFalse(profile["compatibility_pointer_conversions"])
+        self.assertEqual(profile["forced_includes"], [])
+
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-smp-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            objects = []
+            for index in range(2):
+                output = output_root / f"smp-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        "/kernel/smp/smp.c",
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+                self.assertEqual(int.from_bytes(image[16:18], "little"), 1)
+                self.assertEqual(int.from_bytes(image[18:20], "little"), 3)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    8444,
+                    "806509a6dd1ac7eb34b7ffcb67a1f885"
+                    "2950663a274145584d0260da76dcba54",
+                ),
+                f"SMP object lock changed: {len(objects[0])} {digest}",
+            )
+
     def test_structure_values_follow_the_i386_cdecl_memory_abi(self):
         result = subprocess.run(
             [str(self.contract_path), "structure-values", str(REPO_ROOT)],
