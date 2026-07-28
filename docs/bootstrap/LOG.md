@@ -12712,3 +12712,65 @@ The checked seed predates this evaluator. No production recipe changes owner,
 no `.c` file is renamed, and no host dependency is retired. An OS image or
 boot result is not attributed to this compiler-head-only change. ADR 0147
 records the target-semantics decision.
+
+## 2026-07-27: reconcile the LDMXCSR and static-floating compiler heads
+
+The two compiler changes were developed against separate frozen trees. Their
+integration keeps both source frontiers intact: unchanged `kernel/cpu/fpu.c`
+passes the LDMXCSR input and stops at the line 63 floating `=m` output, while
+the exact Doom profile emits 73 of 80 objects and includes unchanged
+`kernel/doom/src/am_map.c`.
+
+The combined source gate measures definitions, statements, expressions, block
+bindings, and initializers as follows:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 361 | 14,844 | 97,116 | 2,226 | 1,392 |
+| `toolchain/cupidc_ir.cc` | 215 | 6,485 | 59,168 | 831 | 304 |
+| `toolchain/cupidc_emit.cc` | 231 | 6,078 | 52,515 | 743 | 371 |
+
+The deterministic self-host objects have these combined locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 361 | 753,751 | 888,692 | `18BF8D8D` |
+| `toolchain/cupidc_ir.cc` | 215 | 418,728 | 447,480 | `55CACFC2` |
+| `toolchain/cupidc_emit.cc` | 231 | 388,555 | 418,724 | `7FBE98B9` |
+
+The full frontend module passes 74 tests in 10.181 seconds. The combined
+Linear IR and object run passes 140 tests in 728.820 seconds, including every
+object in the 19-object closure and all five linked tools at the complete
+stage-two to stage-three fixed point. The two active FPU and Doom selectors
+pass together in 16.713 seconds. A native Windows Clang build also completes
+with the Toolchain's strict warning set and `-Werror`.
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`3925413543e229891a310befdd1ad9564da6b7b7898ceb42ee2c02e95c82d150`.
+The 1,524,052-byte audit JSON has SHA-256
+`272bee237a1656af9b4821b0726a566c14c1aa82ae7d1f9010b533542832ab4e`.
+Deterministic regeneration passes, followed by all 62 mutation-based audit
+tests in 448.702 seconds.
+
+The normal `make -j2 all WAD_SRCS=` image build passes in 418.1 seconds. It
+produces:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 8,135,532 | `dfceb218092dabe387ed3f6e93f76152b0e6935aa3dad903d630f76de9627a9e` |
+| `kernel/kernel.bin` | 7,940,876 | `4d75bab70a5dd5bc9bd55075bb74d55cb0dbf1c30adc5a0197f97096008231d6` |
+| `cupidos.img` | 209,715,200 | `1ea48daaa47dda37181af8558b4a7ca561083ef4defe6471313f03ab3c5bfc6b` |
+
+A private-image QEMU smoke passes in 55.5 seconds. Its 35,099-byte serial log,
+SHA-256
+`f104dd85c2fbcb080cb315ac61be73e105bde9aff75f54a9ac790f7c22c970d7`,
+records the shared Toolchain, ELF32, x86, CupidDis, and 631-definition
+CupidASM self-tests before desktop and terminal startup. `/bin/ls.cc` reaches
+`JIT execution complete`, and the log contains no panic marker.
+
+This integration does not change the production ownership boundary. The
+checked seed still predates both compiler features, the normal image still
+uses its recorded host and Cupid ownership mix, and no `.c` file is renamed.
+The image and boot checks prove that the integrated branch remains healthy;
+they do not claim runtime use of either new compiler-head capability.
