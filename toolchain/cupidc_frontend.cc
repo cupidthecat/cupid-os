@@ -12851,6 +12851,12 @@ static cfront_movss_memory_kind_t cfront_movss_memory_template_kind(
              : CFRONT_MOVSS_MEMORY_NONE;
 }
 
+static ctool_bool cfront_x87_sine_memory_template(
+    ctool_string_t template_text) {
+  return cfront_string_literal(
+      template_text, "fldl %1\n\tfsin\n\tfstpl %0\n\t");
+}
+
 static ctool_status_t cfront_validate_assembly_output(
     cfront_context_t *context, const ctool_c_pp_token_t *constraint_token,
     ctool_string_t template_text, ctool_string_t constraint,
@@ -12867,6 +12873,8 @@ static ctool_status_t cfront_validate_assembly_output(
   ctool_bool memory_output = CTOOL_FALSE;
   cfront_movss_memory_kind_t movss_kind =
       cfront_movss_memory_template_kind(template_text);
+  ctool_bool x87_sine_memory =
+      cfront_x87_sine_memory_template(template_text);
   ctool_bool pointer_only = CTOOL_FALSE;
   ctool_u32 expected_width = 32u;
   ctool_bool any_integer_width = CTOOL_FALSE;
@@ -12957,6 +12965,10 @@ static ctool_status_t cfront_validate_assembly_output(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
         memory_output == CTOOL_TRUE &&
+                x87_sine_memory == CTOOL_TRUE
+            ? "GNU x87 sine assembly =m output requires a modifiable "
+              "non-atomic double lvalue"
+        : memory_output == CTOOL_TRUE &&
                 (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
                  movss_kind == CFRONT_MOVSS_MEMORY_STORE)
             ? "GNU MOVSS assembly =m output requires a modifiable "
@@ -12988,6 +13000,14 @@ static ctool_status_t cfront_validate_assembly_output(
   }
   if (memory_output == CTOOL_TRUE &&
       is_floating == CTOOL_TRUE) {
+    if (x87_sine_memory == CTOOL_TRUE &&
+        node.kind != CTOOL_C_TYPE_DOUBLE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          constraint_token,
+          "GNU x87 sine assembly =m output requires a modifiable non-atomic "
+          "double lvalue");
+    }
     if ((movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
          movss_kind == CFRONT_MOVSS_MEMORY_STORE) &&
         node.kind != CTOOL_C_TYPE_FLOAT) {
@@ -12998,6 +13018,14 @@ static ctool_status_t cfront_validate_assembly_output(
           "float lvalue");
     }
     return CTOOL_OK;
+  }
+  if (memory_output == CTOOL_TRUE &&
+      x87_sine_memory == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU x87 sine assembly =m output requires a modifiable non-atomic "
+        "double lvalue");
   }
   if (memory_output == CTOOL_TRUE &&
       (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
@@ -13186,6 +13214,8 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_bool memory_input = CTOOL_FALSE;
   cfront_movss_memory_kind_t movss_kind =
       cfront_movss_memory_template_kind(template_text);
+  ctool_bool x87_sine_memory =
+      cfront_x87_sine_memory_template(template_text);
   ctool_u32 fixed_register = 0u;
   ctool_u32 input_base;
   ctool_u32 input_qualifiers;
@@ -13306,7 +13336,9 @@ static ctool_status_t cfront_parse_assembly_input(
       (value.is_lvalue == CTOOL_FALSE ||
        value.is_bit_field == CTOOL_TRUE ||
        value.address_forbidden == CTOOL_TRUE ||
-       ((movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+       (x87_sine_memory == CTOOL_TRUE
+            ? input_node.kind != CTOOL_C_TYPE_DOUBLE
+        : (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
          movss_kind == CFRONT_MOVSS_MEMORY_LOAD)
             ? input_node.kind != CTOOL_C_TYPE_FLOAT
             : input_is_floating == CTOOL_FALSE &&
@@ -13317,7 +13349,10 @@ static ctool_status_t cfront_parse_assembly_input(
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+        x87_sine_memory == CTOOL_TRUE
+            ? "GNU x87 sine assembly m input requires an addressable "
+              "non-atomic double lvalue"
+        : movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
                 movss_kind == CFRONT_MOVSS_MEMORY_LOAD
             ? "GNU MOVSS assembly m input requires an addressable "
               "non-atomic float lvalue"
@@ -13490,7 +13525,9 @@ static ctool_status_t cfront_validate_ldmxcsr_assembly(
   }
   if (exact_template == CTOOL_FALSE) {
     if (cfront_movss_memory_template_kind(
-            assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE) {
+            assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE ||
+        cfront_x87_sine_memory_template(
+            assembly->template_text) == CTOOL_TRUE) {
       return CTOOL_OK;
     }
     for (input = 0u; input < assembly->input_count; input++) {
@@ -13636,6 +13673,82 @@ static ctool_status_t cfront_validate_movss_memory_assembly(
       "xmm0 clobber");
 }
 
+static ctool_bool cfront_x87_sine_memory_operand_is_double(
+    cfront_context_t *context,
+    const ctool_c_assembly_operand_t *operand, ctool_bool output) {
+  ctool_c_type_node_t node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_status_t status;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->expression >= context->expressions.count) {
+    return CTOOL_FALSE;
+  }
+  status = cfront_underlying_type(
+      context, operand->type, &base, &qualifiers, &node);
+  (void)base;
+  if (status != CTOOL_OK ||
+      node.kind != CTOOL_C_TYPE_DOUBLE ||
+      ((qualifiers | node.qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u ||
+      (output == CTOOL_TRUE &&
+       ((qualifiers | node.qualifiers) & CTOOL_C_QUAL_CONST) != 0u)) {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cfront_validate_x87_sine_memory_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t output;
+  ctool_c_assembly_operand_t input;
+  ctool_status_t status = CTOOL_OK;
+  if (cfront_x87_sine_memory_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand > context->assembly_operands.count ||
+      2u > context->assembly_operands.count - assembly->first_operand) {
+    status = CTOOL_ERR_UNSUPPORTED;
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_get(
+        &context->assembly_operands, assembly->first_operand, &output);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(output.constraint, "=m") == CTOOL_FALSE ||
+         cfront_x87_sine_memory_operand_is_double(
+             context, &output, CTOOL_TRUE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_get(
+        &context->assembly_operands, assembly->first_operand + 1u, &input);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(input.constraint, "m") == CTOOL_FALSE ||
+         cfront_x87_sine_memory_operand_is_double(
+             context, &input, CTOOL_FALSE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK) {
+    return CTOOL_OK;
+  }
+  if (ctool_job_diagnostic_count(context->job) == 0u &&
+      status != CTOOL_ERR_UNSUPPORTED) {
+    return cfront_storage_failure(context, status);
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+      keyword,
+      "GNU x87 sine assembly requires one volatile double =m output, "
+      "one double m input, and no clobbers");
+}
+
 static ctool_status_t cfront_validate_call_next_assembly(
     cfront_context_t *context, const ctool_c_pp_token_t *keyword,
     const ctool_c_assembly_t *assembly) {
@@ -13710,7 +13823,9 @@ static ctool_status_t cfront_validate_state_memory_assembly(
   ctool_u32 index;
   ctool_status_t status;
   if (cfront_movss_memory_template_kind(
-          assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE) {
+          assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE ||
+      cfront_x87_sine_memory_template(
+          assembly->template_text) == CTOOL_TRUE) {
     return CTOOL_OK;
   }
   if (expected_width == 0u) {
@@ -13968,6 +14083,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_empty_assembly_barrier(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_x87_sine_memory_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {

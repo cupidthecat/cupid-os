@@ -752,7 +752,21 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "movss-memory-assembly: ok\n")
 
-    def test_unchanged_fpu_source_advances_to_x87_memory_assembly(self):
+    def test_x87_sine_memory_assembly_emits_balanced_exact_i386_sequence(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-sine-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-sine-memory-assembly: ok\n")
+
+    def test_unchanged_fpu_source_emits_a_deterministic_object(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         contract = audit["contracts"]["c_preprocessor_translation_units"]
@@ -788,15 +802,11 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "-D" + action["name"] + "=" + action["replacement"]
             )
 
-        expected = (
-            "/kernel/cpu/fpu.c:113:5: error CTB00000F: "
-            "GNU inline assembly m input template is outside this slice\n"
-        )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-fpu-frontier-", dir=REPO_ROOT
         ) as temp:
             output_root = Path(temp)
-            failures = []
+            objects = []
             for index in range(2):
                 output = output_root / f"fpu-{index}.o"
                 logical_output = "/" + output.relative_to(
@@ -816,12 +826,26 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     capture_output=True,
                     timeout=180,
                 )
-                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
-                self.assertEqual(result.stderr, expected)
-                self.assertFalse(output.exists())
-                failures.append(result.stderr)
-            self.assertEqual(failures[0], failures[1])
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+                self.assertEqual(int.from_bytes(image[16:18], "little"), 1)
+                self.assertEqual(int.from_bytes(image[18:20], "little"), 3)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    6620,
+                    "14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210"
+                    "aa69d64ed8c8a5cb",
+                ),
+                f"FPU object lock changed: {len(objects[0])} {digest}",
+            )
 
     def test_legacy_port_constraints_emit_through_dx(self):
         result = subprocess.run(

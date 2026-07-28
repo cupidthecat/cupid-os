@@ -330,9 +330,13 @@ address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
 It also accepts the exact MOVSS float-memory round trip in
 `fpu_boot_smoke()` and the matching one-way load and store. Each form
 requires the `xmm0` clobber, evaluates each object address once, and emits
-`F3 0F 10 00` or `F3 0F 11 00` through EAX. Unchanged
-`kernel/cpu/fpu.c` now reaches the x87 memory assembly in `stress_sin()` at
-line 113. The checked seed does not carry these compiler-head increments.
+`F3 0F 10 00` or `F3 0F 11 00` through EAX. The exact volatile x87 block in
+`stress_sin()` is represented as one modifiable `double` output and one
+addressable `double` input with no clobbers. It emits `FLD`, `FSIN`, and
+`FSTP` through the shared x86 model, keeps the x87 stack balanced, and uses
+no frame temporary. Unchanged `kernel/cpu/fpu.c` now emits as a complete
+compiler-head object. The checked seed does not carry these compiler-head
+increments.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 

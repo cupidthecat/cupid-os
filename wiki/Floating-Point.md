@@ -57,9 +57,12 @@ memory input used by `fpu_init_cpu()` and emits `0F AE 10` through the shared
 x86 model. It accepts the exact MOVSS float-memory round trip in
 `fpu_boot_smoke()` and the matching one-way load and store forms. Each form
 requires the `xmm0` clobber. The shared encoder emits `F3 0F 10 00` for the
-load and `F3 0F 11 00` for the store through EAX. The unchanged FPU source
-now reaches the x87 `fldl`, `fsin`, and `fstpl` block in `stress_sin()` at
-line 113. The checked seed does not carry these compiler-head increments.
+load and `F3 0F 11 00` for the store through EAX. It also accepts the exact
+volatile x87 block in `stress_sin()`. The statement has one `double` output,
+one `double` input, and no clobbers. It emits `FLD`, `FSIN`, and `FSTP`
+through the shared encoder, with balanced x87 depth and no frame temporary.
+Unchanged `kernel/cpu/fpu.c` now produces a deterministic compiler-head
+object. The checked seed does not carry these compiler-head increments.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

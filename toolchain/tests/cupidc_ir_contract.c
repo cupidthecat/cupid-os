@@ -32090,6 +32090,304 @@ cleanup:
   return 1;
 }
 
+static const char x87_sine_memory_assembly_source[] =
+    "double *next_sine_out(void);\n"
+    "const double *next_sine_in(void);\n"
+    "void sine_calls(void) {\n"
+    "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+    "\"=m\"(*next_sine_out()) : \"m\"(*next_sine_in()));\n"
+    "}\n"
+    "void sine_parameters(volatile double *out,\n"
+    "                     const volatile double *in) {\n"
+    "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+    "\"=m\"(*out) : \"m\"(*in));\n"
+    "}\n"
+    "void dead_sine(double *out, const double *in) {\n"
+    "  return;\n"
+    "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+    "\"=m\"(*out) : \"m\"(*in));\n"
+    "}\n";
+
+static int x87_sine_memory_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_u32 expected_depths[] = {2u, 2u, 0u};
+  ctool_u32 next_out;
+  ctool_u32 next_in;
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL) {
+    return 0;
+  }
+  next_out = find_binding(unit, "next_sine_out");
+  next_in = find_binding(unit, "next_sine_in");
+  if (next_out == CTOOL_C_AST_NONE || next_in == CTOOL_C_AST_NONE ||
+      unit->assembly_count != 3u ||
+      unit->assembly_operand_count != 6u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->layout.types == NULL ||
+      ir->function_count != 3u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (function_index = 0u; function_index < 3u; function_index++) {
+    const ctool_c_assembly_t *assembly =
+        &unit->assemblies[function_index];
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 assembly_instruction = CTOOL_C_AST_NONE;
+    ctool_u32 assembly_count = 0u;
+    ctool_u32 call_count = 0u;
+    ctool_u32 offset;
+    if (string_equal(
+            assembly->template_text,
+            "fldl %1\n\tfsin\n\tfstpl %0\n\t") == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != function_index * 2u ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 1u ||
+        function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->maximum_stack_depth !=
+            expected_depths[function_index]) {
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      ctool_u32 instruction_index =
+          function->first_instruction + offset;
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+        call_count++;
+      }
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+        if (!inline_assembly_instruction_matches(
+                instruction, function_index,
+                "/x87-sine-memory-assembly.c")) {
+          return 0;
+        }
+        assembly_instruction = instruction_index;
+        assembly_count++;
+      }
+    }
+    if ((function_index == 0u &&
+         (assembly_count != 1u || call_count != 2u ||
+          assembly_instruction < function->first_instruction + 4u ||
+          ir->instructions[assembly_instruction - 4u].kind !=
+              CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+          ir->instructions[assembly_instruction - 4u].reference !=
+              next_out ||
+          ir->instructions[assembly_instruction - 3u].kind !=
+              CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+          ir->instructions[assembly_instruction - 2u].kind !=
+              CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+          ir->instructions[assembly_instruction - 2u].reference !=
+              next_in ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
+        (function_index == 1u &&
+         (assembly_count != 1u || call_count != 0u ||
+          assembly_instruction < function->first_instruction + 6u ||
+          ir->instructions[assembly_instruction - 6u].kind !=
+              CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+          ir->instructions[assembly_instruction - 5u].kind !=
+              CTOOL_C_IR_INSTRUCTION_LOAD ||
+          ir->instructions[assembly_instruction - 4u].kind !=
+              CTOOL_C_IR_INSTRUCTION_DEREFERENCE ||
+          ir->instructions[assembly_instruction - 3u].kind !=
+              CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
+          ir->instructions[assembly_instruction - 2u].kind !=
+              CTOOL_C_IR_INSTRUCTION_LOAD ||
+          ir->instructions[assembly_instruction - 1u].kind !=
+              CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
+        (function_index == 2u &&
+         (assembly_count != 0u || call_count != 0u))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_x87_sine_memory_assembly(const char *host_root) {
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[3];
+  ctool_c_assembly_operand_t operands[6];
+  ctool_c_type_layout_t *layouts = NULL;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/x87-sine-memory-assembly.c",
+          x87_sine_memory_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "x87 sine memory assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !x87_sine_memory_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK, "repeat x87 sine memory assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !x87_sine_memory_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr, "x87-sine-memory-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_count != 3u ||
+      unit.assembly_operand_count != 6u ||
+      unit.layout.types == NULL ||
+      sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  invalid_unit.assembly_operands = operands;
+
+  assemblies[0].flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine memory clobber")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine missing volatile flag")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].template_text =
+      ctool_string("fldl 4(%1)\n\tfsin\n\tfstpl %0\n\t");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine forged displacement")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].output_count = 0u;
+  assemblies[0].input_count = 2u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine forged operand counts")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  operands[0].constraint = ctool_string("=r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine register output")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[1].constraint = ctool_string("r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine register input")) {
+    goto cleanup;
+  }
+  operands[1] = unit.assembly_operands[1];
+
+  operands[1].matching_output = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 sine forged matching input")) {
+    goto cleanup;
+  }
+  operands[1] = unit.assembly_operands[1];
+
+  operands[5].type = CTOOL_C_TYPE_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "unreachable x87 sine input type mismatch")) {
+    goto cleanup;
+  }
+  operands[5] = unit.assembly_operands[5];
+
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  if (layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  layouts[unit.assembly_operands[0].type].size = 4u;
+  invalid_unit.layout.types = layouts;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 sine operand layout")) {
+    goto cleanup;
+  }
+  invalid_unit.layout.types = unit.layout.types;
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "x87 sine memory assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !x87_sine_memory_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "x87-sine-memory-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("x87-sine-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 
 static const char legacy_port_assembly_source[] =
     "typedef unsigned char port_u8;\n"
@@ -34805,6 +35103,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "movss-memory-assembly") == 0) {
     return run_movss_memory_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "x87-sine-memory-assembly") == 0) {
+    return run_x87_sine_memory_assembly(argv[2]);
+  }
   if (argc == 3 &&
       strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);
@@ -34854,6 +35155,7 @@ int main(int argc, char **argv) {
                 "privileged-register-assembly|fxsave-assembly|"
                 "state-memory-assembly|ldmxcsr-memory-input|"
                 "movss-memory-assembly|"
+                "x87-sine-memory-assembly|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"

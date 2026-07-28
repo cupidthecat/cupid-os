@@ -13413,3 +13413,199 @@ lacks the combined capabilities, so Doom remains host-built. A checked
 five-tool promotion, object comparison, and runtime proof must pass before
 ownership moves. No `.c` file is renamed, no host dependency is retired, and
 `TempleOS/` remains untouched.
+
+## 2026-07-28: represent x87 sine memory assembly
+
+The next unchanged statement in `kernel/cpu/fpu.c` was the x87 helper used by
+the FPU context stress test:
+
+```c
+__asm__ volatile("fldl %1\n\t"
+                 "fsin\n\t"
+                 "fstpl %0\n\t"
+                 : "=m"(r) : "m"(x));
+```
+
+The statement takes the addresses of two `double` objects. It loads one
+binary64 value, computes in the same x87 stack position, then stores and pops
+the result. It declares no clobbers. The previous compiler head rejected the
+`m` input before Linear IR.
+
+Compiler head now accepts this one exact volatile template. The output must
+be a modifiable, non-atomic `double` lvalue through `=m`. The input must be an
+addressable, non-atomic `double` lvalue through `m`; `const` and `volatile`
+qualification are retained. A changed template, another constraint or
+width, a rvalue, a bit field, a register object, an atomic operand, or any
+clobber remains outside the slice.
+
+The frontend freezes one output and one input with their expression types.
+Linear IR repeats the complete metadata check before evaluating the output
+address and then the input address, once each. This order also applies to an
+unreachable statement. The emitter consumes the two addresses in reverse
+evaluation-stack order:
+
+```text
+POP EAX
+FLD qword [EAX]
+FSIN
+POP EAX
+FSTP qword [EAX]
+```
+
+The three x87 instructions use Cupid's shared x86 model. Their exact target
+sequence is `58 DD 00 D9 FE 58 DD 18`. The load raises x87 depth by one, the
+sine operation keeps that depth, and the store returns it to zero. No frame
+temporary is reserved.
+
+Frontend, IR, and object selectors began red at their separate trust
+boundaries. The frontend rejected the `double` memory input. Linear IR
+rejected the new operand slice. Object emission reached the generic
+unsupported-template path. Once the capability passed those boundaries, the
+existing self-host source and object locks reported the expected compiler
+growth. The locks were updated only after the complete source units and
+objects were measured.
+
+Negative source cases cover `float`, a `const` or atomic output, rvalue and
+atomic inputs, register constraints, a missing `volatile`, an added
+`memory` clobber, an altered store width, and an unrelated `double` memory
+template. Frozen-unit mutations cover missing or extra flags, displaced
+loads, changed operand counts, register constraints, a matching input,
+mismatched expression types, and a forged four-byte layout. Constrained
+output rolls back without publishing a partial object, and the same job then
+reproduces the original bytes.
+
+The two pointer-based fixture functions each have this exact 35-byte image:
+
+```text
+55 89 E5
+8D 85 08 00 00 00 50 58 8B 00 50
+8D 85 0C 00 00 00 50 58 8B 00 50
+58 DD 00 D9 FE 58 DD 18
+C9 C3
+```
+
+The complete deterministic ELF32 object is 440 bytes. It has 70 bytes of
+text, five sections, three symbols, and no relocations. Shared decoding finds
+one 64-bit `FLD` from `[EAX]`, one operand-free `FSIN`, and one 64-bit `FSTP`
+to `[EAX]`, with no index, segment override, or displacement.
+
+A bounded decoder-driven oracle runs the target sequence sixteen times in
+one machine state, alternating positive and negative binary64 zero. It checks
+the result sign bit, unchanged input, guarded output bytes, both consumed
+address words, preserved callee-saved registers, and an empty x87 stack after
+every iteration. The oracle handles only the exact signed-zero identity. It
+does not claim general `FSIN` arithmetic.
+
+### Self-host locks
+
+The hosted source gate now reports:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 367 | 14,995 | 98,348 | 2,250 | 1,402 |
+| `toolchain/cupidc_ir.cc` | 221 | 6,600 | 60,393 | 851 | 312 |
+| `toolchain/cupidc_emit.cc` | 240 | 6,185 | 53,652 | 760 | 375 |
+
+Their deterministic self-host objects have these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 367 | 764,639 | 902,088 | `AA39B830` |
+| `toolchain/cupidc_ir.cc` | 221 | 427,938 | 457,732 | `A9BEFB1E` |
+| `toolchain/cupidc_emit.cc` | 240 | 397,439 | 428,900 | `D6D7595E` |
+
+### Active-source frontier
+
+Two exact `KERNEL_I386` commands now compile unchanged
+`kernel/cpu/fpu.c` completely. The resulting 6,620-byte ELF32 objects are
+byte-identical and have SHA-256
+`14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
+
+The next broader x87 probe is unchanged `kernel/core/string.c`. Compiler head
+reaches the clobber list in `str_floor()` and reports:
+
+```text
+/kernel/core/string.c:146:11: error CTB00000F: GNU inline assembly clobber is outside this slice
+```
+
+That statement also uses stack scratch space, `fnstcw`, `fldcw`, `frndint`,
+`fstpl`, and a `memory` clobber. It needs a separate language and x87-stack
+decision rather than an extension of the exact sine template.
+
+### Verification
+
+The focused frontend, Linear IR, object, and unchanged-FPU selectors all
+pass. The complete frontend and Linear IR modules pass 140 tests, 76 and 64
+respectively, in 23.578 seconds. The complete object module passes all 80
+tests in 921.369 seconds. Its full static fixed-point case also passed
+independently in 655.215 seconds, rebuilding all 19 stage-two and stage-three
+C objects and matching all five linked tools.
+
+The strict native Toolchain build completes with `-Werror` in 44.349
+seconds. `make bootstrap-audit` and `make check-bootstrap-audit` both pass.
+The final mutation-based audit replay passes all 62 tests in 566.649 seconds.
+An earlier replay exposed the old lexical `sizeof` lock of 4,750 against the
+new measured count of 4,780. Updating that one stale test lock left the full
+suite green.
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`77bbf6fdedbcec2f67ec3b6f3fe1f0d565afff42d5187a410dba8685bd028564`.
+The 1,524,052-byte audit JSON has SHA-256
+`5285684ab6999fa92daf43c0f07c9a020f81adddc1f176e01be527591e4fe9f5`.
+
+The normal `make -j2 all WAD_SRCS=` image build passes in 568.344 seconds.
+It includes the updated CTXT pages and produces:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 8,135,532 | `3d1be6b582e336f3ad4f907c61316b4bf981b82f6809714fca6c11c1a0092072` |
+| `kernel/kernel.bin` | 7,941,880 | `d37c8e3d75041e568bf84f4209d63149d27487989aca4479786a474fdfeb751d` |
+| `cupidos.img` | 209,715,200 | `5dc0f82cef183c37d5117a0c62be07de28fe0d9bdb834981b96a102555e6ead2` |
+
+This is a compiler-head change. The checked seed was not refreshed, the
+normal FPU object remains host-built, and `kernel/cpu/fpu.c` keeps its `.c`
+name. No source suffix, production owner, ABI, runtime path, or host
+dependency changed. The CTXT updates do change the delivered help text. The
+normal image still uses the older checked compiler, so this image proves the
+asset integration but does not claim runtime use of the new x87 path.
+
+## 2026-07-28: integrate x87 sine assembly with the complete Doom frontier
+
+The exact x87 sine statement now coexists with the complete Doom
+compiler-head frontier. The merge keeps both the union-initializer object
+oracle and the x87 decoder and execution oracle.
+
+The combined source gates report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 373 | 15,198 | 100,019 | 2,286 | 1,410 |
+| `toolchain/cupidc_ir.cc` | 223 | 6,716 | 61,950 | 881 | 314 |
+| `toolchain/cupidc_emit.cc` | 240 | 6,188 | 53,729 | 760 | 375 |
+
+The combined deterministic self-host objects report:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 373 | 775,120 | 914,292 | `6B7DD4F9` |
+| `toolchain/cupidc_ir.cc` | 223 | 438,520 | 468,660 | `E60CEFDA` |
+| `toolchain/cupidc_emit.cc` | 240 | 397,971 | 429,440 | `C30282CC` |
+
+Four focused x87 tests pass in 41.072 seconds. They cover typed memory
+operands, source-order address evaluation, exact decoded i386 bytes, bounded
+x87 stack balance, and two identical compiles of unchanged
+`kernel/cpu/fpu.c`. The complete frontend, Linear IR, and preprocessor run
+passes 186 tests in 29.910 seconds. The complete object suite passes 85 tests
+in 865.398 seconds, including the 19-object closure and five-tool fixed point.
+Deterministic audit checking passes in 54 seconds.
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`02fdf70c74d9d02d2c2eaf0e70db17bc09f1f4bbbef441d8110e42e76d8d483f`.
+The 1,524,993-byte JSON has SHA-256
+`95b4d9d0c177d0cf55f5cd2a80c48b3286ecfee043abe63820600c223e3f67b6`.
+
+This integration does not refresh the checked seed or move the FPU or Doom
+recipes. No `.c` file is renamed, no host dependency is retired, and
+`TempleOS/` remains untouched.

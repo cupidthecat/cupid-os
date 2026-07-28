@@ -338,17 +338,22 @@ Eight-byte integer and exact floating object access use those existing storage i
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. Static initializer addresses based on another block static remain a frontend boundary.
 
-The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 155/155 at compiler head. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 220/6,665/61,382/872/310. `cupidc_emit.cc` publishes 236/6,143/53,218/754/375, while `cupidc_frontend.cc` publishes 370/15,142/99,553/2,277/1,407. The generated audit records the current active-source totals and source graph.
+The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The active non-Doom header sweep is 155/155 at compiler head. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 223/6,716/61,950/881/314. `cupidc_emit.cc` publishes 240/6,188/53,729/760/375, while `cupidc_frontend.cc` publishes 373/15,198/100,019/2,286/1,410. The generated audit records the current active-source totals and source graph.
 
 These hosted semantics do not retire a host dependency. GCC or Clang still builds the shared frontend, emitter, and contracts, the host linker still links the hosted tools, and the host C compiler still owns 90 normal OS root objects and 142 active transforms, while the private kernel compiler owns embedded runtime JIT and AOT compilation. The open host-bound work includes chained and overriding designators, promoted anonymous-member designators, repeated union-member overrides, Cupid class lists, static member-address constants, explicit address casts, broader runtime values and addresses, deferred automatic initializer forms, aggregate categories outside the supported structure slice, Boolean mutation, character-sized bit-field storage, non-four-byte storage units, partial volatile bit-field mutation, pointer and eight-byte atomics, computed `goto`, GNU label addresses, the remaining GNU surface, hexadecimal floating literals, `long double`, unrepresented runtime floating and integer conversions, runtime floating truth and controlling expressions, runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, broader local and function code generation, whole-unit emission, and production integration. The private compiler's tagged loop and switch frames change production JIT output and pass the expanded in-OS `feature25` smoke. It transfers no build ownership.
 
 Compiler-head `noinline` and `target("general-regs-only")` semantics narrow
 that GNU gap without changing the dependency count. Compiler head now also
 accepts the exact LDMXCSR memory input at line 28 and all three MOVSS
-float-memory forms in `fpu_boot_smoke()`. Unchanged `kernel/cpu/fpu.c`
-reaches the x87 `fldl`, `fsin`, and `fstpl` block in `stress_sin()` at line
-113. The checked seed carries none of these increments, so the host compiler
-still owns that root. ADRs 0141, 0146, and 0148 record the boundaries.
+float-memory forms in `fpu_boot_smoke()`. It also accepts the exact balanced
+x87 `fldl`, `fsin`, and `fstpl` block in `stress_sin()`. Two complete
+compiler-head builds of unchanged `kernel/cpu/fpu.c` produce the same
+validated 6,620-byte object. The checked seed carries none of these
+increments, so the host compiler still owns that root and the dependency
+count does not change. The next measured GNU assembly frontier is the larger
+x87 control-word block in `kernel/core/string.c`, which first stops on its
+`"ax"` clobber at line 146. ADRs 0141, 0146, 0148, and 0150 record the
+boundaries.
 
 The private compiler now bounds the parser work behind that smoke. It accepts
 128 active loop-or-switch controls and 1,024 active statement calls, rejects
