@@ -310,6 +310,17 @@ Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32`
 
 The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. Static-duration scalar and aggregate leaves keep those target-width bits, including signed zero, and use ordinary read-only, writable, or zero-filled placement. The IR and SSE object path cover represented integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, mixed integer and floating addition, subtraction, multiplication, and division, and all six matching or mixed-width comparisons. Unsigned four-byte input uses an exact split conversion across the sign boundary. Hexadecimal and subnormal literals, `long double`, conversion to unsigned four-byte integers or `bool`, direct floating truth, mixed integer and floating conditional arms, floating increment and decrement, and static floating arithmetic remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
 
+Compiler head retains GNU `noinline` and
+`target("general-regs-only")` on canonical file-scope functions.
+`noinline` records the request for a future inliner and does not change
+current object bytes. Each IR function carries the canonical code generation
+mask, and emission rejects a mismatch. The target option rejects
+compiler-generated floating work while explicit source assembly stays under
+its own typed contract.
+Unchanged `kernel/cpu/fpu.c` now passes the attribute and reaches its next
+independent compiler frontier, the `"m"(mxcsr)` input to `ldmxcsr` on line
+28. The checked seed does not carry this increment yet.
+
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
 Across the root and supplemental builds, the checked CupidC seed owns 155 C

@@ -42,10 +42,20 @@ typedef enum {
 /* USED records that a represented file-scope definition must reach object
  * output even when no expression in the translation unit refers to it. */
 #define CTOOL_C_DECL_ATTR_USED 0x00000010u
+/* NOINLINE preserves a source request against later inlining passes. */
+#define CTOOL_C_DECL_ATTR_NOINLINE 0x00000020u
+/* TARGET_GENERAL_REGS_ONLY forbids compiler-generated non-general-register
+ * work. The represented IR enforces floating work now; future MMX or SIMD
+ * lowering must extend the same check. Explicit source assembly remains
+ * under its own validated contract. */
+#define CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY 0x00000040u
+#define CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN                                \
+  (CTOOL_C_DECL_ATTR_NOINLINE |                                           \
+   CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY)
 #define CTOOL_C_DECL_ATTR_ALL                                                \
   (CTOOL_C_DECL_ATTR_NORETURN | CTOOL_C_DECL_ATTR_WEAK |                     \
    CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_UNUSED |                    \
-   CTOOL_C_DECL_ATTR_USED)
+   CTOOL_C_DECL_ATTR_USED | CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN)
 
 #define CTOOL_C_FUNCTION_DECL_INLINE 0x00000001u
 /* Canonical function bindings add this summary when the translation unit
@@ -601,8 +611,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
  * arrays, prototypes, compatible file-scope redeclarations, composite array
  * and function types, C linkage, layout, and normalized GNU packed, aligned,
- * noreturn, weak, section, unused, and used attributes at their contracted
- * placements. Other attributes fail closed instead of being skipped. Type
+ * noreturn, weak, section, unused, used, noinline, and
+ * target("general-regs-only") attributes at their contracted placements.
+ * Other attributes fail closed instead of being skipped. Type
  * compatibility uses checked iterative graph walks; the public nesting limit
  * applies to recursive source syntax, not derived-type graph depth. File- and
  * record-scope C11 static

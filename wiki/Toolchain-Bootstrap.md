@@ -124,6 +124,17 @@ count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
 header gate to 155/155 at compiler head.
 
+Compiler head also retains GNU `noinline` and the exact
+`target("general-regs-only")` option on compatible file-scope function
+declarations. Each IR function carries the canonical code generation mask.
+Linear IR rejects compiler-generated floating work in a
+general-register-only function, and the emitter repeats the mask and
+frozen-metadata checks. Explicit source assembly remains under its own
+contract. The unchanged `kernel/cpu/fpu.c` root now passes its target
+attribute and stops at the
+independent `"m"(mxcsr)` input to `ldmxcsr` on line 28. The checked seed and
+normal ownership graph are unchanged.
+
 The normal image has 149 checked CupidC C transforms: 148 checked-in sources
 and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386

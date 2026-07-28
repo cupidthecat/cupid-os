@@ -123,6 +123,10 @@ typedef struct {
   const ctool_c_pp_token_t *unused_token;
   ctool_bool used;
   const ctool_c_pp_token_t *used_token;
+  ctool_bool noinline;
+  const ctool_c_pp_token_t *noinline_token;
+  ctool_bool target_general_regs_only;
+  const ctool_c_pp_token_t *target_token;
 } cfront_attributes_t;
 
 typedef struct {
@@ -4109,7 +4113,9 @@ static ctool_bool cfront_attributes_any(
                  attributes->weak == CTOOL_TRUE ||
                  attributes->has_section == CTOOL_TRUE ||
                  attributes->unused == CTOOL_TRUE ||
-                 attributes->used == CTOOL_TRUE
+                 attributes->used == CTOOL_TRUE ||
+                 attributes->noinline == CTOOL_TRUE ||
+                 attributes->target_general_regs_only == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -4133,6 +4139,12 @@ static const ctool_c_pp_token_t *cfront_first_attribute_token(
   }
   if (attributes->used_token != (const ctool_c_pp_token_t *)0) {
     return attributes->used_token;
+  }
+  if (attributes->noinline_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->noinline_token;
+  }
+  if (attributes->target_token != (const ctool_c_pp_token_t *)0) {
+    return attributes->target_token;
   }
   return attributes->section_token;
 }
@@ -4168,6 +4180,18 @@ static ctool_status_t cfront_validate_record_attributes(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
         attributes->used_token,
         "used attribute cannot apply to a record type");
+  }
+  if (attributes->noinline == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->noinline_token,
+        "noinline attribute cannot apply to a record type");
+  }
+  if (attributes->target_general_regs_only == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->target_token,
+        "target attribute cannot apply to a record type");
   }
   return CTOOL_OK;
 }
@@ -4282,6 +4306,70 @@ static ctool_status_t cfront_parse_section_attribute(
   attributes->section_name = section_name;
   if (attributes->section_token == (const ctool_c_pp_token_t *)0) {
     attributes->section_token = name;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_parse_target_attribute(
+    cfront_context_t *context, cfront_attributes_t *attributes,
+    const ctool_c_pp_token_t *name) {
+  const ctool_c_pp_token_t *argument;
+  ctool_bytes_t decoded = {0};
+  ctool_string_t option;
+  ctool_u32 cursor;
+  ctool_status_t status;
+  (void)cfront_advance(context);
+  if (cfront_peek_is(context, "(") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, name,
+        "target attribute requires one string-literal argument");
+  }
+  (void)cfront_advance(context);
+  argument = cfront_peek(context);
+  if (cfront_ordinary_narrow_string_token(argument) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, argument,
+        "target attribute requires an ordinary narrow string literal");
+  }
+  cursor = context->position;
+  while (cursor < context->tape->token_count &&
+         context->tape->tokens[cursor].kind == CTOOL_C_PP_TOKEN_STRING) {
+    if (cfront_ordinary_narrow_string_token(
+            &context->tape->tokens[cursor]) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          &context->tape->tokens[cursor],
+          "target attribute requires ordinary narrow string literals");
+    }
+    cursor++;
+  }
+  status = cfront_decode_body_string(context, &decoded);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (decoded.size == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, argument,
+        "decoded target option is unavailable");
+  }
+  option.data = (const char *)decoded.data;
+  option.size = decoded.size - 1u;
+  if (cfront_string_equal(
+          option, ctool_string("general-regs-only")) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        argument, "target attribute option is not supported");
+  }
+  if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        cfront_peek(context),
+        "target attribute accepts exactly one string-literal argument");
+  }
+  (void)cfront_advance(context);
+  attributes->target_general_regs_only = CTOOL_TRUE;
+  if (attributes->target_token == (const ctool_c_pp_token_t *)0) {
+    attributes->target_token = name;
   }
   return CTOOL_OK;
 }
@@ -4441,6 +4529,31 @@ static ctool_status_t cfront_parse_attributes(
                 "used attribute does not accept arguments");
           }
           (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "noinline") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__noinline__") == CTOOL_TRUE) {
+        attributes->noinline = CTOOL_TRUE;
+        if (attributes->noinline_token ==
+            (const ctool_c_pp_token_t *)0) {
+          attributes->noinline_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "noinline attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "target") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__target__") == CTOOL_TRUE) {
+        status =
+            cfront_parse_target_attribute(context, attributes, name);
+        if (status != CTOOL_OK) {
+          return status;
         }
       } else {
         return cfront_emit_failure(
@@ -6200,6 +6313,18 @@ static ctool_status_t cfront_parse_member_declaration(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
           declarator_attributes.used_token,
           "used attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.noinline == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.noinline_token,
+          "noinline attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.target_general_regs_only == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.target_token,
+          "target attribute cannot apply to a record member");
     }
     status = cfront_build_declarator(
         context, root, specifiers.type, &type, &name, &location,
@@ -17441,6 +17566,25 @@ static ctool_status_t cfront_parse_external_declaration(
             "used attribute requires a file-scope object or function");
       }
       binding_semantics.attributes |= CTOOL_C_DECL_ATTR_USED;
+    }
+    if (declarator_attributes.noinline == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.noinline_token,
+            "noinline attribute requires a file-scope function");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_NOINLINE;
+    }
+    if (declarator_attributes.target_general_regs_only == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.target_token,
+            "target attribute requires a file-scope function");
+      }
+      binding_semantics.attributes |=
+          CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY;
     }
     status = cfront_validate_function_specifier_context(
         context, &specifiers,

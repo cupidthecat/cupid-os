@@ -383,6 +383,18 @@ graph. Its i386-word initializer preserves the 105,242-byte symbol blob. Two
 compiles produce the same 105,656-byte object with SHA-256
 `af3ef76b05fb0eacea8925177671e8fe06e1424887fced598d2876d187cd8ed2`.
 
+Compiler head also retains GNU `noinline` and
+`target("general-regs-only")` on canonical file-scope functions.
+`noinline` records the request for a future inliner and does not change
+current bytes. Each IR function carries the canonical code generation mask,
+and emission rejects a mismatch. The target attribute rejects
+compiler-generated floating work while allowing explicit source assembly
+through its separate contracts.
+Unchanged `kernel/cpu/fpu.c` now passes that attribute and reaches its next
+independent frontier: the `"m"(mxcsr)` input to `ldmxcsr` on line 28. The
+checked seed does not carry this increment yet, so the source remains
+host-built and keeps its `.c` name.
+
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
 `kernel/lang/as.cc` and `kernel/lang/cupidc.cc`. The form takes one four-byte

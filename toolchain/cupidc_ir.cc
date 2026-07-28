@@ -830,6 +830,15 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
         (candidate->attributes & CTOOL_C_DECL_ATTR_USED) != 0u
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool noinline =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_NOINLINE) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool general_regs_only =
+        (candidate->attributes &
+         CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool weak =
         (candidate->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u
             ? CTOOL_TRUE
@@ -887,7 +896,12 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
          (candidate->kind != CTOOL_C_BINDING_OBJECT &&
           candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
         (used == CTOOL_TRUE &&
-         candidate->file_scope_visible == CTOOL_FALSE)) {
+         candidate->file_scope_visible == CTOOL_FALSE) ||
+        ((noinline == CTOOL_TRUE ||
+          general_regs_only == CTOOL_TRUE) &&
+         (candidate->kind != CTOOL_C_BINDING_FUNCTION ||
+          candidate->type >= unit->graph.type_count ||
+          candidate->file_scope_visible == CTOOL_FALSE))) {
       return cir_invalid_unit(context, &candidate->location);
     }
   }
@@ -10746,6 +10760,61 @@ static ctool_status_t cir_validate_resolved_gotos(cir_context_t *context) {
   return CTOOL_OK;
 }
 
+static ctool_status_t cir_validate_general_regs_only_codegen(
+    cir_context_t *context, const ctool_c_binding_t *binding,
+    const ctool_c_pp_location_t *location) {
+  ctool_u32 instruction_index;
+  if ((binding->attributes &
+       CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) == 0u ||
+      context->instructions == (ctool_c_ir_instruction_t *)0) {
+    return CTOOL_OK;
+  }
+  for (instruction_index = context->function_first_instruction;
+       instruction_index < context->instruction_count;
+       instruction_index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &context->instructions[instruction_index];
+    ctool_u32 argument;
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_FLOATING ||
+        cir_type_is_floating_value(
+            context, instruction->type) == CTOOL_TRUE ||
+        cir_type_is_floating_value(
+            context, instruction->input_type) == CTOOL_TRUE) {
+      return cir_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, location,
+          "general-regs-only function cannot use compiler-generated floating "
+          "code");
+    }
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+        instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+      continue;
+    }
+    if (instruction->first_argument_type >
+            context->argument_type_count ||
+        instruction->argument_count >
+            context->argument_type_count -
+                instruction->first_argument_type) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    for (argument = 0u; argument < instruction->argument_count;
+         argument++) {
+      if (cir_type_is_floating_value(
+              context,
+              context->argument_types[
+                  instruction->first_argument_type + argument]) ==
+          CTOOL_TRUE) {
+        return cir_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, location,
+            "general-regs-only function cannot use compiler-generated "
+            "floating code");
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_lower_function(
     cir_context_t *context, ctool_u32 function_index) {
   const ctool_c_function_definition_t *definition =
@@ -10892,6 +10961,10 @@ static ctool_status_t cir_lower_function(
   if (status == CTOOL_OK) {
     status = cir_validate_resolved_gotos(context);
   }
+  if (status == CTOOL_OK) {
+    status = cir_validate_general_regs_only_codegen(
+        context, binding, &definition->location);
+  }
   if (status != CTOOL_OK) {
     return status;
   }
@@ -10903,6 +10976,8 @@ static ctool_status_t cir_lower_function(
     function = &context->functions[function_index];
     function->binding = definition->binding;
     function->declared_type = definition->declared_type;
+    function->function_codegen_attributes =
+        binding->attributes & CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN;
     function->section_name = ctool_string("");
     if ((binding->attributes & CTOOL_C_DECL_ATTR_SECTION) != 0u) {
       status = ctool_arena_copy_bytes(

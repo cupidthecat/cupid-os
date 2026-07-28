@@ -308,7 +308,7 @@ void ap_main_c(void) {
 ```
 
 CR0 and CR4 are per logical CPU, so the BSP cannot enable SSE for an AP.
-`fpu_init_cpu()` is compiled with `target("no-sse,no-sse2")`, performs no
+`fpu_init_cpu()` is compiled with `target("general-regs-only")`, performs no
 logging, and establishes CR0/CR4, `FNINIT`, and MXCSR before ordinary AP C
 code can execute compiler-generated SSE.
 

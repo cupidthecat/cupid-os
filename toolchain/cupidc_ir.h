@@ -136,6 +136,8 @@ typedef struct {
 typedef struct {
   ctool_u32 binding;
   ctool_u32 declared_type;
+  /* Canonical noinline and target policy retained for later IR consumers. */
+  ctool_u32 function_codegen_attributes;
   /* Decoded section override copied from the canonical function binding.
    * An ordinary function owns an empty string. */
   ctool_string_t section_name;
@@ -245,7 +247,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
 /* The typed translation unit is borrowed and remains unchanged. Success
  * publishes immutable function and instruction arrays in the job arena.
  * Each function owns a contiguous instruction slice and a typed abstract
- * stack that begins and ends empty. Represented one-byte and two-byte integer
+ * stack that begins and ends empty. It also retains canonical noinline and
+ * target code generation policy for later consumers. Represented one-byte
+ * and two-byte integer
  * values occupy canonical 32-bit stack words after signed or unsigned
  * extension. An eight-byte integer constant, parameter load, or call result
  * also occupies one abstract stack entry. The i386 emitter stores its two

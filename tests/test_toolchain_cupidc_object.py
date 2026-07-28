@@ -375,6 +375,22 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "used-attributes: ok\n")
 
+    def test_function_codegen_attributes_validate_deterministic_emission(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "function-codegen-attributes",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "function-codegen-attributes: ok\n"
+        )
+
     def test_static_typed_null_pointer_uses_zero_storage(self):
         result = subprocess.run(
             [str(self.contract_path), "static-typed-null", str(REPO_ROOT)],

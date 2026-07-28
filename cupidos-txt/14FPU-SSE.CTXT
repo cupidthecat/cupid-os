@@ -21,8 +21,9 @@ language, assembler, libm, and printf.
   - Build: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
   - Init: `fpu_init()` is the first call in `kmain`; every AP calls the
     no-log `fpu_init_cpu()` before any other C operation or compiler-generated
-    SSE. That helper is built with target("no-sse,no-sse2") so its own setup
-    cannot use XMM instructions. CR0 and CR4 are per-CPU: each path sets
+    SSE. That helper is built with target("general-regs-only") so its own
+    setup cannot use floating registers. CR0 and CR4 are per-CPU: each path
+    sets
     CR0.EM=0/MP=1/NE=1/TS=0 and
     CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, and loads MXCSR=0x1F80.
   - Context switch: `context_switch.asm` FXSAVEs the outgoing PCB's
@@ -62,6 +63,13 @@ The checked i386 Linux seed now carries static floating constant data and this
 complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
 and kernel/gfx/glyph_raster.cc. Their deterministic checked objects and guest
 JPEG and glyph paths pass. ADR 0139 records the production transfer.
+
+Compiler head understands the general-regs-only target on canonical
+file-scope functions. It rejects compiler-generated floating instructions,
+values, and call arguments while explicit source assembly keeps its separate
+contract. Unchanged fpu_init_cpu now passes the attribute and stops at the
+independent "m"(mxcsr) input to ldmxcsr. The checked seed does not carry this
+increment yet.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

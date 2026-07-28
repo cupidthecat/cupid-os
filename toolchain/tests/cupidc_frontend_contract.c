@@ -3238,8 +3238,8 @@ static int run_unused_attributes(const char *host_root) {
        "void bad(void) { extern void helper(void) "
        "__attribute__((unused)); }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-      {"noinline remains unsupported",
-       "int bad(void) __attribute__((noinline));\n",
+      {"naked remains unsupported",
+       "int bad(void) __attribute__((naked));\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
   static const frontend_failure_case_t disabled_case = {
       "disabled unused attribute",
@@ -3490,6 +3490,144 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("used-attributes: ok\n");
+  }
+  return failed;
+}
+
+static int run_function_codegen_attributes(const char *host_root) {
+  static const char source[] =
+      "static int early(void) "
+      "__attribute__((noinline(), target(\"general-regs-only\")));\n"
+      "static int early(void) { return 1; }\n"
+      "static int late(void);\n"
+      "static int late(void) "
+      "__attribute__((__noinline__, "
+      "__target__(\"general-regs-only\"))) { return 2; }\n"
+      "__attribute__((target(\"general-regs-only\")))\n"
+      "static int target_only(void);\n"
+      "static int target_only(void) { return 3; }\n"
+      "__attribute__((noinline)) static int noinline_only(void);\n"
+      "static int noinline_only(void) { return 4; }\n"
+      "static int ordinary(void) { return 5; }\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"noinline argument",
+       "int bad(void) __attribute__((noinline(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target without arguments",
+       "int bad(void) __attribute__((target));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target integer argument",
+       "int bad(void) __attribute__((target(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target unknown option",
+       "int bad(void) __attribute__((target(\"sse2\")));\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target extra argument",
+       "int bad(void) "
+       "__attribute__((target(\"general-regs-only\", \"sse2\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noinline object",
+       "int bad __attribute__((noinline));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target object",
+       "int bad __attribute__((target(\"general-regs-only\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noinline typedef",
+       "typedef int bad_t __attribute__((noinline));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target record",
+       "struct bad { int value; } "
+       "__attribute__((target(\"general-regs-only\")));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"noinline record member",
+       "struct bad { int value __attribute__((noinline)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"target parameter",
+       "void bad(int value "
+       "__attribute__((target(\"general-regs-only\"))));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE}};
+  static const frontend_failure_case_t disabled_case = {
+      "disabled function code-generation attribute",
+      "int disabled(void) __attribute__((noinline));\n",
+      CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const char *const both_names[] = {"early", "late"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  const ctool_c_binding_t *binding;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "function-codegen-attributes",
+                             host_root, 32u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  if (parse_valid_fixture(&fixture, "/function-codegen-attributes.c",
+                          source, &unit) != 0 ||
+      unit.binding_count != 5u || unit.function_definition_count != 5u) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(both_names); index++) {
+    binding = find_binding(&unit, both_names[index]);
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
+        binding->attributes !=
+            (CTOOL_C_DECL_ATTR_NOINLINE |
+             CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY)) {
+      (void)fprintf(
+          stderr,
+          "function-codegen-attributes: merged metadata differs\n");
+      goto cleanup;
+    }
+  }
+  binding = find_binding(&unit, "target_only");
+  if (binding == NULL ||
+      binding->attributes !=
+          CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) {
+    (void)fprintf(
+        stderr,
+        "function-codegen-attributes: target metadata differs\n");
+    goto cleanup;
+  }
+  binding = find_binding(&unit, "noinline_only");
+  if (binding == NULL ||
+      binding->attributes != CTOOL_C_DECL_ATTR_NOINLINE) {
+    (void)fprintf(
+        stderr,
+        "function-codegen-attributes: noinline metadata differs\n");
+    goto cleanup;
+  }
+  binding = find_binding(&unit, "ordinary");
+  if (binding == NULL || binding->attributes != 0u) {
+    (void)fprintf(
+        stderr,
+        "function-codegen-attributes: ordinary metadata differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    if (expect_frontend_failure(
+            &fixture, &failure_cases[index],
+            "/function-codegen-attributes-invalid.c") != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure(
+          &fixture, &disabled_case,
+          "/function-codegen-attributes-disabled.c") != 0) {
+    fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+    fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("function-codegen-attributes: ok\n");
   }
   return failed;
 }
@@ -7367,12 +7505,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 213u, 6424u,
-       58366u, 822u, 299u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 226u, 6011u,
-       51766u, 734u, 367u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 338u,
-       13813u, 90858u, 2049u, 1345u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 214u, 6456u,
+       58671u, 827u, 302u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 227u, 6042u,
+       52116u, 739u, 370u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 339u,
+       13906u, 91474u, 2054u, 1347u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -27115,6 +27253,7 @@ int main(int argc, char **argv) {
                   "usage: cupidc-frontend-contract "
                    "fat16|redeclarations|attributes|weak-attributes|"
                    "section-attributes|unused-attributes|used-attributes|"
+                   "function-codegen-attributes|"
                    "static-asserts|"
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
@@ -27173,6 +27312,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "used-attributes") == 0) {
     return run_used_attributes(argv[2]);
+  }
+  if (strcmp(argv[1], "function-codegen-attributes") == 0) {
+    return run_function_codegen_attributes(argv[2]);
   }
   if (strcmp(argv[1], "static-asserts") == 0) {
     return run_static_asserts(argv[2]);

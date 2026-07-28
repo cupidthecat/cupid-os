@@ -290,7 +290,7 @@ AP to 32-bit protected mode.
 The BSP's fpu_init cannot enable SSE on another logical CPU. Calling a
 logging/timer helper before the AP-local CR0/CR4 setup can execute compiler-
 generated SSE with OSFXSR clear and raise #UD. fpu_init_cpu is compiled with
-target("no-sse,no-sse2") and performs no logging, so it can safely establish
+target("general-regs-only") and performs no logging, so it can safely establish
 CR0/CR4, FNINIT, and MXCSR before ordinary AP C code.
 >endtree
 

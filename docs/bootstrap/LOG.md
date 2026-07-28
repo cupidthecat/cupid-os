@@ -12329,3 +12329,91 @@ seed was not refreshed and still carries the earlier 583-row decoder. A
 separate integration step must rebuild and verify all five seed tools before
 fixed-point or production use can claim either padding slice. Packed-integer
 SSE2 remains the largest measured decoder gap.
+
+## 2026-07-27: retain function code generation attributes
+
+Compiler head now accepts GNU `noinline`, `__noinline__`, `target`, and
+`__target__` on file-scope functions. The first target option is the exact
+active requirement, `general-regs-only`. Compatible declarations merge both
+facts into one canonical binding regardless of declaration order.
+
+`noinline` records policy for a future inliner. It does not change current
+object bytes because the compiler has no inlining pass. Each IR function
+retains the canonical code generation mask, and emission rejects a mismatch
+with the source binding. A
+general-register-only function may contain explicit source assembly that
+passes its existing contract, but its completed Linear IR cannot contain a
+compiler-generated floating instruction, floating value, or floating call
+argument. The object path repeats the metadata and IR checks before it places
+the function.
+
+The parser rejects arguments on `noinline`, a missing or nonstring target
+argument, unknown target options, extra target arguments, objects, typedefs,
+record attributes, members, parameters, and GNU-disabled use. Linear IR and
+object emission reject function-only bits forged onto another binding or
+hidden from file scope. Every failure preserves the source unit, restores the
+operation state, and permits a later success in the same job.
+
+The first frontend red contract stopped on `GNU attribute is not supported`.
+After the public bits were added, the first IR red contract showed that a
+forged `noinline` typedef was accepted. The first object red contract then
+showed that emission did not reject the same forged metadata. Those failures
+led to independent shape validation at both downstream boundaries.
+
+The first WSL GCC wrapper put its temporary directory in a shell variable.
+PowerShell expanded that name before Bash received it, so Make tried to write
+`/ctool.o` and failed before compiling. It supplies no evidence. The corrected
+run used one explicit `/tmp` build path and produced the cross-host results
+below.
+
+Allowing opaque target strings was rejected because it would claim semantics
+the emitter does not enforce. Rejecting explicit `FNINIT` was also rejected:
+that instruction is intentional source assembly and already has a typed
+assembly contract. Rewriting or shrinking the FPU setup was never part of the
+compiler fix.
+
+The first 71-case object run overlapped the complete fixed-point build. Its
+compiler implementation reproduction hit the existing 90-second process
+limit while compiling `cupidc_ir.cc`; the other 70 cases passed. The same
+case crossed that limit again when isolated, without a compiler diagnostic or
+an object mismatch. Its two Cupid-built compiler invocations now use a
+180-second limit, still below the 300-second fixed-point allowance. The case
+then passed in 206.533 seconds.
+
+The active Toolchain source gates now report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 338 | 13,895 | 91,398 | 2,054 | 1,347 |
+| `toolchain/cupidc_ir.cc` | 214 | 6,456 | 58,656 | 827 | 302 |
+| `toolchain/cupidc_emit.cc` | 227 | 6,039 | 52,094 | 739 | 370 |
+
+Their deterministic object gates now expect:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 338 | 699,841 | 829,184 | `851063EF` |
+| `toolchain/cupidc_ir.cc` | 214 | 414,589 | 442,992 | `8432E800` |
+| `toolchain/cupidc_emit.cc` | 227 | 385,306 | 415,008 | `2F937C6E` |
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Complete frontend and Linear IR modules | PASS, 132 tests in 24.947 seconds |
+| Static, weak, section, unused, used, and function-attribute object selectors | PASS, 6 tests in 19.504 seconds |
+| Remaining object cases | PASS, 70 tests in the 175.221-second partition |
+| Cupid-built compiler implementation reproduction | PASS, 1 test in 206.533 seconds |
+| Complete static stage-two to stage-three fixed point | PASS, 1 test in 709.072 seconds |
+| Active self-host object frontier | PASS |
+| Fresh WSL strict GCC contracts | PASS, all three function-attribute selectors |
+| Native Windows strict Clang CupidC build | PASS |
+| Clang static analysis | Emitter clean; frontend and IR report four findings at unchanged base code outside this slice |
+| Exact `kernel/cpu/fpu.c` compiler-head probe | Expected frontier at line 28: `GNU inline assembly input constraint is outside this slice` |
+
+The unchanged FPU root now passes its line 7 target attribute and reaches the
+independent `"m"(mxcsr)` input to `ldmxcsr`. The checked seed does not contain
+this increment, so `kernel/cpu/fpu.c` remains host-built and keeps its `.c`
+name. No production object, image, ABI, or runtime path changes. An OS build
+or boot smoke is therefore not attributed to this compiler-only increment.
+ADR 0141 records the decision.

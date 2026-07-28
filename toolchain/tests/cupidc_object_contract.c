@@ -26493,20 +26493,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 213u, 226u, 338u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 214u, 227u, 339u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 412533u, 383044u, 695974u, 139646u, 70368u, 80478u,
+      190304u, 414732u, 385459u, 700406u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 440636u, 412428u, 823736u, 157828u, 79348u, 134656u,
+      226668u, 443136u, 415160u, 829920u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x49f91ee0u, 0x9cb9c08au, 0xc3637ff9u, 0x239f52c7u,
+      0x654f122cu, 0x5a109833u, 0x26edd37fu, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -33892,6 +33892,276 @@ cleanup:
   return 1;
 }
 
+static int run_function_codegen_attributes_object(
+    const char *host_root) {
+  static const char attributed_source[] =
+      "typedef int scalar_t;\n"
+      "static int noinline_helper(void) "
+      "__attribute__((noinline));\n"
+      "static int noinline_helper(void) { return 7; }\n"
+      "static void target_setup(void) "
+      "__attribute__((target(\"general-regs-only\")));\n"
+      "static void target_setup(void) { __asm__ volatile(\"fninit\"); }\n"
+      "int entry(void) { target_setup(); return noinline_helper(); }\n";
+  static const char plain_source[] =
+      "typedef int scalar_t;\n"
+      "static int noinline_helper(void);\n"
+      "static int noinline_helper(void) { return 7; }\n"
+      "static void target_setup(void);\n"
+      "static void target_setup(void) { __asm__ volatile(\"fninit\"); }\n"
+      "int entry(void) { target_setup(); return noinline_helper(); }\n";
+  static const char floating_target_source[] =
+      "static float bad_target(void) "
+      "__attribute__((target(\"general-regs-only\")));\n"
+      "static float bad_target(void) { return 1.0f; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *plain = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t plain_unit;
+  ctool_c_translation_unit_t floating_target_unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_symbol_t *target_symbol;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t plain_bytes;
+  ctool_u32 scalar = CTOOL_C_AST_NONE;
+  ctool_u32 noinline_helper = CTOOL_C_AST_NONE;
+  ctool_u32 target_setup = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_u32 fninit_count = 0u;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/function-codegen-attributes-object.c",
+          attributed_source, CTOOL_TRUE, &unit) ||
+      !parse_source_mode(
+          job, "/plain-function-codegen-attributes-object.c",
+          plain_source, CTOOL_TRUE, &plain_unit) ||
+      !parse_source_mode(
+          job, "/floating-function-codegen-attributes-object.c",
+          floating_target_source, CTOOL_TRUE,
+          &floating_target_unit)) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "scalar_t") != 0) {
+      scalar = index;
+    } else if (string_equal(
+                   unit.bindings[index].name,
+                   "noinline_helper") != 0) {
+      noinline_helper = index;
+    } else if (string_equal(
+                   unit.bindings[index].name,
+                   "target_setup") != 0) {
+      target_setup = index;
+    }
+  }
+  if (scalar >= unit.binding_count ||
+      noinline_helper >= unit.binding_count ||
+      target_setup >= unit.binding_count ||
+      unit.bindings[noinline_helper].attributes !=
+          CTOOL_C_DECL_ATTR_NOINLINE ||
+      unit.bindings[target_setup].attributes !=
+          CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attribute object fixture differs\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &plain);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(
+          status, CTOOL_OK,
+          "function code-generation attribute object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first,
+          "first function code-generation attribute object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second,
+          "repeat function code-generation attribute object") ||
+      !expect_object_success_preserves_unit(
+          job, &plain_unit, plain,
+          "plain function code-generation comparison object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  plain_bytes = ctool_buffer_view(plain);
+  if (first_bytes.size == 0u ||
+      first_bytes.size != second_bytes.size ||
+      first_bytes.size != plain_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      memcmp(first_bytes.data, plain_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attributes changed or destabilized "
+        "object bytes\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/function-codegen-attributes-object.o");
+  object_source.contents = first_bytes;
+  (void)memset(&object, 0, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  text = status == CTOOL_OK ? find_section(&object, ".text") : NULL;
+  target_symbol =
+      status == CTOOL_OK ? find_symbol(&object, "target_setup") : NULL;
+  if (!check_status(
+          status, CTOOL_OK,
+          "read function code-generation attribute object") ||
+      text == NULL || target_symbol == NULL ||
+      target_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      target_symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      target_symbol->section_file_index != text->file_index ||
+      target_symbol->value > text->contents.size ||
+      target_symbol->size >
+          text->contents.size - target_symbol->value) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attribute ELF structure differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index + 1u < target_symbol->size; index++) {
+    ctool_u32 offset = target_symbol->value + index;
+    if (text->contents.data[offset] == 0xdbu &&
+        text->contents.data[offset + 1u] == 0xe3u) {
+      fninit_count++;
+    }
+  }
+  if (fninit_count != 1u) {
+    (void)fprintf(
+        stderr,
+        "explicit FNINIT emission differs in the target function\n");
+    goto cleanup;
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_NOINLINE;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "public noinline attribute on a typedef")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |=
+      CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "public target attribute on a typedef")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[target_setup].file_scope_visible = CTOOL_FALSE;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
+          "CupidC object emission received an invalid translation unit",
+          "public target function hidden from file scope")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_failure_preserves_unit(
+          job, &floating_target_unit, failure,
+          CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "general-regs-only function cannot use compiler-generated "
+          "floating code",
+          "floating object work in a general-regs-only function")) {
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure,
+          "function code-generation attribute same-job recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attribute object recovery differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(bindings);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (plain != NULL) {
+    ctool_buffer_close(plain);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("function-codegen-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "weak-symbols") == 0) {
     return run_weak_symbols(argv[2]);
@@ -33904,6 +34174,10 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "used-attributes") == 0) {
     return run_used_attributes_object(argv[2]);
+  }
+  if (argc == 3 &&
+      strcmp(argv[1], "function-codegen-attributes") == 0) {
+    return run_function_codegen_attributes_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "static-typed-null") == 0) {
     return run_static_typed_null(argv[2]);
@@ -34085,7 +34359,8 @@ int main(int argc, char **argv) {
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
                 "static-data|static-typed-null|section-attributes|"
-                "unused-attributes|"
+                "unused-attributes|used-attributes|"
+                "function-codegen-attributes|"
                 "direct-goto|switch-object|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|"

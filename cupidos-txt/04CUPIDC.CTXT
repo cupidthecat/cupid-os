@@ -681,6 +681,15 @@ attribute does not change current object bytes because every represented
 definition is already emitted. The normal build uses this path for
 kernel/cpu/ksyms_data.cc.
 
+Compiler head also retains noinline and target("general-regs-only") on
+canonical file-scope functions. noinline records the request for a future
+inliner and does not change current bytes. Each IR function carries the
+canonical code generation mask, and emission rejects a mismatch. The target
+option rejects compiler-generated floating work while explicit source
+assembly stays under its own typed contract. Unchanged kernel/cpu/fpu.c now
+passes the attribute and reaches its independent "m"(mxcsr) input to
+ldmxcsr. The checked seed does not carry this increment yet.
+
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc
 and kernel/lang/cupidc.cc. It takes one modifiable four-byte integer =r
@@ -698,8 +707,8 @@ CupidC remains a small in-OS compiler, not hosted GCC C.
 Accepted for source compatibility:
   long, short, signed, unsigned, long long
   extern, inline, register, restrict
-  private compatibility attributes; shared weak, section, unused, and
-  compiler-head used semantics
+  private compatibility attributes; shared weak, section, unused, used,
+  noinline, and general-regs-only target semantics at compiler head
   labels and goto
   constant integer expressions in enum/array bounds
 

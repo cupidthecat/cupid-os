@@ -76,6 +76,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_gnu_used_attributes_retain_file_scope_definitions(self):
         self.run_contract("used-attributes")
 
+    def test_gnu_function_codegen_attributes_merge_on_canonical_functions(self):
+        self.run_contract("function-codegen-attributes")
+
     def test_static_asserts_use_target_sizeof_and_integer_relations(self):
         self.run_contract("static-asserts")
 

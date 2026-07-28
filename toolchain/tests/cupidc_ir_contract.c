@@ -32522,6 +32522,183 @@ cleanup:
   return 1;
 }
 
+static int run_function_codegen_attributes(const char *host_root) {
+  static const char source[] =
+      "typedef int scalar_t;\n"
+      "static int noinline_int(void) "
+      "__attribute__((noinline));\n"
+      "static int noinline_int(void) { return 7; }\n"
+      "static float noinline_float(void) "
+      "__attribute__((__noinline__));\n"
+      "static float noinline_float(void) { return 1.0f; }\n"
+      "static void target_setup(void) "
+      "__attribute__((target(\"general-regs-only\")));\n"
+      "static void target_setup(void) { __asm__ volatile(\"fninit\"); }\n"
+      "static int ordinary(void) { return 9; }\n";
+  static const char floating_target_source[] =
+      "static float bad_target(void) "
+      "__attribute__((target(\"general-regs-only\")));\n"
+      "static float bad_target(void) { return 1.0f; }\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  static const char target_message[] =
+      "general-regs-only function cannot use compiler-generated floating "
+      "code";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t floating_target_unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_ir_unit_t ir;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_u32 scalar;
+  ctool_u32 noinline_int;
+  ctool_u32 noinline_float;
+  ctool_u32 target_setup;
+  ctool_u32 ordinary;
+  ctool_u32 index;
+  ctool_u32 assembly_count = 0u;
+  ctool_u32 diagnostic_count;
+  uint64_t fingerprint;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/function-codegen-attributes-ir.c",
+                         source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  scalar = find_binding(&unit, "scalar_t");
+  noinline_int = find_binding(&unit, "noinline_int");
+  noinline_float = find_binding(&unit, "noinline_float");
+  target_setup = find_binding(&unit, "target_setup");
+  ordinary = find_binding(&unit, "ordinary");
+  if (scalar >= unit.binding_count ||
+      noinline_int >= unit.binding_count ||
+      noinline_float >= unit.binding_count ||
+      target_setup >= unit.binding_count ||
+      ordinary >= unit.binding_count ||
+      unit.bindings[noinline_int].attributes !=
+          CTOOL_C_DECL_ATTR_NOINLINE ||
+      unit.bindings[noinline_float].attributes !=
+          CTOOL_C_DECL_ATTR_NOINLINE ||
+      unit.bindings[target_setup].attributes !=
+          CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY ||
+      unit.bindings[ordinary].attributes != 0u) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attribute IR fixture differs\n");
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  fingerprint = unit_fingerprint(&unit);
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK,
+                    "function code-generation attribute lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      ir.function_count != 4u || ir.functions == NULL) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (ir.functions[0].binding != noinline_int ||
+      ir.functions[0].function_codegen_attributes !=
+          CTOOL_C_DECL_ATTR_NOINLINE ||
+      ir.functions[1].binding != noinline_float ||
+      ir.functions[1].function_codegen_attributes !=
+          CTOOL_C_DECL_ATTR_NOINLINE ||
+      ir.functions[2].binding != target_setup ||
+      ir.functions[2].function_codegen_attributes !=
+          CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY ||
+      ir.functions[3].binding != ordinary ||
+      ir.functions[3].function_codegen_attributes != 0u) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attributes were not retained in IR\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ir.instruction_count; index++) {
+    if (ir.instructions[index].kind ==
+        CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+      assembly_count++;
+    }
+  }
+  if (assembly_count != 1u) {
+    (void)fprintf(
+        stderr,
+        "function code-generation attribute assembly IR differs\n");
+    goto cleanup;
+  }
+  if (unit.binding_count != 0u &&
+      sizeof(*bindings) > SIZE_MAX / (size_t)unit.binding_count) {
+    goto cleanup;
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  if (bindings == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.bindings = bindings;
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |= CTOOL_C_DECL_ATTR_NOINLINE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "noinline attribute on a public typedef")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[scalar].attributes |=
+      CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "target attribute on a public typedef")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  bindings[target_setup].file_scope_visible = CTOOL_FALSE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_INPUT, CTOOL_C_IR_DIAG_INVALID_UNIT,
+          invalid_message, "target function hidden from file scope")) {
+    goto cleanup;
+  }
+
+  if (!parse_source_mode(
+          job, "/function-codegen-floating-target-ir.c",
+          floating_target_source, CTOOL_TRUE, &floating_target_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &floating_target_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, target_message,
+          "floating work in a general-regs-only function")) {
+    goto cleanup;
+  }
+  if (!expect_ir_success_preserves_unit(
+          job, &unit,
+          "function code-generation attribute same-job recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("function-codegen-attributes: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_weak_attributes(const char *host_root) {
   static const char source[] =
       "extern int unused_weak __attribute__((weak));\n"
@@ -32657,6 +32834,10 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "used-attributes") == 0) {
     return run_used_attributes(argv[2]);
+  }
+  if (argc == 3 &&
+      strcmp(argv[1], "function-codegen-attributes") == 0) {
+    return run_function_codegen_attributes(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "weak-attributes") == 0) {
     return run_weak_attributes(argv[2]);
@@ -32824,6 +33005,7 @@ int main(int argc, char **argv) {
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
                 "switch-control|constant-true-loops|comma-expressions|"
                 "section-attributes|unused-attributes|used-attributes|"
+                "function-codegen-attributes|"
                 "weak-attributes|"
                 "switch-nesting|"
                 "integer-compounds|integer-compound-conversions|"

@@ -485,6 +485,15 @@ static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
         (candidate->attributes & CTOOL_C_DECL_ATTR_USED) != 0u
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool noinline =
+        (candidate->attributes & CTOOL_C_DECL_ATTR_NOINLINE) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool general_regs_only =
+        (candidate->attributes &
+         CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) != 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool weak =
         (candidate->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u
             ? CTOOL_TRUE
@@ -542,7 +551,12 @@ static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
          (candidate->kind != CTOOL_C_BINDING_OBJECT &&
           candidate->kind != CTOOL_C_BINDING_FUNCTION)) ||
         (used == CTOOL_TRUE &&
-         candidate->file_scope_visible == CTOOL_FALSE)) {
+         candidate->file_scope_visible == CTOOL_FALSE) ||
+        ((noinline == CTOOL_TRUE ||
+          general_regs_only == CTOOL_TRUE) &&
+         (candidate->kind != CTOOL_C_BINDING_FUNCTION ||
+          candidate->type >= unit->graph.type_count ||
+          candidate->file_scope_visible == CTOOL_FALSE))) {
       return cemit_invalid_unit(context, &candidate->location);
     }
   }
@@ -614,6 +628,9 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
             CTOOL_C_AST_NONE ||
         function->binding != definition->binding ||
         function->declared_type != definition->declared_type ||
+        function->function_codegen_attributes !=
+            (context->unit->bindings[definition->binding].attributes &
+             CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN) ||
         function->first_instruction > context->ir.instruction_count ||
         function->instruction_count >
             context->ir.instruction_count - function->first_instruction) {
@@ -993,6 +1010,10 @@ static ctool_status_t cemit_ensure_binding_symbol(
        binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
       (binding->attributes & ~CTOOL_C_DECL_ATTR_ALL) != 0u ||
       ((binding->attributes & CTOOL_C_DECL_ATTR_NORETURN) != 0u &&
+       binding->kind != CTOOL_C_BINDING_FUNCTION) ||
+      ((binding->attributes &
+        (CTOOL_C_DECL_ATTR_NOINLINE |
+         CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY)) != 0u &&
        binding->kind != CTOOL_C_BINDING_FUNCTION) ||
       ((binding->attributes & CTOOL_C_DECL_ATTR_WEAK) != 0u &&
        binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
@@ -10100,6 +10121,61 @@ static ctool_status_t cemit_prepare_local_offsets(
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_validate_general_regs_only_codegen(
+    cemit_context_t *context, const ctool_c_ir_function_t *function,
+    const ctool_c_pp_location_t *location) {
+  ctool_u32 instruction_index;
+  if ((function->function_codegen_attributes &
+       CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY) == 0u) {
+    return CTOOL_OK;
+  }
+  for (instruction_index = function->first_instruction;
+       instruction_index <
+           function->first_instruction + function->instruction_count;
+       instruction_index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &context->ir.instructions[instruction_index];
+    ctool_u32 argument;
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_FLOATING ||
+        cemit_ir_type_is_floating_value(
+            context, instruction->type) == CTOOL_TRUE ||
+        cemit_ir_type_is_floating_value(
+            context, instruction->input_type) == CTOOL_TRUE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, location,
+          "general-regs-only function cannot use compiler-generated floating "
+          "code");
+    }
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+        instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+      continue;
+    }
+    if (instruction->first_argument_type >
+            context->ir.argument_type_count ||
+        instruction->argument_count >
+            context->ir.argument_type_count -
+                instruction->first_argument_type) {
+      return cemit_invalid_unit(context, location);
+    }
+    for (argument = 0u; argument < instruction->argument_count;
+         argument++) {
+      if (cemit_ir_type_is_floating_value(
+              context,
+              context->ir.argument_types[
+                  instruction->first_argument_type + argument]) ==
+          CTOOL_TRUE) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_EMIT_DIAG_UNSUPPORTED, location,
+            "general-regs-only function cannot use compiler-generated "
+            "floating code");
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_place_function(cemit_context_t *context,
                                            ctool_u32 function_index) {
   const ctool_c_function_definition_t *definition =
@@ -10144,7 +10220,11 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
        CTOOL_ELF32_SHF_EXECINSTR) == 0u) {
     return cemit_invalid_unit(context, &definition->location);
   }
-  status = cemit_prepare_local_offsets(context, function, &frame_size);
+  status = cemit_validate_general_regs_only_codegen(
+      context, function, &definition->location);
+  if (status == CTOOL_OK) {
+    status = cemit_prepare_local_offsets(context, function, &frame_size);
+  }
   if (status == CTOOL_OK) {
     status = cemit_analyze_stack_depths(
         context, function, &stack_depths);

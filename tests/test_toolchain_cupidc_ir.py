@@ -84,6 +84,22 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "used-attributes: ok\n")
 
+    def test_function_codegen_attributes_constrain_generated_ir(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "function-codegen-attributes",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "function-codegen-attributes: ok\n"
+        )
+
     def test_weak_attributes_require_external_object_or_function_bindings(self):
         result = subprocess.run(
             [str(self.contract_path), "weak-attributes", str(REPO_ROOT)],

@@ -8,6 +8,8 @@ CupidASM, libm, and `printf`.
 - **Build**: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
 - **Init**: `fpu_init()` is the first call in `kmain`. Sets CR0.EM=0/MP=1/NE=1/TS=0
   and CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, loads MXCSR=0x1F80.
+  `fpu_init_cpu()` uses `target("general-regs-only")` so the compiler cannot
+  generate floating-register work before that setup finishes.
 - **Context switch**: `context_switch.asm` uses FXSAVE on the outgoing PCB's
   `fp_state[512]` and FXRSTOR on the incoming task. State switching is eager;
   it does not use CR0.TS for lazy switching.
@@ -46,6 +48,13 @@ unordered NaN input.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
+
+Compiler head understands the `general-regs-only` target on canonical
+file-scope functions. It rejects compiler-generated floating instructions,
+values, and call arguments while permitting explicit source assembly through
+its separate contract. The unchanged `fpu_init_cpu()` body now gets past the
+attribute and stops at the independent `"m"(mxcsr)` input used by `ldmxcsr`.
+The checked seed does not carry this compiler increment yet.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static
