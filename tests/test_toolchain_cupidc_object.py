@@ -1161,8 +1161,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         expected = (
-            "/kernel/cpu/libm.c:782:11: error CTB00000F: "
-            "GNU inline assembly named operands are outside this slice\n"
+            "/kernel/cpu/libm.c:764:5: error CTB00000F: "
+            "GNU inline assembly m input template is outside this slice\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-libm-frontier-", dir=REPO_ROOT

@@ -234,9 +234,12 @@ without treating it as a function statement. The i386 emitter recognizes the
 twelve exact x87/SSE floating wrapper definitions at the start of unchanged
 kernel/cpu/libm.c and writes prologue-free global functions through Cupid's
 shared x86 encoder. The fixture has 248 text bytes and no relocations. The
-full source now reaches named operands in function-body assembly at line 782.
-General GAS input and other file-scope templates remain unsupported, and the
-normal libm.c recipe still uses the host compiler.
+compiler head accepts named operands on function-body GNU assembly and
+resolves %[name] to the existing numeric operand before IR. The full source
+now stops at the wider libm_pow_impl memory-input template on line 764.
+General GAS input and other file-scope templates remain unsupported. The
+checked seed predates named operands, and the normal libm.c recipe still uses
+the host compiler.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the

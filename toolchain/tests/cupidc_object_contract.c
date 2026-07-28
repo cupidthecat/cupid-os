@@ -33034,13 +33034,13 @@ cleanup:
 static int run_x87_sine_memory_assembly_object(const char *host_root) {
   static const char source[] =
       "void sine_store(double *out, const double *in) {\n"
-      "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
-      "\"=m\"(*out) : \"m\"(*in));\n"
+      "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
+      "[out] \"=m\"(*out) : [in] \"m\"(*in));\n"
       "}\n"
       "void sine_store_qualified(volatile double *out,\n"
       "                          const volatile double *in) {\n"
-      "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
-      "\"=m\"(*out) : \"m\"(*in));\n"
+      "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
+      "[out] \"=m\"(*out) : [in] \"m\"(*in));\n"
       "}\n";
   static const char invalid_message[] =
       "CupidC IR lowering received an invalid translation unit";

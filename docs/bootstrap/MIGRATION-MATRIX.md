@@ -18,11 +18,13 @@ translation-unit effect table and carries its source order through Linear IR.
 It emits the twelve exact x87/SSE floating wrapper definitions at the start
 of unchanged `kernel/cpu/libm.c` through the shared x86 model. The focused
 object has 248 text bytes, twelve global function symbols, and no
-relocations. The complete source proceeds to named function-body assembly
-operands at line 782. Named operands and broader arbitrary forms remain open,
-so this does not transfer a recipe. `libm.c` remains host-owned with its `.c`
-name, and the host C transform count is unchanged. ADR 0155 records the
-compiler boundary.
+relocations. Compiler head now resolves named function-body operands before
+it publishes the statement. The complete source proceeds to the wider
+`libm_pow_impl` memory-input template at line 764. That exact x87 form and
+broader arbitrary assembly remain open, so this does not transfer a recipe.
+`libm.c` remains host-owned with its `.c` name, and the host C transform
+count is unchanged. ADR 0155 records the file-scope boundary, and ADR 0159
+records named-operand normalization.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

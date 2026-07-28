@@ -337,3 +337,20 @@ The fifth Make transform prepares those drivers. Two Python transforms keep
 the ISO runtime fixture in the normal image dependency graph.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
+
+### GNU named assembly operands
+
+Compiler-head CupidC accepts `[identifier]` labels on GNU statement-assembly
+inputs and outputs. It resolves `%[identifier]` to the existing numeric
+operand index before the frontend publishes the statement, which leaves the
+Linear IR and i386 emitter contracts unchanged. A named output must still be
+a modifiable lvalue, and a named memory input must still be an addressable
+lvalue. Both forms keep the numeric path's type, qualifier, and constraint
+checks. Doubled percent signs remain escaped text. Malformed, duplicate,
+unterminated, and unresolved labels fail during parsing.
+
+This advances the unchanged `kernel/cpu/libm.c` probe to the wider
+`libm_pow_impl` memory-input template at line 764. That statement, named
+matching constraints, and operand modifiers remain separate work. The
+checked seed and normal host-owned `libm.c` recipe do not change in this
+increment.

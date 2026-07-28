@@ -14061,3 +14061,87 @@ host-owned until a separate build-graph change proves their checked-seed
 objects, image, and four-vCPU runtime behavior. Their sources keep `.c`
 suffixes for the same reason. Named GNU operands and broader assembly forms
 remain open. `TempleOS/` remains untouched reference material.
+
+## 2026-07-28: normalize GNU named assembly operands
+
+The compiler-head `libm.c` probe no longer stops when a statement names its
+inputs and output. CupidC now accepts an optional `[identifier]` before each
+GNU statement-assembly constraint. Once the whole operand list is known, the
+parser rewrites `%[identifier]` to the operand's numeric index. The label does
+not enter the public frontend graph, Linear IR, or object emitter.
+
+This deliberately reuses the representation the rest of CupidC already
+checks. A named output still needs a modifiable, non-atomic lvalue. A named
+memory input still needs an addressable, non-atomic lvalue. Register objects,
+wrong floating types, unsupported constraints, and matching constraints do
+not gain a shortcut through the new spelling.
+
+The first implementation draft did create such a shortcut: it recognized a
+name before it ran the ordinary output and input checks. Const, register, and
+atomic objects could therefore reach the later template validator. The final
+path removes that bypass and runs named and numeric operands through the same
+semantic checks. It also treats `%%` as one escaped unit while scanning and
+rewriting. Without that rule, text such as `%%[missing]` could be mistaken for
+an unresolved operand reference.
+
+Malformed labels now fail while the statement is still transactional. The
+negative contracts cover empty and unterminated declarations, duplicate
+labels, empty and unterminated references, unknown names, invalid outputs,
+invalid inputs, and escaped percent text. Numeric placeholders remain
+unchanged.
+
+The generic register-assembly selector still carried an older negative case
+that expected every named output to fail, but the Python frontend module did
+not run that selector. Running the contract directly exposed the stale
+expectation. The fixture now uses named RDRAND and SETC outputs as a positive
+case, checks that named matching constraints remain unsupported, and has a
+Python entry point that runs with every frontend module pass.
+
+The unchanged source now passes the naming boundary and reports the next
+real requirement:
+
+```text
+/kernel/cpu/libm.c:764:5: error CTB00000F: GNU inline assembly m input template is outside this slice
+```
+
+This is the complete `libm_pow_impl` x87 statement, with one `=m` double
+output, four `m` double inputs, and a memory clobber. Its instruction
+sequence remains separate work.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Complete frontend module | 84 tests passed in 17.050 seconds |
+| Complete Linear IR module | 72 tests passed in 21.921 seconds |
+| Named IR, object, and unchanged-source frontier selector | 3 tests passed in 35.358 seconds |
+| Cupid-built compiler self-object | 1 test passed in 239.945 seconds |
+| Strict hosted Toolchain build | All native contracts passed; six static i386 artifacts linked |
+| Five-tool static fixed point | 1 test passed in 696.498 seconds |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and check | Passed |
+
+The hosted frontend lock now counts 389 definitions, 15,680 statements,
+103,272 expressions, 2,351 block bindings, and 1,447 initializers. Active
+source inventories remain at 20,265 returns, 3,763 `for` statements, 2,660
+`while` statements, 65 `do` statements, 33,499 `if` statements, and 4,323
+`else` branches.
+
+The first native five-tool fixed-point run reached stage three, but the
+`cupidc_frontend.cc` compile exceeded its 300-second per-file timeout while
+several independent frontier suites were sharing the machine. The run ended
+after 917.059 seconds without a compiler diagnostic or byte mismatch. It is
+not counted as a proof. A fresh run on the quiet machine completed in 696.498
+seconds and matched every stage-two and stage-three object and tool.
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`b2acb9632dbe604b720dab6642b17948dae0ace794125a136c2d9270ff08842f`.
+The 1,525,139-byte JSON has SHA-256
+`2867ec1a7ea8f9a8ec3dfac9f39a2857faa56ca10cabc281c4fbaf062b377320`.
+
+This remains a compiler-head capability. The checked seed still identifies
+revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec`, and the normal
+`kernel/cpu/libm.c` transform still belongs to the host compiler. No
+production object, suffix, ABI, image, runtime path, or host-dependency count
+moves in this increment. `TempleOS/` remains untouched reference material.

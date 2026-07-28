@@ -535,10 +535,14 @@ ADR 0155 gives file-scope GNU basic assembly its own frontend and Linear IR
 tables. The checked seed emits the twelve exact x87/SSE floating wrappers at the
 start of unchanged `kernel/cpu/libm.c` as source-ordered, prologue-free global
 functions. The shared x86 encoder produces all 248 text bytes, and the object
-has no relocations. The full source now reaches named operands in a
-function-body assembly statement at line 782. The checked seed now carries
-the file-scope wrappers. The `libm.c` name, production recipe, and
-host-dependency inventory remain unchanged while named operands stay open.
+has no relocations. Compiler head now accepts `[identifier]` labels on
+statement operands and resolves `%[identifier]` to the existing numeric index
+before public metadata freezes. The same lvalue, atomic, type, and constraint
+checks apply to named and numeric operands, and `%%` remains escaped text.
+The full source now reaches the wider `libm_pow_impl` memory-input template at
+line 764. The checked seed carries the file-scope wrappers but predates this
+parser change. The `libm.c` name, production recipe, and host-dependency
+inventory remain unchanged. ADR 0159 records the boundary.
 
 ADR 0156 represents the naked interrupt entries in unchanged
 `kernel/smp/smp.c`. A naked function must have type `void (void)` and contain

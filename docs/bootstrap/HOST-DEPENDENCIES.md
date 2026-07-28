@@ -69,10 +69,12 @@ translation-unit effect rather than passing it to GAS. The exact Task 23
 fixture emits the twelve opening x87/SSE floating wrappers from `libm.c` in
 248 text bytes through Cupid's x86 encoder, with twelve global function
 symbols and no relocations.
-The complete unchanged source reaches its named function-body assembly
-operands at line 782. Named operands and the broader arbitrary forms remain
-open, so GCC or Clang continues to own the normal `libm.c` transform. No
-dependency or production ownership count changes.
+Compiler head resolves named function-body operands without invoking GAS.
+The complete unchanged source now reaches the wider `libm_pow_impl`
+memory-input template at line 764. That exact x87 statement remains open,
+and the checked seed predates named operands, so GCC or Clang continues to
+own the normal `libm.c` transform. No dependency or production ownership
+count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

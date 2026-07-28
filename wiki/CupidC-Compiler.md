@@ -444,9 +444,13 @@ statement table, and Linear IR keeps their source order. The i386 emitter
 recognizes the twelve exact x87/SSE floating wrapper definitions at the start
 of unchanged `kernel/cpu/libm.c`. It writes prologue-free global function
 symbols through Cupid's shared x86 encoder. The fixture has 248 exact text
-bytes and no relocations. The full source now proceeds to named operands in a
-function-body assembly statement at line 782. General GAS syntax and other
-file-scope templates remain unsupported, and the normal `libm.c` recipe still
+bytes and no relocations. Compiler head accepts `[identifier]` labels before
+GNU statement inputs and outputs, then resolves `%[identifier]` to the
+existing numeric operand index before IR. Named and numeric operands share
+the same semantic checks, and `%%` stays escaped text. The full source now
+proceeds to the wider `libm_pow_impl` memory-input template at line 764.
+General GAS syntax and other file-scope templates remain unsupported. The
+checked seed predates named operands, and the normal `libm.c` recipe still
 uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer

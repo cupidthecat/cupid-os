@@ -198,6 +198,10 @@ The checked seed also accepts the exact volatile `ldmxcsr %0` form with one addr
 The checked seed accepts the exact volatile MOVSS float-memory round trip used by `fpu_boot_smoke()`, plus its one-way load and store forms. Each form requires the `xmm0` clobber. Linear IR evaluates each object address once, and the shared x86 model emits `F3 0F 10 00` or `F3 0F 11 00` through EAX. It also accepts the exact volatile `fldl`, `fsin`, and `fstpl` block in `stress_sin()`. Unchanged `kernel/cpu/fpu.c` now emits as a complete CupidC object, while normal-build ownership remains a separate boundary.
 _Avoid_: general GNU assembly support, host-assembler escape
 
+**GNU named assembly operand**:
+A parser-private `[identifier]` attached to a GNU statement-assembly input or output. Compiler-head CupidC resolves `%[identifier]` to the existing numeric operand index before it publishes the statement. The public frontend record, Linear IR, and i386 emitter do not retain the label. A doubled percent sign remains escaped text, and named operands receive the same semantic checks as numeric operands.
+_Avoid_: public operand-name metadata, named matching constraint, general GNU template substitution
+
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper deterministically, but unchanged `kernel/core/string.c` still stops at its separate double-to-`uint64_t` cast.
 _Avoid_: general AX clobber, arbitrary x87 control-word template, frame scratch that changes the active offsets
