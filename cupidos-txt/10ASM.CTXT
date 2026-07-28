@@ -176,7 +176,7 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The source-head shared x86 catalogue has 587 rows, 242 canonical mnemonics,
+The checked seed's shared x86 catalogue has 587 rows, 242 canonical mnemonics,
 and 64 register names. The active-source contracts cover every instruction in all
 22 demos and the four boot/kernel assembly sources. Common families include:
 - mov, lea, xchg
@@ -202,9 +202,9 @@ and 64 register names. The active-source contracts cover every instruction in al
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
-The checked i386 Linux seed carries the shared IMUL model in both CupidASM and
-CupidDis. It still has the earlier 583-row catalogue, so both padding NOP
-slices need a separate seed refresh before the fixed-point build can use them.
+The checked i386 Linux seed carries the shared IMUL model and the complete
+587-row catalogue in both CupidASM and CupidDis, including the ordinary
+padding NOP family.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR

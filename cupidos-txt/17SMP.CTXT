@@ -132,8 +132,9 @@ Compiler-head CupidC represents the unchanged GDT setup directly. It keeps
 the packed six-byte GDTR, exact ax and memory clobbers, and 16-bit GS
 selector. CS reload uses a relative CALL and RETF trampoline, so the object
 needs no local-label relocation. Two full percpu.c compiles produce the same
-6,760-byte object. The checked seed predates this capability, so the normal
-recipe remains host-owned until seed promotion and runtime proof pass.
+6,760-byte object. The checked seed carries this capability, but the normal
+recipe remains host-owned until its wrapper, rename, image, and runtime
+transfer passes.
 >endtree
 
 >h2 CPU Discovery
@@ -539,12 +540,12 @@ The normal LAPIC recipe compiles kernel/smp/lapic.cc with the checked CupidC
 seed. Its checked wrapper validates the ELF32 object and blocks host compiler
 fallback.
 
-Compiler head can compile unchanged kernel/smp/smp.c, including all three
+The checked seed compiles unchanged kernel/smp/smp.c, including all three
 naked IPI entries. Two exact kernel-profile compiles produce the same
 validated 8,444-byte object with SHA-256
 806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54.
-The checked seed does not carry that support yet, so the normal smp.c object
-remains host-built.
+The checked seed carries that support, but the normal smp.c object remains
+host-built until its wrapper, rename, image, and runtime transfer passes.
 >endtree
 
 >h2 Source File Index

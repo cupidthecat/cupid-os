@@ -360,15 +360,16 @@ external-inline finalization. ADR 0139 moves JPEG decoding and glyph
 rasterization after the floating data and comparison paths reach the checked
 seed, leaving seven strict checked-in roots on the host compiler.
 
-Compiler head now represents the three naked IPI entries in unchanged
+The checked seed represents the three naked IPI entries in unchanged
 `kernel/smp/smp.c`. The reschedule and call entries emit exact
 `PUSHAL`, direct-call, `POPAL`, and `IRET` sequences with no C frame. The panic
 entry emits `CLI`, `HLT`, and a relative jump back to the halt instruction.
 Two complete kernel-profile compiles produce the same validated 8,444-byte
 ELF32 object with SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed still predates this support, so the normal SMP recipe remains
-host-owned and the count of seven roots does not move.
+The checked seed now carries this support. The normal SMP recipe remains
+host-owned until its wrapper, rename, image, and runtime transfer lands, so
+the count of seven roots does not move in the seed-refresh commit.
 
 The checked seed now finalizes C11 inline meaning across the complete
 file-scope declaration set. The ordinary header declaration followed by the
@@ -393,14 +394,14 @@ graph. Its i386-word initializer preserves the 105,242-byte symbol blob. Two
 compiles produce the same 105,656-byte object with SHA-256
 `af3ef76b05fb0eacea8925177671e8fe06e1424887fced598d2876d187cd8ed2`.
 
-Compiler head also retains GNU `noinline` and
+The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
 `noinline` records the request for a future inliner and does not change
 current bytes. Each IR function carries the canonical code generation mask,
 and emission rejects a mismatch. The target attribute rejects
 compiler-generated floating work while allowing explicit source assembly
 through its separate contracts.
-Compiler head also accepts the exact volatile `ldmxcsr %0` form with one
+It also accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates the
 object address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
 It also accepts the exact volatile MOVSS round trip in `fpu_boot_smoke()` and
@@ -411,31 +412,32 @@ The exact volatile x87 block in `stress_sin()` is also represented. It keeps
 one `double` `=m` output and one `double` `m` input, evaluates their addresses
 once in output-then-input order, and permits no clobbers. The shared x86 model
 emits `FLD`, `FSIN`, and `FSTP` through EAX with balanced x87 depth and no
-frame temporary. Two complete compiler-head builds of unchanged
+frame temporary. Two complete builds of unchanged
 `kernel/cpu/fpu.c` produce the same validated 6,620-byte object with SHA-256
 `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
-The checked seed does not carry these compiler-head increments, so the source
-remains host-built and keeps its `.c` name.
+The checked seed carries these increments, but the source remains host-built
+and keeps its `.c` name until the separate production handoff passes.
 
-Compiler head also emits the four exact descriptor-table and segment-register
+The checked seed emits the four exact descriptor-table and segment-register
 statements in unchanged `kernel/smp/percpu.c`. The LGDT forms keep their
 packed six-byte memory operand and exact AX and memory clobbers. The GS form
 keeps its represented 16-bit selector. Cupid's shared x86 model reloads the
 data segments directly and uses a relative call-and-RETF trampoline for CS,
 so no compiler-local label relocation is needed. Two complete compiles
-produce the same 6,760-byte object. The checked seed predates this capability,
-so the source remains host-built and keeps its `.c` suffix.
+produce the same 6,760-byte object. The checked seed carries this capability,
+but the source remains host-built and keeps its `.c` suffix until the
+separate production handoff passes.
 
-File-scope GNU basic assembly has a separate compiler-head representation.
+File-scope GNU basic assembly has a separate CupidC representation.
 The frontend owns immutable templates outside function bodies, and Linear IR
 keeps their source order. The i386 emitter handles the twelve exact x87/SSE
 floating wrappers at the start of unchanged `kernel/cpu/libm.c`. Cupid's
 shared x86 encoder produces 248 text bytes, twelve global function symbols,
 and no relocations. File-scope modifiers, operands, arbitrary GAS syntax, and
 other templates remain unsupported. The complete source now reaches named
-operands in function-body assembly at line 782. The checked seed predates
-this support, so `libm.c` stays on its host-owned recipe and keeps its `.c`
-name.
+operands in function-body assembly at line 782. The checked seed carries the
+file-scope wrappers, but `libm.c` stays on its host-owned recipe and keeps
+its `.c` name until that independent named-operand boundary is represented.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -451,7 +453,7 @@ helpers. It selects the valid DX branch and emits the exact
 complete `kernel/cpu/pic.cc` root compiles to a deterministic 2,408-byte
 ELF32 object and the normal Make recipe uses that object.
 
-Compiler head accepts the exact volatile `fnstsw %0`, `fnstcw %0`, and
+The checked seed accepts the exact volatile `fnstsw %0`, `fnstcw %0`, and
 `stmxcsr %0` forms with one `=m` output. The first two require a modifiable
 16-bit integer, while `stmxcsr` requires a modifiable 32-bit integer. Linear
 IR evaluates the destination once, and the i386 emitter writes the machine
@@ -469,13 +471,13 @@ the shared x86 model without a temporary frame slot or EBX save. That path
 builds the unchanged e1000, desktop, socket, and TCP sources in the normal
 image rather than only in the earlier hybrid proof.
 
-Compiler head also accepts a modifiable four-byte object or `void` pointer as
+The checked seed accepts a modifiable four-byte object or `void` pointer as
 the single `=r` output of the exact `mov %%gs:0, %0` per-CPU load. The
 frontend and IR keep the pointer type and evaluate its destination once. The
 shared x86 model emits `65 A1 00 00 00 00`, then the ordinary output path
 stores the snapshot through that destination.
 
-Compiler head now accepts independent `r` and `c` inputs for the exact
+The checked seed accepts independent `r` and `c` inputs for the exact
 privileged assembly used by `idt.cc`, `paging.cc`, and `lapic.cc`. The `r`
 constraint carries a represented four-byte integer or data pointer, while
 `c` carries a represented four-byte integer in ECX. CupidC emits CR0, CR2,
@@ -491,14 +493,14 @@ the shared x86 model. Two complete `KERNEL_I386` compiles produce the same
 validated 30,216-byte ELF32 object, with one decoded FXSAVE in each process
 creation path. The normal process object now comes from this path.
 
-Compiler head compiles every unchanged helper in `kernel/core/ports.h`.
+The checked seed compiles every unchanged helper in `kernel/core/ports.h`.
 The six scalar helpers retain their 8-bit, 16-bit, or 32-bit accumulator
 width and their 16-bit DX port input. The two word-string helpers retain
 read/write pointer and count operands, issue `CLD` before `REP INSW` or
 `REP OUTSW`, write the advanced values back, and restore ESI or EDI for the
 i386 cdecl caller. The frontend accepts the source's single `memory` clobber
 on INSW, and each output address or input value is evaluated once. These
-forms are present at compiler head and in the checked seed. The normal build
+forms are present in the checked seed. The normal build
 uses them in the production cohort.
 
 The same compiler handles `__atomic_load_n`, `__atomic_store_n`,
@@ -516,7 +518,7 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The active non-Doom header gate is 155/155 at compiler head. Under the full
+The active non-Doom header gate is 155/155 in the checked seed. Under the full
 kernel profile, unchanged `kernel/smp/acpi.cc` and `kernel/smp/mp_tables.cc`
 emit byte-identical 5,708-byte and 4,156-byte i386 ELF32 objects. The checked
 wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
@@ -591,9 +593,9 @@ The exact hosted gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implement
 
 CupidC emits the repository's i386 Linux runtime and five command closures: CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. CupidASM assembles `_start` and the system-call boundary, while CupidLD links each deterministic static i386 command without unresolved symbols. A sixth executable checks process arguments, heap reuse and release, allocation failures, files and seeks, formatting errors, working-directory errors, memory comparison, and the remaining checked string functions. The runtime is intentionally narrow, with unbuffered streams and single-threaded heap, stream, and `errno` state.
 
-The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, forced inputs, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Repeatable `-include` options run in caller order before the primary source. These path options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file. Compiler head now expresses the exact Doom-tree preprocessing profile and emits all 80 source objects. Its explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style external declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers in `m_menu.c`, `p_saveg.c`, `p_ceilng.c`, and `p_plats.c`. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. An integer-only IEEE evaluator compiles the unchanged automap table, the sound driver's empty volatile memory barrier emits no target bytes, one-active-member union initialization compiles unchanged `info.c`, and ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The checked seed does not carry this complete frontier yet, so Doom remains host-owned until the five-tool promotion, object comparison, and runtime proof are complete.
+The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, forced inputs, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Repeatable `-include` options run in caller order before the primary source. These path options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file. The checked seed expresses the exact Doom-tree preprocessing profile and emits all 80 source objects. Its explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style external declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers in `m_menu.c`, `p_saveg.c`, `p_ceilng.c`, and `p_plats.c`. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. An integer-only IEEE evaluator compiles the unchanged automap table, the sound driver's empty volatile memory barrier emits no target bytes, one-active-member union initialization compiles unchanged `info.c`, and ordinary narrow bit-field promotion compiles unchanged `i_video.c`. Doom remains host-owned until the object comparisons, its three separate compatibility roots, and runtime proof are complete.
 
-The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,109,488-byte stage-three image with SHA-256 `39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e`. It comes from revision `7e7029637ef22a4f18c382ffb225fd6a2ea84b85` and carries exact static floating data, all six floating comparisons, C11 external inline finalization, decimal floating scalars, and the earlier GNU assembly and entity metadata frontier. The same seed retains immediate `IMUL` through CupidASM and CupidDis.
+The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,320,544-byte stage-three image with SHA-256 `fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`. It comes from revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec` and carries the complete audited Doom frontier, the current GNU entity metadata, x87 and SSE memory forms, descriptor and segment assembly, Task 23 file-scope wrappers, and exact naked IPI entries. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 40 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
@@ -653,7 +655,7 @@ and the generated kernel symbol translation described above.
 
 [ADR 0139](docs/adr/0139-transfer-jpeg-and-glyph-rasterization-to-cupidc.md) records the JPEG and glyph-raster production transfer, closed inputs, deterministic objects, and guest decode proof.
 
-[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary. [ADR 0149](docs/adr/0149-gate-doom-implicit-function-declarations.md) records the explicit Doom implicit-call profile. [ADR 0150](docs/adr/0150-represent-x87-sine-memory-assembly.md) records the exact x87 sine memory boundary and completed compiler-head FPU root. [ADR 0151](docs/adr/0151-gate-doom-function-data-pointer-conversions.md) records the profile's function/data pointer rule. [ADR 0152](docs/adr/0152-retain-narrow-bit-field-promotion-provenance.md) records ordinary narrow bit-field promotion. [ADR 0153](docs/adr/0153-represent-union-initializer-lists.md) records one-active-member union initialization. [ADR 0154](docs/adr/0154-represent-x87-round-down-memory-assembly.md) records the exact x87 round-down and control-word boundary. [ADR 0155](docs/adr/0155-represent-task23-file-scope-assembly.md) records the file-scope GNU basic assembly boundary and the Task 23 wrapper proof. [ADR 0156](docs/adr/0156-represent-naked-ipi-wrappers.md) records the exact naked IPI wrapper boundary. [ADR 0157](docs/adr/0157-represent-descriptor-table-segment-assembly.md) records the descriptor-table and segment-register boundary.
+[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary. [ADR 0149](docs/adr/0149-gate-doom-implicit-function-declarations.md) records the explicit Doom implicit-call profile. [ADR 0150](docs/adr/0150-represent-x87-sine-memory-assembly.md) records the exact x87 sine memory boundary and completed compiler-head FPU root. [ADR 0151](docs/adr/0151-gate-doom-function-data-pointer-conversions.md) records the profile's function/data pointer rule. [ADR 0152](docs/adr/0152-retain-narrow-bit-field-promotion-provenance.md) records ordinary narrow bit-field promotion. [ADR 0153](docs/adr/0153-represent-union-initializer-lists.md) records one-active-member union initialization. [ADR 0154](docs/adr/0154-represent-x87-round-down-memory-assembly.md) records the exact x87 round-down and control-word boundary. [ADR 0155](docs/adr/0155-represent-task23-file-scope-assembly.md) records the file-scope GNU basic assembly boundary and the Task 23 wrapper proof. [ADR 0156](docs/adr/0156-represent-naked-ipi-wrappers.md) records the exact naked IPI wrapper boundary. [ADR 0157](docs/adr/0157-represent-descriptor-table-segment-assembly.md) records the descriptor-table and segment-register boundary. [ADR 0158](docs/adr/0158-promote-current-toolchain-seed.md) records the clean fixed-point promotion and its post-promotion reproof.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 
@@ -903,7 +905,7 @@ CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 - Arrays, string operations
 - Calls shell commands and kernel functions directly
 
-CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. Source head has 587 forms and fingerprint `68E281CB`; the private recognizer does not change either value. The checked seed still carries the earlier 583-form model and needs a separate refresh.
+CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. Source head and the checked seed have 587 forms and fingerprint `68E281CB`; the private recognizer does not change either value.
 
 ### Program execution
 

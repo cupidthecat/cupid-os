@@ -64,10 +64,10 @@ complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
 and kernel/gfx/glyph_raster.cc. Their deterministic checked objects and guest
 JPEG and glyph paths pass. ADR 0139 records the production transfer.
 
-Compiler head understands the general-regs-only target on canonical
+The checked seed understands the general-regs-only target on canonical
 file-scope functions. It rejects compiler-generated floating instructions,
 values, and call arguments while explicit source assembly keeps its separate
-contract. Compiler head also accepts the exact ldmxcsr %0 memory input and
+contract. It also accepts the exact ldmxcsr %0 memory input and
 emits 0F AE 10 through the shared x86 model. The complete fpu_init_cpu body
 passes unchanged. It also accepts the exact MOVSS float-memory round trip in
 fpu_boot_smoke and its one-way load and store forms. Each form requires the
@@ -76,10 +76,10 @@ stress_sin x87 block is also represented. It keeps one double output and one
 double input, permits no clobbers, and emits FLD, FSIN, and FSTP through the
 shared x86 model. The x87 stack returns to its original depth and no frame
 temporary is used. Unchanged kernel/cpu/fpu.c now produces a complete
-compiler-head object. The checked seed does not carry these compiler-head
-increments.
+checked-seed object. Its production recipe remains host-owned until the
+separate transfer passes.
 
-Compiler head also represents the exact x87 round-down statement in
+The checked seed represents the exact x87 round-down statement in
 str_floor. It takes one double memory output and one double memory input with
 the exact ax and memory clobbers. Emission saves the incoming x87 control word
 below ESP, selects round toward negative infinity, executes FRNDINT, restores

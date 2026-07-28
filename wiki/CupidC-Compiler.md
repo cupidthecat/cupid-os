@@ -210,7 +210,7 @@ These forms have positive and negative frontend, IR, and deterministic ELF32
 contracts. The original 20 source-driven roots carried by this seed remain in
 production, and eight more strict roots now use the same checked path.
 
-Compiler head also accepts GNU `used` and `__used__` on file-scope objects
+The checked seed accepts GNU `used` and `__used__` on file-scope objects
 and functions. Compatible redeclarations merge the flag, and the Linear IR
 and object boundaries reject invalid frozen metadata. Current ELF32 bytes do
 not change because every represented definition is already emitted. The
@@ -218,7 +218,7 @@ generated kernel-symbol source passes deterministic compiler-head emission,
 and the checked seed now carries the capability. The normal recipe compiles
 `kernel/cpu/ksyms_data.cc` through the checked production wrapper.
 
-Compiler head also accepts the exact volatile
+The checked seed accepts the exact volatile
 `call 1f\n1: popl %0` form used by the stack-trace helpers in
 `kernel/lang/as.cc` and `kernel/lang/cupidc.cc`. It requires one modifiable
 four-byte integer `=r` output. The shared x86 model emits a
@@ -229,7 +229,7 @@ validated i386 ELF32 objects under the full kernel profile. `as.cc` produces
 now use the checked seed. Other call templates and general inline-assembly
 labels remain unsupported.
 
-Compiler head also handles the two exact FXSAVE statements in unchanged
+The checked seed handles the two exact FXSAVE statements in unchanged
 `kernel/core/process.cc`. The volatile `fxsave (%0)` form accepts one
 four-byte object or `void` pointer `r` input and one `memory` clobber. Linear
 IR evaluates the pointer once, and the shared x86 model emits `0F AE 00` at
@@ -285,9 +285,9 @@ The exact hosted gate covers the hermetic Toolchain sources, `kernel/lang/as_elf
 
 The repository runtime supplies the checked file, heap, memory, string, `errno`, `getcwd`, and formatted-output interfaces required by the five commands. CupidC emits the runtime, CupidASM assembles `_start` and the system-call boundary, and CupidLD links five deterministic static Linux i386 executables without unresolved symbols. A sixth executable checks allocation, tail release, files, seeks, errors, arguments, memory comparison, and strings. The runtime has unbuffered streams and single-threaded heap, stream, and `errno` state.
 
-The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, forced inputs, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Repeatable `-include` options run before the primary source in caller order. These path options accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output. Empty volatile extended assembly with one `memory` clobber remains an IR ordering point and emits no instruction bytes. The explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style `extern int name()` declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. One-active-member union initialization compiles unchanged `info.c`, while ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The exact audited Doom-tree command now emits all 80 objects. Doom remains host-owned until the checked seed carries this frontier and the object and runtime gates pass.
+The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, forced inputs, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Repeatable `-include` options run before the primary source in caller order. These path options accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output. Empty volatile extended assembly with one `memory` clobber remains an IR ordering point and emits no instruction bytes. The explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style `extern int name()` declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. One-active-member union initialization compiles unchanged `info.c`, while ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The checked seed emits all 80 audited Doom-tree objects. Doom remains host-owned until object comparison, the three separate compatibility roots, and runtime proof pass.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,109,488-byte stage-three output from revision `7e7029637ef22a4f18c382ffb225fd6a2ea84b85`, with SHA-256 `39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e`. It carries exact static floating data and all six floating comparisons. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,320,544-byte stage-three output from revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec`, with SHA-256 `fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`. It carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE memory forms, descriptor and segment assembly, Task 23 file-scope wrappers, and exact naked IPI entries. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 
 The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 90 normal Cupid OS root objects still come from a host compiler.
 
@@ -317,14 +317,14 @@ Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32`
 
 The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. A second integer-only evaluator handles static-duration arithmetic, comparisons, casts, scalar truth, short-circuit logic, conditional selection, enumerators, and represented signed or unsigned integer conversion through 64 bits. It rounds after each operation at the expression's binary32 or binary64 width and places the final bits, including signed zero, through the ordinary read-only, writable, or zero-filled policy. The IR and SSE object path cover represented runtime integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, mixed integer and floating addition, subtraction, multiplication, and division, and all six matching or mixed-width comparisons. Unsigned four-byte input uses an exact split conversion across the sign boundary. Hexadecimal floating literals, `long double`, runtime conversion to unsigned four-byte integers or `_Bool`, runtime floating truth, runtime mixed wide and floating arithmetic or conditional arms, and floating increment and decrement remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
 
-Compiler head retains GNU `noinline` and
+The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
 `noinline` records the request for a future inliner and does not change
 current object bytes. Each IR function carries the canonical code generation
 mask, and emission rejects a mismatch. The target option rejects
 compiler-generated floating work while explicit source assembly stays under
 its own typed contract.
-Compiler head also accepts the exact volatile `ldmxcsr %0` form with one
+The checked seed accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates its
 address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
 It also accepts the exact MOVSS float-memory round trip in
@@ -335,10 +335,10 @@ requires the `xmm0` clobber, evaluates each object address once, and emits
 addressable `double` input with no clobbers. It emits `FLD`, `FSIN`, and
 `FSTP` through the shared x86 model, keeps the x87 stack balanced, and uses
 no frame temporary. Unchanged `kernel/cpu/fpu.c` now emits as a complete
-compiler-head object. The checked seed does not carry these compiler-head
-increments.
+checked-seed object. Its production recipe remains host-owned until the
+separate transfer passes.
 
-Compiler head also accepts the exact volatile x87 round-down block in
+The checked seed accepts the exact volatile x87 round-down block in
 `str_floor()`. It requires one modifiable, non-atomic `double` `=m` output,
 one addressable, non-atomic `double` `m` input, and the exact `ax` plus
 `memory` clobber set. Linear IR evaluates the output address before the input
@@ -354,9 +354,10 @@ checks the rounded bits, scratch memory, register state, and restored control
 word without executing native x87 code. The exact unchanged helper compiles
 twice to the same 420-byte object. Full unchanged `kernel/core/string.c`
 continues to line 190, where its separate double-to-`uint64_t` cast remains
-unsupported. The checked seed and production ownership are unchanged.
+unsupported. The checked seed carries the round-down statement; production
+ownership remains unchanged.
 
-Compiler head also accepts the four exact descriptor-table and
+The checked seed accepts the four exact descriptor-table and
 segment-register statements in unchanged `kernel/smp/percpu.c`. A packed
 six-byte object supplies LGDT through `m`; the two data-segment templates
 require the exact `ax` plus `memory` clobbers. The standalone CS reload keeps
@@ -367,10 +368,11 @@ Linear IR carries either the GDTR address or the selector value. The shared
 x86 emitter writes LGDT, DS, ES, SS, and GS directly. It reloads CS through a
 relative `CALL`, `JMP`, and `RETF` trampoline, so the object needs no
 compiler-local label relocation. Two complete compiles of unchanged
-`percpu.c` produce the same 6,760-byte object. The checked seed predates this
-work, so the source remains host-owned and keeps its `.c` suffix.
+`percpu.c` produce the same 6,760-byte object. The checked seed carries this
+work, but the source remains host-owned and keeps its `.c` suffix until the
+production transfer passes.
 
-Compiler head also retains GNU `naked` and `__naked__` on a canonical
+The checked seed retains GNU `naked` and `__naked__` on a canonical
 file-scope `void (void)` function. The represented body is one complete IPI
 entry statement. The reschedule and call forms emit exact `pushal`, a direct
 C-function call, `popal`, and `iret` instructions. The panic form emits
@@ -379,8 +381,8 @@ epilogue, or synthetic return. Two kernel-profile compiles of unchanged
 `kernel/smp/smp.c` produce the same validated 8,444-byte ELF32 object with
 SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed still lacks this support, so the normal SMP object remains
-host-built.
+The checked seed carries this support. The normal SMP object remains
+host-built until the wrapper, rename, image, and runtime transfer passes.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
@@ -434,10 +436,10 @@ finalization, while a pure external inline definition remains unsupported
 during lowering. The closed production recipe, frontier, image builds, and
 dual-NIC runtime gates pass.
 
-CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects. At compiler head, an exact empty volatile extended template with one `memory` clobber and no operands remains an IR ordering point and emits no instruction bytes. That form compiles the unchanged Doom sound driver, though its build recipe remains host-owned until a later seed promotion.
+CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects. The checked seed also keeps an exact empty volatile extended template with one `memory` clobber as an IR ordering point and emits no instruction bytes. That form compiles the unchanged Doom sound driver, though its build recipe remains host-owned pending the broader Doom handoff.
 
 File-scope GNU basic assembly has a separate translation-unit representation
-at compiler head. The frontend owns immutable templates outside the function
+in the checked seed. The frontend owns immutable templates outside the function
 statement table, and Linear IR keeps their source order. The i386 emitter
 recognizes the twelve exact x87/SSE floating wrapper definitions at the start
 of unchanged `kernel/cpu/libm.c`. It writes prologue-free global function
@@ -447,12 +449,12 @@ function-body assembly statement at line 782. General GAS syntax and other
 file-scope templates remain unsupported, and the normal `libm.c` recipe still
 uses the host compiler.
 
-The same compiler head accepts a modifiable four-byte object or `void` pointer
+The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,
 evaluates the output destination once, and emits the absolute GS load as
 `65 A1 00 00 00 00`.
 
-Compiler head also accepts independent `r` and `c` inputs for the exact
+The checked seed also accepts independent `r` and `c` inputs for the exact
 privileged statements in `kernel/cpu/idt.cc`, `kernel/mm/paging.cc`, and
 `kernel/smp/lapic.cc`. A four-byte integer or data pointer may use `r`; a
 four-byte integer may use `c` and arrives in ECX. The i386 emitter handles
@@ -464,7 +466,7 @@ objects, and their normal recipes use the checked seed. WRMSR, unsupported
 control-register directions, fixed EBX and `q` inputs, arbitrary templates,
 and general clobbers remain open.
 
-Compiler head accepts one memory output for three machine-state
+The checked seed accepts one memory output for three machine-state
 snapshots. Exact volatile `fnstsw %0` and `fnstcw %0` statements write a
 modifiable 16-bit integer through `=m`; `stmxcsr %0` writes a modifiable
 32-bit integer. Linear IR evaluates the lvalue once, and the emitter sends
@@ -475,7 +477,7 @@ call-next support also handles the later local-label statement in unchanged
 validated 10,212-byte ELF32 object. The checked seed carries this capability;
 the normal build now uses it for the panic root.
 
-Compiler head also represents `__atomic_load_n`, `__atomic_store_n`,
+The checked seed represents `__atomic_load_n`, `__atomic_store_n`,
 `__atomic_exchange_n`, `__atomic_fetch_add`, and `__atomic_fetch_or` on
 one-, two-, and four-byte integer objects. Constant memory orders stay in the
 typed AST and Linear IR. The i386 emitter uses ordinary loads and release
@@ -489,7 +491,7 @@ operand evaluation, and a forced competing fetch-or update. Runtime orders,
 pointer atomics, HLE flags, and eight-byte atomics remain outside this slice.
 The checked seed carries fetch-or and compiles the active EHCI path.
 
-Compiler head and the checked seed parse all eight unchanged helpers in
+The checked seed parses all eight unchanged helpers in
 `kernel/core/ports.h`. The byte, word, and doubleword IN and OUT forms keep
 their declared integer widths while binding the accumulator and DX inputs.
 The repeated word forms retain their read/write buffer and count operands.
@@ -499,8 +501,8 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. This brings the active non-Doom header gate to 155/155 at
-compiler head.
+shared x86 model. The checked seed therefore carries the complete 155/155
+active non-Doom header gate.
 
 The refreshed checked seed carries this port-I/O support. The normal build
 uses it in the 148-source checked-in CupidC cohort. Earlier frontier evidence
@@ -508,7 +510,7 @@ measured the ACPI and MP-table objects at 5,708 and 4,156 bytes. Their current
 `.cc` paths must pass the shared validator and re-run the four-vCPU contract
 with both supported NIC paths.
 
-Compiler head also accepts the GNU `Nd` alternative in the 8259 PIC helpers.
+The checked seed accepts the GNU `Nd` alternative in the 8259 PIC helpers.
 It selects DX for the port and emits the exact `outb %0, %1` and
 `inb %1, %0` forms. This keeps the unchanged source contract and produces a
 deterministic object for `kernel/cpu/pic.cc`. The production recipe now uses

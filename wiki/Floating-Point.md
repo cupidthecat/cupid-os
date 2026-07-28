@@ -49,10 +49,10 @@ unordered NaN input.
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
 
-Compiler head understands the `general-regs-only` target on canonical
+The checked seed understands the `general-regs-only` target on canonical
 file-scope functions. It rejects compiler-generated floating instructions,
 values, and call arguments while permitting explicit source assembly through
-its separate contract. Compiler head now also accepts the exact LDMXCSR
+its separate contract. It also accepts the exact LDMXCSR
 memory input used by `fpu_init_cpu()` and emits `0F AE 10` through the shared
 x86 model. It accepts the exact MOVSS float-memory round trip in
 `fpu_boot_smoke()` and the matching one-way load and store forms. Each form
@@ -61,11 +61,12 @@ load and `F3 0F 11 00` for the store through EAX. It also accepts the exact
 volatile x87 block in `stress_sin()`. The statement has one `double` output,
 one `double` input, and no clobbers. It emits `FLD`, `FSIN`, and `FSTP`
 through the shared encoder, with balanced x87 depth and no frame temporary.
-Unchanged `kernel/cpu/fpu.c` now produces a deterministic compiler-head
-object. The checked seed does not carry these compiler-head increments.
+Unchanged `kernel/cpu/fpu.c` now produces a deterministic checked-seed
+object. Its production recipe remains host-owned until the separate
+ownership and runtime transfer passes.
 
-The exact x87 round-down statement in `str_floor()` is represented at
-compiler head as well. It takes one `double` memory output and one `double`
+The checked seed also represents the exact x87 round-down statement in
+`str_floor()`. It takes one `double` memory output and one `double`
 memory input, with the exact `ax` and `memory` clobbers. The emitted sequence
 saves the incoming x87 control word below ESP, changes its rounding-control
 field to round toward negative infinity, executes `FRNDINT`, restores the

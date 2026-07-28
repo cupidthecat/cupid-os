@@ -223,12 +223,12 @@ volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT sequences
 emit without a temporary frame slot or EBX traffic. The checked seed
 builds the normal e1000, desktop, socket, and TCP objects with this path.
 
-At compiler head, an exact empty volatile extended template with one memory
+In the checked seed, an exact empty volatile extended template with one memory
 clobber and no operands remains a compiler ordering point and emits no
 instruction bytes. This compiles the unchanged Doom sound driver. Its build
-recipe remains host-owned until a later seed promotion.
+recipe remains host-owned until its production ownership transfer.
 
-Compiler head keeps file-scope GNU basic assembly in a separate
+The checked seed keeps file-scope GNU basic assembly in a separate
 translation-unit table. Linear IR preserves each template in source order
 without treating it as a function statement. The i386 emitter recognizes the
 twelve exact x87/SSE floating wrapper definitions at the start of unchanged
@@ -238,7 +238,7 @@ full source now reaches named operands in function-body assembly at line 782.
 General GAS input and other file-scope templates remain unsupported, and the
 normal libm.c recipe still uses the host compiler.
 
-Compiler head also represents the exact per-CPU pointer output
+The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
 pointer type, evaluates the destination once, and emits the absolute GS load
 as 65 A1 00 00 00 00.
@@ -273,7 +273,7 @@ call-next support also handles the later local-label statement in unchanged
 panic.cc. Two full kernel-profile compiles produce the same validated
 10,212-byte ELF32 object. The normal panic.cc recipe uses the checked wrapper.
 
-Compiler head handles integer atomic load, store, exchange, fetch-add, and
+The checked seed handles integer atomic load, store, exchange, fetch-add, and
 fetch-or builtins for one-, two-, and four-byte objects. It checks constant
 memory orders and emits ordinary loads and release stores, memory XCHG, LOCK
 XADD, or a LOCK CMPXCHG retry loop. Fetch-or rebuilds its desired value after
@@ -285,7 +285,7 @@ forced competing update. Runtime orders, pointer atomics, HLE flags, and
 eight-byte atomics remain open. The checked seed carries all five operations
 and compiles the active EHCI fetch-or path.
 
-Compiler head and the checked seed parse all eight unchanged helpers in
+The checked seed parses all eight unchanged helpers in
 kernel/core/ports.h. The
 scalar IN and OUT forms keep their one-, two-, and four-byte accumulator
 widths and use the 16-bit DX port. The repeated word forms retain their
@@ -295,7 +295,7 @@ across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
-header gate is 155/155 at compiler head.
+header gate is 155/155 in the checked seed.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
 the 148-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
@@ -500,7 +500,7 @@ lookup only. Repeatable -include options run before the primary source in
 caller order. These path options accept native paths or absolute logical paths
 under --root. Failed compilation preserves an existing output.
 
-Compiler head can reproduce the exact audited Doom-tree profile without
+The checked seed reproduces the exact audited Doom-tree profile without
 editing its source. It keeps the sound driver's empty volatile memory barrier
 as a compiler ordering point and emits no instruction for it. Its static
 scalar evaluator folds the unchanged fixed-point table in
@@ -513,9 +513,9 @@ implicit conversions, and explicit function/data casts remain outside Linear
 IR. A one-active-member union initializer emits unchanged info.c. Narrow
 unsigned int color fields keep their member identity when they promote to
 signed int in ordinary expressions, which compiles unchanged i_video.c.
-Compiler head now emits all 80 Doom-tree objects. The checked seed does not
-carry the complete frontier yet, so Doom stays host-owned until the five-tool
-promotion, object comparison, and runtime proof are complete.
+The checked seed emits all 80 audited Doom-tree objects. Doom stays
+host-owned until object comparison, the three separate compatibility roots,
+and runtime proof are complete.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
@@ -528,12 +528,12 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current CupidC image is 2,109,488 bytes. Its SHA-256 is
-39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e
-and its source revision is 7e7029637ef22a4f18c382ffb225fd6a2ea84b85.
-It carries exact static floating data, all six floating comparisons, GNU used,
-privileged-register inputs, FXSAVE, call-next capture, GNU Nd, machine-state
-memory outputs, and C11 external inline finalization.
+The current CupidC image is 2,320,544 bytes. Its SHA-256 is
+fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb
+and its source revision is c00b3494014ca0a5f41143caa7e713e46b2ad3ec.
+It carries the complete audited Doom frontier, current GNU entity metadata,
+x87 and SSE memory forms, descriptor and segment assembly, Task 23
+file-scope wrappers, and exact naked IPI entries.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 40 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio
@@ -541,6 +541,7 @@ builds stage three there. The private and live closures are checked before the
 first stage, after each stage, and after the behavior checks. All 19 C objects,
 startup, and five linked images match byte for byte. Five help checks, ten
 successful operations, and six failure cases pass at both stages.
+ADR 0158 records the clean promotion and post-promotion reproof.
 
 make verify-bootstrap-seed checks the seed without executing it.
 make bootstrap-from-seed publishes both stages, behavior evidence, and a report
@@ -715,27 +716,27 @@ attribute does not change current object bytes because every represented
 definition is already emitted. The normal build uses this path for
 kernel/cpu/ksyms_data.cc.
 
-Compiler head also retains noinline and target("general-regs-only") on
+The checked seed retains noinline and target("general-regs-only") on
 canonical file-scope functions. noinline records the request for a future
 inliner and does not change current bytes. Each IR function carries the
 canonical code generation mask, and emission rejects a mismatch. The target
 option rejects compiler-generated floating work while explicit source
-assembly stays under its own typed contract. Compiler head also accepts the
+assembly stays under its own typed contract. The checked seed also accepts the
 exact volatile ldmxcsr %0 form with one addressable, non-atomic 32-bit
 integer m input. Linear IR evaluates the address once, and the shared x86
-model emits 0F AE 10 at [EAX]. Compiler head also accepts the exact MOVSS
+model emits 0F AE 10 at [EAX]. It accepts the exact MOVSS
 float-memory round trip in fpu_boot_smoke and its one-way load and store
 forms. Each form requires the xmm0 clobber. The shared model emits
 F3 0F 10 00 for the load and F3 0F 11 00 for the store through EAX.
-Compiler head also accepts the exact volatile x87 sine block in stress_sin.
+It also accepts the exact volatile x87 sine block in stress_sin.
 It keeps one modifiable double =m output and one addressable double m input,
 permits no clobbers, and evaluates both addresses once in output-then-input
 order. The shared model emits FLD, FSIN, and FSTP through EAX with balanced
 x87 depth and no frame temporary. Unchanged kernel/cpu/fpu.c now produces a
-complete compiler-head object. The checked seed does not carry these
-compiler-head increments.
+complete checked-seed object. Its production recipe remains host-owned until
+the separate transfer passes.
 
-Compiler head also accepts the exact volatile x87 round-down block in
+The checked seed accepts the exact volatile x87 round-down block in
 str_floor. It keeps one modifiable, non-atomic double =m output, one
 addressable, non-atomic double m input, and the exact ax plus memory clobber
 set. Linear IR evaluates the output address before the input address. After
@@ -748,10 +749,11 @@ four incoming rounding modes without executing native x87 code.
 
 Two exact compiles of the unchanged str_floor helper produce the same
 420-byte object. Full unchanged kernel/core/string.c now reaches the separate
-double-to-uint64_t cast on line 190. The checked seed and production owner are
-unchanged, so the source keeps its .c name.
+double-to-uint64_t cast on line 190. The checked seed carries the round-down
+statement, but the production owner is unchanged and the source keeps its .c
+name.
 
-Compiler head also accepts the four exact descriptor-table and
+The checked seed accepts the four exact descriptor-table and
 segment-register statements in unchanged kernel/smp/percpu.c. A packed
 six-byte object supplies LGDT through m. The two data-segment templates
 require the exact ax plus memory clobbers, the standalone CS reload keeps its
@@ -762,17 +764,18 @@ Linear IR carries the GDTR address or selector value. The shared x86 emitter
 writes LGDT, DS, ES, SS, and GS. It reloads CS through a relative CALL, JMP,
 and RETF trampoline, so the object needs no compiler-local label relocation.
 Two complete compiles of unchanged percpu.c produce the same 6,760-byte
-object. The checked seed predates this capability, so the source remains
-host-owned and keeps its .c suffix.
+object. The checked seed carries this capability, but the source remains
+host-owned and keeps its .c suffix until the production transfer passes.
 
-Compiler head also retains naked and __naked__ on a canonical file-scope
+The checked seed retains naked and __naked__ on a canonical file-scope
 void (void) function. The represented body is one complete IPI entry
 statement. The reschedule and call forms emit PUSHAL, a direct call to a
 declared C function, POPAL, and IRET. The panic form emits CLI, HLT, and a
 backward jump. The emitter adds no C prologue, local frame, epilogue, or
 synthetic return. Two kernel-profile compiles of unchanged kernel/smp/smp.c
-produce the same validated 8,444-byte ELF32 object. The checked seed does not
-yet carry this support, so the normal SMP object remains host-built.
+produce the same validated 8,444-byte ELF32 object. The checked seed carries
+this support, but the normal SMP object remains host-built until its wrapper,
+rename, image, and runtime transfer passes.
 
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc
@@ -793,7 +796,7 @@ Accepted for source compatibility:
   extern, inline, register, restrict
   private compatibility attributes; shared weak, section, unused, used,
   noinline, general-regs-only target, and exact naked IPI semantics at
-  compiler head
+  the checked seed
   labels and goto
   constant integer expressions in enum/array bounds
 

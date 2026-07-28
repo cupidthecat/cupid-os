@@ -113,10 +113,10 @@ unchanged.
 Strict C and plain GNU mode still reject the implicit conversions, and
 explicit function/data casts remain outside Linear IR. One-active-member
 union initialization and ordinary narrow bit-field promotion close the other
-two audited source boundaries. Compiler head now emits all 80 Doom-tree
-objects. The checked seed does not carry this complete frontier yet, so the
-normal Doom build stays on its host recipe until promotion, object comparison,
-and runtime proof are complete.
+two audited source boundaries. The checked seed now emits all 80 Doom-tree
+objects. The normal Doom build stays on its host recipe until object
+comparison, the three separate compatibility roots, and runtime proof are
+complete.
 >endtree
 
 >h2 Feature 5: Print Builtin

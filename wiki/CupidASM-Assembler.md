@@ -279,8 +279,9 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head contains
-587 forms, 242 canonical mnemonics, and 64 register names. The same catalogue drives
+CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked i386
+Linux seed carries all 587 forms, 242 canonical mnemonics, and 64 register
+names, with catalogue fingerprint `68E281CB`. The same catalogue drives
 instruction encoding and decoding. All sixteen i686 conditional moves accept
 16-bit or 32-bit same-width register and memory sources in either mode. Common
 alias spellings assemble to the same bytes, while CupidDis prints canonical
@@ -303,9 +304,7 @@ nop [bx + si]      ; 0F 1F 00
 nop dword [bx+si]  ; 66 0F 1F 00
 ```
 
-The checked i386 Linux seed retains the earlier 583-form model. A later seed
-refresh must carry the source-head catalogue before fixed-point builds can use
-these NOP forms.
+Fixed-point builds can use these NOP forms directly from the checked seed.
 
 CupidDis also recognizes five exact 32-bit Clang alignment strings with two
 through six leading `66` bytes followed by

@@ -65,20 +65,18 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00F00000` boot-stack layout.
 
-The checked seed includes exact static floating data, all six floating
-comparisons, decimal floating scalars, the active CSPRNG assembly,
-operand-free function assembly, per-CPU pointer output, integer atomics
-through fetch-or, and width-aware port I/O. Its stage-three CupidC image is
-2,109,488 bytes with SHA-256
-`39a5783a5ba07a4891b887ea36a5686098dc9ca128b29419aea1e0c2cd8ee86e`.
+The checked seed includes the complete audited Doom compiler frontier,
+current GNU entity metadata, the active x87 and SSE memory forms, descriptor
+and segment assembly, Task 23 file-scope wrappers, and exact naked IPI
+entries. Its stage-three CupidC image is 2,320,544 bytes with SHA-256
+`fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`.
 It came from stage three of the checked bootstrap at revision
-`7e7029637ef22a4f18c382ffb225fd6a2ea84b85`. It also carries GNU `used`,
-privileged-register inputs, FXSAVE, call-next capture, GNU `Nd`,
-machine-state memory outputs, and C11 external inline finalization. CupidASM
-and CupidDis retain immediate `IMUL`. With host code-generator commands
+`c00b3494014ca0a5f41143caa7e713e46b2ad3ec`. CupidASM and CupidDis carry
+the 587-row shared x86 catalogue. With host code-generator commands
 poisoned, all five seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases.
+tool behavior cases. ADR 0158 records the clean promotion and its
+post-promotion reproof.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -87,12 +85,12 @@ the socket layer, and TCP. The earlier detached hybrid linked the same four
 objects through both CupidLD passes and booted them under QEMU before the
 ownership hand-off.
 
-Compiler head also handles the exact per-CPU pointer output
+The checked seed handles the exact per-CPU pointer output
 `mov %%gs:0, %0` with one four-byte `=r` object or `void` pointer. The frontend
 and IR preserve its pointer type and evaluate the destination once. The x86
 model emits `65 A1 00 00 00 00`.
 
-Compiler head handles the independent `r` and `c` inputs used by
+The checked seed handles the independent `r` and `c` inputs used by
 `kernel/cpu/idt.cc`, `kernel/mm/paging.cc`, and `kernel/smp/lapic.cc`.
 Exact CR0, CR2, CR3, and CR4 moves and RDMSR emit directly into deterministic
 i386 ELF32 objects. The three double-compiled objects are 8,756, 2,336, and
@@ -101,7 +99,7 @@ object, and decoder contracts cover the supported forms and their failures
 without executing privileged instructions. The normal recipes now compile
 all three roots with the checked seed.
 
-Compiler head handles the exact volatile `fxsave (%0)` form used twice in
+The checked seed handles the exact volatile `fxsave (%0)` form used twice in
 `kernel/core/process.cc`. Its independent `r` input must be a
 four-byte object or `void` pointer, and the statement must retain its
 `memory` clobber. The emitter places the pointer in EAX and asks the shared
@@ -117,27 +115,27 @@ The normal Make graph owns both through the checked seed. Their renamed paths
 must pass the final four-vCPU e1000, desktop, terminal, and CupidC runtime
 smoke.
 
-Compiler head adds `__atomic_fetch_or` at the same one-, two-, and four-byte
+The checked seed carries `__atomic_fetch_or` at the same one-, two-, and four-byte
 integer widths. It emits a `LOCK CMPXCHG` retry loop because `LOCK OR` cannot
 return the old value. Exact byte and execution checks cover a competing
 update, signed narrow results, guard bytes, one-time operand evaluation, and
 callee-saved EBX. The checked stage-three seed carries this operation and
 compiles the active EHCI path.
 
-Compiler head and the checked seed parse all eight helpers in unchanged
+The checked seed parses all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. This brings the active non-Doom
-header gate to 155/155 at compiler head.
+header gate to 155/155 in the checked seed.
 
-Compiler head also retains GNU `noinline` and the exact
+The checked seed retains GNU `noinline` and the exact
 `target("general-regs-only")` option on compatible file-scope function
 declarations. Each IR function carries the canonical code generation mask.
 Linear IR rejects compiler-generated floating work in a
 general-register-only function, and the emitter repeats the mask and
 frozen-metadata checks. Explicit source assembly remains under its own
-contract. Compiler head also keeps the exact volatile `ldmxcsr %0` memory
+contract. It also keeps the exact volatile `ldmxcsr %0` memory
 input as one address-valued 32-bit integer lvalue and emits `0F AE 10`
 through the shared x86 model. It also keeps the exact MOVSS float-memory
 round trip in `fpu_boot_smoke()` and the matching one-way load and store.
@@ -146,9 +144,10 @@ and emits `F3 0F 10 00` or `F3 0F 11 00` through EAX. The unchanged
 `stress_sin()` x87 statement is also represented. It evaluates one `double`
 output address before one `double` input address, permits no clobbers, and
 emits balanced `FLD`, `FSIN`, and `FSTP` instructions with no frame
-temporary. Two complete compiler-head builds of unchanged
+temporary. Two complete builds of unchanged
 `kernel/cpu/fpu.c` produce the same validated 6,620-byte object. The checked
-seed and normal ownership graph are unchanged.
+seed carries the path; the normal ownership graph stays unchanged until the
+separate production transfer passes.
 
 The next compiler-head slice represents the complete x87 round-down statement
 in unchanged `str_floor()`. It requires one modifiable `double` output, one
@@ -162,10 +161,11 @@ Two exact compiles of the extracted active helper produce the same 420-byte
 ELF32 object with SHA-256
 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
 Full unchanged `kernel/core/string.c` now reaches the separate
-double-to-`uint64_t` cast on line 190. The checked seed does not carry this
-increment, so the root remains host-owned and keeps its `.c` name.
+double-to-`uint64_t` cast on line 190. The checked seed carries the
+round-down increment, but the root remains host-owned and keeps its `.c`
+name.
 
-The same compiler head retains GNU `naked` and `__naked__` for the exact IPI
+The checked seed retains GNU `naked` and `__naked__` for the exact IPI
 entries in unchanged `kernel/smp/smp.c`. A naked definition must be
 `void (void)` and contain one complete wrapper or panic-loop assembly
 statement. The emitter adds no C frame or return instruction. Its direct call
@@ -173,7 +173,8 @@ uses one typed `R_386_PC32` relocation, and the panic loop uses a local
 relative jump. Two exact-profile compiles reproduce an 8,444-byte object with
 SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed and normal ownership graph remain unchanged.
+The checked seed carries these entries. The normal ownership graph remains
+unchanged until the wrapper, rename, image, and runtime transfer passes.
 
 The normal image has 149 checked CupidC C transforms: 148 checked-in sources
 and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use
@@ -184,7 +185,7 @@ fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer,
 ADR 0135 records the Nuked OPL3 transfer, and ADR 0139 records the JPEG and
 glyph-raster transfer. Seven strict checked-in roots remain host-owned.
 
-Compiler head now accepts ordered `-include` inputs through both the native
+The checked seed accepts ordered `-include` inputs through both the native
 and Cupid-built driver. That command can reproduce the complete audited
 Doom-tree preprocessing profile without editing vendored source. It also
 retains the sound driver's empty volatile memory barrier without emitting an
@@ -196,11 +197,12 @@ five calls in `i_system.c` that precede a declaration and permits the eleven
 audited, bit-preserving conversions between unqualified function pointers and
 unqualified four-byte data or `void` pointers. Strict C and plain GNU mode
 still reject those implicit conversions, and explicit function/data casts
-remain outside Linear IR. Compiler head also retains member provenance while
+remain outside Linear IR. The checked seed retains member provenance while
 narrow `unsigned int` color fields promote to signed `int` in unchanged
 `kernel/doom/src/i_video.c`. It now emits all 80 Doom-tree objects. The
-current checked seed predates this complete frontier, so no Doom recipe moves
-until the five-tool promotion, object comparison, and runtime proof pass.
+checked seed carries this complete frontier, but no Doom recipe moves until
+object comparison, the three separate compatibility roots, and runtime proof
+pass.
 
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
@@ -269,7 +271,7 @@ object. The word array ends with two zero pad bytes. The final kernel
 consumes 4,384 text symbols and shows no address drift from the pass-one
 kernel.
 
-Compiler head also emits the exact volatile
+The checked seed emits the exact volatile
 `call 1f\n1: popl %0` address capture used by the stack-trace helpers in
 `kernel/lang/as.cc` and `kernel/lang/cupidc.cc`. The instruction pair is a
 zero-displacement `CALL` followed by `POP r32`, with no relocation. Both
@@ -281,12 +283,12 @@ The `cupidc.cc` object is 288,180 bytes with SHA-256
 Their normal recipes now use this checked-seed capability. Other call
 templates and general inline-assembly labels remain unsupported.
 
-Compiler head now also accepts the GNU `Nd` port alternative in
+The checked seed also accepts the GNU `Nd` port alternative in
 `kernel/cpu/pic.cc`. It selects the valid DX branch and emits both unchanged
 8-bit PIC templates through Cupid's x86 model. The normal recipe compiles the
 root with the checked seed.
 
-Compiler head emits the three machine-state memory outputs in
+The checked seed emits the three machine-state memory outputs in
 `kernel/core/panic.cc`. The exact volatile `fnstsw %0` and `fnstcw %0` forms
 require a 16-bit `=m` destination, and `stmxcsr %0` requires a 32-bit
 destination. Linear IR evaluates each lvalue once, and the i386 emitter writes
@@ -312,7 +314,7 @@ in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
 is the next largest measured decoder gap. Source head has 587 catalogue rows
 and fingerprint `68E281CB`; the private exception does not change either
-value. The checked seed still carries the earlier 583-row model.
+value. The checked seed carries the same 587-row catalogue.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 traffic,
 passes all 62 crypto checks, opens the desktop and terminal, and completes

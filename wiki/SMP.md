@@ -115,8 +115,9 @@ GNU assembly boundary accepts the packed six-byte GDTR, the exact AX and
 memory clobbers, and a 16-bit GS selector. CS reload uses a relative
 call-and-RETF trampoline, so the emitted object needs no local-label
 relocation. Two full compiles of `kernel/smp/percpu.c` produce the same
-6,760-byte object. The checked seed predates this capability, so the normal
-recipe remains host-owned until seed promotion and runtime proof pass.
+6,760-byte object. The checked seed carries this capability, but the normal
+recipe remains host-owned until its wrapper, rename, image, and runtime
+transfer passes.
 
 ---
 
@@ -517,12 +518,12 @@ profile, validates each i386 ELF32 object, and only then replaces the
 production output. A forced build with an invalid host compiler proves that
 none of these recipes falls back to Clang or GCC.
 
-Compiler head can also compile unchanged `kernel/smp/smp.c`, including all
+The checked seed also compiles unchanged `kernel/smp/smp.c`, including all
 three naked IPI entries. Two exact kernel-profile compiles produce the same
 validated 8,444-byte object with SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed does not yet carry that support, so the normal `smp.c`
-object remains host-built.
+The checked seed carries that support, but the normal `smp.c` object remains
+host-built until its wrapper, rename, image, and runtime transfer passes.
 
 The strong QEMU gate uses four vCPUs, the `max` CPU, and e1000. It requires
 MP fallback discovery, a four-CPU ACPI MADT, CPUs 1 through 3 online, and the

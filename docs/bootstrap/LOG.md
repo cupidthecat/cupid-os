@@ -13986,3 +13986,78 @@ path, or host-dependency count moves yet. The exact compiler-head object is
 not part of the normal image, so this checkpoint makes no boot or runtime
 claim. Seed promotion must precede production ownership, the `.cc` rename,
 and a four-vCPU SMP gate. `TempleOS/` remains untouched reference material.
+
+## 2026-07-28: promote the combined toolchain frontier
+
+The checked i386 Linux seed now comes from clean revision
+`c00b3494014ca0a5f41143caa7e713e46b2ad3ec`. It carries the complete
+audited Doom frontier, the current GNU entity attributes, x87 and SSE
+memory forms, descriptor and segment assembly, Task 23 file-scope wrappers,
+the exact naked IPI entries, and the 587-row shared x86 catalogue.
+
+### Clean promotion candidate
+
+A fresh staged bootstrap began from the committed tree. `CC`, `CXX`, `CPP`,
+`HOSTCC`, `HOSTCXX`, `ASM`, `LD`, `AR`, `NM`, and `OBJCOPY` all named
+commands that cannot run. The bootstrap therefore had to compile, assemble,
+inspect, link, and wrap through the checked Cupid tools.
+
+The run froze 40 source inputs with snapshot SHA-256
+`e90771d9cb9429b15f136f008ba9c5d8d982f3fd867a57bb520b5aa7b6b32535`.
+All 19 C objects, the startup object, and all five tool images matched
+between stages two and three. Both generations passed five help cases, ten
+successful operations, and six useful failures. The run completed in about
+557 seconds. Its 14,881-byte report has SHA-256
+`3522f6ed4baabf91e160db457c5c66f4478253c78f39cb384673de474ed86879`.
+
+The five stage-three images were copied as one generation into
+`bootstrap/seeds/i386-linux/`. CupidLD and CupidObj were byte-identical to
+their predecessors; copying them again kept the promotion boundary clear.
+The refreshed images are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,104 | `d57e4f0494aef294045c633b12e4db3f14e879102ac4e528fe70d6a5f089c7e7` |
+| CupidC | 2,320,544 | `fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb` |
+| CupidDis | 371,108 | `e67157c4883f4164635b6084bc8c6475b77fd9d051196f4a553ae64346948d70` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+
+The manifest is 5,440 bytes with SHA-256
+`57f7a9dc390ace86e46de9a13b5b8d19330fd5c91fe34d502a550e5d04ed7ee8`.
+The standalone verifier accepts all five files.
+
+### Post-promotion reproof
+
+The promoted seed rebuilt the same frozen source snapshot in another fresh
+directory with the same poisoned host commands. Stage two and stage three
+again matched across 19 C objects, one startup object, and five tools. The
+five initial seed images also matched their stage-two replacements. The
+same 5/10/6 behavior suite passed.
+
+This second run completed in about 557 seconds. Its 14,878-byte report has
+SHA-256
+`839a2584e88fab6a46c325bad108ffeb54765590b04097711eee289a5844b569`.
+ADR 0158 records the promotion rule and evidence.
+
+The complete checked-seed contract module passes all 22 tests in 728.215
+seconds. It covers manifest and provenance validation, frozen-source and
+publication guards, useful corrupt-input failures, WSL staging, and another
+complete staged fixed point. In parallel, the native five-tool fixed-point
+oracle passes its dedicated test in 737.556 seconds.
+
+Audit regeneration and deterministic checking both pass. The graph remains
+at 698 active sources, 253 feature IDs, 504 transforms, and 42 accounted
+unreachable files. Its active-source digest is
+`439de8c3bd3fcf86c702edddabba1b955ce8338f6776891bd5a719bd1473422e`.
+The 1,525,139-byte JSON has SHA-256
+`bed5a7cdcea4fdbcdc12effc9bc4b02df6803ed29893dc0552687ca80fb5f046`.
+All 62 mutation and ownership audit tests pass in 532.994 seconds. The
+strict Toolchain build and self-host link gate pass alongside them.
+
+This checkpoint changes seed identity, bootstrap locks, and current
+documentation only. The normal FPU, per-CPU, and SMP recipes remain
+host-owned until a separate build-graph change proves their checked-seed
+objects, image, and four-vCPU runtime behavior. Their sources keep `.c`
+suffixes for the same reason. Named GNU operands and broader assembly forms
+remain open. `TempleOS/` remains untouched reference material.
