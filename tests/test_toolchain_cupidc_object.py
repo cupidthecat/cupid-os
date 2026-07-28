@@ -147,6 +147,11 @@ LIBM_SOURCE_SHA256 = (
     "f1c13c83b758394189cc74ed6addfd9d"
     "fa99d42064c349c548476686b26cabce"
 )
+KERNEL_SOURCE_SIZE = 31172
+KERNEL_SOURCE_SHA256 = (
+    "fcc92bb561ed107ec6b328f5e9502f10"
+    "40a2fedd9cf573f6876e5b93556945c3"
+)
 
 
 class ToolchainCupidCObjectContractTests(unittest.TestCase):
@@ -1263,6 +1268,90 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 ),
             )
 
+    def test_unchanged_kernel_source_emits_a_deterministic_object(self):
+        source = REPO_ROOT / "kernel/core/kernel.c"
+        source_bytes = source.read_bytes()
+        self.assertEqual(len(source_bytes), KERNEL_SOURCE_SIZE)
+        self.assertEqual(source_bytes.count(b"\n"), 950)
+        self.assertEqual(
+            hashlib.sha256(source_bytes).hexdigest(),
+            KERNEL_SOURCE_SHA256,
+        )
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-kernel-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            objects = []
+            for index in range(2):
+                output = output_root / f"kernel-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        "/kernel/core/kernel.c",
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                validate_i386_relocatable_bytes(image)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    25920,
+                    "d44d06949d48ead865d0d8c1bdd3b76a"
+                    "67b429e0b7a369318ec4fbe8d9f44ed7",
+                ),
+                (
+                    "kernel object lock changed: "
+                    f"{len(objects[0])} {digest}"
+                ),
+            )
+
     def test_unchanged_libm_source_emits_a_deterministic_object(self):
         source = REPO_ROOT / "kernel/cpu/libm.c"
         source_bytes = source.read_bytes()
@@ -1399,6 +1488,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "operand-free-assembly: ok\n")
+
+    def test_kernel_start_assembly_emits_exact_i386_and_relocations(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "kernel-start-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "kernel-start-assembly: ok\n")
 
     def test_file_scope_math_rounding_and_fmod_assembly_emits_exact_i386(self):
         result = subprocess.run(

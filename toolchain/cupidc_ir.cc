@@ -89,6 +89,9 @@ typedef struct {
   ctool_u32 argument_type_capacity;
   ctool_u32 *file_assemblies;
   ctool_u32 function_first_instruction;
+  ctool_u32 function_binding;
+  ctool_u32 function_declared_type;
+  ctool_u32 function_body_statement;
   ctool_u32 function_first_parameter;
   ctool_u32 function_parameter_count;
   ctool_u32 function_first_block_binding;
@@ -480,6 +483,76 @@ static ctool_bool cir_naked_panic_template(
     ctool_string_t template_text) {
   return cir_string_equal(
       template_text, ctool_string("cli\n1: hlt\njmp 1b\n"));
+}
+
+static ctool_bool cir_kernel_bss_clear_template(
+    ctool_string_t template_text) {
+  return cir_string_equal(
+      template_text,
+      ctool_string(
+          "mov $0xF00000, %%esp\n"
+          "mov %%esp, %%ebp\n"
+          "mov $_bss_start, %%edi\n"
+          "mov $_kernel_end, %%ecx\n"
+          "sub %%edi, %%ecx\n"
+          "shr $2, %%ecx\n"
+          "xor %%eax, %%eax\n"
+          "cld\n"
+          "rep stosl\n"));
+}
+
+static ctool_bool cir_external_object_binding_exists(
+    const cir_context_t *context, ctool_string_t name) {
+  ctool_u32 index;
+  if (context == (const cir_context_t *)0 ||
+      context->unit == (const ctool_c_translation_unit_t *)0 ||
+      (context->unit->layout.type_count != 0u &&
+       context->unit->layout.types ==
+           (const ctool_c_type_layout_t *)0)) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < context->unit->binding_count; index++) {
+    const ctool_c_binding_t *binding = &context->unit->bindings[index];
+    if (binding->kind == CTOOL_C_BINDING_OBJECT &&
+        binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+        binding->file_scope_visible == CTOOL_TRUE &&
+        binding->type < context->unit->graph.type_count &&
+        binding->type < context->unit->layout.type_count &&
+        context->unit->layout.types[binding->type].is_object ==
+            CTOOL_TRUE &&
+        cir_string_equal(binding->name, name) == CTOOL_TRUE) {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool cir_kernel_bss_clear_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_u32 register_clobbers =
+      CTOOL_C_ASSEMBLY_EAX_CLOBBER |
+      CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+      CTOOL_C_ASSEMBLY_EDI_CLOBBER;
+  if (cir_kernel_bss_clear_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return (assembly->flags & register_clobbers) == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  return assembly->flags ==
+                     (CTOOL_C_ASSEMBLY_VOLATILE |
+                      CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      register_clobbers) &&
+                 assembly->output_count == 0u &&
+                 assembly->input_count == 0u &&
+                 assembly->direct_call_binding_plus_one == 0u &&
+                 cir_external_object_binding_exists(
+                     context, ctool_string("_bss_start")) == CTOOL_TRUE &&
+                 cir_external_object_binding_exists(
+                     context, ctool_string("_kernel_end")) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
 }
 
 static ctool_bool cir_naked_control_assembly_metadata_is_valid(
@@ -1546,7 +1619,10 @@ static ctool_status_t cir_validate_assembly_slices(
            CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
            CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
            CTOOL_C_ASSEMBLY_AX_CLOBBER |
-           CTOOL_C_ASSEMBLY_CC_CLOBBER)) != 0u ||
+           CTOOL_C_ASSEMBLY_CC_CLOBBER |
+           CTOOL_C_ASSEMBLY_EAX_CLOBBER |
+           CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+           CTOOL_C_ASSEMBLY_EDI_CLOBBER)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -1659,6 +1735,10 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     if (cir_flags_restore_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_kernel_bss_clear_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -2104,6 +2184,56 @@ static ctool_bool cir_type_is_void(const cir_context_t *context,
   const ctool_c_type_node_t *node = cir_unwrapped_type(context, type);
   return node != (const ctool_c_type_node_t *)0 &&
                  node->kind == CTOOL_C_TYPE_VOID
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_kernel_entry_context_is_valid(
+    const cir_context_t *context, ctool_u32 statement_index,
+    ctool_u32 statement_depth) {
+  const ctool_c_binding_t *binding;
+  const ctool_c_type_node_t *function;
+  const ctool_c_statement_t *body;
+  if (context == (const cir_context_t *)0 ||
+      context->unit == (const ctool_c_translation_unit_t *)0 ||
+      context->function_binding >= context->unit->binding_count ||
+      context->function_body_statement >=
+          context->unit->statement_count) {
+    return CTOOL_FALSE;
+  }
+  binding = &context->unit->bindings[context->function_binding];
+  function = cir_unwrapped_type(
+      context, context->function_declared_type);
+  body = &context->unit
+              ->statements[context->function_body_statement];
+  return binding->kind == CTOOL_C_BINDING_FUNCTION &&
+                 binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+                 binding->file_scope_visible == CTOOL_TRUE &&
+                 cir_string_equal(
+                     binding->name, ctool_string("_start")) == CTOOL_TRUE &&
+                 (binding->attributes &
+                  CTOOL_C_DECL_ATTR_SECTION) != 0u &&
+                 cir_string_equal(
+                     binding->section_name,
+                     ctool_string(".text.start")) == CTOOL_TRUE &&
+                 function != (const ctool_c_type_node_t *)0 &&
+                 function->kind == CTOOL_C_TYPE_FUNCTION &&
+                 function->has_prototype == CTOOL_TRUE &&
+                 context->function_parameter_count == 0u &&
+                 context->function_variadic == CTOOL_FALSE &&
+                 cir_type_is_void(
+                      context, context->function_result_type) == CTOOL_TRUE &&
+                 statement_depth == 0u &&
+                 body->kind == CTOOL_C_STATEMENT_COMPOUND &&
+                 body->child_count != 0u &&
+                 body->first_child <
+                     context->unit->statement_child_count &&
+                 context->unit
+                         ->statement_children[body->first_child] ==
+                     statement_index &&
+                 context->instruction_count ==
+                     context->function_first_instruction &&
+                 context->stack_depth == 0u
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -9575,7 +9705,8 @@ static ctool_bool cir_assembly_output_type_is_valid(
 }
 
 static ctool_status_t cir_lower_assembly_statement(
-    cir_context_t *context, const ctool_c_statement_t *statement) {
+    cir_context_t *context, ctool_u32 statement_index,
+    const ctool_c_statement_t *statement, ctool_u32 statement_depth) {
   const ctool_c_assembly_t *assembly;
   ctool_u32 operand_count;
   ctool_u32 operand_offset;
@@ -9597,6 +9728,11 @@ static ctool_status_t cir_lower_assembly_statement(
     return cir_invalid_unit(context, &statement->location);
   }
   assembly = &context->unit->assemblies[statement->assembly];
+  if (cir_kernel_bss_clear_template(assembly->template_text) == CTOOL_TRUE &&
+      cir_kernel_entry_context_is_valid(
+          context, statement_index, statement_depth) == CTOOL_FALSE) {
+    return cir_invalid_unit(context, &statement->location);
+  }
   operand_count = assembly->output_count + assembly->input_count;
   for (operand_offset = 0u; operand_offset < operand_count;
        operand_offset++) {
@@ -11210,7 +11346,8 @@ static ctool_status_t cir_lower_statement(cir_context_t *context,
     return cir_lower_declaration(context, statement);
   }
   if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
-    return cir_lower_assembly_statement(context, statement);
+    return cir_lower_assembly_statement(
+        context, statement_index, statement, depth);
   }
   if (statement->kind == CTOOL_C_STATEMENT_GOTO) {
     status = cir_lower_goto(context, statement);
@@ -12519,6 +12656,9 @@ static ctool_status_t cir_lower_function(
     }
   }
   context->function_first_instruction = context->instruction_count;
+  context->function_binding = definition->binding;
+  context->function_declared_type = definition->declared_type;
+  context->function_body_statement = definition->body;
   context->function_first_parameter = function_type->first_parameter;
   context->function_parameter_count = function_type->parameter_count;
   context->function_result_type = function_type->referenced_type;

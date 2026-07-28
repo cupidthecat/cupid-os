@@ -36717,6 +36717,357 @@ cleanup:
   return 1;
 }
 
+static int kernel_start_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_ir_function_t *start;
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 2u ||
+      unit->assembly_operand_count != 0u ||
+      unit->assemblies == NULL ||
+      unit->assembly_operands != NULL ||
+      ir->function_count != 1u ||
+      ir->instruction_count != 4u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  start = &ir->functions[0];
+  if (start->instruction_count != 4u ||
+      start->maximum_stack_depth != 0u ||
+      start->first_instruction > ir->instruction_count ||
+      start->instruction_count >
+          ir->instruction_count - start->first_instruction) {
+    return 0;
+  }
+  return inline_assembly_instruction_matches(
+             &ir->instructions[start->first_instruction], 0u,
+             "/kernel-start-assembly.c") &&
+             ir->instructions[start->first_instruction].location.line ==
+                 6u &&
+             ir->instructions[start->first_instruction + 1u].kind ==
+                 CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
+             inline_assembly_instruction_matches(
+                 &ir->instructions[start->first_instruction + 2u], 1u,
+                 "/kernel-start-assembly.c") &&
+             ir->instructions[start->first_instruction + 2u]
+                     .location.line == 8u &&
+             ir->instructions[start->first_instruction + 3u].kind ==
+                 CTOOL_C_IR_INSTRUCTION_RETURN_VOID
+         ? 1
+         : 0;
+}
+
+static int run_kernel_start_assembly(const char *host_root) {
+  static const char source[] =
+      "extern unsigned int _kernel_end;\n"
+      "extern unsigned int _bss_start;\n"
+      "void kmain(void);\n"
+      "void _start(void) __attribute__((section(\".text.start\")));\n"
+      "void _start(void) {\n"
+      "  asm volatile(\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+      "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+      "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+      "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+      " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+      "  kmain();\n"
+      "  asm volatile(\"cld\");\n"
+      "}\n";
+  static const char nested_source[] =
+      "extern unsigned int _kernel_end;\n"
+      "extern unsigned int _bss_start;\n"
+      "void _start(void) __attribute__((section(\".text.start\")));\n"
+      "void _start(void) {\n"
+      "  { asm volatile(\"cld\"); }\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t nested_unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[2];
+  ctool_c_assembly_t nested_assembly;
+  ctool_c_binding_t *bindings = NULL;
+  ctool_c_statement_t *statements = NULL;
+  ctool_c_type_node_t *types = NULL;
+  ctool_u32 bss_start_binding;
+  ctool_u32 kernel_end_binding;
+  ctool_u32 start_binding;
+  ctool_u32 assembly_statement = CTOOL_C_AST_NONE;
+  ctool_u32 statement_index;
+  ctool_u32 diagnostic_count;
+  uint64_t ir_hash;
+  uint64_t unit_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&nested_unit, 0, sizeof(nested_unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/kernel-start-assembly.c",
+                         source, CTOOL_TRUE, &unit) ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 0u ||
+      unit.assemblies == NULL ||
+      unit.assembly_operands != NULL) {
+    (void)fprintf(stderr, "kernel start assembly setup failed\n");
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  bss_start_binding = find_binding(&unit, "_bss_start");
+  kernel_end_binding = find_binding(&unit, "_kernel_end");
+  start_binding = find_binding(&unit, "_start");
+  for (statement_index = 0u; statement_index < unit.statement_count;
+       statement_index++) {
+    if (unit.statements[statement_index].kind ==
+            CTOOL_C_STATEMENT_ASSEMBLY &&
+        unit.statements[statement_index].assembly == 0u) {
+      assembly_statement = statement_index;
+      break;
+    }
+  }
+  bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*bindings));
+  statements = (ctool_c_statement_t *)malloc(
+      (size_t)unit.statement_count * sizeof(*statements));
+  types = (ctool_c_type_node_t *)malloc(
+      (size_t)unit.graph.type_count * sizeof(*types));
+  if (bss_start_binding == CTOOL_C_AST_NONE ||
+      kernel_end_binding == CTOOL_C_AST_NONE ||
+      start_binding == CTOOL_C_AST_NONE ||
+      assembly_statement == CTOOL_C_AST_NONE ||
+      bindings == NULL || statements == NULL || types == NULL) {
+    (void)fprintf(stderr,
+                  "kernel start assembly mutation setup failed\n");
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "kernel start assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !kernel_start_assembly_ir_matches(&unit, &first_ir)) {
+    (void)fprintf(stderr, "kernel start assembly IR differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat kernel start assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !kernel_start_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(stderr, "repeat kernel start assembly IR differs\n");
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  (void)memcpy(statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*statements));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+
+  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_ECX_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start assembly missing ecx clobber")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].template_text = ctool_string("nop");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start clobbers on another template")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].first_operand = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start assembly slice gap")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].flags |= 0x80000000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start assembly unknown flag")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].direct_call_binding_plus_one = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start assembly forged direct call")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+  assemblies[0].output_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start assembly forged output")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[1];
+  assemblies[1] = unit.assemblies[0];
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start assembly after compiler-managed work")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*bindings));
+  invalid_unit = unit;
+  invalid_unit.bindings = bindings;
+  bindings[bss_start_binding].type = unit.graph.type_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start BSS symbol type out of range")) {
+    goto cleanup;
+  }
+  bindings[bss_start_binding] = unit.bindings[bss_start_binding];
+  bindings[bss_start_binding].type =
+      unit.bindings[start_binding].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start BSS symbol with function type")) {
+    goto cleanup;
+  }
+  bindings[bss_start_binding] = unit.bindings[bss_start_binding];
+  bindings[kernel_end_binding].linkage = CTOOL_C_LINKAGE_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel end symbol without external linkage")) {
+    goto cleanup;
+  }
+  bindings[kernel_end_binding] = unit.bindings[kernel_end_binding];
+  bindings[kernel_end_binding].file_scope_visible = CTOOL_FALSE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel end symbol hidden from file scope")) {
+    goto cleanup;
+  }
+  bindings[kernel_end_binding] = unit.bindings[kernel_end_binding];
+  bindings[start_binding].name = ctool_string("ordinary");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel stack reset outside _start")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(types, unit.graph.types,
+               (size_t)unit.graph.type_count * sizeof(*types));
+  invalid_unit = unit;
+  invalid_unit.graph.types = types;
+  types[unit.function_definitions[0].declared_type].has_prototype =
+      CTOOL_FALSE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel stack reset with old-style entry type")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(statements, unit.statements,
+               (size_t)unit.statement_count * sizeof(*statements));
+  invalid_unit = unit;
+  invalid_unit.statements = statements;
+  statements[assembly_statement].assembly = unit.assembly_count;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel start statement with forged assembly reference")) {
+    goto cleanup;
+  }
+
+  if (!parse_source_mode(
+          job, "/kernel-start-nested-assembly.c", nested_source,
+          CTOOL_TRUE, &nested_unit) ||
+      nested_unit.assembly_count != 1u ||
+      nested_unit.assemblies == NULL) {
+    (void)fprintf(stderr,
+                  "nested kernel start assembly setup failed\n");
+    goto cleanup;
+  }
+  nested_assembly = nested_unit.assemblies[0];
+  nested_assembly.template_text = unit.assemblies[0].template_text;
+  nested_assembly.flags = unit.assemblies[0].flags;
+  invalid_unit = nested_unit;
+  invalid_unit.assemblies = &nested_assembly;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "kernel stack reset nested in an entry compound")) {
+    goto cleanup;
+  }
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "kernel start assembly recovery") ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !kernel_start_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(stderr, "kernel start assembly IR did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(types);
+  free(statements);
+  free(bindings);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("kernel-start-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static uint64_t file_scope_assembly_ir_fingerprint(
     const ctool_c_ir_unit_t *ir) {
   uint64_t hash = UINT64_C(1469598103934665603);
@@ -38654,6 +39005,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "kernel-start-assembly") == 0) {
+    return run_kernel_start_assembly(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "file-scope-assembly") == 0) {
     return run_file_scope_assembly(argv[2]);
   }
@@ -38706,8 +39060,8 @@ int main(int argc, char **argv) {
                 "flags-restore-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"
-                "operand-free-assembly|file-scope-assembly|"
-                "file-scope-fabs-assembly "
+                "operand-free-assembly|kernel-start-assembly|"
+                "file-scope-assembly|file-scope-fabs-assembly "
                 "HOST_ROOT\n");
   return 2;
 }

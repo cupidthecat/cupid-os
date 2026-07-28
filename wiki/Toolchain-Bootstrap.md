@@ -188,6 +188,26 @@ twice to the same 14,460-byte object with SHA-256
 The root remains host-owned and keeps its `.c` name until production
 transfer.
 
+Compiler head now represents the exact operand-free BSS-clear statement only
+at the direct start of the external `.text.start` `_start()` definition. It
+keeps the EAX, ECX, EDI, and memory clobbers, requires visible object
+declarations for `_bss_start` and `_kernel_end`, and rejects a
+compiler-managed frame. Frontend depth rejects leading, label-wrapped, and
+otherwise nested copies. The emitter installs the fixed stack, writes two
+`R_386_32` symbol relocations, derives the doubleword count, and clears the
+linked range with CLD and REP STOSD.
+
+The following `kmain()` call uses the reset stack residue and adds no stale
+padding. If it returns, the entry disables interrupts and remains in a halt
+loop. The 42-byte fixture has three relocations and a 27-byte assembly body.
+
+Two Cupid-built compiler runs emit unchanged `kernel/core/kernel.c` as the
+same 25,920-byte object with SHA-256
+`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
+A private hybrid image with that object passes the GUI terminal smoke. The
+checked seed and normal recipe predate this statement, so the root remains
+host-owned with its `.c` suffix.
+
 The checked seed retains GNU `naked` and `__naked__` for the exact IPI
 entries. A naked definition must be
 `void (void)` and contain one complete wrapper or panic-loop assembly

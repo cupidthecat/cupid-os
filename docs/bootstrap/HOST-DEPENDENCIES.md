@@ -419,6 +419,23 @@ has not transferred. ADRs 0141, 0146,
 0148, 0150, and 0154 record the assembly boundaries. ADR 0170 records the
 conversion.
 
+Compiler head now emits the exact operand-free BSS-clear statement at the
+start of the external `.text.start` `_start()` body. The statement installs
+the fixed stack, loads `_bss_start` and `_kernel_end` through two `R_386_32`
+relocations, derives the doubleword count, and clears the range with CLD and
+REP STOSD. The following `kmain()` call uses the reset stack residue, and a
+return reaches a halt loop rather than the discarded frame. Frontend depth
+tracking rejects leading, label-wrapped, and otherwise nested copies before
+IR independently checks the outer body relationship.
+
+Two Cupid-built compiler runs emit unchanged `kernel/core/kernel.c` as the
+same 25,920-byte object with SHA-256
+`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
+A private hybrid image links and boots that object through desktop and
+`/bin/ls.cc` execution. The checked seed and normal recipe do not carry this
+statement yet, so the host dependency count is unchanged and `kernel.c`
+keeps its `.c` suffix. ADR 0175 records the boundary.
+
 The checked seed accepts the exact volatile EFLAGS restore used twice by
 `simd_cpu_has_cpuid()`: one 32-bit `r` input, no outputs, and one `cc`
 clobber. The shared x86 path emits `POP EAX`, `PUSH EAX`, and `POPF` without
@@ -428,7 +445,7 @@ constraint and names the compatible `=a` output; the emitter consumes the
 leaf through EAX immediately before CPUID. A complete unchanged-source probe
 now advances to the unsupported `xmm1` clobber on line 134. The normal
 `kernel/cpu/simd.c` recipe still uses the host compiler, so this work retires
-no host dependency and the source keeps its `.c` suffix. ADRs 0160 and 0162
+no host dependency and the source keeps its `.c` suffix. ADRs 0160 and 0168
 record the boundaries, and ADR 0174 records seed carriage.
 
 The checked seed also emits `kernel/smp/percpu.cc` completely. Its

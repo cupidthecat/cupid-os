@@ -192,6 +192,82 @@ static ctool_bool cemit_strings_equal(ctool_string_t left,
   return CTOOL_TRUE;
 }
 
+static ctool_bool cemit_kernel_bss_clear_template(
+    ctool_string_t template_text) {
+  return cemit_strings_equal(
+      template_text,
+      ctool_string(
+          "mov $0xF00000, %%esp\n"
+          "mov %%esp, %%ebp\n"
+          "mov $_bss_start, %%edi\n"
+          "mov $_kernel_end, %%ecx\n"
+          "sub %%edi, %%ecx\n"
+          "shr $2, %%ecx\n"
+          "xor %%eax, %%eax\n"
+          "cld\n"
+          "rep stosl\n"));
+}
+
+static ctool_bool cemit_find_external_object_binding(
+    const cemit_context_t *context, ctool_string_t name,
+    ctool_u32 *binding_out) {
+  ctool_u32 index;
+  if (context == (const cemit_context_t *)0 ||
+      context->unit == (const ctool_c_translation_unit_t *)0 ||
+      (context->unit->layout.type_count != 0u &&
+       context->unit->layout.types ==
+           (const ctool_c_type_layout_t *)0)) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < context->unit->binding_count; index++) {
+    const ctool_c_binding_t *binding = &context->unit->bindings[index];
+    if (binding->kind == CTOOL_C_BINDING_OBJECT &&
+        binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+        binding->file_scope_visible == CTOOL_TRUE &&
+        binding->type < context->unit->graph.type_count &&
+        binding->type < context->unit->layout.type_count &&
+        context->unit->layout.types[binding->type].is_object ==
+            CTOOL_TRUE &&
+        cemit_strings_equal(binding->name, name) == CTOOL_TRUE) {
+      if (binding_out != (ctool_u32 *)0) {
+        *binding_out = index;
+      }
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool cemit_kernel_bss_clear_assembly_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_u32 register_clobbers =
+      CTOOL_C_ASSEMBLY_EAX_CLOBBER |
+      CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+      CTOOL_C_ASSEMBLY_EDI_CLOBBER;
+  if (cemit_kernel_bss_clear_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return (assembly->flags & register_clobbers) == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  return assembly->flags ==
+                     (CTOOL_C_ASSEMBLY_VOLATILE |
+                      CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      register_clobbers) &&
+                 assembly->output_count == 0u &&
+                 assembly->input_count == 0u &&
+                 assembly->direct_call_binding_plus_one == 0u &&
+                 cemit_find_external_object_binding(
+                     context, ctool_string("_bss_start"),
+                     (ctool_u32 *)0) == CTOOL_TRUE &&
+                 cemit_find_external_object_binding(
+                     context, ctool_string("_kernel_end"),
+                     (ctool_u32 *)0) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_identifier_first_character(char character) {
   return (character >= 'a' && character <= 'z') ||
                  (character >= 'A' && character <= 'Z') ||
@@ -861,6 +937,8 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
                    CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
       const ctool_c_assembly_t *assembly;
       ctool_u32 direct_binding;
+      ctool_u32 bss_start_binding;
+      ctool_u32 kernel_end_binding;
       if (instruction->reference >= context->unit->assembly_count ||
           context->unit->assemblies ==
               (const ctool_c_assembly_t *)0) {
@@ -868,6 +946,24 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
       }
       assembly =
           &context->unit->assemblies[instruction->reference];
+      if (cemit_kernel_bss_clear_assembly_metadata_is_valid(
+              context, assembly) == CTOOL_FALSE) {
+        return cemit_invalid_unit(context, &assembly->location);
+      }
+      if (cemit_kernel_bss_clear_template(
+              assembly->template_text) == CTOOL_TRUE) {
+        if (cemit_find_external_object_binding(
+                context, ctool_string("_bss_start"),
+                &bss_start_binding) == CTOOL_FALSE ||
+            cemit_find_external_object_binding(
+                context, ctool_string("_kernel_end"),
+                &kernel_end_binding) == CTOOL_FALSE) {
+          return cemit_invalid_unit(context, &assembly->location);
+        }
+        context->binding_needed[bss_start_binding] = CTOOL_TRUE;
+        context->binding_needed[kernel_end_binding] = CTOOL_TRUE;
+        continue;
+      }
       if (cemit_naked_control_assembly_metadata_is_valid(
               context, assembly) == CTOOL_FALSE) {
         return cemit_invalid_unit(context, &assembly->location);
@@ -3243,6 +3339,48 @@ static ctool_status_t cemit_x86_move_register_constant(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_move_register_symbol(
+    cemit_context_t *context, ctool_u8 register_index,
+    ctool_u32 symbol) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_MOV, 32u);
+  ctool_x86_encoding_t encoding;
+  ctool_u32 offset;
+  ctool_u32 relocation_offset;
+  ctool_status_t status;
+  if (register_index >= 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, register_index);
+  instruction.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 32u, 0u);
+  instruction.operands[1].as.value.kind = CTOOL_X86_VALUE_REFERENCE;
+  instruction.operands[1].as.value.reference = symbol;
+  status = cemit_x86_encode(context, &instruction, &encoding, &offset);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (encoding.size != 5u || encoding.field_count != 1u ||
+      encoding.fields[0].kind != CTOOL_X86_FIELD_IMMEDIATE ||
+      encoding.fields[0].operand_index != 1u ||
+      encoding.fields[0].relocation != CTOOL_X86_RELOC_ABSOLUTE ||
+      encoding.fields[0].byte_offset != 1u ||
+      encoding.fields[0].byte_width != 4u ||
+      encoding.fields[0].pc_bias != 0u ||
+      encoding.fields[0].reference != symbol ||
+      encoding.fields[0].encoded_addend != 0 ||
+      cemit_add_overflows(offset, encoding.fields[0].byte_offset) ==
+          CTOOL_TRUE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  relocation_offset = offset + encoding.fields[0].byte_offset;
+  return cemit_add_relocation(
+      context, context->active_text_section, relocation_offset,
+      symbol, CTOOL_ELF32_R_386_32, 0);
+}
+
 static ctool_status_t cemit_x86_scale_register(
     cemit_context_t *context, ctool_u8 register_index, ctool_u32 scale) {
   ctool_status_t status;
@@ -4793,18 +4931,21 @@ static ctool_status_t cemit_x86_discard_arguments(
 }
 
 static ctool_status_t cemit_call_stack_padding(
-    ctool_u32 frame_size, ctool_u32 stack_depth,
+    ctool_u32 stack_base_residue, ctool_u32 frame_size,
+    ctool_u32 stack_depth,
     ctool_u32 reserved_bytes, ctool_u32 *padding_out) {
   ctool_u32 stack_bytes;
   ctool_u32 residue;
-  if (padding_out == (ctool_u32 *)0 || (frame_size & 3u) != 0u ||
+  if (padding_out == (ctool_u32 *)0 ||
+      stack_base_residue > 15u ||
+      (stack_base_residue & 3u) != 0u ||
+      (frame_size & 3u) != 0u ||
       (reserved_bytes & 3u) != 0u ||
       cemit_multiply_overflows(stack_depth, 4u) == CTOOL_TRUE) {
     return CTOOL_ERR_INTERNAL;
   }
   stack_bytes = stack_depth * 4u;
-  /* A conforming call enters at residue 12. PUSH EBP leaves residue 8. */
-  residue = (8u + 16u - (frame_size & 15u) -
+  residue = (stack_base_residue + 16u - (frame_size & 15u) -
              (stack_bytes & 15u)) &
             15u;
   *padding_out = (residue + 16u - (reserved_bytes & 15u)) & 15u;
@@ -6785,7 +6926,8 @@ static ctool_status_t cemit_emit_outgoing_area_call(
     const ctool_c_ir_instruction_t *instruction,
     const ctool_c_type_node_t *function_type, ctool_bool direct,
     ctool_u32 symbol, ctool_u32 temporary_offset,
-    ctool_u32 frame_size, ctool_u32 stack_depth) {
+    ctool_u32 stack_base_residue, ctool_u32 frame_size,
+    ctool_u32 stack_depth) {
   ctool_bool structure_result =
       cemit_ir_function_returns_structure(context, function_type);
   ctool_bool wide_result =
@@ -6856,8 +6998,9 @@ static ctool_status_t cemit_emit_outgoing_area_call(
       return CTOOL_ERR_INTERNAL;
     }
   }
-  status = cemit_call_stack_padding(frame_size, stack_depth,
-                                    outgoing_bytes, &padding);
+  status = cemit_call_stack_padding(
+      stack_base_residue, frame_size, stack_depth,
+      outgoing_bytes, &padding);
   if (status != CTOOL_OK ||
       cemit_add_overflows(outgoing_bytes, padding) == CTOOL_TRUE) {
     return status == CTOOL_OK ? CTOOL_ERR_OVERFLOW : status;
@@ -6973,8 +7116,8 @@ static ctool_status_t cemit_emit_outgoing_area_call(
 static ctool_status_t cemit_emit_direct_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
-    ctool_u32 temporary_offset, ctool_u32 frame_size,
-    ctool_u32 stack_depth) {
+    ctool_u32 temporary_offset, ctool_u32 stack_base_residue,
+    ctool_u32 frame_size, ctool_u32 stack_depth) {
   const ctool_c_binding_t *binding;
   const ctool_c_type_node_t *function_type;
   ctool_bool uses_outgoing_area;
@@ -7025,7 +7168,8 @@ static ctool_status_t cemit_emit_direct_call(
   if (uses_outgoing_area == CTOOL_TRUE) {
     return cemit_emit_outgoing_area_call(
         context, instruction, function_type, CTOOL_TRUE, symbol,
-        temporary_offset, frame_size, stack_depth);
+        temporary_offset, stack_base_residue, frame_size,
+        stack_depth);
   }
   for (argument = 0u; status == CTOOL_OK &&
                       argument < instruction->argument_count / 2u;
@@ -7048,8 +7192,8 @@ static ctool_status_t cemit_emit_direct_call(
     return status;
   }
   argument_bytes = instruction->argument_count * 4u;
-  status = cemit_call_stack_padding(frame_size, stack_depth, 0u,
-                                    &padding);
+  status = cemit_call_stack_padding(
+      stack_base_residue, frame_size, stack_depth, 0u, &padding);
   if (status == CTOOL_OK) {
     status = cemit_x86_shift_call_arguments(
         context, argument_bytes, padding);
@@ -7094,8 +7238,8 @@ static ctool_status_t cemit_emit_direct_call(
 static ctool_status_t cemit_emit_indirect_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
-    ctool_u32 temporary_offset, ctool_u32 frame_size,
-    ctool_u32 stack_depth) {
+    ctool_u32 temporary_offset, ctool_u32 stack_base_residue,
+    ctool_u32 frame_size, ctool_u32 stack_depth) {
   const ctool_c_type_node_t *pointer_type;
   const ctool_c_type_node_t *function_type;
   ctool_bool uses_outgoing_area;
@@ -7142,8 +7286,8 @@ static ctool_status_t cemit_emit_indirect_call(
   if (uses_outgoing_area == CTOOL_TRUE) {
     return cemit_emit_outgoing_area_call(
         context, instruction, function_type, CTOOL_FALSE,
-        CTOOL_C_AST_NONE, temporary_offset, frame_size,
-        stack_depth);
+        CTOOL_C_AST_NONE, temporary_offset, stack_base_residue,
+        frame_size, stack_depth);
   }
   for (argument = 0u; status == CTOOL_OK &&
                       argument < instruction->argument_count / 2u;
@@ -7164,8 +7308,8 @@ static ctool_status_t cemit_emit_indirect_call(
   }
   argument_bytes = instruction->argument_count * 4u;
   if (status == CTOOL_OK) {
-    status = cemit_call_stack_padding(frame_size, stack_depth, 0u,
-                                      &padding);
+    status = cemit_call_stack_padding(
+        stack_base_residue, frame_size, stack_depth, 0u, &padding);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_shift_call_arguments(
@@ -9740,6 +9884,71 @@ static ctool_bool cemit_assembly_snapshot_output_is_valid(
              : CTOOL_FALSE;
 }
 
+static ctool_status_t cemit_emit_kernel_bss_clear_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  ctool_u32 bss_start_binding;
+  ctool_u32 kernel_end_binding;
+  ctool_u32 bss_start_symbol;
+  ctool_u32 kernel_end_symbol;
+  ctool_status_t status;
+  if (cemit_kernel_bss_clear_assembly_metadata_is_valid(
+          context, assembly) == CTOOL_FALSE ||
+      cemit_find_external_object_binding(
+          context, ctool_string("_bss_start"),
+          &bss_start_binding) == CTOOL_FALSE ||
+      cemit_find_external_object_binding(
+          context, ctool_string("_kernel_end"),
+          &kernel_end_binding) == CTOOL_FALSE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_ensure_binding_symbol(
+      context, bss_start_binding, &bss_start_symbol);
+  if (status == CTOOL_OK) {
+    status = cemit_ensure_binding_symbol(
+        context, kernel_end_binding, &kernel_end_symbol);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_register_constant(
+        context, 4u, 0x00f00000u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOV, CTOOL_X86_REG_GPR32, 5u,
+        CTOOL_X86_REG_GPR32, 4u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_register_symbol(
+        context, 7u, bss_start_symbol);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_register_symbol(
+        context, 1u, kernel_end_symbol);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_SUB, CTOOL_X86_REG_GPR32, 1u,
+        CTOOL_X86_REG_GPR32, 7u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_shift_register(
+        context, CTOOL_X86_MN_SHR, 1u, 2u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_XOR, CTOOL_X86_REG_GPR32, 0u,
+        CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_CLD);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_repeat_string(
+        context, CTOOL_X86_MN_STOSD, 32u);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_emit_assembly_template(
     cemit_context_t *context, const ctool_c_assembly_t *assembly,
     const ctool_u8 registers[4]) {
@@ -10068,7 +10277,10 @@ static ctool_status_t cemit_emit_assembly(
          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
          CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
          CTOOL_C_ASSEMBLY_AX_CLOBBER |
-         CTOOL_C_ASSEMBLY_CC_CLOBBER)) != 0u ||
+         CTOOL_C_ASSEMBLY_CC_CLOBBER |
+         CTOOL_C_ASSEMBLY_EAX_CLOBBER |
+         CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+         CTOOL_C_ASSEMBLY_EDI_CLOBBER)) != 0u ||
       assembly->template_text.data == (const char *)0 ||
       assembly->first_operand > context->unit->assembly_operand_count ||
       cemit_add_overflows(
@@ -10086,6 +10298,12 @@ static ctool_status_t cemit_emit_assembly(
                temporary_offset == 0u
            ? CTOOL_OK
            : CTOOL_ERR_INTERNAL;
+  }
+  if (cemit_kernel_bss_clear_template(
+          assembly->template_text) == CTOOL_TRUE) {
+    return operand_count == 0u && temporary_offset == 0u
+               ? cemit_emit_kernel_bss_clear_assembly(context, assembly)
+               : CTOOL_ERR_INTERNAL;
   }
   {
     cemit_privileged_assembly_kind_t privileged_kind =
@@ -10409,7 +10627,8 @@ static ctool_status_t cemit_emit_ir_instruction(
     const ctool_c_type_node_t *function_type,
     const ctool_u32 *block_binding_offsets, ctool_u32 ir_offset,
     ctool_u32 value_temporary_offset,
-    ctool_u32 frame_size, ctool_u32 stack_depth,
+    ctool_u32 stack_base_residue, ctool_u32 frame_size,
+    ctool_u32 stack_depth,
     ctool_u32 *branch_patches, ctool_u32 *branch_afters) {
   ctool_status_t status;
   if (ir_instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT &&
@@ -12215,12 +12434,12 @@ static ctool_status_t cemit_emit_ir_instruction(
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
     return cemit_emit_direct_call(
         context, ir_instruction, value_temporary_offset,
-        frame_size, stack_depth);
+        stack_base_residue, frame_size, stack_depth);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
     return cemit_emit_indirect_call(
         context, ir_instruction, value_temporary_offset,
-        frame_size, stack_depth);
+        stack_base_residue, frame_size, stack_depth);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO) {
     if (ir_instruction->type != CTOOL_C_TYPE_NONE ||
@@ -13927,6 +14146,90 @@ static ctool_status_t cemit_validate_naked_codegen(
   return CTOOL_OK;
 }
 
+static ctool_bool cemit_kernel_entry_stack_reset_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_ir_function_t *function,
+    const ctool_c_binding_t *binding,
+    const ctool_c_type_node_t *function_type,
+    ctool_u32 frame_size, const ctool_u32 *stack_depths) {
+  const ctool_c_ir_instruction_t *instruction;
+  if (context == (const cemit_context_t *)0 ||
+      function == (const ctool_c_ir_function_t *)0 ||
+      binding == (const ctool_c_binding_t *)0 ||
+      function_type == (const ctool_c_type_node_t *)0 ||
+      stack_depths == (const ctool_u32 *)0 ||
+      function->instruction_count == 0u ||
+      function->first_instruction >= context->ir.instruction_count) {
+    return CTOOL_FALSE;
+  }
+  instruction =
+      &context->ir.instructions[function->first_instruction];
+  return binding->kind == CTOOL_C_BINDING_FUNCTION &&
+                 binding->linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+                 binding->file_scope_visible == CTOOL_TRUE &&
+                 cemit_strings_equal(
+                     binding->name, ctool_string("_start")) == CTOOL_TRUE &&
+                 (binding->attributes &
+                  CTOOL_C_DECL_ATTR_SECTION) != 0u &&
+                 cemit_strings_equal(
+                     binding->section_name,
+                     ctool_string(".text.start")) == CTOOL_TRUE &&
+                 function->function_codegen_attributes == 0u &&
+                 function_type->kind == CTOOL_C_TYPE_FUNCTION &&
+                 function_type->has_prototype == CTOOL_TRUE &&
+                 function_type->parameter_count == 0u &&
+                 function_type->variadic == CTOOL_FALSE &&
+                 cemit_ir_type_is_void(
+                     context, function_type->referenced_type) == CTOOL_TRUE &&
+                 frame_size == 0u &&
+                 stack_depths[0] == 0u &&
+                 instruction->kind ==
+                     CTOOL_C_IR_INSTRUCTION_ASSEMBLY &&
+                 instruction->reference < context->unit->assembly_count &&
+                 cemit_kernel_bss_clear_template(
+                     context->unit->assemblies[instruction->reference]
+                         .template_text) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_kernel_entry_terminal(
+    cemit_context_t *context,
+    const ctool_c_ir_instruction_t *instruction) {
+  ctool_u32 loop_target;
+  ctool_u32 jump_patch = 0u;
+  ctool_u32 jump_after = 0u;
+  ctool_status_t status;
+  if (instruction == (const ctool_c_ir_instruction_t *)0 ||
+      instruction->kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      instruction->type != CTOOL_C_TYPE_NONE ||
+      instruction->input_type != CTOOL_C_TYPE_NONE ||
+      instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+      instruction->argument_count != 0u ||
+      instruction->first_argument_type != CTOOL_C_AST_NONE ||
+      instruction->reference != CTOOL_C_AST_NONE ||
+      instruction->integer_bits != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_no_operand(
+      context, CTOOL_X86_MN_CLI);
+  loop_target = ctool_buffer_view(context->active_text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(
+        context, CTOOL_X86_MN_HLT);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_branch(
+        context, CTOOL_X86_MN_JMP, &jump_patch, &jump_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_branch(
+        context->active_text, jump_patch, jump_after, loop_target);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_place_function(cemit_context_t *context,
                                            ctool_u32 function_index) {
   const ctool_c_function_definition_t *definition =
@@ -13952,6 +14255,8 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
   ctool_u32 *branch_patches = (ctool_u32 *)0;
   ctool_u32 *branch_afters = (ctool_u32 *)0;
   ctool_u32 *stack_depths = (ctool_u32 *)0;
+  ctool_u32 stack_base_residue = 8u;
+  ctool_bool kernel_entry_stack_reset = CTOOL_FALSE;
   ctool_bool naked =
       (function->function_codegen_attributes &
        CTOOL_C_DECL_ATTR_NAKED) != 0u
@@ -13992,6 +14297,35 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
   if (status == CTOOL_OK) {
     status = cemit_analyze_stack_depths(
         context, function, &stack_depths);
+  }
+  for (index = 0u; status == CTOOL_OK &&
+                    index < function->instruction_count;
+       index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &context->ir.instructions[function->first_instruction + index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY &&
+        instruction->reference < context->unit->assembly_count &&
+        cemit_kernel_bss_clear_template(
+            context->unit->assemblies[instruction->reference]
+                .template_text) == CTOOL_TRUE) {
+      if (kernel_entry_stack_reset == CTOOL_TRUE || index != 0u) {
+        status = cemit_invalid_unit(
+            context, &instruction->location);
+      } else if (frame_size != 0u) {
+        status = cemit_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+            &instruction->location,
+            "kernel entry stack reset cannot use a compiler-managed frame");
+      } else if (cemit_kernel_entry_stack_reset_is_valid(
+                     context, function, binding, function_type,
+                     frame_size, stack_depths) == CTOOL_FALSE) {
+        status = cemit_invalid_unit(
+            context, &instruction->location);
+      } else {
+        kernel_entry_stack_reset = CTOOL_TRUE;
+      }
+    }
   }
   if (status == CTOOL_OK) {
     status = cemit_align_buffer(context, section, alignment);
@@ -14049,14 +14383,24 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
     if (naked == CTOOL_TRUE &&
         index + 1u == function->instruction_count) {
       status = CTOOL_OK;
+    } else if (kernel_entry_stack_reset == CTOOL_TRUE &&
+               instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+      status = cemit_emit_kernel_entry_terminal(
+          context, instruction);
     } else {
       status = cemit_emit_ir_instruction(
           context, instruction, function_type,
           context->block_binding_offsets, index,
           context->value_temporary_offsets
               [function->first_instruction + index],
-          frame_size, stack_depths[index],
+          stack_base_residue, frame_size, stack_depths[index],
           branch_patches, branch_afters);
+      if (status == CTOOL_OK &&
+          kernel_entry_stack_reset == CTOOL_TRUE &&
+          index == 0u) {
+        stack_base_residue = 0u;
+      }
     }
   }
   if (status != CTOOL_OK) {
@@ -14254,7 +14598,15 @@ ctool_status_t ctool_c_emit_object(
     for (index = 0u; index < context.ir.instruction_count; index++) {
       const ctool_c_ir_instruction_t *instruction =
           &context.ir.instructions[index];
-      if (cemit_has_binding_text_relocation(instruction->kind) ==
+      ctool_u32 added_relocations = 0u;
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY &&
+          instruction->reference < unit->assembly_count &&
+          cemit_kernel_bss_clear_template(
+              unit->assemblies[instruction->reference]
+                  .template_text) == CTOOL_TRUE) {
+        added_relocations = 2u;
+      } else if (
+          cemit_has_binding_text_relocation(instruction->kind) ==
               CTOOL_TRUE ||
           (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY &&
            instruction->reference < unit->assembly_count &&
@@ -14267,8 +14619,14 @@ ctool_status_t ctool_c_emit_object(
            instruction->reference < unit->block_binding_count &&
            unit->block_bindings[instruction->reference].storage ==
                CTOOL_C_STORAGE_STATIC)) {
-        text_relocation_count++;
+        added_relocations = 1u;
       }
+      if (cemit_add_overflows(
+              text_relocation_count, added_relocations) == CTOOL_TRUE) {
+        status = CTOOL_ERR_OVERFLOW;
+        break;
+      }
+      text_relocation_count += added_relocations;
     }
     for (index = 0u; status == CTOOL_OK &&
                       index < context.ir.file_assembly_count;

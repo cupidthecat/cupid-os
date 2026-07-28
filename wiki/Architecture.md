@@ -158,7 +158,7 @@ core     → (nothing)
 ### Kernel Core
 | Component | Files | Purpose |
 |-----------|-------|---------|
-| Kernel entry | `kernel.c/h` | VGA, init sequence, main print functions |
+| Kernel entry | `kernel.c/h` | Fixed stack, linked BSS clear, non-returning entry handoff, VGA, initialization, and main print functions |
 | IDT | `idt.cc/h` | Interrupt descriptor table setup |
 | ISR/IRQ | `isr.asm`, `irq.cc/h` | Interrupt/exception dispatching |
 | PIC | `pic.cc/h` | Programmable interrupt controller |

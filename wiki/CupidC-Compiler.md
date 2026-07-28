@@ -384,6 +384,28 @@ with SHA-256
 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
 Production ownership remains unchanged, and the source keeps its `.c` name.
 
+Compiler head accepts the exact operand-free BSS-clear statement only as the
+direct first child of the external, prototyped `void _start(void)` body in
+`.text.start`. It requires the EAX, ECX, EDI, and memory clobbers, visible
+external object declarations for `_bss_start` and `_kernel_end`, and no
+compiler-managed frame. Frontend statement depth and Linear IR body identity
+reject leading, label-wrapped, or otherwise nested copies.
+
+The emitter installs the fixed stack, loads both linker symbols through
+`R_386_32` relocations, derives the doubleword count, clears EAX, and emits
+CLD plus REP STOSD through the shared x86 model. The following `kmain()` call
+uses stack-base residue zero. If it returns, `_start` disables interrupts and
+halts instead of using the discarded frame.
+
+The exact fixture has a 27-byte assembly body inside a 42-byte function. Its
+three relocations name `_bss_start`, `_kernel_end`, and `kmain`. Two runs of
+the Cupid-built compiler emit unchanged `kernel/core/kernel.c` as the same
+25,920-byte object with SHA-256
+`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
+A private hybrid image with that object reaches the desktop and completes
+`/bin/ls.cc`. The checked seed and normal recipe still predate this
+statement, so the source remains host-owned and keeps its `.c` suffix.
+
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in `kernel/smp/percpu.cc`. A packed
 six-byte object supplies LGDT through `m`; the two data-segment templates

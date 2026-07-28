@@ -15438,3 +15438,262 @@ No normal object, image, ABI, runtime path, ownership count, or
 host-dependency count changes. Issue #26 remains open for production
 transfer and the broader GNU assembly surface. ADR 0174 records the
 decision. `TempleOS/` remains untouched reference material.
+
+## 2026-07-29: represent kernel-entry BSS clearing
+
+Compiler head now represents the exact operand-free assembly statement at
+the start of `_start()` in unchanged `kernel/core/kernel.c`. It installs ESP
+at `0x00F00000`, copies it to EBP, loads `_bss_start` and `_kernel_end`,
+derives the BSS doubleword count, clears EAX, and clears the range with CLD
+plus REP STOSD.
+
+The new form is deliberately entry-specific. It must be the direct first
+statement of the external, prototyped `void _start(void)` definition in
+`.text.start`. The function cannot have a compiler-managed frame. The
+statement has no operands and must name exactly the EAX, ECX, EDI, and memory
+clobbers. Both linker symbols must be visible external objects.
+
+Frontend statement depth rejects the template inside an `if`, label, or
+nested compound. Linear IR also proves that the assembly node is the first
+direct child of the outer function body, has depth zero, and is the first
+effect at an empty abstract stack. Forging valid entry
+metadata onto a nested node fails in both the IR and object paths.
+
+The public clobber record keeps the existing `cc` bit at `0x20`. EAX, ECX,
+and EDI use `0x40`, `0x80`, and `0x100`. The emitter loads both linker
+symbols through `R_386_32` relocations with zero addends, checks each encoded
+immediate field, and emits the remaining instructions through the shared x86
+model.
+
+### Entry ABI decisions
+
+Ordinary post-prologue calls have stack-base residue eight. This assembly
+replaces ESP and EBP, so the following `kmain()` call has residue zero and
+needs no padding. Call padding now receives the real stack-base residue
+instead of assuming one global value.
+
+The reset also discards the incoming frame. If `kmain()` returns, `_start`
+cannot execute `leave; ret`. It disables interrupts, halts, and branches back
+to the halt instruction.
+
+The exact fixture is 42 bytes: a three-byte prologue, the 27-byte reset and
+clear body, a five-byte call, and a seven-byte terminal loop. The two
+absolute relocations are at offsets 11 and 16. The `kmain` `R_386_PC32`
+relocation is at offset 31 with addend minus four.
+
+### Review findings and failed approaches
+
+The first recognizer accepted the template without proving the exact
+external `.text.start` `_start` definition. Function identity, linkage,
+prototype, section, frame, and body placement are now part of the contract.
+
+The first call path kept the ordinary stack residue of eight after the
+assembly reset. That inserted stale padding before `kmain()`. Passing the
+actual residue fixed the ABI error.
+
+The first return path used ordinary `leave; ret` after the assembly had
+abandoned the frame. The entry now has a safe terminal loop. A
+compiler-managed frame is rejected for the same reason.
+
+A frontend statement-count check did not prove nesting because the AST is
+constructed in postorder. Explicit statement depth replaced it. The first
+IR defense checked effect order but did not prove that the assembly node was
+the outer body's first direct child. IR now carries and checks that body
+identity.
+
+A review then found that labels parsed directly as block items skipped the
+outer statement-depth increment. The label body therefore looked as shallow
+as a direct statement. A focused negative first reproduced the acceptance,
+then passed after labeled block items entered the ordinary statement path.
+The label parser still runs before declaration detection, so a label that
+looks like a typedef name keeps its C grammar meaning.
+
+A 102-test object run overlapped those review edits. Its fixed-point checks
+correctly reported two moving-tree failures after 1,049.877 seconds. That
+run is not release evidence. The stable combined suite is recorded below.
+
+The next 102-test object run and normal image rebuild were stopped when the
+label-depth finding made their source snapshot obsolete. Their partial
+output is not evidence.
+
+The remote branch advanced first through the exponent and logarithm wrappers,
+then through the final cdecl bridges, while long gates were running. Those
+runs were stopped because their source snapshots were obsolete. Each rebase
+kept both the landed work and the BSS increment, moving this decision first
+to ADR 0173, then to ADR 0174, and now to ADR 0175. The first estimated
+self-host emitter
+object lock after the exponent and logarithm rebase was too small. Its
+deliberate mismatch exposed the actual 502,175-byte text, 557,108-byte
+object, and `9637CB4C` fingerprint. The corrected lock then passed.
+
+The cdecl-bridge rebase changed the emitter around the BSS path. Adding the
+two earlier object-size deltas predicted 507,254 text bytes and a
+569,384-byte object, but the focused lock reported 507,836 text bytes, a
+569,964-byte object, and fingerprint `7EE9548E`. The corrected combined lock
+then passed. The hosted source tuple was additive and passed on its first
+run.
+
+After those closing gates and the private image proof were recorded, the
+remote branch advanced a third time at
+`1cc2dc99837d759ffaa89c75586f7ea9cf3bc6d8`. That commit promoted the
+libm-capable checked seed and changed its manifest, bootstrap checks,
+embedded CTXT files, and audit record. The BSS compiler sources and object
+lock did not change, but the earlier audit JSON, linked addresses, image
+hashes, and runtime proof no longer described the final base. Rebasing kept
+the seed decision as ADR 0174 and moved this decision to ADR 0175. The
+promoted-base results below replace those obsolete release facts.
+
+One normal image rebuild outlived its command wrapper and continued while
+the cdecl-bridge rebase began. Its exact process tree was stopped. Because
+that build read a moving source tree, none of its output is release
+evidence.
+
+The first private hybrid link helper printed the expanded object list through
+the Windows command shell. The shell truncated the 8,917-character line and
+CupidLD received a partial filename. Make's own expansion path supplied all
+424 objects without changing the build graph or source.
+
+### Deterministic compiler records
+
+The unchanged 31,172-byte kernel source contains 950 newline bytes and has
+SHA-256
+`fcc92bb561ed107ec6b328f5e9502f1040a2fedd9cf573f6876e5b93556945c3`.
+Two runs of the Cupid-built `cupidc-cupidc.elf` produce the same
+25,920-byte object with SHA-256
+`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
+
+The combined hosted source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 412 | 16,128 | 106,991 | 2,422 | 1,487 |
+| `toolchain/cupidc_ir.cc` | 258 | 7,127 | 66,562 | 938 | 344 |
+| `toolchain/cupidc_emit.cc` | 327 | 8,037 | 68,223 | 980 | 653 |
+
+The combined self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 412 | 827,634 | 983,992 | `1ACA7181` |
+| `toolchain/cupidc_ir.cc` | 258 | 474,830 | 510,952 | `41018078` |
+| `toolchain/cupidc_emit.cc` | 327 | 507,836 | 569,964 | `7EE9548E` |
+
+### Promoted-base private hybrid proof
+
+The release proof used an isolated, timestamp-preserving snapshot of the BSS
+worktree rebased onto
+`1cc2dc99837d759ffaa89c75586f7ea9cf3bc6d8`. A dry run first showed that
+`make --assume-old=FORCE cupidos.img` would run only the two CupidLD links,
+symbol generation, the checked symbol object compile, CupidObj extraction,
+and image staging. It would not rebuild any kernel or payload source object.
+
+Two compiler runs produced the same 25,920-byte kernel object. The snapshot
+then replaced only `kernel/core/kernel.o` with one copy and completed the
+normal image path in 78.894 seconds. A before-and-after hash contract covered
+the host-owned kernel object, every linked or generated product, the image,
+five native Cupid tools, and the Cupid-built compiler generation. All 13
+original artifacts were unchanged.
+
+The normal production build passed in 895.032 seconds before the snapshot
+was made. These were the production fingerprints protected by the isolation
+check:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/core/kernel.o` | 14,856 | `f2df99bbb89774d4e92fd761204a4942548e615651b23d37edd8b6aab1044e43` |
+| `kernel/kernel.elf.pass1` | 8,062,088 | `954c3163d66056e338f222cf2abd3856019aac42ccb9c185cc0b9b92dc627622` |
+| `kernel/cpu/ksyms_data.cc` | 349,779 | `bbf4782d42b002cb37818ca125bf8d4774795b17b4dde3d851be76df585b1450` |
+| `kernel/cpu/ksyms_data.o` | 105,920 | `4a343b54571ed94324ce09e3ba48859ecdb36497e4e284b5f7996c81ed260131` |
+| `kernel/kernel.elf` | 8,168,584 | `c9f13aa31ea1c530b8a33dcc4187cf3bffdce99664118a074ee370e8174a2ab0` |
+| `kernel/kernel.bin` | 7,971,236 | `05011cf296f33c97e93e5be0aff9e3742dc09c179bd5471e07c9811438dd49c4` |
+| `cupidos.img` | 209,715,200 | `2b3cb4de71408dd57ac22cf6b3174353453a6c566de938214e0902abe97044c0` |
+| `toolchain/build/cupidasm.exe` | 315,392 | `9caca7d1a72fa553f71155d02ce2466dc47de2a172fbaa81eea4552523df628c` |
+| `toolchain/build/cupiddis.exe` | 302,592 | `3c5ec9a87d9c5c9cc19940f2375244079b444d28634e43ca4450020bc40039a9` |
+| `toolchain/build/cupidld.exe` | 240,640 | `58074bc766c14d4da2cdd937d064f29b913a9aba1154c11b37fc904e1c310f75` |
+| `toolchain/build/cupidobj.exe` | 215,040 | `40a9f094e36f0fb06cb2d8ec452e9258818edbb97e2905534f2a7dae28b69afd` |
+| `toolchain/build/cupidc.exe` | 1,038,336 | `35ac6c1f7c15dc099019cda7d3cdf1158d8097c7b930949e357d7914cf49ddcc` |
+| `toolchain/build/cupidc-cupidc.elf` | 2,477,292 | `9e8664d842b300679af2b8c92b5f6cdb878e46946499e46515b5a75da7beb7d8` |
+
+CupidDis resolved `_start` at `0x00100000`, `kmain` at `0x00101FB3`,
+`_bss_start` at `0x0089D000`, and `_kernel_end` at `0x00CC1A30`. Its raw
+decoder covered all 42 entry bytes. The linked code installs the fixed stack,
+loads both linker symbols, derives the doubleword count, clears EAX, executes
+CLD and REP STOSD, calls `kmain`, and enters the terminal halt loop.
+
+The hybrid artifact hashes are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Two `kernel/core/kernel.o` outputs | 25,920 each | `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7` |
+| `kernel/kernel.elf.pass1` | 8,071,048 | `a686c42a48417de0a9c6ffe2c8ff948747fa0b563d43be3aa3b519f055ccc7d0` |
+| `kernel/cpu/ksyms_data.cc` | 351,765 | `54989ab5f2e36c125c9dfae809e0249104eb2593ec43905aef4d1e61651e5578` |
+| `kernel/cpu/ksyms_data.o` | 106,520 | `702e27eeaa4ebccfce8b9fcb7ad3b99d553d19d55d7b386a2f2d785ed6a76fbc` |
+| `kernel/kernel.elf` | 8,177,544 | `fc9d2746991d5f7f3bdf314ed238d77386b5e164052044db17eabc49bc41b10b` |
+| `kernel/kernel.bin` | 7,980,648 | `73ef001a893dc11dccae717b551d3b3118e236c96e6d07e7273c1d5c98531874` |
+| 42-byte entry slice | 42 | `aa6470079894d7c344c2120232356aa2b2980797fdd665764888454d502d917c` |
+| `cupidos.img` | 209,715,200 | `d88989f6c6af0ad4095f977e7cb8d3ff2d1d835cb726b46d8d2c8089d800a82b` |
+
+The private-image GUI smoke passed in 56.898 seconds. It reached the desktop,
+passed the FPU smoke, brought up e1000 and DHCP, launched the terminal,
+compiled `/bin/ls.cc`, and completed JIT execution. No panic or failure
+marker appeared. The 35,082-byte serial log has SHA-256
+`1f8bb0101c64b639fd4082568cb58ac88a4d5d9c735a5ce406d431684aba99db`.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Combined hosted source and self-host object locks | 3 tests passed in 57.878 seconds |
+| Complete frontend and Linear IR modules | 173 tests passed in 33.436 seconds |
+| Independent feature contracts | Frontend, IR, and object contracts passed 3 tests in 50.383 seconds |
+| Independent unchanged-kernel object check | 1 test passed in 22.788 seconds |
+| Label-wrapped entry reset red probe | Expected frontend rejection was missing in 10.856 seconds |
+| Label-wrapped entry reset green probe | 1 test passed in 10.667 seconds |
+| Independent label-wrapped entry reset check | 1 test passed in 11.624 seconds |
+| Post-fix self-host frontier object lock | 1 test passed in 25.101 seconds; the frontend tuple stayed fixed |
+| Post-fix complete frontend and Linear IR modules | 173 tests passed in 31.324 seconds |
+| Combined post-rebase hosted source frontier | 1 test passed in 10.437 seconds |
+| Independent combined hosted source frontier | 1 test passed in 11.700 seconds |
+| Combined post-rebase object lock calibration | Expected emitter mismatch reported the corrected tuple in 25.856 seconds |
+| Combined post-rebase self-host object frontier | 1 test passed in 25.507 seconds |
+| Independent combined self-host object frontier | 1 test passed in 25.851 seconds |
+| Cupid-built unchanged-kernel determinism | Two valid i386 objects matched byte for byte |
+| Current hosted Toolchain artifacts | Six static i386 artifacts linked; self-host link contract passed in 17.008 seconds |
+| Complete native Toolchain contracts | Passed in 24.874 seconds |
+| CupidDis object inspection | 42-byte `_start`, three relocations, and the terminal loop matched |
+| Pre-rebase bootstrap audit regeneration | Passed in 63.236 seconds |
+| Combined post-rebase bootstrap audit regeneration | Passed in 59.150 seconds |
+| Bootstrap audit drift check | Passed in 61.226 seconds |
+| Independent bootstrap audit drift check | Passed in 66 seconds |
+| Cdecl-rebase hosted source frontier | 1 test passed in 13.548 seconds |
+| Cdecl-rebase object lock calibration | Expected emitter mismatch reported the corrected tuple in 27.770 seconds |
+| Cdecl-rebase self-host object frontier | 1 test passed in 28.533 seconds |
+| Cdecl-rebase bootstrap audit regeneration | Passed in 69.4 seconds |
+| Promoted-base focused BSS, kernel, and libm contracts | 5 tests passed in 65.426 seconds |
+| Promoted-base complete frontend and Linear IR modules | 173 tests passed in 38.331 seconds |
+| Promoted checked-seed bootstrap module | 23 tests passed in 865.331 seconds; stage two and stage three matched |
+| Promoted-base complete object module | 104 tests passed in 1,214.504 seconds |
+| Promoted-base complete build-graph audit module | 62 tests passed in 762.018 seconds |
+| Promoted-base native Toolchain build | Passed in 37.513 seconds |
+| Promoted-base native Toolchain contracts | Passed in 28.472 seconds |
+| Promoted-base normal production image | `make all` passed in 895.032 seconds |
+| Promoted-base bootstrap audit drift check | `make check-bootstrap-audit` passed in 79.6 seconds |
+| Promoted-base hybrid dry run | Listed only the two links, symbol generation and compile, flattening, and image staging; no source object compile appeared |
+| Promoted-base private hybrid link and image | The isolated image path passed in 78.894 seconds and left all 13 original production artifacts unchanged |
+| Promoted-base linked entry inspection | CupidDis matched all 42 bytes, four linked symbols, the BSS clear, the `kmain` call, and the halt loop |
+| Promoted-base private hybrid GUI terminal smoke | Desktop, FPU, e1000, DHCP, terminal, `/bin/ls.cc`, and JIT completion passed in 56.898 seconds |
+
+The combined graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`0a4e4dca7ecd8cdd2731ba3b8933efd0d2146c22839f19c0c2349e7f2d105556`.
+The 1,526,996-byte JSON has SHA-256
+`2dd72053e03a5c9930de26639c930bcf8121aa6a3d521abf0cd33e43118165fe`.
+The 15,060-byte Markdown report has SHA-256
+`069f85ad397a83161e0932b3cf7d10b2d1d3ac5806e9f57a1d8aeb740bf4d2d2`.
+
+The promoted manifest seed still predates the BSS statement, and the normal
+production recipe still uses the host-owned kernel object. The source
+therefore keeps its `.c` suffix. No production ownership or host-dependency
+count moves. ADR 0175 records the BSS boundary. Issue #26 remains open for
+BSS checked-seed carriage, production transfer, the SIMD `xmm1` clobber, and
+later GNU assembly forms. `TempleOS/` remains untouched reference material.

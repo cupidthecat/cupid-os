@@ -210,6 +210,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "operand-free-assembly: ok\n")
 
+    def test_kernel_start_assembly_lowers_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "kernel-start-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "kernel-start-assembly: ok\n")
+
     def test_file_scope_basic_assembly_lowers_as_ordered_unit_effects(self):
         result = subprocess.run(
             [

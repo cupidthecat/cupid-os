@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 254u, 7086u,
-       65901u, 932u, 342u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 320u, 7872u,
-       66568u, 956u, 644u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 407u,
-       16052u, 106289u, 2407u, 1479u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 258u, 7127u,
+       66562u, 938u, 344u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 327u, 8037u,
+       68223u, 980u, 653u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 412u,
+       16128u, 106991u, 2422u, 1487u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -30839,6 +30839,260 @@ cleanup:
   return failed;
 }
 
+static int validate_kernel_start_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char kernel_template[] =
+      "mov $0xF00000, %%esp\n"
+      "mov %%esp, %%ebp\n"
+      "mov $_bss_start, %%edi\n"
+      "mov $_kernel_end, %%ecx\n"
+      "sub %%edi, %%ecx\n"
+      "shr $2, %%ecx\n"
+      "xor %%eax, %%eax\n"
+      "cld\n"
+      "rep stosl\n";
+  static const char *const templates[] = {kernel_template, "cld"};
+  static const ctool_u32 flags[] = {
+      CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_EAX_CLOBBER | CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+          CTOOL_C_ASSEMBLY_EDI_CLOBBER,
+      CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE};
+  static const ctool_u32 lines[] = {5u, 17u};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->assembly_count != ARRAY_COUNT(templates) ||
+      unit->assembly_operand_count != 0u ||
+      unit->assemblies == NULL || unit->assembly_operands != NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags != flags[index] ||
+        assembly->direct_call_binding_plus_one != 0u ||
+        assembly->first_operand != 0u ||
+        assembly->output_count != 0u ||
+        assembly->input_count != 0u ||
+        dual_location_matches(&assembly->location,
+                              &assembly->physical_location,
+                              "/kernel-start-assembly.c",
+                              lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == unit->assembly_count ? 0 : 1;
+}
+
+static int run_kernel_start_assembly(const char *host_root) {
+  static const char source[] =
+      "extern unsigned int _kernel_end;\n"
+      "extern unsigned int _bss_start;\n"
+      "void _start(void) __attribute__((section(\".text.start\")));\n"
+      "void _start(void) {\n"
+      "  __asm__ volatile(\n"
+      "      \"mov $0xF00000, %%esp\\n\"\n"
+      "      \"mov %%esp, %%ebp\\n\"\n"
+      "      \"mov $_bss_start, %%edi\\n\"\n"
+      "      \"mov $_kernel_end, %%ecx\\n\"\n"
+      "      \"sub %%edi, %%ecx\\n\"\n"
+      "      \"shr $2, %%ecx\\n\"\n"
+      "      \"xor %%eax, %%eax\\n\"\n"
+      "      \"cld\\n\"\n"
+      "      \"rep stosl\\n\"\n"
+      "      ::: \"eax\", \"ecx\", \"edi\", \"memory\"\n"
+      "  );\n"
+      "  asm volatile(\"cld\");\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"kernel start assembly missing an ecx clobber",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void bad(void) {\n"
+         "  asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        4u, 3u,
+        "GNU kernel BSS clear assembly requires exact eax, ecx, edi, and "
+        "memory clobbers"},
+      {{"eax clobber on another template",
+         "void bad(void) { asm volatile(\"nop\" : : : \"eax\"); }\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 18u,
+        "GNU eax, ecx, and edi clobbers require the exact kernel BSS clear "
+        "template"},
+      {{"duplicate eax clobber",
+         "void bad(void) { "
+         "asm volatile(\"nop\" : : : \"eax\", \"eax\"); }\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+        1u, 50u, "GNU inline assembly eax clobber is listed twice"},
+      {{"kernel start assembly without linker declarations",
+         "void bad(void) {\n"
+         "  asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+        2u, 3u,
+        "GNU kernel BSS clear assembly requires declared external linker "
+        "objects"},
+      {{"kernel stack reset outside the entry function",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void bad(void) {\n"
+         "  asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        4u, 3u,
+        "GNU kernel BSS clear assembly requires the first statement of "
+        "external void _start in .text.start"},
+      {{"kernel stack reset after another entry statement",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void _start(void) __attribute__((section(\".text.start\")));\n"
+         "void _start(void) {\n"
+         "  asm volatile(\"nop\");\n"
+         "  asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       6u, 3u,
+       "GNU kernel BSS clear assembly requires the first statement of "
+       "external void _start in .text.start"},
+      {{"kernel stack reset nested under the first entry if",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void _start(void) __attribute__((section(\".text.start\")));\n"
+         "void _start(void) {\n"
+         "  if (1) asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        5u, 10u,
+        "GNU kernel BSS clear assembly requires the first statement of "
+        "external void _start in .text.start"},
+      {{"kernel stack reset nested in the first entry compound",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void _start(void) __attribute__((section(\".text.start\")));\n"
+         "void _start(void) {\n"
+         "  { asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\"); }\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        5u, 5u,
+        "GNU kernel BSS clear assembly requires the first statement of "
+        "external void _start in .text.start"},
+      {{"kernel stack reset nested under the first entry label",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void _start(void) __attribute__((section(\".text.start\")));\n"
+         "void _start(void) {\n"
+         "  entry: asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        5u, 10u,
+        "GNU kernel BSS clear assembly requires the first statement of "
+        "external void _start in .text.start"},
+      {{"kernel stack reset in an old-style entry definition",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void _start() __attribute__((section(\".text.start\")));\n"
+         "void _start() {\n"
+         "  asm volatile("
+         "\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        5u, 3u,
+        "GNU kernel BSS clear assembly requires the first statement of "
+        "external void _start in .text.start"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "kernel-start-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/kernel-start-assembly.c", source, &unit) != 0 ||
+      validate_kernel_start_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "kernel-start-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/kernel-start-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_kernel_start_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("kernel-start-assembly: ok\n");
+  }
+  return failed;
+}
+
 static int validate_file_scope_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
@@ -31809,9 +32063,10 @@ int main(int argc, char **argv) {
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
                    "pointer-output-assembly|"
-                   "state-memory-assembly|"
-                   "operand-free-assembly|"
-                   "file-scope-assembly|"
+                    "state-memory-assembly|"
+                    "operand-free-assembly|"
+                    "kernel-start-assembly|"
+                    "file-scope-assembly|"
                    "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
@@ -31960,6 +32215,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "kernel-start-assembly") == 0) {
+    return run_kernel_start_assembly(argv[2]);
   }
   if (strcmp(argv[1], "file-scope-assembly") == 0) {
     return run_file_scope_assembly(argv[2]);

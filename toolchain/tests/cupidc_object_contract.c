@@ -27995,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 254u, 320u, 407u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 258u, 327u, 412u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 469582u, 494170u, 822280u, 139646u, 70368u, 80478u,
+      190304u, 474830u, 507836u, 827634u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 505000u, 554852u, 976768u, 157828u, 79348u, 134656u,
+      226668u, 510952u, 569964u, 983992u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x360b9eecu, 0xb1a52c41u, 0x9b9037f6u, 0x239f52c7u,
+      0x41018078u, 0x7ee9548eu, 0x1aca7181u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -39994,6 +39994,17 @@ static int file_scope_rounding_imm8_matches(
              : 0;
 }
 
+static int kernel_start_register_operand(
+    const ctool_x86_operand_t *operand, ctool_u8 index) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 operand->width_bits == 32u &&
+                 operand->as.reg.class_id == CTOOL_X86_REG_GPR32 &&
+                 operand->as.reg.index == index
+             ? 1
+             : 0;
+}
+
 static int file_scope_rounding_instruction_matches(
     const ctool_x86_instruction_t *instruction, ctool_u32 step,
     ctool_u16 scalar_width, ctool_i32 result_displacement,
@@ -40429,6 +40440,620 @@ static int validate_file_scope_fmod_wrapper_decode(
     cursor += decoded.consumed;
   }
   return cursor == symbol->size ? 1 : 0;
+}
+
+static int kernel_start_immediate_operand(
+    const ctool_x86_operand_t *operand, ctool_u32 bits) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+                 operand->width_bits == 32u &&
+                 operand->as.value.kind == CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.value.bits == bits
+             ? 1
+             : 0;
+}
+
+static int validate_kernel_start_decoding(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u32 offsets[] = {
+      3u, 8u, 10u, 15u, 20u, 22u, 25u, 27u, 28u, 30u, 35u};
+  static const ctool_x86_mnemonic_t mnemonics[] = {
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_SUB, CTOOL_X86_MN_SHR,
+      CTOOL_X86_MN_XOR, CTOOL_X86_MN_CLD, CTOOL_X86_MN_STOSD,
+      CTOOL_X86_MN_CALL};
+  ctool_x86_decoded_t decoded[10];
+  ctool_u32 index;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  for (index = 0u; index < 10u; index++) {
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + offsets[index],
+        symbol->size - offsets[index]);
+    ctool_status_t status;
+    (void)memset(&decoded[index], 0xa5, sizeof(decoded[index]));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded[index]);
+    if (status != CTOOL_OK ||
+        decoded[index].kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded[index].instruction.mnemonic != mnemonics[index] ||
+        decoded[index].consumed != offsets[index + 1u] - offsets[index]) {
+      return 0;
+    }
+  }
+  if (decoded[0].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[0].instruction.operands[0], 4u) ||
+      !kernel_start_immediate_operand(
+          &decoded[0].instruction.operands[1], 0x00f00000u) ||
+      decoded[1].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[1].instruction.operands[0], 5u) ||
+      !kernel_start_register_operand(
+          &decoded[1].instruction.operands[1], 4u) ||
+      decoded[2].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[2].instruction.operands[0], 7u) ||
+      !kernel_start_immediate_operand(
+          &decoded[2].instruction.operands[1], 0u) ||
+      decoded[3].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[3].instruction.operands[0], 1u) ||
+      !kernel_start_immediate_operand(
+          &decoded[3].instruction.operands[1], 0u) ||
+      decoded[4].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[4].instruction.operands[0], 1u) ||
+      !kernel_start_register_operand(
+          &decoded[4].instruction.operands[1], 7u) ||
+      decoded[5].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[5].instruction.operands[0], 1u) ||
+      decoded[5].instruction.operands[1].kind !=
+          CTOOL_X86_OPERAND_IMMEDIATE ||
+      decoded[5].instruction.operands[1].as.value.kind !=
+          CTOOL_X86_VALUE_CONSTANT ||
+      decoded[5].instruction.operands[1].as.value.bits != 2u ||
+      decoded[6].instruction.operand_count != 2u ||
+      !kernel_start_register_operand(
+          &decoded[6].instruction.operands[0], 0u) ||
+      !kernel_start_register_operand(
+          &decoded[6].instruction.operands[1], 0u) ||
+      decoded[7].instruction.operand_count != 0u ||
+      decoded[7].instruction.prefixes != 0u ||
+      decoded[8].instruction.operand_count != 0u ||
+      decoded[8].instruction.prefixes != CTOOL_X86_PREFIX_REP ||
+      decoded[9].instruction.operand_count != 1u ||
+      decoded[9].instruction.operands[0].kind !=
+          CTOOL_X86_OPERAND_RELATIVE ||
+      decoded[9].instruction.operands[0].as.value.kind !=
+          CTOOL_X86_VALUE_CONSTANT ||
+      decoded[9].instruction.operands[0].as.value.bits != 0xfffffffcu ||
+      decoded[9].encoding.field_count != 1u ||
+      decoded[9].encoding.fields[0].kind != CTOOL_X86_FIELD_RELATIVE ||
+      decoded[9].encoding.fields[0].operand_index != 0u ||
+      decoded[9].encoding.fields[0].byte_offset != 1u ||
+      decoded[9].encoding.fields[0].byte_width != 4u ||
+      decoded[9].encoding.fields[0].pc_bias != 4u ||
+      decoded[9].encoding.fields[0].encoded_addend != -4 ||
+      decoded[2].encoding.field_count != 1u ||
+      decoded[2].encoding.fields[0].kind != CTOOL_X86_FIELD_IMMEDIATE ||
+      decoded[2].encoding.fields[0].operand_index != 1u ||
+      decoded[2].encoding.fields[0].byte_offset != 1u ||
+      decoded[2].encoding.fields[0].byte_width != 4u ||
+      decoded[3].encoding.field_count != 1u ||
+      decoded[3].encoding.fields[0].kind != CTOOL_X86_FIELD_IMMEDIATE ||
+      decoded[3].encoding.fields[0].operand_index != 1u ||
+      decoded[3].encoding.fields[0].byte_offset != 1u ||
+      decoded[3].encoding.fields[0].byte_width != 4u) {
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_kernel_start_assembly_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0xbcu, 0x00u, 0x00u, 0xf0u, 0x00u,
+      0x89u, 0xe5u,
+      0xbfu, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xb9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x29u, 0xf9u,
+      0xc1u, 0xe9u, 0x02u,
+      0x31u, 0xc0u,
+      0xfcu,
+      0xf3u, 0xabu,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0xfau, 0xf4u, 0xe9u, 0xfau, 0xffu, 0xffu, 0xffu};
+  static const ctool_x86_mnemonic_t instructions[] = {
+      CTOOL_X86_MN_PUSH, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_SHR, CTOOL_X86_MN_XOR,
+      CTOOL_X86_MN_CLD, CTOOL_X86_MN_STOSD,
+      CTOOL_X86_MN_CALL,
+      CTOOL_X86_MN_CLI, CTOOL_X86_MN_HLT, CTOOL_X86_MN_JMP};
+  static const ctool_u32 branch_targets[] = {36u};
+  static const ctool_u32 relocation_offsets[] = {11u, 16u, 31u};
+  static const char *const relocation_symbols[] = {
+      "_bss_start", "_kernel_end", "kmain"};
+  static const ctool_u8 symbol_types[] = {
+      CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_OBJECT,
+      CTOOL_ELF32_SYMBOL_FUNCTION};
+  static const ctool_u8 relocation_types[] = {
+      CTOOL_ELF32_R_386_32, CTOOL_ELF32_R_386_32,
+      CTOOL_ELF32_R_386_PC32};
+  static const ctool_i32 relocation_addends[] = {0, 0, -4};
+  const ctool_elf32_section_t *text =
+      find_section(object, ".text.start");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text.start");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "_start");
+  ctool_u32 index;
+  if (object == NULL || text == NULL || rel_text == NULL ||
+      function == NULL || text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(function_bytes) ||
+      text->relocation_first != 0u ||
+      text->relocation_count != 3u ||
+      object->relocation_count != 3u ||
+      object->relocations == NULL ||
+      object->symbol_count != 5u ||
+      !symbol_matches(function, function->file_index,
+                      CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      0u, (ctool_u32)sizeof(function_bytes)) ||
+      !decode_function(
+          job, text, function, instructions,
+          (ctool_u32)(sizeof(instructions) / sizeof(instructions[0])),
+          function_bytes, (ctool_u32)sizeof(function_bytes),
+          branch_targets, 1u, "_start") ||
+      !validate_kernel_start_decoding(job, text, function)) {
+    (void)fprintf(stderr, "kernel start assembly object differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 3u; index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, relocation_symbols[index]);
+    if (symbol == NULL ||
+        !symbol_matches(symbol, symbol->file_index,
+                        CTOOL_ELF32_BIND_GLOBAL,
+                        symbol_types[index],
+                        CTOOL_ELF32_SYMBOL_UNDEFINED,
+                        CTOOL_ELF32_NO_SECTION, 0u, 0u) ||
+        object->relocations[index].relocation_section_file_index !=
+            rel_text->file_index ||
+        object->relocations[index].entry_index != index ||
+        object->relocations[index].target_section_file_index !=
+            text->file_index ||
+        object->relocations[index].offset != relocation_offsets[index] ||
+        object->relocations[index].symbol_file_index !=
+            symbol->file_index ||
+        object->relocations[index].type != relocation_types[index] ||
+        object->relocations[index].addend_known != CTOOL_TRUE ||
+        object->relocations[index].addend != relocation_addends[index]) {
+      (void)fprintf(
+          stderr, "kernel start assembly relocation %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_kernel_start_assembly_object(const char *host_root) {
+  static const char source[] =
+      "extern unsigned int _kernel_end;\n"
+      "extern unsigned int _bss_start;\n"
+      "void kmain(void);\n"
+      "void _start(void) __attribute__((section(\".text.start\")));\n"
+      "void _start(void) {\n"
+      "  asm volatile(\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+      "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+      "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+      "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+      " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+      "  kmain();\n"
+      "}\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  static const char framed_source[] =
+      "extern unsigned int _kernel_end;\n"
+      "extern unsigned int _bss_start;\n"
+      "void kmain(void);\n"
+      "void _start(void) __attribute__((section(\".text.start\")));\n"
+      "void _start(void) {\n"
+      "  asm volatile(\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+      "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+      "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+      "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+      " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+      "  int local = 0;\n"
+      "  if (local == 0) kmain();\n"
+      "}\n";
+  static const char nested_source[] =
+      "extern unsigned int _kernel_end;\n"
+      "extern unsigned int _bss_start;\n"
+      "void kmain(void);\n"
+      "void _start(void) __attribute__((section(\".text.start\")));\n"
+      "void _start(void) {\n"
+      "  { asm volatile(\"cld\"); }\n"
+      "  kmain();\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t framed_unit;
+  ctool_c_translation_unit_t nested_unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assembly;
+  ctool_c_assembly_t nested_assembly;
+  ctool_c_binding_t *mutant_bindings = NULL;
+  ctool_c_statement_t *mutant_statements = NULL;
+  ctool_c_type_node_t *mutant_types = NULL;
+  ctool_u32 *mutant_statement_children = NULL;
+  ctool_u32 bss_start_binding = CTOOL_C_AST_NONE;
+  ctool_u32 kernel_end_binding = CTOOL_C_AST_NONE;
+  ctool_u32 start_binding = CTOOL_C_AST_NONE;
+  ctool_u32 assembly_statement = CTOOL_C_AST_NONE;
+  ctool_u32 body_statement;
+  ctool_u32 index;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&framed_unit, 0, sizeof(framed_unit));
+  (void)memset(&nested_unit, 0, sizeof(nested_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/kernel-start-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 1u ||
+      unit.assembly_count != 1u ||
+      unit.assembly_operand_count != 0u ||
+      unit.assemblies == NULL ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "kernel start assembly object setup failed\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "_bss_start") != 0) {
+      bss_start_binding = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "_kernel_end") != 0) {
+      kernel_end_binding = index;
+    } else if (string_equal(unit.bindings[index].name, "_start") != 0) {
+      start_binding = index;
+    }
+  }
+  for (index = 0u; index < unit.statement_count; index++) {
+    if (unit.statements[index].kind == CTOOL_C_STATEMENT_ASSEMBLY &&
+        unit.statements[index].assembly == 0u) {
+      assembly_statement = index;
+      break;
+    }
+  }
+  body_statement = unit.function_definitions[0].body;
+  mutant_bindings = (ctool_c_binding_t *)malloc(
+      (size_t)unit.binding_count * sizeof(*mutant_bindings));
+  mutant_statements = (ctool_c_statement_t *)malloc(
+      (size_t)unit.statement_count * sizeof(*mutant_statements));
+  mutant_types = (ctool_c_type_node_t *)malloc(
+      (size_t)unit.graph.type_count * sizeof(*mutant_types));
+  mutant_statement_children = (ctool_u32 *)malloc(
+      (size_t)unit.statement_child_count *
+      sizeof(*mutant_statement_children));
+  if (bss_start_binding == CTOOL_C_AST_NONE ||
+      kernel_end_binding == CTOOL_C_AST_NONE ||
+      start_binding == CTOOL_C_AST_NONE ||
+      assembly_statement == CTOOL_C_AST_NONE ||
+      body_statement >= unit.statement_count ||
+      unit.statements[body_statement].kind !=
+          CTOOL_C_STATEMENT_COMPOUND ||
+      unit.statements[body_statement].child_count < 2u ||
+      mutant_bindings == NULL || mutant_statements == NULL ||
+      mutant_types == NULL || mutant_statement_children == NULL) {
+    (void)fprintf(stderr,
+                  "kernel start assembly mutation setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "kernel start assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first kernel start assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat kernel start assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size == 0u ||
+      first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "kernel start assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/kernel-start-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read kernel start assembly object") ||
+      !validate_kernel_start_assembly_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  if (!parse_source_mode(
+          job, "/kernel-start-framed-object.c", framed_source,
+          CTOOL_TRUE, &framed_unit) ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &framed_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "kernel entry stack reset cannot use a compiler-managed frame",
+          "kernel stack reset with compiler-managed frame") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!parse_source_mode(
+          job, "/kernel-start-nested-object.c", nested_source,
+          CTOOL_TRUE, &nested_unit) ||
+      nested_unit.assembly_count != 1u ||
+      nested_unit.assemblies == NULL ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  nested_assembly = nested_unit.assemblies[0];
+  nested_assembly.template_text = unit.assemblies[0].template_text;
+  nested_assembly.flags = unit.assemblies[0].flags;
+  mutant = nested_unit;
+  mutant.assemblies = &nested_assembly;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel stack reset nested in an entry compound") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_assembly = unit.assemblies[0];
+  mutant_assembly.flags &= ~CTOOL_C_ASSEMBLY_EDI_CLOBBER;
+  mutant = unit;
+  mutant.assemblies = &mutant_assembly;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel start assembly missing edi clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_assembly = unit.assemblies[0];
+  mutant_assembly.direct_call_binding_plus_one = 1u;
+  mutant = unit;
+  mutant.assemblies = &mutant_assembly;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel start assembly forged direct call") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_assembly = unit.assemblies[0];
+  mutant_assembly.output_count = 1u;
+  mutant = unit;
+  mutant.assemblies = &mutant_assembly;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel start assembly forged output") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_bindings, unit.bindings,
+               (size_t)unit.binding_count * sizeof(*mutant_bindings));
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  mutant_bindings[bss_start_binding].type = unit.graph.type_count;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel start BSS symbol type out of range") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_bindings[bss_start_binding] =
+      unit.bindings[bss_start_binding];
+  mutant_bindings[bss_start_binding].type =
+      unit.bindings[start_binding].type;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel start BSS symbol with function type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_bindings[bss_start_binding] =
+      unit.bindings[bss_start_binding];
+  mutant_bindings[kernel_end_binding].linkage = CTOOL_C_LINKAGE_NONE;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel end symbol without external linkage") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_bindings[kernel_end_binding] =
+      unit.bindings[kernel_end_binding];
+  mutant_bindings[kernel_end_binding].file_scope_visible = CTOOL_FALSE;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel end symbol hidden from file scope") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_bindings[kernel_end_binding] =
+      unit.bindings[kernel_end_binding];
+  mutant_bindings[start_binding].name = ctool_string("ordinary");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel stack reset outside _start") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_types, unit.graph.types,
+               (size_t)unit.graph.type_count * sizeof(*mutant_types));
+  mutant = unit;
+  mutant.graph.types = mutant_types;
+  mutant_types[unit.function_definitions[0].declared_type].has_prototype =
+      CTOOL_FALSE;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel stack reset with old-style entry type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_statements, unit.statements,
+               (size_t)unit.statement_count *
+                   sizeof(*mutant_statements));
+  mutant = unit;
+  mutant.statements = mutant_statements;
+  mutant_statements[assembly_statement].assembly =
+      unit.assembly_count;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel start statement with forged assembly reference") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_statement_children, unit.statement_children,
+      (size_t)unit.statement_child_count *
+          sizeof(*mutant_statement_children));
+  {
+    ctool_u32 first_child =
+        unit.statements[body_statement].first_child;
+    ctool_u32 first_statement =
+        mutant_statement_children[first_child];
+    mutant_statement_children[first_child] =
+        mutant_statement_children[first_child + 1u];
+    mutant_statement_children[first_child + 1u] = first_statement;
+  }
+  mutant = unit;
+  mutant.statement_children = mutant_statement_children;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "kernel stack reset after compiler-managed work") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_failure(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited kernel start assembly object") ||
+      ctool_buffer_rewind(limited, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "kernel start assembly recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(recovered_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "kernel start assembly object did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_statement_children);
+  free(mutant_types);
+  free(mutant_statements);
+  free(mutant_bindings);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("kernel-start-assembly: ok");
+    return 0;
+  }
+  return 1;
 }
 
 static int validate_file_scope_math_object(
@@ -44584,6 +45209,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "kernel-start-assembly") == 0) {
+    return run_kernel_start_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "file-scope-assembly") == 0) {
     return run_file_scope_assembly_object(argv[2]);
   }
@@ -44712,8 +45340,8 @@ int main(int argc, char **argv) {
                 "call-next-assembly|"
                 "naked-functions|"
                 "pointer-output-assembly|"
-                "operand-free-assembly|file-scope-assembly|"
-                "file-scope-fabs-assembly|"
+                "operand-free-assembly|kernel-start-assembly|"
+                "file-scope-assembly|file-scope-fabs-assembly|"
                 "file-scope-exp-log-assembly|"
                 "file-scope-cdecl-bridges|"
                 "structure-values|call-alignment|"

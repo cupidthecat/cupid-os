@@ -272,6 +272,7 @@ typedef struct {
   ctool_u32 pending_block_binding_index;
   ctool_bool has_pending_block_binding;
   ctool_u32 syntax_depth;
+  ctool_u32 statement_nesting_depth;
   ctool_u32 breakable_statement_depth;
   ctool_u32 iteration_statement_depth;
   ctool_u32 constant_evaluation_suppression_depth;
@@ -281,6 +282,8 @@ typedef struct {
   ctool_u32 prototype_tag_mark;
   ctool_u32 prototype_name_mark;
   ctool_u32 active_function_type;
+  ctool_u32 active_function_binding;
+  ctool_u32 active_function_first_statement;
   ctool_u32 active_function_first_label;
   ctool_u32 active_function_binding_mark;
   ctool_u32 active_function_tag_mark;
@@ -14415,6 +14418,127 @@ static ctool_bool cfront_naked_panic_template(
       template_text, "cli\n1: hlt\njmp 1b\n");
 }
 
+static ctool_bool cfront_kernel_bss_clear_template(
+    ctool_string_t template_text) {
+  return cfront_string_literal(
+      template_text,
+      "mov $0xF00000, %%esp\n"
+      "mov %%esp, %%ebp\n"
+      "mov $_bss_start, %%edi\n"
+      "mov $_kernel_end, %%ecx\n"
+      "sub %%edi, %%ecx\n"
+      "shr $2, %%ecx\n"
+      "xor %%eax, %%eax\n"
+      "cld\n"
+      "rep stosl\n");
+}
+
+static ctool_bool cfront_kernel_linker_object_is_declared(
+    const cfront_context_t *context, const char *name) {
+  ctool_c_binding_t binding;
+  return cfront_find_file_binding_index(
+             context, ctool_string(name), &binding,
+             (ctool_u32 *)0) == CTOOL_TRUE &&
+                 binding.kind == CTOOL_C_BINDING_OBJECT &&
+                 binding.linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+                 binding.file_scope_visible == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_kernel_entry_context_is_valid(
+    const cfront_context_t *context) {
+  ctool_c_binding_t binding;
+  ctool_c_type_node_t function;
+  ctool_c_type_node_t result;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  if (context->active_function_binding == CFRONT_NONE ||
+      context->active_function_first_statement == CFRONT_NONE ||
+      context->statement_nesting_depth != 1u ||
+      context->statements.count !=
+          context->active_function_first_statement ||
+      cfront_vector_get(
+          &context->bindings, context->active_function_binding,
+          &binding) != CTOOL_OK ||
+      cfront_underlying_type(
+          context, context->active_function_type, &base,
+          &qualifiers, &function) != CTOOL_OK ||
+      function.kind != CTOOL_C_TYPE_FUNCTION ||
+      cfront_underlying_type(
+          context, function.referenced_type, &base,
+          &qualifiers, &result) != CTOOL_OK) {
+    return CTOOL_FALSE;
+  }
+  return binding.kind == CTOOL_C_BINDING_FUNCTION &&
+                 binding.linkage == CTOOL_C_LINKAGE_EXTERNAL &&
+                 binding.file_scope_visible == CTOOL_TRUE &&
+                 cfront_string_literal(
+                     binding.name, "_start") == CTOOL_TRUE &&
+                 (binding.attributes &
+                  CTOOL_C_DECL_ATTR_SECTION) != 0u &&
+                 cfront_string_literal(
+                     binding.section_name,
+                     ".text.start") == CTOOL_TRUE &&
+                 function.has_prototype == CTOOL_TRUE &&
+                 function.parameter_count == 0u &&
+                 function.variadic == CTOOL_FALSE &&
+                 result.kind == CTOOL_C_TYPE_VOID
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_validate_kernel_bss_clear_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_u32 register_clobbers =
+      CTOOL_C_ASSEMBLY_EAX_CLOBBER |
+      CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+      CTOOL_C_ASSEMBLY_EDI_CLOBBER;
+  const ctool_u32 expected_flags =
+      CTOOL_C_ASSEMBLY_VOLATILE |
+      CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+      register_clobbers;
+  ctool_bool exact_template =
+      cfront_kernel_bss_clear_template(assembly->template_text);
+  if (exact_template == CTOOL_FALSE) {
+    if ((assembly->flags & register_clobbers) != 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+          "GNU eax, ecx, and edi clobbers require the exact kernel BSS clear "
+          "template");
+    }
+    return CTOOL_OK;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU kernel BSS clear assembly requires exact eax, ecx, edi, and "
+        "memory clobbers");
+  }
+  if (cfront_kernel_linker_object_is_declared(
+          context, "_bss_start") == CTOOL_FALSE ||
+      cfront_kernel_linker_object_is_declared(
+          context, "_kernel_end") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU kernel BSS clear assembly requires declared external linker "
+        "objects");
+  }
+  if (cfront_kernel_entry_context_is_valid(context) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU kernel BSS clear assembly requires the first statement of "
+        "external void _start in .text.start");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_validate_naked_control_assembly(
     cfront_context_t *context, const ctool_c_pp_token_t *keyword,
     ctool_c_assembly_t *assembly) {
@@ -15511,6 +15635,9 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
     ctool_bool saw_xmm0 = CTOOL_FALSE;
     ctool_bool saw_ax = CTOOL_FALSE;
     ctool_bool saw_cc = CTOOL_FALSE;
+    ctool_bool saw_eax = CTOOL_FALSE;
+    ctool_bool saw_ecx = CTOOL_FALSE;
+    ctool_bool saw_edi = CTOOL_FALSE;
     (void)cfront_advance(context);
     while (status == CTOOL_OK &&
            cfront_peek_is(context, ")") == CTOOL_FALSE) {
@@ -15524,7 +15651,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
           cfront_string_literal(clobber, "memory") == CTOOL_FALSE &&
           cfront_string_literal(clobber, "xmm0") == CTOOL_FALSE &&
           cfront_string_literal(clobber, "ax") == CTOOL_FALSE &&
-          cfront_string_literal(clobber, "cc") == CTOOL_FALSE) {
+          cfront_string_literal(clobber, "cc") == CTOOL_FALSE &&
+          cfront_string_literal(clobber, "eax") == CTOOL_FALSE &&
+          cfront_string_literal(clobber, "ecx") == CTOOL_FALSE &&
+          cfront_string_literal(clobber, "edi") == CTOOL_FALSE) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED,
             CTOOL_C_PARSE_DIAG_STATEMENT, clobber_token,
@@ -15563,6 +15693,30 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
             "GNU inline assembly cc clobber is listed twice");
       }
       if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "eax") == CTOOL_TRUE &&
+          saw_eax == CTOOL_TRUE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            clobber_token,
+            "GNU inline assembly eax clobber is listed twice");
+      }
+      if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "ecx") == CTOOL_TRUE &&
+          saw_ecx == CTOOL_TRUE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            clobber_token,
+            "GNU inline assembly ecx clobber is listed twice");
+      }
+      if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "edi") == CTOOL_TRUE &&
+          saw_edi == CTOOL_TRUE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            clobber_token,
+            "GNU inline assembly edi clobber is listed twice");
+      }
+      if (status == CTOOL_OK &&
           cfront_string_literal(clobber, "memory") == CTOOL_TRUE) {
         saw_memory = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
@@ -15574,9 +15728,21 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
                  cfront_string_literal(clobber, "ax") == CTOOL_TRUE) {
         saw_ax = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_AX_CLOBBER;
-      } else if (status == CTOOL_OK) {
+      } else if (status == CTOOL_OK &&
+                 cfront_string_literal(clobber, "cc") == CTOOL_TRUE) {
         saw_cc = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_CC_CLOBBER;
+      } else if (status == CTOOL_OK &&
+                 cfront_string_literal(clobber, "eax") == CTOOL_TRUE) {
+        saw_eax = CTOOL_TRUE;
+        assembly.flags |= CTOOL_C_ASSEMBLY_EAX_CLOBBER;
+      } else if (status == CTOOL_OK &&
+                 cfront_string_literal(clobber, "ecx") == CTOOL_TRUE) {
+        saw_ecx = CTOOL_TRUE;
+        assembly.flags |= CTOOL_C_ASSEMBLY_ECX_CLOBBER;
+      } else if (status == CTOOL_OK) {
+        saw_edi = CTOOL_TRUE;
+        assembly.flags |= CTOOL_C_ASSEMBLY_EDI_CLOBBER;
       }
       if (status == CTOOL_OK &&
           cfront_peek_is(context, ",") == CTOOL_TRUE) {
@@ -15598,6 +15764,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_empty_assembly_barrier(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_kernel_bss_clear_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
@@ -20651,7 +20821,7 @@ static ctool_status_t cfront_parse_return_statement(
   return status;
 }
 
-static ctool_status_t cfront_parse_statement(
+static ctool_status_t cfront_parse_statement_inner(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *first = cfront_peek(context);
   if (cfront_labeled_statement_starts(context) == CTOOL_TRUE) {
@@ -20718,11 +20888,20 @@ static ctool_status_t cfront_parse_statement(
       context, "expression statement requires a semicolon", statement_out);
 }
 
+static ctool_status_t cfront_parse_statement(
+    cfront_context_t *context, ctool_u32 *statement_out) {
+  ctool_status_t status;
+  context->statement_nesting_depth++;
+  status = cfront_parse_statement_inner(context, statement_out);
+  context->statement_nesting_depth--;
+  return status;
+}
+
 static ctool_status_t cfront_parse_block_item(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *first = cfront_peek(context);
   if (cfront_labeled_statement_starts(context) == CTOOL_TRUE) {
-    return cfront_parse_labeled_statement(context, statement_out);
+    return cfront_parse_statement(context, statement_out);
   }
   if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
     return cfront_emit_failure(
@@ -20830,6 +21009,9 @@ static ctool_status_t cfront_parse_function_definition(
       context->active_block_binding_indices.count;
   ctool_u32 function_tag_mark = context->tags.count;
   ctool_u32 previous_type = context->active_function_type;
+  ctool_u32 previous_binding = context->active_function_binding;
+  ctool_u32 previous_first_statement =
+      context->active_function_first_statement;
   ctool_u32 previous_first_label = context->active_function_first_label;
   ctool_u32 previous_function_binding_mark =
       context->active_function_binding_mark;
@@ -20982,6 +21164,9 @@ static ctool_status_t cfront_parse_function_definition(
     }
   }
   context->active_function_type = declared_type;
+  context->active_function_binding = binding;
+  context->active_function_first_statement =
+      context->statements.count;
   context->active_function_first_label = first_label;
   context->active_function_binding_mark = function_binding_mark;
   context->active_function_tag_mark = function_tag_mark;
@@ -21003,6 +21188,9 @@ static ctool_status_t cfront_parse_function_definition(
     }
   }
   context->active_function_type = previous_type;
+  context->active_function_binding = previous_binding;
+  context->active_function_first_statement =
+      previous_first_statement;
   context->active_function_first_label = previous_first_label;
   context->active_function_binding_mark =
       previous_function_binding_mark;
@@ -22435,7 +22623,10 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
              CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
              CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
              CTOOL_C_ASSEMBLY_AX_CLOBBER |
-             CTOOL_C_ASSEMBLY_CC_CLOBBER)) != 0u ||
+             CTOOL_C_ASSEMBLY_CC_CLOBBER |
+             CTOOL_C_ASSEMBLY_EAX_CLOBBER |
+             CTOOL_C_ASSEMBLY_ECX_CLOBBER |
+             CTOOL_C_ASSEMBLY_EDI_CLOBBER)) != 0u ||
           direct_binding_valid == CTOOL_FALSE ||
           (assembly->template_text.data == (const char *)0 &&
            assembly->template_text.size != 0u) ||
@@ -24241,6 +24432,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
       context.scalar_types[index] = CFRONT_NONE;
     }
     context.builtin_va_list_type = CFRONT_NONE;
+    context.active_function_binding = CFRONT_NONE;
+    context.active_function_first_statement = CFRONT_NONE;
     context.active_function_binding_mark = CFRONT_NONE;
     context.active_function_tag_mark = CFRONT_NONE;
     status = cfront_validate_input(&context);
