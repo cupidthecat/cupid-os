@@ -87,6 +87,7 @@ typedef struct {
   ctool_u32 *argument_types;
   ctool_u32 argument_type_count;
   ctool_u32 argument_type_capacity;
+  ctool_u32 *file_assemblies;
   ctool_u32 function_first_instruction;
   ctool_u32 function_first_parameter;
   ctool_u32 function_parameter_count;
@@ -1197,6 +1198,24 @@ static ctool_status_t cir_validate_assembly_slices(
                                 (const ctool_c_pp_location_t *)0);
 }
 
+static ctool_status_t cir_validate_file_assemblies(
+    cir_context_t *context) {
+  ctool_u32 index;
+  for (index = 0u; index < context->unit->file_assembly_count; index++) {
+    const ctool_c_assembly_t *assembly =
+        &context->unit->file_assemblies[index];
+    if (assembly->template_text.data == (const char *)0 ||
+        assembly->template_text.size == 0u ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+        assembly->first_operand != 0u ||
+        assembly->output_count != 0u || assembly->input_count != 0u) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cir_unsupported_statement(
     cir_context_t *context, const ctool_c_pp_location_t *location) {
   if (context->relation_status != CTOOL_OK) {
@@ -1331,6 +1350,8 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
        unit->statement_children == (const ctool_u32 *)0) ||
       (unit->assembly_count == 0u) !=
           (unit->assemblies == (const ctool_c_assembly_t *)0) ||
+      (unit->file_assembly_count == 0u) !=
+          (unit->file_assemblies == (const ctool_c_assembly_t *)0) ||
       (unit->assembly_operand_count == 0u) !=
           (unit->assembly_operands ==
            (const ctool_c_assembly_operand_t *)0) ||
@@ -1458,7 +1479,12 @@ static ctool_status_t cir_validate_unit_shape(cir_context_t *context) {
       return cir_invalid_unit(context, &candidate->location);
     }
   }
-  return cir_validate_assembly_slices(context);
+  {
+    ctool_status_t status = cir_validate_assembly_slices(context);
+    return status == CTOOL_OK
+               ? cir_validate_file_assemblies(context)
+               : status;
+  }
 }
 
 static const ctool_c_type_node_t *cir_type_node(const cir_context_t *context,
@@ -12146,6 +12172,18 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
         (void **)&context.argument_types);
   }
   if (status == CTOOL_OK) {
+    status = cir_alloc_array(
+        &context, unit->file_assembly_count, (ctool_u32)sizeof(ctool_u32),
+        (void **)&context.file_assemblies);
+  }
+  if (status == CTOOL_OK) {
+    ctool_u32 file_assembly;
+    for (file_assembly = 0u;
+         file_assembly < unit->file_assembly_count; file_assembly++) {
+      context.file_assemblies[file_assembly] = file_assembly;
+    }
+  }
+  if (status == CTOOL_OK) {
     context.instruction_capacity = instruction_count;
     context.argument_type_capacity = argument_type_count;
     status = cir_lower_functions(&context);
@@ -12180,6 +12218,8 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
   }
   result_out->functions = context.functions;
   result_out->function_count = unit->function_definition_count;
+  result_out->file_assemblies = context.file_assemblies;
+  result_out->file_assembly_count = unit->file_assembly_count;
   result_out->instructions = context.instructions;
   result_out->instruction_count = instruction_count;
   result_out->argument_types = context.argument_types;

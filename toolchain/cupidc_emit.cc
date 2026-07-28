@@ -22,6 +22,23 @@
 #define CEMIT_WIDE_REMAINDER_SIGN_STACK 36u
 #define CEMIT_WIDE_DIVIDE_STACK_SIZE 40u
 
+typedef enum {
+  CEMIT_FILE_ASSEMBLY_NONE = 0,
+  CEMIT_FILE_ASSEMBLY_SQRT,
+  CEMIT_FILE_ASSEMBLY_SQRTF,
+  CEMIT_FILE_ASSEMBLY_SIN,
+  CEMIT_FILE_ASSEMBLY_SINF,
+  CEMIT_FILE_ASSEMBLY_COS,
+  CEMIT_FILE_ASSEMBLY_COSF,
+  CEMIT_FILE_ASSEMBLY_TAN,
+  CEMIT_FILE_ASSEMBLY_TANF,
+  CEMIT_FILE_ASSEMBLY_ATAN,
+  CEMIT_FILE_ASSEMBLY_ATANF,
+  CEMIT_FILE_ASSEMBLY_ATAN2,
+  CEMIT_FILE_ASSEMBLY_ATAN2F,
+  CEMIT_FILE_ASSEMBLY_COUNT
+} cemit_file_assembly_kind_t;
+
 typedef struct {
   ctool_string_t name;
   ctool_u32 flags;
@@ -55,6 +72,8 @@ typedef struct {
   ctool_u32 *binding_symbols;
   ctool_u32 *binding_object_definitions;
   ctool_u32 *binding_function_definitions;
+  ctool_u32 *file_assembly_bindings;
+  ctool_u32 *file_assembly_kinds;
   ctool_u32 *block_binding_symbols;
   ctool_u32 *block_binding_offsets;
   ctool_u32 *compound_literal_offsets;
@@ -462,6 +481,8 @@ static ctool_status_t cemit_validate_unit_shape(cemit_context_t *context) {
        unit->expressions == (const ctool_c_expression_t *)0) ||
       (unit->assembly_count != 0u &&
        unit->assemblies == (const ctool_c_assembly_t *)0) ||
+      (unit->file_assembly_count == 0u) !=
+          (unit->file_assemblies == (const ctool_c_assembly_t *)0) ||
       (unit->assembly_operand_count != 0u &&
        unit->assembly_operands ==
            (const ctool_c_assembly_operand_t *)0) ||
@@ -674,6 +695,229 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
       }
       context->binding_needed[instruction->reference] = CTOOL_TRUE;
     }
+  }
+  return CTOOL_OK;
+}
+
+static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
+    ctool_string_t text) {
+  static const char *const templates[] = {
+      "",
+      ".text\n\t.globl sqrt\n\t.type  sqrt, @function\n"
+      "sqrt:\n\tmovsd  4(%esp), %xmm0\n\t"
+      "sqrtsd %xmm0, %xmm0\n\tret\n\t.size  sqrt, .-sqrt\n",
+      ".text\n\t.globl sqrtf\n\t.type  sqrtf, @function\n"
+      "sqrtf:\n\tmovss  4(%esp), %xmm0\n\t"
+      "sqrtss %xmm0, %xmm0\n\tret\n\t.size  sqrtf, .-sqrtf\n",
+      ".text\n\t.globl sin\n\t.type  sin, @function\n"
+      "sin:\n\tfldl   4(%esp)\n\tfsin\n\tsub    $8, %esp\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  sin, .-sin\n",
+      ".text\n\t.globl sinf\n\t.type  sinf, @function\n"
+      "sinf:\n\tflds   4(%esp)\n\tfsin\n\tsub    $4, %esp\n\t"
+      "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
+      "add    $4, %esp\n\tret\n\t.size  sinf, .-sinf\n",
+      ".text\n\t.globl cos\n\t.type  cos, @function\n"
+      "cos:\n\tfldl   4(%esp)\n\tfcos\n\tsub    $8, %esp\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  cos, .-cos\n",
+      ".text\n\t.globl cosf\n\t.type  cosf, @function\n"
+      "cosf:\n\tflds   4(%esp)\n\tfcos\n\tsub    $4, %esp\n\t"
+      "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
+      "add    $4, %esp\n\tret\n\t.size  cosf, .-cosf\n",
+      ".text\n\t.globl tan\n\t.type  tan, @function\n"
+      "tan:\n\tfldl   4(%esp)\n\tfptan\n\tfstp   %st(0)\n\t"
+      "sub    $8, %esp\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  tan, .-tan\n",
+      ".text\n\t.globl tanf\n\t.type  tanf, @function\n"
+      "tanf:\n\tflds   4(%esp)\n\tfptan\n\tfstp   %st(0)\n\t"
+      "sub    $4, %esp\n\tfstps  (%esp)\n\t"
+      "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
+      "ret\n\t.size  tanf, .-tanf\n",
+      ".text\n\t.globl atan\n\t.type  atan, @function\n"
+      "atan:\n\tfldl   4(%esp)\n\tfld1\n\tfpatan\n\t"
+      "sub    $8, %esp\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  atan, .-atan\n",
+      ".text\n\t.globl atanf\n\t.type  atanf, @function\n"
+      "atanf:\n\tflds   4(%esp)\n\tfld1\n\tfpatan\n\t"
+      "sub    $4, %esp\n\tfstps  (%esp)\n\t"
+      "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
+      "ret\n\t.size  atanf, .-atanf\n",
+      ".text\n\t.globl atan2\n\t.type  atan2, @function\n"
+      "atan2:\n\tfldl    4(%esp)\n\tfldl   12(%esp)\n\t"
+      "fpatan\n\tsub    $8, %esp\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  atan2, .-atan2\n",
+      ".text\n\t.globl atan2f\n\t.type  atan2f, @function\n"
+      "atan2f:\n\tflds    4(%esp)\n\tflds    8(%esp)\n\t"
+      "fpatan\n\tsub    $4, %esp\n\tfstps  (%esp)\n\t"
+      "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
+      "ret\n\t.size  atan2f, .-atan2f\n"};
+  ctool_u32 kind;
+  for (kind = 1u; kind < CEMIT_FILE_ASSEMBLY_COUNT; kind++) {
+    if (cemit_strings_equal(text, ctool_string(templates[kind])) ==
+        CTOOL_TRUE) {
+      return (cemit_file_assembly_kind_t)kind;
+    }
+  }
+  return CEMIT_FILE_ASSEMBLY_NONE;
+}
+
+static const char *cemit_file_assembly_function_name(
+    cemit_file_assembly_kind_t kind) {
+  static const char *const names[] = {
+      "", "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
+      "tan", "tanf", "atan", "atanf", "atan2", "atan2f"};
+  return kind > CEMIT_FILE_ASSEMBLY_NONE &&
+                 kind < CEMIT_FILE_ASSEMBLY_COUNT
+             ? names[(ctool_u32)kind]
+             : "";
+}
+
+static ctool_bool cemit_file_assembly_scalar_type_matches(
+    const cemit_context_t *context, ctool_u32 type,
+    ctool_bool single_precision) {
+  const ctool_c_type_node_t *node = cemit_unwrapped_type(context, type);
+  const ctool_c_type_layout_t *layout =
+      type < context->unit->layout.type_count
+          ? &context->unit->layout.types[type]
+          : (const ctool_c_type_layout_t *)0;
+  return node != (const ctool_c_type_node_t *)0 &&
+                 layout != (const ctool_c_type_layout_t *)0 &&
+                 node->qualifiers == 0u &&
+                 node->kind ==
+                     (single_precision == CTOOL_TRUE
+                          ? CTOOL_C_TYPE_FLOAT
+                          : CTOOL_C_TYPE_DOUBLE) &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size ==
+                     (single_precision == CTOOL_TRUE ? 4u : 8u)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_file_assembly_function_type_matches(
+    const cemit_context_t *context, ctool_u32 type,
+    cemit_file_assembly_kind_t kind) {
+  const ctool_c_type_node_t *function = cemit_unwrapped_type(context, type);
+  ctool_bool single_precision =
+      (((ctool_u32)kind - 1u) & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+  ctool_u32 expected_parameters =
+      kind == CEMIT_FILE_ASSEMBLY_ATAN2 ||
+              kind == CEMIT_FILE_ASSEMBLY_ATAN2F
+          ? 2u
+          : 1u;
+  ctool_u32 parameter;
+  if (function == (const ctool_c_type_node_t *)0 ||
+      function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->has_prototype != CTOOL_TRUE ||
+      function->variadic != CTOOL_FALSE ||
+      function->parameter_count != expected_parameters ||
+      function->first_parameter >
+          context->unit->graph.parameter_type_count ||
+      function->parameter_count >
+          context->unit->graph.parameter_type_count -
+              function->first_parameter ||
+      cemit_file_assembly_scalar_type_matches(
+          context, function->referenced_type, single_precision) ==
+          CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  for (parameter = 0u; parameter < expected_parameters; parameter++) {
+    if (cemit_file_assembly_scalar_type_matches(
+            context,
+            context->unit->graph.parameter_types[
+                function->first_parameter + parameter],
+            single_precision) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cemit_index_file_assemblies(
+    cemit_context_t *context) {
+  ctool_u32 index;
+  if (context->ir.file_assembly_count !=
+          context->unit->file_assembly_count ||
+      (context->ir.file_assembly_count != 0u &&
+       (context->ir.file_assemblies == (const ctool_u32 *)0 ||
+        context->file_assembly_bindings == (ctool_u32 *)0 ||
+        context->file_assembly_kinds == (ctool_u32 *)0))) {
+    return cemit_invalid_unit(
+        context, (const ctool_c_pp_location_t *)0);
+  }
+  for (index = 0u; index < context->ir.file_assembly_count; index++) {
+    ctool_u32 assembly_index = context->ir.file_assemblies[index];
+    const ctool_c_assembly_t *assembly;
+    cemit_file_assembly_kind_t kind;
+    const char *name;
+    ctool_u32 binding;
+    ctool_bool found = CTOOL_FALSE;
+    ctool_u32 prior;
+    if (assembly_index != index ||
+        assembly_index >= context->unit->file_assembly_count) {
+      return cemit_invalid_unit(
+          context, (const ctool_c_pp_location_t *)0);
+    }
+    assembly = &context->unit->file_assemblies[assembly_index];
+    kind = cemit_file_assembly_template_kind(assembly->template_text);
+    if (kind == CEMIT_FILE_ASSEMBLY_NONE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
+          "GNU file-scope assembly template is outside this i386 "
+          "emission slice");
+    }
+    name = cemit_file_assembly_function_name(kind);
+    for (binding = 0u; binding < context->unit->binding_count; binding++) {
+      const ctool_c_binding_t *candidate =
+          &context->unit->bindings[binding];
+      if (cemit_strings_equal(
+              candidate->name, ctool_string(name)) == CTOOL_TRUE) {
+        found = CTOOL_TRUE;
+        break;
+      }
+    }
+    if (found == CTOOL_FALSE) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+          &assembly->location,
+          "GNU file-scope assembly requires a matching external "
+          "function declaration");
+    }
+    {
+      const ctool_c_binding_t *candidate =
+          &context->unit->bindings[binding];
+      if (candidate->kind != CTOOL_C_BINDING_FUNCTION ||
+          candidate->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+          candidate->file_scope_visible != CTOOL_TRUE ||
+          candidate->attributes != 0u ||
+          context->binding_function_definitions[binding] !=
+              CTOOL_C_AST_NONE ||
+          cemit_file_assembly_function_type_matches(
+              context, candidate->type, kind) == CTOOL_FALSE) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+            &assembly->location,
+            "GNU file-scope assembly does not match its external "
+            "function declaration");
+      }
+    }
+    for (prior = 0u; prior < index; prior++) {
+      if (context->file_assembly_bindings[prior] == binding) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+            &assembly->location,
+            "GNU file-scope assembly defines one function twice");
+      }
+    }
+    context->file_assembly_bindings[index] = binding;
+    context->file_assembly_kinds[index] = (ctool_u32)kind;
+    context->binding_needed[binding] = CTOOL_TRUE;
   }
   return CTOOL_OK;
 }
@@ -2579,21 +2823,31 @@ static ctool_status_t cemit_x86_canonicalize_scalar_eax(
              : CTOOL_ERR_INTERNAL;
 }
 
-static ctool_status_t cemit_x86_add_eax_constant(
-    cemit_context_t *context, ctool_u32 value) {
+static ctool_status_t cemit_x86_add_register_constant(
+    cemit_context_t *context, ctool_u8 register_index,
+    ctool_u32 value) {
   ctool_x86_instruction_t instruction =
       cemit_x86_instruction(CTOOL_X86_MN_ADD, 32u);
   if (value == 0u) {
     return CTOOL_OK;
   }
+  if (register_index >= 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
   instruction.operand_count = 2u;
   instruction.operands[0] =
-      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 0u);
+      cemit_x86_register_operand(
+          CTOOL_X86_REG_GPR32, register_index);
   instruction.operands[1] = cemit_x86_value_operand(
       CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, value);
   return cemit_x86_encode(context, &instruction,
                           (ctool_x86_encoding_t *)0,
                           (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_add_eax_constant(
+    cemit_context_t *context, ctool_u32 value) {
+  return cemit_x86_add_register_constant(context, 0u, value);
 }
 
 static ctool_status_t cemit_x86_shift_register(
@@ -11031,6 +11285,173 @@ static ctool_status_t cemit_validate_general_regs_only_codegen(
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_finish_file_assembly_x87_result(
+    cemit_context_t *context, ctool_u16 width_bits) {
+  ctool_u32 byte_count =
+      width_bits == 32u ? 4u : width_bits == 64u ? 8u : 0u;
+  ctool_x86_mnemonic_t move =
+      width_bits == 32u ? CTOOL_X86_MN_MOVSS : CTOOL_X86_MN_MOVSD;
+  ctool_status_t status;
+  if (byte_count == 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_reserve_locals(context, byte_count);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FSTP, 4u, 0, width_bits);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_sse_memory(
+        context, move, CTOOL_TRUE, 0u, 4u, 0, width_bits);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_add_register_constant(context, 4u, byte_count);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_RET);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_file_assembly_body(
+    cemit_context_t *context, cemit_file_assembly_kind_t kind) {
+  ctool_bool single_precision =
+      (((ctool_u32)kind - 1u) & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+  ctool_u16 width_bits = single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_x86_mnemonic_t move =
+      single_precision == CTOOL_TRUE ? CTOOL_X86_MN_MOVSS
+                                     : CTOOL_X86_MN_MOVSD;
+  ctool_status_t status;
+  if (kind == CEMIT_FILE_ASSEMBLY_SQRT ||
+      kind == CEMIT_FILE_ASSEMBLY_SQRTF) {
+    ctool_x86_mnemonic_t square_root =
+        single_precision == CTOOL_TRUE ? CTOOL_X86_MN_SQRTSS
+                                       : CTOOL_X86_MN_SQRTSD;
+    status = cemit_x86_sse_memory(
+        context, move, CTOOL_TRUE, 0u, 4u, 4, width_bits);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, square_root, CTOOL_X86_REG_XMM, 0u,
+          CTOOL_X86_REG_XMM, 0u, width_bits);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_no_operand(context, CTOOL_X86_MN_RET);
+    }
+    return status;
+  }
+  if (kind <= CEMIT_FILE_ASSEMBLY_NONE ||
+      kind >= CEMIT_FILE_ASSEMBLY_COUNT) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_x87_memory(
+      context, CTOOL_X86_MN_FLD, 4u, 4, width_bits);
+  if (status == CTOOL_OK &&
+      (kind == CEMIT_FILE_ASSEMBLY_ATAN2 ||
+       kind == CEMIT_FILE_ASSEMBLY_ATAN2F)) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FLD, 4u,
+        single_precision == CTOOL_TRUE ? 8 : 12, width_bits);
+  }
+  if (status == CTOOL_OK &&
+      (kind == CEMIT_FILE_ASSEMBLY_SIN ||
+       kind == CEMIT_FILE_ASSEMBLY_SINF)) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FSIN);
+  } else if (status == CTOOL_OK &&
+             (kind == CEMIT_FILE_ASSEMBLY_COS ||
+              kind == CEMIT_FILE_ASSEMBLY_COSF)) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FCOS);
+  } else if (status == CTOOL_OK &&
+             (kind == CEMIT_FILE_ASSEMBLY_TAN ||
+              kind == CEMIT_FILE_ASSEMBLY_TANF)) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FPTAN);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_FSTP, CTOOL_X86_REG_X87, 0u, 32u);
+    }
+  } else if (status == CTOOL_OK &&
+             (kind == CEMIT_FILE_ASSEMBLY_ATAN ||
+              kind == CEMIT_FILE_ASSEMBLY_ATANF)) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FLD1);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_no_operand(context, CTOOL_X86_MN_FPATAN);
+    }
+  } else if (status == CTOOL_OK &&
+             (kind == CEMIT_FILE_ASSEMBLY_ATAN2 ||
+              kind == CEMIT_FILE_ASSEMBLY_ATAN2F)) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FPATAN);
+  } else if (status == CTOOL_OK) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  return status == CTOOL_OK
+             ? cemit_finish_file_assembly_x87_result(
+                   context, width_bits)
+             : status;
+}
+
+static ctool_status_t cemit_place_file_assembly(
+    cemit_context_t *context, ctool_u32 index) {
+  const ctool_c_assembly_t *assembly;
+  cemit_file_assembly_kind_t kind;
+  ctool_u32 binding;
+  ctool_u32 symbol_index;
+  ctool_u32 start;
+  ctool_u32 size;
+  ctool_status_t status;
+  if (index >= context->ir.file_assembly_count ||
+      context->ir.file_assemblies[index] >=
+          context->unit->file_assembly_count ||
+      context->file_assembly_bindings == (ctool_u32 *)0 ||
+      context->file_assembly_kinds == (ctool_u32 *)0) {
+    return cemit_invalid_unit(
+        context, (const ctool_c_pp_location_t *)0);
+  }
+  assembly = &context->unit->file_assemblies[
+      context->ir.file_assemblies[index]];
+  binding = context->file_assembly_bindings[index];
+  kind = (cemit_file_assembly_kind_t)
+      context->file_assembly_kinds[index];
+  if (binding >= context->unit->binding_count ||
+      kind <= CEMIT_FILE_ASSEMBLY_NONE ||
+      kind >= CEMIT_FILE_ASSEMBLY_COUNT) {
+    return cemit_invalid_unit(context, &assembly->location);
+  }
+  context->active_text = context->text;
+  context->active_text_section = CEMIT_SECTION_TEXT;
+  start = ctool_buffer_view(context->text).size;
+  status = cemit_emit_file_assembly_body(context, kind);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  size = ctool_buffer_view(context->text).size - start;
+  if (size == 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_raise_section_alignment(
+      context, CEMIT_SECTION_TEXT, 1u);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = cemit_ensure_binding_symbol(
+      context, binding, &symbol_index);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (context->symbols[symbol_index].placement !=
+      CTOOL_ELF32_SYMBOL_UNDEFINED) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+        &assembly->location,
+        "GNU file-scope assembly defines one function twice");
+  }
+  context->symbols[symbol_index].placement =
+      CTOOL_ELF32_SYMBOL_DEFINED;
+  context->symbols[symbol_index].section = CEMIT_SECTION_TEXT;
+  context->symbols[symbol_index].value = start;
+  context->symbols[symbol_index].size = size;
+  context->symbols[symbol_index].alignment = 0u;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_place_function(cemit_context_t *context,
                                            ctool_u32 function_index) {
   const ctool_c_function_definition_t *definition =
@@ -11406,6 +11827,18 @@ ctool_status_t ctool_c_emit_object(
         (void **)&context.binding_function_definitions);
   }
   if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        &context, context.ir.file_assembly_count,
+        (ctool_u32)sizeof(ctool_u32),
+        (void **)&context.file_assembly_bindings);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        &context, context.ir.file_assembly_count,
+        (ctool_u32)sizeof(ctool_u32),
+        (void **)&context.file_assembly_kinds);
+  }
+  if (status == CTOOL_OK) {
     status = cemit_alloc_array(&context, unit->binding_count,
                                (ctool_u32)sizeof(ctool_bool),
                                (void **)&context.binding_needed);
@@ -11458,6 +11891,9 @@ ctool_status_t ctool_c_emit_object(
     status = cemit_index_definitions(&context);
   }
   if (status == CTOOL_OK) {
+    status = cemit_index_file_assemblies(&context);
+  }
+  if (status == CTOOL_OK) {
     status = cemit_index_initializers(&context);
   }
   if (status == CTOOL_OK) {
@@ -11481,6 +11917,11 @@ ctool_status_t ctool_c_emit_object(
                      index < unit->block_binding_count;
        index++) {
     status = cemit_place_block_static(&context, index);
+  }
+  for (index = 0u; status == CTOOL_OK &&
+                    index < context.ir.file_assembly_count;
+       index++) {
+    status = cemit_place_file_assembly(&context, index);
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->function_definition_count;

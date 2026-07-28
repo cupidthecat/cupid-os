@@ -13,6 +13,17 @@ source-driven assembly frontier. ADR 0103 uses that seed
 to transfer ACPI and MP-table discovery into the normal build. ADR 0104
 transfers e1000, the desktop, the socket layer, and TCP.
 
+Compiler head now keeps file-scope GNU basic assembly in a separate
+translation-unit effect table and carries its source order through Linear IR.
+It emits the twelve exact x87/SSE floating wrapper definitions at the start
+of unchanged `kernel/cpu/libm.c` through the shared x86 model. The focused
+object has 248 text bytes, twelve global function symbols, and no
+relocations. The complete source proceeds to named function-body assembly
+operands at line 782. This does not transfer a recipe: the checked seed
+predates the capability, `libm.c` remains host-owned with its `.c` name, and
+the host C transform count is unchanged. ADR 0155 records the compiler-head
+boundary.
+
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or
 `void` pointer `r` input reaches the shared x86 encoder as `0F AE 00`, and

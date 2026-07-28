@@ -530,6 +530,15 @@ and no relocations. Two complete compiler-head compiles of unchanged
 The checked seed still predates the capability, so the normal source remains
 host-owned and keeps its `.c` suffix.
 
+ADR 0155 gives file-scope GNU basic assembly its own frontend and Linear IR
+tables. Compiler head emits the twelve exact x87/SSE floating wrappers at the
+start of unchanged `kernel/cpu/libm.c` as source-ordered, prologue-free global
+functions. The shared x86 encoder produces all 248 text bytes, and the object
+has no relocations. The full source now reaches named operands in a
+function-body assembly statement at line 782. This proof advances the
+compiler head only: the checked seed, `libm.c` name, production recipe, and
+host-dependency inventory are unchanged.
+
 ADR 0121 adds the three machine-state memory outputs used by the FPU panic
 path. Exact volatile `fnstsw %0` and `fnstcw %0` templates accept one
 modifiable 16-bit `=m` output, while `stmxcsr %0` accepts one modifiable

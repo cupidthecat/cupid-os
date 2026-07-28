@@ -13732,3 +13732,119 @@ This increment changes compiler head only. The checked seed does not carry
 the capability, so `kernel/smp/percpu.c` remains host-owned and keeps its
 `.c` suffix. No ABI, runtime path, normal object, or host dependency moves.
 `TempleOS/` remains untouched reference material.
+
+## 2026-07-28: emit the opening libm file-scope assembly wrappers
+
+Unchanged `kernel/cpu/libm.c` previously stopped at its first file-scope
+`__asm__` on line 25. The opening source defines Task 23's twelve public
+x87/SSE floating wrappers outside every C function, so treating them as
+function-body statements would have misrepresented their lifetime and
+linkage.
+
+### Translation-unit boundary
+
+The public frontend unit now owns a separate file-assembly table. GNU mode
+accepts file-scope `asm`, `__asm`, and `__asm__` followed by one basic narrow
+string or adjacent narrow strings. Each record owns the joined template and
+remains separate from statement assembly even when a source contains both.
+
+Strict mode rejects file-scope assembly. GNU mode still rejects `volatile`,
+`goto`, and `inline` modifiers, extended operands, blank templates, embedded
+null bytes, and malformed punctuation. Every failure restores the arena and
+the earlier result, and the same job can parse a valid unit afterward.
+
+Linear IR publishes the source-ordered unit effects before lowering
+functions. Frozen-unit checks cover the table shape, flags, template
+ownership, operand slices, and missing or blank templates. A file-scope
+effect never becomes an `ASSEMBLY` instruction in an unrelated function.
+
+The object emitter recognizes the twelve opening templates and no others.
+Each one must match a visible external declaration with the expected
+`float` or `double` prototype. The emitter then publishes a prologue-free
+global `STT_FUNC` symbol and asks Cupid's shared x86 model for every
+instruction. It does not invoke GAS or inject an opaque byte block.
+
+### Object and source proof
+
+The deterministic fixture emits 248 text bytes and no relocations:
+
+| Symbol | Offset | Bytes |
+| --- | ---: | ---: |
+| `sqrt` | 0 | 11 |
+| `sqrtf` | 11 | 11 |
+| `sin` | 22 | 21 |
+| `sinf` | 43 | 21 |
+| `cos` | 64 | 21 |
+| `cosf` | 85 | 21 |
+| `tan` | 106 | 23 |
+| `tanf` | 129 | 23 |
+| `atan` | 152 | 23 |
+| `atanf` | 175 | 23 |
+| `atan2` | 198 | 25 |
+| `atan2f` | 223 | 25 |
+
+The contract checks every byte, symbol binding, type, offset, and size.
+Repeated emission matches exactly. A later unsupported template fails before
+publishing an object, and same-job recovery reproduces the valid artifact.
+The first object run exposed zero `.text` alignment when a unit had no C
+function. File-assembly output now raises that alignment to the required
+minimum of one.
+
+The source guard fixes `kernel/cpu/libm.c` at 43,736 bytes, 1,500 lines, and
+SHA-256
+`f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce`.
+Two full-profile attempts preserve the source and publish no partial object.
+The parser must finish the whole translation unit before object lowering, so
+the next blocker is not a later file-scope template. It is the named-operand
+x87 statement at line 782:
+
+```text
+/kernel/cpu/libm.c:782:11: error CTB00000F: GNU inline assembly named operands are outside this slice
+```
+
+### Review and isolated verification
+
+Review found that file-scope `asm volatile("...")` had been accepted even
+though this slice promises only basic assembly. The frontend now rejects the
+modifier transactionally and proves recovery. The IR contract also names
+each frozen mutation directly: nonzero operand-table references, nonempty
+output slices, zero-length templates, missing tables, invalid flags, and
+absent templates.
+
+The six focused frontend, Linear IR, object, unchanged-source, and self-host
+selectors pass together. The isolated capability branch also passes all 141
+frontend and IR tests, all 82 object tests including the five-tool static
+fixed point, the strict native Toolchain build, deterministic audit
+regeneration and checking, all 62 mutation-based audit tests, and the normal
+image build.
+
+After integration with the x87 round-down and descriptor-table increments,
+the six overlapping assembly selectors pass in 34.119 seconds. The complete
+frontend and Linear IR modules pass all 153 tests in 21.556 seconds. The
+strict Toolchain build and self-host link gate pass with these combined
+locks:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 380 | 15,415 | 101,716 | 2,313 | 1,426 |
+| `toolchain/cupidc_ir.cc` | 232 | 6,818 | 63,046 | 896 | 322 |
+| `toolchain/cupidc_emit.cc` | 265 | 6,634 | 57,241 | 822 | 435 |
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 380 | 788,449 | 931,880 | `AF2EFC96` |
+| `toolchain/cupidc_ir.cc` | 232 | 447,293 | 478,920 | `1D982CE6` |
+| `toolchain/cupidc_emit.cc` | 265 | 424,243 | 462,568 | `242361D9` |
+
+The combined audit still contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Regeneration and the
+deterministic check both pass. Its active-source digest is
+`411c7b8d7ce83e396579926736ae556fa532c4157e27a98f4772cadf6dcd78ab`.
+The 1,525,067-byte JSON has SHA-256
+`54d69fde46c458792df2310537bffbdb4e25d8b63fb9d05d5b10312bb099a14c`.
+
+This remains a compiler-head capability. The checked seed predates the new
+translation-unit table, `libm.c` remains host-built with its `.c` suffix,
+and no production object owner, ABI, output format, runtime path, or host
+dependency moves. ADR 0155 records the representation and ownership
+boundary.

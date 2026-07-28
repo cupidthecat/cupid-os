@@ -424,6 +424,17 @@ dual-NIC runtime gates pass.
 
 CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects. At compiler head, an exact empty volatile extended template with one `memory` clobber and no operands remains an IR ordering point and emits no instruction bytes. That form compiles the unchanged Doom sound driver, though its build recipe remains host-owned until a later seed promotion.
 
+File-scope GNU basic assembly has a separate translation-unit representation
+at compiler head. The frontend owns immutable templates outside the function
+statement table, and Linear IR keeps their source order. The i386 emitter
+recognizes the twelve exact x87/SSE floating wrapper definitions at the start
+of unchanged `kernel/cpu/libm.c`. It writes prologue-free global function
+symbols through Cupid's shared x86 encoder. The fixture has 248 exact text
+bytes and no relocations. The full source now proceeds to named operands in a
+function-body assembly statement at line 782. General GAS syntax and other
+file-scope templates remain unsupported, and the normal `libm.c` recipe still
+uses the host compiler.
+
 The same compiler head accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,
 evaluates the output destination once, and emits the absolute GS load as

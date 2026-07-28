@@ -3042,6 +3042,17 @@ static uint64_t unit_fingerprint(const ctool_c_translation_unit_t *unit) {
           unit->assemblies[assembly].template_text.size);
     }
   }
+  hash = hash_bytes(hash, unit->file_assemblies,
+                    (size_t)unit->file_assembly_count *
+                        sizeof(*unit->file_assemblies));
+  if (unit->file_assemblies != NULL) {
+    ctool_u32 assembly;
+    for (assembly = 0u; assembly < unit->file_assembly_count; assembly++) {
+      hash = hash_bytes(
+          hash, unit->file_assemblies[assembly].template_text.data,
+          unit->file_assemblies[assembly].template_text.size);
+    }
+  }
   hash = hash_bytes(hash, unit->assembly_operands,
                     (size_t)unit->assembly_operand_count *
                         sizeof(*unit->assembly_operands));
@@ -34568,6 +34579,183 @@ cleanup:
   return 1;
 }
 
+static uint64_t file_scope_assembly_ir_fingerprint(
+    const ctool_c_ir_unit_t *ir) {
+  uint64_t hash = UINT64_C(1469598103934665603);
+  ctool_u32 index;
+  if (ir == NULL ||
+      (ir->file_assembly_count != 0u && ir->file_assemblies == NULL)) {
+    return 0u;
+  }
+  hash = hash_u32(hash, ir->file_assembly_count);
+  for (index = 0u; index < ir->file_assembly_count; index++) {
+    hash = hash_u32(hash, ir->file_assemblies[index]);
+  }
+  return hash;
+}
+
+static int file_scope_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || unit->file_assembly_count != 2u ||
+      unit->file_assemblies == NULL || unit->assembly_count != 0u ||
+      unit->assemblies != NULL || unit->assembly_operand_count != 0u ||
+      unit->assembly_operands != NULL || ir->function_count != 0u ||
+      ir->functions != NULL || ir->instruction_count != 0u ||
+      ir->instructions != NULL || ir->argument_type_count != 0u ||
+      ir->argument_types != NULL || ir->file_assembly_count != 2u ||
+      ir->file_assemblies == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < ir->file_assembly_count; index++) {
+    if (ir->file_assemblies[index] != index) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_file_scope_assembly(const char *host_root) {
+  static const char source[] =
+      "double sqrt(double value);\n"
+      "__asm__(\".text\\n.globl sqrt\\n.type sqrt,@function\\n\"\n"
+      "        \"sqrt:\\nmovsd 4(%esp), %xmm0\\n\"\n"
+      "        \"sqrtsd %xmm0, %xmm0\\nret\\n\"\n"
+      "        \".size sqrt, .-sqrt\");\n"
+      "float sqrtf(float value);\n"
+      "__asm__(\".text\\n.globl sqrtf\\n.type sqrtf,@function\\n\"\n"
+      "        \"sqrtf:\\nmovss 4(%esp), %xmm0\\n\"\n"
+      "        \"sqrtss %xmm0, %xmm0\\nret\\n\"\n"
+      "        \".size sqrtf, .-sqrtf\");\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[2];
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/file-scope-assembly.c", source, CTOOL_TRUE, &unit) ||
+      unit.file_assembly_count != 2u || unit.file_assemblies == NULL ||
+      unit.assembly_count != 0u || unit.assemblies != NULL ||
+      unit.assembly_operand_count != 0u || unit.assembly_operands != NULL) {
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "file-scope assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !file_scope_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = file_scope_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK, "repeat file-scope assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      file_scope_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !file_scope_assembly_ir_matches(&unit, &repeat_ir)) {
+    goto cleanup;
+  }
+
+  invalid_unit = unit;
+  invalid_unit.file_assemblies = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "file assembly count without table")) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.file_assemblies, sizeof(assemblies));
+  invalid_unit = unit;
+  invalid_unit.file_assemblies = assemblies;
+  assemblies[0].flags |= 0x80000000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "file assembly unknown flag")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.file_assemblies[0];
+  assemblies[0].first_operand = unit.assembly_operand_count + 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "file assembly out-of-range operand reference")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.file_assemblies[0];
+  assemblies[0].output_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "file assembly nonempty operand slice")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.file_assemblies[0];
+  assemblies[0].template_text.data = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "file assembly missing template")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.file_assemblies[0];
+  assemblies[0].template_text = ctool_string("");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "file assembly blank template")) {
+    goto cleanup;
+  }
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "file-scope assembly recovery") ||
+      unit_fingerprint(&unit) != unit_hash ||
+      file_scope_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !file_scope_assembly_ir_matches(&unit, &recovered_ir)) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("file-scope-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_comma_expression_ir(const ctool_c_ir_unit_t *ir) {
   ctool_u32 call_count = 0u;
   ctool_u32 discard_count = 0u;
@@ -35834,6 +36022,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "file-scope-assembly") == 0) {
+    return run_file_scope_assembly(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -35872,7 +36063,7 @@ int main(int argc, char **argv) {
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"
-                "operand-free-assembly "
+                "operand-free-assembly|file-scope-assembly "
                 "HOST_ROOT\n");
   return 2;
 }

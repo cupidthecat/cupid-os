@@ -1228,6 +1228,7 @@ typedef struct {
   ctool_c_statement_t *statements;
   ctool_u32 *statement_children;
   ctool_c_assembly_t *assemblies;
+  ctool_c_assembly_t *file_assemblies;
   ctool_c_assembly_operand_t *assembly_operands;
   ctool_c_expression_t *expressions;
   ctool_u32 *expression_children;
@@ -1731,6 +1732,7 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
   void *statements = NULL;
   void *statement_children = NULL;
   void *assemblies = NULL;
+  void *file_assemblies = NULL;
   void *assembly_operands = NULL;
   void *expressions = NULL;
   void *expression_children = NULL;
@@ -1760,6 +1762,8 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
                  &statement_children) == 0 ||
       copy_array(unit->assemblies, unit->assembly_count,
                  sizeof(*unit->assemblies), &assemblies) == 0 ||
+      copy_array(unit->file_assemblies, unit->file_assembly_count,
+                 sizeof(*unit->file_assemblies), &file_assemblies) == 0 ||
       copy_array(unit->assembly_operands, unit->assembly_operand_count,
                  sizeof(*unit->assembly_operands),
                  &assembly_operands) == 0 ||
@@ -1771,6 +1775,7 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
     free(expression_children);
     free(expressions);
     free(assembly_operands);
+    free(file_assemblies);
     free(assemblies);
     free(statement_children);
     free(statements);
@@ -1797,6 +1802,7 @@ static int take_unit_snapshot(const ctool_c_translation_unit_t *unit,
   snapshot->statements = (ctool_c_statement_t *)statements;
   snapshot->statement_children = (ctool_u32 *)statement_children;
   snapshot->assemblies = (ctool_c_assembly_t *)assemblies;
+  snapshot->file_assemblies = (ctool_c_assembly_t *)file_assemblies;
   snapshot->assembly_operands =
       (ctool_c_assembly_operand_t *)assembly_operands;
   snapshot->expressions = (ctool_c_expression_t *)expressions;
@@ -1851,6 +1857,11 @@ static int unit_snapshot_matches(const unit_snapshot_t *snapshot,
                   memcmp(snapshot->assemblies, unit->assemblies,
                          (size_t)unit->assembly_count *
                              sizeof(*unit->assemblies)) == 0) &&
+                 (unit->file_assembly_count == 0u ||
+                  memcmp(snapshot->file_assemblies,
+                         unit->file_assemblies,
+                         (size_t)unit->file_assembly_count *
+                             sizeof(*unit->file_assemblies)) == 0) &&
                  (unit->assembly_operand_count == 0u ||
                   memcmp(snapshot->assembly_operands,
                          unit->assembly_operands,
@@ -1873,6 +1884,7 @@ static void dispose_unit_snapshot(unit_snapshot_t *snapshot) {
   free(snapshot->expression_children);
   free(snapshot->expressions);
   free(snapshot->assembly_operands);
+  free(snapshot->file_assemblies);
   free(snapshot->assemblies);
   free(snapshot->statement_children);
   free(snapshot->statements);
@@ -27640,20 +27652,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 231u, 256u, 379u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 232u, 265u, 380u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 446163u, 412063u, 783947u, 139646u, 70368u, 80478u,
+      190304u, 447293u, 424243u, 788449u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 477724u, 445920u, 926264u, 157828u, 79348u, 134656u,
+      226668u, 478920u, 462568u, 931880u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x7fd888a7u, 0x8e274177u, 0xb971edf4u, 0x239f52c7u,
+      0x1d982ce6u, 0x242361d9u, 0xaf2efc96u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -36810,6 +36822,259 @@ cleanup:
   return 1;
 }
 
+static int validate_file_scope_math_object(
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0xf2u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u, 0xf2u, 0x0fu,
+      0x51u, 0xc0u, 0xc3u,
+      0xf3u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u, 0xf3u, 0x0fu,
+      0x51u, 0xc0u, 0xc3u,
+      0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xfeu, 0x83u, 0xecu,
+      0x08u, 0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u,
+      0x24u, 0x83u, 0xc4u, 0x08u, 0xc3u,
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xfeu, 0x83u, 0xecu,
+      0x04u, 0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u,
+      0x24u, 0x83u, 0xc4u, 0x04u, 0xc3u,
+      0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xffu, 0x83u, 0xecu,
+      0x08u, 0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u,
+      0x24u, 0x83u, 0xc4u, 0x08u, 0xc3u,
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xffu, 0x83u, 0xecu,
+      0x04u, 0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u,
+      0x24u, 0x83u, 0xc4u, 0x04u, 0xc3u,
+      0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xf2u, 0xddu, 0xd8u,
+      0x83u, 0xecu, 0x08u, 0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu,
+      0x10u, 0x04u, 0x24u, 0x83u, 0xc4u, 0x08u, 0xc3u,
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xf2u, 0xddu, 0xd8u,
+      0x83u, 0xecu, 0x04u, 0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu,
+      0x10u, 0x04u, 0x24u, 0x83u, 0xc4u, 0x04u, 0xc3u,
+      0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xe8u, 0xd9u, 0xf3u,
+      0x83u, 0xecu, 0x08u, 0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu,
+      0x10u, 0x04u, 0x24u, 0x83u, 0xc4u, 0x08u, 0xc3u,
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xe8u, 0xd9u, 0xf3u,
+      0x83u, 0xecu, 0x04u, 0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu,
+      0x10u, 0x04u, 0x24u, 0x83u, 0xc4u, 0x04u, 0xc3u,
+      0xddu, 0x44u, 0x24u, 0x04u, 0xddu, 0x44u, 0x24u, 0x0cu,
+      0xd9u, 0xf3u, 0x83u, 0xecu, 0x08u, 0xddu, 0x1cu, 0x24u,
+      0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u, 0x83u, 0xc4u, 0x08u,
+      0xc3u,
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0x44u, 0x24u, 0x08u,
+      0xd9u, 0xf3u, 0x83u, 0xecu, 0x04u, 0xd9u, 0x1cu, 0x24u,
+      0xf3u, 0x0fu, 0x10u, 0x04u, 0x24u, 0x83u, 0xc4u, 0x04u,
+      0xc3u};
+  static const char *const names[] = {
+      "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
+      "tan", "tanf", "atan", "atanf", "atan2", "atan2f"};
+  static const ctool_u32 offsets[] = {
+      0u, 11u, 22u, 43u, 64u, 85u,
+      106u, 129u, 152u, 175u, 198u, 223u};
+  static const ctool_u32 sizes[] = {
+      11u, 11u, 21u, 21u, 21u, 21u,
+      23u, 23u, 23u, 23u, 25u, 25u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text,
+             sizeof(expected_text)) != 0 ||
+      object->relocation_count != 0u) {
+    (void)fprintf(stderr, "file-scope math text differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(names) / sizeof(names[0])); index++) {
+    const ctool_elf32_symbol_t *symbol = find_symbol(object, names[index]);
+    if (symbol == NULL || symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+        symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        symbol->section_file_index != text->file_index ||
+        symbol->value != offsets[index] || symbol->size != sizes[index]) {
+      (void)fprintf(stderr, "file-scope math symbol %s differs\n",
+                    names[index]);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_file_scope_assembly_object(const char *host_root) {
+  static const char source[] =
+      "double sqrt(double); float sqrtf(float);\n"
+      "double sin(double); float sinf(float);\n"
+      "double cos(double); float cosf(float);\n"
+      "double tan(double); float tanf(float);\n"
+      "double atan(double); float atanf(float);\n"
+      "double atan2(double, double); float atan2f(float, float);\n"
+      "__asm__(\".text\\n\\t.globl sqrt\\n\\t.type  sqrt, @function\\n\"\n"
+      "\"sqrt:\\n\\tmovsd  4(%esp), %xmm0\\n\\t\"\n"
+      "\"sqrtsd %xmm0, %xmm0\\n\\tret\\n\\t.size  sqrt, .-sqrt\\n\");\n"
+      "__asm__(\".text\\n\\t.globl sqrtf\\n\\t.type  sqrtf, @function\\n\"\n"
+      "\"sqrtf:\\n\\tmovss  4(%esp), %xmm0\\n\\t\"\n"
+      "\"sqrtss %xmm0, %xmm0\\n\\tret\\n\\t.size  sqrtf, .-sqrtf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl sin\\n\\t.type  sin, @function\\n\"\n"
+      "\"sin:\\n\\tfldl   4(%esp)\\n\\tfsin\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\tmovsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\tret\\n\\t.size  sin, .-sin\\n\");\n"
+      "__asm__(\".text\\n\\t.globl sinf\\n\\t.type  sinf, @function\\n\"\n"
+      "\"sinf:\\n\\tflds   4(%esp)\\n\\tfsin\\n\\tsub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\tmovss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\tret\\n\\t.size  sinf, .-sinf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl cos\\n\\t.type  cos, @function\\n\"\n"
+      "\"cos:\\n\\tfldl   4(%esp)\\n\\tfcos\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\tmovsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\tret\\n\\t.size  cos, .-cos\\n\");\n"
+      "__asm__(\".text\\n\\t.globl cosf\\n\\t.type  cosf, @function\\n\"\n"
+      "\"cosf:\\n\\tflds   4(%esp)\\n\\tfcos\\n\\tsub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\tmovss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\tret\\n\\t.size  cosf, .-cosf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl tan\\n\\t.type  tan, @function\\n\"\n"
+      "\"tan:\\n\\tfldl   4(%esp)\\n\\tfptan\\n\\tfstp   %st(0)\\n\\t\"\n"
+      "\"sub    $8, %esp\\n\\tfstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  tan, .-tan\\n\");\n"
+      "__asm__(\".text\\n\\t.globl tanf\\n\\t.type  tanf, @function\\n\"\n"
+      "\"tanf:\\n\\tflds   4(%esp)\\n\\tfptan\\n\\tfstp   %st(0)\\n\\t\"\n"
+      "\"sub    $4, %esp\\n\\tfstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\tadd    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  tanf, .-tanf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl atan\\n\\t.type  atan, @function\\n\"\n"
+      "\"atan:\\n\\tfldl   4(%esp)\\n\\tfld1\\n\\tfpatan\\n\\t\"\n"
+      "\"sub    $8, %esp\\n\\tfstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  atan, .-atan\\n\");\n"
+      "__asm__(\".text\\n\\t.globl atanf\\n\\t.type  atanf, @function\\n\"\n"
+      "\"atanf:\\n\\tflds   4(%esp)\\n\\tfld1\\n\\tfpatan\\n\\t\"\n"
+      "\"sub    $4, %esp\\n\\tfstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\tadd    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  atanf, .-atanf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl atan2\\n\\t.type  atan2, @function\\n\"\n"
+      "\"atan2:\\n\\tfldl    4(%esp)\\n\\tfldl   12(%esp)\\n\\t\"\n"
+      "\"fpatan\\n\\tsub    $8, %esp\\n\\tfstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  atan2, .-atan2\\n\");\n"
+      "__asm__(\".text\\n\\t.globl atan2f\\n\\t.type  atan2f, @function\\n\"\n"
+      "\"atan2f:\\n\\tflds    4(%esp)\\n\\tflds    8(%esp)\\n\\t\"\n"
+      "\"fpatan\\n\\tsub    $4, %esp\\n\\tfstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\tadd    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  atan2f, .-atan2f\\n\");\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[12];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/file-scope-assembly-object.c",
+                         source, CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 0u ||
+      unit.file_assembly_count !=
+          (ctool_u32)(sizeof(mutant_assemblies) /
+                      sizeof(mutant_assemblies[0])) ||
+      unit.file_assemblies == NULL || unit.assembly_count != 0u ||
+      unit.assemblies != NULL || unit.assembly_operand_count != 0u ||
+      unit.assembly_operands != NULL ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "file-scope assembly object setup failed\n");
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK, "file-scope assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first file-scope assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat file-scope assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "file-scope assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/file-scope-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read file-scope assembly object") ||
+      !validate_file_scope_math_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_assemblies, unit.file_assemblies,
+               sizeof(mutant_assemblies));
+  mutant_assemblies[0].template_text =
+      ctool_string(".section .rodata\n.long 1\n.text\n");
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU file-scope assembly template is outside this i386 "
+          "emission slice",
+          "unsupported file-scope assembly template") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "file-scope assembly recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("file-scope-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_section_attributes_object(const char *host_root) {
   static const char source[] =
       "extern int imported_value;\n"
@@ -38094,6 +38359,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "file-scope-assembly") == 0) {
+    return run_file_scope_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);
   }
@@ -38200,7 +38468,7 @@ int main(int argc, char **argv) {
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"
-                "operand-free-assembly|"
+                "operand-free-assembly|file-scope-assembly|"
                 "structure-values|call-alignment|"
                 "compound-literals|old-style-empty-functions|"
                 "doom-implicit-functions|block-records|"

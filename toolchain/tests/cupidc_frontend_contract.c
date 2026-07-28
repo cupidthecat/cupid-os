@@ -7530,12 +7530,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 231u, 6794u,
-       62847u, 892u, 320u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 256u, 6420u,
-       55543u, 788u, 392u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 379u,
-       15330u, 101044u, 2305u, 1420u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 232u, 6818u,
+       63046u, 896u, 322u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 265u, 6634u,
+       57241u, 822u, 435u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 380u,
+       15415u, 101716u, 2313u, 1426u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -29232,6 +29232,160 @@ cleanup:
   return failed;
 }
 
+static int validate_file_scope_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      ".text\n"
+      ".globl sqrt\n"
+      ".type sqrt,@function\n"
+      "sqrt:\n"
+      "movsd 4(%esp), %xmm0\n"
+      "sqrtsd %xmm0, %xmm0\n"
+      "ret\n"
+      ".size sqrt, .-sqrt",
+      ".text\n"
+      ".globl sqrtf\n"
+      ".type sqrtf,@function\n"
+      "sqrtf:\n"
+      "movss 4(%esp), %xmm0\n"
+      "sqrtss %xmm0, %xmm0\n"
+      "ret\n"
+      ".size sqrtf, .-sqrtf"};
+  static const ctool_u32 lines[] = {2u, 12u};
+  ctool_u32 index;
+
+  if (unit == NULL || unit->file_assembly_count != ARRAY_COUNT(templates) ||
+      unit->file_assemblies == NULL || unit->assembly_count != 0u ||
+      unit->assemblies != NULL || unit->assembly_operand_count != 0u ||
+      unit->assembly_operands != NULL || unit->statement_count != 0u ||
+      unit->statements != NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->file_assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->file_assemblies[index];
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+        assembly->first_operand != 0u || assembly->output_count != 0u ||
+        assembly->input_count != 0u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/file-scope-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_file_scope_assembly(const char *host_root) {
+  static const char source[] =
+      "double sqrt(double value);\n"
+      "__asm__(\n"
+      "\".text\\n\"\n"
+      "\".globl sqrt\\n\"\n"
+      "\".type sqrt,@function\\n\"\n"
+      "\"sqrt:\\n\"\n"
+      "\"movsd 4(%esp), %xmm0\\n\"\n"
+      "\"sqrtsd %xmm0, %xmm0\\n\"\n"
+      "\"ret\\n\"\n"
+      "\".size sqrt, .-sqrt\");\n"
+      "float sqrtf(float value);\n"
+      "__asm(\n"
+      "\".text\\n\"\n"
+      "\".globl sqrtf\\n\"\n"
+      "\".type sqrtf,@function\\n\"\n"
+      "\"sqrtf:\\n\"\n"
+      "\"movss 4(%esp), %xmm0\\n\"\n"
+      "\"sqrtss %xmm0, %xmm0\\n\"\n"
+      "\"ret\\n\"\n"
+      "\".size sqrtf, .-sqrtf\");\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"extended file assembly",
+        "void target(void);\n__asm__(\"nop\" :);\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU file-scope assembly supports only the basic string form"},
+      {{"file asm goto",
+        "void target(void);\nasm goto(\"nop\");\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU asm goto is outside file-scope assembly"},
+      {{"file asm inline",
+        "void target(void);\nasm inline(\"nop\");\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU file-scope assembly modifier is outside this slice"},
+      {{"file asm volatile",
+        "void target(void);\nasm volatile(\"nop\");\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU file-scope assembly modifier is outside this slice"},
+      {{"blank file assembly",
+        "void target(void);\n__asm__(\" \\t\\n\");\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU file-scope assembly template requires an instruction"},
+      {{"file assembly embedded null",
+        "void target(void);\n__asm__(\"no\\0p\");\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly strings cannot contain a null byte"},
+      {{"file assembly missing template",
+        "void target(void);\n__asm__(target);\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU file-scope assembly requires a narrow string template"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"file assembly without GNU extensions",
+       "void target(void);\n__asm__(\"nop\");\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      0u, 0u, "GNU file-scope assembly requires GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "file-scope-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/file-scope-assembly.c", source, &unit) != 0 ||
+      validate_file_scope_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "file-scope-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/file-scope-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_file_scope_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/file-scope-assembly-disabled.c",
+          disabled_gnu_case.line, disabled_gnu_case.column,
+          disabled_gnu_case.message) != 0 ||
+      validate_file_scope_assembly_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("file-scope-assembly: ok\n");
+  }
+  return failed;
+}
+
 static int run_inline_assembly(const char *host_root) {
   static const char source[] =
       "typedef unsigned int u32;\n"
@@ -29630,6 +29784,7 @@ int main(int argc, char **argv) {
                    "pointer-output-assembly|"
                    "state-memory-assembly|"
                    "operand-free-assembly|"
+                   "file-scope-assembly|"
                    "block-bindings|"
                    "block-functions|"
                    "block-typedefs|"
@@ -29760,6 +29915,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "operand-free-assembly") == 0) {
     return run_operand_free_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "file-scope-assembly") == 0) {
+    return run_file_scope_assembly(argv[2]);
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);

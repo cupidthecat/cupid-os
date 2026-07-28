@@ -149,6 +149,10 @@ typedef struct {
 } ctool_c_ir_function_t;
 
 typedef struct {
+  /* Source-ordered unit effects. Each entry is an absolute index into the
+   * borrowed translation unit's file_assemblies table. */
+  const ctool_u32 *file_assemblies;
+  ctool_u32 file_assembly_count;
   const ctool_c_ir_function_t *functions;
   ctool_u32 function_count;
   const ctool_c_ir_instruction_t *instructions;

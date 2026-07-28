@@ -64,6 +64,16 @@ read/write pointer and count operands, write both results back, and restore
 ESI or EDI. INSW accepts one `memory` clobber. The 14-source handoff uses this
 path in production.
 
+Compiler-head CupidC now represents file-scope GNU basic assembly as a
+translation-unit effect rather than passing it to GAS. The exact Task 23
+fixture emits the twelve opening x87/SSE floating wrappers from `libm.c` in
+248 text bytes through Cupid's x86 encoder, with twelve global function
+symbols and no relocations.
+The complete unchanged source reaches its named function-body assembly
+operands at line 782. The checked seed and normal recipe still predate this
+work, so GCC or Clang continues to own the `libm.c` transform. No dependency
+or production ownership count changes.
+
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation
 keeps failed work durable, rotates backed-off retries fairly, and reuses

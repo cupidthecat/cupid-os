@@ -257,6 +257,7 @@ typedef struct {
   cfront_vector_t statements;
   cfront_vector_t statement_children;
   cfront_vector_t assemblies;
+  cfront_vector_t file_assemblies;
   cfront_vector_t assembly_operands;
   cfront_vector_t switch_contexts;
   cfront_vector_t switch_case_values;
@@ -566,6 +567,7 @@ static void cfront_close_scratch(cfront_context_t *context) {
   cfront_vector_close(&context->statement_children);
   cfront_vector_close(&context->statements);
   cfront_vector_close(&context->assembly_operands);
+  cfront_vector_close(&context->file_assemblies);
   cfront_vector_close(&context->assemblies);
   cfront_vector_close(&context->block_scope_marks);
   cfront_vector_close(&context->active_block_binding_indices);
@@ -633,6 +635,7 @@ static ctool_status_t cfront_open_scratch(cfront_context_t *context) {
   CFRONT_OPEN_VECTOR(statements, ctool_c_statement_t)
   CFRONT_OPEN_VECTOR(statement_children, ctool_u32)
   CFRONT_OPEN_VECTOR(assemblies, ctool_c_assembly_t)
+  CFRONT_OPEN_VECTOR(file_assemblies, ctool_c_assembly_t)
   CFRONT_OPEN_VECTOR(assembly_operands, ctool_c_assembly_operand_t)
   CFRONT_OPEN_VECTOR(switch_contexts, cfront_switch_context_t)
   CFRONT_OPEN_VECTOR(switch_case_values, ctool_u64)
@@ -14439,6 +14442,81 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
                                   : status;
 }
 
+static ctool_status_t cfront_parse_gnu_file_assembly(
+    cfront_context_t *context) {
+  const ctool_c_pp_token_t *keyword = cfront_advance(context);
+  ctool_c_assembly_t assembly;
+  ctool_bool has_instruction = CTOOL_FALSE;
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+
+  cfront_zero(&assembly, (ctool_u32)sizeof(assembly));
+  assembly.location = keyword->location;
+  assembly.physical_location = keyword->physical_location;
+  if (context->request->gnu_extensions == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword, "GNU file-scope assembly requires GNU extensions");
+  }
+  if (cfront_peek_is(context, "goto") == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context), "GNU asm goto is outside file-scope assembly");
+  }
+  if (cfront_peek_is(context, "inline") == CTOOL_TRUE ||
+      cfront_body_assembly_volatile(context) == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "GNU file-scope assembly modifier is outside this slice");
+  }
+  status = cfront_expected(context, "(");
+  if (status == CTOOL_OK) {
+    status = cfront_decode_assembly_string(
+        context, keyword,
+        "GNU file-scope assembly requires a narrow string template",
+        &assembly.template_text);
+  }
+  if (status == CTOOL_OK) {
+    for (index = 0u; index < assembly.template_text.size; index++) {
+      char character = assembly.template_text.data[index];
+      if (character != ' ' && character != '\t' &&
+          character != '\r' && character != '\n') {
+        has_instruction = CTOOL_TRUE;
+        break;
+      }
+    }
+    if (has_instruction == CTOOL_FALSE) {
+      status = cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+          keyword,
+          "GNU file-scope assembly template requires an instruction");
+    }
+  }
+  if (status == CTOOL_OK && cfront_peek_is(context, ":") == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        cfront_peek(context),
+        "GNU file-scope assembly supports only the basic string form");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ")");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    assembly.flags =
+        CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE;
+    status = cfront_vector_append(
+        &context->file_assemblies, &assembly, (ctool_u32 *)0);
+  }
+  return status == CTOOL_OK ? CTOOL_OK
+                            : ctool_job_diagnostic_count(context->job) == 0u
+                                  ? cfront_storage_failure(context, status)
+                                  : status;
+}
+
 static ctool_bool cfront_character_type_kind(ctool_c_type_kind_t kind);
 
 static ctool_status_t cfront_inspect_initializer_target(
@@ -19741,6 +19819,9 @@ static ctool_status_t cfront_parse_external_declaration(
   if (cfront_peek_is(context, "_Static_assert") == CTOOL_TRUE) {
     return cfront_parse_static_assert(context);
   }
+  if (cfront_body_starts_gnu_assembly(context) == CTOOL_TRUE) {
+    return cfront_parse_gnu_file_assembly(context);
+  }
   if (declaration_token != (const ctool_c_pp_token_t *)0 &&
       declaration_token->kind == CTOOL_C_PP_TOKEN_CUPID_EXE) {
     return cfront_emit_failure(
@@ -20620,6 +20701,7 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   ctool_c_statement_t *statements = (ctool_c_statement_t *)0;
   ctool_u32 *statement_children = (ctool_u32 *)0;
   ctool_c_assembly_t *assemblies = (ctool_c_assembly_t *)0;
+  ctool_c_assembly_t *file_assemblies = (ctool_c_assembly_t *)0;
   ctool_c_assembly_operand_t *assembly_operands =
       (ctool_c_assembly_operand_t *)0;
   ctool_c_expression_t *expressions = (ctool_c_expression_t *)0;
@@ -20717,6 +20799,12 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     status = cfront_alloc_array(context, context->assemblies.count,
                                 (ctool_u32)sizeof(*assemblies),
                                 (void **)&assemblies);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_alloc_array(
+        context, context->file_assemblies.count,
+        (ctool_u32)sizeof(*file_assemblies),
+        (void **)&file_assemblies);
   }
   if (status == CTOOL_OK) {
     status = cfront_alloc_array(context, context->assembly_operands.count,
@@ -21010,6 +21098,28 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       return cfront_storage_failure(context, status);
     }
   }
+  for (index = 0u; index < context->file_assemblies.count; index++) {
+    status = cfront_vector_get(
+        &context->file_assemblies, index, &file_assemblies[index]);
+    if (status == CTOOL_OK) {
+      status = cfront_copy_string_owned(
+          context, file_assemblies[index].template_text,
+          &file_assemblies[index].template_text);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &file_assemblies[index].location,
+          &file_assemblies[index].location);
+    }
+    if (status == CTOOL_OK) {
+      status = cfront_copy_location_owned(
+          context, &file_assemblies[index].physical_location,
+          &file_assemblies[index].physical_location);
+    }
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
   for (index = 0u; index < context->assembly_operands.count; index++) {
     status = cfront_vector_get(&context->assembly_operands, index,
                                &assembly_operands[index]);
@@ -21117,6 +21227,20 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context),
           "frozen inline assembly operands are not owned");
+    }
+  }
+  for (index = 0u; index < context->file_assemblies.count; index++) {
+    const ctool_c_assembly_t *assembly = &file_assemblies[index];
+    if (assembly->flags !=
+            (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+        assembly->template_text.data == (const char *)0 ||
+        assembly->template_text.size == 0u ||
+        assembly->first_operand != 0u ||
+        assembly->output_count != 0u || assembly->input_count != 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          cfront_peek(context),
+          "frozen file-scope assembly record is invalid");
     }
   }
   {
@@ -22739,6 +22863,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
   unit->statement_child_count = context->statement_children.count;
   unit->assemblies = assemblies;
   unit->assembly_count = context->assemblies.count;
+  unit->file_assemblies = file_assemblies;
+  unit->file_assembly_count = context->file_assemblies.count;
   unit->assembly_operands = assembly_operands;
   unit->assembly_operand_count = context->assembly_operands.count;
   unit->expressions = expressions;

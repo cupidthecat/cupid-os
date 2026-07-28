@@ -585,6 +585,10 @@ typedef struct {
    * one packed output-then-input operand slice; basic forms own no operands. */
   const ctool_c_assembly_t *assemblies;
   ctool_u32 assembly_count;
+  /* GNU basic assembly declarations at file scope are independent unit
+   * effects. They follow source order and never own statement operands. */
+  const ctool_c_assembly_t *file_assemblies;
+  ctool_u32 file_assembly_count;
   const ctool_c_assembly_operand_t *assembly_operands;
   ctool_u32 assembly_operand_count;
   const ctool_c_expression_t *expressions;
