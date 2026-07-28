@@ -134,11 +134,6 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
     ),
 )
 DOOM_TREE_FRONTIER_FAILURES = {
-    "/kernel/doom/src/am_map.c": (
-        "/kernel/doom/src/am_map.c:178:20: error CTB000007: "
-        "floating arithmetic static initialization is outside this "
-        "constant-data slice\n"
-    ),
     "/kernel/doom/src/i_system.c": (
         "/kernel/doom/src/i_system.c:172:9: error CTB000010: "
         "expression identifier is not declared\n"
@@ -944,6 +939,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "floating-conversions: ok\n")
+
+    def test_static_floating_arithmetic_emits_exact_constant_data(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-scalars", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-scalars: ok\n")
 
     def test_old_style_empty_functions_emit_deterministic_i386_objects(self):
         result = subprocess.run(
@@ -2159,7 +2164,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
-            self.assertEqual(len(results) - len(failures), 72)
+            self.assertEqual(len(results) - len(failures), 73)
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()

@@ -156,9 +156,11 @@ Compiler head now accepts ordered `-include` inputs through both the native
 and Cupid-built driver. That command can reproduce the complete audited
 Doom-tree preprocessing profile without editing vendored source. It also
 retains the sound driver's empty volatile memory barrier without emitting an
-instruction. Compiler head emits 72 of the 80 Doom-tree objects, while a
-checked frontier pins the eight remaining failures. The current checked seed
-predates both capabilities, so no Doom recipe moves until a later five-tool
+instruction. An integer-only IEEE evaluator folds the unchanged static
+fixed-point table in `kernel/doom/src/am_map.c` without a host floating
+operation. Compiler head emits 73 of the 80 Doom-tree objects, while a
+checked frontier pins the seven remaining failures. The current checked seed
+predates these capabilities, so no Doom recipe moves until a later five-tool
 promotion and the remaining language work are complete.
 
 The checked seed resolves the C11 inline declaration set in

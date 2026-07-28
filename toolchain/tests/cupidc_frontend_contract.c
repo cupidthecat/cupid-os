@@ -7509,8 +7509,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        59168u, 831u, 304u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 231u, 6078u,
        52515u, 743u, 371u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 340u,
-       13956u, 91872u, 2061u, 1350u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 361u,
+       14844u, 97116u, 2226u, 1392u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -8335,37 +8335,6 @@ static int run_static_initializers(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 28u, "string initializer requires a character array"},
-      {{"floating static arithmetic boundary",
-        "void bad(void) {\n"
-        "  static double value = 1.0 + 2.0;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 25u,
-       "static floating arithmetic is outside this constant-data slice"},
-      {{"floating arithmetic constant boundary",
-        "void bad(void) {\n"
-        "  static int value = 1.0;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 22u,
-       "floating arithmetic static initialization is outside this "
-       "constant-data slice"},
-      {{"parenthesized floating arithmetic boundary",
-        "void bad(void) {\n"
-        "  static int value = (1.0);\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 23u,
-       "floating arithmetic static initialization is outside this "
-       "constant-data slice"},
-      {{"unary floating arithmetic boundary",
-        "void bad(void) {\n"
-        "  static int value = +1.0;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 23u,
-       "floating arithmetic static initialization is outside this "
-       "constant-data slice"},
       {{"nonzero static pointer integer",
         "void bad(void) {\n"
         "  static int *pointer = 1;\n"
@@ -19058,10 +19027,6 @@ cleanup:
 }
 
 static int run_boundaries(const char *host_root) {
-  static const frontend_failure_case_t initializer = {
-      "floating object arithmetic boundary",
-      "double boundary_object = 1.0 + 2.0;\n", CTOOL_ERR_UNSUPPORTED,
-      CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION};
   static const frontend_failure_case_t body = {
       "block assertion boundary",
       "int boundary_function(void) { _Static_assert(1, \"\"); }\n",
@@ -19156,11 +19121,8 @@ static int run_boundaries(const char *host_root) {
       failed = 1;
     }
   }
-  if (expect_frontend_failure_at(&fixture, &initializer,
-                                 "/unsupported-initializer.c", 1u, 26u) !=
-          0 ||
-      expect_frontend_failure_at(&fixture, &body, "/unsupported-body.c", 1u,
-                                 31u) != 0 ||
+  if (expect_frontend_failure_at(&fixture, &body, "/unsupported-body.c", 1u,
+                                  31u) != 0 ||
       expect_frontend_failure_at(&fixture, &layout, "/layout-invalid.c", 1u,
                                  16u) != 0) {
     failed = 1;
@@ -24026,10 +23988,63 @@ static int initializer_is_static_floating(
              : 0;
 }
 
+static int initializer_is_static_integer_kind(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer,
+    ctool_c_type_kind_t expected_kind,
+    ctool_u64 expected_bits) {
+  return initializer != NULL &&
+                 initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+                 underlying_type_kind(unit, initializer->type, NULL) ==
+                     expected_kind &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == expected_bits &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == CTOOL_C_AST_NONE &&
+                 initializer->element_count == 0u
+             ? 1
+             : 0;
+}
+
+static int initializer_is_static_integer(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer,
+    ctool_u64 expected_bits) {
+  return initializer_is_static_integer_kind(
+      unit, initializer, CTOOL_C_TYPE_SIGNED_INT, expected_bits);
+}
+
 static int validate_static_floating_initializers(
     const ctool_c_translation_unit_t *unit) {
   static const ctool_u64 expected_table_bits[] = {
       0x3eb504f3ull, 0xbdc7c5c2ull, 0x00000000ull, 0x80000000ull};
+  static const ctool_u64 expected_fixed_bits[] = {
+      0xffff220dull, 0xffff8000ull, 0x0000ddf3ull,
+      0x00008000ull, 0xffff4ccdull, 0x0000b333ull};
+  static const ctool_u64 expected_arithmetic_bits[] = {
+      0x400e000000000000ull, 0x4012000000000000ull,
+      0x4010000000000000ull, 0x400c000000000000ull};
+  static const ctool_u64 expected_rounding_bits[] = {
+      0x4b800000ull, 0x4b800002ull};
+  static const ctool_u64 expected_truncation_bits[] = {
+      0x00000004ull, 0xfffffffdull};
+  static const ctool_u64 expected_edge_bits[] = {
+      0x3eaaaaabull, 0x006ce3eeull, 0x003671f7ull,
+      0x7f800000ull, 0x7f800000ull, 0x7fc00000ull,
+      0x80000000ull, 0x00000000ull, 0x80000000ull};
+  static const ctool_u64 expected_relation_bits[] = {
+      1ull, 1ull, 0ull, 1ull, 1ull, 0ull, 1ull, 1ull};
+  static const ctool_u64 expected_truth_bits[] = {
+      0ull, 0ull, 1ull, 1ull, 1ull, 1ull, 1ull, 0ull};
+  static const ctool_u64 expected_logic_bits[] = {
+      1ull, 1ull, 0ull, 1ull, 1ull, 1ull,
+      0ull, 1ull, 9ull, 11ull, 0xfffffffeull, 3ull, 3ull, 3ull,
+      1ull, 1ull, 1ull};
   const ctool_c_object_definition_t *table_definition =
       find_object_definition(unit, "static_float_table");
   const ctool_c_object_definition_t *double_definition =
@@ -24044,6 +24059,46 @@ static int validate_static_floating_initializers(
       find_object_definition(unit, "static_widened");
   const ctool_c_object_definition_t *tie_definition =
       find_object_definition(unit, "static_tie");
+  const ctool_c_object_definition_t *fixed_definition =
+      find_object_definition(unit, "static_doom_fixed");
+  const ctool_c_object_definition_t *arithmetic_definition =
+      find_object_definition(unit, "static_arithmetic");
+  const ctool_c_object_definition_t *rounding_definition =
+      find_object_definition(unit, "static_rounding");
+  const ctool_c_object_definition_t *truncation_definition =
+      find_object_definition(unit, "static_truncations");
+  const ctool_c_object_definition_t *edge_definition =
+      find_object_definition(unit, "static_edges");
+  const ctool_c_object_definition_t *assignment_definition =
+      find_object_definition(unit, "static_assignment_truncation");
+  const ctool_c_object_definition_t *integer_float_definition =
+      find_object_definition(unit, "static_integer_to_float");
+  const ctool_c_object_definition_t *integer_double_definition =
+      find_object_definition(unit, "static_integer_to_double");
+  const ctool_c_object_definition_t *relation_definition =
+      find_object_definition(unit, "static_relations");
+  const ctool_c_object_definition_t *chosen_definition =
+      find_object_definition(unit, "static_chosen");
+  const ctool_c_object_definition_t *truth_definition =
+      find_object_definition(unit, "static_truth");
+  const ctool_c_object_definition_t *logic_definition =
+      find_object_definition(unit, "static_logic");
+  const ctool_c_object_definition_t *unsigned_definition =
+      find_object_definition(unit, "static_unsigned_max");
+  const ctool_c_object_definition_t *unsigned_wide_definition =
+      find_object_definition(unit, "static_unsigned_wide");
+  const ctool_c_object_definition_t *signed_min_definition =
+      find_object_definition(unit, "static_signed_min");
+  const ctool_c_object_definition_t *wide_double_definition =
+      find_object_definition(unit, "static_wide_to_double");
+  const ctool_c_object_definition_t *unsigned_float_definition =
+      find_object_definition(unit, "static_unsigned_to_float");
+  const ctool_c_object_definition_t *wide_expression_definition =
+      find_object_definition(unit, "static_wide_expressions");
+  const ctool_c_object_definition_t *enum_expression_definition =
+      find_object_definition(unit, "static_enum_expressions");
+  const ctool_c_object_definition_t *enum_relation_definition =
+      find_object_definition(unit, "static_enum_relation");
   const ctool_c_block_binding_t *local_scalar_binding =
       find_block_binding(unit, "local_scalar");
   const ctool_c_block_binding_t *local_table_binding =
@@ -24076,6 +24131,86 @@ static int validate_static_floating_initializers(
       tie_definition == NULL
           ? NULL
           : initializer_node(unit, tie_definition->initializer);
+  const ctool_c_initializer_t *fixed_values =
+      fixed_definition == NULL
+          ? NULL
+          : initializer_node(unit, fixed_definition->initializer);
+  const ctool_c_initializer_t *arithmetic_values =
+      arithmetic_definition == NULL
+          ? NULL
+          : initializer_node(unit, arithmetic_definition->initializer);
+  const ctool_c_initializer_t *rounding_values =
+      rounding_definition == NULL
+          ? NULL
+          : initializer_node(unit, rounding_definition->initializer);
+  const ctool_c_initializer_t *truncation_values =
+      truncation_definition == NULL
+          ? NULL
+          : initializer_node(unit, truncation_definition->initializer);
+  const ctool_c_initializer_t *edge_values =
+      edge_definition == NULL
+          ? NULL
+          : initializer_node(unit, edge_definition->initializer);
+  const ctool_c_initializer_t *assignment_value =
+      assignment_definition == NULL
+          ? NULL
+          : initializer_node(unit, assignment_definition->initializer);
+  const ctool_c_initializer_t *integer_float_value =
+      integer_float_definition == NULL
+          ? NULL
+          : initializer_node(unit, integer_float_definition->initializer);
+  const ctool_c_initializer_t *integer_double_value =
+      integer_double_definition == NULL
+          ? NULL
+          : initializer_node(unit, integer_double_definition->initializer);
+  const ctool_c_initializer_t *relation_values =
+      relation_definition == NULL
+          ? NULL
+          : initializer_node(unit, relation_definition->initializer);
+  const ctool_c_initializer_t *chosen_value =
+      chosen_definition == NULL
+          ? NULL
+          : initializer_node(unit, chosen_definition->initializer);
+  const ctool_c_initializer_t *truth_values =
+      truth_definition == NULL
+          ? NULL
+          : initializer_node(unit, truth_definition->initializer);
+  const ctool_c_initializer_t *logic_values =
+      logic_definition == NULL
+          ? NULL
+          : initializer_node(unit, logic_definition->initializer);
+  const ctool_c_initializer_t *unsigned_value =
+      unsigned_definition == NULL
+          ? NULL
+          : initializer_node(unit, unsigned_definition->initializer);
+  const ctool_c_initializer_t *unsigned_wide_value =
+      unsigned_wide_definition == NULL
+          ? NULL
+          : initializer_node(unit, unsigned_wide_definition->initializer);
+  const ctool_c_initializer_t *signed_min_value =
+      signed_min_definition == NULL
+          ? NULL
+          : initializer_node(unit, signed_min_definition->initializer);
+  const ctool_c_initializer_t *wide_double_value =
+      wide_double_definition == NULL
+          ? NULL
+          : initializer_node(unit, wide_double_definition->initializer);
+  const ctool_c_initializer_t *unsigned_float_value =
+      unsigned_float_definition == NULL
+          ? NULL
+          : initializer_node(unit, unsigned_float_definition->initializer);
+  const ctool_c_initializer_t *wide_expression_values =
+      wide_expression_definition == NULL
+          ? NULL
+          : initializer_node(unit, wide_expression_definition->initializer);
+  const ctool_c_initializer_t *enum_expression_values =
+      enum_expression_definition == NULL
+          ? NULL
+          : initializer_node(unit, enum_expression_definition->initializer);
+  const ctool_c_initializer_t *enum_relation_value =
+      enum_relation_definition == NULL
+          ? NULL
+          : initializer_node(unit, enum_relation_definition->initializer);
   const ctool_c_initializer_t *local_scalar =
       local_scalar_binding == NULL
           ? NULL
@@ -24109,6 +24244,65 @@ static int validate_static_floating_initializers(
       !initializer_is_static_floating(
           unit, tie_value, CTOOL_C_TYPE_FLOAT,
           0x4b800000ull) ||
+      fixed_values == NULL ||
+      fixed_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      fixed_values->element_count != 6u ||
+      arithmetic_values == NULL ||
+      arithmetic_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      arithmetic_values->element_count != 4u ||
+      rounding_values == NULL ||
+      rounding_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      rounding_values->element_count != 2u ||
+      truncation_values == NULL ||
+      truncation_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      truncation_values->element_count != 2u ||
+      edge_values == NULL ||
+      edge_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      edge_values->element_count != 9u ||
+      !initializer_is_static_integer(
+          unit, assignment_value, 0xfffffffeull) ||
+      !initializer_is_static_floating(
+          unit, integer_float_value, CTOOL_C_TYPE_FLOAT,
+          0x4b800000ull) ||
+      !initializer_is_static_floating(
+          unit, integer_double_value, CTOOL_C_TYPE_DOUBLE,
+          0xc1dfffffffc00000ull) ||
+      relation_values == NULL ||
+      relation_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      relation_values->element_count != 8u ||
+      !initializer_is_static_floating(
+          unit, chosen_value, CTOOL_C_TYPE_DOUBLE,
+          0x4010000000000000ull) ||
+      truth_values == NULL ||
+      truth_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      truth_values->element_count != 8u ||
+      logic_values == NULL ||
+      logic_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      logic_values->element_count != 17u ||
+      !initializer_is_static_integer_kind(
+          unit, unsigned_value, CTOOL_C_TYPE_UNSIGNED_INT,
+          0xffffffffull) ||
+      !initializer_is_static_integer_kind(
+          unit, unsigned_wide_value,
+          CTOOL_C_TYPE_UNSIGNED_LONG_LONG,
+          0x8000000000000000ull) ||
+      !initializer_is_static_integer_kind(
+          unit, signed_min_value, CTOOL_C_TYPE_SIGNED_LONG_LONG,
+          0x8000000000000000ull) ||
+      !initializer_is_static_floating(
+          unit, wide_double_value, CTOOL_C_TYPE_DOUBLE,
+          0x4340000000000000ull) ||
+      !initializer_is_static_floating(
+          unit, unsigned_float_value, CTOOL_C_TYPE_FLOAT,
+          0x4f800000ull) ||
+      wide_expression_values == NULL ||
+      wide_expression_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      wide_expression_values->element_count != 3u ||
+      enum_expression_values == NULL ||
+      enum_expression_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      enum_expression_values->element_count != 2u ||
+      !initializer_is_static_integer(
+          unit, enum_relation_value, 1ull) ||
       local_scalar_binding == NULL ||
       local_scalar_binding->kind != CTOOL_C_BINDING_OBJECT ||
       local_scalar_binding->storage != CTOOL_C_STORAGE_STATIC ||
@@ -24131,6 +24325,84 @@ static int validate_static_floating_initializers(
           unit, initializer_list_child(unit, local_row, 1u, 1u),
           CTOOL_C_TYPE_FLOAT, 0x80000000ull)) {
     return 1;
+  }
+  for (index = 0u; index < 6u; index++) {
+    if (!initializer_is_static_integer(
+            unit,
+            initializer_list_child(unit, fixed_values, index, index),
+            expected_fixed_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 4u; index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, arithmetic_values, index, index),
+            CTOOL_C_TYPE_DOUBLE, expected_arithmetic_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 2u; index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, rounding_values, index, index),
+            CTOOL_C_TYPE_FLOAT, expected_rounding_bits[index]) ||
+        !initializer_is_static_integer(
+            unit,
+            initializer_list_child(unit, truncation_values, index, index),
+            expected_truncation_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 9u; index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, edge_values, index, index),
+            CTOOL_C_TYPE_FLOAT, expected_edge_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 8u; index++) {
+    if (!initializer_is_static_integer(
+            unit,
+            initializer_list_child(unit, relation_values, index, index),
+            expected_relation_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 8u; index++) {
+    if (!initializer_is_static_integer_kind(
+            unit,
+            initializer_list_child(unit, truth_values, index, index),
+            CTOOL_C_TYPE_BOOL, expected_truth_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 17u; index++) {
+    if (!initializer_is_static_integer(
+            unit,
+            initializer_list_child(unit, logic_values, index, index),
+            expected_logic_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 3u; index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(
+                unit, wide_expression_values, index, index),
+            CTOOL_C_TYPE_DOUBLE, 0x4340000000000000ull)) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 2u; index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(
+                unit, enum_expression_values, index, index),
+            CTOOL_C_TYPE_DOUBLE, 0x400c000000000000ull)) {
+      return 1;
+    }
   }
   for (row = 0u; row < 2u; row++) {
     const ctool_c_initializer_t *row_initializer =
@@ -24157,7 +24429,7 @@ static int validate_static_floating_initializers(
       floating_count++;
     }
   }
-  return floating_count == 13u ? 0 : 1;
+  return floating_count == 38u ? 0 : 1;
 }
 
 static int validate_floating_scalars(
@@ -24281,6 +24553,36 @@ static int validate_floating_scalars(
              : 1;
 }
 
+static char *build_static_floating_chain_source(ctool_u32 operation_count) {
+  size_t capacity =
+      64u + (size_t)operation_count * 8u;
+  size_t used = 0u;
+  char *source = (char *)malloc(capacity);
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(
+          source, capacity, &used,
+          "static double chain_value = 1.0") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < operation_count; index++) {
+    if (append_scale_text(
+            source, capacity, &used, " + 1.0") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, ";\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
 static int run_floating_scalars(const char *host_root) {
   static const char source[] =
       "static const float static_float_table[2][2] = "
@@ -24291,6 +24593,80 @@ static int run_floating_scalars(const char *host_root) {
       "static const float static_tie = 16777217.0;\n"
       "static float static_float_zero = 0.0f;\n"
       "static float static_float_negative_zero = -0.0f;\n"
+      "typedef int fixed_t;\n"
+      "typedef double static_double_t;\n"
+      "#define R 65536\n"
+      "static const fixed_t static_doom_fixed[6] = {\n"
+      "  (fixed_t)(-.867 * R), (fixed_t)(-.5 * R),\n"
+      "  (fixed_t)(.867 * R), (fixed_t)(.5 * R),\n"
+      "  (fixed_t)(-.7 * R), (fixed_t)(.7 * R)};\n"
+      "static const double static_arithmetic[4] = {\n"
+      "  1.5 + 2.25, 7.0 - 2.5, .5 * 8.0, 7.0 / 2.0};\n"
+      "static const float static_rounding[2] = {\n"
+      "  16777216.0f + 1.0f, 16777216.0f + 3.0f};\n"
+      "static const int static_truncations[2] = {\n"
+      "  (int)(3.75 + .5), (int)-3.75};\n"
+      "static const float static_edges[9] = {\n"
+      "  1.0f / 3.0f,\n"
+      "  1e-19f * 1e-19f,\n"
+      "  (1e-19f * 1e-19f) * .5f,\n"
+      "  (1e19f * 1e19f) * 4.0f,\n"
+      "  1.0f / 0.0f,\n"
+      "  0.0f / 0.0f,\n"
+      "  -0.0f * 2.0f,\n"
+      "  1.0f + -1.0f,\n"
+      "  -0.0f + -0.0f};\n"
+      "static const int static_assignment_truncation = -2.75;\n"
+      "static const float static_integer_to_float = 16777217;\n"
+      "static const double static_integer_to_double = -2147483647;\n"
+      "static const int static_relations[8] = {\n"
+      "  1.0 < 2.0,\n"
+      "  2.0 <= 2.0,\n"
+      "  3.0 > 4.0,\n"
+      "  3.0 >= 3.0,\n"
+      "  -0.0 == 0.0,\n"
+      "  (0.0f / 0.0f) == (0.0f / 0.0f),\n"
+      "  (0.0f / 0.0f) != (0.0f / 0.0f),\n"
+      "  -2.0 < -1.0};\n"
+      "static const double static_chosen =\n"
+      "  (1.0 < 2.0) ? 3.0 + 1.0 : 9.0;\n"
+      "static const _Bool static_truth[8] = {\n"
+      "  0.0, -0.0, 1.0, -2.0, 0.0f / 0.0f,\n"
+      "  (_Bool)0.5, (_Bool)(0.0f / 0.0f), (_Bool)-0.0};\n"
+      "static const int static_logic[17] = {\n"
+      "  !0.0,\n"
+      "  !-0.0,\n"
+      "  !1.0,\n"
+      "  1.0 && -2.0,\n"
+      "  0.0 || -3.0,\n"
+      "  (0.0f / 0.0f) && 1.0f,\n"
+      "  0.0 && (int)2147483648.0,\n"
+      "  1.0 || (int)2147483648.0,\n"
+      "  0.0 ? (int)2147483648.0 : 9,\n"
+      "  (0.0f / 0.0f) ? 11 : (int)2147483648.0,\n"
+      "  ~(int)1.75,\n"
+      "  (int)(double)3,\n"
+      "  (double)3,\n"
+      "  (static_double_t)3,\n"
+      "  (long long)1.0,\n"
+      "  (unsigned int)1.0,\n"
+      "  9007199254740993ull == 9007199254740992.0};\n"
+      "static const unsigned int static_unsigned_max = 4294967295.0;\n"
+      "static const unsigned long long static_unsigned_wide =\n"
+      "  9.223372036854776e18;\n"
+      "static const long long static_signed_min =\n"
+      "  -9.223372036854776e18;\n"
+      "static const double static_wide_to_double = 9007199254740993ull;\n"
+      "static const float static_unsigned_to_float = 4294967295u;\n"
+      "static const double static_wide_expressions[3] = {\n"
+      "  (double)9007199254740993ull,\n"
+      "  9007199254740993ull + 0.0,\n"
+      "  1 ? 9007199254740993ull : 0.0};\n"
+      "enum { STATIC_E = 3, STATIC_F = 5 };\n"
+      "static const double static_enum_expressions[2] = {\n"
+      "  STATIC_E + 0.5,\n"
+      "  STATIC_E ? 3.5 : 1ull};\n"
+      "static const int static_enum_relation = STATIC_F > 4.0;\n"
       "float literal_float(void) { return .5f; }\n"
       "double literal_zero(void) { return 0.0; }\n"
       "double literal_double(void) { return 0.1; }\n"
@@ -24304,7 +24680,9 @@ static int run_floating_scalars(const char *host_root) {
       "int cast_from_double(double value) { return (int)value; }\n"
       "double mixed_add(int left, double right) { return left + right; }\n"
       "float read_local_scalar(void) {\n"
-      "  static const float local_scalar = -0.09754516f;\n"
+      "  enum { LOCAL_E = 2 };\n"
+      "  static const float local_scalar =\n"
+      "      LOCAL_E ? -0.09754516f : 1.0f;\n"
       "  return local_scalar;\n"
       "}\n"
       "float read_local_table(unsigned int index) {\n"
@@ -24335,11 +24713,17 @@ static int run_floating_scalars(const char *host_root) {
        1u, 28u,
        "atomic static floating initialization is outside this "
        "constant-data slice"},
-      {{"static floating arithmetic",
-        "static float bad = 1.0f + 2.0f;\n",
+      {{"nonconstant static floating arithmetic",
+        "double input; static double bad = input + 1.0;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 20u,
-       "static floating arithmetic is outside this constant-data slice"},
+       1u, 35u,
+       "static scalar initializer requires constant arithmetic operands"},
+      {{"out-of-range static floating cast",
+        "static int bad = (int)2147483648.0;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 18u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
       {{"static long double initialization",
         "static long double bad = 1.0L;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -24363,6 +24747,8 @@ static int run_floating_scalars(const char *host_root) {
        "decimal floating constant exceeds the supported normal range"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  frontend_failure_case_t depth_case;
+  char *depth_source = NULL;
   ctool_u32 index;
   int failed = 1;
 
@@ -24372,6 +24758,14 @@ static int run_floating_scalars(const char *host_root) {
   }
   fixture.pp_request.gnu_extensions = CTOOL_TRUE;
   fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  depth_source = build_static_floating_chain_source(
+      CTOOL_C_PARSE_NESTING_LIMIT);
+  if (depth_source == NULL) {
+    (void)fprintf(
+        stderr,
+        "floating-scalars: depth source construction failed\n");
+    goto cleanup;
+  }
   if (parse_valid_fixture(&fixture, "/floating-scalars.c", source,
                           &unit) != 0 ||
       validate_floating_scalars(&unit) != 0) {
@@ -24398,9 +24792,22 @@ static int run_floating_scalars(const char *host_root) {
       goto cleanup;
     }
   }
+  depth_case.name = "flat static floating expression limit";
+  depth_case.source = depth_source;
+  depth_case.status = CTOOL_ERR_LIMIT;
+  depth_case.diagnostic_code = CTOOL_C_PARSE_DIAG_LIMIT;
+  if (expect_frontend_failure_at_message(
+          &fixture, &depth_case, "/floating-scalars-depth.c",
+          1u, 29u,
+          "static scalar expression exceeds the public nesting limit") !=
+          0 ||
+      validate_floating_scalars(&unit) != 0) {
+    goto cleanup;
+  }
   failed = 0;
 
 cleanup:
+  free(depth_source);
   if (finish_frontend_fixture(&fixture) != 0) {
     failed = 1;
   }

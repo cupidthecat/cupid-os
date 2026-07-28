@@ -26843,7 +26843,11 @@ static int validate_floating_scalar_ir(
   ctool_u32 local_table_binding =
       find_block_binding(unit, "local_table");
   ctool_u32 constants[5] = {0u, 0u, 0u, 0u, 0u};
-  ctool_u32 static_values[8] = {
+  ctool_u32 static_values[21] = {
+      0u, 0u, 0u, 0u, 0u, 0u, 0u,
+      0u, 0u, 0u, 0u, 0u, 0u, 0u,
+      0u, 0u, 0u, 0u, 0u, 0u, 0u};
+  ctool_u32 static_integer_values[8] = {
       0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 integer_to_floating[3] = {0u, 0u, 0u};
   ctool_u32 floating_to_integer[2] = {0u, 0u};
@@ -26933,6 +26937,35 @@ static int validate_floating_scalar_ir(
         initializer->type < unit->layout.type_count
             ? &unit->layout.types[initializer->type]
             : NULL;
+    if (initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+        layout != NULL && layout->size == 4u &&
+        initializer->expression == CTOOL_C_AST_NONE &&
+        initializer->string_bytes.data == NULL &&
+        initializer->string_bytes.size == 0u &&
+        initializer->address_kind == CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+        initializer->address_reference == CTOOL_C_AST_NONE &&
+        initializer->address_addend == 0 &&
+        initializer->first_element == CTOOL_C_AST_NONE &&
+        initializer->element_count == 0u) {
+      if (initializer->integer_bits == 0xffff220dull) {
+        static_integer_values[0]++;
+      } else if (initializer->integer_bits == 0xffff8000ull) {
+        static_integer_values[1]++;
+      } else if (initializer->integer_bits == 0x0000ddf3ull) {
+        static_integer_values[2]++;
+      } else if (initializer->integer_bits == 0x00008000ull) {
+        static_integer_values[3]++;
+      } else if (initializer->integer_bits == 0xffff4ccdull) {
+        static_integer_values[4]++;
+      } else if (initializer->integer_bits == 0x0000b333ull) {
+        static_integer_values[5]++;
+      } else if (initializer->integer_bits == 0x00000004ull) {
+        static_integer_values[6]++;
+      } else if (initializer->integer_bits == 0xfffffffdull) {
+        static_integer_values[7]++;
+      }
+      continue;
+    }
     if (initializer->kind != CTOOL_C_INITIALIZER_FLOATING) {
       continue;
     }
@@ -26972,6 +27005,51 @@ static int validate_floating_scalar_ir(
     } else if (layout->size == 4u &&
                initializer->integer_bits == 0x4b800000ull) {
       static_values[7]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0x400e000000000000ull) {
+      static_values[8]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0x4012000000000000ull) {
+      static_values[9]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0x4010000000000000ull) {
+      static_values[10]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0x400c000000000000ull) {
+      static_values[11]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x4b800002ull) {
+      static_values[12]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x3eaaaaabull) {
+      static_values[13]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x006ce3eeull) {
+      static_values[14]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x003671f7ull) {
+      static_values[15]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x7f800000ull) {
+      static_values[16]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x7fc00000ull) {
+      static_values[17]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0xc1dfffffffc00000ull) {
+      static_values[18]++;
+    } else if (layout->size == 8u &&
+               initializer->integer_bits ==
+                   0x4340000000000000ull) {
+      static_values[19]++;
+    } else if (layout->size == 4u &&
+               initializer->integer_bits == 0x4f800000ull) {
+      static_values[20]++;
     } else {
       return 0;
     }
@@ -27040,12 +27118,33 @@ static int validate_floating_scalar_ir(
     }
   }
   return static_values[0] == 2u && static_values[1] == 2u &&
-                 static_values[2] == 2u &&
-                 static_values[3] == 3u &&
+                 static_values[2] == 3u &&
+                 static_values[3] == 5u &&
                  static_values[4] == 1u &&
                  static_values[5] == 1u &&
                  static_values[6] == 1u &&
-                 static_values[7] == 1u &&
+                 static_values[7] == 3u &&
+                 static_values[8] == 1u &&
+                 static_values[9] == 1u &&
+                 static_values[10] == 2u &&
+                 static_values[11] == 3u &&
+                 static_values[12] == 1u &&
+                 static_values[13] == 1u &&
+                 static_values[14] == 1u &&
+                 static_values[15] == 1u &&
+                 static_values[16] == 2u &&
+                 static_values[17] == 1u &&
+                 static_values[18] == 1u &&
+                 static_values[19] == 4u &&
+                 static_values[20] == 1u &&
+                 static_integer_values[0] == 1u &&
+                 static_integer_values[1] == 1u &&
+                 static_integer_values[2] == 1u &&
+                 static_integer_values[3] == 1u &&
+                 static_integer_values[4] == 1u &&
+                 static_integer_values[5] == 1u &&
+                 static_integer_values[6] == 1u &&
+                 static_integer_values[7] == 1u &&
                  constants[0] == 1u && constants[1] == 1u &&
                  constants[2] == 1u && constants[3] == 1u &&
                  constants[4] == 1u &&
@@ -27070,6 +27169,80 @@ static int run_floating_scalars(const char *host_root) {
       "static const float static_tie = 16777217.0;\n"
       "static float static_float_zero = 0.0f;\n"
       "static float static_float_negative_zero = -0.0f;\n"
+      "typedef int fixed_t;\n"
+      "typedef double static_double_t;\n"
+      "#define R 65536\n"
+      "static const fixed_t static_doom_fixed[6] = {\n"
+      "  (fixed_t)(-.867 * R), (fixed_t)(-.5 * R),\n"
+      "  (fixed_t)(.867 * R), (fixed_t)(.5 * R),\n"
+      "  (fixed_t)(-.7 * R), (fixed_t)(.7 * R)};\n"
+      "static const double static_arithmetic[4] = {\n"
+      "  1.5 + 2.25, 7.0 - 2.5, .5 * 8.0, 7.0 / 2.0};\n"
+      "static const float static_rounding[2] = {\n"
+      "  16777216.0f + 1.0f, 16777216.0f + 3.0f};\n"
+      "static const int static_truncations[2] = {\n"
+      "  (int)(3.75 + .5), (int)-3.75};\n"
+      "static const float static_edges[9] = {\n"
+      "  1.0f / 3.0f,\n"
+      "  1e-19f * 1e-19f,\n"
+      "  (1e-19f * 1e-19f) * .5f,\n"
+      "  (1e19f * 1e19f) * 4.0f,\n"
+      "  1.0f / 0.0f,\n"
+      "  0.0f / 0.0f,\n"
+      "  -0.0f * 2.0f,\n"
+      "  1.0f + -1.0f,\n"
+      "  -0.0f + -0.0f};\n"
+      "static const int static_assignment_truncation = -2.75;\n"
+      "static const float static_integer_to_float = 16777217;\n"
+      "static const double static_integer_to_double = -2147483647;\n"
+      "static const int static_relations[8] = {\n"
+      "  1.0 < 2.0,\n"
+      "  2.0 <= 2.0,\n"
+      "  3.0 > 4.0,\n"
+      "  3.0 >= 3.0,\n"
+      "  -0.0 == 0.0,\n"
+      "  (0.0f / 0.0f) == (0.0f / 0.0f),\n"
+      "  (0.0f / 0.0f) != (0.0f / 0.0f),\n"
+      "  -2.0 < -1.0};\n"
+      "static const double static_chosen =\n"
+      "  (1.0 < 2.0) ? 3.0 + 1.0 : 9.0;\n"
+      "static const _Bool static_truth[8] = {\n"
+      "  0.0, -0.0, 1.0, -2.0, 0.0f / 0.0f,\n"
+      "  (_Bool)0.5, (_Bool)(0.0f / 0.0f), (_Bool)-0.0};\n"
+      "static const int static_logic[17] = {\n"
+      "  !0.0,\n"
+      "  !-0.0,\n"
+      "  !1.0,\n"
+      "  1.0 && -2.0,\n"
+      "  0.0 || -3.0,\n"
+      "  (0.0f / 0.0f) && 1.0f,\n"
+      "  0.0 && (int)2147483648.0,\n"
+      "  1.0 || (int)2147483648.0,\n"
+      "  0.0 ? (int)2147483648.0 : 9,\n"
+      "  (0.0f / 0.0f) ? 11 : (int)2147483648.0,\n"
+      "  ~(int)1.75,\n"
+      "  (int)(double)3,\n"
+      "  (double)3,\n"
+      "  (static_double_t)3,\n"
+      "  (long long)1.0,\n"
+      "  (unsigned int)1.0,\n"
+      "  9007199254740993ull == 9007199254740992.0};\n"
+      "static const unsigned int static_unsigned_max = 4294967295.0;\n"
+      "static const unsigned long long static_unsigned_wide =\n"
+      "  9.223372036854776e18;\n"
+      "static const long long static_signed_min =\n"
+      "  -9.223372036854776e18;\n"
+      "static const double static_wide_to_double = 9007199254740993ull;\n"
+      "static const float static_unsigned_to_float = 4294967295u;\n"
+      "static const double static_wide_expressions[3] = {\n"
+      "  (double)9007199254740993ull,\n"
+      "  9007199254740993ull + 0.0,\n"
+      "  1 ? 9007199254740993ull : 0.0};\n"
+      "enum { STATIC_E = 3, STATIC_F = 5 };\n"
+      "static const double static_enum_expressions[2] = {\n"
+      "  STATIC_E + 0.5,\n"
+      "  STATIC_E ? 3.5 : 1ull};\n"
+      "static const int static_enum_relation = STATIC_F > 4.0;\n"
       "float literal_float(void) { return .5f; }\n"
       "double literal_zero(void) { return 0.0; }\n"
       "double literal_tenth(void) { return 0.1; }\n"
@@ -27083,7 +27256,9 @@ static int run_floating_scalars(const char *host_root) {
       "int cast_from_double(double value) { return (int)value; }\n"
       "double mixed_add(int left, double right) { return left + right; }\n"
       "float read_local_scalar(void) {\n"
-      "  static const float local_scalar = -0.09754516f;\n"
+      "  enum { LOCAL_E = 2 };\n"
+      "  static const float local_scalar =\n"
+      "      LOCAL_E ? -0.09754516f : 1.0f;\n"
       "  return local_scalar;\n"
       "}\n"
       "float read_local_table(unsigned int index) {\n"

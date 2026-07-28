@@ -384,18 +384,21 @@ execute native x87 code.
 The public frontend publishes decimal float and double constants as exact IEEE
 binary32 or binary64 bits. It uses bounded integer arithmetic and rounds to
 nearest with ties to even, so the self-hosted compiler does not depend on a
-host floating library. Static-duration scalar and aggregate leaves keep
-target-width bits for decimal constants, parentheses, and unary signs. Direct
-float-to-double or double-to-float conversion happens before the bytes reach
-read-only, writable, or zero-filled storage. Signed zero stays distinct. The
-IR and SSE path cover represented
+host floating library. Static-duration scalar and aggregate leaves use a
+second integer-only IEEE evaluator for unary signs, addition, subtraction,
+multiplication, division, comparisons, casts, scalar truth, short-circuit
+logic, and conditional selection. Represented file and block enumerators and
+signed or unsigned integers through 64 bits can feed that evaluator. It rounds
+after each operation at the expression width, preserves signed zero, and
+writes the final bits to read-only, writable, or zero-filled storage. The IR
+and SSE path cover represented runtime
 integer-to-floating conversions, floating-to-signed conversions,
 floating-to-unsigned byte or word conversions, and mixed represented integer
 and floating arithmetic. Unsigned four-byte input uses an exact split across
-the sign boundary. Hexadecimal and subnormal literals, long double, conversion
-to unsigned four-byte integers or _Bool, direct floating truth, mixed integer
-and floating conditional arms, increment and decrement, static floating
-arithmetic, SIMD, floating atomic access, and over-aligned object emission
+the sign boundary. Hexadecimal floating literals, long double, runtime
+conversion to unsigned four-byte integers or _Bool, runtime floating truth,
+runtime mixed wide and floating arithmetic or conditional arms, increment and
+decrement, SIMD, floating atomic access, and over-aligned object emission
 remain unfinished. Matching or mixed-width floating conditional arms and the
 four arithmetic compound assignments keep their established x87 path.
 
@@ -489,11 +492,12 @@ under --root. Failed compilation preserves an existing output.
 
 Compiler head can reproduce the exact audited Doom-tree profile without
 editing its source. It keeps the sound driver's empty volatile memory barrier
-as a compiler ordering point and emits no instruction for it. Compiler head
-emits 72 of the 80 Doom-tree objects. A checked frontier pins the other eight
-failures at static initialization, IR, union initialization, an implicit call,
-and callback or pointer conversions. The checked seed does not carry these
-capabilities yet, so Doom build ownership is unchanged.
+as a compiler ordering point and emits no instruction for it. Its static
+scalar evaluator folds the unchanged fixed-point table in
+kernel/doom/src/am_map.c. Compiler head emits 73 of the 80 Doom-tree objects.
+A checked frontier pins the other seven failures at IR, union initialization,
+an implicit call, and callback or pointer conversions. The checked seed does
+not carry these capabilities yet, so Doom build ownership is unchanged.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
@@ -622,7 +626,9 @@ keep the exact point where each name becomes visible. Linear IR checks that
 source order before lowering runtime control flow, including case values, loop
 headers, variadic reads, aggregate designators, and compound literals.
 Represented uses become integer constants with no frame slot, symbol,
-relocation, or runtime declaration instruction. This covers the cursor
+relocation, or runtime declaration instruction. File and block enumerators can
+also feed static floating arithmetic, comparison, and conditional
+expressions. This covers the cursor
 constants in the production CupidC-built kernel/gui/desktop.cc object. The
 REPL limits in kernel/lang/shell.cc remain a separate active guard. Block
 declaration attributes, nested function definitions, nonempty identifier

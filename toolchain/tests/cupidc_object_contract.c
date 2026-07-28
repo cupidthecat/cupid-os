@@ -24898,7 +24898,86 @@ static int validate_static_floating_object_data(
       0xcdu, 0xccu, 0xccu, 0x3du,
       0x00u, 0x00u, 0x00u, 0xa0u,
       0x99u, 0x99u, 0xb9u, 0x3fu,
-      0x00u, 0x00u, 0x80u, 0x4bu};
+      0x00u, 0x00u, 0x80u, 0x4bu,
+      0x0du, 0x22u, 0xffu, 0xffu,
+      0x00u, 0x80u, 0xffu, 0xffu,
+      0xf3u, 0xddu, 0x00u, 0x00u,
+      0x00u, 0x80u, 0x00u, 0x00u,
+      0xcdu, 0x4cu, 0xffu, 0xffu,
+      0x33u, 0xb3u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x0eu, 0x40u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x12u, 0x40u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x10u, 0x40u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x0cu, 0x40u,
+      0x00u, 0x00u, 0x80u, 0x4bu,
+      0x02u, 0x00u, 0x80u, 0x4bu,
+      0x04u, 0x00u, 0x00u, 0x00u,
+      0xfdu, 0xffu, 0xffu, 0xffu,
+      0xabu, 0xaau, 0xaau, 0x3eu,
+      0xeeu, 0xe3u, 0x6cu, 0x00u,
+      0xf7u, 0x71u, 0x36u, 0x00u,
+      0x00u, 0x00u, 0x80u, 0x7fu,
+      0x00u, 0x00u, 0x80u, 0x7fu,
+      0x00u, 0x00u, 0xc0u, 0x7fu,
+      0x00u, 0x00u, 0x00u, 0x80u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x80u,
+      0xfeu, 0xffu, 0xffu, 0xffu,
+      0x00u, 0x00u, 0x80u, 0x4bu,
+      0x00u, 0x00u, 0xc0u, 0xffu,
+      0xffu, 0xffu, 0xdfu, 0xc1u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x10u, 0x40u,
+      0x00u, 0x00u, 0x01u, 0x01u,
+      0x01u, 0x01u, 0x01u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x09u, 0x00u, 0x00u, 0x00u,
+      0x0bu, 0x00u, 0x00u, 0x00u,
+      0xfeu, 0xffu, 0xffu, 0xffu,
+      0x03u, 0x00u, 0x00u, 0x00u,
+      0x03u, 0x00u, 0x00u, 0x00u,
+      0x03u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0xffu, 0xffu, 0xffu, 0xffu,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x80u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x80u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x40u, 0x43u,
+      0x00u, 0x00u, 0x80u, 0x4fu,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x40u, 0x43u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x40u, 0x43u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x40u, 0x43u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x0cu, 0x40u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x0cu, 0x40u,
+      0x01u, 0x00u, 0x00u, 0x00u};
   static const ctool_u8 expected_data[] = {
       0x00u, 0x00u, 0x00u, 0x80u};
   const ctool_elf32_section_t *rodata =
@@ -24919,6 +24998,46 @@ static int validate_static_floating_object_data(
       find_symbol(object, "static_float_zero");
   const ctool_elf32_symbol_t *negative_zero =
       find_symbol(object, "static_float_negative_zero");
+  const ctool_elf32_symbol_t *fixed_values =
+      find_symbol(object, "static_doom_fixed");
+  const ctool_elf32_symbol_t *arithmetic_values =
+      find_symbol(object, "static_arithmetic");
+  const ctool_elf32_symbol_t *rounding_values =
+      find_symbol(object, "static_rounding");
+  const ctool_elf32_symbol_t *truncation_values =
+      find_symbol(object, "static_truncations");
+  const ctool_elf32_symbol_t *edge_values =
+      find_symbol(object, "static_edges");
+  const ctool_elf32_symbol_t *assignment_value =
+      find_symbol(object, "static_assignment_truncation");
+  const ctool_elf32_symbol_t *integer_float_value =
+      find_symbol(object, "static_integer_to_float");
+  const ctool_elf32_symbol_t *integer_double_value =
+      find_symbol(object, "static_integer_to_double");
+  const ctool_elf32_symbol_t *relation_values =
+      find_symbol(object, "static_relations");
+  const ctool_elf32_symbol_t *chosen_value =
+      find_symbol(object, "static_chosen");
+  const ctool_elf32_symbol_t *truth_values =
+      find_symbol(object, "static_truth");
+  const ctool_elf32_symbol_t *logic_values =
+      find_symbol(object, "static_logic");
+  const ctool_elf32_symbol_t *unsigned_value =
+      find_symbol(object, "static_unsigned_max");
+  const ctool_elf32_symbol_t *unsigned_wide_value =
+      find_symbol(object, "static_unsigned_wide");
+  const ctool_elf32_symbol_t *signed_min_value =
+      find_symbol(object, "static_signed_min");
+  const ctool_elf32_symbol_t *wide_double_value =
+      find_symbol(object, "static_wide_to_double");
+  const ctool_elf32_symbol_t *unsigned_float_value =
+      find_symbol(object, "static_unsigned_to_float");
+  const ctool_elf32_symbol_t *wide_expression_values =
+      find_symbol(object, "static_wide_expressions");
+  const ctool_elf32_symbol_t *enum_expression_values =
+      find_symbol(object, "static_enum_expressions");
+  const ctool_elf32_symbol_t *enum_relation_value =
+      find_symbol(object, "static_enum_relation");
   if (rodata == NULL || data == NULL || bss == NULL ||
       rodata->contents.size !=
           (ctool_u32)sizeof(expected_rodata) ||
@@ -24955,7 +25074,87 @@ static int validate_static_floating_object_data(
       !symbol_matches(
           negative_zero, 7u, CTOOL_ELF32_BIND_LOCAL,
           CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
-          data->file_index, 0u, 4u)) {
+          data->file_index, 0u, 4u) ||
+      !symbol_matches(
+          fixed_values, 8u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 40u, 24u) ||
+      !symbol_matches(
+          arithmetic_values, 9u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 64u, 32u) ||
+      !symbol_matches(
+          rounding_values, 10u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 96u, 8u) ||
+      !symbol_matches(
+          truncation_values, 11u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 104u, 8u) ||
+      !symbol_matches(
+          edge_values, 12u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 112u, 36u) ||
+      !symbol_matches(
+          assignment_value, 13u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 148u, 4u) ||
+      !symbol_matches(
+          integer_float_value, 14u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 152u, 4u) ||
+      !symbol_matches(
+          integer_double_value, 15u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 156u, 8u) ||
+      !symbol_matches(
+          relation_values, 16u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 164u, 32u) ||
+      !symbol_matches(
+          chosen_value, 17u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 196u, 8u) ||
+      !symbol_matches(
+          truth_values, 18u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 204u, 8u) ||
+      !symbol_matches(
+          logic_values, 19u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 212u, 68u) ||
+      !symbol_matches(
+          unsigned_value, 20u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 280u, 4u) ||
+      !symbol_matches(
+          unsigned_wide_value, 21u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 284u, 8u) ||
+      !symbol_matches(
+          signed_min_value, 22u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 292u, 8u) ||
+      !symbol_matches(
+          wide_double_value, 23u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 300u, 8u) ||
+      !symbol_matches(
+          unsigned_float_value, 24u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 308u, 4u) ||
+      !symbol_matches(
+          wide_expression_values, 25u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 312u, 24u) ||
+      !symbol_matches(
+          enum_expression_values, 26u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 336u, 16u) ||
+      !symbol_matches(
+          enum_relation_value, 27u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 352u, 4u)) {
     (void)fprintf(
         stderr, "static floating object data differs\n");
     return 0;
@@ -25243,7 +25442,7 @@ static int validate_floating_scalar_object(
 }
 
 static int run_floating_scalar_object(const char *host_root) {
-  static const char source[] =
+  static const char source_prefix[] =
       "typedef unsigned int u32;\n"
       "typedef long double unsupported_long_double;\n"
       "typedef union { float value; u32 bits; } float_box;\n"
@@ -25256,6 +25455,81 @@ static int run_floating_scalar_object(const char *host_root) {
       "static const float static_tie = 16777217.0;\n"
       "static float static_float_zero = 0.0f;\n"
       "static float static_float_negative_zero = -0.0f;\n"
+      "typedef int fixed_t;\n"
+      "typedef double static_double_t;\n"
+      "#define R 65536\n"
+      "static const fixed_t static_doom_fixed[6] = {\n"
+      "  (fixed_t)(-.867 * R), (fixed_t)(-.5 * R),\n"
+      "  (fixed_t)(.867 * R), (fixed_t)(.5 * R),\n"
+      "  (fixed_t)(-.7 * R), (fixed_t)(.7 * R)};\n"
+      "static const double static_arithmetic[4] = {\n"
+      "  1.5 + 2.25, 7.0 - 2.5, .5 * 8.0, 7.0 / 2.0};\n"
+      "static const float static_rounding[2] = {\n"
+      "  16777216.0f + 1.0f, 16777216.0f + 3.0f};\n"
+      "static const int static_truncations[2] = {\n"
+      "  (int)(3.75 + .5), (int)-3.75};\n"
+      "static const float static_edges[9] = {\n"
+      "  1.0f / 3.0f,\n"
+      "  1e-19f * 1e-19f,\n"
+      "  (1e-19f * 1e-19f) * .5f,\n"
+      "  (1e19f * 1e19f) * 4.0f,\n"
+      "  1.0f / 0.0f,\n"
+      "  0.0f / 0.0f,\n"
+      "  -0.0f * 2.0f,\n"
+      "  1.0f + -1.0f,\n"
+      "  -0.0f + -0.0f};\n"
+      "static const int static_assignment_truncation = -2.75;\n"
+      "static const float static_integer_to_float = 16777217;\n"
+      "static const double static_integer_to_double = -2147483647;\n"
+      "static const int static_relations[8] = {\n"
+      "  1.0 < 2.0,\n"
+      "  2.0 <= 2.0,\n"
+      "  3.0 > 4.0,\n"
+      "  3.0 >= 3.0,\n"
+      "  -0.0 == 0.0,\n"
+      "  (0.0f / 0.0f) == (0.0f / 0.0f),\n"
+      "  (0.0f / 0.0f) != (0.0f / 0.0f),\n"
+      "  -2.0 < -1.0};\n"
+      "static const double static_chosen =\n"
+      "  (1.0 < 2.0) ? 3.0 + 1.0 : 9.0;\n"
+      "static const _Bool static_truth[8] = {\n"
+      "  0.0, -0.0, 1.0, -2.0, 0.0f / 0.0f,\n"
+      "  (_Bool)0.5, (_Bool)(0.0f / 0.0f), (_Bool)-0.0};\n"
+      "static const int static_logic[17] = {\n"
+      "  !0.0,\n"
+      "  !-0.0,\n"
+      "  !1.0,\n"
+      "  1.0 && -2.0,\n"
+      "  0.0 || -3.0,\n"
+      "  (0.0f / 0.0f) && 1.0f,\n"
+      "  0.0 && (int)2147483648.0,\n"
+      "  1.0 || (int)2147483648.0,\n"
+      "  0.0 ? (int)2147483648.0 : 9,\n"
+      "  (0.0f / 0.0f) ? 11 : (int)2147483648.0,\n"
+      "  ~(int)1.75,\n"
+      "  (int)(double)3,\n"
+      "  (double)3,\n"
+      "  (static_double_t)3,\n"
+      "  (long long)1.0,\n"
+      "  (unsigned int)1.0,\n"
+      "  9007199254740993ull == 9007199254740992.0};\n"
+      "static const unsigned int static_unsigned_max = 4294967295.0;\n"
+      "static const unsigned long long static_unsigned_wide =\n"
+      "  9.223372036854776e18;\n"
+      "static const long long static_signed_min =\n"
+      "  -9.223372036854776e18;\n"
+      "static const double static_wide_to_double = 9007199254740993ull;\n"
+      "static const float static_unsigned_to_float = 4294967295u;\n"
+      "static const double static_wide_expressions[3] = {\n"
+      "  (double)9007199254740993ull,\n"
+      "  9007199254740993ull + 0.0,\n"
+      "  1 ? 9007199254740993ull : 0.0};\n"
+      "enum { STATIC_E = 3, STATIC_F = 5 };\n"
+      "static const double static_enum_expressions[2] = {\n"
+      "  STATIC_E + 0.5,\n"
+      "  STATIC_E ? 3.5 : 1ull};\n"
+      "static const int static_enum_relation = STATIC_F > 4.0;\n";
+  static const char source_suffix[] =
       "u32 float_bits(float value) { float_box box; box.value = value; return box.bits; }\n"
       "float float_from_bits(u32 bits) { float_box box; box.bits = bits; return box.value; }\n"
       "u32 double_low(double value) { double_box box; box.value = value; return box.words.low; }\n"
@@ -25318,8 +25592,12 @@ static int run_floating_scalar_object(const char *host_root) {
   ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
+  char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
   int passed = 0;
 
+  (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
+               sizeof(source_suffix));
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&block_unit, 0, sizeof(block_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
@@ -26493,20 +26771,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 215u, 231u, 340u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 215u, 231u, 361u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 418728u, 388555u, 703331u, 139646u, 70368u, 80478u,
+      190304u, 418728u, 388555u, 753751u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 447480u, 418724u, 833612u, 157828u, 79348u, 134656u,
+      226668u, 447480u, 418724u, 888692u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x55cacfc2u, 0x7fbe98b9u, 0x84aa1422u, 0x239f52c7u,
+      0x55cacfc2u, 0x7fbe98b9u, 0x18bf8d8du, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;

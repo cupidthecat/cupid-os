@@ -12608,3 +12608,107 @@ name. No production object, image, ABI, runtime path, source owner, or host
 dependency changes here. An OS image rebuild would still exercise the older
 checked compiler, so no image or boot result is attributed to this step.
 ADR 0146 records the language, encoding, and ownership boundary.
+## 2026-07-27: evaluate static floating arithmetic with target semantics
+
+The unchanged Doom automap table builds fixed-point integers from decimal
+floating constants. CupidC could decode each literal exactly, but it could not
+evaluate the surrounding multiplication or cast in a static initializer.
+`kernel/doom/src/am_map.c` therefore stopped before Linear IR.
+
+Compiler head now has a typed static scalar evaluator for IEEE binary32 and
+binary64. The implementation uses integer arithmetic throughout. It performs
+unary signs, addition, subtraction, multiplication, division, all six
+comparisons, casts, assignment conversion, scalar truth, short-circuit logic,
+and conditional selection. Each operation rounds to nearest with ties to even
+at the C expression width. The evaluator preserves signed zero, rounds gradual
+underflow into subnormal results, produces infinity on overflow, and uses a
+canonical quiet NaN for invalid special arithmetic.
+
+Represented signed and unsigned integers through 64 bits can enter or leave
+that path. Integer-to-floating conversion rounds at the destination width.
+Floating-to-integer conversion truncates toward zero and rejects a value
+outside the target range. File, block, and function-parameter enumerators keep
+their selected integer type when they feed the evaluator. These wider
+conversion rules apply only to static initializers; runtime Linear IR and
+object emission keep their established boundaries.
+
+The parser selects the typed evaluator for a `float` or `double` target, or
+when the initializer token range contains a floating literal, a floating type
+spelling, or a visible floating typedef. Other integer initializers continue
+through the established constant-expression parser. The scratch expression
+tree is transactional and is discarded after the final constant-data record
+is published.
+
+Two broader approaches failed during implementation. Routing every integer
+initializer through the new evaluator regressed 20 Doom roots because the
+older parser still accepts integer forms outside this slice. The change was
+reverted in favor of typed routing. An unbounded recursive walk also let a
+32,768-leaf macro expression overflow the native stack. The final evaluator
+stops at 256 recursive calls, reports
+`static scalar expression exceeds the public nesting limit` at the first
+initializer token, restores its scratch state, and permits a later
+declaration in the same job to succeed.
+
+A strict review found two smaller gaps before the source was frozen. File and
+block enumerators were not initially recognized by the evaluator, and
+zero-location implicit conversions could hide the source location at the
+depth limit. Both cases now have positive contracts. The flat-expression
+limit case pins `/floating-scalars-depth.c:1:29`.
+
+The frozen Toolchain gates report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 360 | 14,794 | 96,718 | 2,219 | 1,389 |
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 360 | 750,826 | 885,004 | `BBA68532` |
+
+The differential oracle checked 500,000 deterministic operand pairs. Four
+million floating arithmetic results, six million comparisons, and four
+million signed or unsigned integer conversions matched Clang's SSE results
+bit for bit. The oracle compares invalid NaN results by classification because
+C does not specify their payload. A separate edge matrix covered every pair
+from 20 selected values. AddressSanitizer and UndefinedBehaviorSanitizer found
+no fault in the same evaluator harness.
+
+The complete frontend module passes 73 tests in 10.413 seconds. The complete
+Linear IR module passes 61 tests in 10.399 seconds. Focused frontend, IR,
+exact-data object, rollback, range-diagnostic, and Doom-frontier selectors
+also pass. The strict audit adds 18 accepted source probes and 11 intended
+rejections for static and runtime boundaries.
+
+The complete object module passes 76 tests in 717.013 seconds. Its longest
+case independently rebuilds the five static tools and their 19-object closure.
+A separate WSL run reaches the same complete stage-two to stage-three fixed
+point in 528.932 seconds. Every object and linked CupidC, CupidASM, CupidDis,
+CupidLD, and CupidObj image matches. The native Windows strict-Clang
+Toolchain build also completes with warnings treated as errors.
+
+Audit regeneration and `make check-bootstrap-audit` agree on 698 active
+sources, 253 feature requirements, 504 transforms, and 42 accounted
+unreachable files. The active-source digest is
+`9e381feb8b0a59b61e7f65ae8221457fc73d518df780f7a0884410bfe60bc915`.
+The generated JSON has SHA-256
+`f758faa2ff21f932f9bac9202fc808fc248714c68113f1b989429d9029876c35`.
+The first 62-case audit run found one stale lexical lock: the evaluator added
+real `sizeof` uses, moving the count from 4,624 to 4,704 across the same 168
+files. After that source-driven expectation and the public summary were
+updated, all 62 audit tests passed in 446.737 seconds.
+
+The exact Doom-tree profile now emits 73 of 80 objects. The new success is the
+unchanged `kernel/doom/src/am_map.c`. The remaining failures are:
+
+- `kernel/doom/src/i_system.c:172`: undeclared identifier
+- `kernel/doom/src/i_video.c:144`: invalid Linear IR unit
+- `kernel/doom/src/info.c:128`: positional union or class initializer list
+- `kernel/doom/src/m_menu.c:701`: call argument conversion
+- `kernel/doom/src/p_ceilng.c:316`: unsupported conversion
+- `kernel/doom/src/p_plats.c:274`: unsupported conversion
+- `kernel/doom/src/p_saveg.c:251`: assignment conversion
+
+The checked seed predates this evaluator. No production recipe changes owner,
+no `.c` file is renamed, and no host dependency is retired. An OS image or
+boot result is not attributed to this compiler-head-only change. ADR 0147
+records the target-semantics decision.
