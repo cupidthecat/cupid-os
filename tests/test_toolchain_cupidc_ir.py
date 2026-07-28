@@ -146,7 +146,7 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "atomic-builtins: ok\n")
 
-    def test_operand_free_inline_assembly_lowers_without_stack_operands(self):
+    def test_operand_free_and_empty_barrier_assembly_lowers(self):
         result = subprocess.run(
             [
                 str(self.contract_path),

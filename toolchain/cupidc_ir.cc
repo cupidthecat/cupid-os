@@ -567,8 +567,7 @@ static ctool_status_t cir_validate_assembly_slices(
     ctool_u32 matched_outputs = 0u;
     ctool_u32 operand_count;
     ctool_u32 operand_offset;
-    if (assembly->template_text.size == 0u ||
-        assembly->template_text.data == (const char *)0 ||
+    if (assembly->template_text.data == (const char *)0 ||
         (assembly->flags &
          ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
            CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) != 0u ||
@@ -579,7 +578,12 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     operand_count = assembly->output_count + assembly->input_count;
-    if ((assembly->output_count == 0u &&
+    if ((assembly->template_text.size == 0u &&
+         (assembly->flags !=
+              (CTOOL_C_ASSEMBLY_VOLATILE |
+               CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+          operand_count != 0u)) ||
+        (assembly->output_count == 0u &&
          (assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
         ((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u &&
          (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||

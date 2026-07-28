@@ -301,11 +301,12 @@ The shared preprocessor owns translation phases, macros, conditionals, reproduci
 
 The native and Cupid-built compiler drivers now pass repeatable `-include`
 inputs into that preprocessing operation in caller order. This lets compiler
-head reproduce the checked Doom-tree profile and emit 71 of its 80 objects.
-The remaining nine failures are pinned, but all 83 Doom and port roots still
-use host recipes. The checked seed also predates the new option. This driver
-work therefore changes neither the 90 host-built root objects nor the 142
-host C transforms.
+head reproduce the checked Doom-tree profile. CupidC now retains the sound
+driver's empty volatile memory barrier and emits 72 of the 80 objects. The
+remaining eight failures are pinned, but all 83 Doom and port roots still use
+host recipes. The checked seed predates both recent capabilities. This work
+therefore changes neither the 90 host-built root objects nor the 142 host C
+transforms.
 
 Eight-byte integer and exact floating object access use those existing storage identities. A wide `LOAD` copies eight bytes into its own frame snapshot, and `STORE` or `STORE_VALUE` copies from that snapshot to a selected object. This applies to file objects, block statics, fixed automatics, pointer dereferences, ordinary members, and indexed elements. A `float` load keeps its raw four bytes. A `double` load receives its own frame snapshot, and both types pass through compatible stores, fixed calls, discard, and returns. Same-kind floating arithmetic stores each changed result before the next IR instruction. Values already typed as `double` also pass through ellipsis and unprototyped calls, and `va_arg(double)` advances by eight bytes. The host compiler still builds the operation's native contracts and the 142 active host C transforms that have not moved.
 

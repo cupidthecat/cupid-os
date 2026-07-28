@@ -31708,15 +31708,15 @@ cleanup:
 static int operand_free_assembly_ir_matches(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
-  static const ctool_u32 expected_lines[] = {2u, 5u, 8u};
+  static const ctool_u32 expected_lines[] = {2u, 5u, 8u, 11u};
   ctool_u32 function_index;
   if (unit == NULL || ir == NULL ||
-      unit->assembly_count != 4u ||
+      unit->assembly_count != 5u ||
       unit->assembly_operand_count != 0u ||
       unit->assemblies == NULL ||
       unit->assembly_operands != NULL ||
-      ir->function_count != 4u ||
-      ir->instruction_count != 7u ||
+      ir->function_count != 5u ||
+      ir->instruction_count != 9u ||
       ir->functions == NULL || ir->instructions == NULL) {
     return 0;
   }
@@ -31730,7 +31730,7 @@ static int operand_free_assembly_ir_matches(
         function->instruction_count >
             ir->instruction_count - function->first_instruction ||
         function->instruction_count !=
-            (function_index < 3u ? 2u : 1u) ||
+            (function_index < 4u ? 2u : 1u) ||
         function->maximum_stack_depth != 0u) {
       return 0;
     }
@@ -31738,7 +31738,7 @@ static int operand_free_assembly_ir_matches(
       const ctool_c_ir_instruction_t *instruction =
           &ir->instructions[function->first_instruction + offset];
       if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
-        if (function_index >= 3u ||
+        if (function_index >= 4u ||
             !inline_assembly_instruction_matches(
                 instruction, function_index,
                 "/operand-free-assembly.c") ||
@@ -31748,7 +31748,7 @@ static int operand_free_assembly_ir_matches(
         assembly_count++;
       }
     }
-    if (assembly_count != (function_index < 3u ? 1u : 0u) ||
+    if (assembly_count != (function_index < 4u ? 1u : 0u) ||
         ir->instructions[function->first_instruction +
                          function->instruction_count - 1u].kind !=
             CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
@@ -31769,6 +31769,9 @@ static int run_operand_free_assembly(const char *host_root) {
       "void initialize_state(void) {\n"
       "  __asm __volatile__(\"cld; sfence; fninit\" : : : \"memory\");\n"
       "}\n"
+      "void compiler_barrier(void) {\n"
+      "  __asm__ volatile(\"\" : : : \"memory\");\n"
+      "}\n"
       "void dead_wait(void) {\n"
       "  return;\n"
       "  __asm__(\"nop\");\n"
@@ -31781,7 +31784,7 @@ static int run_operand_free_assembly(const char *host_root) {
   ctool_c_ir_unit_t first_ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
-  ctool_c_assembly_t assemblies[4];
+  ctool_c_assembly_t assemblies[5];
   ctool_u32 diagnostic_count;
   uint64_t ir_hash;
   uint64_t unit_hash;
@@ -31795,7 +31798,7 @@ static int run_operand_free_assembly(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/operand-free-assembly.c",
                          source, CTOOL_TRUE, &unit) ||
-      unit.assembly_count != 4u ||
+      unit.assembly_count != 5u ||
       unit.assembly_operand_count != 0u ||
       unit.assemblies == NULL ||
       unit.assembly_operands != NULL) {
@@ -31863,6 +31866,33 @@ static int run_operand_free_assembly(const char *host_root) {
     goto cleanup;
   }
   assemblies[2] = unit.assemblies[2];
+  assemblies[3].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "empty barrier without memory clobber")) {
+    goto cleanup;
+  }
+  assemblies[3] = unit.assemblies[3];
+  assemblies[3].flags |= CTOOL_C_ASSEMBLY_BASIC;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "empty barrier marked as basic assembly")) {
+    goto cleanup;
+  }
+  assemblies[3] = unit.assemblies[3];
+  assemblies[3].template_text.data = NULL;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "empty barrier missing template storage")) {
+    goto cleanup;
+  }
+  assemblies[3] = unit.assemblies[3];
   assemblies[0].first_operand = 1u;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,

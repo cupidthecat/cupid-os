@@ -223,6 +223,11 @@ volatile. Exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT sequences
 emit without a temporary frame slot or EBX traffic. The checked seed
 builds the normal e1000, desktop, socket, and TCP objects with this path.
 
+At compiler head, an exact empty volatile extended template with one memory
+clobber and no operands remains a compiler ordering point and emits no
+instruction bytes. This compiles the unchanged Doom sound driver. Its build
+recipe remains host-owned until a later seed promotion.
+
 Compiler head also represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
 pointer type, evaluates the destination once, and emits the absolute GS load
@@ -483,11 +488,12 @@ caller order. These path options accept native paths or absolute logical paths
 under --root. Failed compilation preserves an existing output.
 
 Compiler head can reproduce the exact audited Doom-tree profile without
-editing its source. It emits 71 of the 80 Doom-tree objects. A checked frontier
-pins the other nine failures at assembly, static initialization, IR, union
-initialization, an implicit call, and callback or pointer conversions. The
-checked seed does not carry this driver option yet, so Doom build ownership is
-unchanged.
+editing its source. It keeps the sound driver's empty volatile memory barrier
+as a compiler ordering point and emits no instruction for it. Compiler head
+emits 72 of the 80 Doom-tree objects. A checked frontier pins the other eight
+failures at static initialization, IR, union initialization, an implicit call,
+and callback or pointer conversions. The checked seed does not carry these
+capabilities yet, so Doom build ownership is unchanged.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,

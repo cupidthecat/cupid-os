@@ -13131,6 +13131,26 @@ static ctool_status_t cfront_validate_state_memory_assembly(
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_validate_empty_assembly_barrier(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  if (assembly->template_text.size != 0u) {
+    return CTOOL_OK;
+  }
+  if (assembly->flags ==
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) &&
+      assembly->output_count == 0u &&
+      assembly->input_count == 0u) {
+    return CTOOL_OK;
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED,
+      CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+      "GNU empty assembly barrier requires one memory clobber and no "
+      "operands");
+}
+
 static ctool_status_t cfront_parse_gnu_assembly_statement(
     cfront_context_t *context, ctool_u32 *statement_out) {
   const ctool_c_pp_token_t *keyword = cfront_advance(context);
@@ -13185,7 +13205,8 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
         break;
       }
     }
-    if (template_has_instruction == CTOOL_FALSE) {
+    if (template_has_instruction == CTOOL_FALSE &&
+        assembly.template_text.size != 0u) {
       status = cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           keyword,
@@ -13287,6 +13308,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_expected(context, ";");
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_empty_assembly_barrier(
+        context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_fxsave_assembly(

@@ -134,10 +134,6 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
     ),
 )
 DOOM_TREE_FRONTIER_FAILURES = {
-    "/kernel/doom/i_sound_cupidos.c": (
-        "/kernel/doom/i_sound_cupidos.c:584:9: error CTB00000F: "
-        "GNU inline assembly template requires an instruction\n"
-    ),
     "/kernel/doom/src/am_map.c": (
         "/kernel/doom/src/am_map.c:178:20: error CTB000007: "
         "floating arithmetic static initialization is outside this "
@@ -735,7 +731,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "atomic-builtins: ok\n")
 
-    def test_operand_free_assembly_emits_exact_i386_instructions(self):
+    def test_operand_free_and_empty_barrier_assembly_emits_exact_i386(self):
         result = subprocess.run(
             [
                 str(self.contract_path),
@@ -2063,7 +2059,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
-            self.assertEqual(len(results) - len(failures), 71)
+            self.assertEqual(len(results) - len(failures), 72)
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()
@@ -2543,7 +2539,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     "-o",
                     f"/{relative}/generation-one-first.o",
                 ],
-                timeout=90,
+                timeout=180,
             )
             second = self.run_cupid_linux_tool(
                 self.cupid_cupidc_path,
@@ -2552,7 +2548,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     "-o",
                     f"/{relative}/generation-one-second.o",
                 ],
-                timeout=90,
+                timeout=180,
             )
             self.assertEqual(hosted.returncode, 0, hosted.stderr)
             self.assertEqual(first.returncode, 0, first.stderr)

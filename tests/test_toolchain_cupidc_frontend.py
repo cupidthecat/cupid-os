@@ -130,7 +130,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_machine_state_memory_outputs_retain_exact_widths(self):
         self.run_contract("state-memory-assembly")
 
-    def test_operand_free_inline_assembly_retains_basic_and_extended_forms(self):
+    def test_operand_free_and_empty_barrier_assembly_is_represented(self):
         self.run_contract("operand-free-assembly")
 
     def test_block_declarations_publish_typed_lexical_bindings(self):
@@ -280,7 +280,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 19352)
+        self.assertEqual(feature["occurrences"], 19356)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -323,7 +323,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 32038)
+        self.assertEqual(features["c.control.if"]["occurrences"], 32047)
         self.assertEqual(len(features["c.control.if"]["files"]), 366)
         self.assertEqual(features["c.control.else"]["occurrences"], 4206)
         self.assertEqual(len(features["c.control.else"]["files"]), 277)
@@ -334,7 +334,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.goto"
         )
-        self.assertEqual(feature["occurrences"], 2125)
+        self.assertEqual(feature["occurrences"], 2130)
         self.assertEqual(len(feature["files"]), 26)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):

@@ -12139,3 +12139,75 @@ its `.c` names and host recipes. A later five-tool seed promotion must carry
 the option before a production wrapper can use it. The remaining Doom
 language boundaries, all 83 source transfers, object validation, and runtime
 proof remain under issue #29. ADR 0140 records the command and claim boundary.
+
+## 2026-07-28: retain the Doom sound compiler barrier
+
+The exact Doom-tree frontier next stopped at
+`kernel/doom/i_sound_cupidos.c:584`. The source uses
+`__asm__ volatile("" : : : "memory")` as a compiler ordering point. CupidC
+rejected every empty assembly template as an instruction error, even though
+this form is meant to emit no CPU instruction.
+
+The frontend now accepts an empty GNU extended template only when the
+statement is volatile, has one `memory` clobber, and owns no operands. The
+ordinary zero-output rule also makes the form without an explicit `volatile`
+keyword reach the same representation. Basic empty assembly, a missing memory
+clobber, operands, and whitespace-only templates retain focused failures.
+
+Linear IR keeps one `ASSEMBLY` instruction at the barrier's source position.
+Its validator rejects a basic flag, a missing memory flag, operands, or
+missing template storage. The i386 emitter validates the same frozen shape and
+writes zero bytes for that instruction. The object contract therefore sees
+only the barrier function's ordinary `55 89 E5 C9 C3` prologue and epilogue.
+Failed object jobs leave the input unit and output buffer unchanged, then the
+same job recovers.
+
+The first frontend, IR, and object contract runs each failed at the expected
+old boundary. After implementation, the four focused semantic and Doom
+frontier tests pass in 43.599 seconds. The complete frontend and IR modules
+pass all 130 tests in 29.012 seconds.
+
+The first complete object-module replay exposed the expected source-object
+inventory changes and a separate test-harness limit. The Cupid-built compiler
+needed more than the old 90-second allowance to compile the expanded
+`cupidc_ir.cc` on this Windows and WSL host. An isolated replay hit the same
+limit. The hosted compile keeps its 90-second cap, while the two Cupid-built
+reproduction runs now allow 180 seconds, matching the existing longer
+fixed-point budgets. The isolated three-object comparison passes in 186.567
+seconds. After the exact function counts, text sizes, object sizes, and
+fingerprints were refreshed, the complete object module passes all 74 tests
+in 778.706 seconds.
+
+The generated whole-profile gate still reads its request and sources from the
+checked active-build audit. It accounts for all 80 Doom-tree roots and now
+emits 72 valid ELF32 objects. The remaining eight first failures are:
+
+| Source | Current boundary |
+| --- | --- |
+| `kernel/doom/src/am_map.c` | Floating arithmetic in static initialization |
+| `kernel/doom/src/i_system.c` | Implicit `putchar` declaration |
+| `kernel/doom/src/i_video.c` | Invalid IR translation unit at the first color shift |
+| `kernel/doom/src/info.c` | Positional union active-member initialization |
+| `kernel/doom/src/m_menu.c` | Legacy callback argument conversion |
+| `kernel/doom/src/p_ceilng.c` | Null conversion for a union callback member |
+| `kernel/doom/src/p_plats.c` | Null conversion for a union callback member |
+| `kernel/doom/src/p_saveg.c` | Object-pointer to callback assignment |
+
+The audit mutation case passes in 152.385 seconds, and
+`make check-bootstrap-audit` passes. The inventory now records 2,130 lexical
+`goto` occurrences, 32,047 `if` occurrences, 19,356 `return` occurrences, and
+4,624 `sizeof` occurrences. It still contains 698 active sources, 253 feature
+IDs, 504 reachable transforms, and 42 accounted unreachable files. The active
+source digest is
+`b4aaa801e14be66156ee4cafc885c753528e3524c7b4961cc7ae636c7a071924`.
+The 1,523,897-byte JSON report has SHA-256
+`59736e487a8498d6fab976c8fb95f84a847e5e8b4d2c4c6caa14a99a392b2452`.
+
+This compiler-head change does not alter the checked seed or any normal OS
+object. No Doom recipe moves, so the sound source keeps its `.c` name. An OS
+image rebuild would exercise the older checked compiler and would not test
+this capability. The full object suite already includes the static five-tool
+fixed point, which proves that consecutive tool generations agree. ADR 0145
+records the language and claim boundary. Issue #29 remains open for the other
+eight compiler gaps, the three separate compatibility roots, production
+ownership, and runtime proof.

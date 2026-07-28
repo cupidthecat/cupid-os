@@ -7368,11 +7368,11 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 213u, 6424u,
-       58351u, 822u, 299u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 226u, 6008u,
-       51744u, 734u, 367u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 337u,
-       13802u, 90782u, 2049u, 1345u, 0u, 0u},
+       58366u, 822u, 299u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 226u, 6011u,
+       51766u, 734u, 367u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 338u,
+       13813u, 90858u, 2049u, 1345u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
        19251u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -26578,12 +26578,14 @@ cleanup:
 static int validate_operand_free_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
-      "pause; nop", "sti; hlt", "cld; sfence; fninit", "cli"};
+      "pause; nop", "sti; hlt", "cld; sfence; fninit", "cli", "", ""};
   static const ctool_u32 flags[] = {
       CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE,
       CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE,
       CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_MEMORY_CLOBBER,
-      CTOOL_C_ASSEMBLY_VOLATILE};
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_MEMORY_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_MEMORY_CLOBBER};
   ctool_u32 assembly_statement_count = 0u;
   ctool_u32 index;
 
@@ -26634,6 +26636,12 @@ static int run_operand_free_assembly(const char *host_root) {
       "}\n"
       "void disable_interrupts(void) {\n"
       "  asm(\"cli\" :);\n"
+      "}\n"
+      "void compiler_barrier(void) {\n"
+      "  __asm__ volatile(\"\" : : : \"memory\");\n"
+      "}\n"
+      "void implicit_compiler_barrier(void) {\n"
+      "  __asm__(\"\" : : : \"memory\");\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"blank operand-free template",
@@ -26650,6 +26658,26 @@ static int run_operand_free_assembly(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
        "GNU inline assembly input constraint is outside this slice"},
+      {{"empty template without memory clobber",
+        "void bad(void) { asm volatile(\"\" : : :); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU empty assembly barrier requires one memory clobber and no "
+       "operands"},
+      {{"empty basic template",
+        "void bad(void) { asm(\"\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU empty assembly barrier requires one memory clobber and no "
+       "operands"},
+      {{"empty template with an output",
+        "int bad(void) { int value; "
+        "asm volatile(\"\" : \"=r\"(value) : : \"memory\"); "
+        "return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU empty assembly barrier requires one memory clobber and no "
+       "operands"},
       {{"operand-free asm goto",
         "void bad(void) { asm goto(\"nop\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},

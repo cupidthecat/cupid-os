@@ -7218,7 +7218,6 @@ static ctool_status_t cemit_emit_assembly(
        ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) != 0u ||
       assembly->template_text.data == (const char *)0 ||
-      assembly->template_text.size == 0u ||
       assembly->first_operand > context->unit->assembly_operand_count ||
       cemit_add_overflows(
           assembly->output_count, assembly->input_count) == CTOOL_TRUE ||
@@ -7227,6 +7226,15 @@ static ctool_status_t cemit_emit_assembly(
     return CTOOL_ERR_INTERNAL;
   }
   operand_count = assembly->output_count + assembly->input_count;
+  if (assembly->template_text.size == 0u) {
+    return assembly->flags ==
+                   (CTOOL_C_ASSEMBLY_VOLATILE |
+                    CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) &&
+               operand_count == 0u &&
+               temporary_offset == 0u
+           ? CTOOL_OK
+           : CTOOL_ERR_INTERNAL;
+  }
   {
     cemit_privileged_assembly_kind_t privileged_kind =
         cemit_privileged_assembly_template_kind(

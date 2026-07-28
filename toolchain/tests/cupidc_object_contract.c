@@ -26493,20 +26493,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 213u, 226u, 337u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 213u, 226u, 338u, 81u, 37u, 59u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 412390u, 382891u, 695409u, 139612u, 70368u, 77981u,
+      190304u, 412533u, 383044u, 695974u, 139612u, 70368u, 77981u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 440492u, 412276u, 823000u, 157796u, 79348u, 131848u,
+      226668u, 440636u, 412428u, 823736u, 157796u, 79348u, 131848u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xb80b9364u, 0x06854a35u, 0xe4a9210du, 0x3f69aac3u,
+      0x49f91ee0u, 0x9cb9c08au, 0xc3637ff9u, 0x3f69aac3u,
       0x34558a49u, 0x20934327u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -32798,7 +32798,7 @@ static int validate_operand_free_assembly_function(
   ctool_u32 cursor = 0u;
   ctool_u32 found = 0u;
   if (job == NULL || text == NULL || symbol == NULL ||
-      expected == NULL || expected_count == 0u ||
+      (expected_count != 0u && expected == NULL) ||
       expected_bytes == NULL || expected_byte_count == 0u ||
       symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
       symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
@@ -32851,6 +32851,8 @@ static int validate_operand_free_assembly_object(
   static const ctool_u8 extended_bytes[] = {
       0x55u, 0x89u, 0xe5u, 0xfau, 0xfcu, 0x0fu,
       0xaeu, 0xf8u, 0xdbu, 0xe3u, 0xc9u, 0xc3u};
+  static const ctool_u8 barrier_bytes[] = {
+      0x55u, 0x89u, 0xe5u, 0xc9u, 0xc3u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   if (text == NULL || text->contents.data == NULL ||
       object->relocation_count != 0u ||
@@ -32865,7 +32867,11 @@ static int validate_operand_free_assembly_object(
           extended_expected,
           (ctool_u32)(sizeof(extended_expected) /
                       sizeof(extended_expected[0])),
-          extended_bytes, (ctool_u32)sizeof(extended_bytes))) {
+          extended_bytes, (ctool_u32)sizeof(extended_bytes)) ||
+      !validate_operand_free_assembly_function(
+          job, text, find_symbol(object, "memory_barrier"),
+          NULL, 0u, barrier_bytes,
+          (ctool_u32)sizeof(barrier_bytes))) {
     (void)fprintf(stderr, "operand-free assembly object differs\n");
     return 0;
   }
@@ -32880,6 +32886,9 @@ static int run_operand_free_assembly_object(const char *host_root) {
       "void extended_state(void) {\n"
       "  __asm__ volatile("
       "\"cli; cld; sfence; fninit\" : : : \"memory\");\n"
+      "}\n"
+      "void memory_barrier(void) {\n"
+      "  __asm__ volatile(\"\" : : : \"memory\");\n"
       "}\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -32889,7 +32898,7 @@ static int run_operand_free_assembly_object(const char *host_root) {
   ctool_buffer_t *failure = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t mutant;
-  ctool_c_assembly_t mutant_assemblies[2];
+  ctool_c_assembly_t mutant_assemblies[3];
   unit_snapshot_t snapshot;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
@@ -32902,12 +32911,16 @@ static int run_operand_free_assembly_object(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/operand-free-assembly-object.c",
                          source, CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 2u ||
-      unit.assembly_count != 2u ||
+      unit.function_definition_count != 3u ||
+      unit.assembly_count != 3u ||
       unit.assembly_operand_count != 0u ||
       unit.assembly_operands != NULL ||
       unit.assemblies == NULL ||
       unit.assemblies[1].flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      unit.assemblies[2].template_text.size != 0u ||
+      unit.assemblies[2].flags !=
           (CTOOL_C_ASSEMBLY_VOLATILE |
            CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
       !take_unit_snapshot(&unit, &snapshot)) {
@@ -32966,8 +32979,24 @@ static int run_operand_free_assembly_object(const char *host_root) {
           "GNU inline assembly template is outside this i386 emission slice",
           "operand-free assembly partial template failure") ||
       unit_snapshot_matches(&snapshot, &unit) == 0 ||
-      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
-      !expect_object_success_preserves_unit(
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_assemblies[0] = unit.assemblies[0];
+  mutant_assemblies[2].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "empty barrier missing memory clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_assemblies[2] = unit.assemblies[2];
+  if (!expect_object_success_preserves_unit(
           job, &unit, failure, "operand-free assembly recovery")) {
     goto cleanup;
   }
